@@ -64,29 +64,26 @@ struct ContentView: View {
         NavigationSplitView {
             List {
                 ForEach(tables) { table in
-                    Section(header: Text(table.title)) {
+                    Section(header: Text(table.title).fontWeight(.bold).font(.system(size: 16))) {
                         ForEach(table.rows) { row in
                             NavigationLink(destination: Text("Details for \(row.title)")) {
                                 HStack {
                                     // 图标和文本
                                     Image(row.iconName)  // 使用来自 Assets Catalog 的图标
                                         .resizable()
-                                        .scaledToFill()  // 保持原图的比例
                                         .frame(width: 36, height: 36)
-                                        .clipShape(Rectangle())
                                     VStack(alignment: .leading) { // 设置两行之间的间距为4像素
                                         // 第一行文本，离单元格顶部4像素
                                         Text(row.title)
-                                            .font(.system(size: 17))
+                                            .font(.system(size: 16))
                                         
                                         // 第二行文本，离单元格底部4像素
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
-                                                .font(.system(size: 13))
+                                                .font(.system(size: 12))
                                                 .foregroundColor(.gray)
                                         }
                                     }
-                                    .padding(.leading, 4)
                                     .frame(height: 36) // 确保单元格最大高度为 20
                                     
                                     Spacer() // 右侧空白，推动箭头到右边
