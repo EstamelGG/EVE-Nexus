@@ -81,10 +81,6 @@ struct ContentView: View {
                     title: "Database",
                     iconName: "items"
                 ),
-                //                TableRowNode(
-                //                    title: "Certificates",
-                //                    iconName: "checkmark.seal.fill"
-                //                ),
                 TableRowNode(
                     title: "Market",
                     iconName: "market"
@@ -130,21 +126,8 @@ struct ContentView: View {
                     title: "Industry Jobs",
                     iconName: "industry"
                 )
-                //                TableRowNode(
-                //                    title: "Planetaries",
-                //                    iconName: "planets"
-                //                )
             ]
         ),
-        //        TableNode(
-        //            title: "Fitting",
-        //            rows: [
-        //                TableRowNode(
-        //                    title: "Fitting Editor",
-        //                    iconName: "fitting"
-        //                )
-        //            ]
-        //        ),
         TableNode(
             title: "Other",
             rows: [
@@ -162,6 +145,8 @@ struct ContentView: View {
         )
     ]
     
+    // 使用 @AppStorage 来读取存储的主题设置
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
     func getDestination(for row: TableRowNode) -> some View {
         if let destination = row.destination {
             return destination
@@ -171,6 +156,7 @@ struct ContentView: View {
     }
     
     var body: some View {
+        // 根据 selectedTheme 的值应用主题
         NavigationSplitView {
             List {
                 ForEach(tables) { table in
@@ -208,6 +194,8 @@ struct ContentView: View {
         } detail: {
             Text("Select an item")
         }
+        // 设置颜色方案，根据 selectedTheme 的值动态调整
+        .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
     }
 }
 
