@@ -30,33 +30,36 @@ struct ContentView: View {
     @State private var tables: [TableNode] = [
         TableNode(title: "Character", rows: [
             TableRowNode(title: "Character Sheet", iconName: "charactersheet", note: "This is your character's information."),
-            TableRowNode(title: "Jump Clones", iconName: "arrow.up", note: "Manage your jump clones."),
-            TableRowNode(title: "Skills", iconName: "book.fill", note: "Skills progression."),
-            TableRowNode(title: "EVE Mail", iconName: "envelope.fill", note: ""),
-            TableRowNode(title: "Calendar", iconName: "calendar.circle.fill", note: ""),
-            TableRowNode(title: "Wealth", iconName: "dollarsign.circle.fill", note: "Track your wealth and assets."),
-            TableRowNode(title: "Loyalty Points", iconName: "star.lefthalf.fill", note: "")
+            TableRowNode(title: "Jump Clones", iconName: "jumpclones", note: "Manage your jump clones."),
+            TableRowNode(title: "Skills", iconName: "skills", note: "Skills progression."),
+            TableRowNode(title: "EVE Mail", iconName: "evemail", note: ""),
+            TableRowNode(title: "Calendar", iconName: "calendar", note: ""),
+            TableRowNode(title: "Wealth", iconName: "Folder", note: "your money"),
+            TableRowNode(title: "Loyalty Points", iconName: "lpstore", note: "")
         ]),
         TableNode(title: "Databases", rows: [
-            TableRowNode(title: "Database", iconName: "folder.fill", note: "Access to the main database."),
-            TableRowNode(title: "Certificates", iconName: "checkmark.seal.fill", note: ""),
-            TableRowNode(title: "Market", iconName: "cart.fill", note: ""),
-            TableRowNode(title: "NPC", iconName: "person.fill", note: ""),
-            TableRowNode(title: "Wormholes", iconName: "circle.fill", note: ""),
-            TableRowNode(title: "Incursions", iconName: "flame.fill", note: "")
+            TableRowNode(title: "Database", iconName: "items", note: ""),
+            //            TableRowNode(title: "Certificates", iconName: "checkmark.seal.fill", note: ""),
+            TableRowNode(title: "Market", iconName: "market", note: ""),
+            TableRowNode(title: "NPC", iconName: "criminal", note: ""),
+            TableRowNode(title: "Wormholes", iconName: "terminate", note: ""),
+            TableRowNode(title: "Incursions", iconName: "incursions", note: "")
         ]),
         TableNode(title: "Business", rows: [
-            TableRowNode(title: "Assets", iconName: "cube.fill", note: ""),
-            TableRowNode(title: "Market Orders", iconName: "arrow.up.arrow.down.circle.fill", note: ""),
-            TableRowNode(title: "Contracts", iconName: "pencil.and.outline", note: ""),
-            TableRowNode(title: "Wallet Transactions", iconName: "creditcard.fill", note: ""),
-            TableRowNode(title: "Wallet Journal", iconName: "note.text", note: ""),
-            TableRowNode(title: "Industry Jobs", iconName: "gearshape.fill", note: ""),
-            TableRowNode(title: "Planetaries", iconName: "earth.fill", note: "")
+            TableRowNode(title: "Assets", iconName: "assets", note: ""),
+            TableRowNode(title: "Market Orders", iconName: "marketdeliveries", note: ""),
+            TableRowNode(title: "Contracts", iconName: "contracts", note: ""),
+            TableRowNode(title: "Market Transactions", iconName: "journal", note: ""),
+            TableRowNode(title: "Wallet Journal", iconName: "wallet", note: ""),
+            TableRowNode(title: "Industry Jobs", iconName: "industry", note: "")
+//            TableRowNode(title: "Planetaries", iconName: "planets", note: "")
         ]),
+        //        TableNode(title: "Fitting", rows: [
+        //            TableRowNode(title: "Fitting Editor", iconName: "fitting", note: "")
+        //        ]),
         TableNode(title: "", rows: [
-            TableRowNode(title: "Setting", iconName: "cube.fill", note: ""),
-            TableRowNode(title: "About", iconName: "arrow.up.arrow.down.circle.fill", note: "")
+            TableRowNode(title: "Setting", iconName: "Settings", note: ""),
+            TableRowNode(title: "About", iconName: "info", note: "")
         ])
     ]
     
@@ -78,17 +81,15 @@ struct ContentView: View {
                                     VStack(alignment: .leading) { // 设置两行之间的间距为4像素
                                         // 第一行文本，离单元格顶部4像素
                                         Text(row.title)
-                                            .font(.system(size: 16))
-                                        
+                                            .font(.system(size: 15))
                                         // 第二行文本，离单元格底部4像素
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
-                                                .font(.system(size: 12))
+                                                .font(.system(size: 11))
                                                 .foregroundColor(.gray)
                                         }
                                     }
                                     .frame(height: 36) // 确保单元格最大高度为 20
-                                    
                                     Spacer() // 右侧空白，推动箭头到右边
                                 }
                                 .frame(height: 36) // 确保每个单元格最大高度为 20
