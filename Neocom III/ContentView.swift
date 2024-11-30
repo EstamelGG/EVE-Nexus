@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 // 定义树形结构的节点
 class TableRowNode: Identifiable, ObservableObject {
