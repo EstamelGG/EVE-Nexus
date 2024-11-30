@@ -9,23 +9,23 @@ import SwiftUI
 
 struct AboutView: View {
     @State private var aboutItems: [TableRowNode] = [
-        TableRowNode(title: "App Version", iconName: "info.circle", note: "1.0.0"),
-        TableRowNode(title: "License", iconName: "doc.text", note: "Open Source License"),
-        TableRowNode(title: "Contact Us", iconName: "envelope", note: "support@example.com")
+        TableRowNode(title: "App Version", iconName: "", note: "1.0.0"),
+        TableRowNode(title: "Database Version", iconName: "", note: "2024-11-30"),
+        TableRowNode(title: "License", iconName: "", note: "Open Source License"),
+        TableRowNode(title: "Contact Us", iconName: "", note: "support@example.com")
     ]
     
     var body: some View {
         NavigationView {
             List {
-                Section(header: Text("About").font(.title3).fontWeight(.bold)) {
+                Section(header: Text(
+                    NSLocalizedString("Main_About_Title", comment: "")
+                )) {
                     ForEach(aboutItems) { item in
                         HStack {
-                            Image(systemName: item.iconName) // SF Symbols 图标
-                                .resizable()
-                                .frame(width: 24, height: 24)
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading) {
                                 Text(item.title)
-                                    .font(.body)
+                                    .font(.system(size: 16))
                                 if let note = item.note, !note.isEmpty {
                                     Text(note)
                                         .font(.caption)
@@ -34,11 +34,13 @@ struct AboutView: View {
                             }
                             Spacer()
                         }
-                        .padding(.vertical, 8)
+                        .frame(height: 36)
                     }
                 }
             }
-            .navigationTitle("About")
+            .navigationTitle(Text(
+                NSLocalizedString("Main_About", comment: "")
+            ))
         }
     }
 }
