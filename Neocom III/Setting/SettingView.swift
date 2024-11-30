@@ -93,7 +93,7 @@ struct SettingView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
             .onAppear {
                 // 根据 selectedTheme 设置 currentIcon
                 updateCurrentIcon()

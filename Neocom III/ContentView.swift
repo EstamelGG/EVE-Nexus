@@ -38,51 +38,51 @@ class TableNode: Identifiable, ObservableObject {
 struct ContentView: View {
     @State private var tables: [TableNode] = [
         TableNode(
-            title: "Character",
+            title: NSLocalizedString("Main_Character", comment: ""),
             rows: [
                 TableRowNode(
-                    title: "Character Sheet",
+                    title: NSLocalizedString("Main_Character Sheet", comment: ""),
                     iconName: "charactersheet",
-                    note: "This is your character's information."
+                    note: NSLocalizedString("Main_Skills Ponits", comment: "")
                 ),
                 TableRowNode(
-                    title: "Jump Clones",
+                    title: NSLocalizedString("Main_Jump Clones", comment: ""),
                     iconName: "jumpclones",
-                    note: "Manage your jump clones."
+                    note: NSLocalizedString("Main_Jump Clones Available", comment: "")
                 ),
                 TableRowNode(
-                    title: "Skills",
+                    title: NSLocalizedString("Main_Skills", comment: ""),
                     iconName: "skills",
-                    note: "Skills progression."
+                    note: NSLocalizedString("Main_Skills Queue", comment: "")
                 ),
                 TableRowNode(
-                    title: "EVE Mail",
+                    title: NSLocalizedString("Main_EVE Mail", comment: ""),
                     iconName: "evemail"
                 ),
                 TableRowNode(
-                    title: "Calendar",
+                    title: NSLocalizedString("Main_Calendar", comment: ""),
                     iconName: "calendar"
                 ),
                 TableRowNode(
-                    title: "Wealth",
+                    title: NSLocalizedString("Main_Wealth", comment: ""),
                     iconName: "Folder",
-                    note: "your money"
+                    note: NSLocalizedString("Main_Wealth ISK", comment: "")
                 ),
                 TableRowNode(
-                    title: "Loyalty Points",
+                    title: NSLocalizedString("Main_Loyalty Points", comment: ""),
                     iconName: "lpstore"
                 )
             ]
         ),
         TableNode(
-            title: "Databases",
+            title: NSLocalizedString("Main_Databases", comment: ""),
             rows: [
                 TableRowNode(
-                    title: "Database",
+                    title: NSLocalizedString("Main_Database", comment: ""),
                     iconName: "items"
                 ),
                 TableRowNode(
-                    title: "Market",
+                    title: NSLocalizedString("Main_Market", comment: ""),
                     iconName: "market"
                 ),
                 TableRowNode(
@@ -90,54 +90,54 @@ struct ContentView: View {
                     iconName: "criminal"
                 ),
                 TableRowNode(
-                    title: "Wormholes",
+                    title: NSLocalizedString("Main_WH", comment: ""),
                     iconName: "terminate"
                 ),
                 TableRowNode(
-                    title: "Incursions",
+                    title: NSLocalizedString("Main_Incursions", comment: ""),
                     iconName: "incursions"
                 )
             ]
         ),
         TableNode(
-            title: "Business",
+            title: NSLocalizedString("Main_Business", comment: ""),
             rows: [
                 TableRowNode(
-                    title: "Assets",
+                    title: NSLocalizedString("Main_Assets", comment: ""),
                     iconName: "assets"
                 ),
                 TableRowNode(
-                    title: "Market Orders",
+                    title: NSLocalizedString("Main_Market Orders", comment: ""),
                     iconName: "marketdeliveries"
                 ),
                 TableRowNode(
-                    title: "Contracts",
+                    title: NSLocalizedString("Main_Contracts", comment: ""),
                     iconName: "contracts"
                 ),
                 TableRowNode(
-                    title: "Market Transactions",
+                    title: NSLocalizedString("Main_Market Transactions", comment: ""),
                     iconName: "journal"
                 ),
                 TableRowNode(
-                    title: "Wallet Journal",
+                    title: NSLocalizedString("Main_Wallet Journal", comment: ""),
                     iconName: "wallet"
                 ),
                 TableRowNode(
-                    title: "Industry Jobs",
+                    title: NSLocalizedString("Main_Industry Jobs", comment: ""),
                     iconName: "industry"
                 )
             ]
         ),
         TableNode(
-            title: "Other",
+            title: NSLocalizedString("Main_Other", comment: ""),
             rows: [
                 TableRowNode(
-                    title: "Setting",
+                    title: NSLocalizedString("Main_Setting", comment: ""),
                     iconName: "Settings",
                     destination: AnyView(SettingView())
                 ),
                 TableRowNode(
-                    title: "About",
+                    title: NSLocalizedString("Main_About", comment: ""),
                     iconName: "info",
                     destination: AnyView(AboutView())
                 )
@@ -189,7 +189,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("Neocom")
+            .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
         } detail: {
             Text("Select an item")
         }
