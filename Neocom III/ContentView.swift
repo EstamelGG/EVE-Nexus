@@ -14,11 +14,13 @@ class TableRowNode: Identifiable, ObservableObject {
     var title: String
     var iconName: String
     var note: String?
+    var destination: AnyView? // 增加目标视图属性
     
-    init(title: String, iconName: String, note: String? = nil) {
+    init(title: String, iconName: String, note: String? = nil, destination: AnyView? = nil) {
         self.title = title
         self.iconName = iconName
         self.note = note
+        self.destination = destination
     }
 }
 
@@ -148,15 +150,25 @@ struct ContentView: View {
             rows: [
                 TableRowNode(
                     title: "Setting",
-                    iconName: "Settings"
+                    iconName: "Settings",
+                    destination: AnyView(SettingView())
                 ),
                 TableRowNode(
                     title: "About",
-                    iconName: "info"
+                    iconName: "info",
+                    destination: AnyView(AboutView())
                 )
             ]
         )
     ]
+    
+    func getDestination(for row: TableRowNode) -> some View {
+        if let destination = row.destination {
+            return destination
+        } else {
+            return AnyView(Text("Details for \(row.title)"))
+        }
+    }
     
     var body: some View {
         NavigationSplitView {
@@ -167,12 +179,13 @@ struct ContentView: View {
                         .font(.system(size: 16))
                     ) {
                         ForEach(table.rows) { row in
-                            NavigationLink(destination: Text("Details for \(row.title)")) {
+                            NavigationLink(destination: getDestination(for: row)) {
                                 HStack {
                                     // 图标和文本
                                     Image(row.iconName)  // 使用来自 Assets Catalog 的图标
                                         .resizable()
                                         .frame(width: 36, height: 36)
+                                    
                                     VStack(alignment: .leading) { // 设置两行之间的间距为4像素
                                         // 第一行文本，离单元格顶部4像素
                                         Text(row.title)
@@ -193,6 +206,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .navigationTitle("Neocom")
         } detail: {
             Text("Select an item")
         }
