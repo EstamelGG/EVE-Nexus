@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  Neocom III
-//
-//  Created by GG Estamel on 2024/11/28.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -14,9 +7,9 @@ class TableRowNode: Identifiable, ObservableObject {
     var title: String
     var iconName: String
     var note: String?
-    var destination: AnyView? // 增加目标视图属性
+    var destination: Any? // 使用 Any 来表示目标视图，支持不同类型
     
-    init(title: String, iconName: String, note: String? = nil, destination: AnyView? = nil) {
+    init(title: String, iconName: String, note: String? = nil, destination: Any? = nil) {
         self.title = title
         self.iconName = iconName
         self.note = note
@@ -134,12 +127,12 @@ struct ContentView: View {
                 TableRowNode(
                     title: NSLocalizedString("Main_Setting", comment: ""),
                     iconName: "Settings",
-                    destination: AnyView(SettingView())
+                    destination: SettingView() // 将视图直接赋给 destination
                 ),
                 TableRowNode(
                     title: NSLocalizedString("Main_About", comment: ""),
                     iconName: "info",
-                    destination: AnyView(AboutView())
+                    destination: AboutView() // 将视图直接赋给 destination
                 )
             ]
         )
@@ -147,17 +140,22 @@ struct ContentView: View {
     
     // 使用 @AppStorage 来读取存储的主题设置
     @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
-    func getDestination(for row: TableRowNode) -> some View {
+    
+    func getDestination(for row: TableRowNode) -> AnyView {
         if let destination = row.destination {
-            return destination
-        } else {
-            return AnyView(Text("Details for \(row.title)"))
+            // 根据类型转换进行视图展示
+            if let destination = destination as? SettingView {
+                return AnyView(destination)
+            } else if let destination = destination as? AboutView {
+                return AnyView(destination)
+            }
         }
+        return AnyView(Text("Details for \(row.title)"))
     }
     
     var body: some View {
-        // 根据 selectedTheme 的值应用主题
-        NavigationSplitView {
+        NavigationStack {
+            // 根据 selectedTheme 的值应用主题
             List {
                 ForEach(tables) { table in
                     Section(header: Text(table.title)
@@ -190,10 +188,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
-        } detail: {
-            Text("Select an item")
         }
-        // 设置颜色方案，根据 selectedTheme 的值动态调整
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
     }
 }
