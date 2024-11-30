@@ -162,7 +162,7 @@ struct ContentView: View {
                 ForEach(tables) { table in
                     Section(header: Text(table.title)
                         .fontWeight(.bold)
-                        .font(.system(size: 16))
+                        .font(.system(size: 18))
                     ) {
                         ForEach(table.rows) { row in
                             NavigationLink(destination: getDestination(for: row)) {
@@ -170,18 +170,17 @@ struct ContentView: View {
                                     // 图标和文本
                                     Image(row.iconName)  // 使用来自 Assets Catalog 的图标
                                         .resizable()
-                                        .frame(width: 36, height: 36)
+                                        .frame(width: 38, height: 38)
                                     
                                     VStack(alignment: .leading) {
                                         Text(row.title)
-                                            .font(.system(size: 15))
+                                            .font(.system(size: 16))
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
-                                                .font(.system(size: 11))
+                                                .font(.system(size: 12))
                                                 .foregroundColor(.gray)
                                         }
                                     }
-                                    .frame(height: 36) // 确保单元格最大高度为 36
                                     Spacer() // 右侧空白，推动箭头到右边
                                 }
                                 .frame(height: 36) // 确保每个单元格最大高度为 36

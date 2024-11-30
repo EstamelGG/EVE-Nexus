@@ -48,7 +48,7 @@ struct SettingView: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text("Appearance")
-                                    .font(.system(size: 15))
+                                    .font(.system(size: 16))
                                 // 显示当前颜色模式的详细信息
                                 Text(getAppearanceDetail() ?? "Unknown")
                                     .font(.system(size: 12))
@@ -60,7 +60,7 @@ struct SettingView: View {
                                 .font(.system(size: 20))
                                 .frame(width: 36, height: 36)
                                 .foregroundColor(.blue)
-                        }
+                        }.frame(height: 36)
                     }
                 }
                 
@@ -71,15 +71,14 @@ struct SettingView: View {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(item.title)
-                                        .font(.system(size: 15))
+                                        .font(.system(size: 16))
                                         .fontWeight(.medium)
                                     if let detail = item.detail, !detail.isEmpty {
                                         Text(detail)
-                                            .font(.system(size: 11))
+                                            .font(.system(size: 12))
                                             .foregroundColor(.gray)
                                     }
                                 }
-                                .frame(height: 36)
                             }
                             .frame(height: 36)
                         }
