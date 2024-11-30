@@ -1,3 +1,10 @@
+//
+//  ContentView.swift
+//  Neocom III
+//
+//  Created by GG Estamel on 2024/11/28.
+//
+
 import SwiftUI
 import SwiftData
 
@@ -28,39 +35,127 @@ class TableNode: Identifiable, ObservableObject {
 
 struct ContentView: View {
     @State private var tables: [TableNode] = [
-        TableNode(title: "Character", rows: [
-            TableRowNode(title: "Character Sheet", iconName: "charactersheet", note: "This is your character's information."),
-            TableRowNode(title: "Jump Clones", iconName: "jumpclones", note: "Manage your jump clones."),
-            TableRowNode(title: "Skills", iconName: "skills", note: "Skills progression."),
-            TableRowNode(title: "EVE Mail", iconName: "evemail", note: ""),
-            TableRowNode(title: "Calendar", iconName: "calendar", note: ""),
-            TableRowNode(title: "Wealth", iconName: "Folder", note: "your money"),
-            TableRowNode(title: "Loyalty Points", iconName: "lpstore", note: "")
-        ]),
-        TableNode(title: "Databases", rows: [
-            TableRowNode(title: "Database", iconName: "items", note: ""),
-            //            TableRowNode(title: "Certificates", iconName: "checkmark.seal.fill", note: ""),
-            TableRowNode(title: "Market", iconName: "market", note: ""),
-            TableRowNode(title: "NPC", iconName: "criminal", note: ""),
-            TableRowNode(title: "Wormholes", iconName: "terminate", note: ""),
-            TableRowNode(title: "Incursions", iconName: "incursions", note: "")
-        ]),
-        TableNode(title: "Business", rows: [
-            TableRowNode(title: "Assets", iconName: "assets", note: ""),
-            TableRowNode(title: "Market Orders", iconName: "marketdeliveries", note: ""),
-            TableRowNode(title: "Contracts", iconName: "contracts", note: ""),
-            TableRowNode(title: "Market Transactions", iconName: "journal", note: ""),
-            TableRowNode(title: "Wallet Journal", iconName: "wallet", note: ""),
-            TableRowNode(title: "Industry Jobs", iconName: "industry", note: "")
-//            TableRowNode(title: "Planetaries", iconName: "planets", note: "")
-        ]),
-        //        TableNode(title: "Fitting", rows: [
-        //            TableRowNode(title: "Fitting Editor", iconName: "fitting", note: "")
-        //        ]),
-        TableNode(title: "", rows: [
-            TableRowNode(title: "Setting", iconName: "Settings", note: ""),
-            TableRowNode(title: "About", iconName: "info", note: "")
-        ])
+        TableNode(
+            title: "Character",
+            rows: [
+                TableRowNode(
+                    title: "Character Sheet",
+                    iconName: "charactersheet",
+                    note: "This is your character's information."
+                ),
+                TableRowNode(
+                    title: "Jump Clones",
+                    iconName: "jumpclones",
+                    note: "Manage your jump clones."
+                ),
+                TableRowNode(
+                    title: "Skills",
+                    iconName: "skills",
+                    note: "Skills progression."
+                ),
+                TableRowNode(
+                    title: "EVE Mail",
+                    iconName: "evemail"
+                ),
+                TableRowNode(
+                    title: "Calendar",
+                    iconName: "calendar"
+                ),
+                TableRowNode(
+                    title: "Wealth",
+                    iconName: "Folder",
+                    note: "your money"
+                ),
+                TableRowNode(
+                    title: "Loyalty Points",
+                    iconName: "lpstore"
+                )
+            ]
+        ),
+        TableNode(
+            title: "Databases",
+            rows: [
+                TableRowNode(
+                    title: "Database",
+                    iconName: "items"
+                ),
+                //                TableRowNode(
+                //                    title: "Certificates",
+                //                    iconName: "checkmark.seal.fill"
+                //                ),
+                TableRowNode(
+                    title: "Market",
+                    iconName: "market"
+                ),
+                TableRowNode(
+                    title: "NPC",
+                    iconName: "criminal"
+                ),
+                TableRowNode(
+                    title: "Wormholes",
+                    iconName: "terminate"
+                ),
+                TableRowNode(
+                    title: "Incursions",
+                    iconName: "incursions"
+                )
+            ]
+        ),
+        TableNode(
+            title: "Business",
+            rows: [
+                TableRowNode(
+                    title: "Assets",
+                    iconName: "assets"
+                ),
+                TableRowNode(
+                    title: "Market Orders",
+                    iconName: "marketdeliveries"
+                ),
+                TableRowNode(
+                    title: "Contracts",
+                    iconName: "contracts"
+                ),
+                TableRowNode(
+                    title: "Market Transactions",
+                    iconName: "journal"
+                ),
+                TableRowNode(
+                    title: "Wallet Journal",
+                    iconName: "wallet"
+                ),
+                TableRowNode(
+                    title: "Industry Jobs",
+                    iconName: "industry"
+                )
+                //                TableRowNode(
+                //                    title: "Planetaries",
+                //                    iconName: "planets"
+                //                )
+            ]
+        ),
+        //        TableNode(
+        //            title: "Fitting",
+        //            rows: [
+        //                TableRowNode(
+        //                    title: "Fitting Editor",
+        //                    iconName: "fitting"
+        //                )
+        //            ]
+        //        ),
+        TableNode(
+            title: "Other",
+            rows: [
+                TableRowNode(
+                    title: "Setting",
+                    iconName: "Settings"
+                ),
+                TableRowNode(
+                    title: "About",
+                    iconName: "info"
+                )
+            ]
+        )
     ]
     
     var body: some View {
