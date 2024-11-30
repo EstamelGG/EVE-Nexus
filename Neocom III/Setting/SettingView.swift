@@ -12,10 +12,12 @@ struct SettingItem: Identifiable {
     let id = UUID()
     let title: String
     let detail: String? // 可选的详细描述
+    var destination: AnyView? // 增加目标视图属性
     
-    init(title: String, detail: String? = nil) {
+    init(title: String, detail: String? = nil, destination: AnyView? = nil) {
         self.title = title
         self.detail = detail
+        self.destination = destination
     }
 }
 
@@ -28,7 +30,8 @@ class SettingsManager {
         return [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Language", comment: "Language section"),
-                detail: NSLocalizedString("Main_Setting_Select your language", comment: "")
+                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                destination: AnyView(SelectLanguageView())
             ),
             // 可以在此处添加更多的设置项
             // SettingItem(title: "Notifications", detail: "Enable notifications"),
@@ -38,44 +41,37 @@ class SettingsManager {
 
 // 设置视图页面
 struct SettingView: View {
-    // 使用 @AppStorage 存储主题模式，自动与 UserDefaults 绑定
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
-    @State private var currentIcon: String = "circle.lefthalf.fill" // 初始图标为跟随系统
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system"
+    @State private var currentIcon: String = "circle.lefthalf.fill"
     
     var body: some View {
         NavigationView {
             List {
                 // 设置项：外观
-                Section(header: Text(
-                    NSLocalizedString("Main_Setting_Appearance", comment: "")
-                )) {
+                Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))) {
                     Button(action: toggleAppearance) {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(
-                                    NSLocalizedString("Main_Setting_ColorMode", comment: "")
-                                ).font(.system(size: 16))
-                                // 显示当前颜色模式的详细信息
+                                Text(NSLocalizedString("Main_Setting_ColorMode", comment: ""))
+                                    .font(.system(size: 16))
                                 Text(getAppearanceDetail() ?? "Unknown")
                                     .font(.system(size: 12))
                                     .foregroundColor(.gray)
                             }
                             Spacer()
-                            // 图标，显示在右侧
                             Image(systemName: currentIcon)
                                 .font(.system(size: 20))
                                 .frame(width: 36, height: 36)
                                 .foregroundColor(.blue)
-                        }.frame(height: 36)
+                        }
+                        .frame(height: 36)
                     }
                 }
                 
-                // 获取动态生成的设置项
-                Section(header: Text(
-                    NSLocalizedString("Main_Setting_Others", comment: "")
-                )) {
+                // 设置项：其他
+                Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))) {
                     ForEach(SettingsManager.shared.getSettingItems()) { item in
-                        NavigationLink(destination: Text("\(item.title) Details")) {
+                        NavigationLink(destination: item.destination) { // 确保导航到正确的视图
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(item.title)
@@ -95,14 +91,12 @@ struct SettingView: View {
             }
             .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
             .onAppear {
-                // 根据 selectedTheme 设置 currentIcon
                 updateCurrentIcon()
             }
         }
     }
-
+    
     private func toggleAppearance() {
-        // 切换主题模式的操作
         switch selectedTheme {
         case "light":
             selectedTheme = "dark"
@@ -119,7 +113,6 @@ struct SettingView: View {
     }
 
     private func updateCurrentIcon() {
-        // 根据 selectedTheme 设置 currentIcon
         switch selectedTheme {
         case "light":
             currentIcon = "sun.max.fill"
@@ -131,16 +124,15 @@ struct SettingView: View {
             currentIcon = "circle.lefthalf.fill"
         }
     }
-    
-    // 获取当前颜色模式的详细信息
+
     private func getAppearanceDetail() -> String? {
         switch selectedTheme {
         case "light":
-            return  NSLocalizedString("Main_Setting_Light", comment: "")
+            return NSLocalizedString("Main_Setting_Light", comment: "")
         case "dark":
-            return  NSLocalizedString("Main_Setting_Dark", comment: "")
+            return NSLocalizedString("Main_Setting_Dark", comment: "")
         case "system":
-            return  NSLocalizedString("Main_Setting_Auto", comment: "")
+            return NSLocalizedString("Main_Setting_Auto", comment: "")
         default:
             return nil
         }
