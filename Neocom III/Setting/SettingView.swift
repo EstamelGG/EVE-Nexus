@@ -4,41 +4,27 @@
 //
 //  Created by GG Estamel on 2024/11/30.
 //
-
 import SwiftUI
 
 // 定义设置项
 struct SettingItem: Identifiable {
     let id = UUID()
     let title: String
-    let iconName: String
     let detail: String? // 可选的详细描述
+    
+    // 初始化时可以提供 detail 或使用默认值 nil
+    init(title: String, detail: String? = nil) {
+        self.title = title
+        self.detail = detail
+    }
 }
-
 
 struct SettingView: View {
     // 模拟数据
     private let settings: [SettingItem] = [
-        SettingItem(
-            title: "Account",
-            iconName: "person.fill",
-            detail: "Manage your account"
-        ),
-        SettingItem(
-            title: "Notifications",
-            iconName: "bell.fill",
-            detail: "Configure notifications"
-        ),
-        SettingItem(
-            title: "Privacy",
-            iconName: "lock.fill",
-            detail: "Privacy settings"
-        ),
-        SettingItem(
-            title: "General",
-            iconName: "gearshape.fill",
-            detail: "General application settings"
-        )
+        SettingItem(title: "Appearance"),
+        // SettingItem(title: "Notifications"),
+        SettingItem(title: "Language", detail: "Select your language")
     ]
     
     var body: some View {
@@ -47,27 +33,19 @@ struct SettingView: View {
                 ForEach(settings) { item in
                     NavigationLink(destination: Text("\(item.title) Details")) {
                         HStack {
-                            // 图标
-                            Image(systemName: item.iconName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
-                                .foregroundColor(.blue)
-                            
                             VStack(alignment: .leading) {
                                 // 标题
                                 Text(item.title)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: 15))
                                     .fontWeight(.medium)
                                 // 详细信息（如果有）
-                                if let detail = item.detail {
+                                if let detail = item.detail, !detail.isEmpty {
                                     Text(detail)
-                                        .font(.system(size: 12))
+                                        .font(.system(size: 11))
                                         .foregroundColor(.gray)
                                 }
-                            }
-                        }
-                        .padding(.vertical, 6) // 设置单元格垂直内边距
+                            }.frame(height: 36) // 确保单元格最大高度为 20
+                        }.frame(height: 36) // 确保单元格最大高度为 20
                     }
                 }
             }

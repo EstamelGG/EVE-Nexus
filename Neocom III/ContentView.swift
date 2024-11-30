@@ -186,21 +186,19 @@ struct ContentView: View {
                                         .resizable()
                                         .frame(width: 36, height: 36)
                                     
-                                    VStack(alignment: .leading) { // 设置两行之间的间距为4像素
-                                        // 第一行文本，离单元格顶部4像素
+                                    VStack(alignment: .leading) {
                                         Text(row.title)
                                             .font(.system(size: 15))
-                                        // 第二行文本，离单元格底部4像素
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
                                                 .font(.system(size: 11))
                                                 .foregroundColor(.gray)
                                         }
                                     }
-                                    .frame(height: 36) // 确保单元格最大高度为 20
+                                    .frame(height: 36) // 确保单元格最大高度为 36
                                     Spacer() // 右侧空白，推动箭头到右边
                                 }
-                                .frame(height: 36) // 确保每个单元格最大高度为 20
+                                .frame(height: 36) // 确保每个单元格最大高度为 36
                             }
                         }
                     }
