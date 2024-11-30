@@ -22,18 +22,7 @@ struct SettingItem: Identifiable {
 struct SettingView: View {
     // 使用 @AppStorage 存储主题模式，自动与 UserDefaults 绑定
     @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
-    @State private var currentIcon: String = "sun.max.fill" // 初始图标为白天模式
-
-    init() {
-        // 根据保存的主题模式设置初始图标
-        if selectedTheme == "light" {
-            _currentIcon = State(initialValue: "sun.max.fill")
-        } else if selectedTheme == "dark" {
-            _currentIcon = State(initialValue: "moon.fill")
-        } else {
-            _currentIcon = State(initialValue: "circle.lefthalf.fill")
-        }
-    }
+    @State private var currentIcon: String = "circle.lefthalf.fill" // 初始图标为跟随系统
     
     var body: some View {
         NavigationView {
@@ -74,6 +63,10 @@ struct SettingView: View {
             }
             .navigationTitle("Settings")
             .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
+            .onAppear {
+                // 根据 selectedTheme 设置 currentIcon
+                updateCurrentIcon()
+            }
         }
     }
 
@@ -91,6 +84,20 @@ struct SettingView: View {
             currentIcon = "sun.max.fill"
         default:
             break
+        }
+    }
+
+    private func updateCurrentIcon() {
+        // 根据 selectedTheme 设置 currentIcon
+        switch selectedTheme {
+        case "light":
+            currentIcon = "sun.max.fill"
+        case "dark":
+            currentIcon = "moon.fill"
+        case "system":
+            currentIcon = "circle.lefthalf.fill"
+        default:
+            currentIcon = "circle.lefthalf.fill"
         }
     }
 }
