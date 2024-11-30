@@ -32,27 +32,31 @@ struct ContentView: View {
             TableRowNode(title: "Character Sheet", iconName: "star.fill", note: "This is your character's information."),
             TableRowNode(title: "Jump Clones", iconName: "arrow.up.circle.fill", note: "Manage your jump clones."),
             TableRowNode(title: "Skills", iconName: "book.fill", note: "Skills progression."),
-            TableRowNode(title: "EVE Mail", iconName: "envelope.fill", note: "Check your messages."),
-            TableRowNode(title: "Calendar", iconName: "calendar.circle.fill", note: "View your upcoming events."),
+            TableRowNode(title: "EVE Mail", iconName: "envelope.fill", note: ""),
+            TableRowNode(title: "Calendar", iconName: "calendar.circle.fill", note: ""),
             TableRowNode(title: "Wealth", iconName: "dollarsign.circle.fill", note: "Track your wealth and assets."),
-            TableRowNode(title: "Loyalty Points", iconName: "star.lefthalf.fill", note: "View your loyalty points balance.")
+            TableRowNode(title: "Loyalty Points", iconName: "star.lefthalf.fill", note: "")
         ]),
         TableNode(title: "Databases", rows: [
             TableRowNode(title: "Database", iconName: "folder.fill", note: "Access to the main database."),
-            TableRowNode(title: "Certificates", iconName: "checkmark.seal.fill", note: "Manage your certificates."),
-            TableRowNode(title: "Market", iconName: "cart.fill", note: "Check the market."),
-            TableRowNode(title: "NPC", iconName: "person.fill", note: "View NPC data."),
-            TableRowNode(title: "Wormholes", iconName: "circle.fill", note: "Explore wormhole information."),
-            TableRowNode(title: "Incursions", iconName: "flame.fill", note: "Incursion details.")
+            TableRowNode(title: "Certificates", iconName: "checkmark.seal.fill", note: ""),
+            TableRowNode(title: "Market", iconName: "cart.fill", note: ""),
+            TableRowNode(title: "NPC", iconName: "person.fill", note: ""),
+            TableRowNode(title: "Wormholes", iconName: "circle.fill", note: ""),
+            TableRowNode(title: "Incursions", iconName: "flame.fill", note: "")
         ]),
         TableNode(title: "Business", rows: [
-            TableRowNode(title: "Assets", iconName: "cube.fill", note: "View your assets."),
-            TableRowNode(title: "Market Orders", iconName: "arrow.up.arrow.down.circle.fill", note: "Manage market orders."),
-            TableRowNode(title: "Contracts", iconName: "pencil.and.outline", note: "View and create contracts."),
-            TableRowNode(title: "Wallet Transactions", iconName: "creditcard.fill", note: "View wallet transactions."),
-            TableRowNode(title: "Wallet Journal", iconName: "note.text", note: "Track your wallet's journal."),
-            TableRowNode(title: "Industry Jobs", iconName: "gearshape.fill", note: "View industry jobs."),
-            TableRowNode(title: "Planetaries", iconName: "earth.fill", note: "Manage planetary operations.")
+            TableRowNode(title: "Assets", iconName: "cube.fill", note: ""),
+            TableRowNode(title: "Market Orders", iconName: "arrow.up.arrow.down.circle.fill", note: ""),
+            TableRowNode(title: "Contracts", iconName: "pencil.and.outline", note: ""),
+            TableRowNode(title: "Wallet Transactions", iconName: "creditcard.fill", note: ""),
+            TableRowNode(title: "Wallet Journal", iconName: "note.text", note: ""),
+            TableRowNode(title: "Industry Jobs", iconName: "gearshape.fill", note: ""),
+            TableRowNode(title: "Planetaries", iconName: "earth.fill", note: "")
+        ]),
+        TableNode(title: "", rows: [
+            TableRowNode(title: "Setting", iconName: "cube.fill", note: ""),
+            TableRowNode(title: "About", iconName: "arrow.up.arrow.down.circle.fill", note: "")
         ])
     ]
     
@@ -66,17 +70,19 @@ struct ContentView: View {
                                 HStack {
                                     // 图标和文本
                                     Image(systemName: row.iconName)
-                                        .frame(width: 24, height: 24)
+                                        .frame(width: 28, height: 28)
 
                                     VStack(alignment: .leading) {
                                         Text(row.title)
-                                            .font(.body)
+                                            .font(.system(size: 17))
 
-                                        if let note = row.note {
+                                        if let note = row.note, !note.isEmpty {
                                             Text(note)
-                                                .font(.subheadline)
+                                                .font(.system(size: 13)) // 设置自定义字体大小
                                                 .foregroundColor(.gray)
                                         }
+
+
                                     }
                                     .padding(.leading, 8)
 
