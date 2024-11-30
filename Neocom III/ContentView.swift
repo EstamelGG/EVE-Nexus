@@ -64,7 +64,10 @@ struct ContentView: View {
         NavigationSplitView {
             List {
                 ForEach(tables) { table in
-                    Section(header: Text(table.title).fontWeight(.bold).font(.system(size: 16))) {
+                    Section(header: Text(table.title)
+                        .fontWeight(.bold)
+                        .font(.system(size: 16))
+                    ) {
                         ForEach(table.rows) { row in
                             NavigationLink(destination: Text("Details for \(row.title)")) {
                                 HStack {
