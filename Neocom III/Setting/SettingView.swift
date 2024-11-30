@@ -38,52 +38,50 @@ struct SettingView: View {
     @State private var currentIcon: String = "circle.lefthalf.fill"
     
     var body: some View {
-        NavigationView {
-            List {
-                // 设置项：外观
-                Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))) {
-                    Button(action: toggleAppearance) {
+        List {
+            // 设置项：外观
+            Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))) {
+                Button(action: toggleAppearance) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(NSLocalizedString("Main_Setting_ColorMode", comment: ""))
+                                .font(.system(size: 16))
+                            Text(getAppearanceDetail() ?? "Unknown")
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                        Spacer()
+                        Image(systemName: currentIcon)
+                            .font(.system(size: 20))
+                            .frame(width: 36, height: 36)
+                            .foregroundColor(.blue)
+                    }
+                    .frame(height: 36)
+                }
+            }
+            
+            // 设置项：其他
+            Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))) {
+                ForEach(SettingsManager.shared.getSettingItems()) { item in
+                    NavigationLink(destination: viewForDestination(item.destination)) {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(NSLocalizedString("Main_Setting_ColorMode", comment: ""))
+                                Text(item.title)
                                     .font(.system(size: 16))
-                                Text(getAppearanceDetail() ?? "Unknown")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
+                                    .fontWeight(.medium)
+                                if let detail = item.detail, !detail.isEmpty {
+                                    Text(detail)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.gray)
+                                }
                             }
-                            Spacer()
-                            Image(systemName: currentIcon)
-                                .font(.system(size: 20))
-                                .frame(width: 36, height: 36)
-                                .foregroundColor(.blue)
                         }
                         .frame(height: 36)
                     }
                 }
-                
-                // 设置项：其他
-                Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))) {
-                    ForEach(SettingsManager.shared.getSettingItems()) { item in
-                        NavigationLink(destination: viewForDestination(item.destination)) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(item.title)
-                                        .font(.system(size: 16))
-                                        .fontWeight(.medium)
-                                    if let detail = item.detail, !detail.isEmpty {
-                                        Text(detail)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.gray)
-                                    }
-                                }
-                            }
-                            .frame(height: 36)
-                        }
-                    }
-                }
             }
-            .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
         }
+        .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
     }
     
     private func toggleAppearance() {

@@ -1,10 +1,3 @@
-//
-//  AboutView.swift
-//  Neocom III
-//
-//  Created by GG Estamel on 2024/11/30.
-//
-
 import SwiftUI
 
 struct AboutView: View {
@@ -16,32 +9,30 @@ struct AboutView: View {
     ]
     
     var body: some View {
-        NavigationView {
-            List {
-                Section(header: Text(
-                    NSLocalizedString("Main_About_Title", comment: "")
-                )) {
-                    ForEach(aboutItems) { item in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(item.title)
-                                    .font(.system(size: 16))
-                                if let note = item.note, !note.isEmpty {
-                                    Text(note)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
+        List {
+            Section(header: Text(
+                NSLocalizedString("Main_About_Title", comment: "")
+            )) {
+                ForEach(aboutItems) { item in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .font(.system(size: 16))
+                            if let note = item.note, !note.isEmpty {
+                                Text(note)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
-                            Spacer()
                         }
-                        .frame(height: 36)
+                        Spacer()
                     }
+                    .frame(height: 36)
                 }
             }
-            .navigationTitle(Text(
-                NSLocalizedString("Main_About", comment: "")
-            ))
         }
+        .navigationTitle(Text(
+            NSLocalizedString("Main_About", comment: "")
+        ))
     }
 }
 
