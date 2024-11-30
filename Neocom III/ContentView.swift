@@ -70,26 +70,26 @@ struct ContentView: View {
                                 HStack {
                                     // 图标和文本
                                     Image(systemName: row.iconName)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 24, height: 24)
 
-                                    VStack(alignment: .leading) {
+                                    VStack(alignment: .leading) { // 设置两行之间的间距为4像素
+                                        // 第一行文本，离单元格顶部4像素
                                         Text(row.title)
                                             .font(.system(size: 17))
 
+                                        // 第二行文本，离单元格底部4像素
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
-                                                .font(.system(size: 13)) // 设置自定义字体大小
+                                                .font(.system(size: 13))
                                                 .foregroundColor(.gray)
                                         }
-
-
                                     }
-                                    .padding(.leading, 8)
+                                    .padding(.leading, 6)
+                                    .frame(height: 36) // 确保单元格最大高度为 20
 
                                     Spacer() // 右侧空白，推动箭头到右边
                                 }
-                                .padding(.vertical, 5)
-                                .frame(minHeight: 44)
+                                .frame(height: 36) // 确保每个单元格最大高度为 20
                             }
                         }
                     }
