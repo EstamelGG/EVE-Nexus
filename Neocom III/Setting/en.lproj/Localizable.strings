@@ -1,0 +1,16 @@
+/* 
+  Localizable.strings
+  Neocom III
+
+  Created by GG Estamel on 2024/11/30.
+  
+*/
+
+"Main_Setting_Language" = "Language";
+"Main_Setting_Select your language" = "Select your language";
+"Main_Setting_Appearance" = "Appearance";
+"Main_Setting_ColorMode" = "Appearance Mode";
+"Main_Setting_Others" = "Others";
+"Main_Setting_Dark" = "Dark";
+"Main_Setting_Light" = "Light";
+"Main_Setting_Auto" = "Auto";

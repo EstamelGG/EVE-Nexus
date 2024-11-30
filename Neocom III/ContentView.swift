@@ -170,7 +170,7 @@ struct ContentView: View {
                                     // 图标和文本
                                     Image(row.iconName)  // 使用来自 Assets Catalog 的图标
                                         .resizable()
-                                        .frame(width: 38, height: 38)
+                                        .frame(width: 36, height: 36)
                                     
                                     VStack(alignment: .leading) {
                                         Text(row.title)

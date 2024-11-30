@@ -26,7 +26,10 @@ class SettingsManager {
     // 获取所有设置项
     func getSettingItems() -> [SettingItem] {
         return [
-            SettingItem(title: "Language", detail: "Select your language"),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Language", comment: "Language section"),
+                detail: NSLocalizedString("Main_Setting_Select your language", comment: "")
+            ),
             // 可以在此处添加更多的设置项
             // SettingItem(title: "Notifications", detail: "Enable notifications"),
         ]
@@ -43,12 +46,15 @@ struct SettingView: View {
         NavigationView {
             List {
                 // 设置项：外观
-                Section(header: Text("Appearance")) {
+                Section(header: Text(
+                    NSLocalizedString("Main_Setting_Appearance", comment: "")
+                )) {
                     Button(action: toggleAppearance) {
                         HStack {
                             VStack(alignment: .leading) {
-                                Text("Appearance")
-                                    .font(.system(size: 16))
+                                Text(
+                                    NSLocalizedString("Main_Setting_ColorMode", comment: "")
+                                ).font(.system(size: 16))
                                 // 显示当前颜色模式的详细信息
                                 Text(getAppearanceDetail() ?? "Unknown")
                                     .font(.system(size: 12))
@@ -65,7 +71,9 @@ struct SettingView: View {
                 }
                 
                 // 获取动态生成的设置项
-                Section(header: Text("Other Settings")) {
+                Section(header: Text(
+                    NSLocalizedString("Main_Setting_Others", comment: "")
+                )) {
                     ForEach(SettingsManager.shared.getSettingItems()) { item in
                         NavigationLink(destination: Text("\(item.title) Details")) {
                             HStack {
@@ -128,11 +136,11 @@ struct SettingView: View {
     private func getAppearanceDetail() -> String? {
         switch selectedTheme {
         case "light":
-            return "Light"
+            return  NSLocalizedString("Main_Setting_Light", comment: "")
         case "dark":
-            return "Dark"
+            return  NSLocalizedString("Main_Setting_Dark", comment: "")
         case "system":
-            return "Auto"
+            return  NSLocalizedString("Main_Setting_Auto", comment: "")
         default:
             return nil
         }
