@@ -29,8 +29,8 @@ class TableNode: Identifiable, ObservableObject {
 struct ContentView: View {
     @State private var tables: [TableNode] = [
         TableNode(title: "Character", rows: [
-            TableRowNode(title: "Character Sheet", iconName: "star.fill", note: "This is your character's information."),
-            TableRowNode(title: "Jump Clones", iconName: "arrow.up.circle.fill", note: "Manage your jump clones."),
+            TableRowNode(title: "Character Sheet", iconName: "charactersheet", note: "This is your character's information."),
+            TableRowNode(title: "Jump Clones", iconName: "arrow.up", note: "Manage your jump clones."),
             TableRowNode(title: "Skills", iconName: "book.fill", note: "Skills progression."),
             TableRowNode(title: "EVE Mail", iconName: "envelope.fill", note: ""),
             TableRowNode(title: "Calendar", iconName: "calendar.circle.fill", note: ""),
@@ -69,14 +69,16 @@ struct ContentView: View {
                             NavigationLink(destination: Text("Details for \(row.title)")) {
                                 HStack {
                                     // 图标和文本
-                                    Image(systemName: row.iconName)
-                                        .frame(width: 24, height: 24)
-
+                                    Image(row.iconName)  // 使用来自 Assets Catalog 的图标
+                                        .resizable()
+                                        .scaledToFill()  // 保持原图的比例
+                                        .frame(width: 36, height: 36)
+                                        .clipShape(Rectangle())
                                     VStack(alignment: .leading) { // 设置两行之间的间距为4像素
                                         // 第一行文本，离单元格顶部4像素
                                         Text(row.title)
                                             .font(.system(size: 17))
-
+                                        
                                         // 第二行文本，离单元格底部4像素
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
@@ -84,9 +86,9 @@ struct ContentView: View {
                                                 .foregroundColor(.gray)
                                         }
                                     }
-                                    .padding(.leading, 6)
+                                    .padding(.leading, 4)
                                     .frame(height: 36) // 确保单元格最大高度为 20
-
+                                    
                                     Spacer() // 右侧空白，推动箭头到右边
                                 }
                                 .frame(height: 36) // 确保每个单元格最大高度为 20
