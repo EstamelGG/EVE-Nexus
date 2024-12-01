@@ -44,7 +44,7 @@
 "Main_Setting_Light" = "浅色";
 "Main_Setting_Auto" = "跟随系统";
 "Main_Setting_Select Language" = "选择语言";
-"Main_Setting_SwitchLanguageConfirmation" = "确定切换语言吗?";
+"Main_Setting_SwitchLanguageConfirmation" = "需要重启APP以切换语言.";
 
 "Main_About" = "关于";
 "Main_About_Title" = "关于";
