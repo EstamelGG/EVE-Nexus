@@ -14,22 +14,29 @@ struct SelectLanguageView: View {
     @AppStorage("selectedLanguage") var selectedLanguage: String?
     
     var body: some View {
-        List(languages.indices, id: \.self) { index in
-            HStack {
-                Text(languages[index])
-                
-                Spacer()
-                
-                // 显示勾选标记
-                if index == selectedLanguageIndex {
-                    Image(systemName: "checkmark")
+        List {
+            Section(header: Text("Language Packs")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+            ) {
+                ForEach(languages.indices, id: \.self) { index in
+                    HStack {
+                        Text(languages[index])
+                        
+                        Spacer()
+                        
+                        // 显示勾选标记
+                        if index == selectedLanguageIndex {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                    .contentShape(Rectangle())  // 确保点击区域完整
+                    .onTapGesture {
+                        // 用户点击时更新选择的语言
+                        selectedLanguage = languages[index]
+                        selectedLanguageIndex = index
+                    }
                 }
-            }
-            .contentShape(Rectangle())  // 确保点击区域完整
-            .onTapGesture {
-                // 用户点击时更新选择的语言
-                selectedLanguage = languages[index]
-                selectedLanguageIndex = index
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
