@@ -17,43 +17,42 @@ struct SelectLanguageView: View {
     @State private var selectedLanguage: String?
     
     var body: some View {
-            List {
-                Section(header: Text("Language Packs")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                ) {
-                    ForEach(languages.keys.sorted(), id: \.self) { language in
-                        HStack {
-                            Text(language)
-                            
-                            Spacer()
-                            
-                            // 显示勾选标记
-                            if language == selectedLanguage {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
-                            }
+        List {
+            Section(header: Text("Language Packs")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+            ) {
+                ForEach(languages.keys.sorted(), id: \.self) { language in
+                    HStack {
+                        Text(language)
+                        
+                        Spacer()
+                        
+                        // 显示勾选标记
+                        if language == selectedLanguage {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
                         }
-                        .contentShape(Rectangle())  // 确保点击区域完整
-                        .onTapGesture {
-                            // 更新选择的语言
-                            selectedLanguage = language
-                            storedLanguage = languages[language]
-                        }
+                    }
+                    .contentShape(Rectangle())  // 确保点击区域完整
+                    .onTapGesture {
+                        // 更新选择的语言
+                        selectedLanguage = language
+                        storedLanguage = languages[language] // 存储用户选择的语言
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
-            .onAppear {
-                // 初始加载时根据存储的语言设置
-                if let storedLang = storedLanguage, let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
-                    selectedLanguage = defaultLanguage
-                } else {
-                    // 如果没有存储的语言，使用系统语言或默认语言
-                    selectedLanguage = "English"
-                    storedLanguage = "en"
-                }
+        }
+        .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
+        .onAppear {
+            // 根据存储的语言来设置默认勾选项
+            if let storedLang = storedLanguage, let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
+                selectedLanguage = defaultLanguage
+            } else {
+                // 如果没有存储的语言，则不做任何勾选
+                selectedLanguage = nil
             }
+        }
     }
 }
 
