@@ -7,7 +7,6 @@ struct SelectLanguageView: View {
         "中文": "zh-Hans",
         "Français": "fr",
         "Español": "es"
-        // 可以继续添加其他语言
     ]
     
     // 使用 @AppStorage 来持久化存储用户选择的语言
@@ -15,6 +14,9 @@ struct SelectLanguageView: View {
     
     // 跟踪用户选择的语言
     @State private var selectedLanguage: String?
+    
+    // 控制弹窗的显示
+    @State private var showConfirmationDialog = false
     
     var body: some View {
         List {
@@ -39,6 +41,9 @@ struct SelectLanguageView: View {
                         // 更新选择的语言
                         selectedLanguage = language
                         storedLanguage = languages[language] // 存储用户选择的语言
+                        
+                        // 显示确认弹窗
+                        showConfirmationDialog = true
                     }
                 }
             }
@@ -51,6 +56,22 @@ struct SelectLanguageView: View {
             } else {
                 // 如果没有存储的语言，则不做任何勾选
                 selectedLanguage = nil
+            }
+        }
+        .confirmationDialog(
+            NSLocalizedString("Main_Setting_SwitchLanguageConfirmation", comment: ""),
+            isPresented: $showConfirmationDialog,
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("Continue", comment: ""), role: .destructive) {
+                // 等待 0.2 秒后退出应用
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    exit(0) // 退出应用
+                }
+            }
+            
+            Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {
+                // 取消，什么都不做
             }
         }
     }

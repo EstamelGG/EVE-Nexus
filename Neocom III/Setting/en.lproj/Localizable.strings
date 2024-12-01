@@ -44,6 +44,7 @@
 "Main_Setting_Light" = "Light";
 "Main_Setting_Auto" = "Auto";
 "Main_Setting_Select Language" = "Select Language";
+"Main_Setting_SwitchLanguageConfirmation" = "Confirm?";
 
 "Main_About" = "About";
 "Main_About_Title" = "About";
