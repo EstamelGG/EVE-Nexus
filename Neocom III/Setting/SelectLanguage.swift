@@ -17,7 +17,6 @@ struct SelectLanguageView: View {
     @State private var selectedLanguage: String?
     
     var body: some View {
-        NavigationView {
             List {
                 Section(header: Text("Language Packs")
                             .font(.headline)
@@ -44,7 +43,7 @@ struct SelectLanguageView: View {
                     }
                 }
             }
-            .navigationTitle("Select Language")
+            .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
             .onAppear {
                 // 初始加载时根据存储的语言设置
                 if let storedLang = storedLanguage, let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
@@ -55,7 +54,6 @@ struct SelectLanguageView: View {
                     storedLanguage = "en"
                 }
             }
-        }
     }
 }
 
