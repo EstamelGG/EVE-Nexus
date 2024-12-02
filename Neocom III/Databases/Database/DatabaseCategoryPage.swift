@@ -63,32 +63,42 @@ func getDatabasePath() -> String? {
 struct DatabaseCategoryPage: View {
     @State private var publishedCategories: [Category] = []
     @State private var unpublishedCategories: [Category] = []
+    
+    // 搜索文本
+    @State private var searchText: String = ""
 
     var body: some View {
-        List {
-            if !publishedCategories.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
-                    ForEach(publishedCategories) { category in
-                        NavigationLink(destination: Text("Category \(category.name) Details")) {
-                            Text(category.name)
-                        }
-                    }
-                }
-            }
+        VStack {
+            // 搜索栏
+            SearchBar(text: $searchText)
+                .padding(.top)
 
-            if !unpublishedCategories.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                    ForEach(unpublishedCategories) { category in
-                        NavigationLink(destination: Text("Category \(category.name) Details")) {
-                            Text(category.name)
+            // 列表
+            List {
+                if !publishedCategories.isEmpty {
+                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
+                        ForEach(publishedCategories) { category in
+                            NavigationLink(destination: Text("Category \(category.name) Details")) {
+                                Text(category.name)
+                            }
+                        }
+                    }
+                }
+
+                if !unpublishedCategories.isEmpty {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                        ForEach(unpublishedCategories) { category in
+                            NavigationLink(destination: Text("Category \(category.name) Details")) {
+                                Text(category.name)
+                            }
                         }
                     }
                 }
             }
-        }
-        .navigationTitle(NSLocalizedString("Main_Database_title", comment: ""))
-        .onAppear {
-            loadData()
+            .navigationTitle(NSLocalizedString("Main_Database_title", comment: ""))
+            .onAppear {
+                loadData()
+            }
         }
     }
 
@@ -101,6 +111,31 @@ struct DatabaseCategoryPage: View {
         let (published, unpublished) = loadCategories(from: databasePath)
         publishedCategories = published
         unpublishedCategories = unpublished
+    }
+}
+
+// 搜索栏视图
+struct SearchBar: View {
+    @Binding var text: String
+    
+    var body: some View {
+        HStack {
+            TextField("Search...", text: $text)
+                .padding(7)
+                .padding(.horizontal, 25)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .overlay(
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 10)
+                        
+                        Spacer()
+                    }
+                )
+                .padding(.horizontal)
+        }
     }
 }
 
