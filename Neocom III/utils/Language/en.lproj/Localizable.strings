@@ -21,6 +21,11 @@
 "Main_Loyalty Points" = "Loyalty Points";
 "Main_Databases" = "Databases";
 "Main_Database" = "Database";
+"Main_Database_title" = "Database";
+"DatabaseName" = "item_db_en";
+"Main_Database_unpublished" = "Unpublished";
+"Main_Database_published" = "Published";
+
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";
 "Main_Incursions" = "Incursions";

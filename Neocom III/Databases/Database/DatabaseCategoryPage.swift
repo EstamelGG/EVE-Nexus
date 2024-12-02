@@ -46,7 +46,11 @@ func loadCategories(from databasePath: String) -> ([Category], [Category]) {
 
 // 获取数据库路径
 func getDatabasePath() -> String? {
-    if let path = Bundle.main.path(forResource: "item_db_zh", ofType: "sqlite") {
+    // 获取本地化字符串中配置的数据库名称
+    let databaseName = NSLocalizedString("DatabaseName", comment: "Database file name based on language")
+    
+    // 获取数据库文件路径
+    if let path = Bundle.main.path(forResource: databaseName, ofType: "sqlite") {
         print("Database found at path: \(path)")
         return path
     } else {
@@ -63,7 +67,7 @@ struct DatabaseCategoryPage: View {
     var body: some View {
         List {
             if !publishedCategories.isEmpty {
-                Section(header: Text("Published")) {
+                Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
                     ForEach(publishedCategories) { category in
                         NavigationLink(destination: Text("Category \(category.name) Details")) {
                             Text(category.name)
@@ -73,7 +77,7 @@ struct DatabaseCategoryPage: View {
             }
 
             if !unpublishedCategories.isEmpty {
-                Section(header: Text("Unpublished")) {
+                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
                     ForEach(unpublishedCategories) { category in
                         NavigationLink(destination: Text("Category \(category.name) Details")) {
                             Text(category.name)
@@ -82,7 +86,7 @@ struct DatabaseCategoryPage: View {
                 }
             }
         }
-        .navigationTitle("数据库")
+        .navigationTitle(NSLocalizedString("Main_Database_title", comment: ""))
         .onAppear {
             loadData()
         }
