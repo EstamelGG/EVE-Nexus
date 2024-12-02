@@ -6,9 +6,9 @@ class TableRowNode: Identifiable, ObservableObject {
     var title: String
     var iconName: String
     var note: String?
-    var destination: Any? // 使用 Any 来表示目标视图，支持不同类型
+    var destination: AnyView? // 使用 AnyView 来表示目标视图
     
-    init(title: String, iconName: String, note: String? = nil, destination: Any? = nil) {
+    init(title: String, iconName: String, note: String? = nil, destination: AnyView? = nil) {
         self.title = title
         self.iconName = iconName
         self.note = note
@@ -71,7 +71,8 @@ struct ContentView: View {
             rows: [
                 TableRowNode(
                     title: NSLocalizedString("Main_Database", comment: ""),
-                    iconName: "items"
+                    iconName: "items",
+                    destination: AnyView(DatabaseCategoryPage())
                 ),
                 TableRowNode(
                     title: NSLocalizedString("Main_Market", comment: ""),
@@ -126,12 +127,12 @@ struct ContentView: View {
                 TableRowNode(
                     title: NSLocalizedString("Main_Setting", comment: ""),
                     iconName: "Settings",
-                    destination: SettingView() // 将视图直接赋给 destination
+                    destination: AnyView(SettingView())
                 ),
                 TableRowNode(
                     title: NSLocalizedString("Main_About", comment: ""),
                     iconName: "info",
-                    destination: AboutView() // 将视图直接赋给 destination
+                    destination: AnyView(AboutView())
                 )
             ]
         )
@@ -142,12 +143,7 @@ struct ContentView: View {
     
     func getDestination(for row: TableRowNode) -> AnyView {
         if let destination = row.destination {
-            // 根据类型转换进行视图展示
-            if let destination = destination as? SettingView {
-                return AnyView(destination)
-            } else if let destination = destination as? AboutView {
-                return AnyView(destination)
-            }
+            return AnyView(destination)
         }
         return AnyView(Text("Details for \(row.title)"))
     }

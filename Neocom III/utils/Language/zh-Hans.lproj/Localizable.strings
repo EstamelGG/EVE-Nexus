@@ -1,0 +1,51 @@
+/* 
+  Localizable.strings
+  Neocom III
+
+  Created by GG Estamel on 2024/11/30.
+  
+*/
+
+"Main_Title" = "Neocom";
+"Main_Character" = "人物";
+"Main_Character Sheet" = "人物表单";
+"Main_Jump Clones" = "克隆体";
+"Main_Jump Clones Available" = "跳跃克隆可用: ";
+"Main_Skills" = "技能";
+"Main_Skills Ponits" = "$num SP";
+"Main_Skills Queue" = "队列长度：$num ($day天 $hour时 $minutes分)";
+"Main_EVE Mail" = "EVE 邮件";
+"Main_Calendar" = "日历";
+"Main_Wealth" = "财产";
+"Main_Wealth ISK" = "$num ISK";
+"Main_Loyalty Points" = "忠诚点";
+"Main_Databases" = "数据";
+"Main_Database" = "数据库";
+"Main_Market" = "市场";
+"Main_WH" = "虫洞";
+"Main_Incursions" = "萨沙入侵";
+"Main_Business" = "商业";
+"Main_Assets" = "个人资产";
+"Main_Market Orders" = "市场订单";
+"Main_Contracts" = "合同";
+"Main_Market Transactions" = "交易记录";
+"Main_Wallet Journal" = "钱包日志";
+"Main_Industry Jobs" = "工业任务";
+"Main_Other" = "其他";
+
+"Main_Setting" = "设置";
+"Main_Setting_Title" = "设置";
+"Main_Setting_Language" = "语言";
+"Main_Setting_Select your language" = "选择语言";
+"Main_Setting_Appearance" = "外观";
+"Main_Setting_ColorMode" = "颜色模式";
+"Main_Setting_Others" = "其他";
+"Main_Setting_Dark" = "深色";
+"Main_Setting_Light" = "浅色";
+"Main_Setting_Auto" = "跟随系统";
+"Main_Setting_Select Language" = "选择语言";
+"Main_Setting_SwitchLanguageConfirmation" = "需要重启APP以切换语言.";
+
+"Main_About" = "关于";
+"Main_About_Title" = "关于";
+
