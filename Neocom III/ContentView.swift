@@ -174,7 +174,6 @@ struct ContentView: View {
                                     
                                     VStack(alignment: .leading) {
                                         Text(row.title)
-                                            .font(.system(size: 16))
                                         if let note = row.note, !note.isEmpty {
                                             Text(note)
                                                 .font(.system(size: 12))
