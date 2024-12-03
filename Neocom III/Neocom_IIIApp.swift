@@ -1,23 +1,11 @@
 import SwiftUI
-import SwiftData
+import SQLite3
 import Zip
 
 @main
 struct Neocom_IIIApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
-
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @StateObject private var databaseManager = DatabaseManager() // 共享的数据库管理器
 
     // Initialize language settings
     init() {
@@ -34,6 +22,9 @@ struct Neocom_IIIApp: App {
 
         // Decompress the icons.zip file only if the Icons folder doesn't exist
         decompressIconsZip()
+
+        // Load the database when the app starts
+        databaseManager.loadDatabase()
     }
 
     // Decompress icons.zip file (only if the folder doesn't exist)
@@ -65,8 +56,12 @@ struct Neocom_IIIApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            // 将 databaseManager 作为环境对象传递给 ContentView
+            ContentView(databaseManager: databaseManager)
+                .onAppear {
+                    // 确保数据库在应用启动时加载
+                    databaseManager.loadDatabase()
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }

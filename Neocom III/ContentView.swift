@@ -28,115 +28,122 @@ class TableNode: Identifiable, ObservableObject {
 }
 
 struct ContentView: View {
-    @State private var tables: [TableNode] = [
-        TableNode(
-            title: NSLocalizedString("Main_Character", comment: ""),
-            rows: [
-                TableRowNode(
-                    title: NSLocalizedString("Main_Character Sheet", comment: ""),
-                    iconName: "charactersheet",
-                    note: NSLocalizedString("Main_Skills Ponits", comment: "")
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Jump Clones", comment: ""),
-                    iconName: "jumpclones",
-                    note: NSLocalizedString("Main_Jump Clones Available", comment: "")
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Skills", comment: ""),
-                    iconName: "skills",
-                    note: NSLocalizedString("Main_Skills Queue", comment: "")
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_EVE Mail", comment: ""),
-                    iconName: "evemail"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Calendar", comment: ""),
-                    iconName: "calendar"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Wealth", comment: ""),
-                    iconName: "Folder",
-                    note: NSLocalizedString("Main_Wealth ISK", comment: "")
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Loyalty Points", comment: ""),
-                    iconName: "lpstore"
-                )
-            ]
-        ),
-        TableNode(
-            title: NSLocalizedString("Main_Databases", comment: ""),
-            rows: [
-                TableRowNode(
-                    title: NSLocalizedString("Main_Database", comment: ""),
-                    iconName: "items",
-                    destination: AnyView(DatabaseCategoryPage())
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Market", comment: ""),
-                    iconName: "market"
-                ),
-                TableRowNode(
-                    title: "NPC",
-                    iconName: "criminal"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_WH", comment: ""),
-                    iconName: "terminate"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Incursions", comment: ""),
-                    iconName: "incursions"
-                )
-            ]
-        ),
-        TableNode(
-            title: NSLocalizedString("Main_Business", comment: ""),
-            rows: [
-                TableRowNode(
-                    title: NSLocalizedString("Main_Assets", comment: ""),
-                    iconName: "assets"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Market Orders", comment: ""),
-                    iconName: "marketdeliveries"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Contracts", comment: ""),
-                    iconName: "contracts"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Market Transactions", comment: ""),
-                    iconName: "journal"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Wallet Journal", comment: ""),
-                    iconName: "wallet"
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_Industry Jobs", comment: ""),
-                    iconName: "industry"
-                )
-            ]
-        ),
-        TableNode(
-            title: NSLocalizedString("Main_Other", comment: ""),
-            rows: [
-                TableRowNode(
-                    title: NSLocalizedString("Main_Setting", comment: ""),
-                    iconName: "Settings",
-                    destination: AnyView(SettingView())
-                ),
-                TableRowNode(
-                    title: NSLocalizedString("Main_About", comment: ""),
-                    iconName: "info",
-                    destination: AnyView(AboutView())
-                )
-            ]
-        )
-    ]
+    @ObservedObject var databaseManager: DatabaseManager // 通过外部传递数据库管理器
+    @State private var tables: [TableNode] = [] // 初始化为空，稍后填充
+    
+    // 自定义初始化方法，确保 databaseManager 被正确传递
+    init(databaseManager: DatabaseManager) {
+        self.databaseManager = databaseManager
+        _tables = State(initialValue: [
+            TableNode(
+                title: NSLocalizedString("Main_Character", comment: ""),
+                rows: [
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Character Sheet", comment: ""),
+                        iconName: "charactersheet",
+                        note: NSLocalizedString("Main_Skills Ponits", comment: "")
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Jump Clones", comment: ""),
+                        iconName: "jumpclones",
+                        note: NSLocalizedString("Main_Jump Clones Available", comment: "")
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Skills", comment: ""),
+                        iconName: "skills",
+                        note: NSLocalizedString("Main_Skills Queue", comment: "")
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_EVE Mail", comment: ""),
+                        iconName: "evemail"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Calendar", comment: ""),
+                        iconName: "calendar"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Wealth", comment: ""),
+                        iconName: "Folder",
+                        note: NSLocalizedString("Main_Wealth ISK", comment: "")
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Loyalty Points", comment: ""),
+                        iconName: "lpstore"
+                    )
+                ]
+            ),
+            TableNode(
+                title: NSLocalizedString("Main_Databases", comment: ""),
+                rows: [
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Database", comment: ""),
+                        iconName: "items",
+                        destination: AnyView(DatabaseCategoryPage(databaseManager: databaseManager)) // 确保传递数据库管理器
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Market", comment: ""),
+                        iconName: "market"
+                    ),
+                    TableRowNode(
+                        title: "NPC",
+                        iconName: "criminal"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_WH", comment: ""),
+                        iconName: "terminate"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Incursions", comment: ""),
+                        iconName: "incursions"
+                    )
+                ]
+            ),
+            TableNode(
+                title: NSLocalizedString("Main_Business", comment: ""),
+                rows: [
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Assets", comment: ""),
+                        iconName: "assets"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Market Orders", comment: ""),
+                        iconName: "marketdeliveries"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Contracts", comment: ""),
+                        iconName: "contracts"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Market Transactions", comment: ""),
+                        iconName: "journal"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Wallet Journal", comment: ""),
+                        iconName: "wallet"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Industry Jobs", comment: ""),
+                        iconName: "industry"
+                    )
+                ]
+            ),
+            TableNode(
+                title: NSLocalizedString("Main_Other", comment: ""),
+                rows: [
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Setting", comment: ""),
+                        iconName: "Settings",
+                        destination: AnyView(SettingView())
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_About", comment: ""),
+                        iconName: "info",
+                        destination: AnyView(AboutView())
+                    )
+                ]
+            )
+        ])
+    }
     
     // 使用 @AppStorage 来读取存储的主题设置
     @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
@@ -189,5 +196,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(databaseManager: DatabaseManager()) // 确保传递数据库管理器
 }

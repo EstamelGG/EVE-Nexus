@@ -1,79 +1,53 @@
 import SwiftUI
 import SQLite3
 
-// 数据模型
+// Data model
 struct Category: Identifiable {
     let id: Int
     let name: String
     let published: Bool
 }
 
-// 数据加载函数
-func loadCategories(from databasePath: String) -> ([Category], [Category]) {
-    var db: OpaquePointer?
-    var publishedCategories: [Category] = []
-    var unpublishedCategories: [Category] = []
-
-    if sqlite3_open(databasePath, &db) == SQLITE_OK {
-        let query = "SELECT category_id, name, published FROM categories ORDER BY category_id"
-        var statement: OpaquePointer?
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let id = Int(sqlite3_column_int(statement, 0))
-                let name = String(cString: sqlite3_column_text(statement, 1))
-                let published = sqlite3_column_int(statement, 2) != 0
-
-                let category = Category(id: id, name: name, published: published)
-                if published {
-                    publishedCategories.append(category)
-                } else {
-                    unpublishedCategories.append(category)
-                }
-            }
-            sqlite3_finalize(statement)
-        } else {
-            print("Failed to prepare statement: \(String(cString: sqlite3_errmsg(db)))")
-        }
-
-        sqlite3_close(db)
-    } else {
-        print("Failed to open database")
-    }
-
-    return (publishedCategories, unpublishedCategories)
-}
-
-// 获取数据库路径
-func getDatabasePath() -> String? {
-    // 获取本地化字符串中配置的数据库名称
-    let databaseName = NSLocalizedString("DatabaseName", comment: "Database file name based on language")
+// SearchBar view
+struct SearchBar: View {
+    @Binding var text: String
     
-    // 获取数据库文件路径
-    if let path = Bundle.main.path(forResource: databaseName, ofType: "sqlite") {
-        print("Database found at path: \(path)")
-        return path
-    } else {
-        print("Database file not found in the bundle")
-        return nil
+    var body: some View {
+        HStack {
+            TextField("Search...", text: $text)
+                .padding(7)
+                .padding(.horizontal, 25)
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .overlay(
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .padding(.leading, 10)
+                        
+                        Spacer()
+                    }
+                )
+                .padding(.horizontal)
+        }
     }
 }
 
-// 子页面：DatabaseCategoryPage
 struct DatabaseCategoryPage: View {
+    @ObservedObject var databaseManager: DatabaseManager // 使用传递的数据库管理器
     @State private var publishedCategories: [Category] = []
     @State private var unpublishedCategories: [Category] = []
     
-    // 搜索文本
+    // Search text
     @State private var searchText: String = ""
 
     var body: some View {
         VStack {
-            // 搜索栏
+            // Search bar
             SearchBar(text: $searchText)
                 .padding(.top)
 
-            // 列表
+            // List
             List {
                 if !publishedCategories.isEmpty {
                     Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
@@ -102,43 +76,45 @@ struct DatabaseCategoryPage: View {
         }
     }
 
-    // 数据加载函数
+    // Load categories from the database
     private func loadData() {
-        guard let databasePath = getDatabasePath() else {
-            print("Failed to find database")
+        guard let db = databaseManager.db else {
+            print("Database not available")
             return
         }
-        let (published, unpublished) = loadCategories(from: databasePath)
+
+        // Load categories using the open database
+        let (published, unpublished) = loadCategories(from: db)
         publishedCategories = published
         unpublishedCategories = unpublished
     }
-}
 
-// 搜索栏视图
-struct SearchBar: View {
-    @Binding var text: String
-    
-    var body: some View {
-        HStack {
-            TextField("Search...", text: $text)
-                .padding(7)
-                .padding(.horizontal, 25)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .overlay(
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                            .padding(.leading, 10)
-                        
-                        Spacer()
-                    }
-                )
-                .padding(.horizontal)
+    // Load categories from the database
+    private func loadCategories(from db: OpaquePointer) -> ([Category], [Category]) {
+        var publishedCategories: [Category] = []
+        var unpublishedCategories: [Category] = []
+
+        let query = "SELECT category_id, name, published FROM categories ORDER BY category_id"
+        var statement: OpaquePointer?
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let id = Int(sqlite3_column_int(statement, 0))
+                let name = String(cString: sqlite3_column_text(statement, 1))
+                let published = sqlite3_column_int(statement, 2) != 0
+
+                let category = Category(id: id, name: name, published: published)
+                if published {
+                    publishedCategories.append(category)
+                } else {
+                    unpublishedCategories.append(category)
+                }
+            }
+            sqlite3_finalize(statement)
+        } else {
+            print("Failed to prepare statement")
         }
-    }
-}
 
-#Preview {
-    DatabaseCategoryPage()
+        return (publishedCategories, unpublishedCategories)
+    }
 }
