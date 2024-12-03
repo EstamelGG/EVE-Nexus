@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C67401F22CFEAAAA0004D03C /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = C67401F12CFEAAAA0004D03C /* Zip */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C6417FD52CF80C4F0032F75C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C67401F22CFEAAAA0004D03C /* Zip in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = "Neocom III";
 			packageProductDependencies = (
+				C67401F12CFEAAAA0004D03C /* Zip */,
 			);
 			productName = "Neocom III";
 			productReference = C6417FC12CF80C4D0032F75C /* Neocom III.app */;
@@ -196,6 +202,9 @@
 			);
 			mainGroup = C6417FB82CF80C4D0032F75C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C67401F02CFEAAAA0004D03C /* XCLocalSwiftPackageReference "../../../Downloads/Zip" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C6417FC22CF80C4D0032F75C /* Products */;
 			projectDirPath = "";
@@ -590,6 +599,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C67401F02CFEAAAA0004D03C /* XCLocalSwiftPackageReference "../../../Downloads/Zip" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../../Downloads/Zip;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C67401F12CFEAAAA0004D03C /* Zip */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Zip;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C6417FB92CF80C4D0032F75C /* Project object */;
 }
