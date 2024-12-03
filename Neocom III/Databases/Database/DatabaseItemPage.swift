@@ -10,6 +10,7 @@ struct DatabaseItem: Identifiable {
     let pgNeed: Int
     let cpuNeed: Int
     let metaGroupID: Int
+    let published: Bool
 }
 
 // DatabaseItemPage view
@@ -68,7 +69,7 @@ struct DatabaseItemPage: View {
 
         // 查询 types 表，获取 groupID 对应的所有项目
         let query = """
-        SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID 
+        SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published 
         FROM types 
         WHERE groupID = ? 
         ORDER BY metaGroupID
@@ -85,7 +86,7 @@ struct DatabaseItemPage: View {
                 let pgNeed = Int(sqlite3_column_int(statement, 3))
                 let cpuNeed = Int(sqlite3_column_int(statement, 4))
                 let metaGroupID = Int(sqlite3_column_int(statement, 5))
-
+                let published = sqlite3_column_int(statement, 6) != 0
                 // 如果 iconFileName 为空，使用默认值
                 let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
 
@@ -97,7 +98,8 @@ struct DatabaseItemPage: View {
                     iconFileName: finalIconFileName,
                     pgNeed: pgNeed,
                     cpuNeed: cpuNeed,
-                    metaGroupID: metaGroupID
+                    metaGroupID: metaGroupID,
+                    published: published
                 )
 
                 // 获取 metaGroupID 对应的名称
