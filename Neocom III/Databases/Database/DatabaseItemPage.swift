@@ -6,7 +6,7 @@ struct DatabaseItem: Identifiable {
     let id: Int
     let typeID: Int
     let name: String
-    let iconID: Int
+    let iconFileName: String // 直接存储图标文件名
     let pgNeed: Int
     let cpuNeed: Int
     let metaGroupID: Int
@@ -29,7 +29,7 @@ struct DatabaseItemPage: View {
                         ForEach(items.filter { $0.metaGroupID == metaGroupID }) { item in
                             HStack {
                                 // 使用 IconManager 来加载 icon
-                                IconManager.shared.loadImage(for: getIconFileName(for: item.iconID))
+                                IconManager.shared.loadImage(for: item.iconFileName)
                                     .resizable()
                                     .frame(width: 36, height: 36)
                                 Text(item.name)
@@ -58,7 +58,12 @@ struct DatabaseItemPage: View {
         }
 
         // 查询 types 表，获取 groupID 对应的所有项目
-        let query = "SELECT type_id, name, iconID, pg_need, cpu_need, metaGroupID FROM types WHERE groupID = ? ORDER BY metaGroupID"
+        let query = """
+        SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID 
+        FROM types 
+        WHERE groupID = ? 
+        ORDER BY metaGroupID
+        """
         var statement: OpaquePointer?
 
         if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
@@ -67,13 +72,24 @@ struct DatabaseItemPage: View {
             while sqlite3_step(statement) == SQLITE_ROW {
                 let typeID = Int(sqlite3_column_int(statement, 0))
                 let name = String(cString: sqlite3_column_text(statement, 1))
-                let iconID = Int(sqlite3_column_int(statement, 2))
+                let iconFileName = String(cString: sqlite3_column_text(statement, 2))
                 let pgNeed = Int(sqlite3_column_int(statement, 3))
                 let cpuNeed = Int(sqlite3_column_int(statement, 4))
                 let metaGroupID = Int(sqlite3_column_int(statement, 5))
 
-                // 使用 typeID 作为 id 来创建 DatabaseItem 对象
-                let item = DatabaseItem(id: typeID, typeID: typeID, name: name, iconID: iconID, pgNeed: pgNeed, cpuNeed: cpuNeed, metaGroupID: metaGroupID)
+                // 如果 iconFileName 为空，使用默认值
+                let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+
+                // 创建 DatabaseItem 对象
+                let item = DatabaseItem(
+                    id: typeID,
+                    typeID: typeID,
+                    name: name,
+                    iconFileName: finalIconFileName,
+                    pgNeed: pgNeed,
+                    cpuNeed: cpuNeed,
+                    metaGroupID: metaGroupID
+                )
 
                 // 获取 metaGroupID 对应的名称
                 loadMetaGroupName(for: metaGroupID)
@@ -108,31 +124,5 @@ struct DatabaseItemPage: View {
 
             sqlite3_finalize(statement)
         }
-    }
-
-    // 获取 icon 文件名
-    private func getIconFileName(for iconID: Int) -> String {
-        guard let db = databaseManager.db else {
-            return "items_73_16_50.png"  // 默认图标
-        }
-
-        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
-        var statement: OpaquePointer?
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(iconID))
-
-            if sqlite3_step(statement) == SQLITE_ROW {
-                if let iconFileNew = sqlite3_column_text(statement, 0) {
-                    let iconFileName = String(cString: iconFileNew)
-                    sqlite3_finalize(statement)
-                    return iconFileName
-                }
-            }
-
-            sqlite3_finalize(statement)
-        }
-
-        return "items_73_16_50.png"  // 默认图标
     }
 }
