@@ -104,7 +104,6 @@ struct DatabaseCategoryPage: View {
     }
 
     private let categoryIconMapping: [Int: String] = [
-        -1: "items_7_64_15.png",
         0: "items_7_64_4.png",
         1: "items_70_128_11.png",
         2: "items_30_64_4.png",
