@@ -16,7 +16,8 @@ struct DatabaseItem: Identifiable {
 // DatabaseItemPage view
 struct DatabaseItemPage: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var items: [DatabaseItem] = []  // 存储查询到的 items 数据
+    @State private var items: [DatabaseItem] = []  // 存储已发布的 items 数据
+    @State private var unpublishedItems: [DatabaseItem] = []  // 存储未发布的 items 数据
     @State private var metaGroupNames: [Int: String] = [:]  // 存储 metaGroupID 对应的名称
     var groupID: Int  // 当前点击的 groupID
     var groupName: String  // 显示在标题上的 group 名称
@@ -25,13 +26,14 @@ struct DatabaseItemPage: View {
         VStack {
             // 按照 metaGroupID 分组，显示多个列表
             List {
-                if items.isEmpty {
+                if items.isEmpty && unpublishedItems.isEmpty {
                     // 显示空数据提示
                     Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
                         .font(.headline)
                         .foregroundColor(.gray)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
+                    // 显示已发布的项目
                     ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
                         Section(header: Text(metaGroupNames[metaGroupID] ?? NSLocalizedString("Unknown_MetaGroup", comment: ""))
                                     .font(.title3)) {
@@ -43,6 +45,21 @@ struct DatabaseItemPage: View {
                                         .frame(width: 36, height: 36)
                                     Text(item.name)
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // 显示未发布的项目
+                if !unpublishedItems.isEmpty {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                        ForEach(unpublishedItems) { item in
+                            HStack {
+                                // 使用 IconManager 来加载 icon
+                                IconManager.shared.loadImage(for: item.iconFileName)
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                Text(item.name)
                             }
                         }
                     }
@@ -102,10 +119,14 @@ struct DatabaseItemPage: View {
                     published: published
                 )
 
-                // 获取 metaGroupID 对应的名称
-                loadMetaGroupName(for: metaGroupID)
-
-                items.append(item)
+                if published {
+                    // 如果 published 为 true，加入已发布列表
+                    items.append(item)
+                    loadMetaGroupName(for: metaGroupID)
+                } else {
+                    // 如果 published 为 false，加入未发布列表
+                    unpublishedItems.append(item)
+                }
             }
 
             sqlite3_finalize(statement)
