@@ -36,7 +36,18 @@ class IconManager {
             }
         }
         
-        // 返回默认图标，防止文件不存在时崩溃
+        // 默认图像文件路径
+        let defaultIconFile = "items_7_64_15.png"
+        let defaultIconFilePath = self.iconFilePath(for: defaultIconFile)
+        
+        // 检查默认图像是否存在
+        if FileManager.default.fileExists(atPath: defaultIconFilePath) {
+            if let defaultImage = UIImage(contentsOfFile: defaultIconFilePath) {
+                return Image(uiImage: defaultImage)
+            }
+        }
+        
+        // 如果都没有找到，返回系统默认图标
         return Image(systemName: "questionmark.circle")
     }
 }

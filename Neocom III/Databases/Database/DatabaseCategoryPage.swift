@@ -103,7 +103,42 @@ struct DatabaseCategoryPage: View {
         unpublishedCategories = unpublished
     }
 
-    private func getIconFileNew(from db: OpaquePointer, iconID: Int) -> String {
+    private let categoryIconMapping: [Int: String] = [
+        -1: "items_7_64_15.png",
+        0: "items_7_64_4.png",
+        1: "items_70_128_11.png",
+        2: "items_30_64_4.png",
+        3: "items_27_64_16.png",
+        6: "items_26_64_2.png",
+        7: "items_2_64_11.png",
+        8: "items_5_64_2.png",
+        10: "items_6_64_3.png",
+        11: "items_26_64_10.png",
+        14: "items_modules_fleetboost_infobase.png",
+        17: "items_49_64_1.png",
+        18: "items_105_32_48.png",
+        20: "items_40_64_16.png",
+        22: "items_40_64_14.png",
+        23: "items_76_64_2.png",
+        24: "items_comprfuel_amarr.png",
+        25: "items_inventory_moonasteroid_r4.png",
+        30: "items_inventory_cratexvishirt.png",
+        32: "items_76_64_7.png",
+        34: "items_55_64_15.png",
+        35: "items_55_64_11.png",
+        39: "items_95_64_6.png",
+        41: "items_102_128_2.png",
+        42: "items_97_64_10.png",
+        43: "items_99_64_8.png",
+        65: "items_127_64_3.png",
+        66: "items_123_64_11.png",
+        87: "items_36_64_13.png",
+    ]
+    
+    private func getIconFileNew(from db: OpaquePointer, iconID: Int, category_id: Int) -> String {
+        if let mappedIconFile = categoryIconMapping[category_id] {
+            return mappedIconFile
+        }
         if iconID == 0 {
                 return "items_73_16_50.png"
             }
@@ -144,7 +179,7 @@ struct DatabaseCategoryPage: View {
                 let iconID = Int(sqlite3_column_int(statement, 3))
 
                 // 获取 iconFile_new 值
-                let iconFileNew = getIconFileNew(from: db, iconID: iconID)
+                let iconFileNew = getIconFileNew(from: db, iconID: iconID, category_id: id)
                 
                 let category = Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
                 
