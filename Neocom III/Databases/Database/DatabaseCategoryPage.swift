@@ -7,6 +7,7 @@ struct Category: Identifiable {
     let name: String
     let published: Bool
     let iconID: Int
+    let iconFileNew: String
 }
 
 // SearchBar view
@@ -54,7 +55,13 @@ struct DatabaseCategoryPage: View {
                     Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
                         ForEach(publishedCategories) { category in
                             NavigationLink(destination: Text("Category \(category.name) Details")) {
-                                Text(category.name)
+                                HStack {
+                                    // 使用 IconManager 加载图片
+                                    IconManager.shared.loadImage(for: category.iconFileNew)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                    Text(category.name)
+                                }
                             }
                         }
                     }
@@ -64,7 +71,13 @@ struct DatabaseCategoryPage: View {
                     Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
                         ForEach(unpublishedCategories) { category in
                             NavigationLink(destination: Text("Category \(category.name) Details")) {
-                                Text(category.name)
+                                HStack {
+                                    // 使用 IconManager 加载图片
+                                    IconManager.shared.loadImage(for: category.iconFileNew)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                    Text(category.name)
+                                }
                             }
                         }
                     }
@@ -90,6 +103,31 @@ struct DatabaseCategoryPage: View {
         unpublishedCategories = unpublished
     }
 
+    private func getIconFileNew(from db: OpaquePointer, iconID: Int) -> String {
+        if iconID == 0 {
+                return "items_73_16_50.png"
+            }
+        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
+        var statement: OpaquePointer?
+        var iconFileNew = ""
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(iconID))
+
+            if sqlite3_step(statement) == SQLITE_ROW {
+                // 获取 iconFile_new 字段
+                if let iconFileNewPointer = sqlite3_column_text(statement, 0) {
+                    iconFileNew = String(cString: iconFileNewPointer)
+                }
+            }
+            sqlite3_finalize(statement)
+        } else {
+            print("Failed to prepare iconIDs query")
+        }
+
+        return iconFileNew
+    }
+    
     // Load categories from the database
     private func loadCategories(from db: OpaquePointer) -> ([Category], [Category]) {
         var publishedCategories: [Category] = []
@@ -104,7 +142,12 @@ struct DatabaseCategoryPage: View {
                 let name = String(cString: sqlite3_column_text(statement, 1))
                 let published = sqlite3_column_int(statement, 2) != 0
                 let iconID = Int(sqlite3_column_int(statement, 3))
-                let category = Category(id: id, name: name, published: published, iconID: iconID)
+
+                // 获取 iconFile_new 值
+                let iconFileNew = getIconFileNew(from: db, iconID: iconID)
+                
+                let category = Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
+                
                 if published {
                     publishedCategories.append(category)
                 } else {
