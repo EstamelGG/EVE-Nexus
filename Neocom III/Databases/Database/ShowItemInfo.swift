@@ -12,6 +12,12 @@ struct ShowItemInfo: View {
         VStack {
             // 显示物品的名称、分类、描述信息
             HStack {
+                // 在视图加载时打印 itemDetails.iconFileName
+                Text("Icon File Name: \(itemDetails.iconFileName)")
+                    .onAppear {
+                        print("Icon File Name: \(itemDetails.iconFileName)")
+                    }
+                
                 // 加载并显示 icon
                 IconManager.shared.loadImage(for: itemDetails.iconFileName)
                     .resizable()
@@ -44,7 +50,7 @@ struct ShowItemInfo: View {
             print("Database not available")
             return
         }
-
+        print("get item \(itemID)")
         let query = """
         SELECT name, description, icon_filename 
         FROM types 
