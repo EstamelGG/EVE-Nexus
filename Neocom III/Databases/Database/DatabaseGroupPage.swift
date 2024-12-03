@@ -24,34 +24,42 @@ struct DatabaseGroupPage: View {
         VStack {
             // List of groups, divided by published and unpublished categories
             List {
-                if !publishedGroups.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
-                        ForEach(publishedGroups) { group in
-                            // NavigationLink to DatabaseItemPage, passing the groupID and groupName
-                            NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
-                                HStack {
-                                    // Load the group's icon
-                                    IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
-                                        .resizable()
-                                        .frame(width: 36, height: 36)
-                                    Text(group.name)
+                if publishedGroups.isEmpty && unpublishedGroups.isEmpty {
+                    // 显示空数据提示
+                    Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    if !publishedGroups.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
+                            ForEach(publishedGroups) { group in
+                                // NavigationLink to DatabaseItemPage, passing the groupID and groupName
+                                NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
+                                    HStack {
+                                        // Load the group's icon
+                                        IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
+                                            .resizable()
+                                            .frame(width: 36, height: 36)
+                                        Text(group.name)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                if !unpublishedGroups.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
-                        ForEach(unpublishedGroups) { group in
-                            // NavigationLink to DatabaseItemPage, passing the groupID and groupName
-                            NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
-                                HStack {
-                                    // Load the group's icon
-                                    IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
-                                        .resizable()
-                                        .frame(width: 36, height: 36)
-                                    Text(group.name)
+                    if !unpublishedGroups.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
+                            ForEach(unpublishedGroups) { group in
+                                // NavigationLink to DatabaseItemPage, passing the groupID and groupName
+                                NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
+                                    HStack {
+                                        // Load the group's icon
+                                        IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
+                                            .resizable()
+                                            .frame(width: 36, height: 36)
+                                        Text(group.name)
+                                    }
                                 }
                             }
                         }

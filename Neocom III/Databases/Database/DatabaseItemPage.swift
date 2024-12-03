@@ -24,15 +24,24 @@ struct DatabaseItemPage: View {
         VStack {
             // 按照 metaGroupID 分组，显示多个列表
             List {
-                ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
-                    Section(header: Text(metaGroupNames[metaGroupID] ?? "Unknown MetaGroup").font(.title3)) {
-                        ForEach(items.filter { $0.metaGroupID == metaGroupID }) { item in
-                            HStack {
-                                // 使用 IconManager 来加载 icon
-                                IconManager.shared.loadImage(for: item.iconFileName)
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                Text(item.name)
+                if items.isEmpty {
+                    // 显示空数据提示
+                    Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else {
+                    ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
+                        Section(header: Text(metaGroupNames[metaGroupID] ?? NSLocalizedString("Unknown_MetaGroup", comment: ""))
+                                    .font(.title3)) {
+                            ForEach(items.filter { $0.metaGroupID == metaGroupID }) { item in
+                                HStack {
+                                    // 使用 IconManager 来加载 icon
+                                    IconManager.shared.loadImage(for: item.iconFileName)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                    Text(item.name)
+                                }
                             }
                         }
                     }

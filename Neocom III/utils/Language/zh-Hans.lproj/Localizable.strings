@@ -22,6 +22,7 @@
 "Main_Databases" = "数据";
 "Main_Database" = "数据库";
 "Main_Database_title" = "数据库";
+"Main_Database_nothing_found" = "无数据";
 "DatabaseName" = "item_db_zh";
 "Main_Database_unpublished" = "未发布";
 "Main_Database_published" = "已发布";
