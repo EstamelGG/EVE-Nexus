@@ -6,6 +6,7 @@ struct Category: Identifiable {
     let id: Int
     let name: String
     let published: Bool
+    let iconID: Int
 }
 
 // SearchBar view
@@ -94,7 +95,7 @@ struct DatabaseCategoryPage: View {
         var publishedCategories: [Category] = []
         var unpublishedCategories: [Category] = []
 
-        let query = "SELECT category_id, name, published FROM categories ORDER BY category_id"
+        let query = "SELECT category_id, name, published, iconID FROM categories ORDER BY category_id"
         var statement: OpaquePointer?
 
         if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
@@ -102,8 +103,8 @@ struct DatabaseCategoryPage: View {
                 let id = Int(sqlite3_column_int(statement, 0))
                 let name = String(cString: sqlite3_column_text(statement, 1))
                 let published = sqlite3_column_int(statement, 2) != 0
-
-                let category = Category(id: id, name: name, published: published)
+                let iconID = Int(sqlite3_column_int(statement, 3))
+                let category = Category(id: id, name: name, published: published, iconID: iconID)
                 if published {
                     publishedCategories.append(category)
                 } else {
