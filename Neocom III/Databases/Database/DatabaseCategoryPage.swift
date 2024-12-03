@@ -186,6 +186,9 @@ struct DatabaseCategoryPage: View {
                 // 获取 iconFile_new 字段
                 if let iconFileNewPointer = sqlite3_column_text(statement, 0) {
                     iconFileNew = String(cString: iconFileNewPointer)
+                    if iconFileNew.isEmpty{
+                        iconFileNew = "items_73_16_50.png"
+                    }
                 }
             }
             sqlite3_finalize(statement)

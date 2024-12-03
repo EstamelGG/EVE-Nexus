@@ -133,9 +133,16 @@ struct DatabaseGroupPage: View {
             if sqlite3_step(statement) == SQLITE_ROW {
                 // Get the iconFile_new from the query result
                 if let iconFileNew = sqlite3_column_text(statement, 0) {
-                    let iconFileName = String(cString: iconFileNew)
+                    var iconFileName = String(cString: iconFileNew)
+                    
+                    // 检查 iconFileName 是否为空
+                    if iconFileName.isEmpty {
+                        iconFileName = "items_73_16_50.png" // 赋值默认值
+                    }
+                    
                     sqlite3_finalize(statement)
-                    return iconFileName // Return the iconFile_new value directly
+                    
+                    return iconFileName // 返回最终的 iconFileName 值
                 }
             }
             sqlite3_finalize(statement)
