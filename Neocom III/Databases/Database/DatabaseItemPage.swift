@@ -52,7 +52,7 @@ struct DatabaseItemPage: View {
 
                 // 显示未发布的项目
                 if !unpublishedItems.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
                         ForEach(unpublishedItems) { item in
                             HStack {
                                 // 使用 IconManager 来加载 icon
