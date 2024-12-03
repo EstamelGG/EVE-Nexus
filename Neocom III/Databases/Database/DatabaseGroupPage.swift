@@ -25,9 +25,10 @@ struct DatabaseGroupPage: View {
             // List of groups, divided by published and unpublished categories
             List {
                 if !publishedGroups.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
                         ForEach(publishedGroups) { group in
-                            NavigationLink(destination: Text("Group \(group.name) Details")) {
+                            // NavigationLink to DatabaseItemPage, passing the groupID and groupName
+                            NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                 HStack {
                                     // Load the group's icon
                                     IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
@@ -41,9 +42,10 @@ struct DatabaseGroupPage: View {
                 }
 
                 if !unpublishedGroups.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
                         ForEach(unpublishedGroups) { group in
-                            NavigationLink(destination: Text("Group \(group.name) Details")) {
+                            // NavigationLink to DatabaseItemPage, passing the groupID and groupName
+                            NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                 HStack {
                                     // Load the group's icon
                                     IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))

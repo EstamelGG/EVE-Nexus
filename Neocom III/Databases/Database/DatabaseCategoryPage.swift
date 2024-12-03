@@ -52,7 +52,7 @@ struct DatabaseCategoryPage: View {
             // List
             List {
                 if !publishedCategories.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
                         ForEach(publishedCategories) { category in
                             NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                 HStack {
@@ -68,7 +68,7 @@ struct DatabaseCategoryPage: View {
                 }
 
                 if !unpublishedCategories.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
                         ForEach(unpublishedCategories) { category in
                             NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                 HStack {
