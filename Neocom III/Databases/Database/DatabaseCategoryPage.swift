@@ -54,7 +54,7 @@ struct DatabaseCategoryPage: View {
                 if !publishedCategories.isEmpty {
                     Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
                         ForEach(publishedCategories) { category in
-                            NavigationLink(destination: Text("Category \(category.name) Details")) {
+                            NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                 HStack {
                                     // 使用 IconManager 加载图片
                                     IconManager.shared.loadImage(for: category.iconFileNew)
@@ -70,7 +70,7 @@ struct DatabaseCategoryPage: View {
                 if !unpublishedCategories.isEmpty {
                     Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
                         ForEach(unpublishedCategories) { category in
-                            NavigationLink(destination: Text("Category \(category.name) Details")) {
+                            NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                 HStack {
                                     // 使用 IconManager 加载图片
                                     IconManager.shared.loadImage(for: category.iconFileNew)
@@ -134,34 +134,6 @@ struct DatabaseCategoryPage: View {
         87: "items_36_64_13.png",
     ]
     
-    private func getIconFileNew(from db: OpaquePointer, iconID: Int, category_id: Int) -> String {
-        if let mappedIconFile = categoryIconMapping[category_id] {
-            return mappedIconFile
-        }
-        if iconID == 0 {
-                return "items_73_16_50.png"
-            }
-        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
-        var statement: OpaquePointer?
-        var iconFileNew = ""
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(iconID))
-
-            if sqlite3_step(statement) == SQLITE_ROW {
-                // 获取 iconFile_new 字段
-                if let iconFileNewPointer = sqlite3_column_text(statement, 0) {
-                    iconFileNew = String(cString: iconFileNewPointer)
-                }
-            }
-            sqlite3_finalize(statement)
-        } else {
-            print("Failed to prepare iconIDs query")
-        }
-
-        return iconFileNew
-    }
-    
     // Load categories from the database
     private func loadCategories(from db: OpaquePointer) -> ([Category], [Category]) {
         var publishedCategories: [Category] = []
@@ -194,5 +166,33 @@ struct DatabaseCategoryPage: View {
         }
 
         return (publishedCategories, unpublishedCategories)
+    }
+    
+    private func getIconFileNew(from db: OpaquePointer, iconID: Int, category_id: Int) -> String {
+        if let mappedIconFile = categoryIconMapping[category_id] {
+            return mappedIconFile
+        }
+        if iconID == 0 {
+                return "items_73_16_50.png"
+            }
+        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
+        var statement: OpaquePointer?
+        var iconFileNew = ""
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(iconID))
+
+            if sqlite3_step(statement) == SQLITE_ROW {
+                // 获取 iconFile_new 字段
+                if let iconFileNewPointer = sqlite3_column_text(statement, 0) {
+                    iconFileNew = String(cString: iconFileNewPointer)
+                }
+            }
+            sqlite3_finalize(statement)
+        } else {
+            print("Failed to prepare iconIDs query")
+        }
+
+        return iconFileNew
     }
 }
