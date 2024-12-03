@@ -59,8 +59,11 @@ struct ShowItemInfo: View {
             if sqlite3_step(statement) == SQLITE_ROW {
                 let name = String(cString: sqlite3_column_text(statement, 0))
                 let description = String(cString: sqlite3_column_text(statement, 1))
-                let iconFileName = String(cString: sqlite3_column_text(statement, 2))
-                
+                var iconFileName = String(cString: sqlite3_column_text(statement, 2))
+                // 检查 iconFileName 是否为空
+                if iconFileName.isEmpty {
+                    iconFileName = "items_7_64_15.png" // 赋值默认值
+                }
                 itemDetails = (name: name, description: description, iconFileName: iconFileName)
             }
             

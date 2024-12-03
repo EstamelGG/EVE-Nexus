@@ -19,6 +19,8 @@ struct DatabaseItemPage: View {
     @State private var publishedItems: [DatabaseItem] = []
     @State private var unpublishedItems: [DatabaseItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
+    @State private var dataLoaded: Bool = false // 添加标志变量
+    
     var groupID: Int
     var groupName: String
     
@@ -54,18 +56,23 @@ struct DatabaseItemPage: View {
             }
             .navigationTitle(groupName)
             .onAppear {
-                loadItems(for: groupID)
+                // 只在首次加载时调用 loadItems
+                if !dataLoaded {
+                    loadItems(for: groupID)
+                    dataLoaded = true
+                }
             }
         }
     }
     
-    // Simplified to create rows
     private func itemRow(for item: DatabaseItem) -> some View {
-        HStack {
-            IconManager.shared.loadImage(for: item.iconFileName)
-                .resizable()
-                .frame(width: 36, height: 36)
-            Text(item.name)
+        NavigationLink(destination: ShowItemInfo(databaseManager: databaseManager, itemID: item.id)) {
+            HStack {
+                IconManager.shared.loadImage(for: item.iconFileName)
+                    .resizable()
+                    .frame(width: 36, height: 36)
+                Text(item.name)
+            }
         }
     }
 
