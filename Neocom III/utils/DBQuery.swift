@@ -75,6 +75,6 @@ public func executeQuery<T>(
         let errorMessage = String(cString: sqlite3_errmsg(db))
         print("Failed to prepare statement: \(errorMessage)")
     }
-    //print("Get \(results.count) items")
+    print("Get \(results.count) items")
     return results
 }

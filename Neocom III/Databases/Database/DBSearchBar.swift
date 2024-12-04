@@ -3,7 +3,8 @@ import SQLite3
 import Foundation
 
 func cleanKeywordWithRegex(_ keyword: String) -> String {
-    let regex = try! NSRegularExpression(pattern: "[^a-zA-Z0-9]", options: [])
+    // 只去除英文标点符号
+    let regex = try! NSRegularExpression(pattern: "[\\p{P}&&[^\\p{L}\\p{N}]]", options: [])
     let range = NSRange(location: 0, length: keyword.utf16.count)
     let cleanedKeyword = regex.stringByReplacingMatches(in: keyword, options: [], range: range, withTemplate: "")
     return cleanedKeyword
@@ -20,6 +21,7 @@ struct SearchBar: View {
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
 
+    @Binding var isSearching: Bool  // 控制是否在搜索
     @State private var debounceTimer: Timer? = nil
     
     var body: some View {
@@ -117,32 +119,48 @@ struct SearchBar: View {
         )
         
         // 根据 published 字段分类
-        let (publishedItems, unpublishedItems, metaGroupNames) = classifyResults(results)
+        let (publishedItems, unpublishedItems, metaGroupNames) = classifyResults(results, db: db)
         
         // 更新父视图中的搜索结果
         self.publishedItems = publishedItems
         self.unpublishedItems = unpublishedItems
         self.metaGroupNames = metaGroupNames
+        self.isSearching = true
     }
     
     // 分类结果：已发布、未发布以及 metaGroupNames
-    private func classifyResults(_ items: [DatabaseItem]) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
+    private func classifyResults(_ items: [DatabaseItem], db: OpaquePointer) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
         var publishedItems: [DatabaseItem] = []
         var unpublishedItems: [DatabaseItem] = []
         var metaGroupNames: [Int: String] = [:]
         
+        // 获取每个 item 对应的 metaGroupName
         for item in items {
-            // 按 published 字段分类
+            // 加载 metaGroupName
+            loadMetaGroupName(for: item.metaGroupID, db: db, metaGroupNames: &metaGroupNames)
+            
+            // 根据 published 标记分类
             if item.published {
                 publishedItems.append(item)
             } else {
                 unpublishedItems.append(item)
             }
-            
-            // 获取 metaGroupName
-            metaGroupNames[item.metaGroupID] = "Meta Group \(item.metaGroupID)" // 这里可以通过其他方式来设置名称
         }
         
         return (publishedItems, unpublishedItems, metaGroupNames)
+    }
+
+    // 添加你的 loadMetaGroupName 方法
+    private func loadMetaGroupName(for metaGroupID: Int, db: OpaquePointer, metaGroupNames: inout [Int: String]) {
+        let query = "SELECT name FROM metaGroups WHERE metaGroup_id = ?"
+        var statement: OpaquePointer?
+
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+            sqlite3_bind_int(statement, 1, Int32(metaGroupID))
+            if sqlite3_step(statement) == SQLITE_ROW, let name = sqlite3_column_text(statement, 0) {
+                metaGroupNames[metaGroupID] = String(cString: name)
+            }
+            sqlite3_finalize(statement)
+        }
     }
 }

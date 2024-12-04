@@ -1,25 +1,5 @@
 import SwiftUI
 
-// 用于过滤 HTML 标签并处理换行的函数
-func filterText(_ text: String) -> String {
-    // 1. 替换 <b> 和 </b> 标签为一个空格
-    var filteredText = text.replacingOccurrences(of: "<b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "</b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "<br>", with: "\n")
-    // 2. 替换 <link> 和 </link> 标签为一个空格
-    filteredText = filteredText.replacingOccurrences(of: "<link.*?>", with: " ", options: .regularExpression)
-    filteredText = filteredText.replacingOccurrences(of: "</link>", with: " ", options: .regularExpression)
-    
-    // 3. 删除其他 HTML 标签
-    let regex = try! NSRegularExpression(pattern: "<(?!b|link)(.*?)>", options: .caseInsensitive)
-    filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: NSRange(location: 0, length: filteredText.utf16.count), withTemplate: "")
-    
-    // 4. 替换多个连续的换行符为一个换行符
-    filteredText = filteredText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
-    
-    return filteredText
-}
-
 struct ShowItems: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var publishedItems: [DatabaseItem] = []
@@ -29,47 +9,68 @@ struct ShowItems: View {
     @State private var dataLoaded: Bool = false
     @State private var db: OpaquePointer?
     
+    @State private var isSearching: Bool = false  // 控制是否显示搜索结果
     var groupID: Int
     var groupName: String
     
     var body: some View {
-        SearchBar(text: $searchText, sourcePage: "item", group_id: groupID, db: databaseManager.db)
-            .padding(.top)
-        
         VStack {
-            List {
-                if publishedItems.isEmpty && unpublishedItems.isEmpty {
-                    Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                } else {
-                    // 显示已发布条目
-                    if !publishedItems.isEmpty {
-                        ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
-                            Section(header: Text(metaGroupNames[metaGroupID] ?? NSLocalizedString("Unknown_MetaGroup", comment: ""))
-                                .font(.headline).foregroundColor(.primary)) {
-                                    ForEach(publishedItems.filter { $0.metaGroupID == metaGroupID }) { item in
-                                        itemRow(for: item)
+            // 使用 SearchBar 搜索条目并传递结果
+            SearchBar(
+                text: $searchText,
+                sourcePage: "item",
+                group_id: groupID,
+                db: databaseManager.db,
+                publishedItems: $publishedItems,
+                unpublishedItems: $unpublishedItems,
+                metaGroupNames: $metaGroupNames,
+                isSearching: $isSearching // 传递isSearching来控制显示内容
+            )
+            .padding(.top)
+            
+            // 根据 isSearching 控制显示内容
+            if isSearching {
+                // 当有搜索时显示 ItemListView
+                ItemListView(
+                    publishedItems: $publishedItems,
+                    unpublishedItems: $unpublishedItems,
+                    metaGroupNames: $metaGroupNames
+                )
+            } else {
+                List {
+                    if publishedItems.isEmpty && unpublishedItems.isEmpty {
+                        Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    } else {
+                        // 显示已发布条目
+                        if !publishedItems.isEmpty {
+                            ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
+                                Section(header: Text(metaGroupNames[metaGroupID] ?? NSLocalizedString("Unknown_MetaGroup", comment: ""))
+                                    .font(.headline).foregroundColor(.primary)) {
+                                        ForEach(publishedItems.filter { $0.metaGroupID == metaGroupID }) { item in
+                                            itemRow(for: item)
+                                        }
                                     }
-                                }
+                            }
                         }
-                    }
-                    // 显示未发布条目
-                    if !unpublishedItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.primary)) {
-                            ForEach(unpublishedItems) { item in
-                                itemRow(for: item)
+                        // 显示未发布条目
+                        if !unpublishedItems.isEmpty {
+                            Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.primary)) {
+                                ForEach(unpublishedItems) { item in
+                                    itemRow(for: item)
+                                }
                             }
                         }
                     }
                 }
-            }
-            .navigationTitle(groupName)
-            .onAppear {
-                if !dataLoaded {
-                    loadItems(for: groupID)
-                    dataLoaded = true
+                .navigationTitle(groupName)
+                .onAppear {
+                    if !dataLoaded {
+                        loadItems(for: groupID)
+                        dataLoaded = true
+                    }
                 }
             }
         }
