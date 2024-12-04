@@ -10,7 +10,7 @@ func cleanKeywordWithRegex(_ keyword: String) -> String {
     return cleanedKeyword
 }
 
-struct SearchBar: UIViewRepresentable {
+struct Searcher: UIViewRepresentable {
     @Binding var text: String
     var sourcePage: String
     var category_id: Int?
@@ -25,9 +25,9 @@ struct SearchBar: UIViewRepresentable {
     var onCancelSearch: (() -> Void)?
 
     class Coordinator: NSObject, UISearchBarDelegate {
-        var parent: SearchBar
+        var parent: Searcher
 
-        init(parent: SearchBar) {
+        init(parent: Searcher) {
             self.parent = parent
         }
 

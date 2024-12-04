@@ -18,7 +18,7 @@ struct ShowCategory: View {
     var body: some View {
         VStack {
             // 使用 SearchBar 搜索条目并传递结果
-            SearchBar(
+            Searcher(
                 text: $searchText,
                 sourcePage: "category",
                 db: databaseManager.db,
