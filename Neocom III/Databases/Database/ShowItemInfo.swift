@@ -35,6 +35,7 @@ struct ShowItemInfo: View {
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
+                    Spacer()
                 }
                 .padding()
                 
