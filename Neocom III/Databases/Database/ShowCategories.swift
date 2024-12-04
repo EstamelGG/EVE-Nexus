@@ -6,11 +6,12 @@ struct ShowCategory: View {
     @State private var unpublishedCategories: [Category] = []
     @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false
-
+    @State private var db: OpaquePointer?
+        
     var body: some View {
         VStack {
             // Search bar
-            SearchBar(text: $searchText)
+            SearchBar(text: $searchText, sourcePage: "category",db: databaseManager.db)
                 .padding(.top)
 
             // List

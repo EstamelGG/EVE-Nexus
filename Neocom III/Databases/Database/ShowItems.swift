@@ -27,12 +27,13 @@ struct ShowItems: View {
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false
+    @State private var db: OpaquePointer?
     
     var groupID: Int
     var groupName: String
     
     var body: some View {
-        SearchBar(text: $searchText)
+        SearchBar(text: $searchText, sourcePage: "item",db: databaseManager.db)
             .padding(.top)
         
         VStack {

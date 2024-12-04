@@ -6,12 +6,13 @@ struct ShowGroups: View {
     @State private var unpublishedGroups: [Group] = []
     @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false
+    @State private var db: OpaquePointer?
     
     var categoryID: Int
     var categoryName: String
     
     var body: some View {
-        SearchBar(text: $searchText)
+        SearchBar(text: $searchText, sourcePage: "group", db: databaseManager.db)
             .padding(.top)
         
         VStack {
