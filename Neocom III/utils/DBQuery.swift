@@ -12,6 +12,7 @@ public func executeQuery<T>(db: OpaquePointer, query: String, bind: ((OpaquePoin
         bind?(statement)
 
         // 执行查询并处理每一行结果
+        print("Execute sql: \(query)")
         while sqlite3_step(statement) == SQLITE_ROW {
             if let result = resultProcessor(statement) {
                 results.append(result)

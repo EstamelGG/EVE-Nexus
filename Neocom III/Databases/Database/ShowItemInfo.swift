@@ -89,36 +89,46 @@ struct ShowItemInfo: View {
             print("Database not available")
             return
         }
-        // print("Fetching details for item \(itemID)")
+
         let query = """
         SELECT name, description, icon_filename, group_name, category_name 
         FROM types 
         WHERE type_id = ? 
         """
-        
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(itemID))
-            
-            if sqlite3_step(statement) == SQLITE_ROW {
+
+        // 使用通用的查询函数
+        let results: [ItemDetails] = executeQuery(
+            db: db,
+            query: query,
+            bind: { statement in
+                sqlite3_bind_int(statement, 1, Int32(itemID))
+            },
+            resultProcessor: { statement in
                 let name = String(cString: sqlite3_column_text(statement, 0))
                 let description = String(cString: sqlite3_column_text(statement, 1))
-                var iconFileName = String(cString: sqlite3_column_text(statement, 2))
-                let group_name = String(cString: sqlite3_column_text(statement, 3))
-                let category_name = String(cString: sqlite3_column_text(statement, 4))
-                // 检查 iconFileName 是否为空
-                if iconFileName.isEmpty {
-                    iconFileName = "items_7_64_15.png" // 赋值默认值
-                }
-                itemDetails = ItemDetails(name: name, description: description, iconFileName: iconFileName, groupName: group_name, categoryName: category_name)
-            } else {
-                print("Item details not found for ID: \(itemID)")
+                let iconFileName = String(cString: sqlite3_column_text(statement, 2))
+                let groupName = String(cString: sqlite3_column_text(statement, 3))
+                let categoryName = String(cString: sqlite3_column_text(statement, 4))
+
+                // 检查 iconFileName 是否为空并设置默认值
+                let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+
+                // 返回一个 `ItemDetails` 实例
+                return ItemDetails(
+                    name: name,
+                    description: description,
+                    iconFileName: finalIconFileName,
+                    groupName: groupName,
+                    categoryName: categoryName
+                )
             }
-            
-            sqlite3_finalize(statement)
+        )
+
+        // 如果查询结果不为空，取第一个作为详情
+        if let itemDetail = results.first {
+            itemDetails = itemDetail
         } else {
-            print("Failed to prepare statement")
+            print("Item details not found for ID: \(itemID)")
         }
     }
 }

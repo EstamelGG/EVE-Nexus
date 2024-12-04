@@ -91,10 +91,15 @@ struct DatabaseItemPage: View {
         ORDER BY metaGroupID
         """
         
-        var statement: OpaquePointer?
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(groupID))
-            while sqlite3_step(statement) == SQLITE_ROW {
+        // 使用通用的查询函数
+        let results: [DatabaseItem] = executeQuery(
+            db: db,
+            query: query,
+            bind: { statement in
+                sqlite3_bind_int(statement, 1, Int32(groupID))
+            },
+            resultProcessor: { statement in
+                // 创建 DatabaseItem 实例
                 let item = DatabaseItem(
                     id: Int(sqlite3_column_int(statement, 0)),
                     typeID: Int(sqlite3_column_int(statement, 0)),
@@ -105,15 +110,18 @@ struct DatabaseItemPage: View {
                     metaGroupID: Int(sqlite3_column_int(statement, 5)),
                     published: sqlite3_column_int(statement, 6) != 0
                 )
-                
-                if item.published {
-                    publishedItems.append(item)
-                } else {
-                    unpublishedItems.append(item)
-                }
-                loadMetaGroupName(for: item.metaGroupID)
+                return item
             }
-            sqlite3_finalize(statement)
+        )
+
+        // 将结果分类到 publishedItems 和 unpublishedItems
+        for item in results {
+            if item.published {
+                publishedItems.append(item)
+            } else {
+                unpublishedItems.append(item)
+            }
+            loadMetaGroupName(for: item.metaGroupID)
         }
     }
     
