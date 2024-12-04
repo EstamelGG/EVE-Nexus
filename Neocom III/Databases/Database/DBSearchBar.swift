@@ -1,16 +1,16 @@
 import SwiftUI
+import UIKit
 import SQLite3
-import Foundation
 
+// 清理关键字，只去除英文标点符号
 func cleanKeywordWithRegex(_ keyword: String) -> String {
-    // 只去除英文标点符号
     let regex = try! NSRegularExpression(pattern: "[\\p{P}&&[^\\p{L}\\p{N}]]", options: [])
     let range = NSRange(location: 0, length: keyword.utf16.count)
     let cleanedKeyword = regex.stringByReplacingMatches(in: keyword, options: [], range: range, withTemplate: "")
     return cleanedKeyword
 }
 
-struct SearchBar: View {
+struct SearchBar: UIViewRepresentable {
     @Binding var text: String
     var sourcePage: String
     var category_id: Int?
@@ -20,43 +20,56 @@ struct SearchBar: View {
     @Binding var publishedItems: [DatabaseItem]
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
-
     @Binding var isSearching: Bool  // 控制是否在搜索
-    @State private var debounceTimer: Timer? = nil
-    
-    var body: some View {
-        HStack {
-            TextField("Search", text: $text)
-                .padding(7)
-                .padding(.horizontal, 25)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .overlay(
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                            .padding(.leading, 10)
-                        
-                        Spacer()
-                    }
-                )
-                .padding(.horizontal)
-                .onChange(of: text) { oldValue, newValue in
-                    debounceSearch(keyword: newValue)
-                }
+
+    var onCancelSearch: (() -> Void)?
+
+    class Coordinator: NSObject, UISearchBarDelegate {
+        var parent: SearchBar
+
+        init(parent: SearchBar) {
+            self.parent = parent
+        }
+
+        func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+            parent.text = searchText
+            if !searchText.isEmpty {
+                parent.executeQueryForSourcePage(keyword: searchText)
+            } else {
+                parent.isSearching = false
+                parent.publishedItems = []
+                parent.unpublishedItems = []
+                parent.metaGroupNames = [:]
+            }
+        }
+
+        func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+            parent.executeQueryForSourcePage(keyword: searchBar.text ?? "")
+        }
+
+        func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+            parent.text = ""
+            parent.isSearching = false
+            parent.onCancelSearch?()  // 触发取消搜索的回调
         }
     }
-    
-    // 延迟查询函数
-    private func debounceSearch(keyword: String) {
-        debounceTimer?.invalidate()
-        
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
-            executeQueryForSourcePage(keyword: keyword)
-        }
+
+    func makeCoordinator() -> Coordinator {
+        return Coordinator(parent: self)
     }
-    
-    // 根据 sourcePage 调用不同的查询接口
+
+    func makeUIView(context: Context) -> UISearchBar {
+        let searchBar = UISearchBar()
+        searchBar.placeholder = "Search"
+        searchBar.delegate = context.coordinator
+        return searchBar
+    }
+
+    func updateUIView(_ uiView: UISearchBar, context: Context) {
+        uiView.text = text
+    }
+
+    // 根据 sourcePage 执行不同的查询
     private func executeQueryForSourcePage(keyword: String) {
         guard let db = db else {
             print("Database not available")
@@ -127,7 +140,7 @@ struct SearchBar: View {
         self.metaGroupNames = metaGroupNames
         self.isSearching = true
     }
-    
+
     // 分类结果：已发布、未发布以及 metaGroupNames
     private func classifyResults(_ items: [DatabaseItem], db: OpaquePointer) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
         var publishedItems: [DatabaseItem] = []
