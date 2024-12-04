@@ -1,14 +1,4 @@
 import SwiftUI
-import SQLite3
-
-// 定义结构体 ItemDetails
-struct ItemDetails {
-    let name: String
-    let description: String
-    let iconFileName: String
-    let groupName: String
-    let categoryName: String
-}
 
 // 用于过滤 HTML 标签并处理换行的函数
 func filterText(_ text: String) -> String {
@@ -85,47 +75,7 @@ struct ShowItemInfo: View {
     
     // 加载 item 详细信息
     private func loadItemDetails(for itemID: Int) {
-        guard let db = databaseManager.db else {
-            print("Database not available")
-            return
-        }
-        
-        let query = """
-        SELECT name, description, icon_filename, group_name, category_name 
-        FROM types 
-        WHERE type_id = ? 
-        """
-        
-        // 使用通用的查询函数
-        let results: [ItemDetails] = executeQuery(
-            db: db,
-            query: query,bindParams: [itemID],
-            bind: { statement in
-                sqlite3_bind_int(statement, 1, Int32(itemID))
-            },
-            resultProcessor: { statement in
-                let name = String(cString: sqlite3_column_text(statement, 0))
-                let description = String(cString: sqlite3_column_text(statement, 1))
-                let iconFileName = String(cString: sqlite3_column_text(statement, 2))
-                let groupName = String(cString: sqlite3_column_text(statement, 3))
-                let categoryName = String(cString: sqlite3_column_text(statement, 4))
-                
-                // 检查 iconFileName 是否为空并设置默认值
-                let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
-                
-                // 返回一个 `ItemDetails` 实例
-                return ItemDetails(
-                    name: name,
-                    description: description,
-                    iconFileName: finalIconFileName,
-                    groupName: groupName,
-                    categoryName: categoryName
-                )
-            }
-        )
-        
-        // 如果查询结果不为空，取第一个作为详情
-        if let itemDetail = results.first {
+        if let itemDetail = QueryInfo.loadItemDetails(for: itemID, db: databaseManager.db) {
             itemDetails = itemDetail
         } else {
             print("Item details not found for ID: \(itemID)")
