@@ -10,17 +10,9 @@ struct ItemDetails {
     let categoryName: String
 }
 
-// 用于过滤 HTML 标签并处理换行的函数
-func filterText(_ text: String) -> String {
-    // 1. 去除 HTML 标签
-    let regex = try! NSRegularExpression(pattern: "<.*?>", options: [])
-    let range = NSRange(location: 0, length: text.utf16.count)
-    var filteredText = regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: "")
-
-    // 2. 替换多个连续的换行符为一个换行符
-    filteredText = filteredText.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
-
-    return filteredText
+// 处理换行的函数
+func fix_newline(_ text: String) -> String {
+    return text.replacingOccurrences(of: "\n\n\n+", with: "\n\n", options: .regularExpression)
 }
 
 // ShowItemInfo view
@@ -51,7 +43,7 @@ struct ShowItemInfo: View {
                     }
                     .padding(.vertical, 8)
                     
-                    Text(filterText(itemDetails.description))
+                    Text(fix_newline(itemDetails.description))
                         .font(.body)
                         .foregroundColor(.primary)
                 }
