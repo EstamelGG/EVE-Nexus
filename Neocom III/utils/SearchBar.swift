@@ -125,10 +125,10 @@ struct SearchBar: View {
         )
         
         // 处理查询结果
-        if !results.isEmpty {
-            print("Found \(results.count) items for keyword: \(keyword)")
-        } else {
-            print("No results found for keyword: \(keyword)")
-        }
+//        if !results.isEmpty {
+//            print("Found \(results.count) items for keyword: \(keyword)")
+//        } else {
+//            print("No results found for keyword: \(keyword)")
+//        }
     }
 }
