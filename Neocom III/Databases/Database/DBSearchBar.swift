@@ -35,6 +35,14 @@ struct Searcher: UIViewRepresentable {
             debounceWorkItem?.cancel() // 取消之前的防抖任务
             parent.text = searchText
 
+            // 检查是否正在输入未完成的候选字
+            if let textField = searchBar.value(forKey: "searchField") as? UITextField,
+               let markedTextRange = textField.markedTextRange,
+               textField.position(from: markedTextRange.start, offset: 0) != nil {
+                // 当前处于未完成的输入状态（有候选字），不触发搜索
+                return
+            }
+            
             if searchText.isEmpty {
                 parent.isSearching = false
                 parent.publishedItems = []
@@ -49,8 +57,8 @@ struct Searcher: UIViewRepresentable {
             }
             debounceWorkItem = workItem
 
-            // 延迟 0.3 秒后执行查询
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
+            // 延迟后执行查询
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
 
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
