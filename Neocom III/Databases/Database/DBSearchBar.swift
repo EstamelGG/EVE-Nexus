@@ -16,7 +16,7 @@ struct Searcher: UIViewRepresentable {
     var category_id: Int?
     var group_id: Int?
     var db: OpaquePointer?
-    
+
     @Binding var publishedItems: [DatabaseItem]
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
@@ -26,31 +26,47 @@ struct Searcher: UIViewRepresentable {
 
     class Coordinator: NSObject, UISearchBarDelegate {
         var parent: Searcher
-
+        private var debounceWorkItem: DispatchWorkItem?
         init(parent: Searcher) {
             self.parent = parent
         }
 
         func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+            debounceWorkItem?.cancel() // 取消之前的防抖任务
             parent.text = searchText
-            if !searchText.isEmpty {
-                parent.executeQueryForSourcePage(keyword: searchText)
-            } else {
+
+            if searchText.isEmpty {
                 parent.isSearching = false
                 parent.publishedItems = []
                 parent.unpublishedItems = []
                 parent.metaGroupNames = [:]
+                return
             }
+
+            // 创建新的防抖任务
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.parent.executeQueryForSourcePage(keyword: searchText)
+            }
+            debounceWorkItem = workItem
+
+            // 延迟 0.3 秒后执行查询
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: workItem)
         }
 
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+            debounceWorkItem?.cancel() // 立即执行搜索逻辑，跳过防抖
             parent.executeQueryForSourcePage(keyword: searchBar.text ?? "")
         }
 
         func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+            debounceWorkItem?.cancel() // 取消防抖任务
             parent.text = ""
             parent.isSearching = false
-            parent.onCancelSearch?()  // 触发取消搜索的回调
+            parent.publishedItems = []
+            parent.unpublishedItems = []
+            parent.metaGroupNames = [:]
+            searchBar.resignFirstResponder() // 关闭键盘
+            parent.onCancelSearch?()
         }
     }
 
@@ -62,25 +78,15 @@ struct Searcher: UIViewRepresentable {
         let searchBar = UISearchBar()
         searchBar.placeholder = "Search"
         searchBar.delegate = context.coordinator
-        searchBar.searchBarStyle = .minimal  // 使用 minimal 风格去除分割线
-        searchBar.backgroundImage = UIImage() // 去除搜索框背景的分割线
-
-        // 去除 `UISearchBar` 上下的分割线
-        for subview in searchBar.subviews {
-            for subview2 in subview.subviews {
-                if let barBackground = subview2 as? UIImageView {
-                    barBackground.isHidden = true
-                }
-            }
-        }
-
+        searchBar.searchBarStyle = .minimal // 使用 minimal 风格去除多余样式
+        searchBar.showsCancelButton = true // 显示取消按钮
         return searchBar
     }
 
     func updateUIView(_ uiView: UISearchBar, context: Context) {
         uiView.text = text
+        uiView.showsCancelButton = true // 确保取消按钮始终显示
     }
-
     // 根据 sourcePage 执行不同的查询
     private func executeQueryForSourcePage(keyword: String) {
         guard let db = db else {
@@ -127,9 +133,9 @@ struct Searcher: UIViewRepresentable {
             db: db,
             query: query,
             bindParams: bindParams,
-            bind: { statement in },
+            bind: { _ in },
             resultProcessor: { statement in
-                let item = DatabaseItem(
+                DatabaseItem(
                     id: Int(sqlite3_column_int(statement, 0)),
                     typeID: Int(sqlite3_column_int(statement, 0)),
                     name: String(cString: sqlite3_column_text(statement, 1)),
@@ -139,14 +145,12 @@ struct Searcher: UIViewRepresentable {
                     metaGroupID: Int(sqlite3_column_int(statement, 5)),
                     published: sqlite3_column_int(statement, 6) != 0
                 )
-                return item
             }
         )
         
         // 根据 published 字段分类
         let (publishedItems, unpublishedItems, metaGroupNames) = classifyResults(results, db: db)
-        
-        // 更新父视图中的搜索结果
+
         self.publishedItems = publishedItems
         self.unpublishedItems = unpublishedItems
         self.metaGroupNames = metaGroupNames
