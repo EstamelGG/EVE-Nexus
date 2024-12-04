@@ -37,7 +37,7 @@ struct DatabaseItemPage: View {
                     if !publishedItems.isEmpty {
                         ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
                             Section(header: Text(metaGroupNames[metaGroupID] ?? NSLocalizedString("Unknown_MetaGroup", comment: ""))
-                                .font(.headline).foregroundColor(.black)) {
+                                .font(.headline).foregroundColor(.primary)) {
                                 ForEach(publishedItems.filter { $0.metaGroupID == metaGroupID }) { item in
                                     itemRow(for: item)
                                 }
@@ -46,7 +46,7 @@ struct DatabaseItemPage: View {
                     }
                     // Unpublished Items
                     if !unpublishedItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.black)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.primary)) {
                             ForEach(unpublishedItems) { item in
                                 itemRow(for: item)
                             }

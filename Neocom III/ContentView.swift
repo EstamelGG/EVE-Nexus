@@ -162,7 +162,7 @@ struct ContentView: View {
                 ForEach(tables) { table in
                     Section(header: Text(table.title)
                         .fontWeight(.bold)
-                        .font(.system(size: 18)).foregroundColor(.black)
+                        .font(.system(size: 18)).foregroundColor(.primary)
                     ) {
                         ForEach(table.rows) { row in
                             NavigationLink(destination: getDestination(for: row)) {
