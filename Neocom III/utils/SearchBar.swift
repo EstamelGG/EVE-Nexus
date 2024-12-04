@@ -1,5 +1,13 @@
 import SwiftUI
 import SQLite3
+import Foundation
+
+func cleanKeywordWithRegex(_ keyword: String) -> String {
+    let regex = try! NSRegularExpression(pattern: "[^a-zA-Z0-9]", options: [])
+    let range = NSRange(location: 0, length: keyword.utf16.count)
+    let cleanedKeyword = regex.stringByReplacingMatches(in: keyword, options: [], range: range, withTemplate: "")
+    return cleanedKeyword
+}
 
 struct SearchBar: View {
     @Binding var text: String
@@ -38,8 +46,8 @@ struct SearchBar: View {
         // 取消之前的计时器（如果有）
         debounceTimer?.invalidate()
         
-        // 创建新的延迟 0.5 秒的计时器
-        debounceTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+        // 创建新的延迟 1 秒的计时器
+        debounceTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
             executeQueryForSourcePage(keyword: keyword)
         }
     }
@@ -53,6 +61,10 @@ struct SearchBar: View {
         
         var query: String
         var bindParams: [String] = []
+        let keyword=cleanKeywordWithRegex(keyword)
+        if keyword.isEmpty{
+            return
+        }
         // 根据 sourcePage 设置不同的查询语句
         switch sourcePage {
         case "category":
