@@ -78,7 +78,7 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Database", comment: ""),
                         iconName: "items",
-                        destination: AnyView(DatabaseCategoryPage(databaseManager: databaseManager)) // 确保传递数据库管理器
+                        destination: AnyView(ShowCategory(databaseManager: databaseManager)) // 确保传递数据库管理器
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market", comment: ""),
