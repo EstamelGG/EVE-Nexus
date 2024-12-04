@@ -97,7 +97,7 @@ struct SearchBar: View {
         }
         
         // 执行查询
-        let results: [ItemDetails] = executeQuery(
+        let results: [DatabaseItem] = executeQuery(
             db: db,
             query: query,
             bindParams: bindParams,
@@ -110,13 +110,17 @@ struct SearchBar: View {
                 
                 let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
                 
-                return ItemDetails(
-                    name: name,
-                    description: "", // 根据需要调整
-                    iconFileName: finalIconFileName,
-                    groupName: groupName,
-                    categoryName: categoryName
+                let res = DatabaseItem(
+                    id: Int(sqlite3_column_int(statement, 0)),
+                    typeID: Int(sqlite3_column_int(statement, 0)),
+                    name: String(cString: sqlite3_column_text(statement, 1)),
+                    iconFileName: String(cString: sqlite3_column_text(statement, 2)).isEmpty ? "items_7_64_15.png" : String(cString: sqlite3_column_text(statement, 2)),
+                    pgNeed: Int(sqlite3_column_int(statement, 3)),
+                    cpuNeed: Int(sqlite3_column_int(statement, 4)),
+                    metaGroupID: Int(sqlite3_column_int(statement, 5)),
+                    published: sqlite3_column_int(statement, 6) != 0
                 )
+                return res
             }
         )
         
