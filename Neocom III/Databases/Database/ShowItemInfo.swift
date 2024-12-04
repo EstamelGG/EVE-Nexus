@@ -57,10 +57,12 @@ struct ShowItemInfo: View {
                         }
                     }
                     .padding(.vertical, 8)
-                    
-                    Text(filterText(itemDetails.description))
-                        .font(.body)
-                        .foregroundColor(.primary)
+                    let desc = filterText(itemDetails.description)
+                    if !desc.isEmpty {
+                        Text(desc)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                    }
                 }
                 
                 Section(header: Text("Additional Information")) {
