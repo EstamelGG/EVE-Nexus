@@ -67,6 +67,7 @@ struct DatabaseCategoryPage: View {
                                         IconManager.shared.loadImage(for: category.iconFileNew)
                                             .resizable()
                                             .frame(width: 36, height: 36)
+                                            .cornerRadius(6)
                                         Text(category.name)
                                     }
                                 }

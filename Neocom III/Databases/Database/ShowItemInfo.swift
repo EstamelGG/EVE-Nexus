@@ -6,6 +6,8 @@ struct ItemDetails {
     let name: String
     let description: String
     let iconFileName: String
+    let groupName: String
+    let categoryName: String
 }
 
 // ShowItemInfo view
@@ -23,12 +25,13 @@ struct ShowItemInfo: View {
                     // 加载并显示 icon
                     IconManager.shared.loadImage(for: itemDetails.iconFileName)
                         .resizable()
-                        .frame(width: 36, height: 36)
+                        .frame(width: 60, height: 60)
+                        .cornerRadius(8)
                     
                     VStack(alignment: .leading) {
                         Text(itemDetails.name)
                             .font(.title)  // 第一行标题
-                        Text("Category / Group")  // 第二行副标题，可以替换为实际的 category/group 名称
+                        Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")  // 第二行副标题，可以替换为实际的 category/group 名称
                             .font(.subheadline)
                             .foregroundColor(.gray)
                     }
@@ -39,7 +42,7 @@ struct ShowItemInfo: View {
                     .padding()
             } else {
                 // 如果没有数据，显示加载中
-                Text("Loading item details...")
+                Text("Details not found")
                     .foregroundColor(.gray)
             }
             Spacer()
@@ -47,7 +50,7 @@ struct ShowItemInfo: View {
         .onAppear {
             loadItemDetails(for: itemID)  // 加载物品详细信息
         }
-        .navigationTitle("Item Info")  // 设置页面标题
+        .navigationTitle("Info")  // 设置页面标题
     }
     
     // 加载 item 详细信息
@@ -58,7 +61,7 @@ struct ShowItemInfo: View {
         }
         // print("Fetching details for item \(itemID)")
         let query = """
-        SELECT name, description, icon_filename 
+        SELECT name, description, icon_filename, group_name, category_name 
         FROM types 
         WHERE type_id = ? 
         """
@@ -72,11 +75,13 @@ struct ShowItemInfo: View {
                 let name = String(cString: sqlite3_column_text(statement, 0))
                 let description = String(cString: sqlite3_column_text(statement, 1))
                 var iconFileName = String(cString: sqlite3_column_text(statement, 2))
+                let group_name = String(cString: sqlite3_column_text(statement, 3))
+                let category_name = String(cString: sqlite3_column_text(statement, 4))
                 // 检查 iconFileName 是否为空
                 if iconFileName.isEmpty {
                     iconFileName = "items_7_64_15.png" // 赋值默认值
                 }
-                itemDetails = ItemDetails(name: name, description: description, iconFileName: iconFileName)
+                itemDetails = ItemDetails(name: name, description: description, iconFileName: iconFileName, groupName: group_name, categoryName: category_name)
             } else {
                 print("Item details not found for ID: \(itemID)")
             }

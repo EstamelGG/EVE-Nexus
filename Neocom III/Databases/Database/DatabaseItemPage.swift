@@ -71,6 +71,7 @@ struct DatabaseItemPage: View {
                 IconManager.shared.loadImage(for: item.iconFileName)
                     .resizable()
                     .frame(width: 36, height: 36)
+                    .cornerRadius(6)
                 Text(item.name)
             }
         }

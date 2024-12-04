@@ -58,6 +58,7 @@ struct DatabaseGroupPage: View {
                                         IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
                                             .resizable()
                                             .frame(width: 36, height: 36)
+                                            .cornerRadius(6)
                                         Text(group.name)
                                     }
                                 }
