@@ -7,7 +7,8 @@ struct Group: Identifiable {
     let name: String
     let iconID: Int
     let categoryID: Int
-    let published: Bool  // Added published field
+    let published: Bool
+    let icon_filename: String
 }
 
 // DatabaseGroupPage view
@@ -38,7 +39,7 @@ struct DatabaseGroupPage: View {
                                 NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                     HStack {
                                         // Load the group's icon
-                                        IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
+                                        IconManager.shared.loadImage(for: group.icon_filename)
                                             .resizable()
                                             .frame(width: 36, height: 36)
                                         Text(group.name)
@@ -55,7 +56,7 @@ struct DatabaseGroupPage: View {
                                 NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                     HStack {
                                         // Load the group's icon
-                                        IconManager.shared.loadImage(for: getIconFileName(for: group.iconID))
+                                        IconManager.shared.loadImage(for: group.icon_filename)
                                             .resizable()
                                             .frame(width: 36, height: 36)
                                             .cornerRadius(6)
@@ -89,19 +90,26 @@ struct DatabaseGroupPage: View {
 
     // Query the database for groups of a specific category
     private func loadGroupsFromDatabase(for categoryID: Int, db: OpaquePointer) -> ([Group], [Group]) {
-        let query = "SELECT group_id, name, iconID, categoryID, published FROM groups WHERE categoryID = ? ORDER BY group_id"
+        let query = "SELECT group_id, name, iconID, categoryID, published, icon_filename FROM groups WHERE categoryID = ? ORDER BY group_id"
         
         let groups = executeQuery(db: db, query: query, bind: { statement in
             // 绑定 categoryID 到查询
             sqlite3_bind_int(statement, 1, Int32(categoryID))
         }, resultProcessor: { statement in
             let id = Int(sqlite3_column_int(statement, 0))
-            let name = String(cString: sqlite3_column_text(statement, 1))
+            var name = String(cString: sqlite3_column_text(statement, 1))
+            if name.isEmpty {
+                name = "Unknown"
+            }
             let iconID = Int(sqlite3_column_int(statement, 2))
             let categoryID = Int(sqlite3_column_int(statement, 3))
-            let published = sqlite3_column_int(statement, 4) != 0  // Check published flag
+            let published = sqlite3_column_int(statement, 4) != 0
+            var icon_filename = String(cString: sqlite3_column_text(statement, 5))
+            if icon_filename.isEmpty {
+                icon_filename = "items_73_16_50.png"
+            }
             
-            return Group(id: id, name: name, iconID: iconID, categoryID: categoryID, published: published)
+            return Group(id: id, name: name, iconID: iconID, categoryID: categoryID, published: published, icon_filename: icon_filename)
         })
 
         // 根据 published 字段分组
@@ -109,17 +117,5 @@ struct DatabaseGroupPage: View {
         let unpublishedGroups = groups.filter { !$0.published }
 
         return (publishedGroups, unpublishedGroups)
-    }
-
-    // Helper function to get the icon file name for a group
-    private func getIconFileName(for iconID: Int) -> String {
-        guard let db = databaseManager.db else {
-            return "items_73_16_50.png"  // Default image if database is unavailable
-        }
-        var res = SelectIconName(from: db, iconID: iconID)
-        if res.isEmpty {
-            res = "items_73_16_50.png"
-        }
-        return res  // 调用你提供的 getIconFileName 函数
     }
 }
