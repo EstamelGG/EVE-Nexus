@@ -18,40 +18,47 @@ struct ShowItemInfo: View {
     @State private var itemDetails: ItemDetails? // 改为使用可选类型
     
     var body: some View {
-        VStack {
-            if let itemDetails = itemDetails { // 解包 itemDetails
-                // 显示物品的名称、分类、描述信息
-                HStack {
-                    // 加载并显示 icon
-                    IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                        .resizable()
-                        .frame(width: 60, height: 60)
-                        .cornerRadius(8)
-                    
-                    VStack(alignment: .leading) {
-                        Text(itemDetails.name)
-                            .font(.title)  // 第一行标题
-                        Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")  // 第二行副标题，可以替换为实际的 category/group 名称
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+        Form {
+            if let itemDetails = itemDetails {
+                Section {
+                    HStack {
+                        // 加载并显示 icon
+                        IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                            .resizable()
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(itemDetails.name)
+                                .font(.title)
+                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
                     }
-                    Spacer()
+                    .padding(.vertical, 8)
+                    
+                    Text(itemDetails.description)
+                        .font(.body)
+                        .foregroundColor(.primary)
                 }
-                .padding()
                 
-                Text(itemDetails.description)
-                    .padding()
+                Section(header: Text("Additional Information")) {
+                    Text("More details can go here.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
             } else {
-                // 如果没有数据，显示加载中
-                Text("Details not found")
-                    .foregroundColor(.gray)
+                Section {
+                    Text("Details not found")
+                        .foregroundColor(.gray)
+                }
             }
-            Spacer()
         }
+        .navigationTitle("Info") // 设置页面标题
         .onAppear {
-            loadItemDetails(for: itemID)  // 加载物品详细信息
+            loadItemDetails(for: itemID) // 加载物品详细信息
         }
-        .navigationTitle("Info")  // 设置页面标题
     }
     
     // 加载 item 详细信息
