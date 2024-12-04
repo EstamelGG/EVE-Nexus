@@ -16,6 +16,10 @@ struct SearchBar: View {
     var group_id: Int?
     var db: OpaquePointer?
     
+    @Binding var publishedItems: [DatabaseItem]
+    @Binding var unpublishedItems: [DatabaseItem]
+    @Binding var metaGroupNames: [Int: String]
+
     @State private var debounceTimer: Timer? = nil
     
     var body: some View {
@@ -43,10 +47,8 @@ struct SearchBar: View {
     
     // 延迟查询函数
     private func debounceSearch(keyword: String) {
-        // 取消之前的计时器（如果有）
         debounceTimer?.invalidate()
         
-        // 创建新的延迟 1 秒的计时器
         debounceTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
             executeQueryForSourcePage(keyword: keyword)
         }
@@ -61,11 +63,9 @@ struct SearchBar: View {
         
         var query: String
         var bindParams: [String] = []
-        let keyword=cleanKeywordWithRegex(keyword)
-        if keyword.isEmpty{
-            return
-        }
-        // 根据 sourcePage 设置不同的查询语句
+        let keyword = cleanKeywordWithRegex(keyword)
+        if keyword.isEmpty { return }
+        
         switch sourcePage {
         case "category":
             query = """
@@ -79,7 +79,7 @@ struct SearchBar: View {
             query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
-            WHERE name LIKE "%\(keyword)%" AND categoryID = \(String(category_id!))
+            WHERE name LIKE "%\(keyword)%" AND categoryID = \(category_id!)
             ORDER BY metaGroupID
             """
             bindParams = ["%\(keyword)%", String(category_id!)]
@@ -87,12 +87,11 @@ struct SearchBar: View {
             query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
-            WHERE name LIKE "%\(keyword)%" AND groupID = \(String(group_id!))
+            WHERE name LIKE "%\(keyword)%" AND groupID = \(group_id!)
             ORDER BY metaGroupID
             """
             bindParams = ["%\(keyword)%", String(group_id!)]
         default:
-            print("Unknown sourcePage")
             return
         }
         
@@ -101,16 +100,9 @@ struct SearchBar: View {
             db: db,
             query: query,
             bindParams: bindParams,
-            bind: {statement in },
+            bind: { statement in },
             resultProcessor: { statement in
-                let name = String(cString: sqlite3_column_text(statement, 1))
-                let iconFileName = String(cString: sqlite3_column_text(statement, 2))
-                let groupName = String(cString: sqlite3_column_text(statement, 3))
-                let categoryName = String(cString: sqlite3_column_text(statement, 4))
-                
-                let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
-                
-                let res = DatabaseItem(
+                let item = DatabaseItem(
                     id: Int(sqlite3_column_int(statement, 0)),
                     typeID: Int(sqlite3_column_int(statement, 0)),
                     name: String(cString: sqlite3_column_text(statement, 1)),
@@ -120,15 +112,37 @@ struct SearchBar: View {
                     metaGroupID: Int(sqlite3_column_int(statement, 5)),
                     published: sqlite3_column_int(statement, 6) != 0
                 )
-                return res
+                return item
             }
         )
         
-        // 处理查询结果
-//        if !results.isEmpty {
-//            print("Found \(results.count) items for keyword: \(keyword)")
-//        } else {
-//            print("No results found for keyword: \(keyword)")
-//        }
+        // 根据 published 字段分类
+        let (publishedItems, unpublishedItems, metaGroupNames) = classifyResults(results)
+        
+        // 更新父视图中的搜索结果
+        self.publishedItems = publishedItems
+        self.unpublishedItems = unpublishedItems
+        self.metaGroupNames = metaGroupNames
+    }
+    
+    // 分类结果：已发布、未发布以及 metaGroupNames
+    private func classifyResults(_ items: [DatabaseItem]) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
+        var publishedItems: [DatabaseItem] = []
+        var unpublishedItems: [DatabaseItem] = []
+        var metaGroupNames: [Int: String] = [:]
+        
+        for item in items {
+            // 按 published 字段分类
+            if item.published {
+                publishedItems.append(item)
+            } else {
+                unpublishedItems.append(item)
+            }
+            
+            // 获取 metaGroupName
+            metaGroupNames[item.metaGroupID] = "Meta Group \(item.metaGroupID)" // 这里可以通过其他方式来设置名称
+        }
+        
+        return (publishedItems, unpublishedItems, metaGroupNames)
     }
 }
