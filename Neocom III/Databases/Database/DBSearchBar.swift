@@ -62,6 +62,18 @@ struct SearchBar: UIViewRepresentable {
         let searchBar = UISearchBar()
         searchBar.placeholder = "Search"
         searchBar.delegate = context.coordinator
+        searchBar.searchBarStyle = .minimal  // 使用 minimal 风格去除分割线
+        searchBar.backgroundImage = UIImage() // 去除搜索框背景的分割线
+
+        // 去除 `UISearchBar` 上下的分割线
+        for subview in searchBar.subviews {
+            for subview2 in subview.subviews {
+                if let barBackground = subview2 as? UIImageView {
+                    barBackground.isHidden = true
+                }
+            }
+        }
+
         return searchBar
     }
 
