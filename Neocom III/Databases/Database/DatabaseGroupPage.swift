@@ -92,7 +92,7 @@ struct DatabaseGroupPage: View {
     private func loadGroupsFromDatabase(for categoryID: Int, db: OpaquePointer) -> ([Group], [Group]) {
         let query = "SELECT group_id, name, iconID, categoryID, published, icon_filename FROM groups WHERE categoryID = ? ORDER BY group_id"
         
-        let groups = executeQuery(db: db, query: query, bind: { statement in
+        let groups = executeQuery(db: db, query: query, bindParams: [categoryID], bind: { statement in
             // 绑定 categoryID 到查询
             sqlite3_bind_int(statement, 1, Int32(categoryID))
         }, resultProcessor: { statement in

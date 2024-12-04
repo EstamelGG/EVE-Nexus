@@ -153,7 +153,7 @@ struct DatabaseCategoryPage: View {
         let query = "SELECT category_id, name, published, iconID FROM categories ORDER BY category_id"
 
         // 使用 executeQuery 进行 SQL 查询
-        let categories = executeQuery(db: db, query: query, bind: nil, resultProcessor: { statement in
+        let categories = executeQuery(db: db, query: query, bindParams: [], bind: nil, resultProcessor: { statement in
             let id = Int(sqlite3_column_int(statement, 0))
             let name = String(cString: sqlite3_column_text(statement, 1))
             let published = sqlite3_column_int(statement, 2) != 0

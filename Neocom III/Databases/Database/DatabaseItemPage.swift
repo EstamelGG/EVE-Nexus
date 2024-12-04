@@ -94,7 +94,7 @@ struct DatabaseItemPage: View {
         // 使用通用的查询函数
         let results: [DatabaseItem] = executeQuery(
             db: db,
-            query: query,
+            query: query, bindParams: [groupID],
             bind: { statement in
                 sqlite3_bind_int(statement, 1, Int32(groupID))
             },

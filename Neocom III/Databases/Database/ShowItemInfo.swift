@@ -19,14 +19,14 @@ func filterText(_ text: String) -> String {
     // 2. 替换 <link> 和 </link> 标签为一个空格
     filteredText = filteredText.replacingOccurrences(of: "<link.*?>", with: " ", options: .regularExpression)
     filteredText = filteredText.replacingOccurrences(of: "</link>", with: " ", options: .regularExpression)
-
+    
     // 3. 删除其他 HTML 标签
     let regex = try! NSRegularExpression(pattern: "<(?!b|link)(.*?)>", options: .caseInsensitive)
     filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: NSRange(location: 0, length: filteredText.utf16.count), withTemplate: "")
-
+    
     // 4. 替换多个连续的换行符为一个换行符
     filteredText = filteredText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
-
+    
     return filteredText
 }
 
@@ -89,17 +89,17 @@ struct ShowItemInfo: View {
             print("Database not available")
             return
         }
-
+        
         let query = """
         SELECT name, description, icon_filename, group_name, category_name 
         FROM types 
         WHERE type_id = ? 
         """
-
+        
         // 使用通用的查询函数
         let results: [ItemDetails] = executeQuery(
             db: db,
-            query: query,
+            query: query,bindParams: [itemID],
             bind: { statement in
                 sqlite3_bind_int(statement, 1, Int32(itemID))
             },
@@ -109,10 +109,10 @@ struct ShowItemInfo: View {
                 let iconFileName = String(cString: sqlite3_column_text(statement, 2))
                 let groupName = String(cString: sqlite3_column_text(statement, 3))
                 let categoryName = String(cString: sqlite3_column_text(statement, 4))
-
+                
                 // 检查 iconFileName 是否为空并设置默认值
                 let finalIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
-
+                
                 // 返回一个 `ItemDetails` 实例
                 return ItemDetails(
                     name: name,
@@ -123,7 +123,7 @@ struct ShowItemInfo: View {
                 )
             }
         )
-
+        
         // 如果查询结果不为空，取第一个作为详情
         if let itemDetail = results.first {
             itemDetails = itemDetail
