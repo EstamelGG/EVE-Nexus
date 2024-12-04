@@ -53,36 +53,32 @@ struct SearchBar: View {
         
         var query: String
         var bindParams: [String] = []
-        
         // 根据 sourcePage 设置不同的查询语句
         switch sourcePage {
         case "category":
             query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
-            WHERE name LIKE ?
+            WHERE name LIKE "%\(keyword)%"
             ORDER BY metaGroupID
             """
-            bindParams = ["\(keyword)"]
-            
+            bindParams = ["%\(keyword)%"]
         case "group":
             query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
-            WHERE name LIKE ? AND categoryID = ?
+            WHERE name LIKE "%\(keyword)%" AND categoryID = \(String(category_id!))
             ORDER BY metaGroupID
             """
             bindParams = ["%\(keyword)%", String(category_id!)]
-            
         case "item":
             query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
-            WHERE name LIKE ? AND groupID = ?
+            WHERE name LIKE "%\(keyword)%" AND groupID = \(String(group_id!))
             ORDER BY metaGroupID
             """
             bindParams = ["%\(keyword)%", String(group_id!)]
-            
         default:
             print("Unknown sourcePage")
             return
@@ -93,12 +89,7 @@ struct SearchBar: View {
             db: db,
             query: query,
             bindParams: bindParams,
-            bind: { statement in
-                // 绑定所有参数
-                for (index, param) in bindParams.enumerated() {
-                    sqlite3_bind_text(statement, Int32(index + 1), param, -1, nil)
-                }
-            },
+            bind: {statement in },
             resultProcessor: { statement in
                 let name = String(cString: sqlite3_column_text(statement, 1))
                 let iconFileName = String(cString: sqlite3_column_text(statement, 2))

@@ -33,7 +33,7 @@ struct ShowItems: View {
     var groupName: String
     
     var body: some View {
-        SearchBar(text: $searchText, sourcePage: "item",db: databaseManager.db)
+        SearchBar(text: $searchText, sourcePage: "item", group_id: groupID, db: databaseManager.db)
             .padding(.top)
         
         VStack {

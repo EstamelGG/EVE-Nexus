@@ -11,7 +11,7 @@ struct ShowCategory: View {
     var body: some View {
         VStack {
             // Search bar
-            SearchBar(text: $searchText, sourcePage: "category",db: databaseManager.db)
+            SearchBar(text: $searchText, sourcePage: "category", db: databaseManager.db)
                 .padding(.top)
 
             // List

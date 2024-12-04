@@ -51,7 +51,7 @@ public func executeQuery<T>(
         // 绑定参数到 SQL 查询，如果 bind 不为 nil 则执行
         bind?(statement)
         // 打印拼接后的查询语句
-        print("Execute SQL: \(modifiedQuery)\n")
+        //print("Execute SQL: \(modifiedQuery)\n")
         // 执行查询并处理每一行结果
         while sqlite3_step(statement) == SQLITE_ROW {
             if let result = resultProcessor(statement) {
@@ -75,6 +75,6 @@ public func executeQuery<T>(
         let errorMessage = String(cString: sqlite3_errmsg(db))
         print("Failed to prepare statement: \(errorMessage)")
     }
-    print("Get \(results.count) items")
+    //print("Get \(results.count) items")
     return results
 }

@@ -12,7 +12,7 @@ struct ShowGroups: View {
     var categoryName: String
     
     var body: some View {
-        SearchBar(text: $searchText, sourcePage: "group", db: databaseManager.db)
+        SearchBar(text: $searchText, sourcePage: "group", category_id: categoryID, db: databaseManager.db)
             .padding(.top)
         
         VStack {
