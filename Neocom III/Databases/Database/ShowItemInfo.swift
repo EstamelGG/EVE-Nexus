@@ -1,25 +1,5 @@
 import SwiftUI
 
-// 用于过滤 HTML 标签并处理换行的函数
-func filterText(_ text: String) -> String {
-    // 1. 替换 <b> 和 </b> 标签为一个空格
-    var filteredText = text.replacingOccurrences(of: "<b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "</b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "<br>", with: "\n")
-    // 2. 替换 <link> 和 </link> 标签为一个空格
-    filteredText = filteredText.replacingOccurrences(of: "<link.*?>", with: " ", options: .regularExpression)
-    filteredText = filteredText.replacingOccurrences(of: "</link>", with: " ", options: .regularExpression)
-    
-    // 3. 删除其他 HTML 标签
-    let regex = try! NSRegularExpression(pattern: "<(?!b|link)(.*?)>", options: .caseInsensitive)
-    filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: NSRange(location: 0, length: filteredText.utf16.count), withTemplate: "")
-    
-    // 4. 替换多个连续的换行符为一个换行符
-    filteredText = filteredText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
-    
-    return filteredText
-}
-
 // ShowItemInfo view
 struct ShowItemInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -82,3 +62,4 @@ struct ShowItemInfo: View {
         }
     }
 }
+
