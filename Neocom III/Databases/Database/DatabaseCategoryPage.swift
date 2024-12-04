@@ -162,9 +162,15 @@ struct DatabaseCategoryPage: View {
                 let name = String(cString: sqlite3_column_text(statement, 1))
                 let published = sqlite3_column_int(statement, 2) != 0
                 let iconID = Int(sqlite3_column_int(statement, 3))
-
-                // 获取 iconFile_new 值
-                let iconFileNew = getIconFileNew(from: db, iconID: iconID, category_id: id)
+                var iconFileNew: String
+                if let mappedIconFile = categoryIconMapping[id] {
+                    iconFileNew = mappedIconFile
+                } else {
+                    iconFileNew = SelectIconName(from: db, iconID: iconID)
+                }
+                if iconFileNew.isEmpty {
+                    iconFileNew = "items_73_16_50.png"
+                }
                 
                 let category = Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
                 
@@ -180,36 +186,5 @@ struct DatabaseCategoryPage: View {
         }
 
         return (publishedCategories, unpublishedCategories)
-    }
-    
-    private func getIconFileNew(from db: OpaquePointer, iconID: Int, category_id: Int) -> String {
-        if let mappedIconFile = categoryIconMapping[category_id] {
-            return mappedIconFile
-        }
-        if iconID == 0 {
-                return "items_73_16_50.png"
-            }
-        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
-        var statement: OpaquePointer?
-        var iconFileNew = ""
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(iconID))
-
-            if sqlite3_step(statement) == SQLITE_ROW {
-                // 获取 iconFile_new 字段
-                if let iconFileNewPointer = sqlite3_column_text(statement, 0) {
-                    iconFileNew = String(cString: iconFileNewPointer)
-                    if iconFileNew.isEmpty{
-                        iconFileNew = "items_73_16_50.png"
-                    }
-                }
-            }
-            sqlite3_finalize(statement)
-        } else {
-            print("Failed to prepare iconIDs query")
-        }
-
-        return iconFileNew
     }
 }

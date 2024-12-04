@@ -127,37 +127,10 @@ struct DatabaseGroupPage: View {
         guard let db = databaseManager.db else {
             return "items_73_16_50.png"  // Default image if database is unavailable
         }
-        if iconID == 0 {
-                return "items_73_16_50.png"
-            }
-
-        // Query iconIDs table to get the iconFile_new for the given iconID
-        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
-        var statement: OpaquePointer?
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            // Bind the iconID to the query
-            sqlite3_bind_int(statement, 1, Int32(iconID))
-
-            if sqlite3_step(statement) == SQLITE_ROW {
-                // Get the iconFile_new from the query result
-                if let iconFileNew = sqlite3_column_text(statement, 0) {
-                    var iconFileName = String(cString: iconFileNew)
-                    
-                    // 检查 iconFileName 是否为空
-                    if iconFileName.isEmpty {
-                        iconFileName = "items_73_16_50.png" // 赋值默认值
-                    }
-                    
-                    sqlite3_finalize(statement)
-                    
-                    return iconFileName // 返回最终的 iconFileName 值
-                }
-            }
-            sqlite3_finalize(statement)
+        var res = SelectIconName(from: db, iconID: iconID)
+        if res.isEmpty {
+            res = "items_73_16_50.png"
         }
-
-        // If no result or if iconID is 0, return default image
-        return "items_73_16_50.png"
+        return res  // 调用你提供的 getIconFileName 函数
     }
 }
