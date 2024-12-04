@@ -150,40 +150,34 @@ struct DatabaseCategoryPage: View {
     
     // Load categories from the database
     private func loadCategories(from db: OpaquePointer) -> ([Category], [Category]) {
-        var publishedCategories: [Category] = []
-        var unpublishedCategories: [Category] = []
-
         let query = "SELECT category_id, name, published, iconID FROM categories ORDER BY category_id"
-        var statement: OpaquePointer?
 
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let id = Int(sqlite3_column_int(statement, 0))
-                let name = String(cString: sqlite3_column_text(statement, 1))
-                let published = sqlite3_column_int(statement, 2) != 0
-                let iconID = Int(sqlite3_column_int(statement, 3))
-                var iconFileNew: String
-                if let mappedIconFile = categoryIconMapping[id] {
-                    iconFileNew = mappedIconFile
-                } else {
-                    iconFileNew = SelectIconName(from: db, iconID: iconID)
-                }
-                if iconFileNew.isEmpty {
-                    iconFileNew = "items_73_16_50.png"
-                }
-                
-                let category = Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
-                
-                if published {
-                    publishedCategories.append(category)
-                } else {
-                    unpublishedCategories.append(category)
-                }
+        // 使用 executeQuery 进行 SQL 查询
+        let categories = executeQuery(db: db, query: query, bind: nil, resultProcessor: { statement in
+            let id = Int(sqlite3_column_int(statement, 0))
+            let name = String(cString: sqlite3_column_text(statement, 1))
+            let published = sqlite3_column_int(statement, 2) != 0
+            let iconID = Int(sqlite3_column_int(statement, 3))
+            
+            // 处理 iconFileNew
+            var iconFileNew: String
+            if let mappedIconFile = categoryIconMapping[id] {
+                iconFileNew = mappedIconFile
+            } else {
+                iconFileNew = SelectIconName(from: db, iconID: iconID)
             }
-            sqlite3_finalize(statement)
-        } else {
-            print("Failed to prepare statement")
-        }
+            
+            if iconFileNew.isEmpty {
+                iconFileNew = "items_73_16_50.png"
+            }
+
+            // 创建 Category 对象并返回
+            return Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
+        })
+
+        // 根据 published 字段分组
+        let publishedCategories = categories.filter { $0.published }
+        let unpublishedCategories = categories.filter { !$0.published }
 
         return (publishedCategories, unpublishedCategories)
     }

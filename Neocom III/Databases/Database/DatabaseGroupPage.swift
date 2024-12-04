@@ -89,35 +89,24 @@ struct DatabaseGroupPage: View {
 
     // Query the database for groups of a specific category
     private func loadGroupsFromDatabase(for categoryID: Int, db: OpaquePointer) -> ([Group], [Group]) {
-        var publishedGroups: [Group] = []
-        var unpublishedGroups: [Group] = []
         let query = "SELECT group_id, name, iconID, categoryID, published FROM groups WHERE categoryID = ? ORDER BY group_id"
-        var statement: OpaquePointer?
-
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
-            // Bind categoryID to the query
+        
+        let groups = executeQuery(db: db, query: query, bind: { statement in
+            // 绑定 categoryID 到查询
             sqlite3_bind_int(statement, 1, Int32(categoryID))
+        }, resultProcessor: { statement in
+            let id = Int(sqlite3_column_int(statement, 0))
+            let name = String(cString: sqlite3_column_text(statement, 1))
+            let iconID = Int(sqlite3_column_int(statement, 2))
+            let categoryID = Int(sqlite3_column_int(statement, 3))
+            let published = sqlite3_column_int(statement, 4) != 0  // Check published flag
+            
+            return Group(id: id, name: name, iconID: iconID, categoryID: categoryID, published: published)
+        })
 
-            while sqlite3_step(statement) == SQLITE_ROW {
-                let id = Int(sqlite3_column_int(statement, 0))
-                let name = String(cString: sqlite3_column_text(statement, 1))
-                let iconID = Int(sqlite3_column_int(statement, 2))
-                let categoryID = Int(sqlite3_column_int(statement, 3))
-                let published = sqlite3_column_int(statement, 4) != 0  // Check published flag
-
-                let group = Group(id: id, name: name, iconID: iconID, categoryID: categoryID, published: published)
-                
-                // Separate published and unpublished groups
-                if published {
-                    publishedGroups.append(group)
-                } else {
-                    unpublishedGroups.append(group)
-                }
-            }
-            sqlite3_finalize(statement)
-        } else {
-            print("Failed to prepare statement")
-        }
+        // 根据 published 字段分组
+        let publishedGroups = groups.filter { $0.published }
+        let unpublishedGroups = groups.filter { !$0.published }
 
         return (publishedGroups, unpublishedGroups)
     }
