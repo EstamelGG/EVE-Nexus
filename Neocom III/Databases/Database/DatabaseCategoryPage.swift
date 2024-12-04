@@ -39,9 +39,8 @@ struct DatabaseCategoryPage: View {
     @ObservedObject var databaseManager: DatabaseManager // 使用传递的数据库管理器
     @State private var publishedCategories: [Category] = []
     @State private var unpublishedCategories: [Category] = []
-    
-    // Search text
     @State private var searchText: String = ""
+    @State private var dataLoaded: Bool = false // 添加标志变量
 
     var body: some View {
         VStack {
@@ -94,7 +93,11 @@ struct DatabaseCategoryPage: View {
             }
             .navigationTitle(NSLocalizedString("Main_Database_title", comment: ""))
             .onAppear {
-                loadData()
+                // 只在首次加载时调用 loadData
+                if !dataLoaded {
+                    loadData()
+                    dataLoaded = true
+                }
             }
         }
     }

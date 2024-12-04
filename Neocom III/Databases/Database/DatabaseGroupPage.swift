@@ -16,6 +16,7 @@ struct DatabaseGroupPage: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var publishedGroups: [Group] = []
     @State private var unpublishedGroups: [Group] = []
+    @State private var dataLoaded: Bool = false // 添加标志变量
     
     // The categoryID passed from the previous page
     var categoryID: Int
@@ -70,7 +71,11 @@ struct DatabaseGroupPage: View {
             }
             .navigationTitle(categoryName) // Use the category's name as the title
             .onAppear {
-                loadGroups(for: categoryID)
+                // 只在首次加载时调用 loadGroups
+                if !dataLoaded {
+                    loadGroups(for: categoryID)
+                    dataLoaded = true
+                }
             }
         }
     }
