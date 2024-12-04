@@ -10,31 +10,6 @@ struct Category: Identifiable {
     let iconFileNew: String
 }
 
-// SearchBar view
-struct SearchBar: View {
-    @Binding var text: String
-    
-    var body: some View {
-        HStack {
-            TextField("Search...", text: $text)
-                .padding(7)
-                .padding(.horizontal, 25)
-                .background(Color(.systemGray6))
-                .cornerRadius(10)
-                .overlay(
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                            .padding(.leading, 10)
-                        
-                        Spacer()
-                    }
-                )
-                .padding(.horizontal)
-        }
-    }
-}
-
 struct DatabaseCategoryPage: View {
     @ObservedObject var databaseManager: DatabaseManager // 使用传递的数据库管理器
     @State private var publishedCategories: [Category] = []

@@ -16,6 +16,7 @@ struct DatabaseGroupPage: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var publishedGroups: [Group] = []
     @State private var unpublishedGroups: [Group] = []
+    @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false // 添加标志变量
     
     // The categoryID passed from the previous page
@@ -23,6 +24,8 @@ struct DatabaseGroupPage: View {
     var categoryName: String // Added categoryName to be used as the title
     
     var body: some View {
+        SearchBar(text: $searchText)
+            .padding(.top)
         VStack {
             // List of groups, divided by published and unpublished categories
             List {

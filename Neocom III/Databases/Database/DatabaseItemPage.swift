@@ -19,12 +19,15 @@ struct DatabaseItemPage: View {
     @State private var publishedItems: [DatabaseItem] = []
     @State private var unpublishedItems: [DatabaseItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
+    @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false // 添加标志变量
     
     var groupID: Int
     var groupName: String
     
     var body: some View {
+        SearchBar(text: $searchText)
+            .padding(.top)
         VStack {
             List {
                 if publishedItems.isEmpty && unpublishedItems.isEmpty {
