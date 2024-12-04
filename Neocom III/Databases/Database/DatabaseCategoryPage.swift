@@ -58,7 +58,7 @@ struct DatabaseCategoryPage: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     if !publishedCategories.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.headline).foregroundColor(.black)) {
                             ForEach(publishedCategories) { category in
                                 NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                     HStack {
@@ -75,7 +75,7 @@ struct DatabaseCategoryPage: View {
                     }
 
                     if !unpublishedCategories.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.black)) {
                             ForEach(unpublishedCategories) { category in
                                 NavigationLink(destination: DatabaseGroupPage(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
                                     HStack {

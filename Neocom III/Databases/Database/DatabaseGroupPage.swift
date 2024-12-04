@@ -34,7 +34,7 @@ struct DatabaseGroupPage: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     if !publishedGroups.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.title3)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.headline).foregroundColor(.black)) {
                             ForEach(publishedGroups) { group in
                                 // NavigationLink to DatabaseItemPage, passing the groupID and groupName
                                 NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
@@ -51,7 +51,7 @@ struct DatabaseGroupPage: View {
                     }
 
                     if !unpublishedGroups.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.title3)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.black)) {
                             ForEach(unpublishedGroups) { group in
                                 // NavigationLink to DatabaseItemPage, passing the groupID and groupName
                                 NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
