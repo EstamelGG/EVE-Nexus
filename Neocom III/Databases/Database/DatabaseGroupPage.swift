@@ -40,12 +40,13 @@ struct DatabaseGroupPage: View {
                         Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.headline).foregroundColor(.primary)) {
                             ForEach(publishedGroups) { group in
                                 // NavigationLink to DatabaseItemPage, passing the groupID and groupName
-                                NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
+                                NavigationLink(destination: ShowItems(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                     HStack {
                                         // Load the group's icon
                                         IconManager.shared.loadImage(for: group.icon_filename)
                                             .resizable()
                                             .frame(width: 36, height: 36)
+                                            .cornerRadius(6)
                                         Text(group.name)
                                     }
                                 }
@@ -57,9 +58,9 @@ struct DatabaseGroupPage: View {
                         Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.primary)) {
                             ForEach(unpublishedGroups) { group in
                                 // NavigationLink to DatabaseItemPage, passing the groupID and groupName
-                                NavigationLink(destination: DatabaseItemPage(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
+                                NavigationLink(destination: ShowItems(databaseManager: databaseManager, groupID: group.id, groupName: group.name)) {
                                     HStack {
-                                        // Load the group's icon
+                                        // 加载 group 的图标
                                         IconManager.shared.loadImage(for: group.icon_filename)
                                             .resizable()
                                             .frame(width: 36, height: 36)
