@@ -43,7 +43,7 @@ struct DatabaseListView: View {
                     dismiss()  // 如果有搜索文本，取消时返回上一页
                 }
             })
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { _, newValue in
                 searchTextDebouncer.text = newValue
                 if newValue.isEmpty {
                     dismiss()  // 当搜索文本被清空时返回上一页
