@@ -82,7 +82,7 @@ struct SelectLanguageView: View {
                     
                     // 3. 应用新的语言设置
                     if let languageBundlePath = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
-                       let languageBundle = Bundle(path: languageBundlePath) {
+                       let _ = Bundle(path: languageBundlePath) {
                         Bundle.setLanguage(languageCode)
                     }
                     
