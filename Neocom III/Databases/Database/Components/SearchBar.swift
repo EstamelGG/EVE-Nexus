@@ -2,32 +2,51 @@ import SwiftUI
 
 struct SearchBar: View {
     @Binding var text: String
-    let placeholder: String
-    let onSearch: () -> Void
+    @State private var isEditing = false
     
     var body: some View {
         HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-            
-            TextField(placeholder, text: $text)
-                .textFieldStyle(PlainTextFieldStyle())
-                .onSubmit {
-                    onSearch()
-                }
-            
-            if !text.isEmpty {
-                Button(action: {
-                    text = ""
-                    onSearch()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                
+                TextField("搜索...", text: $text)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                    .onTapGesture {
+                        isEditing = true
+                    }
+                
+                if !text.isEmpty {
+                    Button(action: {
+                        text = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
                 }
             }
+            .padding(8)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            
+            if isEditing {
+                Button("取消") {
+                    text = ""
+                    isEditing = false
+                    // 隐藏键盘
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                 to: nil, from: nil, for: nil)
+                }
+                .foregroundColor(.blue)
+                .transition(.move(edge: .trailing))
+                .animation(.default, value: isEditing)
+            }
         }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
+        .padding(.horizontal)
     }
+}
+
+#Preview {
+    SearchBar(text: .constant(""))
 } 

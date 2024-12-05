@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // 通用的数据项模型
 struct DatabaseListItem: Identifiable {
@@ -22,191 +23,127 @@ struct DatabaseListView: View {
     let title: String
     let groupingType: GroupingType
     let loadData: (DatabaseManager) -> ([DatabaseListItem], [Int: String])
-    let searchData: (DatabaseManager, String) -> ([DatabaseListItem], [Int: String])  // 新增：搜索数据加载器
+    let searchData: ((DatabaseManager, String) -> ([DatabaseListItem], [Int: String]))?
     
-    // 状态
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
-    @State private var searchText: String = ""
-    @State private var isSearching: Bool = false
-    @State private var searchResults: [DatabaseListItem] = []
+    @State private var searchText = ""
+    @State private var isSearching = false
+    
+    // 添加防抖发布者
+    @StateObject private var searchTextDebouncer = DebouncedText()
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 搜索栏
-            SearchBar(text: $searchText, placeholder: NSLocalizedString("Main_Database_Search", comment: "")) {
-                performSearch()
-            }
-            .padding(.horizontal)
-            .frame(height: 60)
-            
-            Divider()
-            
-            // 内容列表
-            if isSearching {
-                searchResultsList
-            } else {
-                mainContentList
-            }
-        }
-        .navigationTitle(title)
-        .onAppear {
-            loadItems()
-        }
-    }
-    
-    // 主内容列表
-    private var mainContentList: some View {
-        List {
-            if items.isEmpty {
-                Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                if groupingType == .publishedOnly {
-                    // Categories 和 Groups 的显示逻辑
-                    publishedGroupsSection
-                } else {
-                    // Items 的显示逻辑
-                    metaGroupsSection
+        VStack {
+            SearchBar(text: $searchText)
+                .onChange(of: searchText) { _, newValue in
+                    searchTextDebouncer.text = newValue
                 }
-            }
-        }
-        .listStyle(.insetGrouped)
-    }
-    
-    // 搜索结果列表
-    private var searchResultsList: some View {
-        List {
-            if searchResults.isEmpty {
-                Text(NSLocalizedString("Main_Database_no_search_results", comment: ""))
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            
+            if items.isEmpty {
+                ContentUnavailableView("没有找到结果", systemImage: "magnifyingglass")
             } else {
-                // 搜索结果始终按 MetaGroup 分组显示
-                ForEach(Array(Dictionary(grouping: searchResults.filter { $0.published }, by: { $0.metaGroupID ?? 0 })), id: \.key) { metaGroupID, items in
-                    if !items.isEmpty {
-                        Section(header: Text(metaGroupNames[metaGroupID] ?? "Unknown")) {
-                            ForEach(items) { item in
-                                itemRow(for: item)
+                List {
+                    ForEach(groupedItems, id: \.key) { group in
+                        Section(header: Text(group.key)) {
+                            ForEach(group.value) { item in
+                                NavigationLink(destination: item.navigationDestination) {
+                                    DatabaseListItemView(item: item)
+                                }
                             }
                         }
                     }
                 }
-                
-                // 未发布的搜索结果
-                let unpublishedResults = searchResults.filter { !$0.published }
-                if !unpublishedResults.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                        ForEach(unpublishedResults) { item in
-                            itemRow(for: item)
-                        }
-                    }
-                }
+                .listStyle(.insetGrouped)
             }
         }
-        .listStyle(.insetGrouped)
-    }
-    
-    // 已发布/未发布分组
-    private var publishedGroupsSection: some View {
-        SwiftUI.Group {
-            // 已发布项目
-            if !publishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
-                    ForEach(publishedItems) { item in
-                        itemRow(for: item)
-                    }
-                }
-            }
-            
-            // 未发布项目
-            if !unpublishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                    ForEach(unpublishedItems) { item in
-                        itemRow(for: item)
-                    }
-                }
-            }
+        .navigationTitle(title)
+        .onAppear {
+            loadInitialData()
+        }
+        // 监听防抖后的搜索文本
+        .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
+            performSearch(with: debouncedText)
         }
     }
     
-    // MetaGroup 分组
-    private var metaGroupsSection: some View {
-        SwiftUI.Group {
-            // 按 MetaGroup 分组的项目
-            ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
-                if let items = itemsByMetaGroup[metaGroupID], !items.isEmpty {
-                    Section(header: Text(metaGroupNames[metaGroupID] ?? "Unknown")) {
-                        ForEach(items) { item in
-                            itemRow(for: item)
-                        }
-                    }
-                }
-            }
-            
-            // 未发布项目
-            if !unpublishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                    ForEach(unpublishedItems) { item in
-                        itemRow(for: item)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func itemRow(for item: DatabaseListItem) -> some View {
-        NavigationLink(destination: item.navigationDestination) {
-            HStack {
-                IconManager.shared.loadImage(for: item.iconFileName)
-                    .resizable()
-                    .frame(width: 36, height: 36)
-                    .cornerRadius(6)
-                Text(item.name)
-            }
-        }
-    }
-    
-    // 计算属性
-    private var publishedItems: [DatabaseListItem] {
-        items.filter { $0.published }
-    }
-    
-    private var unpublishedItems: [DatabaseListItem] {
-        items.filter { !$0.published }
-    }
-    
-    private var itemsByMetaGroup: [Int: [DatabaseListItem]] {
-        Dictionary(grouping: items.filter { $0.published }) { $0.metaGroupID ?? 0 }
-    }
-    
-    private func sortedMetaGroupIDs() -> [Int] {
-        Array(Set(items.compactMap { $0.metaGroupID })).sorted()
-    }
-    
-    // 数据加载
-    private func loadItems() {
-        let (loadedItems, groupNames) = loadData(databaseManager)
+    private func loadInitialData() {
+        let (loadedItems, loadedMetaGroupNames) = loadData(databaseManager)
         items = loadedItems
-        metaGroupNames = groupNames
+        metaGroupNames = loadedMetaGroupNames
     }
     
-    // 搜索
-    private func performSearch() {
-        let cleanedText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cleanedText.isEmpty {
-            isSearching = false
-            searchResults = []
+    private func performSearch(with text: String) {
+        if text.isEmpty {
+            loadInitialData()
             return
         }
         
-        // 使用新的搜索数据加载器
-        let (results, groupNames) = searchData(databaseManager, cleanedText)
-        searchResults = results
-        metaGroupNames = groupNames
-        isSearching = true
+        guard let searchData = searchData else { return }
+        let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
+        items = searchResults
+        metaGroupNames = searchMetaGroupNames
     }
-} 
+    
+    private var groupedItems: [(key: String, value: [DatabaseListItem])] {
+        switch groupingType {
+        case .publishedOnly:
+            // 按发布状态分组
+            let published = items.filter { $0.published }
+            let unpublished = items.filter { !$0.published }
+            
+            var groups: [(String, [DatabaseListItem])] = []
+            if !published.isEmpty {
+                groups.append(("已发布", published))
+            }
+            if !unpublished.isEmpty {
+                groups.append(("未发布", unpublished))
+            }
+            return groups
+            
+        case .metaGroups:
+            // 按元组分组
+            let grouped = Dictionary(grouping: items) { item in
+                if let metaGroupID = item.metaGroupID,
+                   let metaGroupName = metaGroupNames[metaGroupID] {
+                    return metaGroupName
+                }
+                return "未分组"
+            }
+            return grouped.sorted { $0.key < $1.key }
+        }
+    }
+}
+
+// 防抖文本处理类
+class DebouncedText: ObservableObject {
+    @Published var text: String = ""
+    @Published var debouncedText: String = ""
+    private var cancellable: AnyCancellable?
+    
+    init() {
+        cancellable = $text
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { [weak self] value in
+                self?.debouncedText = value
+            }
+    }
+}
+
+// 数据库列表项视图
+struct DatabaseListItemView: View {
+    let item: DatabaseListItem
+    
+    var body: some View {
+        HStack {
+            // 加载并显示图标
+            IconManager.shared.loadImage(for: item.iconFileName)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
+            
+            Text(item.name)
+                .foregroundColor(item.published ? .primary : .secondary)
+        }
+    }
+}
