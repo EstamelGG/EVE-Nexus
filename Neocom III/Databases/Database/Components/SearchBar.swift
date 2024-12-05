@@ -37,6 +37,10 @@ struct SearchBar: UIViewRepresentable {
         }
         
         func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+            if let searchField = searchBar.value(forKey: "searchField") as? UITextField {
+                isComposing = searchField.markedTextRange != nil
+            }
+            
             if !isComposing {
                 text = searchText
             }
@@ -50,14 +54,7 @@ struct SearchBar: UIViewRepresentable {
         func searchBar(_ searchBar: UISearchBar, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
             if text == "\n" {
                 searchBar.resignFirstResponder()
-                isSearching = false
                 return false
-            }
-            
-            if text.isEmpty && range.length > 0 {
-                isComposing = false
-            } else {
-                isComposing = true
             }
             return true
         }
@@ -79,10 +76,8 @@ struct SearchBar: UIViewRepresentable {
         
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
             searchBar.resignFirstResponder()
-            isComposing = false
-            isSearching = false
-            if searchBar.text?.isEmpty ?? true {
-                onCancel?()
+            if let finalText = searchBar.text {
+                text = finalText
             }
         }
         

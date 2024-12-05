@@ -40,30 +40,31 @@ struct DatabaseListView: View {
             SearchBar(text: $searchText, isSearching: $isSearching, onCancel: {
                 loadInitialData()
                 if !searchText.isEmpty {
-                    searchText = ""  // 只清空搜索文本，不自动返回
+                    searchText = ""
                 }
             })
             .onChange(of: searchText) { _, newValue in
-                isSearching = !newValue.isEmpty  // 当有文本时进入搜索状态
+                isSearching = true
                 searchTextDebouncer.text = newValue
             }
             
             ZStack {
-                if isSearching || !searchText.isEmpty {
-                    // 搜索过程中或有搜索文本时显示遮罩
+                if isSearching {
+                    // 搜索状态下显示遮罩
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
                     
-                    if items.isEmpty {
-                        // 如果没有搜索结果，显示提示
+                    if !searchText.isEmpty && items.isEmpty {
+                        // 有搜索文本但没有结果
                         ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
-                    } else if !isSearching {
-                        // 只有在搜索完成且有结果时显示搜索结果
-                        searchResultsList
                     }
-                } else {
-                    // 普通浏览状态
-                    normalBrowseList
+                } else if !items.isEmpty {
+                    // 有搜索结果时显示列表
+                    if !searchText.isEmpty {
+                        searchResultsList
+                    } else {
+                        normalBrowseList
+                    }
                 }
             }
         }
@@ -71,9 +72,11 @@ struct DatabaseListView: View {
         .onAppear {
             loadInitialData()
         }
-        // 监听防抖后的搜索文本
-        .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
-            if !debouncedText.isEmpty {
+        .onReceive(searchTextDebouncer.$debouncedText.receive(on: RunLoop.main)) { debouncedText in
+            if debouncedText.isEmpty {
+                loadInitialData()
+                isSearching = false
+            } else {
                 performSearch(with: debouncedText)
             }
         }
@@ -150,19 +153,13 @@ struct DatabaseListView: View {
     }
     
     private func performSearch(with text: String) {
-        if text.isEmpty {
-            loadInitialData()
-            isSearching = false
-            return
-        }
-        
         guard let searchData = searchData else { return }
+        
         let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
         items = searchResults
         
         // 更新 metaGroupNames
         if searchMetaGroupNames.isEmpty {
-            // 如果搜索结果没有返回 metaGroup 名称，从数据库管理器获取
             let metaGroupIDs = Set(searchResults.compactMap { $0.metaGroupID })
             metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
         } else {
@@ -253,7 +250,13 @@ class DebouncedText: ObservableObject {
         cancellable = $text
             .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
             .sink { [weak self] value in
-                self?.debouncedText = value
+                DispatchQueue.main.async {
+                    self?.debouncedText = value
+                }
             }
+    }
+    
+    deinit {
+        cancellable?.cancel()
     }
 }
