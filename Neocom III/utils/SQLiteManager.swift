@@ -89,7 +89,7 @@ class SQLiteManager {
                 sqlite3_bind_text(statement, parameterIndex, (value as NSString).utf8String, -1, nil)
             case let value as Data:
                 value.withUnsafeBytes { bytes in
-                    sqlite3_bind_blob(statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil)
+                    _ = sqlite3_bind_blob(statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil)
                 }
             case is NSNull:
                 sqlite3_bind_null(statement, parameterIndex)
