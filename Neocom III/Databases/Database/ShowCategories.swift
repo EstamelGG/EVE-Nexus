@@ -16,7 +16,6 @@ struct ShowCategory: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 标题与搜索栏组合
             VStack(alignment: .leading, spacing: 8) {
                 Searcher(
                     text: $searchText,
