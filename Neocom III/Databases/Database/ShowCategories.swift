@@ -107,8 +107,6 @@ struct ShowCategory: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground)) // 设置背景颜色
-        .edgesIgnoringSafeArea(.bottom) // 内容扩展到安全区外
     }
     
     private func loadCategories() {
