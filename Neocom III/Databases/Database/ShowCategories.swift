@@ -38,7 +38,8 @@ struct ShowCategory: View {
                 ItemListView(
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames
+                    metaGroupNames: $metaGroupNames,
+                    current_title: NSLocalizedString("Main_Database_title", comment: "")
                 )
             } else {
                 // 分类列表

@@ -24,6 +24,7 @@ struct ShowGroups: View {
                 Searcher(
                     text: $searchText,
                     sourcePage: "group",
+                    category_id: categoryID,
                     db: databaseManager.db,
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
@@ -42,7 +43,8 @@ struct ShowGroups: View {
                 ItemListView(
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames
+                    metaGroupNames: $metaGroupNames,
+                    current_title: categoryName
                 )
             } else {
                 // 没有搜索时显示原本的分组列表

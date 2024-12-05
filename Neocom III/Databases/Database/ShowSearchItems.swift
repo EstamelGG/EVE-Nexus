@@ -4,6 +4,7 @@ struct ItemListView: View {
     @Binding var publishedItems: [DatabaseItem]
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
+    var current_title: String
     
     var body: some View {
         VStack {
@@ -38,6 +39,7 @@ struct ItemListView: View {
                     }
                 }
             }
+            .navigationTitle(current_title)
         }
     }
     

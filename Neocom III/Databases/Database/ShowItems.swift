@@ -16,10 +16,11 @@ struct ShowItems: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 使用 SearchBar 搜索条目并传递结果
-            VStack(alignment: .leading, spacing: 8) {                
+            VStack(alignment: .leading, spacing: 8) {
                 Searcher(
                     text: $searchText,
                     sourcePage: "item",
+                    category_id: groupID,
                     db: databaseManager.db,
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
@@ -37,7 +38,8 @@ struct ShowItems: View {
                 ItemListView(
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames
+                    metaGroupNames: $metaGroupNames,
+                    current_title: groupName
                 )
             } else {
                 List {
