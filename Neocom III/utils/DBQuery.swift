@@ -58,7 +58,6 @@ public func executeQuery<T>(
                 results.append(result)
             }
         }
-
         // 释放 statement 资源
         sqlite3_finalize(statement)
         
