@@ -1,49 +1,50 @@
 import SwiftUI
+import UIKit
 
-struct SearchBar: View {
+struct SearchBar: UIViewRepresentable {
     @Binding var text: String
-    @State private var isEditing = false
+    var onCancel: (() -> Void)?
     
-    var body: some View {
-        HStack {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                
-                TextField("搜索...", text: $text)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .onTapGesture {
-                        isEditing = true
-                    }
-                
-                if !text.isEmpty {
-                    Button(action: {
-                        text = ""
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .padding(8)
-            .background(Color(.systemGray6))
-            .cornerRadius(8)
-            
-            if isEditing {
-                Button("取消") {
-                    text = ""
-                    isEditing = false
-                    // 隐藏键盘
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                                 to: nil, from: nil, for: nil)
-                }
-                .foregroundColor(.blue)
-                .transition(.move(edge: .trailing))
-                .animation(.default, value: isEditing)
-            }
+    func makeUIView(context: Context) -> UISearchBar {
+        let searchBar = UISearchBar(frame: .zero)
+        searchBar.delegate = context.coordinator
+        searchBar.placeholder = "搜索..."
+        searchBar.searchBarStyle = .minimal
+        searchBar.autocapitalizationType = .none
+        searchBar.showsCancelButton = true
+        return searchBar
+    }
+    
+    func updateUIView(_ uiView: UISearchBar, context: Context) {
+        uiView.text = text
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, onCancel: onCancel)
+    }
+    
+    class Coordinator: NSObject, UISearchBarDelegate {
+        @Binding var text: String
+        var onCancel: (() -> Void)?
+        
+        init(text: Binding<String>, onCancel: (() -> Void)?) {
+            _text = text
+            self.onCancel = onCancel
         }
-        .padding(.horizontal)
+        
+        func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+            text = searchText
+        }
+        
+        func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+            searchBar.resignFirstResponder()
+            text = ""
+            onCancel?()
+        }
+        
+        func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+            searchBar.resignFirstResponder()
+        }
     }
 }
 

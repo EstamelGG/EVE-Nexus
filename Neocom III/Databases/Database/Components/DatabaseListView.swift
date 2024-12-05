@@ -35,10 +35,12 @@ struct DatabaseListView: View {
     
     var body: some View {
         VStack {
-            SearchBar(text: $searchText)
-                .onChange(of: searchText) { _, newValue in
-                    searchTextDebouncer.text = newValue
-                }
+            SearchBar(text: $searchText, onCancel: {
+                loadInitialData()  // 取消时重新加载初始数据
+            })
+            .onChange(of: searchText) { newValue in
+                searchTextDebouncer.text = newValue
+            }
             
             if items.isEmpty {
                 ContentUnavailableView("没有找到结果", systemImage: "magnifyingglass")
