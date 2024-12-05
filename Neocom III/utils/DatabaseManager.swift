@@ -144,17 +144,32 @@ class DatabaseManager: ObservableObject {
     
     // 加载物品
     func loadItems(for groupID: Int) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
+        // 首先获取所有 metaGroups 的名称
+        let metaQuery = "SELECT metaGroup_id, name FROM metaGroups"
+        let metaResult = executeQuery(metaQuery)
+        var metaGroupNames: [Int: String] = [:]
+        
+        if case .success(let metaRows) = metaResult {
+            for row in metaRows {
+                if let id = row["metaGroup_id"] as? Int,
+                   let name = row["name"] as? String {
+                    metaGroupNames[id] = name
+                }
+            }
+        }
+        
+        // 查询物品
         let query = """
             SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
             FROM types
             WHERE groupID = ?
+            ORDER BY name ASC
         """
         
         let result = executeQuery(query, parameters: [groupID])
         
         var published: [DatabaseItem] = []
         var unpublished: [DatabaseItem] = []
-        var metaGroupNames: [Int: String] = [:]
         
         switch result {
         case .success(let rows):
@@ -164,11 +179,10 @@ class DatabaseManager: ObservableObject {
                       let iconFilename = row["icon_filename"] as? String,
                       let pgNeed = row["pg_need"] as? Int,
                       let cpuNeed = row["cpu_need"] as? Int,
-                      let metaGroupId = row["metaGroupID"] as? Int else {
+                      let metaGroupId = row["metaGroupID"] as? Int,
+                      let isPublished = row["published"] as? Int else {
                     continue
                 }
-                
-                let isPublished = (row["published"] as? Int ?? 0) != 0
                 
                 let item = DatabaseItem(
                     id: typeId,
@@ -178,26 +192,13 @@ class DatabaseManager: ObservableObject {
                     pgNeed: pgNeed,
                     cpuNeed: cpuNeed,
                     metaGroupID: metaGroupId,
-                    published: isPublished
+                    published: isPublished != 0
                 )
                 
-                if item.published {
+                if isPublished != 0 {
                     published.append(item)
                 } else {
                     unpublished.append(item)
-                }
-            }
-            
-            // 加载元组名称
-            let metaGroupQuery = "SELECT metaGroup_id, name FROM metaGroups"
-            let metaResult = executeQuery(metaGroupQuery)
-            
-            if case .success(let metaRows) = metaResult {
-                for row in metaRows {
-                    if let id = row["metaGroup_id"] as? Int,
-                       let name = row["name"] as? String {
-                        metaGroupNames[id] = name
-                    }
                 }
             }
             
