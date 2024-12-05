@@ -125,7 +125,7 @@ struct Searcher: UIViewControllerRepresentable {
         var bindParams: [String] = []
         let keyword = cleanKeywordWithRegex(keyword)
         if keyword.isEmpty { return }
-        print("Get param:\(text), \(sourcePage), \(category_id), \(group_id)")
+        //print("Get param:\(text), \(sourcePage), \(category_id), \(group_id)")
         switch sourcePage {
         case "category":
             query = """
