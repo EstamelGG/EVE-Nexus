@@ -24,7 +24,7 @@ struct SelectLanguageView: View {
     
     var body: some View {
         List {
-            Section(header: Text(NSLocalizedString("Main_Setting_Language Packs", comment: ""))
+            Section(header: Text(NSLocalizedString("Main_Setting_Language", comment: ""))
                         .font(.headline)
                         .foregroundColor(.primary)
             ) {
