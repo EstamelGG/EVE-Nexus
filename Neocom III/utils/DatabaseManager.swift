@@ -38,15 +38,6 @@ class DatabaseManager: ObservableObject {
         }
     }
 
-    // Get the localized database name
-//    private func getLocalizedDatabaseName() -> String? {
-//        // 从当前语言包中获取数据库名称
-//        if let bundle = Bundle.localizedBundle() {
-//            return bundle.localizedString(forKey: "DatabaseName", value: nil, table: nil)
-//        }
-//        // 如果获取不到本地化 Bundle，则使用主 Bundle
-//        return Bundle.main.localizedString(forKey: "DatabaseName", value: nil, table: nil)
-//    }
     
     private func getLocalizedDatabaseName() -> String? {
         return NSLocalizedString("DatabaseName", comment: "")

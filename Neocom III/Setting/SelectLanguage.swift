@@ -129,7 +129,7 @@ extension Bundle {
 }
 
 // 自定义 Bundle 类，用于语言切换
-class AnyLanguageBundle: Bundle {
+@objc final class AnyLanguageBundle: Bundle, @unchecked Sendable {
     override func localizedString(forKey key: String, value: String?, table tableName: String?) -> String {
         if let bundle = Bundle.localizedBundle() {
             return bundle.localizedString(forKey: key, value: value, table: tableName)

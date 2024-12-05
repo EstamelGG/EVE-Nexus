@@ -51,7 +51,7 @@
 "Main_Setting_Light" = "Light";
 "Main_Setting_Auto" = "Auto";
 "Main_Setting_Select Language" = "Select Language";
-"Main_Setting_SwitchLanguageConfirmation" = "Require restart to switch language.";
+"Main_Setting_SwitchLanguageConfirmation" = "Require reload to switch language.";
 
 "Main_About" = "About";
 "Main_About_Title" = "About";
