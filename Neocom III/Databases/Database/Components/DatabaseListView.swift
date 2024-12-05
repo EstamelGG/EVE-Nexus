@@ -44,21 +44,25 @@ struct DatabaseListView: View {
                 }
             })
             .onChange(of: searchText) { _, newValue in
+                isSearching = !newValue.isEmpty  // 当有文本时进入搜索状态
                 searchTextDebouncer.text = newValue
             }
             
             ZStack {
-                if isSearching {
-                    // 搜索过程中显示加载状态
+                if isSearching || !searchText.isEmpty {
+                    // 搜索过程中或有搜索文本时显示遮罩
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
-                } else if items.isEmpty {
-                    ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
-                } else if !searchText.isEmpty {
-                    // 搜索结果列表
-                    searchResultsList
+                    
+                    if items.isEmpty {
+                        // 如果没有搜索结果，显示提示
+                        ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
+                    } else if !isSearching {
+                        // 只有在搜索完成且有结果时显示搜索结果
+                        searchResultsList
+                    }
                 } else {
-                    // 普通浏览列表
+                    // 普通浏览状态
                     normalBrowseList
                 }
             }
@@ -69,7 +73,9 @@ struct DatabaseListView: View {
         }
         // 监听防抖后的搜索文本
         .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
-            performSearch(with: debouncedText)
+            if !debouncedText.isEmpty {
+                performSearch(with: debouncedText)
+            }
         }
     }
     
@@ -146,6 +152,7 @@ struct DatabaseListView: View {
     private func performSearch(with text: String) {
         if text.isEmpty {
             loadInitialData()
+            isSearching = false
             return
         }
         
@@ -162,7 +169,7 @@ struct DatabaseListView: View {
             metaGroupNames = searchMetaGroupNames
         }
         
-        // 搜索完成后，如果有结果，关闭遮罩
+        // 搜索完成后，如果有结果，关闭搜索状态
         if !searchResults.isEmpty {
             isSearching = false
         }
