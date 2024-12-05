@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import SQLite3
 
 // 清理关键字，只去除英文标点符号
