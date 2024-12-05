@@ -80,18 +80,17 @@ struct SelectLanguageView: View {
                     UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
                     UserDefaults.standard.synchronize()
                     
-                    // 3. 重新加载数据库
-                    databaseManager.reloadDatabase()
-                    
-                    // 4. 应用新的语言设置
+                    // 3. 应用新的语言设置
                     if let languageBundlePath = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
                        let languageBundle = Bundle(path: languageBundlePath) {
                         Bundle.setLanguage(languageCode)
                     }
                     
-                    // 5. 发送通知以重新加载UI
+                    // 4. 发送通知以重新加载UI
                     NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
                     
+                    // 5. 重新加载数据库
+                    databaseManager.reloadDatabase()
                     // 6. 关闭当前视图
                     dismiss()
                 }
