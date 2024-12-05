@@ -119,3 +119,7 @@ struct ShowCategory: View {
         unpublishedCategories = unpublished
     }
 }
+
+#Preview {
+    ShowCategory(databaseManager: DatabaseManager()) // 确保传递数据库管理器
+}

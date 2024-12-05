@@ -36,14 +36,6 @@ struct Searcher: UIViewControllerRepresentable {
             debounceWorkItem?.cancel()  // 取消之前的防抖任务
             parent.text = searchController.searchBar.text ?? ""
 
-            // 检查是否正在输入未完成的候选字
-            if let textField = searchController.searchBar.value(forKey: "searchField") as? UITextField,
-               let markedTextRange = textField.markedTextRange,
-               textField.position(from: markedTextRange.start, offset: 0) != nil {
-                // 当前处于未完成的输入状态（有候选字），不触发搜索
-                return
-            }
-
             if parent.text.isEmpty {
                 parent.isSearching = false
                 parent.publishedItems = []
@@ -219,4 +211,9 @@ struct Searcher: UIViewControllerRepresentable {
             sqlite3_finalize(statement)
         }
     }
+}
+
+
+#Preview {
+    ShowCategory(databaseManager: DatabaseManager()) // 确保传递数据库管理器
 }
