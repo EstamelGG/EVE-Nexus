@@ -20,6 +20,8 @@ enum GroupingType {
 // 统一的列表视图
 struct DatabaseListView: View {
     @ObservedObject var databaseManager: DatabaseManager
+    @Environment(\.dismiss) private var dismiss  // 添加环境变量用于返回
+    
     let title: String
     let groupingType: GroupingType
     let loadData: (DatabaseManager) -> ([DatabaseListItem], [Int: String])
@@ -36,19 +38,43 @@ struct DatabaseListView: View {
     var body: some View {
         VStack {
             SearchBar(text: $searchText, onCancel: {
-                loadInitialData()  // 取消时重新加载初始数据
+                loadInitialData()
+                if !searchText.isEmpty {
+                    dismiss()  // 如果有搜索文本，取消时返回上一页
+                }
             })
             .onChange(of: searchText) { newValue in
                 searchTextDebouncer.text = newValue
+                if newValue.isEmpty {
+                    dismiss()  // 当搜索文本被清空时返回上一页
+                }
             }
             
             if items.isEmpty {
                 ContentUnavailableView("没有找到结果", systemImage: "magnifyingglass")
             } else {
                 List {
-                    ForEach(groupedItems, id: \.key) { group in
-                        Section(header: Text(group.key)) {
-                            ForEach(group.value) { item in
+                    // 已发布的物品
+                    let publishedItems = items.filter { $0.published }
+                    if !publishedItems.isEmpty {
+                        Section {
+                            ForEach(groupedPublishedItems, id: \.key) { group in
+                                Section(header: Text(group.key)) {
+                                    ForEach(group.value) { item in
+                                        NavigationLink(destination: item.navigationDestination) {
+                                            DatabaseListItemView(item: item)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 未发布的物品
+                    let unpublishedItems = items.filter { !$0.published }
+                    if !unpublishedItems.isEmpty {
+                        Section(header: Text("未发布")) {
+                            ForEach(unpublishedItems) { item in
                                 NavigationLink(destination: item.navigationDestination) {
                                     DatabaseListItemView(item: item)
                                 }
@@ -87,25 +113,17 @@ struct DatabaseListView: View {
         metaGroupNames = searchMetaGroupNames
     }
     
-    private var groupedItems: [(key: String, value: [DatabaseListItem])] {
+    // 已发布物品的分组
+    private var groupedPublishedItems: [(key: String, value: [DatabaseListItem])] {
+        let publishedItems = items.filter { $0.published }
+        
         switch groupingType {
         case .publishedOnly:
-            // 按发布状态分组
-            let published = items.filter { $0.published }
-            let unpublished = items.filter { !$0.published }
-            
-            var groups: [(String, [DatabaseListItem])] = []
-            if !published.isEmpty {
-                groups.append(("已发布", published))
-            }
-            if !unpublished.isEmpty {
-                groups.append(("未发布", unpublished))
-            }
-            return groups
+            return [("已发布", publishedItems)]
             
         case .metaGroups:
             // 按元组分组
-            let grouped = Dictionary(grouping: items) { item in
+            let grouped = Dictionary(grouping: publishedItems) { item in
                 if let metaGroupID = item.metaGroupID,
                    let metaGroupName = metaGroupNames[metaGroupID] {
                     return metaGroupName
@@ -114,21 +132,6 @@ struct DatabaseListView: View {
             }
             return grouped.sorted { $0.key < $1.key }
         }
-    }
-}
-
-// 防抖文本处理类
-class DebouncedText: ObservableObject {
-    @Published var text: String = ""
-    @Published var debouncedText: String = ""
-    private var cancellable: AnyCancellable?
-    
-    init() {
-        cancellable = $text
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { [weak self] value in
-                self?.debouncedText = value
-            }
     }
 }
 
@@ -145,7 +148,21 @@ struct DatabaseListItemView: View {
                 .cornerRadius(6)
             
             Text(item.name)
-                .foregroundColor(item.published ? .primary : .secondary)
         }
+    }
+}
+
+// 防抖文本处理类
+class DebouncedText: ObservableObject {
+    @Published var text: String = ""
+    @Published var debouncedText: String = ""
+    private var cancellable: AnyCancellable?
+    
+    init() {
+        cancellable = $text
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .sink { [weak self] value in
+                self?.debouncedText = value
+            }
     }
 }
