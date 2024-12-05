@@ -49,6 +49,14 @@ struct DatabaseBrowserView: View {
                 // 如果没有缓存，加载数据并缓存
                 let data = loadDataForLevel(dbManager)
                 Self.navigationCache[level] = data
+                
+                // 预加载图标
+                if case .categories = level {
+                    // 预加载分类图标
+                    let icons = data.0.map { $0.iconFileName }
+                    IconManager.shared.preloadCommonIcons(icons: icons)
+                }
+                
                 return data
             },
             searchData: { dbManager, searchText in
