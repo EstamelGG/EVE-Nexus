@@ -28,6 +28,11 @@ struct ShowItemInfo: View {
     @State private var itemDetails: ItemDetails? // 改为使用可选类型
     @State private var renderImage: UIImage? // 在线渲染图
     
+    // iOS 标准圆角半径
+    private let cornerRadius: CGFloat = 10
+    // 标准边距
+    private let standardPadding: CGFloat = 16
+    
     var body: some View {
         Form {
             if let itemDetails = itemDetails {
@@ -39,6 +44,9 @@ struct ShowItemInfo: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(maxWidth: .infinity)
+                                .cornerRadius(cornerRadius)
+                                .padding(.horizontal, standardPadding)
+                                .padding(.vertical, standardPadding)
                             
                             // 物品信息覆盖层
                             VStack(alignment: .leading, spacing: 4) {
@@ -47,10 +55,17 @@ struct ShowItemInfo: View {
                                 Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
                                     .font(.subheadline)
                             }
-                            .padding()
-                            .background(Color.black.opacity(0.5))
+                            .padding(.horizontal, standardPadding * 2)
+                            .padding(.vertical, standardPadding)
+                            .background(
+                                Color.black.opacity(0.5)
+                                    .cornerRadius(cornerRadius, corners: [.topRight])
+                            )
                             .foregroundColor(.white)
+                            .padding(.horizontal, standardPadding)
+                            .padding(.bottom, standardPadding)
                         }
+                        .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
                     } else {
                         // 如果没有渲染图，显示原来的布局
                         HStack {
@@ -75,6 +90,7 @@ struct ShowItemInfo: View {
                         Text(desc)
                             .font(.body)
                             .foregroundColor(.primary)
+                            .padding(.top, standardPadding)
                     }
                 }
             } else {
@@ -113,6 +129,24 @@ struct ShowItemInfo: View {
                 // 加载失败时保持使用原来的小图显示，不需要特殊处理
             }
         }
+    }
+}
+
+// 用于设置特定角落圆角的扩展
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+// 自定义圆角形状
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }
 
