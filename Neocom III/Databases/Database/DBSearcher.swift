@@ -9,7 +9,7 @@ func cleanKeywordWithRegex(_ keyword: String) -> String {
     return cleanedKeyword
 }
 
-struct Searcher: UIViewControllerRepresentable {
+struct Searcher: View {
     @Binding var text: String
     var sourcePage: String
     var category_id: Int?
@@ -23,87 +23,48 @@ struct Searcher: UIViewControllerRepresentable {
 
     var onCancelSearch: (() -> Void)?
 
-    class Coordinator: NSObject, UISearchControllerDelegate, UISearchResultsUpdating {
-        var parent: Searcher
-        private var debounceWorkItem: DispatchWorkItem?
-        
-        init(parent: Searcher) {
-            self.parent = parent
-        }
+    // 防抖处理
+    @State private var debounceWorkItem: DispatchWorkItem?
 
-        // 更新搜索内容，防抖操作
-        func updateSearchResults(for searchController: UISearchController) {
-            debounceWorkItem?.cancel()  // 取消之前的防抖任务
-            parent.text = searchController.searchBar.text ?? ""
+    var body: some View {
+        VStack {
+            // 搜索框
+            SearchBar(text: $text, placeholder: "Search", onSearch: performSearch)
 
-            if parent.text.isEmpty {
-                parent.isSearching = false
-                parent.publishedItems = []
-                parent.unpublishedItems = []
-                parent.metaGroupNames = [:]
-                return
+            // 显示搜索结果的列表
+            List {
+                ForEach(publishedItems) { item in
+                    Text(item.name)  // 替换为实际的数据项展示
+                }
             }
-
-            // 创建新的防抖任务
-            let workItem = DispatchWorkItem { [weak self] in
-                self?.parent.executeQueryForSourcePage(keyword: self?.parent.text ?? "")
+            .listStyle(PlainListStyle())
+        }
+        .onChange(of: text) { _, newValue in
+            if debounceWorkItem != nil {
+                debounceWorkItem?.cancel()
             }
-            debounceWorkItem = workItem
-
-            // 延迟后执行查询
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
-        }
-
-        // 当点击搜索按钮时触发
-        func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-            debounceWorkItem?.cancel()  // 立即执行搜索逻辑，跳过防抖
-            parent.executeQueryForSourcePage(keyword: searchBar.text ?? "")
-            searchBar.resignFirstResponder()  // 收起键盘
-        }
-
-        // 取消搜索时触发
-        func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
-            debounceWorkItem?.cancel() // 取消防抖任务
-            parent.text = ""
-            parent.isSearching = false
-            parent.publishedItems = []
-            parent.unpublishedItems = []
-            parent.metaGroupNames = [:]
-            searchBar.resignFirstResponder() // 关闭键盘
-            parent.onCancelSearch?()
+            
+            // 防抖操作，避免频繁查询
+            debounceWorkItem = DispatchWorkItem {
+                performSearch()
+            }
+            if let workItem = debounceWorkItem {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
+            }
         }
     }
 
-    func makeCoordinator() -> Coordinator {
-        return Coordinator(parent: self)
-    }
-
-    func makeUIViewController(context: Context) -> UIViewController {
-        let viewController = UIViewController()
-        
-        // 创建并配置 UISearchController
-        let searchController = UISearchController(searchResultsController: nil)
-        searchController.searchResultsUpdater = context.coordinator
-        searchController.delegate = context.coordinator
-        searchController.obscuresBackgroundDuringPresentation = false
-        searchController.searchBar.placeholder = "Search"
-        searchController.searchBar.showsCancelButton = true
-        searchController.searchBar.sizeToFit()
-
-        // 设置 searchController 为导航项的一部分
-        viewController.navigationItem.searchController = searchController
-        viewController.navigationItem.hidesSearchBarWhenScrolling = false
-        
-        // 确保 searchController 视图已经加入视图层级
-        let navigationController = UINavigationController(rootViewController: viewController)
-        return navigationController
-    }
-
-    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        // 确保 search bar 文本更新
-        if let searchController = uiViewController.navigationItem.searchController {
-            searchController.searchBar.text = text
+    // 执行搜索
+    private func performSearch() {
+        let keyword = cleanKeywordWithRegex(text)
+        guard !keyword.isEmpty else {
+            publishedItems = []
+            unpublishedItems = []
+            metaGroupNames = [:]
+            return
         }
+
+        executeQueryForSourcePage(keyword: keyword)
     }
 
     // 根据 sourcePage 执行不同的查询
@@ -115,9 +76,7 @@ struct Searcher: UIViewControllerRepresentable {
         
         var query: String
         var bindParams: [String] = []
-        let keyword = cleanKeywordWithRegex(keyword)
-        if keyword.isEmpty { return }
-        //print("Get param:\(text), \(sourcePage), \(category_id), \(group_id)")
+
         switch sourcePage {
         case "category":
             query = """
@@ -213,7 +172,20 @@ struct Searcher: UIViewControllerRepresentable {
     }
 }
 
+struct SearchBar: View {
+    @Binding var text: String
+    var placeholder: String
+    var onSearch: () -> Void
+
+    var body: some View {
+        TextField(placeholder, text: $text, onCommit: onSearch)
+            .padding(10)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+            .padding([.horizontal])
+    }
+}
 
 #Preview {
-    ShowCategory(databaseManager: DatabaseManager()) // 确保传递数据库管理器
+    Searcher(text: .constant(""), sourcePage: "item", category_id: 1, group_id: 1, db: nil, publishedItems: .constant([]), unpublishedItems: .constant([]), metaGroupNames: .constant([:]), isSearching: .constant(false))
 }

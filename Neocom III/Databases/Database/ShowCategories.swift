@@ -16,18 +16,16 @@ struct ShowCategory: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 8) {
-                Searcher(
-                    text: $searchText,
-                    sourcePage: "category",
-                    db: databaseManager.db,
-                    publishedItems: $publishedItems,
-                    unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames,
-                    isSearching: $isSearching
-                )
-            }
-            .frame(height: 56) // 设置 Searcher 高度
+            Searcher(
+                text: $searchText,
+                sourcePage: "category",
+                db: databaseManager.db,
+                publishedItems: $publishedItems,
+                unpublishedItems: $unpublishedItems,
+                metaGroupNames: $metaGroupNames,
+                isSearching: $isSearching
+            )
+            .frame(height: 60) // 设置 Searcher 高度
             .padding(.horizontal)
             
             Divider() // 分隔线
