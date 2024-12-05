@@ -28,6 +28,7 @@ struct SearchBar: UIViewRepresentable {
         @Binding var text: String
         @Binding var isSearching: Bool
         var onCancel: (() -> Void)?
+        private var isComposing = false
         
         init(text: Binding<String>, isSearching: Binding<Bool>, onCancel: (() -> Void)?) {
             _text = text
@@ -36,14 +37,36 @@ struct SearchBar: UIViewRepresentable {
         }
         
         func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-            text = searchText
+            if !isComposing {
+                text = searchText
+            }
+        }
+        
+        func searchBarShouldBeginEditing(_ searchBar: UISearchBar) -> Bool {
+            isSearching = true
+            return true
         }
         
         func searchBar(_ searchBar: UISearchBar, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if text == "\n" {
+                searchBar.resignFirstResponder()
+                isSearching = false
+                return false
+            }
+            
+            if text.isEmpty && range.length > 0 {
+                isComposing = false
+            } else {
+                isComposing = true
+            }
             return true
         }
         
         func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+            isComposing = false
+            if let finalText = searchBar.text {
+                text = finalText
+            }
             isSearching = false
         }
         
@@ -56,6 +79,7 @@ struct SearchBar: UIViewRepresentable {
         
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
             searchBar.resignFirstResponder()
+            isComposing = false
             isSearching = false
             if searchBar.text?.isEmpty ?? true {
                 onCancel?()
