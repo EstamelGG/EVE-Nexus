@@ -1,4 +1,5 @@
 import SwiftUI
+import SQLite3
 
 // 浏览层级
 enum BrowserLevel {
@@ -122,6 +123,84 @@ struct DatabaseBrowserView: View {
                     }
                     return (items, metaGroupNames)
                 }
+            },
+            searchData: { dbManager, searchText in
+                guard let db = dbManager.db else { return ([], [:]) }
+                
+                // 构建搜索 SQL
+                var query = """
+                    SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID
+                    FROM types t
+                    WHERE t.name LIKE ?
+                """
+                var params: [String] = ["%\(searchText)%"]
+                
+                // 根据当前层级添加过滤条件
+                switch level {
+                case .categories:
+                    // 在全部数据库中搜索
+                    break
+                case .groups(let categoryID, _):
+                    // 限制在当前分类下搜索
+                    query += " AND t.categoryID = ?"
+                    params.append(String(categoryID))
+                case .items(let groupID, _):
+                    // 限制在当前组下搜索
+                    query += " AND t.groupID = ?"
+                    params.append(String(groupID))
+                }
+                
+                query += " ORDER BY t.metaGroupID"
+                
+                // 执行搜索
+                var statement: OpaquePointer?
+                var items: [DatabaseListItem] = []
+                var metaGroupNames: [Int: String] = [:]
+                
+                if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+                    // 绑定参数
+                    for (index, param) in params.enumerated() {
+                        sqlite3_bind_text(statement, Int32(index + 1), (param as NSString).utf8String, -1, nil)
+                    }
+                    
+                    // 获取结果
+                    while sqlite3_step(statement) == SQLITE_ROW {
+                        let id = Int(sqlite3_column_int(statement, 0))
+                        let name = String(cString: sqlite3_column_text(statement, 1))
+                        let iconFileName = String(cString: sqlite3_column_text(statement, 2))
+                        let published = sqlite3_column_int(statement, 3) != 0
+                        let metaGroupID = Int(sqlite3_column_int(statement, 4))
+                        
+                        items.append(DatabaseListItem(
+                            id: id,
+                            name: name,
+                            iconFileName: iconFileName,
+                            published: published,
+                            metaGroupID: metaGroupID,
+                            navigationDestination: AnyView(
+                                ShowItemInfo(
+                                    databaseManager: databaseManager,
+                                    itemID: id
+                                )
+                            )
+                        ))
+                    }
+                    
+                    sqlite3_finalize(statement)
+                    
+                    // 加载 metaGroup 名称
+                    let metaGroupQuery = "SELECT metaGroup_id, name FROM metaGroups"
+                    if sqlite3_prepare_v2(db, metaGroupQuery, -1, &statement, nil) == SQLITE_OK {
+                        while sqlite3_step(statement) == SQLITE_ROW {
+                            let id = Int(sqlite3_column_int(statement, 0))
+                            let name = String(cString: sqlite3_column_text(statement, 1))
+                            metaGroupNames[id] = name
+                        }
+                        sqlite3_finalize(statement)
+                    }
+                }
+                
+                return (items, metaGroupNames)
             }
         )
     }

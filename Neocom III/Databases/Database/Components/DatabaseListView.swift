@@ -22,6 +22,7 @@ struct DatabaseListView: View {
     let title: String
     let groupingType: GroupingType
     let loadData: (DatabaseManager) -> ([DatabaseListItem], [Int: String])
+    let searchData: (DatabaseManager, String) -> ([DatabaseListItem], [Int: String])  // 新增：搜索数据加载器
     
     // 状态
     @State private var items: [DatabaseListItem] = []
@@ -84,45 +85,23 @@ struct DatabaseListView: View {
                     .foregroundColor(.gray)
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                if groupingType == .metaGroups {
-                    // 按 MetaGroup 分组显示搜索结果
-                    ForEach(Array(Dictionary(grouping: searchResults.filter { $0.published }, by: { $0.metaGroupID ?? 0 })), id: \.key) { metaGroupID, items in
-                        if !items.isEmpty {
-                            Section(header: Text(metaGroupNames[metaGroupID] ?? "Unknown")) {
-                                ForEach(items) { item in
-                                    itemRow(for: item)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 未发布的搜索结果
-                    let unpublishedResults = searchResults.filter { !$0.published }
-                    if !unpublishedResults.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                            ForEach(unpublishedResults) { item in
+                // 搜索结果始终按 MetaGroup 分组显示
+                ForEach(Array(Dictionary(grouping: searchResults.filter { $0.published }, by: { $0.metaGroupID ?? 0 })), id: \.key) { metaGroupID, items in
+                    if !items.isEmpty {
+                        Section(header: Text(metaGroupNames[metaGroupID] ?? "Unknown")) {
+                            ForEach(items) { item in
                                 itemRow(for: item)
                             }
                         }
                     }
-                } else {
-                    // 简单分为已发布和未发布两组
-                    let publishedResults = searchResults.filter { $0.published }
-                    let unpublishedResults = searchResults.filter { !$0.published }
-                    
-                    if !publishedResults.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
-                            ForEach(publishedResults) { item in
-                                itemRow(for: item)
-                            }
-                        }
-                    }
-                    
-                    if !unpublishedResults.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
-                            ForEach(unpublishedResults) { item in
-                                itemRow(for: item)
-                            }
+                }
+                
+                // 未发布的搜索结果
+                let unpublishedResults = searchResults.filter { !$0.published }
+                if !unpublishedResults.isEmpty {
+                    Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: ""))) {
+                        ForEach(unpublishedResults) { item in
+                            itemRow(for: item)
                         }
                     }
                 }
@@ -133,7 +112,7 @@ struct DatabaseListView: View {
     
     // 已发布/未发布分组
     private var publishedGroupsSection: some View {
-        SwiftUI.Group {  // 使用完整的命名空间
+        SwiftUI.Group {
             // 已发布项目
             if !publishedItems.isEmpty {
                 Section(header: Text(NSLocalizedString("Main_Database_published", comment: ""))) {
@@ -156,7 +135,7 @@ struct DatabaseListView: View {
     
     // MetaGroup 分组
     private var metaGroupsSection: some View {
-        SwiftUI.Group {  // 使用完整的命名空间
+        SwiftUI.Group {
             // 按 MetaGroup 分组的项目
             ForEach(sortedMetaGroupIDs(), id: \.self) { metaGroupID in
                 if let items = itemsByMetaGroup[metaGroupID], !items.isEmpty {
@@ -224,10 +203,10 @@ struct DatabaseListView: View {
             return
         }
         
-        // 简单的本地搜索实现
-        searchResults = items.filter { item in
-            item.name.localizedCaseInsensitiveContains(cleanedText)
-        }
+        // 使用新的搜索数据加载器
+        let (results, groupNames) = searchData(databaseManager, cleanedText)
+        searchResults = results
+        metaGroupNames = groupNames
         isSearching = true
     }
 } 
