@@ -59,7 +59,7 @@ struct ShowItemInfo: View {
                             .padding(.vertical, standardPadding)
                             .background(
                                 Color.black.opacity(0.5)
-                                    .cornerRadius(cornerRadius, corners: [.topRight])
+                                    .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
                             )
                             .foregroundColor(.white)
                             .padding(.horizontal, standardPadding)
