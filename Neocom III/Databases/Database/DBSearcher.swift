@@ -9,7 +9,7 @@ func cleanKeywordWithRegex(_ keyword: String) -> String {
     return cleanedKeyword
 }
 
-struct Searcher: UIViewRepresentable {
+struct Searcher: UIViewControllerRepresentable {
     @Binding var text: String
     var sourcePage: String
     var category_id: Int?
@@ -23,26 +23,28 @@ struct Searcher: UIViewRepresentable {
 
     var onCancelSearch: (() -> Void)?
 
-    class Coordinator: NSObject, UISearchBarDelegate {
+    class Coordinator: NSObject, UISearchControllerDelegate, UISearchResultsUpdating {
         var parent: Searcher
         private var debounceWorkItem: DispatchWorkItem?
+        
         init(parent: Searcher) {
             self.parent = parent
         }
 
-        func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-            debounceWorkItem?.cancel() // 取消之前的防抖任务
-            parent.text = searchText
+        // 更新搜索内容，防抖操作
+        func updateSearchResults(for searchController: UISearchController) {
+            debounceWorkItem?.cancel()  // 取消之前的防抖任务
+            parent.text = searchController.searchBar.text ?? ""
 
             // 检查是否正在输入未完成的候选字
-            if let textField = searchBar.value(forKey: "searchField") as? UITextField,
+            if let textField = searchController.searchBar.value(forKey: "searchField") as? UITextField,
                let markedTextRange = textField.markedTextRange,
                textField.position(from: markedTextRange.start, offset: 0) != nil {
                 // 当前处于未完成的输入状态（有候选字），不触发搜索
                 return
             }
-            
-            if searchText.isEmpty {
+
+            if parent.text.isEmpty {
                 parent.isSearching = false
                 parent.publishedItems = []
                 parent.unpublishedItems = []
@@ -52,7 +54,7 @@ struct Searcher: UIViewRepresentable {
 
             // 创建新的防抖任务
             let workItem = DispatchWorkItem { [weak self] in
-                self?.parent.executeQueryForSourcePage(keyword: searchText)
+                self?.parent.executeQueryForSourcePage(keyword: self?.parent.text ?? "")
             }
             debounceWorkItem = workItem
 
@@ -60,12 +62,14 @@ struct Searcher: UIViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: workItem)
         }
 
+        // 当点击搜索按钮时触发
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
             debounceWorkItem?.cancel()  // 立即执行搜索逻辑，跳过防抖
             parent.executeQueryForSourcePage(keyword: searchBar.text ?? "")
             searchBar.resignFirstResponder()  // 收起键盘
         }
 
+        // 取消搜索时触发
         func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
             debounceWorkItem?.cancel() // 取消防抖任务
             parent.text = ""
@@ -82,20 +86,34 @@ struct Searcher: UIViewRepresentable {
         return Coordinator(parent: self)
     }
 
-    func makeUIView(context: Context) -> UISearchBar {
-        let searchBar = UISearchBar()
-        searchBar.placeholder = "Search"
-        searchBar.delegate = context.coordinator
-        searchBar.searchBarStyle = .minimal // 使用 minimal 风格去除多余样式
-        searchBar.showsCancelButton = true // 显示取消按钮
-        searchBar.sizeToFit()  // 确保 searchBar 大小合适
-        return searchBar
+    func makeUIViewController(context: Context) -> UIViewController {
+        let viewController = UIViewController()
+        
+        // 创建并配置 UISearchController
+        let searchController = UISearchController(searchResultsController: nil)
+        searchController.searchResultsUpdater = context.coordinator
+        searchController.delegate = context.coordinator
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "Search"
+        searchController.searchBar.showsCancelButton = true
+        searchController.searchBar.sizeToFit()
+
+        // 设置 searchController 为导航项的一部分
+        viewController.navigationItem.searchController = searchController
+        viewController.navigationItem.hidesSearchBarWhenScrolling = false
+        
+        // 确保 searchController 视图已经加入视图层级
+        let navigationController = UINavigationController(rootViewController: viewController)
+        return navigationController
     }
 
-    func updateUIView(_ uiView: UISearchBar, context: Context) {
-        uiView.text = text
-        uiView.showsCancelButton = true // 确保取消按钮始终显示
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
+        // 确保 search bar 文本更新
+        if let searchController = uiViewController.navigationItem.searchController {
+            searchController.searchBar.text = text
+        }
     }
+
     // 根据 sourcePage 执行不同的查询
     private func executeQueryForSourcePage(keyword: String) {
         guard let db = db else {
