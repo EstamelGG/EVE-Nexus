@@ -18,16 +18,19 @@ struct SettingItem: Identifiable {
 struct SettingView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @State private var currentIcon: String = "circle.lefthalf.fill"
+    @ObservedObject var databaseManager: DatabaseManager
     
     // 获取设置项
-    private let settingItems: [SettingItem] = [
-        SettingItem(
-            title: NSLocalizedString("Main_Setting_Language", comment: "Language section"),
-            detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
-            destination: SelectLanguageView() // 目标视图
-        ),
-        // 更多设置项
-    ]
+    private var settingItems: [SettingItem] {
+        [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Language", comment: "Language section"),
+                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                destination: SelectLanguageView(databaseManager: databaseManager) // 传递数据库管理器
+            )
+            // 更多设置项
+        ]
+    }
     
     var body: some View {
         List {
@@ -72,6 +75,9 @@ struct SettingView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
+        .onAppear {
+            updateCurrentIcon()
+        }
     }
     
     private func toggleAppearance() {
@@ -127,5 +133,5 @@ struct SettingView: View {
 }
 
 #Preview {
-    SettingView()
+    SettingView(databaseManager: DatabaseManager())
 }
