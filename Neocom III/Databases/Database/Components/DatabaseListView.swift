@@ -48,66 +48,18 @@ struct DatabaseListView: View {
             }
             
             ZStack {
-                if items.isEmpty {
+                if isSearching {
+                    // 搜索过程中显示加载状态
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                } else if items.isEmpty {
                     ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
+                } else if !searchText.isEmpty {
+                    // 搜索结果列表
+                    searchResultsList
                 } else {
-                    List {
-                        // 已发布的物品（按元组分组）
-                        let publishedItems = items.filter { $0.published }
-                        if !publishedItems.isEmpty {
-                            if !searchText.isEmpty {
-                                // 搜索结果使用 metaGroups 分组
-                                let grouped = groupItemsByMetaGroup(publishedItems)
-                                ForEach(grouped, id: \.id) { group in
-                                    Section(header: Text(group.name).textCase(.none)) {
-                                        ForEach(group.items) { item in
-                                            NavigationLink(destination: item.navigationDestination) {
-                                                DatabaseListItemView(item: item)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                // 非搜索状态使用原有分组
-                                ForEach(groupedPublishedItems, id: \.id) { group in
-                                    Section(header: Text(group.name).textCase(.none)) {
-                                        ForEach(group.items) { item in
-                                            NavigationLink(destination: item.navigationDestination) {
-                                                DatabaseListItemView(item: item)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // 未发布的物品（单独分组）
-                        let unpublishedItems = items.filter { !$0.published }
-                        if !unpublishedItems.isEmpty {
-                            Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
-                                ForEach(unpublishedItems) { item in
-                                    NavigationLink(destination: item.navigationDestination) {
-                                        DatabaseListItemView(item: item)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                    
-                    // 添加遮罩层
-                    if isSearching {
-                        Color.black.opacity(0.3)
-                            .edgesIgnoringSafeArea(.all)
-                            .allowsHitTesting(true)  // 允许遮罩层接收点击事件
-                            .onTapGesture {
-                                // 退出搜索状态
-                                isSearching = false
-                                searchText = ""  // 清空搜索文本
-                                // 隐藏键盘
-                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                            }
-                    }
+                    // 普通浏览列表
+                    normalBrowseList
                 }
             }
         }
@@ -119,6 +71,70 @@ struct DatabaseListView: View {
         .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
             performSearch(with: debouncedText)
         }
+    }
+    
+    // 搜索结果列表视图
+    private var searchResultsList: some View {
+        List {
+            // 已发布的物品（按衍生等级分组）
+            let publishedItems = items.filter { $0.published }
+            if !publishedItems.isEmpty {
+                ForEach(groupItemsByMetaGroup(publishedItems), id: \.id) { group in
+                    Section(header: Text(group.name).textCase(.none)) {
+                        ForEach(group.items) { item in
+                            NavigationLink(destination: item.navigationDestination) {
+                                DatabaseListItemView(item: item)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 未发布的物品（单独分组）
+            let unpublishedItems = items.filter { !$0.published }
+            if !unpublishedItems.isEmpty {
+                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
+                    ForEach(unpublishedItems) { item in
+                        NavigationLink(destination: item.navigationDestination) {
+                            DatabaseListItemView(item: item)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+    
+    // 普通浏览列表视图
+    private var normalBrowseList: some View {
+        List {
+            // 已发布的物品
+            let publishedItems = items.filter { $0.published }
+            if !publishedItems.isEmpty {
+                ForEach(groupedPublishedItems, id: \.id) { group in
+                    Section(header: Text(group.name).textCase(.none)) {
+                        ForEach(group.items) { item in
+                            NavigationLink(destination: item.navigationDestination) {
+                                DatabaseListItemView(item: item)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 未发布的物品
+            let unpublishedItems = items.filter { !$0.published }
+            if !unpublishedItems.isEmpty {
+                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
+                    ForEach(unpublishedItems) { item in
+                        NavigationLink(destination: item.navigationDestination) {
+                            DatabaseListItemView(item: item)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
     }
     
     private func loadInitialData() {
@@ -156,8 +172,8 @@ struct DatabaseListView: View {
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         
-        // 如果是搜索状态，强制使用 metaGroups 分组
-        if !searchText.isEmpty {
+        // 只有在搜索完成后（有搜索文本且不在搜索状态）才使用 metaGroups 分组
+        if !searchText.isEmpty && !isSearching {
             return groupItemsByMetaGroup(publishedItems)
         }
         
