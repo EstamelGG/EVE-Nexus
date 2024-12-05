@@ -33,7 +33,19 @@ struct SearchBar: UIViewRepresentable {
         }
         
         func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-            text = searchText
+            if !searchBar.isFirstResponder {
+                text = searchText
+            }
+        }
+        
+        func searchBar(_ searchBar: UISearchBar, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            return true
+        }
+        
+        func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+            if let finalText = searchBar.text {
+                text = finalText
+            }
         }
         
         func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {

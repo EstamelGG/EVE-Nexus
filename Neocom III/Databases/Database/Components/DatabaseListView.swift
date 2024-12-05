@@ -40,14 +40,11 @@ struct DatabaseListView: View {
             SearchBar(text: $searchText, onCancel: {
                 loadInitialData()
                 if !searchText.isEmpty {
-                    dismiss()  // 如果有搜索文本，取消时返回上一页
+                    searchText = ""  // 只清空搜索文本，不自动返回
                 }
             })
             .onChange(of: searchText) { _, newValue in
                 searchTextDebouncer.text = newValue
-                if newValue.isEmpty {
-                    dismiss()  // 当搜索文本被清空时返回上一页
-                }
             }
             
             if items.isEmpty {
