@@ -181,7 +181,7 @@ struct SearchBar: View {
         TextField(placeholder, text: $text, onCommit: onSearch)
             .padding(10)
             .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
+            .cornerRadius(10)
             .padding([.horizontal])
     }
 }

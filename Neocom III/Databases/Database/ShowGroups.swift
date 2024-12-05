@@ -7,7 +7,7 @@ struct ShowGroups: View {
     @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false
     @State private var db: OpaquePointer?
-
+    
     @State private var publishedItems: [DatabaseItem] = []
     @State private var unpublishedItems: [DatabaseItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
@@ -20,20 +20,19 @@ struct ShowGroups: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 使用 SearchBar 搜索条目并传递结果
-            VStack(alignment: .leading, spacing: 8) {
-                Searcher(
-                    text: $searchText,
-                    sourcePage: "group",
-                    category_id: categoryID,
-                    db: databaseManager.db,
-                    publishedItems: $publishedItems,
-                    unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames,
-                    isSearching: $isSearching
-                )
-            }
-            .padding(.horizontal)
+            Searcher(
+                text: $searchText,
+                sourcePage: "group",
+                category_id: categoryID,
+                db: databaseManager.db,
+                publishedItems: $publishedItems,
+                unpublishedItems: $unpublishedItems,
+                metaGroupNames: $metaGroupNames,
+                isSearching: $isSearching
+            )
             
+            .padding(.horizontal)
+            .frame(height: 60) // 设置 Searcher 高度
             Divider() // 分隔线
             
             // 根据 isSearching 控制显示内容

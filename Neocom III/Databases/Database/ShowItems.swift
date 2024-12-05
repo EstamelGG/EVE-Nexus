@@ -16,19 +16,19 @@ struct ShowItems: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 使用 SearchBar 搜索条目并传递结果
-            VStack(alignment: .leading, spacing: 8) {
-                Searcher(
-                    text: $searchText,
-                    sourcePage: "item",
-                    category_id: groupID,
-                    db: databaseManager.db,
-                    publishedItems: $publishedItems,
-                    unpublishedItems: $unpublishedItems,
-                    metaGroupNames: $metaGroupNames,
-                    isSearching: $isSearching
-                )
-            }
+            Searcher(
+                text: $searchText,
+                sourcePage: "item",
+                category_id: groupID,
+                db: databaseManager.db,
+                publishedItems: $publishedItems,
+                unpublishedItems: $unpublishedItems,
+                metaGroupNames: $metaGroupNames,
+                isSearching: $isSearching
+            )
+            
             .padding(.horizontal)
+            .frame(height: 60) // 设置 Searcher 高度
             
             Divider() // 分隔线
             // 根据 isSearching 控制显示内容

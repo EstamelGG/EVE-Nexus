@@ -26,8 +26,6 @@ struct ShowCategory: View {
                 isSearching: $isSearching
             )
             .frame(height: 60) // 设置 Searcher 高度
-            .padding(.horizontal)
-            
             Divider() // 分隔线
             
             // 主体内容
