@@ -271,6 +271,25 @@ class DatabaseManager: ObservableObject {
     
     // 搜索物品
     func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> ([DatabaseListItem], [Int: String]) {
+        // 首先获取所有 metaGroups 的名称
+        let metaQuery = """
+            SELECT metaGroup_id, name 
+            FROM metaGroups 
+            ORDER BY metaGroup_id ASC
+        """
+        let metaResult = executeQuery(metaQuery)
+        var metaGroupNames: [Int: String] = [:]
+        
+        if case .success(let metaRows) = metaResult {
+            for row in metaRows {
+                if let id = row["metaGroup_id"] as? Int,
+                   let name = row["name"] as? String {
+                    metaGroupNames[id] = name
+                }
+            }
+        }
+        
+        // 搜索物品
         var query = """
             SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID
             FROM types t
@@ -289,11 +308,10 @@ class DatabaseManager: ObservableObject {
             params.append(groupID)
         }
         
-        query += " ORDER BY t.metaGroupID"
+        query += " ORDER BY t.metaGroupID, t.name"  // 先按 metaGroupID 排序，再按名称排序
         
         let result = executeQuery(query, parameters: params)
         var items: [DatabaseListItem] = []
-        var metaGroupNames: [Int: String] = [:]
         
         switch result {
         case .success(let rows):
@@ -323,23 +341,37 @@ class DatabaseManager: ObservableObject {
                 items.append(item)
             }
             
-            // 加载元组名称
-            let metaGroupQuery = "SELECT metaGroup_id, name FROM metaGroups"
-            let metaResult = executeQuery(metaGroupQuery)
-            
-            if case .success(let metaRows) = metaResult {
-                for row in metaRows {
-                    if let id = row["metaGroup_id"] as? Int,
-                       let name = row["name"] as? String {
-                        metaGroupNames[id] = name
-                    }
-                }
-            }
-            
         case .error(let error):
             print("搜索物品失败: \(error)")
         }
         
         return (items, metaGroupNames)
+    }
+    
+    // 加载 MetaGroup 名称
+    func loadMetaGroupNames(for metaGroupIDs: [Int]) -> [Int: String] {
+        let placeholders = String(repeating: "?,", count: metaGroupIDs.count).dropLast()
+        let query = """
+            SELECT metaGroup_id, name
+            FROM metaGroups
+            WHERE metaGroup_id IN (\(placeholders))
+        """
+        
+        let result = executeQuery(query, parameters: metaGroupIDs)
+        var metaGroupNames: [Int: String] = [:]
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                if let id = row["metaGroup_id"] as? Int,
+                   let name = row["name"] as? String {
+                    metaGroupNames[id] = name
+                }
+            }
+        case .error(let error):
+            print("加载 MetaGroup 名称失败: \(error)")
+        }
+        
+        return metaGroupNames
     }
 }

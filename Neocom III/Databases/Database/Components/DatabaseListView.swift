@@ -55,11 +55,26 @@ struct DatabaseListView: View {
                         // 已发布的物品（按元组分组）
                         let publishedItems = items.filter { $0.published }
                         if !publishedItems.isEmpty {
-                            ForEach(groupedPublishedItems, id: \.id) { group in
-                                Section(header: Text(group.name).textCase(.none)) {
-                                    ForEach(group.items) { item in
-                                        NavigationLink(destination: item.navigationDestination) {
-                                            DatabaseListItemView(item: item)
+                            if !searchText.isEmpty {
+                                // 搜索结果使用 metaGroups 分组
+                                let grouped = groupItemsByMetaGroup(publishedItems)
+                                ForEach(grouped, id: \.id) { group in
+                                    Section(header: Text(group.name).textCase(.none)) {
+                                        ForEach(group.items) { item in
+                                            NavigationLink(destination: item.navigationDestination) {
+                                                DatabaseListItemView(item: item)
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // 非搜索状态使用原有分组
+                                ForEach(groupedPublishedItems, id: \.id) { group in
+                                    Section(header: Text(group.name).textCase(.none)) {
+                                        ForEach(group.items) { item in
+                                            NavigationLink(destination: item.navigationDestination) {
+                                                DatabaseListItemView(item: item)
+                                            }
                                         }
                                     }
                                 }
@@ -85,6 +100,13 @@ struct DatabaseListView: View {
                         Color.black.opacity(0.3)
                             .edgesIgnoringSafeArea(.all)
                             .allowsHitTesting(true)  // 允许遮罩层接收点击事件
+                            .onTapGesture {
+                                // 退出搜索状态
+                                isSearching = false
+                                searchText = ""  // 清空搜索文本
+                                // 隐藏键盘
+                                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                            }
                     }
                 }
             }
@@ -114,7 +136,16 @@ struct DatabaseListView: View {
         guard let searchData = searchData else { return }
         let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
         items = searchResults
-        metaGroupNames = searchMetaGroupNames
+        
+        // 更新 metaGroupNames
+        if searchMetaGroupNames.isEmpty {
+            // 如果搜索结果没有返回 metaGroup 名称，从数据库管理器获取
+            let metaGroupIDs = Set(searchResults.compactMap { $0.metaGroupID })
+            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
+        } else {
+            metaGroupNames = searchMetaGroupNames
+        }
+        
         // 搜索完成后，如果有结果，关闭遮罩
         if !searchResults.isEmpty {
             isSearching = false
@@ -125,39 +156,50 @@ struct DatabaseListView: View {
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         
+        // 如果是搜索状态，强制使用 metaGroups 分组
+        if !searchText.isEmpty {
+            return groupItemsByMetaGroup(publishedItems)
+        }
+        
         switch groupingType {
         case .publishedOnly:
             return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
             
         case .metaGroups:
-            // 创建一个临时字典来存储分组
-            var grouped: [Int: [DatabaseListItem]] = [:]
-            
-            // 对物品进行分组
-            for item in publishedItems {
-                let metaGroupID = item.metaGroupID ?? 0
-                if grouped[metaGroupID] == nil {
-                    grouped[metaGroupID] = []
-                }
-                grouped[metaGroupID]?.append(item)
-            }
-            
-            // 按 metaGroupID 排序并转换为最终格式
-            return grouped.sorted { $0.key < $1.key }
-                .map { (metaGroupID, items) in
-                    if metaGroupID == 0 {
-                        return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
-                    }
-                    
-                    // 确保从 metaGroupNames 中获取到名称
-                    if let groupName = metaGroupNames[metaGroupID] {
-                        return (id: metaGroupID, name: groupName, items: items)
-                    } else {
-                        print("警告: MetaGroupID \(metaGroupID) 没有对应的名称")
-                        return (id: metaGroupID, name: "MetaGroup \(metaGroupID)", items: items)
-                    }
-                }
+            return groupItemsByMetaGroup(publishedItems)
         }
+    }
+    
+    // 添加一个辅助方法来处理 metaGroups 分组
+    private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
+        // 创建一个临时字典来存储分组
+        var grouped: [Int: [DatabaseListItem]] = [:]
+        
+        // 对物品进行分组
+        for item in items {
+            let metaGroupID = item.metaGroupID ?? 0
+            if grouped[metaGroupID] == nil {
+                grouped[metaGroupID] = []
+            }
+            grouped[metaGroupID]?.append(item)
+        }
+        
+        // 按 metaGroupID 排序并转换为最终格式
+        return grouped.sorted { $0.key < $1.key }
+            .map { (metaGroupID, items) in
+                if metaGroupID == 0 {
+                    return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
+                }
+                
+                // 确保从 metaGroupNames 中获取到名称
+                if let groupName = metaGroupNames[metaGroupID] {
+                    return (id: metaGroupID, name: groupName, items: items)
+                } else {
+                    print("警告: MetaGroupID \(metaGroupID) 没有对应的名称")
+                    return (id: metaGroupID, name: "MetaGroup \(metaGroupID)", items: items)
+                }
+            }
+            .filter { !$0.items.isEmpty }  // 过滤掉空的组
     }
 }
 
