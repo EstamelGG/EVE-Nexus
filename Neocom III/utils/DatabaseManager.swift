@@ -55,14 +55,29 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
-            for row in rows {
+            print("加载分类 - 获取到 \(rows.count) 行数据")
+            for (index, row) in rows.enumerated() {
+                print("处理第 \(index + 1) 行: \(row)")
+                
+                // 确保所有必需的字段都存在且类型正确
+                guard let categoryId = row["category_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconId = row["iconID"] as? Int else {
+                    print("行 \(index + 1) 数据不完整或类型不正确: \(row)")
+                    continue
+                }
+                
+                let isPublished = (row["published"] as? Int ?? 0) != 0
+                
                 let category = Category(
-                    id: row["category_id"] as? Int ?? 0,
-                    name: row["name"] as? String ?? "",
-                    published: row["published"] as? Int ?? 0 != 0,
-                    iconID: row["iconID"] as? Int ?? 0,
-                    iconFileNew: SelectIconName(iconID: row["iconID"] as? Int ?? 0)
+                    id: categoryId,
+                    name: name,
+                    published: isPublished,
+                    iconID: iconId,
+                    iconFileNew: SelectIconName(iconID: iconId)
                 )
+                
+                print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
                 
                 if category.published {
                     published.append(category)
@@ -70,6 +85,9 @@ class DatabaseManager: ObservableObject {
                     unpublished.append(category)
                 }
             }
+            
+            print("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
+            
         case .error(let error):
             print("加载分类失败: \(error)")
         }
@@ -93,13 +111,23 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
+                guard let groupId = row["group_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconId = row["iconID"] as? Int,
+                      let catId = row["categoryID"] as? Int,
+                      let iconFilename = row["icon_filename"] as? String else {
+                    continue
+                }
+                
+                let isPublished = (row["published"] as? Int ?? 0) != 0
+                
                 let group = Group(
-                    id: row["group_id"] as? Int ?? 0,
-                    name: row["name"] as? String ?? "",
-                    iconID: row["iconID"] as? Int ?? 0,
-                    categoryID: row["categoryID"] as? Int ?? 0,
-                    published: row["published"] as? Int ?? 0 != 0,
-                    icon_filename: row["icon_filename"] as? String ?? ""
+                    id: groupId,
+                    name: name,
+                    iconID: iconId,
+                    categoryID: catId,
+                    published: isPublished,
+                    icon_filename: iconFilename
                 )
                 
                 if group.published {
@@ -132,15 +160,26 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconFilename = row["icon_filename"] as? String,
+                      let pgNeed = row["pg_need"] as? Int,
+                      let cpuNeed = row["cpu_need"] as? Int,
+                      let metaGroupId = row["metaGroupID"] as? Int else {
+                    continue
+                }
+                
+                let isPublished = (row["published"] as? Int ?? 0) != 0
+                
                 let item = DatabaseItem(
-                    id: row["type_id"] as? Int ?? 0,
-                    typeID: row["type_id"] as? Int ?? 0,
-                    name: row["name"] as? String ?? "",
-                    iconFileName: row["icon_filename"] as? String ?? "",
-                    pgNeed: row["pg_need"] as? Int ?? 0,
-                    cpuNeed: row["cpu_need"] as? Int ?? 0,
-                    metaGroupID: row["metaGroupID"] as? Int ?? 0,
-                    published: row["published"] as? Int ?? 0 != 0
+                    id: typeId,
+                    typeID: typeId,
+                    name: name,
+                    iconFileName: iconFilename,
+                    pgNeed: pgNeed,
+                    cpuNeed: cpuNeed,
+                    metaGroupID: metaGroupId,
+                    published: isPublished
                 )
                 
                 if item.published {
@@ -182,14 +221,21 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
-            guard let row = rows.first else { return nil }
+            guard let row = rows.first,
+                  let name = row["name"] as? String,
+                  let description = row["description"] as? String,
+                  let iconFilename = row["icon_filename"] as? String,
+                  let groupName = row["group_name"] as? String,
+                  let categoryName = row["category_name"] as? String else {
+                return nil
+            }
             
             return ItemDetails(
-                name: row["name"] as? String ?? "",
-                description: row["description"] as? String ?? "",
-                iconFileName: row["icon_filename"] as? String ?? "",
-                groupName: row["group_name"] as? String ?? "",
-                categoryName: row["category_name"] as? String ?? ""
+                name: name,
+                description: description,
+                iconFileName: iconFilename,
+                groupName: groupName,
+                categoryName: categoryName
             )
             
         case .error(let error):
@@ -227,13 +273,21 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
-                let id = row["type_id"] as? Int ?? 0
+                guard let id = row["type_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconFilename = row["icon_filename"] as? String,
+                      let metaGroupId = row["metaGroupID"] as? Int else {
+                    continue
+                }
+                
+                let isPublished = (row["published"] as? Int ?? 0) != 0
+                
                 let item = DatabaseListItem(
                     id: id,
-                    name: row["name"] as? String ?? "",
-                    iconFileName: row["icon_filename"] as? String ?? "",
-                    published: row["published"] as? Int ?? 0 != 0,
-                    metaGroupID: row["metaGroupID"] as? Int ?? 0,
+                    name: name,
+                    iconFileName: iconFilename,
+                    published: isPublished,
+                    metaGroupID: metaGroupId,
                     navigationDestination: AnyView(
                         ShowItemInfo(
                             databaseManager: self,

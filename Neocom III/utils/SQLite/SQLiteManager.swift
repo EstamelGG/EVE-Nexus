@@ -56,12 +56,12 @@ class SQLiteManager {
     
     // 执行查询并返回结果
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
-        // 生成缓存键（查询语句 + 参数）
-        let cacheKey = "\(query)_\(parameters.map { "\($0)" }.joined(separator: "_"))"
+        // 生成缓存键
+        let cacheKey = generateCacheKey(query: query, parameters: parameters)
         
         // 如果启用缓存且缓存中存在结果，直接返回
         if useCache, let cachedResult = queryCache[cacheKey] {
-            print("从缓存中获取结果: \(query)")
+            print("从缓存中获取结果: \(cacheKey)")
             return .success(cachedResult)
         }
         
@@ -110,25 +110,30 @@ class SQLiteManager {
                 
                 switch columnType {
                 case SQLITE_INTEGER:
-                    row[columnName] = sqlite3_column_int64(statement, i)
+                    row[columnName] = Int(sqlite3_column_int64(statement, i))
                 case SQLITE_FLOAT:
                     row[columnName] = sqlite3_column_double(statement, i)
                 case SQLITE_TEXT:
                     if let text = sqlite3_column_text(statement, i) {
                         row[columnName] = String(cString: text)
+                    } else {
+                        row[columnName] = ""
                     }
                 case SQLITE_BLOB:
                     if let blob = sqlite3_column_blob(statement, i) {
-                        let size = sqlite3_column_bytes(statement, i)
-                        row[columnName] = Data(bytes: blob, count: Int(size))
+                        let size = Int(sqlite3_column_bytes(statement, i))
+                        row[columnName] = Data(bytes: blob, count: size)
+                    } else {
+                        row[columnName] = Data()
                     }
                 case SQLITE_NULL:
-                    row[columnName] = NSNull()
+                    row[columnName] = nil
                 default:
-                    row[columnName] = NSNull()
+                    row[columnName] = nil
                 }
             }
             
+            print("查询结果行: \(row)") // 添加调试输出
             results.append(row)
         }
         
@@ -140,6 +145,33 @@ class SQLiteManager {
             queryCache[cacheKey] = results
         }
         
+        print("查询总行数: \(results.count)") // 添加调试输出
         return .success(results)
+    }
+    
+    // 生成缓存键
+    private func generateCacheKey(query: String, parameters: [Any]) -> String {
+        // 将参数转换为字符串
+        let paramStrings = parameters.map { param -> String in
+            switch param {
+            case let value as Int:
+                return "i\(value)"  // 添加类型前缀以区分不同类型的相同值
+            case let value as Double:
+                return "d\(value)"
+            case let value as String:
+                return "s\(value)"
+            case let value as Data:
+                return "b\(value.count)"  // 对于二进制数据，只使用其长度
+            case is NSNull:
+                return "n"
+            default:
+                return "u"  // unknown
+            }
+        }
+        
+        // 组合 SQL 和参数生成缓存键
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let paramString = paramStrings.joined(separator: "|")
+        return "\(normalizedQuery)#\(paramString)"
     }
 } 
