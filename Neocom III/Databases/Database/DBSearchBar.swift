@@ -61,8 +61,9 @@ struct Searcher: UIViewRepresentable {
         }
 
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-            debounceWorkItem?.cancel() // 立即执行搜索逻辑，跳过防抖
+            debounceWorkItem?.cancel()  // 立即执行搜索逻辑，跳过防抖
             parent.executeQueryForSourcePage(keyword: searchBar.text ?? "")
+            searchBar.resignFirstResponder()  // 收起键盘
         }
 
         func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
