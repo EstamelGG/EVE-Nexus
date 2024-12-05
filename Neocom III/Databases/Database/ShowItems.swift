@@ -19,7 +19,7 @@ struct ShowItems: View {
             Searcher(
                 text: $searchText,
                 sourcePage: "item",
-                category_id: groupID,
+                group_id: groupID,
                 db: databaseManager.db,
                 publishedItems: $publishedItems,
                 unpublishedItems: $unpublishedItems,

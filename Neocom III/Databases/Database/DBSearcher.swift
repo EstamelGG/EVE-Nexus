@@ -76,7 +76,7 @@ struct Searcher: View {
         
         var query: String
         var bindParams: [String] = []
-
+        print("Get params: \(keyword), \(category_id), \(group_id)")
         switch sourcePage {
         case "category":
             query = """
