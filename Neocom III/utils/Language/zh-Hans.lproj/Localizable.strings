@@ -26,6 +26,7 @@
 "DatabaseName" = "item_db_zh";
 "Main_Database_unpublished" = "未发布";
 "Main_Database_published" = "已发布";
+"Main_Database_Search" = "搜索";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";
