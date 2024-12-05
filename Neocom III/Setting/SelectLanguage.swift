@@ -103,8 +103,9 @@ struct SelectLanguageView: View {
         // 4. 发送通知以重新加载UI
         NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
         
-        // 5. 清空 SQL 缓存并重新加载数据库
-        databaseManager.clearCache()
+        // 5. 清空所有缓存并重新加载数据库
+        DatabaseBrowserView.clearCache()  // 清除导航缓存
+        databaseManager.clearCache()      // 清除 SQL 查询缓存
         databaseManager.loadDatabase()
         
         // 6. 关闭当前视图

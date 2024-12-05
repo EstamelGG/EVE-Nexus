@@ -2,15 +2,37 @@ import SwiftUI
 import SQLite3
 
 // 浏览层级
-enum BrowserLevel {
+enum BrowserLevel: Hashable {
     case categories    // 分类层级
     case groups(categoryID: Int, categoryName: String)    // 组层级
     case items(groupID: Int, groupName: String)    // 物品层级
+    
+    // 实现 Hashable
+    func hash(into hasher: inout Hasher) {
+        switch self {
+        case .categories:
+            hasher.combine(0)
+        case .groups(let categoryID, _):
+            hasher.combine(1)
+            hasher.combine(categoryID)
+        case .items(let groupID, _):
+            hasher.combine(2)
+            hasher.combine(groupID)
+        }
+    }
 }
 
 struct DatabaseBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let level: BrowserLevel
+    
+    // 静态缓存
+    private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String])] = [:]
+    
+    // 清除缓存的方法
+    static func clearCache() {
+        navigationCache.removeAll()
+    }
     
     var body: some View {
         DatabaseListView(
@@ -18,111 +40,19 @@ struct DatabaseBrowserView: View {
             title: title,
             groupingType: groupingType,
             loadData: { dbManager in
-                switch level {
-                case .categories:
-                    // 加载分类数据
-                    let (published, unpublished) = dbManager.loadCategories()
-                    let items = published.map { category in
-                        DatabaseListItem(
-                            id: category.id,
-                            name: category.name,
-                            iconFileName: category.iconFileNew,
-                            published: true,
-                            metaGroupID: nil,
-                            navigationDestination: AnyView(
-                                DatabaseBrowserView(
-                                    databaseManager: databaseManager,
-                                    level: .groups(categoryID: category.id, categoryName: category.name)
-                                )
-                            )
-                        )
-                    } + unpublished.map { category in
-                        DatabaseListItem(
-                            id: category.id,
-                            name: category.name,
-                            iconFileName: category.iconFileNew,
-                            published: false,
-                            metaGroupID: nil,
-                            navigationDestination: AnyView(
-                                DatabaseBrowserView(
-                                    databaseManager: databaseManager,
-                                    level: .groups(categoryID: category.id, categoryName: category.name)
-                                )
-                            )
-                        )
-                    }
-                    return (items, [:])
-                    
-                case .groups(let categoryID, _):
-                    // 加载组数据
-                    let (published, unpublished) = dbManager.loadGroups(for: categoryID)
-                    let items = published.map { group in
-                        DatabaseListItem(
-                            id: group.id,
-                            name: group.name,
-                            iconFileName: group.icon_filename,
-                            published: true,
-                            metaGroupID: nil,
-                            navigationDestination: AnyView(
-                                DatabaseBrowserView(
-                                    databaseManager: databaseManager,
-                                    level: .items(groupID: group.id, groupName: group.name)
-                                )
-                            )
-                        )
-                    } + unpublished.map { group in
-                        DatabaseListItem(
-                            id: group.id,
-                            name: group.name,
-                            iconFileName: group.icon_filename,
-                            published: false,
-                            metaGroupID: nil,
-                            navigationDestination: AnyView(
-                                DatabaseBrowserView(
-                                    databaseManager: databaseManager,
-                                    level: .items(groupID: group.id, groupName: group.name)
-                                )
-                            )
-                        )
-                    }
-                    return (items, [:])
-                    
-                case .items(let groupID, _):
-                    // 加载物品数据
-                    let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
-                    let items = published.map { item in
-                        DatabaseListItem(
-                            id: item.id,
-                            name: item.name,
-                            iconFileName: item.iconFileName,
-                            published: true,
-                            metaGroupID: item.metaGroupID,
-                            navigationDestination: AnyView(
-                                ShowItemInfo(
-                                    databaseManager: databaseManager,
-                                    itemID: item.id
-                                )
-                            )
-                        )
-                    } + unpublished.map { item in
-                        DatabaseListItem(
-                            id: item.id,
-                            name: item.name,
-                            iconFileName: item.iconFileName,
-                            published: false,
-                            metaGroupID: item.metaGroupID,
-                            navigationDestination: AnyView(
-                                ShowItemInfo(
-                                    databaseManager: databaseManager,
-                                    itemID: item.id
-                                )
-                            )
-                        )
-                    }
-                    return (items, metaGroupNames)
+                // 检查缓存
+                if let cachedData = Self.navigationCache[level] {
+                    print("使用导航缓存: \(level)")
+                    return cachedData
                 }
+                
+                // 如果没有缓存，加载数据并缓存
+                let data = loadDataForLevel(dbManager)
+                Self.navigationCache[level] = data
+                return data
             },
             searchData: { dbManager, searchText in
+                // 搜索不使用缓存
                 switch level {
                 case .categories:
                     return dbManager.searchItems(searchText: searchText)
@@ -133,6 +63,146 @@ struct DatabaseBrowserView: View {
                 }
             }
         )
+        .onDisappear {
+            // 当视图消失时，保留当前层级和上一层级的缓存，清除其他缓存
+            cleanupCache()
+        }
+    }
+    
+    // 根据层级加载数据
+    private func loadDataForLevel(_ dbManager: DatabaseManager) -> ([DatabaseListItem], [Int: String]) {
+        switch level {
+        case .categories:
+            let (published, unpublished) = dbManager.loadCategories()
+            let items = published.map { category in
+                DatabaseListItem(
+                    id: category.id,
+                    name: category.name,
+                    iconFileName: category.iconFileNew,
+                    published: true,
+                    metaGroupID: nil,
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .groups(categoryID: category.id, categoryName: category.name)
+                        )
+                    )
+                )
+            } + unpublished.map { category in
+                DatabaseListItem(
+                    id: category.id,
+                    name: category.name,
+                    iconFileName: category.iconFileNew,
+                    published: false,
+                    metaGroupID: nil,
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .groups(categoryID: category.id, categoryName: category.name)
+                        )
+                    )
+                )
+            }
+            return (items, [:])
+            
+        case .groups(let categoryID, _):
+            let (published, unpublished) = dbManager.loadGroups(for: categoryID)
+            let items = published.map { group in
+                DatabaseListItem(
+                    id: group.id,
+                    name: group.name,
+                    iconFileName: group.icon_filename,
+                    published: true,
+                    metaGroupID: nil,
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .items(groupID: group.id, groupName: group.name)
+                        )
+                    )
+                )
+            } + unpublished.map { group in
+                DatabaseListItem(
+                    id: group.id,
+                    name: group.name,
+                    iconFileName: group.icon_filename,
+                    published: false,
+                    metaGroupID: nil,
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .items(groupID: group.id, groupName: group.name)
+                        )
+                    )
+                )
+            }
+            return (items, [:])
+            
+        case .items(let groupID, _):
+            let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
+            let items = published.map { item in
+                DatabaseListItem(
+                    id: item.id,
+                    name: item.name,
+                    iconFileName: item.iconFileName,
+                    published: true,
+                    metaGroupID: item.metaGroupID,
+                    navigationDestination: AnyView(
+                        ShowItemInfo(
+                            databaseManager: databaseManager,
+                            itemID: item.id
+                        )
+                    )
+                )
+            } + unpublished.map { item in
+                DatabaseListItem(
+                    id: item.id,
+                    name: item.name,
+                    iconFileName: item.iconFileName,
+                    published: false,
+                    metaGroupID: item.metaGroupID,
+                    navigationDestination: AnyView(
+                        ShowItemInfo(
+                            databaseManager: databaseManager,
+                            itemID: item.id
+                        )
+                    )
+                )
+            }
+            return (items, metaGroupNames)
+        }
+    }
+    
+    // 清理缓存，只保留当前层级和上一层级的数据
+    private func cleanupCache() {
+        let keysToKeep = getRelevantLevels()
+        Self.navigationCache = Self.navigationCache.filter { keysToKeep.contains($0.key) }
+    }
+    
+    // 获取需要保留的层级
+    private func getRelevantLevels() -> Set<BrowserLevel> {
+        var levels = Set<BrowserLevel>([level])
+        
+        // 添加上一层级
+        switch level {
+        case .categories:
+            break // 没有上一层级
+        case .groups(_, _):
+            levels.insert(.categories)
+        case .items(_, let groupName):
+            // 尝试从组名推断出分类ID
+            if let categoryID = getCategoryIDFromGroupName(groupName) {
+                levels.insert(.groups(categoryID: categoryID, categoryName: ""))
+            }
+        }
+        
+        return levels
+    }
+    
+    // 从组名推断分类ID（这个方法需要根据你的数据结构来实现）
+    private func getCategoryIDFromGroupName(_ groupName: String) -> Int? {
+        // TODO: 实现从组名获取分类ID的逻辑
+        return nil
     }
     
     // 根据层级返回标题
