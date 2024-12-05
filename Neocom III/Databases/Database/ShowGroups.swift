@@ -30,8 +30,6 @@ struct ShowGroups: View {
                 metaGroupNames: $metaGroupNames,
                 isSearching: $isSearching
             )
-            
-            .padding(.horizontal)
             .frame(height: 60) // 设置 Searcher 高度
             Divider() // 分隔线
             
