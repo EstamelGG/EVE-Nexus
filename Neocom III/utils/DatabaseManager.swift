@@ -144,26 +144,36 @@ class DatabaseManager: ObservableObject {
     
     // 加载物品
     func loadItems(for groupID: Int) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
-        // 首先获取所有 metaGroups 的名称
-        let metaQuery = "SELECT metaGroup_id, name FROM metaGroups"
-        let metaResult = executeQuery(metaQuery)
+        // 首先获取所有 metaGroups 的名称，不使用缓存
+        let metaQuery = """
+            SELECT metagroup_id, name 
+            FROM metaGroups 
+            ORDER BY metagroup_id ASC
+        """
+        let metaResult = executeQuery(metaQuery, useCache: false)
         var metaGroupNames: [Int: String] = [:]
         
         if case .success(let metaRows) = metaResult {
+            print("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
             for row in metaRows {
-                if let id = row["metaGroup_id"] as? Int,
+                if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
+                    print("加载 MetaGroup: ID=\(id), Name=\(name)")
+                } else {
+                    print("警告: MetaGroup 行数据类型不正确:", row)
                 }
             }
+        } else {
+            print("加载 metaGroups 失败")
         }
         
         // 查询物品
         let query = """
-            SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
-            FROM types
-            WHERE groupID = ?
-            ORDER BY name ASC
+            SELECT t.type_id, t.name, t.icon_filename, t.pg_need, t.cpu_need, t.metaGroupID, t.published
+            FROM types t
+            WHERE t.groupID = ?
+            ORDER BY t.name ASC
         """
         
         let result = executeQuery(query, parameters: [groupID])
@@ -181,7 +191,16 @@ class DatabaseManager: ObservableObject {
                       let cpuNeed = row["cpu_need"] as? Int,
                       let metaGroupId = row["metaGroupID"] as? Int,
                       let isPublished = row["published"] as? Int else {
+                    print("警告: 物品数据不完整:", row)
                     continue
+                }
+                
+                // 打印调试信息
+                print("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
+                if let metaName = metaGroupNames[metaGroupId] {
+                    print("找到对应的 MetaGroup: \(metaName)")
+                } else {
+                    print("警告: 找不到 MetaGroupID \(metaGroupId) 对应的名称")
                 }
                 
                 let item = DatabaseItem(
@@ -204,6 +223,12 @@ class DatabaseManager: ObservableObject {
             
         case .error(let error):
             print("加载物品失败: \(error)")
+        }
+        
+        // 打印最终的 metaGroupNames 内容
+        print("最终的 metaGroupNames 内容:")
+        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
+            print("ID: \(id) -> Name: \(name)")
         }
         
         return (published, unpublished, metaGroupNames)

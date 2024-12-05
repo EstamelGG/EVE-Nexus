@@ -54,12 +54,12 @@ struct DatabaseListView: View {
                 ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
             } else {
                 List {
-                    // 已发布的物品
+                    // 已发布的物品（按元组分组）
                     let publishedItems = items.filter { $0.published }
                     if !publishedItems.isEmpty {
-                        ForEach(groupedPublishedItems, id: \.key) { group in
-                            Section(header: Text(group.key).textCase(.none)) {
-                                ForEach(group.value) { item in
+                        ForEach(groupedPublishedItems, id: \.id) { group in
+                            Section(header: Text(group.name).textCase(.none)) {
+                                ForEach(group.items) { item in
                                     NavigationLink(destination: item.navigationDestination) {
                                         DatabaseListItemView(item: item)
                                     }
@@ -68,10 +68,10 @@ struct DatabaseListView: View {
                         }
                     }
                     
-                    // 未发布的物品
+                    // 未发布的物品（单独分组）
                     let unpublishedItems = items.filter { !$0.published }
                     if !unpublishedItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).textCase(.none)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
                             ForEach(unpublishedItems) { item in
                                 NavigationLink(destination: item.navigationDestination) {
                                     DatabaseListItemView(item: item)
@@ -112,23 +112,41 @@ struct DatabaseListView: View {
     }
     
     // 已发布物品的分组
-    private var groupedPublishedItems: [(key: String, value: [DatabaseListItem])] {
+    private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         
         switch groupingType {
         case .publishedOnly:
-            return [(NSLocalizedString("Main_Database_published", comment: ""), publishedItems)]
+            return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
             
         case .metaGroups:
-            // 按元组分组
-            let grouped = Dictionary(grouping: publishedItems) { item in
-                if let metaGroupID = item.metaGroupID,
-                   let metaGroupName = metaGroupNames[metaGroupID] {
-                    return metaGroupName
+            // 创建一个临时字典来存储分组
+            var grouped: [Int: [DatabaseListItem]] = [:]
+            
+            // 对物品进行分组
+            for item in publishedItems {
+                let metaGroupID = item.metaGroupID ?? 0
+                if grouped[metaGroupID] == nil {
+                    grouped[metaGroupID] = []
                 }
-                return "未分组"
+                grouped[metaGroupID]?.append(item)
             }
+            
+            // 按 metaGroupID 排序并转换为最终格式
             return grouped.sorted { $0.key < $1.key }
+                .map { (metaGroupID, items) in
+                    if metaGroupID == 0 {
+                        return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
+                    }
+                    
+                    // 确保从 metaGroupNames 中获取到名称
+                    if let groupName = metaGroupNames[metaGroupID] {
+                        return (id: metaGroupID, name: groupName, items: items)
+                    } else {
+                        print("警告: MetaGroupID \(metaGroupID) 没有对应的名称")
+                        return (id: metaGroupID, name: "MetaGroup \(metaGroupID)", items: items)
+                    }
+                }
         }
     }
 }
