@@ -57,13 +57,11 @@ struct DatabaseListView: View {
                     // 已发布的物品
                     let publishedItems = items.filter { $0.published }
                     if !publishedItems.isEmpty {
-                        Section {
-                            ForEach(groupedPublishedItems, id: \.key) { group in
-                                Section(header: Text(group.key)) {
-                                    ForEach(group.value) { item in
-                                        NavigationLink(destination: item.navigationDestination) {
-                                            DatabaseListItemView(item: item)
-                                        }
+                        ForEach(groupedPublishedItems, id: \.key) { group in
+                            Section(header: Text(group.key).textCase(.none)) {
+                                ForEach(group.value) { item in
+                                    NavigationLink(destination: item.navigationDestination) {
+                                        DatabaseListItemView(item: item)
                                     }
                                 }
                             }
@@ -73,7 +71,7 @@ struct DatabaseListView: View {
                     // 未发布的物品
                     let unpublishedItems = items.filter { !$0.published }
                     if !unpublishedItems.isEmpty {
-                        Section(header: Text("未发布")) {
+                        Section(header: Text("未发布").textCase(.none)) {
                             ForEach(unpublishedItems) { item in
                                 NavigationLink(destination: item.navigationDestination) {
                                     DatabaseListItemView(item: item)
