@@ -29,7 +29,6 @@ struct ShowItems: View {
                 )
             }
             .padding(.horizontal)
-            .padding(.top)
             
             Divider() // 分隔线
             // 根据 isSearching 控制显示内容

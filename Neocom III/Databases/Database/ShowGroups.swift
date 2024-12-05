@@ -33,7 +33,6 @@ struct ShowGroups: View {
                 )
             }
             .padding(.horizontal)
-            .padding(.top)
             
             Divider() // 分隔线
             

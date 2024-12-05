@@ -28,7 +28,6 @@ struct ShowCategory: View {
                 )
             }
             .padding(.horizontal)
-            .padding(.top)
             
             Divider() // 分隔线
             
