@@ -87,6 +87,7 @@ struct Searcher: UIViewRepresentable {
         searchBar.delegate = context.coordinator
         searchBar.searchBarStyle = .minimal // 使用 minimal 风格去除多余样式
         searchBar.showsCancelButton = true // 显示取消按钮
+        searchBar.sizeToFit()  // 确保 searchBar 大小合适
         return searchBar
     }
 

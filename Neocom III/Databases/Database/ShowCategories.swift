@@ -7,50 +7,60 @@ struct ShowCategory: View {
     @State private var searchText: String = ""
     @State private var dataLoaded: Bool = false
     @State private var db: OpaquePointer?
-        
     
     @State private var publishedItems: [DatabaseItem] = []
     @State private var unpublishedItems: [DatabaseItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     
-    @State private var isSearching: Bool = false  // 控制是否显示搜索结果
+    @State private var isSearching: Bool = false // 控制是否显示搜索结果
     
     var body: some View {
-        VStack {
-            // 使用 SearchBar 搜索条目并传递结果
-            Searcher(
-                text: $searchText,
-                sourcePage: "category",
-                db: databaseManager.db,
-                publishedItems: $publishedItems,
-                unpublishedItems: $unpublishedItems,
-                metaGroupNames: $metaGroupNames,
-                isSearching: $isSearching // 传递isSearching来控制显示内容
-            )
+        VStack(alignment: .leading, spacing: 0) {
+            // 标题与搜索栏组合
+            VStack(alignment: .leading, spacing: 8) {
+                Searcher(
+                    text: $searchText,
+                    sourcePage: "category",
+                    db: databaseManager.db,
+                    publishedItems: $publishedItems,
+                    unpublishedItems: $unpublishedItems,
+                    metaGroupNames: $metaGroupNames,
+                    isSearching: $isSearching
+                )
+            }
+            .padding(.horizontal)
             .padding(.top)
             
-            // 根据 isSearching 控制显示内容
+            Divider() // 分隔线
+            
+            // 主体内容
             if isSearching {
-                // 当有搜索时显示 ItemListView
+                // 搜索结果
                 ItemListView(
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
                     metaGroupNames: $metaGroupNames
                 )
             } else {
+                // 分类列表
                 List {
                     if publishedCategories.isEmpty && unpublishedCategories.isEmpty {
-                        // 显示空数据提示
                         Text(NSLocalizedString("Main_Database_nothing_found", comment: ""))
                             .font(.headline)
                             .foregroundColor(.gray)
                             .frame(maxWidth: .infinity, alignment: .center)
                     } else {
-                        // 已发布的分类
+                        // 已发布分类
                         if !publishedCategories.isEmpty {
                             Section(header: Text(NSLocalizedString("Main_Database_published", comment: "")).font(.headline).foregroundColor(.primary)) {
                                 ForEach(publishedCategories) { category in
-                                    NavigationLink(destination: ShowGroups(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
+                                    NavigationLink(
+                                        destination: ShowGroups(
+                                            databaseManager: databaseManager,
+                                            categoryID: category.id,
+                                            categoryName: category.name
+                                        )
+                                    ) {
                                         HStack {
                                             IconManager.shared.loadImage(for: category.iconFileNew)
                                                 .resizable()
@@ -63,11 +73,17 @@ struct ShowCategory: View {
                             }
                         }
                         
-                        // 未发布的分类
+                        // 未发布分类
                         if !unpublishedCategories.isEmpty {
                             Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).font(.headline).foregroundColor(.primary)) {
                                 ForEach(unpublishedCategories) { category in
-                                    NavigationLink(destination: ShowGroups(databaseManager: databaseManager, categoryID: category.id, categoryName: category.name)) {
+                                    NavigationLink(
+                                        destination: ShowGroups(
+                                            databaseManager: databaseManager,
+                                            categoryID: category.id,
+                                            categoryName: category.name
+                                        ).navigationTitle(category.name)
+                                    ) {
                                         HStack {
                                             IconManager.shared.loadImage(for: category.iconFileNew)
                                                 .resizable()
@@ -82,6 +98,7 @@ struct ShowCategory: View {
                     }
                 }
                 .navigationTitle(NSLocalizedString("Main_Database_title", comment: ""))
+                .listStyle(.insetGrouped) // 更美观的列表样式
                 .onAppear {
                     if !dataLoaded {
                         loadCategories()
@@ -90,8 +107,10 @@ struct ShowCategory: View {
                 }
             }
         }
+        .background(Color(.systemGroupedBackground)) // 设置背景颜色
+        .edgesIgnoringSafeArea(.bottom) // 内容扩展到安全区外
     }
-
+    
     private func loadCategories() {
         guard let db = databaseManager.db else { return }
         

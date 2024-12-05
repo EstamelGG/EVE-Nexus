@@ -14,20 +14,23 @@ struct ShowItems: View {
     var groupName: String
     
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 0) {
             // 使用 SearchBar 搜索条目并传递结果
-            Searcher(
-                text: $searchText,
-                sourcePage: "item",
-                group_id: groupID,
-                db: databaseManager.db,
-                publishedItems: $publishedItems,
-                unpublishedItems: $unpublishedItems,
-                metaGroupNames: $metaGroupNames,
-                isSearching: $isSearching // 传递isSearching来控制显示内容
-            )
+            VStack(alignment: .leading, spacing: 8) {                
+                Searcher(
+                    text: $searchText,
+                    sourcePage: "item",
+                    db: databaseManager.db,
+                    publishedItems: $publishedItems,
+                    unpublishedItems: $unpublishedItems,
+                    metaGroupNames: $metaGroupNames,
+                    isSearching: $isSearching
+                )
+            }
+            .padding(.horizontal)
             .padding(.top)
             
+            Divider() // 分隔线
             // 根据 isSearching 控制显示内容
             if isSearching {
                 // 当有搜索时显示 ItemListView
@@ -66,6 +69,7 @@ struct ShowItems: View {
                     }
                 }
                 .navigationTitle(groupName)
+                .listStyle(.insetGrouped) // 更美观的列表样式
                 .onAppear {
                     if !dataLoaded {
                         loadItems(for: groupID)

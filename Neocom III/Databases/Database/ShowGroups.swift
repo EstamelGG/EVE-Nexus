@@ -18,19 +18,23 @@ struct ShowGroups: View {
     var categoryName: String
     
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 0) {
             // 使用 SearchBar 搜索条目并传递结果
-            Searcher(
-                text: $searchText,
-                sourcePage: "group",
-                category_id: categoryID,
-                db: databaseManager.db,
-                publishedItems: $publishedItems,
-                unpublishedItems: $unpublishedItems,
-                metaGroupNames: $metaGroupNames,
-                isSearching: $isSearching // 传递isSearching来控制显示内容
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                Searcher(
+                    text: $searchText,
+                    sourcePage: "group",
+                    db: databaseManager.db,
+                    publishedItems: $publishedItems,
+                    unpublishedItems: $unpublishedItems,
+                    metaGroupNames: $metaGroupNames,
+                    isSearching: $isSearching
+                )
+            }
+            .padding(.horizontal)
             .padding(.top)
+            
+            Divider() // 分隔线
             
             // 根据 isSearching 控制显示内容
             if isSearching {
@@ -84,6 +88,8 @@ struct ShowGroups: View {
                         }
                     }
                 }
+                .navigationTitle(categoryName)
+                .listStyle(.insetGrouped) // 更美观的列表样式
                 .onAppear {
                     if !dataLoaded {
                         loadGroups(for: categoryID)
