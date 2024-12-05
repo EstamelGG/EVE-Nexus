@@ -51,7 +51,7 @@ struct DatabaseListView: View {
             }
             
             if items.isEmpty {
-                ContentUnavailableView("没有找到结果", systemImage: "magnifyingglass")
+                ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
             } else {
                 List {
                     // 已发布的物品
@@ -71,7 +71,7 @@ struct DatabaseListView: View {
                     // 未发布的物品
                     let unpublishedItems = items.filter { !$0.published }
                     if !unpublishedItems.isEmpty {
-                        Section(header: Text("未发布").textCase(.none)) {
+                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "")).textCase(.none)) {
                             ForEach(unpublishedItems) { item in
                                 NavigationLink(destination: item.navigationDestination) {
                                     DatabaseListItemView(item: item)
@@ -117,7 +117,7 @@ struct DatabaseListView: View {
         
         switch groupingType {
         case .publishedOnly:
-            return [("已发布", publishedItems)]
+            return [(NSLocalizedString("Main_Database_published", comment: ""), publishedItems)]
             
         case .metaGroups:
             // 按元组分组

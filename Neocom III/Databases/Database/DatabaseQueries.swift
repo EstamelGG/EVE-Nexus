@@ -147,6 +147,7 @@ enum Database {
             SELECT name, description, icon_filename, group_name, category_name 
             FROM types 
             WHERE type_id = ? 
+            ORDER BY metaGroupID
             """
 
             let results: [ItemDetails] = executeQuery(
