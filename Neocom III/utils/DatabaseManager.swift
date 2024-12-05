@@ -47,7 +47,7 @@ class DatabaseManager: ObservableObject {
     
     // 加载分类
     func loadCategories() -> ([Category], [Category]) {
-        let query = "SELECT category_id, name, published, icon_filename FROM categories ORDER BY category_id"
+        let query = "SELECT category_id, name, published FROM categories ORDER BY category_id"
         let result = executeQuery(query)
         
         var published: [Category] = []
@@ -61,20 +61,22 @@ class DatabaseManager: ObservableObject {
                 
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFilename = row["icon_filename"] as? String else {
+                      let name = row["name"] as? String else {
                     print("行 \(index + 1) 数据不完整或类型不正确: \(row)")
                     continue
                 }
                 
                 let isPublished = (row["published"] as? Int ?? 0) != 0
                 
+                // 使用映射表获取图标文件名
+                let iconFileName = DatabaseConfig.categoryIconMapping[categoryId] ?? DatabaseConfig.defaultIcon
+                
                 let category = Category(
                     id: categoryId,
                     name: name,
                     published: isPublished,
-                    iconID: 0,
-                    iconFileNew: iconFilename
+                    iconID: categoryId,  // 使用 categoryId 作为 iconID
+                    iconFileNew: iconFileName
                 )
                 
                 print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
@@ -123,10 +125,10 @@ class DatabaseManager: ObservableObject {
                 let group = Group(
                     id: groupId,
                     name: name,
-                    iconID: 0,
+                    iconID: groupId,  // 使用 groupId 作为 iconID
                     categoryID: catId,
                     published: isPublished,
-                    icon_filename: iconFilename
+                    icon_filename: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
                 )
                 
                 if group.published {
@@ -174,7 +176,7 @@ class DatabaseManager: ObservableObject {
                     id: typeId,
                     typeID: typeId,
                     name: name,
-                    iconFileName: iconFilename,
+                    iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                     pgNeed: pgNeed,
                     cpuNeed: cpuNeed,
                     metaGroupID: metaGroupId,
