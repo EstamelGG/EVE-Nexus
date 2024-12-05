@@ -1,6 +1,5 @@
 import SwiftUI
 
-
 // 用于过滤 HTML 标签并处理换行的函数
 func filterText(_ text: String) -> String {
     // 1. 替换 <b> 和 </b> 标签为一个空格
@@ -27,39 +26,56 @@ struct ShowItemInfo: View {
     var itemID: Int  // 从上一页面传递过来的 itemID
     
     @State private var itemDetails: ItemDetails? // 改为使用可选类型
+    @State private var renderImage: UIImage? // 在线渲染图
     
     var body: some View {
         Form {
             if let itemDetails = itemDetails {
                 Section {
-                    HStack {
-                        // 加载并显示 icon
-                        IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .cornerRadius(8)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(itemDetails.name)
-                                .font(.title)
-                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
+                    if let renderImage = renderImage {
+                        // 如果有渲染图，显示大图布局
+                        ZStack(alignment: .bottomLeading) {
+                            Image(uiImage: renderImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity)
+                            
+                            // 物品信息覆盖层
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(itemDetails.name)
+                                    .font(.title)
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
+                                    .font(.subheadline)
+                            }
+                            .padding()
+                            .background(Color.black.opacity(0.5))
+                            .foregroundColor(.white)
                         }
+                    } else {
+                        // 如果没有渲染图，显示原来的布局
+                        HStack {
+                            IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                                .resizable()
+                                .frame(width: 60, height: 60)
+                                .cornerRadius(8)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(itemDetails.name)
+                                    .font(.title)
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(.vertical, 8)
                     }
-                    .padding(.vertical, 8)
+                    
                     let desc = filterText(itemDetails.description)
                     if !desc.isEmpty {
                         Text(desc)
                             .font(.body)
                             .foregroundColor(.primary)
                     }
-                }
-                
-                Section(header: Text("Additional Information")) {
-                    Text("More details can go here.")
-                        .font(.body)
-                        .foregroundColor(.secondary)
                 }
             } else {
                 Section {
@@ -68,9 +84,10 @@ struct ShowItemInfo: View {
                 }
             }
         }
-        .navigationTitle("Info") // 设置页面标题
+        .navigationTitle("Info")
         .onAppear {
-            loadItemDetails(for: itemID) // 加载物品详细信息
+            loadItemDetails(for: itemID)
+            loadRenderImage(for: itemID)
         }
     }
     
@@ -80,6 +97,21 @@ struct ShowItemInfo: View {
             itemDetails = itemDetail
         } else {
             print("Item details not found for ID: \(itemID)")
+        }
+    }
+    
+    // 加载渲染图
+    private func loadRenderImage(for itemID: Int) {
+        Task {
+            do {
+                let image = try await NetworkManager.shared.fetchEVEItemRender(typeID: itemID)
+                await MainActor.run {
+                    self.renderImage = image
+                }
+            } catch {
+                print("加载渲染图失败: \(error.localizedDescription)")
+                // 加载失败时保持使用原来的小图显示，不需要特殊处理
+            }
         }
     }
 }
