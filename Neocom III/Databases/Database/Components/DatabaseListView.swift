@@ -37,7 +37,7 @@ struct DatabaseListView: View {
     
     var body: some View {
         VStack {
-            SearchBar(text: $searchText, onCancel: {
+            SearchBar(text: $searchText, isSearching: $isSearching, onCancel: {
                 loadInitialData()
                 if !searchText.isEmpty {
                     searchText = ""  // 只清空搜索文本，不自动返回
@@ -47,16 +47,30 @@ struct DatabaseListView: View {
                 searchTextDebouncer.text = newValue
             }
             
-            if items.isEmpty {
-                ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
-            } else {
-                List {
-                    // 已发布的物品（按元组分组）
-                    let publishedItems = items.filter { $0.published }
-                    if !publishedItems.isEmpty {
-                        ForEach(groupedPublishedItems, id: \.id) { group in
-                            Section(header: Text(group.name).textCase(.none)) {
-                                ForEach(group.items) { item in
+            ZStack {
+                if items.isEmpty {
+                    ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
+                } else {
+                    List {
+                        // 已发布的物品（按元组分组）
+                        let publishedItems = items.filter { $0.published }
+                        if !publishedItems.isEmpty {
+                            ForEach(groupedPublishedItems, id: \.id) { group in
+                                Section(header: Text(group.name).textCase(.none)) {
+                                    ForEach(group.items) { item in
+                                        NavigationLink(destination: item.navigationDestination) {
+                                            DatabaseListItemView(item: item)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 未发布的物品（单独分组）
+                        let unpublishedItems = items.filter { !$0.published }
+                        if !unpublishedItems.isEmpty {
+                            Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
+                                ForEach(unpublishedItems) { item in
                                     NavigationLink(destination: item.navigationDestination) {
                                         DatabaseListItemView(item: item)
                                     }
@@ -64,20 +78,15 @@ struct DatabaseListView: View {
                             }
                         }
                     }
+                    .listStyle(.insetGrouped)
                     
-                    // 未发布的物品（单独分组）
-                    let unpublishedItems = items.filter { !$0.published }
-                    if !unpublishedItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
-                            ForEach(unpublishedItems) { item in
-                                NavigationLink(destination: item.navigationDestination) {
-                                    DatabaseListItemView(item: item)
-                                }
-                            }
-                        }
+                    // 添加遮罩层
+                    if isSearching {
+                        Color.black.opacity(0.3)
+                            .edgesIgnoringSafeArea(.all)
+                            .allowsHitTesting(true)  // 允许遮罩层接收点击事件
                     }
                 }
-                .listStyle(.insetGrouped)
             }
         }
         .navigationTitle(title)
@@ -106,6 +115,10 @@ struct DatabaseListView: View {
         let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
         items = searchResults
         metaGroupNames = searchMetaGroupNames
+        // 搜索完成后，如果有结果，关闭遮罩
+        if !searchResults.isEmpty {
+            isSearching = false
+        }
     }
     
     // 已发布物品的分组
