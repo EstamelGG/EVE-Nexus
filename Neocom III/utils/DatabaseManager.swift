@@ -47,7 +47,7 @@ class DatabaseManager: ObservableObject {
     
     // 加载分类
     func loadCategories() -> ([Category], [Category]) {
-        let query = "SELECT category_id, name, published, iconID FROM categories ORDER BY category_id"
+        let query = "SELECT category_id, name, published, icon_filename FROM categories ORDER BY category_id"
         let result = executeQuery(query)
         
         var published: [Category] = []
@@ -62,7 +62,7 @@ class DatabaseManager: ObservableObject {
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
                       let name = row["name"] as? String,
-                      let iconId = row["iconID"] as? Int else {
+                      let iconFilename = row["icon_filename"] as? String else {
                     print("行 \(index + 1) 数据不完整或类型不正确: \(row)")
                     continue
                 }
@@ -73,8 +73,8 @@ class DatabaseManager: ObservableObject {
                     id: categoryId,
                     name: name,
                     published: isPublished,
-                    iconID: iconId,
-                    iconFileNew: SelectIconName(iconID: iconId)
+                    iconID: 0,
+                    iconFileNew: iconFilename
                 )
                 
                 print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
@@ -98,7 +98,7 @@ class DatabaseManager: ObservableObject {
     // 加载组
     func loadGroups(for categoryID: Int) -> ([Group], [Group]) {
         let query = """
-            SELECT group_id, name, iconID, categoryID, published, icon_filename
+            SELECT group_id, name, categoryID, published, icon_filename
             FROM groups
             WHERE categoryID = ?
         """
@@ -113,7 +113,6 @@ class DatabaseManager: ObservableObject {
             for row in rows {
                 guard let groupId = row["group_id"] as? Int,
                       let name = row["name"] as? String,
-                      let iconId = row["iconID"] as? Int,
                       let catId = row["categoryID"] as? Int,
                       let iconFilename = row["icon_filename"] as? String else {
                     continue
@@ -124,7 +123,7 @@ class DatabaseManager: ObservableObject {
                 let group = Group(
                     id: groupId,
                     name: name,
-                    iconID: iconId,
+                    iconID: 0,
                     categoryID: catId,
                     published: isPublished,
                     icon_filename: iconFilename
@@ -316,23 +315,5 @@ class DatabaseManager: ObservableObject {
         }
         
         return (items, metaGroupNames)
-    }
-    
-    // 获取图标名称
-    private func SelectIconName(iconID: Int) -> String {
-        let query = "SELECT iconFile_new FROM iconIDs WHERE icon_id = ?"
-        let result = executeQuery(query, parameters: [iconID])
-        
-        switch result {
-        case .success(let rows):
-            guard let row = rows.first,
-                  let iconName = row["iconFile_new"] as? String else {
-                return ""
-            }
-            return iconName
-        case .error(let error):
-            print("获取图标名称失败: \(error)")
-            return ""
-        }
     }
 }
