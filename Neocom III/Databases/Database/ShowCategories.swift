@@ -36,6 +36,7 @@ struct ShowCategory: View {
             if isSearching {
                 // 搜索结果
                 ItemListView(
+                    databaseManager: databaseManager,
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
                     metaGroupNames: $metaGroupNames,

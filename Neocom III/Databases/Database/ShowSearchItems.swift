@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ItemListView: View {
+    @ObservedObject var databaseManager: DatabaseManager
     @Binding var publishedItems: [DatabaseItem]
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
@@ -44,7 +45,7 @@ struct ItemListView: View {
     }
     
     private func itemRow(for item: DatabaseItem) -> some View {
-        NavigationLink(destination: ShowItemInfo(databaseManager: DatabaseManager(), itemID: item.id)) {
+        NavigationLink(destination: ShowItemInfo(databaseManager: databaseManager, itemID: item.id)) {
             HStack {
                 IconManager.shared.loadImage(for: item.iconFileName)
                     .resizable()

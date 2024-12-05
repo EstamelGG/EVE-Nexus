@@ -41,6 +41,7 @@ struct ShowGroups: View {
             if isSearching {
                 // 当有搜索时显示 ItemListView
                 ItemListView(
+                    databaseManager: databaseManager,
                     publishedItems: $publishedItems,
                     unpublishedItems: $unpublishedItems,
                     metaGroupNames: $metaGroupNames,
