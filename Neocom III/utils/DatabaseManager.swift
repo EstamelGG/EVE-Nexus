@@ -273,18 +273,19 @@ class DatabaseManager: ObservableObject {
     func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> ([DatabaseListItem], [Int: String]) {
         // 首先获取所有 metaGroups 的名称
         let metaQuery = """
-            SELECT metaGroup_id, name 
+            SELECT metagroup_id, name 
             FROM metaGroups 
-            ORDER BY metaGroup_id ASC
+            ORDER BY metagroup_id ASC
         """
         let metaResult = executeQuery(metaQuery)
         var metaGroupNames: [Int: String] = [:]
         
         if case .success(let metaRows) = metaResult {
             for row in metaRows {
-                if let id = row["metaGroup_id"] as? Int,
+                if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
+                    print("加载 MetaGroup: ID=\(id), Name=\(name)")
                 }
             }
         }
@@ -324,6 +325,12 @@ class DatabaseManager: ObservableObject {
                 }
                 
                 let isPublished = (row["published"] as? Int ?? 0) != 0
+                print("处理搜索结果: ID=\(id), Name=\(name), MetaGroupID=\(metaGroupId)")
+                if let metaName = metaGroupNames[metaGroupId] {
+                    print("找到对应的 MetaGroup: \(metaName)")
+                } else {
+                    print("警告: 找不到 MetaGroupID \(metaGroupId) 对应的名称")
+                }
                 
                 let item = DatabaseListItem(
                     id: id,
@@ -345,6 +352,12 @@ class DatabaseManager: ObservableObject {
             print("搜索物品失败: \(error)")
         }
         
+        // 打印最终的 metaGroupNames 内容
+        print("搜索结果的 metaGroupNames 内容:")
+        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
+            print("ID: \(id) -> Name: \(name)")
+        }
+        
         return (items, metaGroupNames)
     }
     
@@ -352,9 +365,9 @@ class DatabaseManager: ObservableObject {
     func loadMetaGroupNames(for metaGroupIDs: [Int]) -> [Int: String] {
         let placeholders = String(repeating: "?,", count: metaGroupIDs.count).dropLast()
         let query = """
-            SELECT metaGroup_id, name
+            SELECT metagroup_id, name
             FROM metaGroups
-            WHERE metaGroup_id IN (\(placeholders))
+            WHERE metagroup_id IN (\(placeholders))
         """
         
         let result = executeQuery(query, parameters: metaGroupIDs)
@@ -363,7 +376,7 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
-                if let id = row["metaGroup_id"] as? Int,
+                if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
                 }
