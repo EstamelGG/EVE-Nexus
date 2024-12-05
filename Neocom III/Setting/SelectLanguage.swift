@@ -1,5 +1,25 @@
 import SwiftUI
 
+// 语言选项视图组件
+struct LanguageOptionView: View {
+    let language: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        HStack {
+            Text(language)
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .foregroundColor(.blue)
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTap)
+    }
+}
+
 struct SelectLanguageView: View {
     // 语言名称与代号映射
     let languages: [String: String] = [
@@ -7,101 +27,93 @@ struct SelectLanguageView: View {
         "中文": "zh-Hans"
     ]
     
-    // 使用 @AppStorage 来持久化存储用户选择的语言
     @AppStorage("selectedLanguage") var storedLanguage: String?
-    
-    // 跟踪用户选择的语言
     @State private var selectedLanguage: String?
-    
-    // 注入数据库管理器
     @ObservedObject var databaseManager: DatabaseManager
-    
-    // 控制弹窗的显示
     @State private var showConfirmationDialog = false
-    
-    // 环境变量来获取当前的 Scene
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         List {
-            Section(header: Text(NSLocalizedString("Main_Setting_Language", comment: ""))
-                        .font(.headline)
-                        .foregroundColor(.primary)
-            ) {
+            Section {
                 ForEach(languages.keys.sorted(), id: \.self) { language in
-                    HStack {
-                        Text(language)
-                        
-                        Spacer()
-                        
-                        // 显示勾选标记
-                        if language == selectedLanguage {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
+                    LanguageOptionView(
+                        language: language,
+                        isSelected: language == selectedLanguage,
+                        onTap: {
+                            if language != selectedLanguage {
+                                selectedLanguage = language
+                                showConfirmationDialog = true
+                            }
                         }
-                    }
-                    .contentShape(Rectangle())  // 确保点击区域完整
-                    .onTapGesture {
-                        if language != selectedLanguage {
-                            // 更新选择的语言
-                            selectedLanguage = language
-                            
-                            // 显示确认弹窗
-                            showConfirmationDialog = true
-                        }
-                    }
+                    )
                 }
+            } header: {
+                Text(NSLocalizedString("Main_Setting_Language", comment: ""))
+                    .font(.headline)
+                    .foregroundColor(.primary)
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
-        .onAppear {
-            // 根据存储的语言来设置默认勾选项
-            if let storedLang = storedLanguage, let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
-                selectedLanguage = defaultLanguage
-            } else {
-                // 如果没有存储的语言，则使用系统语言
-                let systemLanguage = Locale.preferredLanguages.first ?? "en"
-                if let defaultLanguage = languages.first(where: { $0.value == systemLanguage })?.key {
-                    selectedLanguage = defaultLanguage
-                }
-            }
-        }
+        .onAppear(perform: setupInitialLanguage)
         .confirmationDialog(
             NSLocalizedString("Main_Setting_SwitchLanguageConfirmation", comment: ""),
             isPresented: $showConfirmationDialog,
             titleVisibility: .visible
         ) {
             Button(NSLocalizedString("Continue", comment: ""), role: .destructive) {
-                if let language = selectedLanguage, let languageCode = languages[language] {
-                    // 1. 保存新的语言设置
-                    storedLanguage = languageCode
-                    
-                    // 2. 更新语言设置
-                    UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
-                    UserDefaults.standard.synchronize()
-                    
-                    // 3. 应用新的语言设置
-                    if let languageBundlePath = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
-                       let _ = Bundle(path: languageBundlePath) {
-                        Bundle.setLanguage(languageCode)
-                    }
-                    
-                    // 4. 发送通知以重新加载UI
-                    NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
-                    
-                    // 5. 重新加载数据库
-                    databaseManager.reloadDatabase()
-                    // 6. 关闭当前视图
-                    dismiss()
-                }
+                applyLanguageChange()
             }
             
             Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {
-                // 取消时恢复原来的选择
-                if let storedLang = storedLanguage, let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
-                    selectedLanguage = defaultLanguage
-                }
+                restoreOriginalLanguage()
             }
+        }
+    }
+    
+    private func setupInitialLanguage() {
+        if let storedLang = storedLanguage,
+           let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
+            selectedLanguage = defaultLanguage
+        } else {
+            let systemLanguage = Locale.preferredLanguages.first ?? "en"
+            if let defaultLanguage = languages.first(where: { $0.value == systemLanguage })?.key {
+                selectedLanguage = defaultLanguage
+            }
+        }
+    }
+    
+    private func applyLanguageChange() {
+        guard let language = selectedLanguage,
+              let languageCode = languages[language] else { return }
+        
+        // 1. 保存新的语言设置
+        storedLanguage = languageCode
+        
+        // 2. 更新语言设置
+        UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
+        UserDefaults.standard.synchronize()
+        
+        // 3. 应用新的语言设置
+        if let languageBundlePath = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
+           let _ = Bundle(path: languageBundlePath) {
+            Bundle.setLanguage(languageCode)
+        }
+        
+        // 4. 发送通知以重新加载UI
+        NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
+        
+        // 5. 重新加载数据库
+        databaseManager.loadDatabase()
+        
+        // 6. 关闭当前视图
+        dismiss()
+    }
+    
+    private func restoreOriginalLanguage() {
+        if let storedLang = storedLanguage,
+           let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
+            selectedLanguage = defaultLanguage
         }
     }
 }
