@@ -3,6 +3,9 @@ import SQLite3
 
 // 清理关键字，只去除英文标点符号
 func cleanKeywordWithRegex(_ keyword: String) -> String {
+    if keyword.trimmingCharacters(in: .whitespaces).isEmpty {
+        return ""
+    }
     let regex = try! NSRegularExpression(pattern: "[\\p{P}&&[^\\p{L}\\p{N}]]", options: [])
     let range = NSRange(location: 0, length: keyword.utf16.count)
     let cleanedKeyword = regex.stringByReplacingMatches(in: keyword, options: [], range: range, withTemplate: "")
@@ -15,22 +18,22 @@ struct Searcher: View {
     var category_id: Int?
     var group_id: Int?
     var db: OpaquePointer?
-
+    
     @Binding var publishedItems: [DatabaseItem]
     @Binding var unpublishedItems: [DatabaseItem]
     @Binding var metaGroupNames: [Int: String]
     @Binding var isSearching: Bool  // 控制是否在搜索
-
+    
     var onCancelSearch: (() -> Void)?
-
+    
     // 防抖处理
     @State private var debounceWorkItem: DispatchWorkItem?
-
+    
     var body: some View {
         VStack {
             // 搜索框
             SearchBar(text: $text, placeholder: "Search", onSearch: performSearch)
-
+            
             // 显示搜索结果的列表
             List {
                 ForEach(publishedItems) { item in
@@ -53,7 +56,7 @@ struct Searcher: View {
             }
         }
     }
-
+    
     // 执行搜索
     private func performSearch() {
         let keyword = cleanKeywordWithRegex(text)
@@ -61,22 +64,22 @@ struct Searcher: View {
             publishedItems = []
             unpublishedItems = []
             metaGroupNames = [:]
+            self.isSearching = false
             return
         }
-
+        
         executeQueryForSourcePage(keyword: keyword)
     }
-
+    
     // 根据 sourcePage 执行不同的查询
     private func executeQueryForSourcePage(keyword: String) {
         guard let db = db else {
             print("Database not available")
             return
         }
-        
         var query: String
         var bindParams: [String] = []
-        print("Get params: \(keyword), \(category_id), \(group_id)")
+        //print("Get params: \(keyword), \(category_id), \(group_id)")
         switch sourcePage {
         case "category":
             query = """
@@ -128,13 +131,13 @@ struct Searcher: View {
         
         // 根据 published 字段分类
         let (publishedItems, unpublishedItems, metaGroupNames) = classifyResults(results, db: db)
-
+        
         self.publishedItems = publishedItems
         self.unpublishedItems = unpublishedItems
         self.metaGroupNames = metaGroupNames
         self.isSearching = true
     }
-
+    
     // 分类结果：已发布、未发布以及 metaGroupNames
     private func classifyResults(_ items: [DatabaseItem], db: OpaquePointer) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
         var publishedItems: [DatabaseItem] = []
@@ -156,12 +159,12 @@ struct Searcher: View {
         
         return (publishedItems, unpublishedItems, metaGroupNames)
     }
-
+    
     // 添加你的 loadMetaGroupName 方法
     private func loadMetaGroupName(for metaGroupID: Int, db: OpaquePointer, metaGroupNames: inout [Int: String]) {
         let query = "SELECT name FROM metaGroups WHERE metaGroup_id = ?"
         var statement: OpaquePointer?
-
+        
         if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
             sqlite3_bind_int(statement, 1, Int32(metaGroupID))
             if sqlite3_step(statement) == SQLITE_ROW, let name = sqlite3_column_text(statement, 0) {
@@ -176,7 +179,7 @@ struct SearchBar: View {
     @Binding var text: String
     var placeholder: String
     var onSearch: () -> Void
-
+    
     var body: some View {
         TextField(placeholder, text: $text, onCommit: onSearch)
             .padding(10)
