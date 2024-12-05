@@ -10,7 +10,7 @@ enum Database {
             guard let db = db else { return ([], []) }
 
             let query = """
-            SELECT category_id, name, published, iconID FROM categories ORDER BY category_id
+            SELECT category_id, name, published, icon_filename FROM categories ORDER BY category_id
             """
             
             let categories: [Category] = executeQuery(
@@ -20,21 +20,17 @@ enum Database {
                     let id = Int(sqlite3_column_int(statement, 0))
                     let name = String(cString: sqlite3_column_text(statement, 1))
                     let published = sqlite3_column_int(statement, 2) != 0
-                    let iconID = Int(sqlite3_column_int(statement, 3))
+                    let iconFileName = String(cString: sqlite3_column_text(statement, 3))
                     
-                    // 处理 iconFileNew
-                    var iconFileNew: String
-                    if let mappedIconFile = DatabaseConfig.categoryIconMapping[id] {
-                        iconFileNew = mappedIconFile
-                    } else {
-                        iconFileNew = SelectIconName(from: db, iconID: iconID)
-                    }
+                    let finalIconFileName = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
                     
-                    if iconFileNew.isEmpty {
-                        iconFileNew = DatabaseConfig.defaultIcon
-                    }
-
-                    return Category(id: id, name: name, published: published, iconID: iconID, iconFileNew: iconFileNew)
+                    return Category(
+                        id: id,
+                        name: name,
+                        published: published,
+                        iconID: id,
+                        iconFileNew: finalIconFileName
+                    )
                 }
             )
             
@@ -54,7 +50,7 @@ enum Database {
             guard let db = db else { return ([], []) }
 
             let query = """
-            SELECT group_id, name, iconID, categoryID, published, icon_filename 
+            SELECT group_id, name, categoryID, published, icon_filename 
             FROM groups 
             WHERE categoryID = ? 
             ORDER BY group_id
@@ -72,15 +68,21 @@ enum Database {
                     if name.isEmpty {
                         name = "Unknown"
                     }
-                    let iconID = Int(sqlite3_column_int(statement, 2))
-                    let categoryID = Int(sqlite3_column_int(statement, 3))
-                    let published = sqlite3_column_int(statement, 4) != 0
-                    var icon_filename = String(cString: sqlite3_column_text(statement, 5))
-                    if icon_filename.isEmpty {
-                        icon_filename = DatabaseConfig.defaultIcon
+                    let categoryID = Int(sqlite3_column_int(statement, 2))
+                    let published = sqlite3_column_int(statement, 3) != 0
+                    var iconFileName = String(cString: sqlite3_column_text(statement, 4))
+                    if iconFileName.isEmpty {
+                        iconFileName = DatabaseConfig.defaultIcon
                     }
                     
-                    return Group(id: id, name: name, iconID: iconID, categoryID: categoryID, published: published, icon_filename: icon_filename)
+                    return Group(
+                        id: id,
+                        name: name,
+                        iconID: id,
+                        categoryID: categoryID,
+                        published: published,
+                        icon_filename: iconFileName
+                    )
                 }
             )
             

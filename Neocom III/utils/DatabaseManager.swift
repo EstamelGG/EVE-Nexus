@@ -47,7 +47,7 @@ class DatabaseManager: ObservableObject {
     
     // 加载分类
     func loadCategories() -> ([Category], [Category]) {
-        let query = "SELECT category_id, name, published FROM categories ORDER BY category_id"
+        let query = "SELECT category_id, name, published, icon_filename FROM categories ORDER BY category_id"
         let result = executeQuery(query)
         
         var published: [Category] = []
@@ -61,22 +61,20 @@ class DatabaseManager: ObservableObject {
                 
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
-                      let name = row["name"] as? String else {
+                      let name = row["name"] as? String,
+                      let iconFilename = row["icon_filename"] as? String else {
                     print("行 \(index + 1) 数据不完整或类型不正确: \(row)")
                     continue
                 }
                 
                 let isPublished = (row["published"] as? Int ?? 0) != 0
                 
-                // 使用映射表获取图标文件名
-                let iconFileName = DatabaseConfig.categoryIconMapping[categoryId] ?? DatabaseConfig.defaultIcon
-                
                 let category = Category(
                     id: categoryId,
                     name: name,
                     published: isPublished,
-                    iconID: categoryId,  // 使用 categoryId 作为 iconID
-                    iconFileNew: iconFileName
+                    iconID: categoryId,  // 保持 iconID 为 categoryId
+                    iconFileNew: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
                 )
                 
                 print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
@@ -125,7 +123,7 @@ class DatabaseManager: ObservableObject {
                 let group = Group(
                     id: groupId,
                     name: name,
-                    iconID: groupId,  // 使用 groupId 作为 iconID
+                    iconID: groupId,  // 保持 iconID 为 groupId
                     categoryID: catId,
                     published: isPublished,
                     icon_filename: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
@@ -234,7 +232,7 @@ class DatabaseManager: ObservableObject {
             return ItemDetails(
                 name: name,
                 description: description,
-                iconFileName: iconFilename,
+                iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                 groupName: groupName,
                 categoryName: categoryName
             )
@@ -286,7 +284,7 @@ class DatabaseManager: ObservableObject {
                 let item = DatabaseListItem(
                     id: id,
                     name: name,
-                    iconFileName: iconFilename,
+                    iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                     published: isPublished,
                     metaGroupID: metaGroupId,
                     navigationDestination: AnyView(
