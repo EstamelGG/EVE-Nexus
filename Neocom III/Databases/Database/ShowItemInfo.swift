@@ -76,7 +76,7 @@ struct ShowItemInfo: View {
     
     // 加载 item 详细信息
     private func loadItemDetails(for itemID: Int) {
-        if let itemDetail = QueryInfo.loadItemDetails(for: itemID, db: databaseManager.db) {
+        if let itemDetail = Database.Items.loadItemDetails(for: itemID, db: databaseManager.db) {
             itemDetails = itemDetail
         } else {
             print("Item details not found for ID: \(itemID)")

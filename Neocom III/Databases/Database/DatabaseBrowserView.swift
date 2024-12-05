@@ -23,7 +23,7 @@ struct DatabaseBrowserView: View {
                 switch level {
                 case .categories:
                     // 加载分类数据
-                    let (published, unpublished) = QueryCategory.loadCategories(from: db)
+                    let (published, unpublished) = Database.Categories.loadCategories(from: db)
                     let items = published.map { category in
                         DatabaseListItem(
                             id: category.id,
@@ -57,7 +57,7 @@ struct DatabaseBrowserView: View {
                     
                 case .groups(let categoryID, _):
                     // 加载组数据
-                    let (published, unpublished) = QueryGroups.loadGroups(for: categoryID, db: db)
+                    let (published, unpublished) = Database.Groups.loadGroups(for: categoryID, db: db)
                     let items = published.map { group in
                         DatabaseListItem(
                             id: group.id,
@@ -91,7 +91,7 @@ struct DatabaseBrowserView: View {
                     
                 case .items(let groupID, _):
                     // 加载物品数据
-                    let (published, unpublished, metaGroupNames) = QueryItems.loadItems(for: groupID, db: db)
+                    let (published, unpublished, metaGroupNames) = Database.Items.loadItems(for: groupID, db: db)
                     let items = published.map { item in
                         DatabaseListItem(
                             id: item.id,
