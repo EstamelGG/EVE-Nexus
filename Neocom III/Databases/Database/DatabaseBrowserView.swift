@@ -132,7 +132,6 @@ struct DatabaseBrowserView: View {
                     SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID
                     FROM types t
                     WHERE t.name LIKE ?
-                    ORDER BY metaGroupID
                 """
                 var params: [String] = ["%\(searchText)%"]
                 
