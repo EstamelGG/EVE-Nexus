@@ -60,7 +60,10 @@ struct DatabaseListView: View {
                     Section(header: Text(group.name).textCase(.none)) {
                         ForEach(group.items) { item in
                             NavigationLink(destination: item.navigationDestination) {
-                                DatabaseListItemView(item: item)
+                                DatabaseListItemView(
+                                    item: item,
+                                    showDetails: groupingType == .metaGroups || isShowingSearchResults
+                                )
                             }
                         }
                     }
@@ -73,7 +76,10 @@ struct DatabaseListView: View {
                 Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
                     ForEach(unpublishedItems) { item in
                         NavigationLink(destination: item.navigationDestination) {
-                            DatabaseListItemView(item: item)
+                            DatabaseListItemView(
+                                item: item,
+                                showDetails: groupingType == .metaGroups || isShowingSearchResults
+                            )
                         }
                     }
                 }
@@ -218,9 +224,10 @@ class SearchController: ObservableObject {
 // 数据库列表项视图
 struct DatabaseListItemView: View {
     let item: DatabaseListItem
+    let showDetails: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
                 // 加载并显示图标
                 IconManager.shared.loadImage(for: item.iconFileName)
@@ -231,8 +238,8 @@ struct DatabaseListItemView: View {
                 Text(item.name)
             }
             
-            if let categoryID = item.categoryID {
-                VStack(alignment: .leading) {
+            if showDetails, let categoryID = item.categoryID {
+                VStack(alignment: .leading, spacing: 2) {
                     // 装备和改装件
                     if categoryID == 7 {
                         HStack(spacing: 8) {
@@ -249,20 +256,54 @@ struct DatabaseListItemView: View {
                     }
                     // 弹药和无人机
                     else if categoryID == 18 || categoryID == 8 {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 2) {
                             if let emDamage = item.emDamage {
-                                IconWithValueView(iconName: "items_22_32_20.png", value: emDamage)
+                                HStack(spacing: 1) {
+                                    IconManager.shared.loadImage(for: "items_22_32_20.png")
+                                        .resizable()
+                                        .frame(width: 14, height: 14)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(emDamage),
+                                        color: .blue
+                                    )
+                                }
                             }
                             if let themDamage = item.themDamage {
-                                IconWithValueView(iconName: "items_22_32_18.png", value: themDamage)
+                                HStack(spacing: 2) {
+                                    IconManager.shared.loadImage(for: "items_22_32_18.png")
+                                        .resizable()
+                                        .frame(width: 16, height: 16)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(themDamage),
+                                        color: .red
+                                    )
+                                }
                             }
                             if let kinDamage = item.kinDamage {
-                                IconWithValueView(iconName: "items_22_32_17.png", value: kinDamage)
+                                HStack(spacing: 2) {
+                                    IconManager.shared.loadImage(for: "items_22_32_17.png")
+                                        .resizable()
+                                        .frame(width: 16, height: 16)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(kinDamage),
+                                        color: .gray
+                                    )
+                                }
                             }
                             if let expDamage = item.expDamage {
-                                IconWithValueView(iconName: "items_22_32_19.png", value: expDamage)
+                                HStack(spacing: 2) {
+                                    IconManager.shared.loadImage(for: "items_22_32_19.png")
+                                        .resizable()
+                                        .frame(width: 16, height: 16)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(expDamage),
+                                        color: Color(red: 0.8, green: 0.5, blue: 0.0)
+                                    )
+                                }
                             }
                         }
+                        .frame(height: 16)
+                        .frame(maxWidth: .infinity)
                     }
                     // 舰船
                     else if categoryID == 6 {
@@ -292,6 +333,18 @@ struct DatabaseListItemView: View {
                 .foregroundColor(.secondary)
             }
         }
+    }
+    
+    private func calculateDamagePercentage(_ damage: Int) -> Int {
+        let totalDamage = [
+            item.emDamage,
+            item.themDamage,
+            item.kinDamage,
+            item.expDamage
+        ].compactMap { $0 }.reduce(0, +)
+        
+        guard totalDamage > 0 else { return 0 }
+        return Int((Double(damage) / Double(totalDamage)) * 100)
     }
 }
 
