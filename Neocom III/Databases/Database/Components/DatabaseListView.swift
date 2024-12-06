@@ -351,24 +351,26 @@ struct DatabaseListItemView: View {
             item.expDamage
         ].compactMap { $0 }
         
-        print("计算百分比 - 当前伤害值: \(damage)")
-        print("计算百分比 - 所有伤害值: \(damages)")
-        
         let totalDamage = damages.reduce(0, +)
-        print("计算百分比 - 总伤害: \(totalDamage)")
+        guard totalDamage > 0 else { return 0 }
         
-        guard totalDamage > 0 else { 
-            print("总伤害为0，返回0%")
-            return 0 
+        // 先计算精确的百分比
+        let exactPercentage = (damage / totalDamage) * 100
+        
+        // 获取所有非零伤害值，并按大小排序
+        let nonZeroDamages = damages.filter { $0 > 0 }.sorted(by: >)
+        
+        // 如果是最大的非零伤害，调整百分比确保总和为100
+        if damage > 0 && damage == nonZeroDamages.first {
+            let otherPercentages = damages
+                .filter { $0 > 0 && $0 != damage }
+                .map { Int(($0 / totalDamage) * 100) }
+                .reduce(0, +)
+            return 100 - otherPercentages
         }
         
-        let exactPercentage = (damage / totalDamage) * 100
-        print("计算百分比 - 精确百分比: \(exactPercentage)")
-        
-        let result = Int(exactPercentage)
-        print("计算百分比 - 最终结果: \(result)")
-        
-        return result
+        // 其他情况下正常取整
+        return Int(exactPercentage)
     }
 }
 
