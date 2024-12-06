@@ -31,7 +31,8 @@ struct DatabaseListView: View {
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var searchText = ""
     @State private var isLoading = false
-    @State private var lastSearchResults: ([DatabaseListItem], [Int: String])? = nil  // 添加搜索结果缓存
+    @State private var lastSearchResults: ([DatabaseListItem], [Int: String])? = nil
+    @State private var isShowingSearchResults = false  // 添加标志来表示是否正在显示搜索结果
     
     // Combine 用于处理搜索
     @StateObject private var searchController = SearchController()
@@ -103,6 +104,7 @@ struct DatabaseListView: View {
         let (loadedItems, loadedMetaGroupNames) = loadData(databaseManager)
         items = loadedItems
         metaGroupNames = loadedMetaGroupNames
+        isShowingSearchResults = false  // 重置搜索结果标志
     }
     
     private func setupSearch() {
@@ -136,6 +138,7 @@ struct DatabaseListView: View {
         
         // 保存搜索结果
         lastSearchResults = (searchResults, metaGroupNames)
+        isShowingSearchResults = true  // 设置搜索结果标志
         
         isLoading = false
     }
@@ -144,8 +147,8 @@ struct DatabaseListView: View {
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         
-        // 如果是搜索结果或者指定使用 metaGroups 分组，则按衍生等级分组
-        if !searchText.isEmpty || groupingType == .metaGroups {
+        // 使用 isShowingSearchResults 而不是 searchText.isEmpty
+        if isShowingSearchResults || groupingType == .metaGroups {
             return groupItemsByMetaGroup(publishedItems)
         } else {
             return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
