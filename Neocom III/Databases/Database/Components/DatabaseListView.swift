@@ -42,10 +42,21 @@ struct DatabaseListView: View {
                 if !searchText.isEmpty {
                     searchText = ""
                 }
+            }, onSearch: {
+                // 用户点击搜索按钮时，立即执行搜索
+                if !searchText.isEmpty {
+                    isSearching = true
+                    performSearch(with: searchText)
+                    // 取消防抖搜索
+                    searchTextDebouncer.text = ""
+                }
             })
             .onChange(of: searchText) { _, newValue in
                 isSearching = true
-                searchTextDebouncer.text = newValue
+                // 只有在用户输入时才更新防抖文本
+                if !newValue.isEmpty {
+                    searchTextDebouncer.text = newValue
+                }
             }
             
             ZStack {
@@ -78,8 +89,10 @@ struct DatabaseListView: View {
         }
         .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
             if debouncedText.isEmpty {
-                loadInitialData()
-                isSearching = false
+                if searchText.isEmpty {
+                    loadInitialData()
+                    isSearching = false
+                }
             } else {
                 performSearch(with: debouncedText)
             }

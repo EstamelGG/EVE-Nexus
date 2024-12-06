@@ -5,6 +5,7 @@ struct SearchBar: UIViewRepresentable {
     @Binding var text: String
     @Binding var isSearching: Bool
     var onCancel: (() -> Void)?
+    var onSearch: (() -> Void)?
     
     func makeUIView(context: Context) -> UISearchBar {
         let searchBar = UISearchBar(frame: .zero)
@@ -21,19 +22,21 @@ struct SearchBar: UIViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, isSearching: $isSearching, onCancel: onCancel)
+        Coordinator(text: $text, isSearching: $isSearching, onCancel: onCancel, onSearch: onSearch)
     }
     
     class Coordinator: NSObject, UISearchBarDelegate {
         @Binding var text: String
         @Binding var isSearching: Bool
         var onCancel: (() -> Void)?
+        var onSearch: (() -> Void)?
         private var isComposing = false
         
-        init(text: Binding<String>, isSearching: Binding<Bool>, onCancel: (() -> Void)?) {
+        init(text: Binding<String>, isSearching: Binding<Bool>, onCancel: (() -> Void)?, onSearch: (() -> Void)?) {
             _text = text
             _isSearching = isSearching
             self.onCancel = onCancel
+            self.onSearch = onSearch
         }
         
         func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
@@ -64,7 +67,6 @@ struct SearchBar: UIViewRepresentable {
             if let finalText = searchBar.text {
                 text = finalText
             }
-            isSearching = false
         }
         
         func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
@@ -78,6 +80,7 @@ struct SearchBar: UIViewRepresentable {
             searchBar.resignFirstResponder()
             if let finalText = searchBar.text {
                 text = finalText
+                onSearch?()
             }
         }
         
