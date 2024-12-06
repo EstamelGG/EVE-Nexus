@@ -39,7 +39,7 @@ struct DatabaseBrowserView: View {
             DatabaseListView(
                 databaseManager: databaseManager,
                 title: title,
-                groupingType: .metaGroups,  // 搜索结果始终使用 metaGroups 分组
+                groupingType: groupingType,  // 使用根据层级确定的分组类型
                 loadData: { dbManager in
                     // 检查缓存
                     if let cachedData = Self.navigationCache[level] {
