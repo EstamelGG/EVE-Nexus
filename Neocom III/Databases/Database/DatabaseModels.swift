@@ -46,10 +46,10 @@ public struct DatabaseItem: Identifiable {
     public let pgNeed: Int?
     public let cpuNeed: Int?
     public let rigCost: Int?
-    public let emDamage: Int?
-    public let themDamage: Int?
-    public let kinDamage: Int?
-    public let expDamage: Int?
+    public let emDamage: Double?
+    public let themDamage: Double?
+    public let kinDamage: Double?
+    public let expDamage: Double?
     public let highSlot: Int?
     public let midSlot: Int?
     public let lowSlot: Int?
@@ -59,7 +59,7 @@ public struct DatabaseItem: Identifiable {
     public let metaGroupID: Int
     public let published: Bool
     
-    public init(id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Int?, cpuNeed: Int?, rigCost: Int?, emDamage: Int?, themDamage: Int?, kinDamage: Int?, expDamage: Int?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?, gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool) {
+    public init(id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Int?, cpuNeed: Int?, rigCost: Int?, emDamage: Double?, themDamage: Double?, kinDamage: Double?, expDamage: Double?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?, gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool) {
         self.id = id
         self.typeID = typeID
         self.name = name

@@ -106,34 +106,12 @@ class SQLiteManager {
             
             for i in 0..<columnCount {
                 let columnName = String(cString: sqlite3_column_name(statement, i))
-                let columnType = sqlite3_column_type(statement, i)
-                
-                switch columnType {
-                case SQLITE_INTEGER:
-                    row[columnName] = Int(sqlite3_column_int64(statement, i))
-                case SQLITE_FLOAT:
-                    row[columnName] = sqlite3_column_double(statement, i)
-                case SQLITE_TEXT:
-                    if let text = sqlite3_column_text(statement, i) {
-                        row[columnName] = String(cString: text)
-                    } else {
-                        row[columnName] = ""
-                    }
-                case SQLITE_BLOB:
-                    if let blob = sqlite3_column_blob(statement, i) {
-                        let size = Int(sqlite3_column_bytes(statement, i))
-                        row[columnName] = Data(bytes: blob, count: size)
-                    } else {
-                        row[columnName] = Data()
-                    }
-                case SQLITE_NULL:
-                    row[columnName] = nil
-                default:
-                    row[columnName] = nil
+                if let value = getValue(from: statement, column: i) {
+                    row[columnName] = value
                 }
             }
             
-            print("查询结果行: \(row)") // 添加调试输出
+            print("查询结果行: \(row)")
             results.append(row)
         }
         
@@ -173,5 +151,28 @@ class SQLiteManager {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let paramString = paramStrings.joined(separator: "|")
         return "\(normalizedQuery)#\(paramString)"
+    }
+    
+    private func getValue(from statement: OpaquePointer?, column: Int32) -> Any? {
+        let type = sqlite3_column_type(statement, column)
+        switch type {
+        case SQLITE_INTEGER:
+            return Int(sqlite3_column_int64(statement, column))
+        case SQLITE_FLOAT:
+            return Double(sqlite3_column_double(statement, column))
+        case SQLITE_TEXT:
+            guard let cString = sqlite3_column_text(statement, column) else { return nil }
+            return String(cString: cString)
+        case SQLITE_NULL:
+            return nil
+        case SQLITE_BLOB:
+            if let blob = sqlite3_column_blob(statement, column) {
+                let size = Int(sqlite3_column_bytes(statement, column))
+                return Data(bytes: blob, count: size)
+            }
+            return nil
+        default:
+            return nil
+        }
     }
 } 

@@ -201,10 +201,14 @@ class DatabaseManager: ObservableObject {
                 let pgNeed = row["pg_need"] as? Int
                 let cpuNeed = row["cpu_need"] as? Int
                 let rigCost = row["rig_cost"] as? Int
-                let emDamage = row["em_damage"] as? Int
-                let themDamage = row["them_damage"] as? Int
-                let kinDamage = row["kin_damage"] as? Int
-                let expDamage = row["exp_damage"] as? Int
+                let emDamage = row["em_damage"] as? Double ?? 
+                               (row["em_damage"] as? Int).map { Double($0) }
+                let themDamage = row["them_damage"] as? Double ?? 
+                                 (row["them_damage"] as? Int).map { Double($0) }
+                let kinDamage = row["kin_damage"] as? Double ?? 
+                                (row["kin_damage"] as? Int).map { Double($0) }
+                let expDamage = row["exp_damage"] as? Double ?? 
+                                (row["exp_damage"] as? Int).map { Double($0) }
                 let highSlot = row["high_slot"] as? Int
                 let midSlot = row["mid_slot"] as? Int
                 let lowSlot = row["low_slot"] as? Int
@@ -359,10 +363,10 @@ class DatabaseManager: ObservableObject {
                 let pgNeed = row["pg_need"] as? Int
                 let cpuNeed = row["cpu_need"] as? Int
                 let rigCost = row["rig_cost"] as? Int
-                let emDamage = row["em_damage"] as? Int
-                let themDamage = row["them_damage"] as? Int
-                let kinDamage = row["kin_damage"] as? Int
-                let expDamage = row["exp_damage"] as? Int
+                let emDamage = row["em_damage"] as? Double
+                let themDamage = row["them_damage"] as? Double
+                let kinDamage = row["kin_damage"] as? Double
+                let expDamage = row["exp_damage"] as? Double
                 let highSlot = row["high_slot"] as? Int
                 let midSlot = row["mid_slot"] as? Int
                 let lowSlot = row["low_slot"] as? Int

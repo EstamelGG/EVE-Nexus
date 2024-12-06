@@ -11,10 +11,10 @@ struct DatabaseListItem: Identifiable {
     let pgNeed: Int?
     let cpuNeed: Int?
     let rigCost: Int?
-    let emDamage: Int?
-    let themDamage: Int?
-    let kinDamage: Int?
-    let expDamage: Int?
+    let emDamage: Double?
+    let themDamage: Double?
+    let kinDamage: Double?
+    let expDamage: Double?
     let highSlot: Int?
     let midSlot: Int?
     let lowSlot: Int?
@@ -256,54 +256,55 @@ struct DatabaseListItemView: View {
                     }
                     // 弹药和无人机
                     else if categoryID == 18 || categoryID == 8 {
-                        HStack(spacing: 2) {
-                            if let emDamage = item.emDamage {
+                        if hasAnyDamage {  // 添加检查是否有任何伤害值
+                            HStack(spacing: 2) {
+                                // 电磁伤害
                                 HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_20.png")
                                         .resizable()
                                         .frame(width: 14, height: 14)
                                     DamageBarView(
-                                        percentage: calculateDamagePercentage(emDamage),
+                                        percentage: calculateDamagePercentage(item.emDamage ?? 0),
                                         color: .blue
                                     )
                                 }
-                            }
-                            if let themDamage = item.themDamage {
-                                HStack(spacing: 2) {
+                                
+                                // 热能伤害
+                                HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_18.png")
                                         .resizable()
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 14, height: 14)
                                     DamageBarView(
-                                        percentage: calculateDamagePercentage(themDamage),
+                                        percentage: calculateDamagePercentage(item.themDamage ?? 0),
                                         color: .red
                                     )
                                 }
-                            }
-                            if let kinDamage = item.kinDamage {
-                                HStack(spacing: 2) {
+                                
+                                // 动能伤害
+                                HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_17.png")
                                         .resizable()
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 14, height: 14)
                                     DamageBarView(
-                                        percentage: calculateDamagePercentage(kinDamage),
+                                        percentage: calculateDamagePercentage(item.kinDamage ?? 0),
                                         color: .gray
                                     )
                                 }
-                            }
-                            if let expDamage = item.expDamage {
-                                HStack(spacing: 2) {
+                                
+                                // 爆炸伤害
+                                HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_19.png")
                                         .resizable()
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 14, height: 14)
                                     DamageBarView(
-                                        percentage: calculateDamagePercentage(expDamage),
+                                        percentage: calculateDamagePercentage(item.expDamage ?? 0),
                                         color: Color(red: 0.8, green: 0.5, blue: 0.0)
                                     )
                                 }
                             }
+                            .frame(height: 16)
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(height: 16)
-                        .frame(maxWidth: .infinity)
                     }
                     // 舰船
                     else if categoryID == 6 {
@@ -335,7 +336,14 @@ struct DatabaseListItemView: View {
         }
     }
     
-    private func calculateDamagePercentage(_ damage: Int) -> Int {
+    private var hasAnyDamage: Bool {
+        // 只要有任何一个伤害属性不为 nil，就显示伤害条
+        // 注意：0 也是有效值，不应该被排除
+        return [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
+            .contains { $0 != nil }
+    }
+    
+    private func calculateDamagePercentage(_ damage: Double) -> Int {
         let damages = [
             item.emDamage,
             item.themDamage,
@@ -343,23 +351,24 @@ struct DatabaseListItemView: View {
             item.expDamage
         ].compactMap { $0 }
         
+        print("计算百分比 - 当前伤害值: \(damage)")
+        print("计算百分比 - 所有伤害值: \(damages)")
+        
         let totalDamage = damages.reduce(0, +)
-        guard totalDamage > 0 else { return 0 }
+        print("计算百分比 - 总伤害: \(totalDamage)")
         
-        // 先计算精确的百分比（保留小数）
-        let exactPercentage = (Double(damage) / Double(totalDamage)) * 100
-        
-        // 如果是最后一个非零伤害，调整百分比确保总和为100
-        if damage > 0 && damages.filter({ $0 > 0 }).last == damage {
-            let otherPercentages = damages
-                .filter { $0 > 0 && $0 != damage }
-                .map { Int((Double($0) / Double(totalDamage)) * 100) }
-                .reduce(0, +)
-            return 100 - otherPercentages
+        guard totalDamage > 0 else { 
+            print("总伤害为0，返回0%")
+            return 0 
         }
         
-        // 其他情况下正常取整
-        return Int(exactPercentage)
+        let exactPercentage = (damage / totalDamage) * 100
+        print("计算百分比 - 精确百分比: \(exactPercentage)")
+        
+        let result = Int(exactPercentage)
+        print("计算百分比 - 最终结果: \(result)")
+        
+        return result
     }
 }
 

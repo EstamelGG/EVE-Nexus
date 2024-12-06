@@ -103,7 +103,10 @@ enum Database {
             guard let db = db else { return ([], [], [:]) }
 
             let query = """
-            SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published
+            SELECT type_id, name, icon_filename, pg_need, cpu_need, metaGroupID, published,
+                   categoryID, rig_cost,
+                   em_damage, them_damage, kin_damage, exp_damage,
+                   high_slot, mid_slot, low_slot, rig_slot, gun_slot, miss_slot
             FROM types
             WHERE groupID = ?
             ORDER BY metaGroupID
@@ -116,29 +119,38 @@ enum Database {
                     sqlite3_bind_int(statement, 1, Int32(groupID))
                 },
                 resultProcessor: { statement in
-                    let item = DatabaseItem(
+                    let emDamage = sqlite3_column_type(statement, 9) != SQLITE_NULL ? 
+                        Double(sqlite3_column_double(statement, 9)) : nil
+                    let themDamage = sqlite3_column_type(statement, 10) != SQLITE_NULL ? 
+                        Double(sqlite3_column_double(statement, 10)) : nil
+                    let kinDamage = sqlite3_column_type(statement, 11) != SQLITE_NULL ? 
+                        Double(sqlite3_column_double(statement, 11)) : nil
+                    let expDamage = sqlite3_column_type(statement, 12) != SQLITE_NULL ? 
+                        Double(sqlite3_column_double(statement, 12)) : nil
+                    
+                    return DatabaseItem(
                         id: Int(sqlite3_column_int(statement, 0)),
                         typeID: Int(sqlite3_column_int(statement, 0)),
                         name: String(cString: sqlite3_column_text(statement, 1)),
-                        iconFileName: String(cString: sqlite3_column_text(statement, 2)).isEmpty ? DatabaseConfig.defaultItemIcon : String(cString: sqlite3_column_text(statement, 2)),
-                        categoryID: Int(sqlite3_column_int(statement, 5)),
+                        iconFileName: String(cString: sqlite3_column_text(statement, 2)).isEmpty ? 
+                            DatabaseConfig.defaultItemIcon : String(cString: sqlite3_column_text(statement, 2)),
+                        categoryID: Int(sqlite3_column_int(statement, 7)),
                         pgNeed: Int(sqlite3_column_int(statement, 3)),
                         cpuNeed: Int(sqlite3_column_int(statement, 4)),
-                        rigCost: nil,
-                        emDamage: nil,
-                        themDamage: nil,
-                        kinDamage: nil,
-                        expDamage: nil,
-                        highSlot: nil,
-                        midSlot: nil,
-                        lowSlot: nil,
-                        rigSlot: nil,
-                        gunSlot: nil,
-                        missSlot: nil,
+                        rigCost: Int(sqlite3_column_int(statement, 8)),
+                        emDamage: emDamage,
+                        themDamage: themDamage,
+                        kinDamage: kinDamage,
+                        expDamage: expDamage,
+                        highSlot: Int(sqlite3_column_int(statement, 13)),
+                        midSlot: Int(sqlite3_column_int(statement, 14)),
+                        lowSlot: Int(sqlite3_column_int(statement, 15)),
+                        rigSlot: Int(sqlite3_column_int(statement, 16)),
+                        gunSlot: Int(sqlite3_column_int(statement, 17)),
+                        missSlot: Int(sqlite3_column_int(statement, 18)),
                         metaGroupID: Int(sqlite3_column_int(statement, 5)),
                         published: sqlite3_column_int(statement, 6) != 0
                     )
-                    return item
                 }
             )
 
