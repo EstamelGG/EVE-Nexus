@@ -144,12 +144,11 @@ struct DatabaseListView: View {
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         
-        switch groupingType {
-        case .publishedOnly:
-            return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
-            
-        case .metaGroups:
+        // 如果是搜索结果或者指定使用 metaGroups 分组，则按衍生等级分组
+        if !searchText.isEmpty || groupingType == .metaGroups {
             return groupItemsByMetaGroup(publishedItems)
+        } else {
+            return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
         }
     }
     

@@ -34,6 +34,22 @@ struct DatabaseBrowserView: View {
         navigationCache.removeAll()
     }
     
+    // 根据层级返回分组类型
+    private var groupingType: GroupingType {
+        switch level {
+        case .categories, .groups:
+            return .publishedOnly
+        case .items:
+            return .metaGroups
+        }
+    }
+    
+    // 搜索时使用的分组类型
+    private var searchGroupingType: GroupingType {
+        // 搜索结果总是显示衍生等级
+        return .metaGroups
+    }
+    
     var body: some View {
         NavigationStack {
             DatabaseListView(
@@ -224,16 +240,6 @@ struct DatabaseBrowserView: View {
             return categoryName
         case .items(_, let groupName):
             return groupName
-        }
-    }
-    
-    // 根据层级返回分组类型
-    private var groupingType: GroupingType {
-        switch level {
-        case .categories, .groups:
-            return .publishedOnly
-        case .items:
-            return .metaGroups
         }
     }
 }
