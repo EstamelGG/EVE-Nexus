@@ -31,6 +31,7 @@ struct DatabaseListView: View {
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var searchText = ""
     @State private var isLoading = false
+    @State private var lastSearchResults: ([DatabaseListItem], [Int: String])? = nil  // 添加搜索结果缓存
     
     // Combine 用于处理搜索
     @StateObject private var searchController = SearchController()
@@ -87,7 +88,13 @@ struct DatabaseListView: View {
         }
         .navigationTitle(title)
         .onAppear {
-            loadInitialData()
+            // 如果有上次的搜索结果，直接使用
+            if let lastResults = lastSearchResults {
+                items = lastResults.0
+                metaGroupNames = lastResults.1
+            } else {
+                loadInitialData()
+            }
             setupSearch()
         }
     }
@@ -126,6 +133,9 @@ struct DatabaseListView: View {
         } else {
             metaGroupNames = searchMetaGroupNames
         }
+        
+        // 保存搜索结果
+        lastSearchResults = (searchResults, metaGroupNames)
         
         isLoading = false
     }

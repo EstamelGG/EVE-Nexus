@@ -35,42 +35,44 @@ struct DatabaseBrowserView: View {
     }
     
     var body: some View {
-        DatabaseListView(
-            databaseManager: databaseManager,
-            title: title,
-            groupingType: groupingType,
-            loadData: { dbManager in
-                // 检查缓存
-                if let cachedData = Self.navigationCache[level] {
-                    print("使用导航缓存: \(level)")
-                    return cachedData
+        NavigationStack {
+            DatabaseListView(
+                databaseManager: databaseManager,
+                title: title,
+                groupingType: .metaGroups,  // 搜索结果始终使用 metaGroups 分组
+                loadData: { dbManager in
+                    // 检查缓存
+                    if let cachedData = Self.navigationCache[level] {
+                        print("使用导航缓存: \(level)")
+                        return cachedData
+                    }
+                    
+                    // 如果没有缓存，加载数据并缓存
+                    let data = loadDataForLevel(dbManager)
+                    Self.navigationCache[level] = data
+                    
+                    // 预加载图标
+                    if case .categories = level {
+                        // 预加载分类图标
+                        let icons = data.0.map { $0.iconFileName }
+                        IconManager.shared.preloadCommonIcons(icons: icons)
+                    }
+                    
+                    return data
+                },
+                searchData: { dbManager, searchText in
+                    // 搜索不使用缓存
+                    switch level {
+                    case .categories:
+                        return dbManager.searchItems(searchText: searchText)
+                    case .groups(let categoryID, _):
+                        return dbManager.searchItems(searchText: searchText, categoryID: categoryID)
+                    case .items(let groupID, _):
+                        return dbManager.searchItems(searchText: searchText, groupID: groupID)
+                    }
                 }
-                
-                // 如果没有缓存，加载数据并缓存
-                let data = loadDataForLevel(dbManager)
-                Self.navigationCache[level] = data
-                
-                // 预加载图标
-                if case .categories = level {
-                    // 预加载分类图标
-                    let icons = data.0.map { $0.iconFileName }
-                    IconManager.shared.preloadCommonIcons(icons: icons)
-                }
-                
-                return data
-            },
-            searchData: { dbManager, searchText in
-                // 搜索不使用缓存
-                switch level {
-                case .categories:
-                    return dbManager.searchItems(searchText: searchText)
-                case .groups(let categoryID, _):
-                    return dbManager.searchItems(searchText: searchText, categoryID: categoryID)
-                case .items(let groupID, _):
-                    return dbManager.searchItems(searchText: searchText, groupID: groupID)
-                }
-            }
-        )
+            )
+        }
         .onDisappear {
             // 当视图消失时，保留当前层级和上一层级的缓存，清除其他缓存
             cleanupCache()

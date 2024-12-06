@@ -23,10 +23,11 @@ func filterText(_ text: String) -> String {
 // ShowItemInfo view
 struct ShowItemInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
-    var itemID: Int  // 从上一页面传递过来的 itemID
+    @Environment(\.dismiss) private var dismiss
+    var itemID: Int
     
-    @State private var itemDetails: ItemDetails? // 改为使用可选类型
-    @State private var renderImage: UIImage? // 在线渲染图
+    @State private var itemDetails: ItemDetails?
+    @State private var renderImage: UIImage?
     
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
@@ -101,6 +102,7 @@ struct ShowItemInfo: View {
             }
         }
         .navigationTitle("Info")
+        .navigationBarBackButtonHidden(false)  // 显示返回按钮
         .onAppear {
             loadItemDetails(for: itemID)
             loadRenderImage(for: itemID)
