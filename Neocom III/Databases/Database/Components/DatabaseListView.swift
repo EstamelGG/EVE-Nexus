@@ -336,15 +336,30 @@ struct DatabaseListItemView: View {
     }
     
     private func calculateDamagePercentage(_ damage: Int) -> Int {
-        let totalDamage = [
+        let damages = [
             item.emDamage,
             item.themDamage,
             item.kinDamage,
             item.expDamage
-        ].compactMap { $0 }.reduce(0, +)
+        ].compactMap { $0 }
         
+        let totalDamage = damages.reduce(0, +)
         guard totalDamage > 0 else { return 0 }
-        return Int((Double(damage) / Double(totalDamage)) * 100)
+        
+        // 先计算精确的百分比（保留小数）
+        let exactPercentage = (Double(damage) / Double(totalDamage)) * 100
+        
+        // 如果是最后一个非零伤害，调整百分比确保总和为100
+        if damage > 0 && damages.filter({ $0 > 0 }).last == damage {
+            let otherPercentages = damages
+                .filter { $0 > 0 && $0 != damage }
+                .map { Int((Double($0) / Double(totalDamage)) * 100) }
+                .reduce(0, +)
+            return 100 - otherPercentages
+        }
+        
+        // 其他情况下正常取整
+        return Int(exactPercentage)
     }
 }
 

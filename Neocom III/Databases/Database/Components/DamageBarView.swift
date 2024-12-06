@@ -6,21 +6,25 @@ struct DamageBarView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .leading) {
                 // 背景条
                 Rectangle()
                     .fill(color.opacity(0.2))
+                    .frame(width: geometry.size.width)
                 
                 // 进度条
                 Rectangle()
                     .fill(color)
                     .frame(width: geometry.size.width * CGFloat(percentage) / 100)
                 
-                // 百分比文字
-                Text("\(percentage)%")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 0)
+                // 百分比文字 - 使用额外的 ZStack 使文本居中
+                ZStack {
+                    Text("\(percentage)%")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 0)
+                }
+                .frame(width: geometry.size.width) // 让文本容器占满整个宽度
             }
         }
         .frame(height: 20)
