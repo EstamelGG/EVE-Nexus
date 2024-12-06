@@ -69,7 +69,7 @@ struct DatabaseListView: View {
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer,
-            prompt: Text("搜索")
+            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { _, newValue in
             searchController.processSearchInput(newValue)
