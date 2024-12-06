@@ -20,7 +20,7 @@ enum GroupingType {
 // 统一的列表视图
 struct DatabaseListView: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @Environment(\.dismiss) private var dismiss  // 添加环境变量用于返回
+    @Environment(\.dismiss) private var dismiss
     
     let title: String
     let groupingType: GroupingType
@@ -30,106 +30,12 @@ struct DatabaseListView: View {
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var searchText = ""
-    @State private var isSearching = false
-    @State private var hasSearchResults = false  // 添加标记，表示是否有搜索结果
+    @State private var isLoading = false
     
-    // 添加防抖发布者
-    @StateObject private var searchTextDebouncer = DebouncedText()
+    // Combine 用于处理搜索
+    @StateObject private var searchController = SearchController()
     
     var body: some View {
-        VStack {
-            SearchBar(text: $searchText, isSearching: $isSearching, onCancel: {
-                loadInitialData()
-                if !searchText.isEmpty {
-                    searchText = ""
-                    hasSearchResults = false  // 重置搜索结果状态
-                }
-            })
-            .onChange(of: searchText) { _, newValue in
-                if !newValue.isEmpty {
-                    isSearching = true
-                    searchTextDebouncer.text = newValue
-                } else {
-                    // 文本为空时重置状态
-                    loadInitialData()
-                    isSearching = false
-                    hasSearchResults = false
-                }
-            }
-            
-            ZStack {
-                if !searchText.isEmpty {
-                    if isSearching {
-                        // 搜索中显示遮罩
-                        Color.black.opacity(0.3)
-                            .edgesIgnoringSafeArea(.all)
-                    } else if items.isEmpty {
-                        // 搜索完成但无结果
-                        ContentUnavailableView {
-                            Label("Not Found", systemImage: "magnifyingglass")
-                        } description: {
-                            Text("No items match your search")
-                        }
-                    } else {
-                        // 有搜索结果
-                        searchResultsList
-                    }
-                } else if hasSearchResults {
-                    // 如果有搜索结果，即使searchText为空也显示结果
-                    searchResultsList
-                } else {
-                    // 普通浏览状态
-                    normalBrowseList
-                }
-            }
-        }
-        .navigationTitle(title)
-        .onAppear {
-            if !hasSearchResults {
-                loadInitialData()
-            }
-        }
-        .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
-            if !debouncedText.isEmpty {
-                performSearch(with: debouncedText)
-            }
-        }
-    }
-    
-    // 搜索结果列表视图
-    private var searchResultsList: some View {
-        List {
-            // 已发布的物品（按衍生等级分组）
-            let publishedItems = items.filter { $0.published }
-            if !publishedItems.isEmpty {
-                ForEach(groupItemsByMetaGroup(publishedItems), id: \.id) { group in
-                    Section(header: Text(group.name).textCase(.none)) {
-                        ForEach(group.items) { item in
-                            NavigationLink(destination: item.navigationDestination) {
-                                DatabaseListItemView(item: item)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // 未发布的物品（单独分组）
-            let unpublishedItems = items.filter { !$0.published }
-            if !unpublishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
-                    ForEach(unpublishedItems) { item in
-                        NavigationLink(destination: item.navigationDestination) {
-                            DatabaseListItemView(item: item)
-                        }
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-    }
-    
-    // 普通浏览列表视图
-    private var normalBrowseList: some View {
         List {
             // 已发布的物品
             let publishedItems = items.filter { $0.published }
@@ -158,6 +64,32 @@ struct DatabaseListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer,
+            prompt: Text("搜索")
+        )
+        .onChange(of: searchText) { _, newValue in
+            searchController.processSearchInput(newValue)
+        }
+        .overlay {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.ultraThinMaterial)
+            } else if items.isEmpty && !searchText.isEmpty {
+                ContentUnavailableView {
+                    Label("未找到", systemImage: "magnifyingglass")
+                } description: {
+                    Text("没有找到匹配的项目")
+                }
+            }
+        }
+        .navigationTitle(title)
+        .onAppear {
+            loadInitialData()
+            setupSearch()
+        }
     }
     
     private func loadInitialData() {
@@ -166,9 +98,24 @@ struct DatabaseListView: View {
         metaGroupNames = loadedMetaGroupNames
     }
     
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { query in
+                if query.isEmpty {
+                    loadInitialData()
+                    isLoading = false
+                } else {
+                    performSearch(with: query)
+                }
+            }
+            .store(in: &searchController.cancellables)
+    }
+    
     private func performSearch(with text: String) {
         guard let searchData = searchData else { return }
         
+        isLoading = true
         let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
         items = searchResults
         
@@ -180,19 +127,12 @@ struct DatabaseListView: View {
             metaGroupNames = searchMetaGroupNames
         }
         
-        // 搜索完成后更新状态
-        isSearching = false
-        hasSearchResults = !searchResults.isEmpty
+        isLoading = false
     }
     
     // 已发布物品的分组
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
-        
-        // 只有在搜索完成后（有搜索文本且不在搜索状态）才使用 metaGroups 分组
-        if !searchText.isEmpty && !isSearching {
-            return groupItemsByMetaGroup(publishedItems)
-        }
         
         switch groupingType {
         case .publishedOnly:
@@ -203,12 +143,9 @@ struct DatabaseListView: View {
         }
     }
     
-    // 添加一个辅助方法来处理 metaGroups 分组
     private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
-        // 创建一个临时字典来存储分组
         var grouped: [Int: [DatabaseListItem]] = [:]
         
-        // 对物品进行分组
         for item in items {
             let metaGroupID = item.metaGroupID ?? 0
             if grouped[metaGroupID] == nil {
@@ -217,14 +154,12 @@ struct DatabaseListView: View {
             grouped[metaGroupID]?.append(item)
         }
         
-        // 按 metaGroupID 排序并转换为最终格式
         return grouped.sorted { $0.key < $1.key }
             .map { (metaGroupID, items) in
                 if metaGroupID == 0 {
                     return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
                 }
                 
-                // 确保从 metaGroupNames 中获取到名称
                 if let groupName = metaGroupNames[metaGroupID] {
                     return (id: metaGroupID, name: groupName, items: items)
                 } else {
@@ -232,7 +167,25 @@ struct DatabaseListView: View {
                     return (id: metaGroupID, name: "MetaGroup \(metaGroupID)", items: items)
                 }
             }
-            .filter { !$0.items.isEmpty }  // 过滤掉空的组
+            .filter { !$0.items.isEmpty }
+    }
+}
+
+// 搜索控制器
+class SearchController: ObservableObject {
+    private let searchSubject = PassthroughSubject<String, Never>()
+    private let debounceInterval: TimeInterval = 0.5
+    var cancellables = Set<AnyCancellable>()
+    
+    // 防抖处理后的搜索
+    var debouncedSearchPublisher: AnyPublisher<String, Never> {
+        searchSubject
+            .debounce(for: .seconds(debounceInterval), scheduler: DispatchQueue.main)
+            .eraseToAnyPublisher()
+    }
+    
+    func processSearchInput(_ query: String) {
+        searchSubject.send(query)
     }
 }
 
@@ -250,26 +203,5 @@ struct DatabaseListItemView: View {
             
             Text(item.name)
         }
-    }
-}
-
-// 防抖文本处理类
-class DebouncedText: ObservableObject {
-    @Published var text: String = ""
-    @Published var debouncedText: String = ""
-    private var cancellable: AnyCancellable?
-    
-    init() {
-        cancellable = $text
-            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-            .sink { [weak self] value in
-                DispatchQueue.main.async {
-                    self?.debouncedText = value
-                }
-            }
-    }
-    
-    deinit {
-        cancellable?.cancel()
     }
 }
