@@ -42,18 +42,42 @@ public struct DatabaseItem: Identifiable {
     public let typeID: Int
     public let name: String
     public let iconFileName: String
-    public let pgNeed: Int
-    public let cpuNeed: Int
+    public let categoryID: Int
+    public let pgNeed: Int?
+    public let cpuNeed: Int?
+    public let rigCost: Int?
+    public let emDamage: Int?
+    public let themDamage: Int?
+    public let kinDamage: Int?
+    public let expDamage: Int?
+    public let highSlot: Int?
+    public let midSlot: Int?
+    public let lowSlot: Int?
+    public let rigSlot: Int?
+    public let gunSlot: Int?
+    public let missSlot: Int?
     public let metaGroupID: Int
     public let published: Bool
     
-    public init(id: Int, typeID: Int, name: String, iconFileName: String, pgNeed: Int, cpuNeed: Int, metaGroupID: Int, published: Bool) {
+    public init(id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Int?, cpuNeed: Int?, rigCost: Int?, emDamage: Int?, themDamage: Int?, kinDamage: Int?, expDamage: Int?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?, gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool) {
         self.id = id
         self.typeID = typeID
         self.name = name
         self.iconFileName = iconFileName
+        self.categoryID = categoryID
         self.pgNeed = pgNeed
         self.cpuNeed = cpuNeed
+        self.rigCost = rigCost
+        self.emDamage = emDamage
+        self.themDamage = themDamage
+        self.kinDamage = kinDamage
+        self.expDamage = expDamage
+        self.highSlot = highSlot
+        self.midSlot = midSlot
+        self.lowSlot = lowSlot
+        self.rigSlot = rigSlot
+        self.gunSlot = gunSlot
+        self.missSlot = missSlot
         self.metaGroupID = metaGroupID
         self.published = published
     }

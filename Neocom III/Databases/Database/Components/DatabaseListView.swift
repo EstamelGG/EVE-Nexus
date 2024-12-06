@@ -7,7 +7,21 @@ struct DatabaseListItem: Identifiable {
     let name: String
     let iconFileName: String
     let published: Bool
-    let metaGroupID: Int?    // 可选，只有 Items 需要
+    let categoryID: Int?
+    let pgNeed: Int?
+    let cpuNeed: Int?
+    let rigCost: Int?
+    let emDamage: Int?
+    let themDamage: Int?
+    let kinDamage: Int?
+    let expDamage: Int?
+    let highSlot: Int?
+    let midSlot: Int?
+    let lowSlot: Int?
+    let rigSlot: Int?
+    let gunSlot: Int?
+    let missSlot: Int?
+    let metaGroupID: Int?
     let navigationDestination: AnyView
 }
 
@@ -206,14 +220,92 @@ struct DatabaseListItemView: View {
     let item: DatabaseListItem
     
     var body: some View {
-        HStack {
-            // 加载并显示图标
-            IconManager.shared.loadImage(for: item.iconFileName)
-                .resizable()
-                .frame(width: 32, height: 32)
-                .cornerRadius(6)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                // 加载并显示图标
+                IconManager.shared.loadImage(for: item.iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                
+                Text(item.name)
+            }
             
-            Text(item.name)
+            if let categoryID = item.categoryID {
+                VStack(alignment: .leading) {
+                    // 装备和改装件
+                    if categoryID == 7 {
+                        HStack(spacing: 8) {
+                            if let pgNeed = item.pgNeed {
+                                IconWithValueView(iconName: "icon_1539_64.png", value: pgNeed)
+                            }
+                            if let cpuNeed = item.cpuNeed {
+                                IconWithValueView(iconName: "icon_3887_64.png", value: cpuNeed)
+                            }
+                            if let rigCost = item.rigCost {
+                                IconWithValueView(iconName: "icon_41312_64.png", value: rigCost)
+                            }
+                        }
+                    }
+                    // 弹药和无人机
+                    else if categoryID == 18 || categoryID == 8 {
+                        HStack(spacing: 8) {
+                            if let emDamage = item.emDamage {
+                                IconWithValueView(iconName: "items_22_32_20.png", value: emDamage)
+                            }
+                            if let themDamage = item.themDamage {
+                                IconWithValueView(iconName: "items_22_32_18.png", value: themDamage)
+                            }
+                            if let kinDamage = item.kinDamage {
+                                IconWithValueView(iconName: "items_22_32_17.png", value: kinDamage)
+                            }
+                            if let expDamage = item.expDamage {
+                                IconWithValueView(iconName: "items_22_32_19.png", value: expDamage)
+                            }
+                        }
+                    }
+                    // 舰船
+                    else if categoryID == 6 {
+                        HStack(spacing: 8) {
+                            if let highSlot = item.highSlot {
+                                IconWithValueView(iconName: "items_8_64_11.png", value: highSlot)
+                            }
+                            if let midSlot = item.midSlot {
+                                IconWithValueView(iconName: "items_8_64_10.png", value: midSlot)
+                            }
+                            if let lowSlot = item.lowSlot {
+                                IconWithValueView(iconName: "items_8_64_19.png", value: lowSlot)
+                            }
+                            if let rigSlot = item.rigSlot {
+                                IconWithValueView(iconName: "items_68_64_1.png", value: rigSlot)
+                            }
+                            if let gunSlot = item.gunSlot {
+                                IconWithValueView(iconName: "icon_484_64.png", value: gunSlot)
+                            }
+                            if let missSlot = item.missSlot {
+                                IconWithValueView(iconName: "icon_44102_64.png", value: missSlot)
+                            }
+                        }
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+// 图标和数值的组合视图
+struct IconWithValueView: View {
+    let iconName: String
+    let value: Int
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            IconManager.shared.loadImage(for: iconName)
+                .resizable()
+                .frame(width: 16, height: 16)
+            Text("\(value)")
         }
     }
 }

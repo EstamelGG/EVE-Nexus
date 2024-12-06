@@ -170,7 +170,10 @@ class DatabaseManager: ObservableObject {
         
         // 查询物品
         let query = """
-            SELECT t.type_id, t.name, t.icon_filename, t.pg_need, t.cpu_need, t.metaGroupID, t.published
+            SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID, t.categoryID,
+                   t.pg_need, t.cpu_need, t.rig_cost, 
+                   t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
+                   t.high_slot, t.mid_slot, t.low_slot, t.rig_slot, t.gun_slot, t.miss_slot
             FROM types t
             WHERE t.groupID = ?
             ORDER BY t.name ASC
@@ -187,29 +190,50 @@ class DatabaseManager: ObservableObject {
                 guard let typeId = row["type_id"] as? Int,
                       let name = row["name"] as? String,
                       let iconFilename = row["icon_filename"] as? String,
-                      let pgNeed = row["pg_need"] as? Int,
-                      let cpuNeed = row["cpu_need"] as? Int,
                       let metaGroupId = row["metaGroupID"] as? Int,
+                      let categoryId = row["categoryID"] as? Int,
                       let isPublished = row["published"] as? Int else {
-                    print("警告: 物品数据不完整:", row)
+                    print("警告: 物品基础数据不完整:", row)
                     continue
                 }
                 
+                // 获取可选属性
+                let pgNeed = row["pg_need"] as? Int
+                let cpuNeed = row["cpu_need"] as? Int
+                let rigCost = row["rig_cost"] as? Int
+                let emDamage = row["em_damage"] as? Int
+                let themDamage = row["them_damage"] as? Int
+                let kinDamage = row["kin_damage"] as? Int
+                let expDamage = row["exp_damage"] as? Int
+                let highSlot = row["high_slot"] as? Int
+                let midSlot = row["mid_slot"] as? Int
+                let lowSlot = row["low_slot"] as? Int
+                let rigSlot = row["rig_slot"] as? Int
+                let gunSlot = row["gun_slot"] as? Int
+                let missSlot = row["miss_slot"] as? Int
+                
                 // 打印调试信息
                 print("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
-                if let metaName = metaGroupNames[metaGroupId] {
-                    print("找到对应的 MetaGroup: \(metaName)")
-                } else {
-                    print("警告: 找不到 MetaGroupID \(metaGroupId) 对应的名称")
-                }
                 
                 let item = DatabaseItem(
                     id: typeId,
                     typeID: typeId,
                     name: name,
                     iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
+                    categoryID: categoryId,
                     pgNeed: pgNeed,
                     cpuNeed: cpuNeed,
+                    rigCost: rigCost,
+                    emDamage: emDamage,
+                    themDamage: themDamage,
+                    kinDamage: kinDamage,
+                    expDamage: expDamage,
+                    highSlot: highSlot,
+                    midSlot: midSlot,
+                    lowSlot: lowSlot,
+                    rigSlot: rigSlot,
+                    gunSlot: gunSlot,
+                    missSlot: missSlot,
                     metaGroupID: metaGroupId,
                     published: isPublished != 0
                 )
@@ -292,7 +316,10 @@ class DatabaseManager: ObservableObject {
         
         // 搜索物品
         var query = """
-            SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID
+            SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID, t.categoryID,
+                   t.pg_need, t.cpu_need, t.rig_cost, 
+                   t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
+                   t.high_slot, t.mid_slot, t.low_slot, t.rig_slot, t.gun_slot, t.miss_slot
             FROM types t
             WHERE t.name LIKE ?
         """
@@ -309,7 +336,7 @@ class DatabaseManager: ObservableObject {
             params.append(groupID)
         }
         
-        query += " ORDER BY t.metaGroupID, t.name"  // 先按 metaGroupID 排序，再按名称排序
+        query += " ORDER BY t.metaGroupID, t.name"
         
         let result = executeQuery(query, parameters: params)
         var items: [DatabaseListItem] = []
@@ -321,18 +348,47 @@ class DatabaseManager: ObservableObject {
                 guard let id = row["type_id"] as? Int,
                       let name = row["name"] as? String,
                       let iconFilename = row["icon_filename"] as? String,
-                      let metaGroupId = row["metaGroupID"] as? Int else {
+                      let metaGroupId = row["metaGroupID"] as? Int,
+                      let categoryId = row["categoryID"] as? Int else {
                     continue
                 }
                 
                 let isPublished = (row["published"] as? Int ?? 0) != 0
-                print("处理搜索结果: ID=\(id), Name=\(name), MetaGroupID=\(metaGroupId), Published=\(isPublished)")
+                
+                // 获取可选属性
+                let pgNeed = row["pg_need"] as? Int
+                let cpuNeed = row["cpu_need"] as? Int
+                let rigCost = row["rig_cost"] as? Int
+                let emDamage = row["em_damage"] as? Int
+                let themDamage = row["them_damage"] as? Int
+                let kinDamage = row["kin_damage"] as? Int
+                let expDamage = row["exp_damage"] as? Int
+                let highSlot = row["high_slot"] as? Int
+                let midSlot = row["mid_slot"] as? Int
+                let lowSlot = row["low_slot"] as? Int
+                let rigSlot = row["rig_slot"] as? Int
+                let gunSlot = row["gun_slot"] as? Int
+                let missSlot = row["miss_slot"] as? Int
                 
                 let item = DatabaseListItem(
                     id: id,
                     name: name,
                     iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                     published: isPublished,
+                    categoryID: categoryId,
+                    pgNeed: pgNeed,
+                    cpuNeed: cpuNeed,
+                    rigCost: rigCost,
+                    emDamage: emDamage,
+                    themDamage: themDamage,
+                    kinDamage: kinDamage,
+                    expDamage: expDamage,
+                    highSlot: highSlot,
+                    midSlot: midSlot,
+                    lowSlot: lowSlot,
+                    rigSlot: rigSlot,
+                    gunSlot: gunSlot,
+                    missSlot: missSlot,
                     metaGroupID: metaGroupId,
                     navigationDestination: AnyView(
                         ShowItemInfo(
