@@ -304,7 +304,7 @@ struct IconWithValueView: View {
         HStack(spacing: 2) {
             IconManager.shared.loadImage(for: iconName)
                 .resizable()
-                .frame(width: 16, height: 16)
+                .frame(width: 18, height: 18)
             Text("\(value)")
         }
     }
