@@ -7,9 +7,10 @@ struct DamageBarView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // 背景条
+                // 背景条 - 使用更深的相同色调
                 Rectangle()
-                    .fill(color.opacity(0.2))
+                    .fill(color.opacity(0.8))
+                    .overlay(Color.black.opacity(0.5))
                     .frame(width: geometry.size.width)
                 
                 // 进度条

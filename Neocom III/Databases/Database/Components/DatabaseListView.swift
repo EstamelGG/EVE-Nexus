@@ -262,7 +262,7 @@ struct DatabaseListItemView: View {
                                 HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_20.png")
                                         .resizable()
-                                        .frame(width: 14, height: 14)
+                                        .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.emDamage ?? 0),
                                         color: .blue
@@ -273,7 +273,7 @@ struct DatabaseListItemView: View {
                                 HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_18.png")
                                         .resizable()
-                                        .frame(width: 14, height: 14)
+                                        .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.themDamage ?? 0),
                                         color: .red
@@ -284,7 +284,7 @@ struct DatabaseListItemView: View {
                                 HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_17.png")
                                         .resizable()
-                                        .frame(width: 14, height: 14)
+                                        .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.kinDamage ?? 0),
                                         color: .gray
@@ -295,7 +295,7 @@ struct DatabaseListItemView: View {
                                 HStack(spacing: 1) {
                                     IconManager.shared.loadImage(for: "items_22_32_19.png")
                                         .resizable()
-                                        .frame(width: 14, height: 14)
+                                        .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.expDamage ?? 0),
                                         color: Color(red: 0.8, green: 0.5, blue: 0.0)
