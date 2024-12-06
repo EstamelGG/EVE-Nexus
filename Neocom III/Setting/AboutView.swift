@@ -3,7 +3,7 @@ import SwiftUI
 struct AboutView: View {
     @State private var aboutItems: [TableRowNode] = [
         TableRowNode(title: "App Version", iconName: "", note: "1.0.0"),
-        TableRowNode(title: "Database Version", iconName: "", note: "2024-11-30"),
+        TableRowNode(title: "Database Version", iconName: "", note: "2024-12-06"),
         TableRowNode(title: "License", iconName: "", note: "Open Source License"),
         TableRowNode(title: "Contact Us", iconName: "", note: "support@example.com")
     ]
