@@ -14,11 +14,16 @@ struct SearchBar: UIViewRepresentable {
         searchBar.searchBarStyle = .minimal
         searchBar.autocapitalizationType = .none
         searchBar.showsCancelButton = true
+        searchBar.returnKeyType = .done
         return searchBar
     }
     
     func updateUIView(_ uiView: UISearchBar, context: Context) {
         uiView.text = text
+        if let searchField = uiView.value(forKey: "searchField") as? UITextField {
+            searchField.returnKeyType = .done
+            searchField.reloadInputViews()
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -46,11 +51,15 @@ struct SearchBar: UIViewRepresentable {
             
             if !isComposing {
                 text = searchText
+                isSearching = true
             }
         }
         
         func searchBarShouldBeginEditing(_ searchBar: UISearchBar) -> Bool {
-            isSearching = true
+            if let searchField = searchBar.value(forKey: "searchField") as? UITextField {
+                searchField.returnKeyType = .done
+                searchField.reloadInputViews()
+            }
             return true
         }
         
@@ -78,14 +87,13 @@ struct SearchBar: UIViewRepresentable {
         
         func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
             searchBar.resignFirstResponder()
-            if let finalText = searchBar.text {
-                text = finalText
-                onSearch?()
-            }
         }
         
         func searchBarTextDidBeginEditing(_ searchBar: UISearchBar) {
-            isSearching = true
+            if let searchField = searchBar.value(forKey: "searchField") as? UITextField {
+                searchField.returnKeyType = .done
+                searchField.reloadInputViews()
+            }
         }
     }
 }

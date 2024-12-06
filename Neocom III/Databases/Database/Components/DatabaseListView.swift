@@ -43,36 +43,40 @@ struct DatabaseListView: View {
                     searchText = ""
                 }
             }, onSearch: {
-                // 用户点击搜索按钮时，只执行搜索，不改变遮罩状态
-                if !searchText.isEmpty {
-                    performSearch(with: searchText)
-                    // 取消防抖搜索
-                    searchTextDebouncer.text = ""
+                // 用户点击搜索按钮时，如果正在输入（isSearching = true）才执行搜索
+                if !searchText.isEmpty && isSearching {
+                    searchTextDebouncer.text = ""  // 取消防抖搜索
+                    performSearch(with: searchText)  // 直接执行搜索
                 }
             })
             .onChange(of: searchText) { _, newValue in
-                // 只在用户输入新文本时显示遮罩
                 if !newValue.isEmpty {
-                    isSearching = true
-                    searchTextDebouncer.text = newValue
+                    isSearching = true  // 输入时显示遮罩
+                    searchTextDebouncer.text = newValue  // 更新防抖文本
+                } else {
+                    // 文本为空时重置状态
+                    loadInitialData()
+                    isSearching = false
                 }
             }
             
             ZStack {
                 if !searchText.isEmpty {
-                    if isSearching {
-                        // 搜索中显示遮罩
+                    if isSearching || items.isEmpty {
+                        // 搜索中或无结果时显示遮罩
                         Color.black.opacity(0.3)
                             .edgesIgnoringSafeArea(.all)
-                    } else if items.isEmpty {
-                        // 搜索完成但无结果
-                        ContentUnavailableView {
-                            Label("Not Found", systemImage: "magnifyingglass")
-                        } description: {
-                            Text("No items match your search")
+                        
+                        if !isSearching && items.isEmpty {
+                            // 搜索完成且无结果时显示提示
+                            ContentUnavailableView {
+                                Label("Not Found", systemImage: "magnifyingglass")
+                            } description: {
+                                Text("No items match your search")
+                            }
                         }
                     } else {
-                        // 有搜索结果
+                        // 搜索完成且有结果
                         searchResultsList
                     }
                 } else {
@@ -86,12 +90,8 @@ struct DatabaseListView: View {
             loadInitialData()
         }
         .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
-            if debouncedText.isEmpty {
-                if searchText.isEmpty {
-                    loadInitialData()
-                    isSearching = false
-                }
-            } else {
+            if !debouncedText.isEmpty {
+                isSearching = true  // 防抖搜索开始时显示遮罩
                 performSearch(with: debouncedText)
             }
         }
@@ -181,8 +181,10 @@ struct DatabaseListView: View {
             metaGroupNames = searchMetaGroupNames
         }
         
-        // 搜索完成后，无论是否有结果都关闭搜索状态
-        isSearching = false
+        // 搜索完成后，只有在有结果时才关闭搜索状态
+        if !searchResults.isEmpty {
+            isSearching = false
+        }
     }
     
     // 已发布物品的分组
