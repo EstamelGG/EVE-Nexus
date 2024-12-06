@@ -316,6 +316,7 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
+            print("搜索到 \(rows.count) 个物品")
             for row in rows {
                 guard let id = row["type_id"] as? Int,
                       let name = row["name"] as? String,
@@ -325,12 +326,7 @@ class DatabaseManager: ObservableObject {
                 }
                 
                 let isPublished = (row["published"] as? Int ?? 0) != 0
-                print("处理搜索结果: ID=\(id), Name=\(name), MetaGroupID=\(metaGroupId)")
-                if let metaName = metaGroupNames[metaGroupId] {
-                    print("找到对应的 MetaGroup: \(metaName)")
-                } else {
-                    print("警告: 找不到 MetaGroupID \(metaGroupId) 对应的名称")
-                }
+                print("处理搜索结果: ID=\(id), Name=\(name), MetaGroupID=\(metaGroupId), Published=\(isPublished)")
                 
                 let item = DatabaseListItem(
                     id: id,
@@ -352,11 +348,9 @@ class DatabaseManager: ObservableObject {
             print("搜索物品失败: \(error)")
         }
         
-        // 打印最终的 metaGroupNames 内容
-        print("搜索结果的 metaGroupNames 内容:")
-        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
-            print("ID: \(id) -> Name: \(name)")
-        }
+        // 打印最终的数据
+        print("搜索完成: 找到 \(items.count) 个物品")
+        print("MetaGroup 数据: \(metaGroupNames)")
         
         return (items, metaGroupNames)
     }
