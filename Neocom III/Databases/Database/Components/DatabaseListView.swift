@@ -53,18 +53,22 @@ struct DatabaseListView: View {
                     // 搜索状态下显示遮罩
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
-                    
-                    if !searchText.isEmpty && items.isEmpty {
-                        // 有搜索文本但没有结果
-                        ContentUnavailableView("Not Found", systemImage: "magnifyingglass")
-                    }
-                } else if !items.isEmpty {
-                    // 有搜索结果时显示列表
-                    if !searchText.isEmpty {
-                        searchResultsList
+                } else if !searchText.isEmpty {
+                    // 搜索完成且有搜索文本的状态
+                    if items.isEmpty {
+                        // 无搜索结果时显示空状态
+                        ContentUnavailableView {
+                            Label("Not Found", systemImage: "magnifyingglass")
+                        } description: {
+                            Text("No items match your search")
+                        }
                     } else {
-                        normalBrowseList
+                        // 有搜索结果时显示结果列表
+                        searchResultsList
                     }
+                } else {
+                    // 普通浏览状态
+                    normalBrowseList
                 }
             }
         }
@@ -72,7 +76,7 @@ struct DatabaseListView: View {
         .onAppear {
             loadInitialData()
         }
-        .onReceive(searchTextDebouncer.$debouncedText.receive(on: RunLoop.main)) { debouncedText in
+        .onReceive(searchTextDebouncer.$debouncedText) { debouncedText in
             if debouncedText.isEmpty {
                 loadInitialData()
                 isSearching = false
