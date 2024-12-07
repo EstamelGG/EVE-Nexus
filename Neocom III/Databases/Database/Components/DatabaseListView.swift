@@ -252,8 +252,8 @@ struct DatabaseListItemView: View {
             
             if showDetails, let categoryID = item.categoryID {
                 VStack(alignment: .leading, spacing: 2) {
-                    // 装备和改装件
-                    if categoryID == 7 {
+                    // 装备、建筑装备和改装件
+                    if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
                                 IconWithValueView(iconName: "icon_1539_64.png", value: pgNeed)
@@ -318,7 +318,7 @@ struct DatabaseListItemView: View {
                     }
                     // 舰船
                     else if categoryID == 6 {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 4) {  // 减小槽位之间的间距
                             if let highSlot = item.highSlot {
                                 IconWithValueView(iconName: "items_8_64_11.png", value: highSlot)
                             }
