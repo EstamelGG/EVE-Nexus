@@ -38,9 +38,15 @@ struct LoadingView: View {
                         .rotationEffect(Angle(degrees: -90))  // 从顶部开始
                     
                     // 进度文本
-                    Text("\(Int(progress * 100))%")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.green)
+                    if progress != 0 {
+                        Text("\(Int(progress * 100))%")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.green)
+                    } else {
+                        Text("NaN")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.green)
+                    }
                 
                 case .unzippingComplete:
                     Circle()
@@ -108,7 +114,11 @@ struct LoadingView: View {
     private var loadingText: String {
         switch loadingState {
         case .unzipping:
-            return "Unzipping Icons... \(Int(progress * 100))%"
+            if progress == 0 {
+                return "Loading Zip file."
+            } else {
+                return "Unzipping Icons... \(Int(progress * 100))%"
+            }
         case .unzippingComplete:
             return "Icons Ready"
         case .loadingDB:
