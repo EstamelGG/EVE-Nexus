@@ -12,7 +12,11 @@ struct AboutView: View {
         List {
             Section(header: Text(
                 NSLocalizedString("Main_About_Title", comment: "")
-            )) {
+            )
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+            ) {
                 ForEach(aboutItems) { item in
                     HStack {
                         VStack(alignment: .leading) {
@@ -30,6 +34,7 @@ struct AboutView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .navigationTitle(Text(
             NSLocalizedString("Main_About", comment: "")
         ))

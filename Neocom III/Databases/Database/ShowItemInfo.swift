@@ -101,6 +101,7 @@ struct ShowItemInfo: View {
                 }
             }
         }
+        .listStyle(.plain)
         .navigationTitle("Info")
         .navigationBarBackButtonHidden(false)  // 显示返回按钮
         .onAppear {
@@ -141,7 +142,7 @@ extension View {
     }
 }
 
-// 自定义圆角形状
+// 自定义圆角形��
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity
     var corners: UIRectCorner = .allCorners

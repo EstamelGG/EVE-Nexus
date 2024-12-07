@@ -192,6 +192,7 @@ struct ContentView: View {
                     }
                 }
             }
+            .listStyle(.plain)
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))

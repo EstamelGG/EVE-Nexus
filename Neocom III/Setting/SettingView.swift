@@ -34,7 +34,11 @@ struct SettingView: View {
     
     var body: some View {
         List {
-            Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))) {
+            Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+            ) {
                 Button(action: toggleAppearance) {
                     HStack {
                         VStack(alignment: .leading) {
@@ -54,7 +58,11 @@ struct SettingView: View {
                 }
             }
             
-            Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))) {
+            Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+            ) {
                 ForEach(settingItems) { item in
                     NavigationLink(destination: destinationView(for: item.destination)) {
                         HStack {
@@ -74,6 +82,7 @@ struct SettingView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
         .onAppear {
             updateCurrentIcon()

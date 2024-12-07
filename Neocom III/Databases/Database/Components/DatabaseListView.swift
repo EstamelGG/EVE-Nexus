@@ -57,7 +57,12 @@ struct DatabaseListView: View {
             let publishedItems = items.filter { $0.published }
             if !publishedItems.isEmpty {
                 ForEach(groupedPublishedItems, id: \.id) { group in
-                    Section(header: Text(group.name).textCase(.none)) {
+                    Section(header: Text(group.name)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
                         ForEach(group.items) { item in
                             NavigationLink(destination: item.navigationDestination) {
                                 DatabaseListItemView(
@@ -73,7 +78,12 @@ struct DatabaseListView: View {
             // 未发布的物品
             let unpublishedItems = items.filter { !$0.published }
             if !unpublishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布")).textCase(.none)) {
+                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+                ) {
                     ForEach(unpublishedItems) { item in
                         NavigationLink(destination: item.navigationDestination) {
                             DatabaseListItemView(
@@ -85,7 +95,7 @@ struct DatabaseListView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .listStyle(.plain)
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer,
