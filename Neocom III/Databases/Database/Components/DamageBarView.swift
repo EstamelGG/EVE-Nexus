@@ -13,9 +13,11 @@ struct DamageBarView: View {
                     .overlay(Color.black.opacity(0.5))
                     .frame(width: geometry.size.width)
                 
-                // 进度条
+                // 进度条 - 增加亮度和饱和度
                 Rectangle()
                     .fill(color)
+                    .brightness(0.1)     // 增加亮度
+                    .saturation(1.1)     // 增加饱和度
                     .frame(width: geometry.size.width * CGFloat(percentage) / 100)
                 
                 // 百分比文字 - 使用额外的 ZStack 使文本居中
@@ -32,7 +34,9 @@ struct DamageBarView: View {
         .clipShape(RoundedRectangle(cornerRadius: 2))
         .overlay(
             RoundedRectangle(cornerRadius: 2)
-                .stroke(color, lineWidth: 1)
+                .stroke(color, lineWidth: 1.1)
+                .brightness(0.1)     // 增加亮度
+                .saturation(1.1)     // 增加饱和度
         )
     }
 } 
