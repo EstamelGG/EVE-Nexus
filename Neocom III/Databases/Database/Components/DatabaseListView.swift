@@ -104,7 +104,20 @@ struct DatabaseListView: View {
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { _, newValue in
-            searchController.processSearchInput(newValue)
+            if newValue.isEmpty {
+                // 如果搜索框被清空，立即恢复初始数据
+                loadInitialData()
+                isLoading = false
+            } else {
+                // 只有在输入搜索内容时才使用防抖
+                searchController.processSearchInput(newValue)
+            }
+        }
+        .onSubmit(of: .search) {
+            // 当用户点击搜索按钮时立即执行搜索
+            if !searchText.isEmpty {
+                performSearch(with: searchText)
+            }
         }
         .overlay {
             if isLoading {
@@ -143,10 +156,7 @@ struct DatabaseListView: View {
         searchController.debouncedSearchPublisher
             .receive(on: DispatchQueue.main)
             .sink { query in
-                if query.isEmpty {
-                    loadInitialData()
-                    isLoading = false
-                } else {
+                if !query.isEmpty {  // 只处理非空搜索
                     performSearch(with: query)
                 }
             }
