@@ -142,8 +142,12 @@ struct DatabaseListView: View {
             if newValue.isEmpty {
                 loadInitialData()
                 isLoading = false
+                lastSearchResults = nil  // 清除搜索结果缓存
             } else {
-                searchController.processSearchInput(newValue)
+                // 只有当搜索文本长度大于等于 1 个字符时才触发搜索
+                if newValue.count >= 1 {
+                    searchController.processSearchInput(newValue)
+                }
             }
         }
         .overlay(loadingOverlay)
@@ -171,9 +175,9 @@ struct DatabaseListView: View {
         searchController.debouncedSearchPublisher
             .receive(on: DispatchQueue.main)
             .sink { query in
-                if !query.isEmpty {  // 只处理非空搜索
-                    performSearch(with: query)
-                }
+                // 如果当前搜索文本为空，不执行搜索
+                guard !searchText.isEmpty else { return }
+                performSearch(with: query)
             }
             .store(in: &searchController.cancellables)
     }
@@ -249,7 +253,13 @@ class SearchController: ObservableObject {
     // 防抖处理后的搜索
     var debouncedSearchPublisher: AnyPublisher<String, Never> {
         searchSubject
+            .map { text -> String? in
+                // 如果文本为空，立即返回 nil
+                text.isEmpty ? nil : text
+            }
             .debounce(for: .seconds(debounceInterval), scheduler: DispatchQueue.main)
+            // 过滤掉 nil 值（空文本）
+            .compactMap { $0 }
             .eraseToAnyPublisher()
     }
     
@@ -296,7 +306,7 @@ struct DatabaseListItemView: View {
                         if hasAnyDamage {  // 添加检查是否有任何伤害值
                             HStack(spacing: 8) {  // 增加整体的间距
                                 // 电磁伤害
-                                HStack(spacing: 4) {  // 增加图标和条之间的间距
+                                HStack(spacing: 4) {  // 增加��标和条之间的间距
                                     IconManager.shared.loadImage(for: "items_22_32_20.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
