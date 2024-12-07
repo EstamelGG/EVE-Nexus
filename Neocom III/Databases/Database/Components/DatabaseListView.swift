@@ -275,7 +275,7 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.emDamage ?? 0),
-                                        color: .blue
+                                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
                                     )
                                 }
                                 
@@ -286,7 +286,7 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.themDamage ?? 0),
-                                        color: .red
+                                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
                                     )
                                 }
                                 
@@ -297,7 +297,7 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.kinDamage ?? 0),
-                                        color: .gray
+                                        color: Color(red: 163/255, green: 163/255, blue: 163/255)
                                     )
                                 }
                                 
@@ -308,7 +308,7 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.expDamage ?? 0),
-                                        color: Color(red: 0.8, green: 0.5, blue: 0.0)
+                                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
                                     )
                                 }
                             }
