@@ -40,9 +40,6 @@ struct Neocom_IIIApp: App {
             await MainActor.run {
                 unzipProgress = 1.0
                 loadingState = .unzippingComplete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    loadingState = .loadingDB
-                }
             }
             return
         }
@@ -64,9 +61,6 @@ struct Neocom_IIIApp: App {
             await MainActor.run {
                 unzipProgress = 1.0
                 loadingState = .unzippingComplete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    loadingState = .loadingDB
-                }
             }
         } catch {
             print("Error during icons extraction: \(error)")
@@ -80,7 +74,6 @@ struct Neocom_IIIApp: App {
         // 加载数据库
         await MainActor.run {
             databaseManager.loadDatabase()
-            loadingState = .loadingDBComplete
         }
     }
 

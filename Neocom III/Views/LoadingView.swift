@@ -3,8 +3,6 @@ import SwiftUI
 enum LoadingState {
     case unzipping
     case unzippingComplete
-    case loadingDB
-    case loadingDBComplete
     case complete
 }
 
@@ -47,36 +45,8 @@ struct LoadingView: View {
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.green)
                     }
-                
+                    
                 case .unzippingComplete:
-                    Circle()
-                        .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .foregroundColor(.green)
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.green)
-                        .opacity(showCheckmark ? 1 : 0)
-                        .onAppear {
-                            withAnimation(.easeIn(duration: 0.2)) {
-                                showCheckmark = true
-                            }
-                        }
-                
-                case .loadingDB:
-                    Circle()
-                        .trim(from: 0, to: 0.7)
-                        .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .foregroundColor(.blue)
-                        .frame(width: 80, height: 80)
-                        .rotationEffect(Angle(degrees: rotationAngle))
-                        .onAppear {
-                            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
-                                rotationAngle = 360
-                            }
-                        }
-                
-                case .loadingDBComplete:
                     Circle()
                         .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .foregroundColor(.green)
@@ -93,7 +63,7 @@ struct LoadingView: View {
                                 loadingState = .complete
                             }
                         }
-                
+                    
                 case .complete:
                     EmptyView()
                 }
@@ -121,12 +91,8 @@ struct LoadingView: View {
             }
         case .unzippingComplete:
             return "Icons Ready"
-        case .loadingDB:
-            return "Loading Database..."
-        case .loadingDBComplete:
-            return "Database Ready"
         case .complete:
             return ""
         }
     }
-} 
+}
