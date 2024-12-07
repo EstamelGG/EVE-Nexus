@@ -14,29 +14,16 @@ class IconManager {
     }
     
     private func setupIconsDirectory() {
-        guard let bundleURL = Bundle.main.url(forResource: "icons", withExtension: "zip") else {
-            print("Failed to find icons.zip in bundle")
-            return
+        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let iconsDir = documentsURL.appendingPathComponent("Icons")
+        
+        // 如果图标目录不存在，创建它
+        if !fileManager.fileExists(atPath: iconsDir.path) {
+            try? fileManager.createDirectory(at: iconsDir, withIntermediateDirectories: true)
         }
         
-        do {
-            let cacheURL = try fileManager.url(for: .cachesDirectory,
-                                             in: .userDomainMask,
-                                             appropriateFor: nil,
-                                             create: true)
-            let iconsDir = cacheURL.appendingPathComponent("Icons")
-            
-            // 如果图标目录不存在，解压图标
-            if !fileManager.fileExists(atPath: iconsDir.path) {
-                try? fileManager.createDirectory(at: iconsDir, withIntermediateDirectories: true)
-                try Zip.unzipFile(bundleURL, destination: iconsDir, overwrite: true, password: nil)
-            }
-            
-            self.iconsDirectory = iconsDir
-            print("Successfully setup icons directory")
-        } catch {
-            print("Error setting up icons directory: \(error)")
-        }
+        self.iconsDirectory = iconsDir
+        print("Icons directory setup at: \(iconsDir.path)")
     }
     
     func loadUIImage(for iconName: String) -> UIImage {
@@ -48,19 +35,29 @@ class IconManager {
         
         // 从解压后的目录中读取图片
         guard let iconsDirectory = iconsDirectory else {
+            print("Icons directory is not set")
             return UIImage()
         }
         
-        let iconURL = iconsDirectory.appendingPathComponent(iconName)
-        guard let imageData = try? Data(contentsOf: iconURL),
-              let image = UIImage(data: imageData) else {
-            print("Failed to load image: \(iconName)")
-            return UIImage()
+        // 尝试不同的扩展名组合
+        let possibleNames = [
+            iconName,
+            iconName.lowercased(),
+            iconName.replacingOccurrences(of: ".png", with: ".PNG")
+        ]
+        
+        for name in possibleNames {
+            let iconURL = iconsDirectory.appendingPathComponent(name)
+            if let imageData = try? Data(contentsOf: iconURL),
+               let image = UIImage(data: imageData) {
+                // 缓存图片
+                imageCache.setObject(image, forKey: cacheKey)
+                return image
+            }
         }
         
-        // 缓存图片
-        imageCache.setObject(image, forKey: cacheKey)
-        return image
+        print("Failed to load image: \(iconName)")
+        return UIImage()
     }
     
     func loadImage(for iconName: String) -> Image {
@@ -68,25 +65,32 @@ class IconManager {
     }
     
     func preloadCommonIcons(icons: [String]) {
-        DispatchQueue.global(qos: .background).async {
+        DispatchQueue.global(qos: .userInitiated).async {
             for iconName in icons {
                 _ = self.loadUIImage(for: iconName)
             }
         }
     }
     
-    func clearCache() {
+    func clearCache() throws {
         imageCache.removeAllObjects()
         if let iconsDirectory = iconsDirectory {
-            try? fileManager.removeItem(at: iconsDirectory)
+            try fileManager.removeItem(at: iconsDirectory)
             setupIconsDirectory()
         }
     }
     
     func unzipIcons(from sourceURL: URL, to destinationURL: URL, progress: @escaping (Double) -> Void) async throws {
+        print("Starting icon extraction from \(sourceURL.path)")
+        print("Extracting to: \(destinationURL.path)")
+        
         try? fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
         try Zip.unzipFile(sourceURL, destination: destinationURL, overwrite: true, password: nil) { progressValue in
             progress(progressValue)
         }
+        
+        // 更新内部的 iconsDirectory
+        self.iconsDirectory = destinationURL
+        print("Successfully extracted icons to \(destinationURL.path)")
     }
 }
