@@ -239,7 +239,7 @@ struct DatabaseListItemView: View {
     let showDetails: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 // 加载并显示图标
                 IconManager.shared.loadImage(for: item.iconFileName)
