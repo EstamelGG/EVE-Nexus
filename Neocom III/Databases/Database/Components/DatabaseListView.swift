@@ -256,13 +256,13 @@ struct DatabaseListItemView: View {
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
-                                IconWithValueView(iconName: "icon_1539_64.png", value: pgNeed)
+                                IconWithValueView(iconName: "icon_1539_64.png", value: "\(pgNeed) MW")
                             }
                             if let cpuNeed = item.cpuNeed {
-                                IconWithValueView(iconName: "icon_3887_64.png", value: cpuNeed)
+                                IconWithValueView(iconName: "icon_3887_64.png", value: "\(cpuNeed) Tf")
                             }
                             if let rigCost = item.rigCost {
-                                IconWithValueView(iconName: "icon_41312_64.png", value: rigCost)
+                                IconWithValueView(iconName: "icon_41312_64.png", value: "\(rigCost)")
                             }
                         }
                     }
@@ -318,24 +318,24 @@ struct DatabaseListItemView: View {
                     }
                     // 舰船
                     else if categoryID == 6 {
-                        HStack(spacing: 4) {  // 减小槽位之间的间距
-                            if let highSlot = item.highSlot {
-                                IconWithValueView(iconName: "items_8_64_11.png", value: highSlot)
+                        HStack(spacing: 8) {  // 减小槽位之间的间距
+                            if let highSlot = item.highSlot, highSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_11.png", value: "\(highSlot)")
                             }
-                            if let midSlot = item.midSlot {
-                                IconWithValueView(iconName: "items_8_64_10.png", value: midSlot)
+                            if let midSlot = item.midSlot, midSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_10.png", value: "\(midSlot)")
                             }
-                            if let lowSlot = item.lowSlot {
-                                IconWithValueView(iconName: "items_8_64_19.png", value: lowSlot)
+                            if let lowSlot = item.lowSlot, lowSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_9.png", value: "\(lowSlot)")
                             }
-                            if let rigSlot = item.rigSlot {
-                                IconWithValueView(iconName: "items_68_64_1.png", value: rigSlot)
+                            if let rigSlot = item.rigSlot, rigSlot != 0 {
+                                IconWithValueView(iconName: "items_68_64_1.png", value: "\(rigSlot)")
                             }
-                            if let gunSlot = item.gunSlot {
-                                IconWithValueView(iconName: "icon_484_64.png", value: gunSlot)
+                            if let gunSlot = item.gunSlot, gunSlot != 0 {
+                                IconWithValueView(iconName: "icon_484_64.png", value: "\(gunSlot)")
                             }
-                            if let missSlot = item.missSlot {
-                                IconWithValueView(iconName: "icon_44102_64.png", value: missSlot)
+                            if let missSlot = item.missSlot, missSlot != 0 {
+                                IconWithValueView(iconName: "icon_44102_64.png", value: "\(missSlot)")
                             }
                         }
                     }
@@ -372,14 +372,14 @@ struct DatabaseListItemView: View {
 // 图标和数值的组合视图
 struct IconWithValueView: View {
     let iconName: String
-    let value: Int
+    let value: String
     
     var body: some View {
         HStack(spacing: 2) {
             IconManager.shared.loadImage(for: iconName)
                 .resizable()
                 .frame(width: 18, height: 18)
-            Text("\(value)")
+            Text(value)
         }
     }
 }
