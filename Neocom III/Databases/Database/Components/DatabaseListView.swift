@@ -95,7 +95,7 @@ struct DatabaseListView: View {
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer,
@@ -168,7 +168,7 @@ struct DatabaseListView: View {
         
         // 保存搜索结果
         lastSearchResults = (searchResults, metaGroupNames)
-        isShowingSearchResults = true  // 设置搜索结果标志
+        isShowingSearchResults = true  // 设���搜索结果标志
         
         isLoading = false
     }
