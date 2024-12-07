@@ -132,8 +132,11 @@ struct DatabaseListView: View {
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .refreshable {
-            // 在下拉刷新时激活搜索框
             isSearchActive = true
+            // 添加一个短暂延迟以确保搜索栏完全显示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isSearchActive = true
+            }
         }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty {
@@ -274,7 +277,7 @@ struct DatabaseListItemView: View {
             
             if showDetails, let categoryID = item.categoryID {
                 VStack(alignment: .leading, spacing: 2) {
-                    // 装备、��筑装备和改装件
+                    // 装备、建筑装备和改装件
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
