@@ -1,5 +1,6 @@
 import SwiftUI
 import SQLite3
+import Zip
 
 @main
 struct Neocom_IIIApp: App {
@@ -31,9 +32,11 @@ struct Neocom_IIIApp: App {
         }
 
         let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
+        let iconURL = URL(fileURLWithPath: iconPath)
 
-        // 检查目录是否存在并且不为空
-        if FileManager.default.fileExists(atPath: destinationPath.path),
+        // 检查是否已经成功解压过
+        if IconManager.shared.isExtractionComplete,
+           FileManager.default.fileExists(atPath: destinationPath.path),
            let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
            !contents.isEmpty {
             print("Icons folder exists and contains \(contents.count) files, skipping extraction.")
@@ -44,26 +47,26 @@ struct Neocom_IIIApp: App {
             return
         }
 
-        // 如果目录存在但为空，删除它
+        // 如果目录存在但未完全解压，删除它重新解压
         if FileManager.default.fileExists(atPath: destinationPath.path) {
             try? FileManager.default.removeItem(at: destinationPath)
         }
 
         do {
-            let iconURL = URL(fileURLWithPath: iconPath)
             try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) { progress in
                 Task { @MainActor in
                     unzipProgress = progress
                 }
             }
             
-            print("Successfully extracted icons to \(destinationPath.path)")
             await MainActor.run {
                 unzipProgress = 1.0
                 loadingState = .unzippingComplete
             }
         } catch {
             print("Error during icons extraction: \(error)")
+            // 解压失败时重置状态
+            IconManager.shared.isExtractionComplete = false
         }
     }
     

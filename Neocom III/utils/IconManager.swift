@@ -8,6 +8,8 @@ class IconManager {
     private let fileManager = FileManager.default
     private var imageCache = NSCache<NSString, UIImage>()
     private var iconsDirectory: URL?
+    private let defaults = UserDefaults.standard
+    private let extractionStateKey = "IconExtractionComplete"
     
     private init() {
         setupIconsDirectory()
@@ -24,6 +26,15 @@ class IconManager {
         
         self.iconsDirectory = iconsDir
         print("Icons directory setup at: \(iconsDir.path)")
+    }
+    
+    var isExtractionComplete: Bool {
+        get {
+            defaults.bool(forKey: extractionStateKey)
+        }
+        set {
+            defaults.set(newValue, forKey: extractionStateKey)
+        }
     }
     
     func loadUIImage(for iconName: String) -> UIImage {
@@ -77,12 +88,17 @@ class IconManager {
         if let iconsDirectory = iconsDirectory {
             try fileManager.removeItem(at: iconsDirectory)
             setupIconsDirectory()
+            // 重置解压状态
+            isExtractionComplete = false
         }
     }
     
     func unzipIcons(from sourceURL: URL, to destinationURL: URL, progress: @escaping (Double) -> Void) async throws {
         print("Starting icon extraction from \(sourceURL.path)")
         print("Extracting to: \(destinationURL.path)")
+        
+        // 重置解压状态
+        isExtractionComplete = false
         
         try? fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
         try Zip.unzipFile(sourceURL, destination: destinationURL, overwrite: true, password: nil) { progressValue in
@@ -91,6 +107,19 @@ class IconManager {
         
         // 更新内部的 iconsDirectory
         self.iconsDirectory = destinationURL
-        print("Successfully extracted icons to \(destinationURL.path)")
+        
+        // 验证解压是否成功
+        if let contents = try? fileManager.contentsOfDirectory(atPath: destinationURL.path),
+           !contents.isEmpty {
+            // 设置解压完成状态
+            isExtractionComplete = true
+            print("Successfully extracted \(contents.count) icons to \(destinationURL.path)")
+        } else {
+            throw IconManagerError.readError("Extraction failed: directory is empty")
+        }
+    }
+    
+    enum IconManagerError: Error {
+        case readError(String)
     }
 }
