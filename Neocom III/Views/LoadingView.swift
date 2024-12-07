@@ -12,7 +12,7 @@ struct LoadingView: View {
     let onComplete: () -> Void
     
     @State private var showCheckmark = false
-    @State private var rotationAngle: Double = 0
+    @State private var opacity: Double = 1.0
     
     var body: some View {
         VStack(spacing: 20) {
@@ -33,7 +33,7 @@ struct LoadingView: View {
                         .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .foregroundColor(.green)
                         .frame(width: 80, height: 80)
-                        .rotationEffect(Angle(degrees: -90))  // 从顶部开始
+                        .rotationEffect(Angle(degrees: -90))
                     
                     // 进度文本
                     if progress != 0 {
@@ -46,7 +46,7 @@ struct LoadingView: View {
                             .foregroundColor(.green)
                     }
                     
-                case .unzippingComplete:
+                case .unzippingComplete, .complete:
                     Circle()
                         .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .foregroundColor(.green)
@@ -59,20 +59,26 @@ struct LoadingView: View {
                             withAnimation(.easeIn(duration: 0.2)) {
                                 showCheckmark = true
                             }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                loadingState = .complete
+                            if loadingState == .unzippingComplete {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    withAnimation(.easeOut(duration: 0.3)) {
+                                        opacity = 0
+                                    }
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        loadingState = .complete
+                                    }
+                                }
                             }
                         }
-                    
-                case .complete:
-                    EmptyView()
                 }
             }
+            .opacity(opacity)
             
             // 加载文本
             Text(loadingText)
                 .font(.headline)
                 .foregroundColor(.primary)
+                .opacity(opacity)
         }
         .onChange(of: loadingState) { _, newState in
             if newState == .complete {
@@ -89,10 +95,8 @@ struct LoadingView: View {
             } else {
                 return "Unzipping Icons... \(Int(progress * 100))%"
             }
-        case .unzippingComplete:
+        case .unzippingComplete, .complete:
             return "Icons Ready"
-        case .complete:
-            return ""
         }
     }
 }
