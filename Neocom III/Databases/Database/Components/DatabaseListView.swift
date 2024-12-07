@@ -46,95 +46,106 @@ struct DatabaseListView: View {
     @State private var searchText = ""
     @State private var isLoading = false
     @State private var lastSearchResults: ([DatabaseListItem], [Int: String])? = nil
-    @State private var isShowingSearchResults = false  // 添加标志来表示是否正在显示搜索结果
+    @State private var isShowingSearchResults = false
+    @State private var isSearchActive = false  // 新增：控制搜索框激活状态
     
     // Combine 用于处理搜索
     @StateObject private var searchController = SearchController()
+    
+    // 新增：提取已发布物品的视图
+    private var publishedItemsView: some View {
+        ForEach(groupedPublishedItems, id: \.id) { group in
+            Section(header: Text(group.name)
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
+            ) {
+                ForEach(group.items) { item in
+                    NavigationLink(destination: item.navigationDestination) {
+                        DatabaseListItemView(
+                            item: item,
+                            showDetails: groupingType == .metaGroups || isShowingSearchResults
+                        )
+                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+        }
+    }
+    
+    // 新增：提取未发布物品的视图
+    private var unpublishedItemsView: some View {
+        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+            .fontWeight(.bold)
+            .font(.system(size: 18))
+            .foregroundColor(.primary)
+            .textCase(.none)
+        ) {
+            ForEach(items.filter { !$0.published }) { item in
+                NavigationLink(destination: item.navigationDestination) {
+                    DatabaseListItemView(
+                        item: item,
+                        showDetails: groupingType == .metaGroups || isShowingSearchResults
+                    )
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            }
+        }
+    }
+    
+    // 新增：提取加载状态的视图
+    @ViewBuilder
+    private var loadingOverlay: some View {
+        if isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.ultraThinMaterial)
+        } else if items.isEmpty && !searchText.isEmpty {
+            ContentUnavailableView {
+                Label("未找到", systemImage: "magnifyingglass")
+            } description: {
+                Text("没有找到匹配的项目")
+            }
+        }
+    }
     
     var body: some View {
         List {
             // 已发布的物品
             let publishedItems = items.filter { $0.published }
             if !publishedItems.isEmpty {
-                ForEach(groupedPublishedItems, id: \.id) { group in
-                    Section(header: Text(group.name)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                    ) {
-                        ForEach(group.items) { item in
-                            NavigationLink(destination: item.navigationDestination) {
-                                DatabaseListItemView(
-                                    item: item,
-                                    showDetails: groupingType == .metaGroups || isShowingSearchResults
-                                )
-                            }
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        }
-                    }
-                }
+                publishedItemsView
             }
             
             // 未发布的物品
             let unpublishedItems = items.filter { !$0.published }
             if !unpublishedItems.isEmpty {
-                Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
-                    .fontWeight(.bold)
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .textCase(.none)
-                ) {
-                    ForEach(unpublishedItems) { item in
-                        NavigationLink(destination: item.navigationDestination) {
-                            DatabaseListItemView(
-                                item: item,
-                                showDetails: groupingType == .metaGroups || isShowingSearchResults
-                            )
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    }
-                }
+                unpublishedItemsView
             }
         }
         .listStyle(.insetGrouped)
         .searchable(
             text: $searchText,
+            isPresented: $isSearchActive,
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
+        .refreshable {
+            // 在下拉刷新时激活搜索框
+            isSearchActive = true
+        }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty {
-                // 如果搜索框被清空，立即恢复初始数据
                 loadInitialData()
                 isLoading = false
             } else {
-                // 只有在输入搜索内容时才使用防抖
                 searchController.processSearchInput(newValue)
             }
         }
-        .onSubmit(of: .search) {
-            // 当用户点击搜索按钮时立即执行搜索
-            if !searchText.isEmpty {
-                performSearch(with: searchText)
-            }
-        }
-        .overlay {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.ultraThinMaterial)
-            } else if items.isEmpty && !searchText.isEmpty {
-                ContentUnavailableView {
-                    Label("未找到", systemImage: "magnifyingglass")
-                } description: {
-                    Text("没有找到匹配的项目")
-                }
-            }
-        }
+        .overlay(loadingOverlay)
         .navigationTitle(title)
         .onAppear {
-            // 如果有上次的搜索结果，直接使用
             if let lastResults = lastSearchResults {
                 items = lastResults.0
                 metaGroupNames = lastResults.1
@@ -263,7 +274,7 @@ struct DatabaseListItemView: View {
             
             if showDetails, let categoryID = item.categoryID {
                 VStack(alignment: .leading, spacing: 2) {
-                    // 装备、建筑装备和改装件
+                    // 装备、��筑装备和改装件
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
@@ -380,7 +391,7 @@ struct DatabaseListItemView: View {
     }
 }
 
-// 图标和数值的组合视图
+// 图标和数值的组合图
 struct IconWithValueView: View {
     let iconName: String
     let value: String
