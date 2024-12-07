@@ -147,18 +147,44 @@ struct DatabaseListView: View {
         )
         .refreshable {
             isSearchActive = true
-            // 添加一个短暂延迟以确保搜索栏完全显示
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 isSearchActive = true
+            }
+        }
+        .gesture(
+            DragGesture()
+                .onEnded { gesture in
+                    // 检测右划动作（x轴位移为正）
+                    if gesture.translation.width > 50 && isShowingSearchResults {
+                        searchText = ""
+                        isSearchActive = false
+                        loadInitialData()
+                    }
+                }
+        )
+        .navigationBarBackButtonHidden(isShowingSearchResults)
+        .toolbar {
+            if isShowingSearchResults {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        searchText = ""
+                        isSearchActive = false
+                        loadInitialData()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("返回")
+                        }
+                    }
+                }
             }
         }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty {
                 loadInitialData()
                 isLoading = false
-                lastSearchResults = nil  // 清除搜索结果缓存
+                lastSearchResults = nil
             } else {
-                // 只有当搜索文本长度大于等于 1 个字符时才触发搜索
                 if newValue.count >= 1 {
                     searchController.processSearchInput(newValue)
                 }
