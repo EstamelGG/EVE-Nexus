@@ -1,91 +1,124 @@
 import SwiftUI
+import UIKit
 
-// 设置项结构，destination 现在使用 Any 类型
+// 设置项结构
 struct SettingItem: Identifiable {
     let id = UUID()
     let title: String
-    let detail: String? // 可选的详细描述
-    let destination: Any // 目标视图类型为 Any
-
-    init(title: String, detail: String? = nil, destination: Any? = nil) {
+    let detail: String?
+    let icon: String
+    let iconColor: Color
+    let action: () -> Void
+    
+    init(title: String, detail: String? = nil, icon: String, iconColor: Color = .blue, action: @escaping () -> Void) {
         self.title = title
         self.detail = detail
-        self.destination = destination ?? Text("Unknown destination")
+        self.icon = icon
+        self.iconColor = iconColor
+        self.action = action
     }
 }
 
-// 设置视图页面
+// 设置组结构
+struct SettingGroup: Identifiable {
+    let id = UUID()
+    let header: String
+    let items: [SettingItem]
+}
+
 struct SettingView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
-    @State private var currentIcon: String = "circle.lefthalf.fill"
+    @State private var showingCleanCacheAlert = false
+    @State private var showingLanguageView = false
     @ObservedObject var databaseManager: DatabaseManager
     
-    // 获取设置项
-    private var settingItems: [SettingItem] {
+    private var settingGroups: [SettingGroup] {
         [
-            SettingItem(
-                title: NSLocalizedString("Main_Setting_Language", comment: "Language section"),
-                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
-                destination: SelectLanguageView(databaseManager: databaseManager) // 传递数据库管理器
-            )
-            // 更多设置项
+            SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
+                    detail: getAppearanceDetail(),
+                    icon: getThemeIcon(),
+                    action: toggleAppearance
+                )
+            ]),
+            
+            SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_Language", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                    icon: "globe",
+                    action: { showingLanguageView = true }
+                )
+            ]),
+            
+            SettingGroup(header: "Cache", items: [
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Clean_Cache_detail", comment: ""),
+                    icon: "trash",
+                    iconColor: .red,
+                    action: { showingCleanCacheAlert = true }
+                )
+            ])
         ]
     }
     
     var body: some View {
         List {
-            Section(header: Text(NSLocalizedString("Main_Setting_Appearance", comment: ""))
-                .fontWeight(.bold)
-                .font(.system(size: 18))
-                .foregroundColor(.primary)
-            ) {
-                Button(action: toggleAppearance) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(NSLocalizedString("Main_Setting_ColorMode", comment: ""))
-                                .font(.system(size: 16))
-                            Text(getAppearanceDetail() ?? "Unknown")
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray)
-                        }
-                        Spacer()
-                        Image(systemName: currentIcon)
-                            .font(.system(size: 20))
-                            .frame(width: 36, height: 36)
-                            .foregroundColor(.blue)
-                    }
-                    .frame(height: 36)
-                }
-            }
-            
-            Section(header: Text(NSLocalizedString("Main_Setting_Others", comment: ""))
-                .fontWeight(.bold)
-                .font(.system(size: 18))
-                .foregroundColor(.primary)
-            ) {
-                ForEach(settingItems) { item in
-                    NavigationLink(destination: destinationView(for: item.destination)) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(item.title)
-                                    .font(.system(size: 16))
-                                    .fontWeight(.medium)
-                                if let detail = item.detail, !detail.isEmpty {
-                                    Text(detail)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.gray)
+            ForEach(settingGroups) { group in
+                Section(
+                    header: Text(group.header)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(nil)
+                ) {
+                    ForEach(group.items) { item in
+                        Button(action: item.action) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(item.title)
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.primary)
+                                    if let detail = item.detail {
+                                        Text(detail)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.gray)
+                                    }
                                 }
+                                Spacer()
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 20))
+                                    .frame(width: 36, height: 36)
+                                    .foregroundColor(item.iconColor)
                             }
+                            .frame(height: 36)
                         }
-                        .frame(height: 36)
                     }
                 }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
-        .onAppear {
-            updateCurrentIcon()
+        .navigationDestination(isPresented: $showingLanguageView) {
+            SelectLanguageView(databaseManager: databaseManager)
+        }
+        .alert("Clean Cache", isPresented: $showingCleanCacheAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Clean", role: .destructive) {
+                cleanCache()
+            }
+        } message: {
+            Text("This will clean the icons cache and restart the app. Are you sure?")
+        }
+    }
+    
+    private func getThemeIcon() -> String {
+        switch selectedTheme {
+        case "light": return "sun.max.fill"
+        case "dark": return "moon.fill"
+        default: return "circle.lefthalf.fill"
         }
     }
     
@@ -93,32 +126,16 @@ struct SettingView: View {
         switch selectedTheme {
         case "light":
             selectedTheme = "dark"
-            currentIcon = "moon.fill"
         case "dark":
             selectedTheme = "system"
-            currentIcon = "circle.lefthalf.fill"
         case "system":
             selectedTheme = "light"
-            currentIcon = "sun.max.fill"
         default:
             break
         }
     }
 
-    private func updateCurrentIcon() {
-        switch selectedTheme {
-        case "light":
-            currentIcon = "sun.max.fill"
-        case "dark":
-            currentIcon = "moon.fill"
-        case "system":
-            currentIcon = "circle.lefthalf.fill"
-        default:
-            currentIcon = "circle.lefthalf.fill"
-        }
-    }
-
-    private func getAppearanceDetail() -> String? {
+    private func getAppearanceDetail() -> String {
         switch selectedTheme {
         case "light":
             return NSLocalizedString("Main_Setting_Light", comment: "")
@@ -127,16 +144,20 @@ struct SettingView: View {
         case "system":
             return NSLocalizedString("Main_Setting_Auto", comment: "")
         default:
-            return nil
+            return NSLocalizedString("Main_Setting_Auto", comment: "")
         }
     }
     
-    // 根据目标视图的类型返回视图
-    private func destinationView(for destination: Any) -> some View {
-        if let view = destination as? SelectLanguageView {
-            return AnyView(view)
-        } else {
-            return AnyView(Text("Unknown destination"))
+    private func cleanCache() {
+        let fileManager = FileManager.default
+        let destinationPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
+        
+        do {
+            try fileManager.removeItem(at: destinationPath)
+            print("Successfully deleted Icons directory")
+            exit(0)
+        } catch {
+            print("Error deleting Icons directory: \(error)")
         }
     }
 }

@@ -52,6 +52,8 @@
 "Main_Setting_Auto" = "跟随系统";
 "Main_Setting_Select Language" = "选择语言";
 "Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
+"Main_Setting_Clean_Cache" = "清理缓存";
+"Main_Setting_Clean_Cache_detail" = "清理图片缓存并重启APP";
 
 "Main_About" = "关于";
 "Main_About_Title" = "关于";
