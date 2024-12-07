@@ -153,9 +153,23 @@ struct SettingView: View {
         let destinationPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
         
         do {
-            try fileManager.removeItem(at: destinationPath)
-            print("Successfully deleted Icons directory")
-            exit(0)
+            if fileManager.fileExists(atPath: destinationPath.path) {
+                try fileManager.removeItem(at: destinationPath)
+                print("Successfully deleted Icons directory")
+                
+                // 确保目录被完全删除
+                if !fileManager.fileExists(atPath: destinationPath.path) {
+                    print("Verified: Icons directory has been removed")
+                    // 等待文件系统完成操作
+                    Thread.sleep(forTimeInterval: 0.5)
+                    exit(0)
+                } else {
+                    print("Warning: Icons directory still exists after deletion")
+                }
+            } else {
+                print("Icons directory does not exist")
+                exit(0)
+            }
         } catch {
             print("Error deleting Icons directory: \(error)")
         }

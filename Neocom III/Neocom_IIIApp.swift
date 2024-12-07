@@ -1,6 +1,5 @@
 import SwiftUI
 import SQLite3
-import Zip
 
 @main
 struct Neocom_IIIApp: App {
@@ -25,16 +24,19 @@ struct Neocom_IIIApp: App {
         }
     }
 
-    private func decompressIconsZip() async {
-        guard let zipFilePath = Bundle.main.url(forResource: "icons", withExtension: "zip") else {
-            print("icons.zip file not found")
+    private func extractIcons() async {
+        guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
+            print("icons.zip file not found in bundle")
             return
         }
 
         let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
 
-        if FileManager.default.fileExists(atPath: destinationPath.path) {
-            print("Icons folder already exists, skipping extraction.")
+        // 检查目录是否存在并且不为空
+        if FileManager.default.fileExists(atPath: destinationPath.path),
+           let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
+           !contents.isEmpty {
+            print("Icons folder exists and contains \(contents.count) files, skipping extraction.")
             await MainActor.run {
                 unzipProgress = 1.0
                 loadingState = .unzippingComplete
@@ -45,41 +47,20 @@ struct Neocom_IIIApp: App {
             return
         }
 
+        // 如果目录存在但为空，删除它
+        if FileManager.default.fileExists(atPath: destinationPath.path) {
+            try? FileManager.default.removeItem(at: destinationPath)
+        }
+
         do {
-            // 创建临时解压目录
-            let tempExtractPath = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try FileManager.default.createDirectory(at: tempExtractPath, withIntermediateDirectories: true)
-            
-            // 先解压到临时目录
-            try Zip.unzipFile(zipFilePath, destination: tempExtractPath, overwrite: true, password: nil)
-            
-            // 获取所有文件
-            let fileEnumerator = FileManager.default.enumerator(at: tempExtractPath, includingPropertiesForKeys: [.fileSizeKey])
-            let totalFiles = (try? FileManager.default.contentsOfDirectory(at: tempExtractPath, includingPropertiesForKeys: nil).count) ?? 0
-            var processedFiles = 0
-            
-            // 创建最终目录
-            try FileManager.default.createDirectory(at: destinationPath, withIntermediateDirectories: true)
-            
-            // 逐个移动文件并更新进度
-            while let fileURL = fileEnumerator?.nextObject() as? URL {
-                let fileName = fileURL.lastPathComponent
-                let targetURL = destinationPath.appendingPathComponent(fileName)
-                
-                try FileManager.default.moveItem(at: fileURL, to: targetURL)
-                
-                processedFiles += 1
-                let progress = Double(processedFiles) / Double(totalFiles)
-                
-                await MainActor.run {
+            let iconURL = URL(fileURLWithPath: iconPath)
+            try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) { progress in
+                Task { @MainActor in
                     unzipProgress = progress
                 }
             }
             
-            // 清理临时目录
-            try FileManager.default.removeItem(at: tempExtractPath)
-            
-            print("Successfully unzipped icons.zip to \(destinationPath.path)")
+            print("Successfully extracted icons to \(destinationPath.path)")
             await MainActor.run {
                 unzipProgress = 1.0
                 loadingState = .unzippingComplete
@@ -88,13 +69,15 @@ struct Neocom_IIIApp: App {
                 }
             }
         } catch {
-            print("Error unzipping icons.zip: \(error)")
+            print("Error during icons extraction: \(error)")
         }
     }
     
     private func initializeApp() async {
-        await decompressIconsZip()
+        // 解压图标
+        await extractIcons()
         
+        // 加载数据库
         await MainActor.run {
             databaseManager.loadDatabase()
             loadingState = .loadingDBComplete

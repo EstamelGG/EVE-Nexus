@@ -323,7 +323,7 @@ struct DatabaseListItemView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 // 加载并显示图标
-                IconManager.shared.loadImage(for: item.iconFileName)
+                Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
