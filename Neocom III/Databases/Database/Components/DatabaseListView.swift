@@ -97,16 +97,30 @@ struct DatabaseListView: View {
     // 新增：提取加载状态的视图
     @ViewBuilder
     private var loadingOverlay: some View {
-        if isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.ultraThinMaterial)
+        if isLoading || (!searchText.isEmpty && !isShowingSearchResults) {
+            Color(.systemBackground)  // 使用系统背景色作为不透明遮罩
+                .ignoresSafeArea()
+                .overlay {
+                    VStack {
+                        ProgressView()
+                        Text("正在搜索...")
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                    }
+                }
         } else if items.isEmpty && !searchText.isEmpty {
             ContentUnavailableView {
                 Label("未找到", systemImage: "magnifyingglass")
             } description: {
                 Text("没有找到匹配的项目")
             }
+        } else if searchText.isEmpty && isSearchActive {
+            // 添加一个可点击的半透明遮罩
+            Color.black.opacity(0.2)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    isSearchActive = false
+                }
         }
     }
     
@@ -185,23 +199,29 @@ struct DatabaseListView: View {
     private func performSearch(with text: String) {
         guard let searchData = searchData else { return }
         
-        isLoading = true
-        let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
-        items = searchResults
+        isLoading = true  // 开始搜索，显示加载状态
         
-        // 更新 metaGroupNames
-        if searchMetaGroupNames.isEmpty {
-            let metaGroupIDs = Set(searchResults.compactMap { $0.metaGroupID })
-            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
-        } else {
-            metaGroupNames = searchMetaGroupNames
+        // 在主线程中执行搜索
+        DispatchQueue.main.async {
+            let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
+            
+            // 更新 UI
+            items = searchResults
+            
+            // 更新 metaGroupNames
+            if searchMetaGroupNames.isEmpty {
+                let metaGroupIDs = Set(searchResults.compactMap { $0.metaGroupID })
+                metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
+            } else {
+                metaGroupNames = searchMetaGroupNames
+            }
+            
+            // 保存搜索结果
+            lastSearchResults = (searchResults, metaGroupNames)
+            isShowingSearchResults = true  // 搜索结果标志
+            
+            isLoading = false  // 搜索完成，隐藏加载状态
         }
-        
-        // 保存搜索结果
-        lastSearchResults = (searchResults, metaGroupNames)
-        isShowingSearchResults = true  // 搜索结果标志
-        
-        isLoading = false
     }
     
     // 已发布物品的分组
@@ -306,7 +326,7 @@ struct DatabaseListItemView: View {
                         if hasAnyDamage {  // 添加检查是否有任何伤害值
                             HStack(spacing: 8) {  // 增加整体的间距
                                 // 电磁伤害
-                                HStack(spacing: 4) {  // 增加��标和条之间的间距
+                                HStack(spacing: 4) {  // 增加图标和条之间的间距
                                     IconManager.shared.loadImage(for: "items_22_32_20.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
