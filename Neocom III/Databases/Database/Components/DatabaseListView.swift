@@ -70,6 +70,7 @@ struct DatabaseListView: View {
                                     showDetails: groupingType == .metaGroups || isShowingSearchResults
                                 )
                             }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
                 }
@@ -91,6 +92,7 @@ struct DatabaseListView: View {
                                 showDetails: groupingType == .metaGroups || isShowingSearchResults
                             )
                         }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
                 }
             }
@@ -168,7 +170,7 @@ struct DatabaseListView: View {
         
         // 保存搜索结果
         lastSearchResults = (searchResults, metaGroupNames)
-        isShowingSearchResults = true  // 设���搜索结果标志
+        isShowingSearchResults = true  // 搜索结果标志
         
         isLoading = false
     }
@@ -297,7 +299,7 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.kinDamage ?? 0),
-                                        color: Color(red: 163/255, green: 163/255, blue: 163/255)
+                                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
                                     )
                                 }
                                 
