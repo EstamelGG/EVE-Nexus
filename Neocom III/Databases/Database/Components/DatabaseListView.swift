@@ -428,10 +428,8 @@ struct DatabaseListItemView: View {
     }
     
     private var hasAnyDamage: Bool {
-        // 只要有任何一个伤害属性不为 nil，就显示伤害条
-        // 注意：0 也是有效值，不应该被排除
-        return [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
-            .contains { $0 != nil }
+        let damages = [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
+        return !damages.contains(nil) && damages.compactMap { $0 }.contains { $0 > 0 }
     }
     
     private func calculateDamagePercentage(_ damage: Double) -> Int {
