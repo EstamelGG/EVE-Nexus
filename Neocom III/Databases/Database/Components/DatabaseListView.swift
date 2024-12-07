@@ -100,7 +100,7 @@ struct DatabaseListView: View {
         .listStyle(.insetGrouped)
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer,
+            placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { _, newValue in
