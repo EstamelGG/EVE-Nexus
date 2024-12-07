@@ -150,6 +150,7 @@ struct DatabaseListView: View {
         items = loadedItems
         metaGroupNames = loadedMetaGroupNames
         isShowingSearchResults = false  // 重置搜索结果标志
+        lastSearchResults = nil  // 清除搜索结果缓存
     }
     
     private func setupSearch() {
