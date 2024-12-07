@@ -30,5 +30,9 @@ struct DamageBarView: View {
         }
         .frame(height: 20)
         .clipShape(RoundedRectangle(cornerRadius: 2))
+        .overlay(
+            RoundedRectangle(cornerRadius: 2)
+                .stroke(color, lineWidth: 1)
+        )
     }
 } 
