@@ -52,6 +52,7 @@ struct AttributeDisplayConfig {
     private static let valueTransformRules: [Int: (Double) -> TransformResult] = [
         37: { value in return .number(value, " m/s")},
         70: { value in return .number(value, " x")},
+        76: { value in return .number(value/1000, " km")},
         188: { value in
             if value == 1 {
                 return .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
@@ -60,6 +61,8 @@ struct AttributeDisplayConfig {
             }
         },
         283: { value in return .number(value, " m3")},
+        552: { value in return .number(value, " m")},
+        564: { value in return .number(value, " mm")},
         908: { value in return .number(value, " m3")},
         912: { value in return .number(value, " m3")},
         1086: { value in return .number(value, " m3")},
