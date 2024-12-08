@@ -9,6 +9,82 @@ struct AttributeDisplayConfig {
         case resistance([Double])     // 抗性显示（EM, Thermal, Kinetic, Explosive）
     }
     
+    // 特殊值映射类型
+    private enum SpecialValueType {
+        case boolean           // 布尔值 (True/False)
+        case size             // 尺寸 (Small/Medium/Large)
+        case gender           // 性别 (Male/Unisex/Female)
+        
+        func transform(_ value: Double) -> String {
+            switch self {
+            case .boolean:
+                return value == 1 ? "True" : "False"
+            case .size:
+                switch Int(value) {
+                case 1: return "Small"
+                case 2: return "Medium"
+                case 3: return "Large"
+                default: return "Unknown"
+                }
+            case .gender:
+                switch Int(value) {
+                case 1: return "Male"
+                case 2: return "Unisex"
+                case 3: return "Female"
+                default: return "Unknown"
+                }
+            }
+        }
+    }
+    
+    // 特殊值映射配置
+    private static let specialValueMappings: [Int: SpecialValueType] = [
+        // 尺寸映射
+        128: .size,
+        1031: .size,
+        1547: .size,
+        
+        // 性别映射
+        1773: .gender,
+        
+        // 布尔值映射
+        786: .boolean,
+        854: .boolean,
+        861: .boolean,
+        1014: .boolean,
+        1074: .boolean,
+        1158: .boolean,
+        1167: .boolean,
+        1245: .boolean,
+        1252: .boolean,
+        1785: .boolean,
+        1798: .boolean,
+        1806: .boolean,
+        1854: .boolean,
+        1890: .boolean,
+        1916: .boolean,
+        1920: .boolean,
+        1927: .boolean,
+        1945: .boolean,
+        1958: .boolean,
+        1970: .boolean,
+        2343: .boolean,
+        2354: .boolean,
+        2395: .boolean,
+        2453: .boolean,
+        2454: .boolean,
+        2791: .boolean,
+        2826: .boolean,
+        2827: .boolean,
+        3117: .boolean,
+        3123: .boolean,
+        5206: .boolean,
+        5425: .boolean,
+        5426: .boolean,
+        5561: .boolean,
+        5700: .boolean
+    ]
+    
     // 抗性属性组定义
     struct ResistanceGroup {
         let groupID: Int
@@ -242,6 +318,11 @@ struct AttributeDisplayConfig {
     static func transformValue(_ attributeID: Int, allAttributes: [Int: Double]) -> TransformResult {
         let value = calculateValue(for: attributeID, in: allAttributes)
         
+        // 检查是否有特殊值映射
+        if let specialType = specialValueMappings[attributeID] {
+            return .text(specialType.transform(value))
+        }
+        
         // 检查是否属于抗性组
         if isResistanceAttribute(attributeID) {
             // 只有第一个属性显示整组抗性
@@ -263,29 +344,26 @@ struct AttributeDisplayConfig {
                 return value == 1 ? 
                     .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: "")) :
                     .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
-            } else if attributeID == 861 {
-                return value == 1 ? 
-                    .text(NSLocalizedString("Misc_true", comment: "")) :
-                    .text(NSLocalizedString("Misc_false", comment: ""))
             }
         }
         
         // 应用数值转换规则
-        let transformedValue = valueTransformRules[attributeID]?(value) ?? value
-        
-        // 获取单位
-        let unit: String = {
-            switch String(attributeID) {
-            case "141":
-                return " " + NSLocalizedString("Misc_number_item", comment: "")
-            case "120":
-                return " " + NSLocalizedString("Misc_number_point", comment: "")
-            default:
-                return attributeUnits[attributeID].map { " " + $0 } ?? ""
+        if let transformRule = valueTransformRules[attributeID] {
+            let transformedValue = transformRule(value)
+            // 处理单位
+            if let unit = attributeUnits[attributeID] {
+                // 百分号不添加空格，其他单位添加空格
+                return .number(transformedValue, unit == "%" ? unit : " " + unit)
             }
-        }()
+            return .number(transformedValue, nil)
+        }
         
-        return .number(transformedValue, unit)
+        // 默认返回原始值和单位
+        if let unit = attributeUnits[attributeID] {
+            // 百分号不添加空格，其他单位添加空格
+            return .number(value, unit == "%" ? unit : " " + unit)
+        }
+        return .number(value, nil)
     }
     
     // 获取属性在组内的排序权重
