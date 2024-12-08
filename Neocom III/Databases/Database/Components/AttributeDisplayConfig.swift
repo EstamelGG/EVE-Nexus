@@ -159,7 +159,7 @@ struct AttributeDisplayConfig {
     private static var attributeCalculations: [Int: AttributeCalculation] = [
         // 示例：属性ID 1 的值 = 属性ID 2 的值 + 属性ID 3 的值
         // operation: .add,.subtract,.multiply,.divide (+-*/)
-        1281: AttributeCalculation(sourceAttribute1: 1281, sourceAttribute2: 70, operation: .add)
+        1281: AttributeCalculation(sourceAttribute1: 1281, sourceAttribute2: 600, operation: .multiply)
     ]
     
     // 值转换规则（特殊处理的属性）

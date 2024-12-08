@@ -84,7 +84,7 @@ struct ResistanceBarView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                     .overlay(
                         RoundedRectangle(cornerRadius: 2)
-                            .stroke(type.color, lineWidth: 1.1)
+                            .stroke(type.color, lineWidth: 1.5)
                             .brightness(0.1)     // 增加亮度
                             .saturation(1.1)     // 增加饱和度
                     )
