@@ -29,6 +29,8 @@
 "Main_Database_Search" = "Search";
 "Main_Database_Variations" = "Variations";
 "Main_Database_Browse_Variations" = "Browse %d variations";
+"Main_Database_Item_info_Immune" = "Immune";
+"Main_Database_Item_info_NonImmune" = "Non-immune";
 
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";

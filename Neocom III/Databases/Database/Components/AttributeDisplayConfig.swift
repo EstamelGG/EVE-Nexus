@@ -2,10 +2,51 @@ import Foundation
 
 // 属性显示规则配置
 struct AttributeDisplayConfig {
+    // 转换结果类型
+    enum TransformResult {
+        case number(Double, String?)  // 数值和可选单位
+        case text(String)             // 纯文本
+    }
+    
     // 默认配置
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
-    private static let defaultHiddenAttributes: Set<Int> = [1137] // 要隐藏的属性id
+    private static let defaultHiddenAttributes: Set<Int> = [
+        3,15,104,715,716,861,866,868,1137,1336,1547,1785,1970,1973
+    ] // 要隐藏的属性id
+    
+    // 值转换规则
+    private static let valueTransformRules: [Int: (Double) -> TransformResult] = [
+        188: { value in
+            if value == 1 {
+                return .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
+            } else {
+                return .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
+            }
+        },
+        2045: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2112: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2113: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2114: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2115: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2116: { value in
+            return .number((1 - value) * 100, "%")
+        },
+        2135: { value in
+            return .number((1 - value) * 100, "%")
+        }
+        // 可以添加更多属性的转换规则
+    ]
     
     // 自定义配置 - 可以根据需要设置，不设置则使用默认值
     static var customGroupOrder: [Int: Int]?
@@ -38,6 +79,14 @@ struct AttributeDisplayConfig {
     // 获取属性组的排序权重
     static func getGroupOrder(_ groupId: Int) -> Int {
         activeGroupOrder[groupId] ?? 999 // 未定义顺序的组放到最后
+    }
+    
+    // 转换属性值
+    static func transformValue(_ value: Double, for attributeID: Int) -> TransformResult {
+        if let transform = valueTransformRules[attributeID] {
+            return transform(value)
+        }
+        return .number(value, nil)  // 如果没有转换规则，返回原值
     }
     
     // 重置所有配置到默认值
@@ -84,4 +133,4 @@ struct AttributeDisplayConfig {
         attributes.remove(attributeID)
         customHiddenAttributes = attributes
     }
-} 
+}

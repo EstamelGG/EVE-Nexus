@@ -29,6 +29,8 @@
 "Main_Database_Search" = "搜索";
 "Main_Database_Variations" = "变体";
 "Main_Database_Browse_Variations" = "浏览 %d 个变体";
+"Main_Database_Item_info_Immune" = "免疫";
+"Main_Database_Item_info_NonImmune" = "不免疫";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

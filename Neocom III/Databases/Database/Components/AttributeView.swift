@@ -14,6 +14,18 @@ struct AttributeItemView: View {
         }
     }
     
+    // 获取格式化后的显示值
+    private var formattedValue: String {
+        let result = AttributeDisplayConfig.transformValue(attribute.value, for: attribute.id)
+        switch result {
+        case .number(let value, let unit):
+            let valueStr = formatValue(value)
+            return unit.map { valueStr + $0 } ?? valueStr
+        case .text(let str):
+            return str
+        }
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowAttribute(attribute.id) {
             HStack {
@@ -30,8 +42,8 @@ struct AttributeItemView: View {
                 
                 Spacer()
                 
-                // 属性值 - 使用���的格式化函数
-                Text(formatValue(attribute.value))
+                // 属性值 - 使用转换后的值
+                Text(formattedValue)
                     .font(.body)
                     .foregroundColor(.secondary)
             }
