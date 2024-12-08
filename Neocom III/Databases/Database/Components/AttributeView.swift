@@ -15,23 +15,23 @@ struct ResistanceBarView: View {
     private let resistanceTypes = [
         ResistanceType(
             id: 0,
-            iconName: "items_22_32_8.png",
-            color: Color(red: 0.27, green: 0.53, blue: 0.8)    // EM - 蓝色
+            iconName: "items_22_32_12.png",
+            color: Color(red: 74/255, green: 128/255, blue: 192/255)    // EM - 蓝色
         ),
         ResistanceType(
             id: 1,
             iconName: "items_22_32_10.png",
-            color: Color(red: 0.69, green: 0.21, blue: 0.2)    // Thermal - 红色
+            color: Color(red: 176/255, green: 53/255, blue: 50/255)    // Thermal - 红色
         ),
         ResistanceType(
             id: 2,
             iconName: "items_22_32_9.png",
-            color: Color(red: 0.61, green: 0.61, blue: 0.61)   // Kinetic - 灰色
+            color: Color(red: 155/255, green: 155/255, blue: 155/255)   // Kinetic - 灰色
         ),
         ResistanceType(
             id: 3,
             iconName: "items_22_32_11.png",
-            color: Color(red: 0.69, green: 0.41, blue: 0.2)    // Explosive - 橙色
+            color: Color(red: 185/255, green: 138/255, blue: 62/255)    // Explosive - 橙色
         )
     ]
     
@@ -48,7 +48,7 @@ struct ResistanceBarView: View {
                         
                         // 数值
                         Text("\(Int(resistances[type.id]))%")
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                             
                         Spacer()
@@ -59,22 +59,30 @@ struct ResistanceBarView: View {
             // 进度条行
             HStack(spacing: 8) {
                 ForEach(resistanceTypes) { type in
-                    // 进度条
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
-                            // 背景
+                            // 背景条 - 使用更深的相同色调
                             Rectangle()
-                                .fill(type.color.opacity(0.3))
+                                .fill(type.color.opacity(0.8))
+                                .overlay(Color.black.opacity(0.5))
                                 .frame(width: geometry.size.width)
                             
-                            // 前景
+                            // 进度条 - 增加亮度和饱和度
                             Rectangle()
                                 .fill(type.color)
+                                .brightness(0.1)     // 增加亮度
+                                .saturation(1.1)     // 增加饱和度
                                 .frame(width: geometry.size.width * CGFloat(resistances[type.id]) / 100)
                         }
                     }
-                    .frame(height: 8)  // 降低进度条高度
+                    .frame(height: 20)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 2)
+                            .stroke(type.color, lineWidth: 1.1)
+                            .brightness(0.1)     // 增加亮度
+                            .saturation(1.1)     // 增加饱和度
+                    )
                 }
             }
         }
