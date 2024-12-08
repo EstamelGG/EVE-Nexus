@@ -17,12 +17,18 @@ struct AttributeDisplayConfig {
     
     // 值转换规则
     private static let valueTransformRules: [Int: (Double) -> TransformResult] = [
+        70: { value in
+            return .number(value, " x")
+        },
         188: { value in
             if value == 1 {
                 return .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
             } else {
                 return .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
             }
+        },
+        283: { value in
+            return .number(value, " m3")
         },
         908: { value in
             return .number(value, " m3")
@@ -35,6 +41,12 @@ struct AttributeDisplayConfig {
         },
         1086: { value in
             return .number(value, " m3")
+        },
+        1271: { value in
+            return .number(value, " Mbit/s")
+        },
+        1379: { value in
+            return .number(value, " m/s")
         },
         1549: { value in
             return .number(value, " m3")
