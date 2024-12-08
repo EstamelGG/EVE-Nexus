@@ -38,80 +38,76 @@ func filterText(_ text: String) -> String {
     return processedText
 }
 
-// 处理trait文本，支持蓝色链接和加粗
-func processTraitText(_ text: String) -> AttributedString {
-    var processedText = text
+// 处理trait文本，返回组合的Text视图
+func processTraitText(_ text: String) -> Text {
+    var result = Text("")
+    var currentText = text
     
-    // 1. 处理换行标签
-    processedText = processedText.replacingOccurrences(of: "<br></br>", with: "\n")
-    processedText = processedText.replacingOccurrences(of: "<br>", with: "\n")
-    processedText = processedText.replacingOccurrences(of: "</br>", with: "\n")
+    // 处理换行标签
+    currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
+    currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
+    currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
     
-    // 2. 处理showinfo链接
-    let pattern = "<a href=(?:\")?showinfo:([0-9]+)(?:\")?>(.*?)</a>"
-    let regex = try! NSRegularExpression(pattern: pattern, options: [])
-    let nsRange = NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)
-    
-    // 获取所有匹配项并从后向前处理
-    let matches = regex.matches(in: processedText, range: nsRange)
-    for match in matches.reversed() {
-        guard let textRange = Range(match.range(at: 2), in: processedText),
-              let fullRange = Range(match.range(at: 0), in: processedText) else {
+    while !currentText.isEmpty {
+        // 1. 查找最近的特殊标签
+        let boldStart = currentText.range(of: "<b>")
+        let boldEnd = currentText.range(of: "</b>")
+        let linkStart = currentText.range(of: "<a href=")
+        let linkEnd = currentText.range(of: "</a>")
+        
+        // 2. 如果没有任何标签了，添加剩余文本并结束
+        if boldStart == nil && linkStart == nil {
+            result = result + Text(currentText)
+            break
+        }
+        
+        // 3. 处理加粗文本
+        if let start = boldStart,
+           let end = boldEnd,
+           (linkStart == nil || start.lowerBound < linkStart!.lowerBound) {
+            // 添加加粗标签前的普通文本
+            let beforeBold = String(currentText[..<start.lowerBound])
+            if !beforeBold.isEmpty {
+                result = result + Text(beforeBold)
+            }
+            
+            // 提取并添加加粗文本
+            let boldText = String(currentText[start.upperBound..<end.lowerBound])
+            result = result + Text(boldText).bold()
+            
+            // 更新剩余文本
+            currentText = String(currentText[end.upperBound...])
             continue
         }
         
-        // 只保留链接文本内容
-        let linkText = String(processedText[textRange])
-        processedText.replaceSubrange(fullRange, with: linkText)
-    }
-    
-    // 3. 处理加粗标签
-    let boldPattern = "<b>(.*?)</b>"
-    let boldRegex = try! NSRegularExpression(pattern: boldPattern, options: [.dotMatchesLineSeparators])
-    let boldMatches = boldRegex.matches(in: processedText, range: NSRange(processedText.startIndex..<processedText.endIndex, in: processedText))
-    
-    for match in boldMatches.reversed() {
-        guard let textRange = Range(match.range(at: 1), in: processedText),
-              let fullRange = Range(match.range(at: 0), in: processedText) else {
+        // 4. 处理链接文本
+        if let start = linkStart,
+           let end = linkEnd {
+            // 添加链接标签前的普通文本
+            let beforeLink = String(currentText[..<start.lowerBound])
+            if !beforeLink.isEmpty {
+                result = result + Text(beforeLink)
+            }
+            
+            // 提取链接文本
+            let linkText = currentText[start.lowerBound..<end.upperBound]
+            if let textStart = linkText.range(of: ">")?.upperBound,
+               let textEnd = linkText.range(of: "</a>")?.lowerBound {
+                let displayText = String(linkText[textStart..<textEnd])
+                result = result + Text(displayText).foregroundColor(.blue)
+            }
+            
+            // 更新剩余文本
+            currentText = String(currentText[end.upperBound...])
             continue
         }
         
-        let boldText = String(processedText[textRange])
-        processedText.replaceSubrange(fullRange, with: boldText)
+        // 如果到这里还有文本，说明有不匹配的标签，直接添加剩余文本
+        result = result + Text(currentText)
+        break
     }
     
-    // 4. 创建AttributedString
-    var attributedString = try! AttributedString(processedText)
-    
-    // 5. 为链接文本添加蓝色
-    let originalMatches = regex.matches(in: text, range: nsRange)
-    for match in originalMatches {
-        guard let textRange = Range(match.range(at: 2), in: text) else {
-            continue
-        }
-        
-        let linkText = String(text[textRange])
-        if let range = processedText.range(of: linkText) {
-            let attributedRange = Range(range, in: attributedString)!
-            attributedString[attributedRange].foregroundColor = .blue
-        }
-    }
-    
-    // 6. 为加粗文本添加加粗效果
-    let originalBoldMatches = boldRegex.matches(in: text, range: nsRange)
-    for match in originalBoldMatches {
-        guard let textRange = Range(match.range(at: 1), in: text) else {
-            continue
-        }
-        
-        let boldText = String(text[textRange])
-        if let range = processedText.range(of: boldText) {
-            let attributedRange = Range(range, in: attributedString)!
-            attributedString[attributedRange].inlinePresentationIntent = .stronglyEmphasized
-        }
-    }
-    
-    return attributedString
+    return result
 }
 
 // ShowItemInfo view
@@ -129,14 +125,14 @@ struct ShowItemInfo: View {
     private let standardPadding: CGFloat = 16
     
     // 构建traits文本
-    private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> AttributedString {
+    private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
         var text = ""
         
         // 添加Role Bonuses
         if !roleBonuses.isEmpty {
             text += "<b>Role Bonuses</b>\n"
             for bonus in roleBonuses {
-                text += bonus.content + ".\n"
+                text += "- \(bonus.content).\n"
             }
         }
         
@@ -153,14 +149,13 @@ struct ShowItemInfo: View {
                     
                     let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
                     for bonus in bonuses {
-                        text += bonus.content + ".\n"
+                        text += "- \(bonus.content).\n"
                     }
                 }
             }
         }
         
-        // 处理HTML标签
-        return processTraitText(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        return text
     }
     
     var body: some View {
@@ -223,7 +218,7 @@ struct ShowItemInfo: View {
                     
                     // 只有当有traits信息时才显示traits
                     if !itemDetails.roleBonuses.isEmpty || !itemDetails.typeBonuses.isEmpty {
-                        Text(buildTraitsText(
+                        processTraitText(buildTraitsText(
                             roleBonuses: itemDetails.roleBonuses,
                             typeBonuses: itemDetails.typeBonuses,
                             databaseManager: databaseManager
@@ -265,7 +260,7 @@ struct ShowItemInfo: View {
                 }
             } catch {
                 print("加载渲染图失败: \(error.localizedDescription)")
-                // 加载失败时保持使用原来的小图显示，不需要特殊处理
+                // 加载失败时保持使用原来的小图显示，不需特殊处理
             }
         }
     }
