@@ -15,26 +15,28 @@ struct AttributeItemView: View {
     }
     
     var body: some View {
-        HStack {
-            // 属性图标
-            if attribute.iconID != 0 {
-                IconManager.shared.loadImage(for: attribute.iconFileName)
-                    .resizable()
-                    .frame(width: 24, height: 24)
+        if AttributeDisplayConfig.shouldShowAttribute(attribute.id) {
+            HStack {
+                // 属性图标
+                if attribute.iconID != 0 {
+                    IconManager.shared.loadImage(for: attribute.iconFileName)
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                }
+                
+                // 属性名称
+                Text(attribute.displayTitle)
+                    .font(.body)
+                
+                Spacer()
+                
+                // 属性值 - 使用新的格式化函数
+                Text(formatValue(attribute.value))
+                    .font(.body)
+                    .foregroundColor(.secondary)
             }
-            
-            // 属性名称
-            Text(attribute.displayTitle)
-                .font(.body)
-            
-            Spacer()
-            
-            // 属性值 - 使用新的格式化函数
-            Text(formatValue(attribute.value))
-                .font(.body)
-                .foregroundColor(.secondary)
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -42,14 +44,20 @@ struct AttributeItemView: View {
 struct AttributeGroupView: View {
     let group: AttributeGroup
     
+    private var filteredAttributes: [DogmaAttribute] {
+        group.attributes.filter { AttributeDisplayConfig.shouldShowAttribute($0.id) }
+    }
+    
     var body: some View {
-        Section {
-            ForEach(group.attributes) { attribute in
-                AttributeItemView(attribute: attribute)
+        if AttributeDisplayConfig.shouldShowGroup(group.name) && !filteredAttributes.isEmpty {
+            Section {
+                ForEach(filteredAttributes) { attribute in
+                    AttributeItemView(attribute: attribute)
+                }
+            } header: {
+                Text(group.name)
+                    .font(.headline)
             }
-        } header: {
-            Text(group.name)
-                .font(.headline)
         }
     }
 }
@@ -58,8 +66,14 @@ struct AttributeGroupView: View {
 struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
     
+    private var sortedGroups: [AttributeGroup] {
+        attributeGroups.sorted { group1, group2 in
+            AttributeDisplayConfig.getGroupOrder(group1.name) < AttributeDisplayConfig.getGroupOrder(group2.name)
+        }
+    }
+    
     var body: some View {
-        ForEach(attributeGroups) { group in
+        ForEach(sortedGroups) { group in
             AttributeGroupView(group: group)
         }
     }
