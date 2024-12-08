@@ -123,7 +123,7 @@ struct AttributeDisplayConfig {
     struct AttributeCalculation {
         let sourceAttribute1: Int  // 第一个源属性ID
         let sourceAttribute2: Int  // 第二个源属性ID
-        let operation: Operation   // 符
+        let operation: Operation   // 算符
     }
     
     // 默认配置
@@ -162,34 +162,23 @@ struct AttributeDisplayConfig {
         1281: AttributeCalculation(sourceAttribute1: 1281, sourceAttribute2: 600, operation: .multiply)
     ]
     
-    // 值转换规则（特殊处理的属性）
-    private static let valueTransformRules: [Int: (Double) -> Double] = [
-        76: { value in value/1000 },  // km转换
-        101: { value in value/1000 }, // ms转s
-        109: { value in (1 - value) * 100 }, // 百分比转换
-        110: { value in (1 - value) * 100 }, // 百分比转换
-        111: { value in (1 - value) * 100 }, // 百分比转换
-        113: { value in (1 - value) * 100 }, // 百分比转换
-        
-        267: { value in (1 - value) * 100 }, // 百分比转换
-        268: { value in (1 - value) * 100 }, // 百分比转换
-        269: { value in (1 - value) * 100 }, // 百分比转换
-        270: { value in (1 - value) * 100 }, // 百分比转换
-        
-        271: { value in (1 - value) * 100 }, // 百分比转换
-        272: { value in (1 - value) * 100 }, // 百分比转换
-        273: { value in (1 - value) * 100 }, // 百分比转换
-        274: { value in (1 - value) * 100 }, // 百分比转换
-        
-        898: { value in value * 100 }, // 百分比转换
-        1971: { value in value * 100 }, // 百分比转换
-        2045: { value in (1 - value) * 100 }, // 反向百分比转换
-        2112: { value in (1 - value) * 100 }, // 反向百分比转换
-        2113: { value in (1 - value) * 100 }, // 反向百分比转换
-        2114: { value in (1 - value) * 100 }, // 反向百分比转换
-        2115: { value in (1 - value) * 100 }, // 反向百分比转换
-        2116: { value in (1 - value) * 100 }, // 反向百分比转换
-        2135: { value in (1 - value) * 100 }  // 反向百分比转换
+    // 基于 Attribute_id 的值转换规则
+    private static let valueTransformRules: [Int: (Double) -> Double] = [:]
+    
+    // 基于 unitID 的值转换规则
+    private static let unitTransformRules: [Int: (Double) -> Double] = [
+        108: { value in (1 - value) * 100 }, // 百分比转换
+        127: { value in (value) * 100 }, // 百分比转换
+        252: { value in (value) * 100 }, // 百分比转换
+    ]
+    
+    // 基于 unitID 的值格式化规则
+    private static let unitFormatRules: [Int: (Double, String?) -> String] = [
+        109: { value, unit in
+            let diff = value - 1
+            return diff > 0 ? "+\(NumberFormatUtil.format(diff * 100))%" : "\(NumberFormatUtil.format(diff * 100))%"
+        },
+        //124: { value, unit in "\(NumberFormatUtil.format(value))%" }
     ]
     
     // 布尔值转换规则
@@ -329,32 +318,32 @@ struct AttributeDisplayConfig {
             }
         }
         
-        // 应用数值转换规则
+        var transformedValue = value
+        
+        // 1. 首先应用基于 attribute_id 的转换规则
         if let transformRule = valueTransformRules[attributeID] {
-            let transformedValue = transformRule(value)
-            // 处理单位
-            if let unit = attributeUnits[attributeID] {
-                // 百分号不添加空格，其他单位添加空格
-                return .number(transformedValue, unit == "%" ? unit : " " + unit)
-            }
-            return .number(transformedValue, nil)
+            transformedValue = transformRule(transformedValue)
         }
         
-        // 如果属性的 unitID 是 101，进行除以1000的转换
-        if unitID == 101 {
-            let transformedValue = value / 1000.0
-            if let unit = attributeUnits[attributeID] {
-                return .number(transformedValue, unit == "%" ? unit : " " + unit)
-            }
-            return .number(transformedValue, nil)
+        // 2. 然后应用基于 unitID 的转换规则
+        if let unitID = unitID,
+           let unitTransform = unitTransformRules[unitID] {
+            transformedValue = unitTransform(transformedValue)
         }
         
-        // 默认返回原始值和单位
+        // 3. 应用基于 unitID 的格式化规则
+        if let unitID = unitID,
+           let formatRule = unitFormatRules[unitID] {
+            let unit = attributeUnits[attributeID]
+            return .text(formatRule(transformedValue, unit))
+        }
+        
+        // 4. 默认格式化
         if let unit = attributeUnits[attributeID] {
             // 百分号不添加空格，其他单位添加空格
-            return .number(value, unit == "%" ? unit : " " + unit)
+            return .number(transformedValue, unit == "%" ? unit : " " + unit)
         }
-        return .number(value, nil)
+        return .number(transformedValue, nil)
     }
     
     // 获取属性在组内的排序权重
@@ -455,7 +444,7 @@ struct AttributeDisplayConfig {
         )
     }
     
-    // 移除属性��算规则
+    // 移除属性算规则
     static func removeCalculationRule(for attributeID: Int) {
         attributeCalculations.removeValue(forKey: attributeID)
     }
