@@ -181,10 +181,8 @@ struct AttributeDisplayConfig {
         273: { value in (1 - value) * 100 }, // 百分比转换
         274: { value in (1 - value) * 100 }, // 百分比转换
         
-        281: { value in value/1000 }, // unitID=101 转换
-        
         898: { value in value * 100 }, // 百分比转换
-        1971: { value in value * 100 }, // ���分比转换
+        1971: { value in value * 100 }, // 百分比转换
         2045: { value in (1 - value) * 100 }, // 反向百分比转换
         2112: { value in (1 - value) * 100 }, // 反向百分比转换
         2113: { value in (1 - value) * 100 }, // 反向百分比转换
