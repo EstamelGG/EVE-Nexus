@@ -52,6 +52,21 @@ struct AttributeDisplayConfig {
     // 值转换规则（特殊处理的属性）
     private static let valueTransformRules: [Int: (Double) -> Double] = [
         76: { value in value/1000 },  // km转换
+        109: { value in (1 - value) * 100 }, // 百分比转换
+        110: { value in (1 - value) * 100 }, // 百分比转换
+        111: { value in (1 - value) * 100 }, // 百分比转换
+        113: { value in (1 - value) * 100 }, // 百分比转换
+        
+        267: { value in (1 - value) * 100 }, // 百分比转换
+        268: { value in (1 - value) * 100 }, // 百分比转换
+        269: { value in (1 - value) * 100 }, // 百分比转换
+        270: { value in (1 - value) * 100 }, // 百分比转换
+        
+        271: { value in (1 - value) * 100 }, // 百分比转换
+        272: { value in (1 - value) * 100 }, // 百分比转换
+        273: { value in (1 - value) * 100 }, // 百分比转换
+        274: { value in (1 - value) * 100 }, // 百分比转换
+        
         898: { value in value * 100 }, // 百分比转换
         1971: { value in value * 100 }, // 百分比转换
         2045: { value in (1 - value) * 100 }, // 反向百分比转换
@@ -139,7 +154,7 @@ struct AttributeDisplayConfig {
         // 应用数值转换规则
         let transformedValue = valueTransformRules[attributeID]?(value) ?? value
         
-        // 获取单位（如果有）
+        // 获取单位
         let unit = attributeUnits[attributeID].map { " " + $0 }
         
         return .number(transformedValue, unit)
