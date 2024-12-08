@@ -2,22 +2,40 @@ import SwiftUI
 
 // 用于过滤 HTML 标签并处理换行的函数
 func filterText(_ text: String) -> String {
-    // 1. 替换 <b> 和 </b> 标签为一个空格
-    var filteredText = text.replacingOccurrences(of: "<b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "</b>", with: " ")
-    filteredText = filteredText.replacingOccurrences(of: "<br>", with: "\n")
-    // 2. 替换 <link> 和 </link> 标签为一个空格
-    filteredText = filteredText.replacingOccurrences(of: "<link.*?>", with: " ", options: .regularExpression)
-    filteredText = filteredText.replacingOccurrences(of: "</link>", with: " ", options: .regularExpression)
+    // 1. 处理换行标签
+    var processedText = text.replacingOccurrences(of: "<br>", with: "\n")
     
-    // 3. 删除其他 HTML 标签
-    let regex = try! NSRegularExpression(pattern: "<(?!b|link)(.*?)>", options: .caseInsensitive)
-    filteredText = regex.stringByReplacingMatches(in: filteredText, options: [], range: NSRange(location: 0, length: filteredText.utf16.count), withTemplate: "")
+    // 2. 处理加粗标签，确保标签周围有空格
+    processedText = processedText.replacingOccurrences(of: "<b>", with: " **")
+    processedText = processedText.replacingOccurrences(of: "</b>", with: "** ")
     
-    // 4. 替换多个连续的换行符为一个换行符
-    filteredText = filteredText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
+    // 3. 处理URL标签
+    let urlPattern = "<url=([^>]+)>([^<]*)</url>"
+    let urlRegex = try! NSRegularExpression(pattern: urlPattern, options: [])
+    while let match = urlRegex.firstMatch(in: processedText, options: [], range: NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)) {
+        guard let urlRange = Range(match.range(at: 1), in: processedText),
+              let textRange = Range(match.range(at: 2), in: processedText),
+              let fullRange = Range(match.range(at: 0), in: processedText) else {
+            continue
+        }
+        
+        let url = String(processedText[urlRange])
+        let displayText = String(processedText[textRange])
+        let markdownLink = " [\(displayText)](\(url)) "
+        processedText.replaceSubrange(fullRange, with: markdownLink)
+    }
     
-    return filteredText
+    // 4. 删除其他HTML标签
+    let regex = try! NSRegularExpression(pattern: "<(?!br|b|url)(.*?)>", options: .caseInsensitive)
+    processedText = regex.stringByReplacingMatches(in: processedText, options: [], range: NSRange(location: 0, length: processedText.utf16.count), withTemplate: "")
+    
+    // 5. 替换多个连续的换行符为一个换行符
+    processedText = processedText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
+    
+    // 6. 替换多个连续的空格为一个空格
+    processedText = processedText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
+    
+    return processedText
 }
 
 // ShowItemInfo view
@@ -88,7 +106,7 @@ struct ShowItemInfo: View {
                     
                     let desc = filterText(itemDetails.description)
                     if !desc.isEmpty {
-                        Text(desc)
+                        Text(.init(desc))
                             .font(.body)
                             .foregroundColor(.primary)
                             .padding(.top, standardPadding)
@@ -142,7 +160,7 @@ extension View {
     }
 }
 
-// 自定义圆角形��
+// 自定义圆角形
 struct RoundedCorner: Shape {
     var radius: CGFloat = .infinity
     var corners: UIRectCorner = .allCorners
