@@ -4,8 +4,8 @@ import Foundation
 struct AttributeDisplayConfig {
     // 默认配置
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
-    private static let defaultHiddenGroups: Set<Int> = []   // 要隐藏的属性分组id
-    private static let defaultHiddenAttributes: Set<Int> = [] // 要隐藏的属性id
+    private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
+    private static let defaultHiddenAttributes: Set<Int> = [1137] // 要隐藏的属性id
     
     // 自定义配置 - 可以根据需要设置，不设置则使用默认值
     static var customGroupOrder: [Int: Int]?

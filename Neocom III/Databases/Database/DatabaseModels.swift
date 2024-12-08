@@ -143,7 +143,11 @@ struct DogmaAttribute: Identifiable {
     
     // 是否应该显示
     var shouldDisplay: Bool {
-        return !(displayName?.isEmpty == true && name.isEmpty)
+        // 如果 displayName 为空或为空字符串，不显示
+        guard let displayName = displayName, !displayName.isEmpty else {
+            return false
+        }
+        return true
     }
 }
 
