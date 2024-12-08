@@ -42,7 +42,12 @@ func filterText(_ text: String) -> String {
 func processTraitText(_ text: String) -> AttributedString {
     var processedText = text
     
-    // 1. 处理showinfo链接
+    // 1. 处理换行标签
+    processedText = processedText.replacingOccurrences(of: "<br></br>", with: "\n")
+    processedText = processedText.replacingOccurrences(of: "<br>", with: "\n")
+    processedText = processedText.replacingOccurrences(of: "</br>", with: "\n")
+    
+    // 2. 处理showinfo链接
     let pattern = "<a href=(?:\")?showinfo:([0-9]+)(?:\")?>(.*?)</a>"
     let regex = try! NSRegularExpression(pattern: pattern, options: [])
     let nsRange = NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)
@@ -60,9 +65,9 @@ func processTraitText(_ text: String) -> AttributedString {
         processedText.replaceSubrange(fullRange, with: linkText)
     }
     
-    // 2. 处理加粗标签
+    // 3. 处理加粗标签
     let boldPattern = "<b>(.*?)</b>"
-    let boldRegex = try! NSRegularExpression(pattern: boldPattern, options: [])
+    let boldRegex = try! NSRegularExpression(pattern: boldPattern, options: [.dotMatchesLineSeparators])
     let boldMatches = boldRegex.matches(in: processedText, range: NSRange(processedText.startIndex..<processedText.endIndex, in: processedText))
     
     for match in boldMatches.reversed() {
@@ -75,10 +80,10 @@ func processTraitText(_ text: String) -> AttributedString {
         processedText.replaceSubrange(fullRange, with: boldText)
     }
     
-    // 3. 创建AttributedString
+    // 4. 创建AttributedString
     var attributedString = try! AttributedString(processedText)
     
-    // 4. 为链接文本添加蓝色
+    // 5. 为链接文本添加蓝色
     let originalMatches = regex.matches(in: text, range: nsRange)
     for match in originalMatches {
         guard let textRange = Range(match.range(at: 2), in: text) else {
@@ -92,7 +97,7 @@ func processTraitText(_ text: String) -> AttributedString {
         }
     }
     
-    // 5. 为加粗文本添加加粗效果
+    // 6. 为加粗文本添加加粗效果
     let originalBoldMatches = boldRegex.matches(in: text, range: nsRange)
     for match in originalBoldMatches {
         guard let textRange = Range(match.range(at: 1), in: text) else {
@@ -131,7 +136,7 @@ struct ShowItemInfo: View {
         if !roleBonuses.isEmpty {
             text += "<b>Role Bonuses</b>\n"
             for bonus in roleBonuses {
-                text += bonus.content + "\n"
+                text += bonus.content + ".\n"
             }
         }
         
@@ -148,7 +153,7 @@ struct ShowItemInfo: View {
                     
                     let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
                     for bonus in bonuses {
-                        text += bonus.content + "\n"
+                        text += bonus.content + ".\n"
                     }
                 }
             }
