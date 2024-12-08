@@ -1,77 +1,5 @@
 import SwiftUI
 
-// 用于过滤 HTML 标签并处理换行的函数
-func filterText(_ text: String) -> Text {
-    var result = Text("")
-    var currentText = text
-    
-    // 处理换行标签
-    currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
-    currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
-    currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
-    
-    while !currentText.isEmpty {
-        // 1. 查找最近的特殊标签
-        let boldStart = currentText.range(of: "<b>")
-        let boldEnd = currentText.range(of: "</b>")
-        let urlStart = currentText.range(of: "<url=")
-        let urlEnd = currentText.range(of: "</url>")
-        
-        // 2. 如果没有任何标签了，添加剩余文本并结束
-        if boldStart == nil && urlStart == nil {
-            result = result + Text(currentText)
-            break
-        }
-        
-        // 3. 处理加粗文本
-        if let start = boldStart,
-           let end = boldEnd,
-           (urlStart == nil || start.lowerBound < urlStart!.lowerBound) {
-            // 添���加粗标签前的普通文本
-            let beforeBold = String(currentText[..<start.lowerBound])
-            if !beforeBold.isEmpty {
-                result = result + Text(beforeBold)
-            }
-            
-            // 提取并添加加粗文本
-            let boldText = String(currentText[start.upperBound..<end.lowerBound])
-            result = result + Text(boldText).bold()
-            
-            // 更新剩余文本
-            currentText = String(currentText[end.upperBound...])
-            continue
-        }
-        
-        // 4. 处理URL文本
-        if let start = urlStart,
-           let end = urlEnd {
-            // 添加URL标签前的普通文本
-            let beforeUrl = String(currentText[..<start.lowerBound])
-            if !beforeUrl.isEmpty {
-                result = result + Text(beforeUrl)
-            }
-            
-            // 提取URL和显示文本
-            let urlText = currentText[start.lowerBound..<end.upperBound]
-            if let urlEndIndex = urlText.range(of: ">")?.upperBound,
-               let textEndIndex = urlText.range(of: "</url>")?.lowerBound {
-                let displayText = String(urlText[urlEndIndex..<textEndIndex])
-                result = result + Text(displayText).foregroundColor(.blue)
-            }
-            
-            // 更新剩余文本
-            currentText = String(currentText[end.upperBound...])
-            continue
-        }
-        
-        // 如果到这里还有文本，说明有不匹配的标签，直接添加剩余文本
-        result = result + Text(currentText)
-        break
-    }
-    
-    return result
-}
-
 // 处理trait文本，返回组合的Text视图
 func processTraitText(_ text: String) -> Text {
     var result = Text("")
@@ -187,9 +115,13 @@ struct ShowItemInfo: View {
         // 添加Role Bonuses
         if !roleBonuses.isEmpty {
             text += "<b>Role Bonuses</b>\n"
-            for bonus in roleBonuses {
-                text += "• \(bonus.content).\n"
-            }
+            text += roleBonuses
+                .map { "• \($0.content)." }
+                .joined(separator: "\n")
+        }
+        
+        if !roleBonuses.isEmpty,!typeBonuses.isEmpty {
+            text += "\n\n"
         }
         
         // 添加Type Bonuses
@@ -200,15 +132,20 @@ struct ShowItemInfo: View {
                 .sorted()
             
             for skill in sortedSkills {
+                let isLast = skill == sortedSkills.last
                 if let skillName = databaseManager.getTypeName(for: skill) {
-                    text += "\n<b>\(skillName)</b> bonuses per level\n"
+                    text += "<b>\(skillName)</b> bonuses per level\n"
                     
                     let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
-                    for bonus in bonuses {
-                        text += "• \(bonus.content).\n"
+                    text += bonuses
+                        .map { "• \($0.content)." }
+                        .joined(separator: "\n")
+                    if !isLast {
+                        text += "\n\n"
                     }
                 }
             }
+            
         }
         
         return text
