@@ -77,25 +77,47 @@ func processTraitText(_ text: String) -> Text {
     var result = Text("")
     var currentText = text
     
-    // 处理换行标签
+    // 1. 处理换行标签
     currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
     currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
     currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
     
+    // 2. 删除所有非白名单的HTML标签
+    // 使用负向前瞻，排除我们要保留的标签
+    let pattern = "<(?!/?(b|a|br))[^>]*>"
+    if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+        let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
+        currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "")
+    }
+    
+    // 3. 优化连续换行
+    currentText = currentText.replacingOccurrences(
+        of: "\n{3,}",
+        with: "\n\n",
+        options: .regularExpression
+    )
+    
+    // 4. 优化连续空格
+    currentText = currentText.replacingOccurrences(
+        of: " +",
+        with: " ",
+        options: .regularExpression
+    )
+    
     while !currentText.isEmpty {
-        // 1. 查找最近的特殊标签
+        // 查找最近的特殊标签
         let boldStart = currentText.range(of: "<b>")
         let boldEnd = currentText.range(of: "</b>")
         let linkStart = currentText.range(of: "<a href=")
         let linkEnd = currentText.range(of: "</a>")
         
-        // 2. 如果没有任何标签了，添加剩余文本并结束
+        // 如果没有任何标签了，添加剩余文本并结束
         if boldStart == nil && linkStart == nil {
             result = result + Text(currentText)
             break
         }
         
-        // 3. 处理加粗文本
+        // 处理加粗文本
         if let start = boldStart,
            let end = boldEnd,
            (linkStart == nil || start.lowerBound < linkStart!.lowerBound) {
@@ -114,7 +136,7 @@ func processTraitText(_ text: String) -> Text {
             continue
         }
         
-        // 4. 处理链接文本
+        // 处理链接文本
         if let start = linkStart,
            let end = linkEnd {
             // 添加链接标签前的普通文本
@@ -166,7 +188,7 @@ struct ShowItemInfo: View {
         if !roleBonuses.isEmpty {
             text += "<b>Role Bonuses</b>\n"
             for bonus in roleBonuses {
-                text += "- \(bonus.content).\n"
+                text += "• \(bonus.content).\n"
             }
         }
         
@@ -183,7 +205,7 @@ struct ShowItemInfo: View {
                     
                     let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
                     for bonus in bonuses {
-                        text += "- \(bonus.content).\n"
+                        text += "• \(bonus.content).\n"
                     }
                 }
             }
