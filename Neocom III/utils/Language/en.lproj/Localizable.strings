@@ -27,6 +27,8 @@
 "Main_Database_unpublished" = "Unpublished";
 "Main_Database_published" = "Published";
 "Main_Database_Search" = "Search";
+"Main_Database_Variations" = "Variations";
+"Main_Database_Browse_Variations" = "Browse %d variations";
 
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";

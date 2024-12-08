@@ -224,6 +224,22 @@ struct ShowItemInfo: View {
                 Text("Details not found")
                     .foregroundColor(.gray)
             }
+            
+            // 添加变体列表项
+            if itemDetails != nil {
+                let variationsCount = databaseManager.getVariationsCount(for: itemID)
+                // 只在变体数量大于1时显示（因为数量包含了物品本身）
+                if variationsCount > 1 {
+                    Section {
+                        NavigationLink(destination: VariationsView(databaseManager: databaseManager, typeID: itemID)) {
+                            Text(String(format: NSLocalizedString("Main_Database_Browse_Variations", comment: ""), variationsCount))
+                        }
+                    } header: {
+                        Text(NSLocalizedString("Main_Database_Variations", comment: ""))
+                            .font(.headline)
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Info")
