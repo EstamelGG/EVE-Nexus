@@ -3,10 +3,11 @@ import SwiftUI
 // 单个属性的显示组件
 struct AttributeItemView: View {
     let attribute: DogmaAttribute
+    let allAttributes: [Int: Double]  // 添加所有属性的字典
     
     // 获取格式化后的显示值
     private var formattedValue: String {
-        let result = AttributeDisplayConfig.transformValue(attribute.value, for: attribute.id)
+        let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes)
         switch result {
         case .number(let value, let unit):
             return unit.map { NumberFormatUtil.formatWithUnit(value, unit: $0) } ?? NumberFormatUtil.format(value)
@@ -44,6 +45,7 @@ struct AttributeItemView: View {
 // 属性组的显示组件
 struct AttributeGroupView: View {
     let group: AttributeGroup
+    let allAttributes: [Int: Double]  // 添加所有属性的字典
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes.filter { AttributeDisplayConfig.shouldShowAttribute($0.id) }
@@ -53,7 +55,7 @@ struct AttributeGroupView: View {
         if AttributeDisplayConfig.shouldShowGroup(group.id) && !filteredAttributes.isEmpty {
             Section {
                 ForEach(filteredAttributes) { attribute in
-                    AttributeItemView(attribute: attribute)
+                    AttributeItemView(attribute: attribute, allAttributes: allAttributes)
                 }
             } header: {
                 Text(group.name)
@@ -67,6 +69,17 @@ struct AttributeGroupView: View {
 struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
     
+    // 构建所有属性的字典
+    private var allAttributes: [Int: Double] {
+        var dict: [Int: Double] = [:]
+        for group in attributeGroups {
+            for attribute in group.attributes {
+                dict[attribute.id] = attribute.value
+            }
+        }
+        return dict
+    }
+    
     private var sortedGroups: [AttributeGroup] {
         attributeGroups.sorted { group1, group2 in
             AttributeDisplayConfig.getGroupOrder(group1.id) < AttributeDisplayConfig.getGroupOrder(group2.id)
@@ -75,7 +88,7 @@ struct AttributesView: View {
     
     var body: some View {
         ForEach(sortedGroups) { group in
-            AttributeGroupView(group: group)
+            AttributeGroupView(group: group, allAttributes: allAttributes)
         }
     }
 } 
