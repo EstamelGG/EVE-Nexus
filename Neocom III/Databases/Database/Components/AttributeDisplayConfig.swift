@@ -169,6 +169,7 @@ struct AttributeDisplayConfig {
     private static let unitTransformRules: [Int: (Double) -> Double] = [
         108: { value in (1 - value) * 100 }, // 百分比转换
         127: { value in (value) * 100 }, // 百分比转换
+        101: { value in (value) / 1000 }, // 百分比转换
     ]
     
     // 基于 unitID 的值格式化规则
