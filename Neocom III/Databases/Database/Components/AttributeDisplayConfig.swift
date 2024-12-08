@@ -12,7 +12,7 @@ struct AttributeDisplayConfig {
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
     private static let defaultHiddenAttributes: Set<Int> = [
-        3,15,104,715,716,861,866,868,1137,1336,1547,1785,1970,1973
+        3,15,104,715,716,861,866,868,1137,1336,1547,1785,1970,1973,2754
     ] // 要隐藏的属性id
     
     // 值转换规则
@@ -23,6 +23,9 @@ struct AttributeDisplayConfig {
             } else {
                 return .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
             }
+        },
+        908: { value in
+            return .number(value, "m3")
         },
         2045: { value in
             return .number((1 - value) * 100, "%")
@@ -44,6 +47,15 @@ struct AttributeDisplayConfig {
         },
         2135: { value in
             return .number((1 - value) * 100, "%")
+        },
+        2571: { value in
+            return .number(value, "%")
+        },
+        2572: { value in
+            return .number(value, "%")
+        },
+        2574: { value in
+            return .number(value, "%")
         }
         // 可以添加更多属性的转换规则
     ]
