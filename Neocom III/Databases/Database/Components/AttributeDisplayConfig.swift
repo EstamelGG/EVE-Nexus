@@ -122,7 +122,8 @@ struct AttributeDisplayConfig {
         if let transform = valueTransformRules[attributeID] {
             return transform(value)
         }
-        return .number(value, nil)  // 如果没有转换规则，返回原值
+        // return .number(value, nil)  // 如果没有转换规则，返回原值
+        return .text(NumberFormatUtil.format(value))
     }
     
     // 重置所有配置到默认值
