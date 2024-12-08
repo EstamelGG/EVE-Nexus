@@ -24,6 +24,7 @@ struct AttributeDisplayConfig {
                 case 1: return "Small"
                 case 2: return "Medium"
                 case 3: return "Large"
+                case 4: return "X-large"
                 default: return "Unknown"
                 }
             case .gender:
@@ -133,35 +134,15 @@ struct AttributeDisplayConfig {
     ] // 要隐藏的属性id
     
     // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
-    private static let defaultAttributeOrder: [Int: [Int: Int]] = [
+    private static let defaultAttributeOrder: [Int: [Int: Int]] = [:]
+    //[
         // 装备属性组
-        1: [
-            141: 1,  // 数量
-            120: 2,  // 点数
-            283: 3   // 体积
-        ],
-        // 护盾抗性
-        2: [
-            271: 2,  // EM
-            274: 3,  // Thermal
-            273: 4,  // Kinetic
-            272: 5   // Explosive
-        ],
-        // 装甲抗性
-        3: [
-            267: 2,  // EM
-            270: 3,  // Thermal
-            269: 4,  // Kinetic
-            268: 5   // Explosive
-        ],
-        // 结构抗性
-        4: [
-            113: 2,  // EM
-            110: 3,  // Thermal
-            109: 4,  // Kinetic
-            111: 5   // Explosive
-        ]
-    ]
+//        1: [
+//            141: 1,  // 数量
+//            120: 2,  // 点数
+//            283: 3   // 体积
+//        ],
+    //]
     
     // 属性单位
     private static var attributeUnits: [Int: String] = [:]

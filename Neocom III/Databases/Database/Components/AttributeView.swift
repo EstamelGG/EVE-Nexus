@@ -15,22 +15,22 @@ struct ResistanceBarView: View {
     private let resistanceTypes = [
         ResistanceType(
             id: 0,
-            iconName: "items_22_32_8.png",
+            iconName: "items_22_32_20.png",
             color: Color(red: 74/255, green: 128/255, blue: 192/255)    // EM - 蓝色
         ),
         ResistanceType(
             id: 1,
-            iconName: "items_22_32_10.png",
+            iconName: "items_22_32_18.png",
             color: Color(red: 176/255, green: 53/255, blue: 50/255)    // Thermal - 红色
         ),
         ResistanceType(
             id: 2,
-            iconName: "items_22_32_9.png",
+            iconName: "items_22_32_17.png",
             color: Color(red: 155/255, green: 155/255, blue: 155/255)   // Kinetic - 灰色
         ),
         ResistanceType(
             id: 3,
-            iconName: "items_22_32_11.png",
+            iconName: "items_22_32_19.png",
             color: Color(red: 185/255, green: 138/255, blue: 62/255)    // Explosive - 橙色
         )
     ]
