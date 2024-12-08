@@ -578,4 +578,26 @@ class DatabaseManager: ObservableObject {
                 return nil  // 如果这个分类没有属性，就不包含在结果中
             }
     }
+    
+    // 加载属性单位信息
+    func loadAttributeUnits() -> [Int: String] {
+        let query = """
+            SELECT attribute_id, unitName
+            FROM dogmaAttributes
+            WHERE unitName IS NOT NULL AND unitName != ''
+        """
+        
+        var units: [Int: String] = [:]
+        
+        if case .success(let rows) = executeQuery(query) {
+            for row in rows {
+                if let attributeId = row["attribute_id"] as? Int,
+                   let unitName = row["unitName"] as? String {
+                    units[attributeId] = unitName
+                }
+            }
+        }
+        
+        return units
+    }
 }

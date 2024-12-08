@@ -36,81 +36,37 @@ struct AttributeDisplayConfig {
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
     private static let defaultHiddenAttributes: Set<Int> = [
-        3,15,104,600,715,716,866,868,1137,1336,1547,1785,1970,1973,2754
+        3,15,104,600,715,716,861,866,868,1137,1336,1547,1785,1970,1973,2754
     ] // 要隐藏的属性id
     
+    // 属性单位
+    private static var attributeUnits: [Int: String] = [:]
+    
     // 属性值计算规则
-    private static let attributeCalculations: [Int: AttributeCalculation] = [
+    private static var attributeCalculations: [Int: AttributeCalculation] = [
         // 示例：属性ID 1 的值 = 属性ID 2 的值 + 属性ID 3 的值
-        // 1: AttributeCalculation(sourceAttribute1: 2, sourceAttribute2: 3, operation: .add)
-        // 可以添加更多计算规则
         // operation: .add,.subtract,.multiply,.divide (+-*/)
         1281: AttributeCalculation(sourceAttribute1: 1281, sourceAttribute2: 70, operation: .add)
     ]
     
-    // 值转换规则
-    private static let valueTransformRules: [Int: (Double) -> TransformResult] = [
-        37: { value in return .number(value, " m/s")},
-        70: { value in return .number(value, " x")},
-        76: { value in return .number(value/1000, " km")},
-        188: { value in
-            if value == 1 {
-                return .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
-            } else {
-                return .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
-            }
-        },
-        283: { value in return .number(value, " m3")},
-        552: { value in return .number(value, " m")},
-        564: { value in return .number(value, " mm")},
-        861: { value in
-            if value == 1 {
-                return .text(NSLocalizedString("Misc_true", comment: ""))
-            } else {
-                return .text(NSLocalizedString("Misc_false", comment: ""))
-            }
-        },
-        867: { value in return .number(value, " ly")},
-        898: { value in return .number(100 * value, " %")},
-        908: { value in return .number(value, " m3")},
-        912: { value in return .number(value, " m3")},
-        1086: { value in return .number(value, " m3")},
-        1271: { value in return .number(value, " Mbit/s")},
-        1281: { value in return .number(value, " AU/s")},
-        1379: { value in return .number(value, " m/s")},
-        1549: { value in return .number(value, " m3")},
-        1556: { value in return .number(value, " m3")},
-        1557: { value in return .number(value, " m3")},
-        1558: { value in return .number(value, " m3")},
-        1559: { value in return .number(value, " m3")},
-        1560: { value in return .number(value, " m3")},
-        1561: { value in return .number(value, " m3")},
-        1562: { value in return .number(value, " m3")},
-        1563: { value in return .number(value, " m3")},
-        1564: { value in return .number(value, " m3")},
-        1573: { value in return .number(value, " m3")},
-        1804: { value in return .number(value, " m3")},
-        1971: { value in return .number(value * 100, "%")},
-        2045: { value in return .number((1 - value) * 100, "%")},
-        2055: { value in return .number(value, " m3")},
-        2112: { value in return .number((1 - value) * 100, "%")},
-        2113: { value in return .number((1 - value) * 100, "%")},
-        2114: { value in return .number((1 - value) * 100, "%")},
-        2115: { value in return .number((1 - value) * 100, "%")},
-        2116: { value in return .number((1 - value) * 100, "%")},
-        2135: { value in return .number((1 - value) * 100, "%")},
-        2467: { value in return .number(value, " m3")},
-        2571: { value in return .number(value, "%")},
-        2572: { value in return .number(value, "%")},
-        2574: { value in return .number(value, "%")},
-        2657: { value in return .number(value, " m3")},
-        2675: { value in return .number(value, " m3")},
-        3136: { value in return .number(value, " m3")},
-        3227: { value in return .number(value, " m3")},
-        5325: { value in return .number(value, " m3")},
-        5646: { value in return .number(value, " m3")},
-        5693: { value in return .number(value, " m3")},
-        // 可以添加更多属性的转换规则
+    // 值转换规则（特殊处理的属性）
+    private static let valueTransformRules: [Int: (Double) -> Double] = [
+        76: { value in value/1000 },  // km转换
+        898: { value in value * 100 }, // 百分比转换
+        1971: { value in value * 100 }, // 百分比转换
+        2045: { value in (1 - value) * 100 }, // 反向百分比转换
+        2112: { value in (1 - value) * 100 }, // 反向百分比转换
+        2113: { value in (1 - value) * 100 }, // 反向百分比转换
+        2114: { value in (1 - value) * 100 }, // 反向百分比转换
+        2115: { value in (1 - value) * 100 }, // 反向百分比转换
+        2116: { value in (1 - value) * 100 }, // 反向百分比转换
+        2135: { value in (1 - value) * 100 }  // 反向百分比转换
+    ]
+    
+    // 布尔值转换规则
+    private static let booleanTransformRules: Set<Int> = [
+        188, // immune
+        861  // true/false
     ]
     
     // 自定义配置 - 可以根据需要设置，不设置则使用默认值
@@ -129,6 +85,11 @@ struct AttributeDisplayConfig {
     
     static var activeHiddenAttributes: Set<Int> {
         customHiddenAttributes ?? defaultHiddenAttributes
+    }
+    
+    // 初始化属性单位
+    static func initializeUnits(with units: [Int: String]) {
+        attributeUnits = units
     }
     
     // 判断属性组是否应该显示
@@ -162,10 +123,26 @@ struct AttributeDisplayConfig {
     static func transformValue(_ attributeID: Int, allAttributes: [Int: Double]) -> TransformResult {
         let value = calculateValue(for: attributeID, in: allAttributes)
         
-        if let transform = valueTransformRules[attributeID] {
-            return transform(value)
+        // 处理布尔值
+        if booleanTransformRules.contains(attributeID) {
+            if attributeID == 188 {
+                return value == 1 ? 
+                    .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: "")) :
+                    .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
+            } else if attributeID == 861 {
+                return value == 1 ? 
+                    .text(NSLocalizedString("Misc_true", comment: "")) :
+                    .text(NSLocalizedString("Misc_false", comment: ""))
+            }
         }
-        return .text(NumberFormatUtil.format(value))
+        
+        // 应用数值转换规则
+        let transformedValue = valueTransformRules[attributeID]?(value) ?? value
+        
+        // 获取单位（如果有）
+        let unit = attributeUnits[attributeID].map { " " + $0 }
+        
+        return .number(transformedValue, unit)
     }
     
     // 重置所有配置到默认值
@@ -215,13 +192,15 @@ struct AttributeDisplayConfig {
     
     // 添加属性计算规则
     static func addCalculationRule(for attributeID: Int, source1: Int, source2: Int, operation: Operation) {
-        var rules = attributeCalculations
-        rules[attributeID] = AttributeCalculation(sourceAttribute1: source1, sourceAttribute2: source2, operation: operation)
+        attributeCalculations[attributeID] = AttributeCalculation(
+            sourceAttribute1: source1,
+            sourceAttribute2: source2,
+            operation: operation
+        )
     }
     
     // 移除属性计算规则
     static func removeCalculationRule(for attributeID: Int) {
-        var rules = attributeCalculations
-        rules.removeValue(forKey: attributeID)
+        attributeCalculations.removeValue(forKey: attributeID)
     }
 }

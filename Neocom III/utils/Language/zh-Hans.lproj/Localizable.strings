@@ -64,3 +64,5 @@
 
 "Misc_true" = "是";
 "Misc_false" = "否";
+"Misc_number_item" = "个";
+"Misc_number_point" = "点";

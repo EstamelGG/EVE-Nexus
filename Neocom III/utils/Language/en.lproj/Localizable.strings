@@ -64,3 +64,7 @@
 
 "Misc_true" = "True";
 "Misc_false" = "False";
+"Misc_number_item" = "x";
+"Misc_number_point" = "points";
+
+

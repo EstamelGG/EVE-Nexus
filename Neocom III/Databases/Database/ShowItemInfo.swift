@@ -279,6 +279,9 @@ struct ShowItemInfo: View {
     // 加载属性
     private func loadAttributes(for itemID: Int) {
         attributeGroups = databaseManager.loadAttributeGroups(for: itemID)
+        // 初始化属性单位
+        let units = databaseManager.loadAttributeUnits()
+        AttributeDisplayConfig.initializeUnits(with: units)
     }
 }
 
