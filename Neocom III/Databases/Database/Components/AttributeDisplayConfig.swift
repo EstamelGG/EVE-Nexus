@@ -123,7 +123,7 @@ struct AttributeDisplayConfig {
     struct AttributeCalculation {
         let sourceAttribute1: Int  // 第一个源属性ID
         let sourceAttribute2: Int  // 第二个源属性ID
-        let operation: Operation   // 运算符
+        let operation: Operation   // ���算符
     }
     
     // 默认配置
@@ -165,6 +165,7 @@ struct AttributeDisplayConfig {
     // 值转换规则（特殊处理的属性）
     private static let valueTransformRules: [Int: (Double) -> Double] = [
         76: { value in value/1000 },  // km转换
+        101: { value in value/1000 }, // ms转s
         109: { value in (1 - value) * 100 }, // 百分比转换
         110: { value in (1 - value) * 100 }, // 百分比转换
         111: { value in (1 - value) * 100 }, // 百分比转换
