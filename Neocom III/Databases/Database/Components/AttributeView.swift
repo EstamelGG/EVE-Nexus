@@ -15,7 +15,7 @@ struct ResistanceBarView: View {
     private let resistanceTypes = [
         ResistanceType(
             id: 0,
-            iconName: "items_22_32_12.png",
+            iconName: "items_22_32_8.png",
             color: Color(red: 74/255, green: 128/255, blue: 192/255)    // EM - 蓝色
         ),
         ResistanceType(
@@ -35,6 +35,11 @@ struct ResistanceBarView: View {
         )
     ]
     
+    // 获取四舍五入后的百分比值
+    private func roundedPercentage(_ value: Double) -> Int {
+        return Int(round(value))
+    }
+    
     var body: some View {
         VStack(spacing: 2) {
             // 图标和数值行
@@ -47,7 +52,7 @@ struct ResistanceBarView: View {
                             .frame(width: 18, height: 18)
                         
                         // 数值
-                        Text("\(Int(resistances[type.id]))%")
+                        Text("\(roundedPercentage(resistances[type.id]))%")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                             
