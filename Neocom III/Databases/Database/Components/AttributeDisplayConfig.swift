@@ -6,7 +6,24 @@ struct AttributeDisplayConfig {
     enum TransformResult {
         case number(Double, String?)  // 数值和可选单位
         case text(String)             // 纯文本
+        case resistance([Double])     // 抗性显示（EM, Thermal, Kinetic, Explosive）
     }
+    
+    // 抗性属性组定义
+    struct ResistanceGroup {
+        let groupID: Int
+        let emID: Int
+        let thermalID: Int
+        let kineticID: Int
+        let explosiveID: Int
+    }
+    
+    // 定义抗性属性组
+    private static let resistanceGroups: [ResistanceGroup] = [
+        ResistanceGroup(groupID: 2, emID: 271, thermalID: 274, kineticID: 273, explosiveID: 272),      // 护盾抗性
+        ResistanceGroup(groupID: 3, emID: 267, thermalID: 270, kineticID: 269, explosiveID: 268),      // 装甲抗性
+        ResistanceGroup(groupID: 4, emID: 113, thermalID: 110, kineticID: 109, explosiveID: 111)       // 结构抗性
+    ]
     
     // 运算符类型
     enum Operation: String {
@@ -42,28 +59,32 @@ struct AttributeDisplayConfig {
     // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
     private static let defaultAttributeOrder: [Int: [Int: Int]] = [
         // 装备属性组
+        1: [
+            141: 1,  // 数量
+            120: 2,  // 点数
+            283: 3   // 体积
+        ],
+        // 护盾抗性
         2: [
-            263: 1,
-            271: 2,
-            274: 3,
-            273: 4,
-            272: 5
+            271: 2,  // EM
+            274: 3,  // Thermal
+            273: 4,  // Kinetic
+            272: 5   // Explosive
         ],
+        // 装甲抗性
         3: [
-            265: 1,
-            267: 2,
-            270: 3,
-            269: 4,
-            268: 5
+            267: 2,  // EM
+            270: 3,  // Thermal
+            269: 4,  // Kinetic
+            268: 5   // Explosive
         ],
+        // 结构抗性
         4: [
-            9: 1,
-            113: 2,
-            110: 3,
-            109: 4,
-            111: 5
-        ],
-        // 可以添加更多组的默认排序
+            113: 2,  // EM
+            110: 3,  // Thermal
+            109: 4,  // Kinetic
+            111: 5   // Explosive
+        ]
     ]
     
     // 属性单位
@@ -149,7 +170,11 @@ struct AttributeDisplayConfig {
     
     // 判断具体属性是否应该显示
     static func shouldShowAttribute(_ attributeID: Int) -> Bool {
-        !activeHiddenAttributes.contains(attributeID)
+        // 如果是抗性属性但不是第一个，则隐藏
+        if isResistanceAttribute(attributeID) && !isFirstResistanceAttribute(attributeID) {
+            return false
+        }
+        return !activeHiddenAttributes.contains(attributeID)
     }
     
     // 获取属性组的排序权重
@@ -169,9 +194,68 @@ struct AttributeDisplayConfig {
         return allAttributes[attributeID] ?? 0
     }
     
+    // 检查是否是抗性属性组
+    private static func findResistanceGroup(for groupID: Int) -> ResistanceGroup? {
+        return resistanceGroups.first { $0.groupID == groupID }
+    }
+    
+    // 获取抗性值数组
+    private static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
+        guard let group = findResistanceGroup(for: groupID) else { return nil }
+        
+        // 先获取原始值
+        let emValue = allAttributes[group.emID] ?? 0
+        let thermalValue = allAttributes[group.thermalID] ?? 0
+        let kineticValue = allAttributes[group.kineticID] ?? 0
+        let explosiveValue = allAttributes[group.explosiveID] ?? 0
+        
+        // 转换为显示值 (1 - value) * 100
+        return [
+            (1 - emValue) * 100,
+            (1 - thermalValue) * 100,
+            (1 - kineticValue) * 100,
+            (1 - explosiveValue) * 100
+        ]
+    }
+    
+    // 检查是否是抗性属性组的第一个属性
+    private static func isFirstResistanceAttribute(_ attributeID: Int) -> Bool {
+        for group in resistanceGroups {
+            if attributeID == group.emID {  // 只有 EM 抗性（第一个）显示整组
+                return true
+            }
+        }
+        return false
+    }
+    
+    // 检查是否是抗性属性
+    private static func isResistanceAttribute(_ attributeID: Int) -> Bool {
+        for group in resistanceGroups {
+            if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID) {
+                return true
+            }
+        }
+        return false
+    }
+    
     // 转换属性值
     static func transformValue(_ attributeID: Int, allAttributes: [Int: Double]) -> TransformResult {
         let value = calculateValue(for: attributeID, in: allAttributes)
+        
+        // 检查是否属于抗性组
+        if isResistanceAttribute(attributeID) {
+            // 只有第一个属性显示整组抗性
+            if isFirstResistanceAttribute(attributeID) {
+                for group in resistanceGroups {
+                    if attributeID == group.emID,
+                       let resistances = getResistanceValues(groupID: group.groupID, from: allAttributes) {
+                        return .resistance(resistances)
+                    }
+                }
+            }
+            // 其他抗性属性不显示
+            return .text("")
+        }
         
         // 处理布尔值
         if booleanTransformRules.contains(attributeID) {
@@ -190,7 +274,16 @@ struct AttributeDisplayConfig {
         let transformedValue = valueTransformRules[attributeID]?(value) ?? value
         
         // 获取单位
-        let unit = attributeUnits[attributeID].map { " " + $0 }
+        let unit: String = {
+            switch String(attributeID) {
+            case "141":
+                return " " + NSLocalizedString("Misc_number_item", comment: "")
+            case "120":
+                return " " + NSLocalizedString("Misc_number_point", comment: "")
+            default:
+                return attributeUnits[attributeID].map { " " + $0 } ?? ""
+            }
+        }()
         
         return .number(transformedValue, unit)
     }
