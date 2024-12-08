@@ -83,6 +83,21 @@ public struct DatabaseItem: Identifiable {
     }
 }
 
+// Trait模型
+public struct Trait {
+    public let content: String
+    public let importance: Int
+    public let bonusType: String
+    public let skill: Int?
+    
+    public init(content: String, importance: Int, bonusType: String, skill: Int?) {
+        self.content = content
+        self.importance = importance
+        self.bonusType = bonusType
+        self.skill = skill
+    }
+}
+
 // 物品详情模型
 public struct ItemDetails {
     public let name: String
@@ -90,12 +105,16 @@ public struct ItemDetails {
     public let iconFileName: String
     public let groupName: String
     public let categoryName: String
+    public let roleBonuses: [Trait]
+    public let typeBonuses: [Trait]
     
-    public init(name: String, description: String, iconFileName: String, groupName: String, categoryName: String) {
+    public init(name: String, description: String, iconFileName: String, groupName: String, categoryName: String, roleBonuses: [Trait] = [], typeBonuses: [Trait] = []) {
         self.name = name
         self.description = description
         self.iconFileName = iconFileName
         self.groupName = groupName
         self.categoryName = categoryName
+        self.roleBonuses = roleBonuses
+        self.typeBonuses = typeBonuses
     }
 } 

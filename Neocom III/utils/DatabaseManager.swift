@@ -264,6 +264,7 @@ class DatabaseManager: ObservableObject {
     
     // 加载物品详情
     func loadItemDetails(for itemID: Int) -> ItemDetails? {
+        // 1. 加载基本信息
         let query = """
             SELECT name, description, icon_filename, group_name, category_name
             FROM types
@@ -283,12 +284,48 @@ class DatabaseManager: ObservableObject {
                 return nil
             }
             
+            // 2. 加载 traits
+            let traitsQuery = """
+                SELECT importance, bonus_type, content, skill
+                FROM traits
+                WHERE typeid = ?
+                ORDER BY bonus_type, skill, importance
+            """
+            
+            let traitsResult = executeQuery(traitsQuery, parameters: [itemID])
+            var roleBonuses: [Trait] = []
+            var typeBonuses: [Trait] = []
+            
+            if case .success(let traitRows) = traitsResult {
+                for traitRow in traitRows {
+                    guard let importance = traitRow["importance"] as? Int,
+                          let bonusType = traitRow["bonus_type"] as? String,
+                          let content = traitRow["content"] as? String else {
+                        continue
+                    }
+                    
+                    let skill = traitRow["skill"] as? Int
+                    let trait = Trait(content: content,
+                                    importance: importance,
+                                    bonusType: bonusType,
+                                    skill: skill)
+                    
+                    if bonusType == "roleBonuses" {
+                        roleBonuses.append(trait)
+                    } else if bonusType == "typeBonuses" {
+                        typeBonuses.append(trait)
+                    }
+                }
+            }
+            
             return ItemDetails(
                 name: name,
                 description: description,
                 iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                 groupName: groupName,
-                categoryName: categoryName
+                categoryName: categoryName,
+                roleBonuses: roleBonuses,
+                typeBonuses: typeBonuses
             )
             
         case .error(let error):
@@ -444,5 +481,18 @@ class DatabaseManager: ObservableObject {
         }
         
         return metaGroupNames
+    }
+    
+    // 获取类型名称
+    func getTypeName(for typeID: Int) -> String? {
+        let query = "SELECT name FROM types WHERE type_id = ?"
+        let result = executeQuery(query, parameters: [typeID])
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let name = row["name"] as? String {
+            return name
+        }
+        return nil
     }
 }

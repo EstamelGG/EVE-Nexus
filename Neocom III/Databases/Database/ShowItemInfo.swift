@@ -26,7 +26,7 @@ func filterText(_ text: String) -> String {
     }
     
     // 4. 删除其他HTML标签
-    let regex = try! NSRegularExpression(pattern: "<(?!br|b|url)(.*?)>", options: .caseInsensitive)
+    let regex = try! NSRegularExpression(pattern: "<(?!br|b|url|a)(.*?)>", options: .caseInsensitive)
     processedText = regex.stringByReplacingMatches(in: processedText, options: [], range: NSRange(location: 0, length: processedText.utf16.count), withTemplate: "")
     
     // 5. 替换多个连续的换行符为一个换行符
@@ -36,6 +36,55 @@ func filterText(_ text: String) -> String {
     processedText = processedText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
     
     return processedText
+}
+
+// 处理trait文本，支持蓝色链接和加粗
+func processTraitText(_ text: String) -> AttributedString {
+    var processedText = text
+    
+    // 1. 处理加粗标签
+    processedText = processedText.replacingOccurrences(of: "<b>", with: "**")
+    processedText = processedText.replacingOccurrences(of: "</b>", with: "**")
+    
+    // 2. 处理showinfo链接
+    let pattern = "<a href=(?:\")?showinfo:([0-9]+)(?:\")?>(.*?)</a>"
+    let regex = try! NSRegularExpression(pattern: pattern, options: [])
+    let nsRange = NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)
+    
+    // 创建AttributedString
+    var attributedString = try! AttributedString(processedText)
+    
+    // 获取所有匹配项并从后向前处理
+    let matches = regex.matches(in: processedText, range: nsRange)
+    for match in matches.reversed() {
+        guard let textRange = Range(match.range(at: 2), in: processedText),
+              let fullRange = Range(match.range(at: 0), in: processedText) else {
+            continue
+        }
+        
+        // 只保留链接文本内容
+        let linkText = String(processedText[textRange])
+        processedText.replaceSubrange(fullRange, with: linkText)
+    }
+    
+    // 3. 重新创建AttributedString（现在文本中已经没有HTML标签）
+    attributedString = try! AttributedString(processedText)
+    
+    // 4. 再次处理链接，为匹配的文本添加蓝色
+    let originalMatches = regex.matches(in: text, range: nsRange)
+    for match in originalMatches {
+        guard let textRange = Range(match.range(at: 2), in: text) else {
+            continue
+        }
+        
+        let linkText = String(text[textRange])
+        if let range = processedText.range(of: linkText) {
+            let attributedRange = Range(range, in: attributedString)!
+            attributedString[attributedRange].foregroundColor = .blue
+        }
+    }
+    
+    return attributedString
 }
 
 // ShowItemInfo view
@@ -52,8 +101,43 @@ struct ShowItemInfo: View {
     // 标准边距
     private let standardPadding: CGFloat = 16
     
+    // 构建traits文本
+    private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> AttributedString {
+        var text = ""
+        
+        // 添加Role Bonuses
+        if !roleBonuses.isEmpty {
+            text += "Role Bonuses\n\n"
+            for bonus in roleBonuses {
+                text += bonus.content + "\n\n"
+            }
+        }
+        
+        // 添加Type Bonuses
+        if !typeBonuses.isEmpty {
+            let groupedBonuses = Dictionary(grouping: typeBonuses) { $0.skill }
+            let sortedSkills = groupedBonuses.keys
+                .compactMap { $0 }
+                .sorted()
+            
+            for skill in sortedSkills {
+                if let skillName = databaseManager.getTypeName(for: skill) {
+                    text += "\(skillName) bonuses per level\n\n"
+                    
+                    let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
+                    for bonus in bonuses {
+                        text += bonus.content + "\n\n"
+                    }
+                }
+            }
+        }
+        
+        // 处理HTML标签
+        return processTraitText(text.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+    
     var body: some View {
-        Form {
+        List {
             if let itemDetails = itemDetails {
                 Section {
                     if let renderImage = renderImage {
@@ -86,7 +170,7 @@ struct ShowItemInfo: View {
                         }
                         .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
                     } else {
-                        // 如果没有渲染图，显示原来的布局
+                        // 如果没有渲染图，显示原来的���局
                         HStack {
                             IconManager.shared.loadImage(for: itemDetails.iconFileName)
                                 .resizable()
@@ -101,7 +185,6 @@ struct ShowItemInfo: View {
                                     .foregroundColor(.gray)
                             }
                         }
-                        .padding(.vertical, 8)
                     }
                     
                     let desc = filterText(itemDetails.description)
@@ -109,19 +192,26 @@ struct ShowItemInfo: View {
                         Text(.init(desc))
                             .font(.body)
                             .foregroundColor(.primary)
-                            .padding(.top, standardPadding)
+                    }
+                    
+                    // 只有当有traits信息时才显示traits
+                    if !itemDetails.roleBonuses.isEmpty || !itemDetails.typeBonuses.isEmpty {
+                        Text(buildTraitsText(
+                            roleBonuses: itemDetails.roleBonuses,
+                            typeBonuses: itemDetails.typeBonuses,
+                            databaseManager: databaseManager
+                        ))
+                        .font(.body)
                     }
                 }
             } else {
-                Section {
-                    Text("Details not found")
-                        .foregroundColor(.gray)
-                }
+                Text("Details not found")
+                    .foregroundColor(.gray)
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
         .navigationTitle("Info")
-        .navigationBarBackButtonHidden(false)  // 显示返回按钮
+        .navigationBarBackButtonHidden(false)
         .onAppear {
             loadItemDetails(for: itemID)
             loadRenderImage(for: itemID)
