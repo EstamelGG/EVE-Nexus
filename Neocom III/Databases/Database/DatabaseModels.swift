@@ -117,4 +117,39 @@ public struct ItemDetails {
         self.roleBonuses = roleBonuses
         self.typeBonuses = typeBonuses
     }
+}
+
+// 属性分类模型
+struct DogmaAttributeCategory: Identifiable {
+    let id: Int              // attribute_category_id
+    let name: String         // name
+    let description: String  // description
+}
+
+// 属性模型
+struct DogmaAttribute: Identifiable {
+    let id: Int              // attribute_id
+    let categoryID: Int      // categoryID
+    let name: String         // name
+    let displayName: String? // display_name
+    let iconID: Int         // iconID
+    let iconFileName: String // icon_filename
+    let value: Double       // value from typeAttributes
+    
+    // 显示名称
+    var displayTitle: String {
+        return displayName?.isEmpty == false ? displayName! : name
+    }
+    
+    // 是否应该显示
+    var shouldDisplay: Bool {
+        return !(displayName?.isEmpty == true && name.isEmpty)
+    }
+}
+
+// 属性分组模型
+struct AttributeGroup: Identifiable {
+    let id: Int              // category id
+    let name: String         // category name
+    let attributes: [DogmaAttribute]
 } 

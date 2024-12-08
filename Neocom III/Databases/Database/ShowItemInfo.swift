@@ -102,6 +102,7 @@ struct ShowItemInfo: View {
     
     @State private var itemDetails: ItemDetails?
     @State private var renderImage: UIImage?
+    @State private var attributeGroups: [AttributeGroup] = []
     
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
@@ -220,15 +221,9 @@ struct ShowItemInfo: View {
                         .lineSpacing(2)  // 减小行距
                     }
                 }
-            } else {
-                Text("Details not found")
-                    .foregroundColor(.gray)
-            }
-            
-            // 添加变体列表项
-            if itemDetails != nil {
+                
+                // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
-                // 只在变体数量大于1时显示（因为数量包含了物品本身）
                 if variationsCount > 1 {
                     Section {
                         NavigationLink(destination: VariationsView(databaseManager: databaseManager, typeID: itemID)) {
@@ -239,6 +234,12 @@ struct ShowItemInfo: View {
                             .font(.headline)
                     }
                 }
+                
+                // 属性 Sections
+                AttributesView(attributeGroups: attributeGroups)
+            } else {
+                Text("Details not found")
+                    .foregroundColor(.gray)
             }
         }
         .listStyle(.insetGrouped)
@@ -247,6 +248,7 @@ struct ShowItemInfo: View {
         .onAppear {
             loadItemDetails(for: itemID)
             loadRenderImage(for: itemID)
+            loadAttributes(for: itemID)
         }
     }
     
@@ -272,6 +274,11 @@ struct ShowItemInfo: View {
                 // 加载失败时保持使用原来的小图显示，不需特殊处理
             }
         }
+    }
+    
+    // 加载属性
+    private func loadAttributes(for itemID: Int) {
+        attributeGroups = databaseManager.loadAttributeGroups(for: itemID)
     }
 }
 

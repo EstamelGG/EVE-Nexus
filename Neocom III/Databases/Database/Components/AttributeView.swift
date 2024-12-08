@@ -1,0 +1,56 @@
+import SwiftUI
+
+// 单个属性的显示组件
+struct AttributeItemView: View {
+    let attribute: DogmaAttribute
+    
+    var body: some View {
+        HStack {
+            // 属性图标
+            if attribute.iconID != 0 {
+                IconManager.shared.loadImage(for: attribute.iconFileName)
+                    .resizable()
+                    .frame(width: 24, height: 24)
+            }
+            
+            // 属性名称
+            Text(attribute.displayTitle)
+                .font(.body)
+            
+            Spacer()
+            
+            // 属性值
+            Text(String(format: "%.1f", attribute.value))
+                .font(.body)
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// 属性组的显示组件
+struct AttributeGroupView: View {
+    let group: AttributeGroup
+    
+    var body: some View {
+        Section {
+            ForEach(group.attributes) { attribute in
+                AttributeItemView(attribute: attribute)
+            }
+        } header: {
+            Text(group.name)
+                .font(.headline)
+        }
+    }
+}
+
+// 所有属性组的显示组件
+struct AttributesView: View {
+    let attributeGroups: [AttributeGroup]
+    
+    var body: some View {
+        ForEach(attributeGroups) { group in
+            AttributeGroupView(group: group)
+        }
+    }
+} 

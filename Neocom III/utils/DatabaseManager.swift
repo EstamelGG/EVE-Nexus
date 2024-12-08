@@ -495,4 +495,87 @@ class DatabaseManager: ObservableObject {
         }
         return nil
     }
+    
+    // 加载物品的所有属性组
+    func loadAttributeGroups(for typeID: Int) -> [AttributeGroup] {
+        // 1. 首先加载所有属性分类
+        let categoryQuery = """
+            SELECT attribute_category_id, name, description
+            FROM dogmaAttributeCategories
+            ORDER BY attribute_category_id
+        """
+        
+        let categoryResult = executeQuery(categoryQuery)
+        var categories: [Int: DogmaAttributeCategory] = [:]
+        
+        if case .success(let rows) = categoryResult {
+            for row in rows {
+                guard let id = row["attribute_category_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let description = row["description"] as? String else {
+                    continue
+                }
+                categories[id] = DogmaAttributeCategory(id: id, name: name, description: description)
+            }
+        }
+        
+        // 2. 加载物品的所有属性值
+        let attributeQuery = """
+            SELECT da.attribute_id, da.categoryID, da.name, da.display_name, da.iconID, ta.value,
+                   COALESCE(i.iconFile_new, '') as icon_filename
+            FROM typeAttributes ta
+            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
+            LEFT JOIN iconIDs i ON da.iconID = i.icon_id
+            WHERE ta.type_id = ?
+            ORDER BY da.categoryID, da.attribute_id
+        """
+        
+        let attributeResult = executeQuery(attributeQuery, parameters: [typeID])
+        var attributesByCategory: [Int: [DogmaAttribute]] = [:]
+        
+        if case .success(let rows) = attributeResult {
+            for row in rows {
+                guard let attributeId = row["attribute_id"] as? Int,
+                      let categoryId = row["categoryID"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconId = row["iconID"] as? Int,
+                      let value = row["value"] as? Double else {
+                    continue
+                }
+                
+                let displayName = row["display_name"] as? String
+                let iconFileName = (row["icon_filename"] as? String) ?? ""
+                
+                let attribute = DogmaAttribute(
+                    id: attributeId,
+                    categoryID: categoryId,
+                    name: name,
+                    displayName: displayName,
+                    iconID: iconId,
+                    iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName,
+                    value: value
+                )
+                
+                if attribute.shouldDisplay {
+                    if attributesByCategory[categoryId] == nil {
+                        attributesByCategory[categoryId] = []
+                    }
+                    attributesByCategory[categoryId]?.append(attribute)
+                }
+            }
+        }
+        
+        // 3. 组合成最终的属性组列表
+        return categories.sorted { $0.key < $1.key }  // 按 category_id 排序
+            .compactMap { categoryId, category in
+                if let attributes = attributesByCategory[categoryId], !attributes.isEmpty {
+                    return AttributeGroup(
+                        id: categoryId,
+                        name: category.name,
+                        attributes: attributes.sorted { $0.id < $1.id }  // 按 attribute_id 排序
+                    )
+                }
+                return nil  // 如果这个分类没有属性，就不包含在结果中
+            }
+    }
 }
