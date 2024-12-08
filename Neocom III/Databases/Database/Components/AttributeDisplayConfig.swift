@@ -39,8 +39,43 @@ struct AttributeDisplayConfig {
         3,15,104,600,715,716,861,866,868,1137,1336,1547,1785,1970,1973,2754
     ] // 要隐藏的属性id
     
+    // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
+    private static let defaultAttributeOrder: [Int: [Int: Int]] = [
+        // 装备属性组
+        2: [
+            263: 1,
+            271: 2,
+            274: 3,
+            273: 4,
+            272: 5
+        ],
+        3: [
+            265: 1,
+            267: 2,
+            270: 3,
+            269: 4,
+            268: 5
+        ],
+        4: [
+            9: 1,
+            113: 2,
+            110: 3,
+            109: 4,
+            111: 5
+        ],
+        // 可以添加更多组的默认排序
+    ]
+    
     // 属性单位
     private static var attributeUnits: [Int: String] = [:]
+    
+    // 属性组内属性的自定义排序配置
+    private static var customAttributeOrder: [Int: [Int: Int]]?
+    
+    // 获取实际使用的属性排序配置
+    private static var activeAttributeOrder: [Int: [Int: Int]] {
+        customAttributeOrder ?? defaultAttributeOrder
+    }
     
     // 属性值计算规则
     private static var attributeCalculations: [Int: AttributeCalculation] = [
@@ -160,11 +195,55 @@ struct AttributeDisplayConfig {
         return .number(transformedValue, unit)
     }
     
+    // 获取属性在组内的排序权重
+    static func getAttributeOrder(attributeID: Int, in groupID: Int) -> Int {
+        activeAttributeOrder[groupID]?[attributeID] ?? 999  // 未定义顺序的属性放到最后
+    }
+    
+    // 设置属性组内的属性顺序
+    static func setAttributeOrder(for groupID: Int, orders: [Int: Int]) {
+        if customAttributeOrder == nil {
+            customAttributeOrder = defaultAttributeOrder
+        }
+        customAttributeOrder?[groupID] = orders
+    }
+    
+    // 设置单个属性的顺序
+    static func setAttributeOrder(attributeID: Int, order: Int, in groupID: Int) {
+        if customAttributeOrder == nil {
+            customAttributeOrder = defaultAttributeOrder
+        }
+        if customAttributeOrder?[groupID] == nil {
+            customAttributeOrder?[groupID] = [:]
+        }
+        customAttributeOrder?[groupID]?[attributeID] = order
+    }
+    
+    // 移除属性组的排序配置
+    static func removeAttributeOrder(for groupID: Int) {
+        customAttributeOrder?.removeValue(forKey: groupID)
+        if customAttributeOrder?.isEmpty == true {
+            customAttributeOrder = nil
+        }
+    }
+    
+    // 移除单个属性的排序配置
+    static func removeAttributeOrder(attributeID: Int, in groupID: Int) {
+        customAttributeOrder?[groupID]?.removeValue(forKey: attributeID)
+        if customAttributeOrder?[groupID]?.isEmpty == true {
+            customAttributeOrder?.removeValue(forKey: groupID)
+        }
+        if customAttributeOrder?.isEmpty == true {
+            customAttributeOrder = nil
+        }
+    }
+    
     // 重置所有配置到默认值
     static func resetToDefaults() {
         customGroupOrder = nil
         customHiddenGroups = nil
         customHiddenAttributes = nil
+        customAttributeOrder = nil
     }
     
     // 设置自定义配置的便捷方法

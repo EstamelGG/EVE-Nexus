@@ -48,7 +48,17 @@ struct AttributeGroupView: View {
     let allAttributes: [Int: Double]  // 添加所有属性的字典
     
     private var filteredAttributes: [DogmaAttribute] {
-        group.attributes.filter { AttributeDisplayConfig.shouldShowAttribute($0.id) }
+        group.attributes
+            .filter { AttributeDisplayConfig.shouldShowAttribute($0.id) }
+            .sorted { attr1, attr2 in
+                let order1 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr1.id, in: group.id)
+                let order2 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr2.id, in: group.id)
+                if order1 == order2 {
+                    // 如果顺序相同，按属性ID排序
+                    return attr1.id < attr2.id
+                }
+                return order1 < order2
+            }
     }
     
     var body: some View {
