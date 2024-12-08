@@ -36,15 +36,30 @@ struct ResistanceBarView: View {
     ]
     
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(resistanceTypes) { type in
-                HStack(spacing: 4) {
-                    // 抗性图标
-                    IconManager.shared.loadImage(for: type.iconName)
-                        .resizable()
-                        .frame(width: 18, height: 18)
-                    
-                    // 进度条和百分比
+        VStack(spacing: 2) {
+            // 图标和数值行
+            HStack(spacing: 8) {
+                ForEach(resistanceTypes) { type in
+                    HStack(spacing: 4) {
+                        // 图标
+                        IconManager.shared.loadImage(for: type.iconName)
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        
+                        // 数值
+                        Text("\(Int(resistances[type.id]))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            
+                        Spacer()
+                    }
+                }
+            }
+            
+            // 进度条行
+            HStack(spacing: 8) {
+                ForEach(resistanceTypes) { type in
+                    // 进度条
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             // 背景
@@ -56,15 +71,9 @@ struct ResistanceBarView: View {
                             Rectangle()
                                 .fill(type.color)
                                 .frame(width: geometry.size.width * CGFloat(resistances[type.id]) / 100)
-                            
-                            // 百分比文本
-                            Text("\(Int(resistances[type.id]))%")
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .frame(width: geometry.size.width, alignment: .center)
                         }
                     }
-                    .frame(height: 20)
+                    .frame(height: 8)  // 降低进度条高度
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                 }
             }
