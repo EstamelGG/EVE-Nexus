@@ -76,7 +76,38 @@ extension DatabaseManager {
     
     // 加载变体列表
     func loadVariations(for typeID: Int) -> ([DatabaseListItem], [Int: String]) {
-        // 首先获取所有 metaGroups 的名称
+        // 首先获取父物品ID
+        let parentQuery = """
+            WITH RECURSIVE parent AS (
+                -- 基础查询：获取当前物品
+                SELECT type_id, variationParentTypeID
+                FROM types
+                WHERE type_id = ?
+                
+                UNION ALL
+                
+                -- 递归查询：获取父物品
+                SELECT t.type_id, t.variationParentTypeID
+                FROM types t
+                JOIN parent p ON t.type_id = p.variationParentTypeID
+            )
+            -- 获取最顶层的父物品ID或当前物品ID
+            SELECT COALESCE(
+                (SELECT type_id FROM parent WHERE variationParentTypeID IS NULL LIMIT 1),
+                ?
+            ) as parent_id
+        """
+        
+        let parentResult = executeQuery(parentQuery, parameters: [typeID, typeID])
+        var parentID = typeID
+        
+        if case .success(let rows) = parentResult,
+           let row = rows.first,
+           let id = row["parent_id"] as? Int {
+            parentID = id
+        }
+        
+        // 获取所有 metaGroups 的名称
         let metaQuery = """
             SELECT metagroup_id, name 
             FROM metaGroups 
@@ -106,7 +137,7 @@ extension DatabaseManager {
             ORDER BY metaGroupID, name
         """
         
-        let result = executeQuery(query, parameters: [typeID, typeID])
+        let result = executeQuery(query, parameters: [parentID, parentID])
         var items: [DatabaseListItem] = []
         
         switch result {
