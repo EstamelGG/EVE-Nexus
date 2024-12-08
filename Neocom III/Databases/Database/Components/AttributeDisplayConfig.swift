@@ -36,7 +36,7 @@ struct AttributeDisplayConfig {
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
     private static let defaultHiddenAttributes: Set<Int> = [
-        3,15,104,600,715,716,861,866,868,1137,1336,1547,1785,1970,1973,2754
+        3,15,104,600,715,716,866,868,1137,1336,1547,1785,1970,1973,2754
     ] // 要隐藏的属性id
     
     // 属性值计算规则
@@ -63,6 +63,15 @@ struct AttributeDisplayConfig {
         283: { value in return .number(value, " m3")},
         552: { value in return .number(value, " m")},
         564: { value in return .number(value, " mm")},
+        861: { value in
+            if value == 1 {
+                return .text(NSLocalizedString("Misc_true", comment: ""))
+            } else {
+                return .text(NSLocalizedString("Misc_false", comment: ""))
+            }
+        },
+        867: { value in return .number(value, " ly")},
+        898: { value in return .number(100 * value, " %")},
         908: { value in return .number(value, " m3")},
         912: { value in return .number(value, " m3")},
         1086: { value in return .number(value, " m3")},

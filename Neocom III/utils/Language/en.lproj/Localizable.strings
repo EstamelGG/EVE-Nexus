@@ -62,3 +62,5 @@
 "Main_About" = "About";
 "Main_About_Title" = "About";
 
+"Misc_true" = "True";
+"Misc_false" = "False";
