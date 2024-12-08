@@ -30,7 +30,7 @@ struct AttributeItemView: View {
                 
                 Spacer()
                 
-                // 属性值 - 使用新的格式化函数
+                // 属性值 - 使用���的格式化函数
                 Text(formatValue(attribute.value))
                     .font(.body)
                     .foregroundColor(.secondary)
@@ -49,7 +49,7 @@ struct AttributeGroupView: View {
     }
     
     var body: some View {
-        if AttributeDisplayConfig.shouldShowGroup(group.name) && !filteredAttributes.isEmpty {
+        if AttributeDisplayConfig.shouldShowGroup(group.id) && !filteredAttributes.isEmpty {
             Section {
                 ForEach(filteredAttributes) { attribute in
                     AttributeItemView(attribute: attribute)
@@ -68,7 +68,7 @@ struct AttributesView: View {
     
     private var sortedGroups: [AttributeGroup] {
         attributeGroups.sorted { group1, group2 in
-            AttributeDisplayConfig.getGroupOrder(group1.name) < AttributeDisplayConfig.getGroupOrder(group2.name)
+            AttributeDisplayConfig.getGroupOrder(group1.id) < AttributeDisplayConfig.getGroupOrder(group2.id)
         }
     }
     

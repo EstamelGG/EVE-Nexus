@@ -3,31 +3,21 @@ import Foundation
 // 属性显示规则配置
 struct AttributeDisplayConfig {
     // 默认配置
-//    private static let defaultGroupOrder: [String: Int] = [ //展示属性组的顺序
-//        "Offensive": 1,
-//        "Defensive": 2,
-//        "Module": 3,
-//        "Structure": 4,
-//        "Fitting": 5
-//    ]
-  
-    private static let defaultGroupOrder: [String: Int] = [:]
-    
-    private static let defaultHiddenGroups: Set<String> = []
-    
-    private static let defaultHiddenAttributes: Set<Int> = []
+    private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
+    private static let defaultHiddenGroups: Set<Int> = []   // 要隐藏的属性分组id
+    private static let defaultHiddenAttributes: Set<Int> = [] // 要隐藏的属性id
     
     // 自定义配置 - 可以根据需要设置，不设置则使用默认值
-    static var customGroupOrder: [String: Int]?
-    static var customHiddenGroups: Set<String>?
+    static var customGroupOrder: [Int: Int]?
+    static var customHiddenGroups: Set<Int>?
     static var customHiddenAttributes: Set<Int>?
     
     // 获取实际使用的配置
-    static var activeGroupOrder: [String: Int] {
+    static var activeGroupOrder: [Int: Int] {
         customGroupOrder ?? defaultGroupOrder
     }
     
-    static var activeHiddenGroups: Set<String> {
+    static var activeHiddenGroups: Set<Int> {
         customHiddenGroups ?? defaultHiddenGroups
     }
     
@@ -36,8 +26,8 @@ struct AttributeDisplayConfig {
     }
     
     // 判断属性组是否应该显示
-    static func shouldShowGroup(_ groupName: String) -> Bool {
-        !activeHiddenGroups.contains(groupName)
+    static func shouldShowGroup(_ groupId: Int) -> Bool {
+        !activeHiddenGroups.contains(groupId)
     }
     
     // 判断具体属性是否应该显示
@@ -46,8 +36,8 @@ struct AttributeDisplayConfig {
     }
     
     // 获取属性组的排序权重
-    static func getGroupOrder(_ groupName: String) -> Int {
-        activeGroupOrder[groupName] ?? 999 // 未定义顺序的组放到最后
+    static func getGroupOrder(_ groupId: Int) -> Int {
+        activeGroupOrder[groupId] ?? 999 // 未定义顺序的组放到最后
     }
     
     // 重置所有配置到默认值
@@ -58,11 +48,11 @@ struct AttributeDisplayConfig {
     }
     
     // 设置自定义配置的便捷方法
-    static func setCustomGroupOrder(_ order: [String: Int]) {
+    static func setCustomGroupOrder(_ order: [Int: Int]) {
         customGroupOrder = order
     }
     
-    static func setHiddenGroups(_ groups: Set<String>) {
+    static func setHiddenGroups(_ groups: Set<Int>) {
         customHiddenGroups = groups
     }
     
@@ -71,15 +61,15 @@ struct AttributeDisplayConfig {
     }
     
     // 添加单个配置项的便捷方法
-    static func hideGroup(_ groupName: String) {
+    static func hideGroup(_ groupId: Int) {
         var groups = customHiddenGroups ?? defaultHiddenGroups
-        groups.insert(groupName)
+        groups.insert(groupId)
         customHiddenGroups = groups
     }
     
-    static func showGroup(_ groupName: String) {
+    static func showGroup(_ groupId: Int) {
         var groups = customHiddenGroups ?? defaultHiddenGroups
-        groups.remove(groupName)
+        groups.remove(groupId)
         customHiddenGroups = groups
     }
     
