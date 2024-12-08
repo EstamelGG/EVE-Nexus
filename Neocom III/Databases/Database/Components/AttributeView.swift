@@ -35,7 +35,7 @@ struct ResistanceBarView: View {
         )
     ]
     
-    // 获取四舍五入后的百分比值
+    // 获取四舍五入��的百分比值
     private func roundedPercentage(_ value: Double) -> Int {
         return Int(round(value))
     }
@@ -102,7 +102,7 @@ struct AttributeItemView: View {
     
     // 获取格式化后的显示值
     private var formattedValue: String {
-        let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes)
+        let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
         switch result {
         case .number(let value, let unit):
             return unit.map { NumberFormatUtil.formatWithUnit(value, unit: $0) } ?? NumberFormatUtil.format(value)
@@ -115,7 +115,7 @@ struct AttributeItemView: View {
     
     var body: some View {
         if AttributeDisplayConfig.shouldShowAttribute(attribute.id) {
-            let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes)
+            let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
             
             switch result {
             case .resistance(let resistances):

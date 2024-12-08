@@ -521,7 +521,7 @@ class DatabaseManager: ObservableObject {
         
         // 2. 加载物品的所有属性值
         let attributeQuery = """
-            SELECT da.attribute_id, da.categoryID, da.name, da.display_name, da.iconID, ta.value,
+            SELECT da.attribute_id, da.categoryID, da.name, da.display_name, da.iconID, ta.value, da.unitID,
                    COALESCE(i.iconFile_new, '') as icon_filename
             FROM typeAttributes ta
             JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
@@ -545,6 +545,7 @@ class DatabaseManager: ObservableObject {
                 
                 let displayName = row["display_name"] as? String
                 let iconFileName = (row["icon_filename"] as? String) ?? ""
+                let unitID = row["unitID"] as? Int
                 
                 let attribute = DogmaAttribute(
                     id: attributeId,
@@ -553,7 +554,8 @@ class DatabaseManager: ObservableObject {
                     displayName: displayName,
                     iconID: iconId,
                     iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName,
-                    value: value
+                    value: value,
+                    unitID: unitID
                 )
                 
                 if attribute.shouldDisplay {

@@ -123,7 +123,7 @@ struct AttributeDisplayConfig {
     struct AttributeCalculation {
         let sourceAttribute1: Int  // 第一个源属性ID
         let sourceAttribute2: Int  // 第二个源属性ID
-        let operation: Operation   // ���算符
+        let operation: Operation   // 符
     }
     
     // 默认配置
@@ -181,8 +181,10 @@ struct AttributeDisplayConfig {
         273: { value in (1 - value) * 100 }, // 百分比转换
         274: { value in (1 - value) * 100 }, // 百分比转换
         
+        281: { value in value/1000 }, // unitID=101 转换
+        
         898: { value in value * 100 }, // 百分比转换
-        1971: { value in value * 100 }, // 百分比转换
+        1971: { value in value * 100 }, // ���分比转换
         2045: { value in (1 - value) * 100 }, // 反向百分比转换
         2112: { value in (1 - value) * 100 }, // 反向百分比转换
         2113: { value in (1 - value) * 100 }, // 反向百分比转换
@@ -297,7 +299,7 @@ struct AttributeDisplayConfig {
     }
     
     // 转换属性值
-    static func transformValue(_ attributeID: Int, allAttributes: [Int: Double]) -> TransformResult {
+    static func transformValue(_ attributeID: Int, allAttributes: [Int: Double], unitID: Int?) -> TransformResult {
         let value = calculateValue(for: attributeID, in: allAttributes)
         
         // 检查是否有特殊值映射
@@ -335,6 +337,15 @@ struct AttributeDisplayConfig {
             // 处理单位
             if let unit = attributeUnits[attributeID] {
                 // 百分号不添加空格，其他单位添加空格
+                return .number(transformedValue, unit == "%" ? unit : " " + unit)
+            }
+            return .number(transformedValue, nil)
+        }
+        
+        // 如果属性的 unitID 是 101，进行除以1000的转换
+        if unitID == 101 {
+            let transformedValue = value / 1000.0
+            if let unit = attributeUnits[attributeID] {
                 return .number(transformedValue, unit == "%" ? unit : " " + unit)
             }
             return .number(transformedValue, nil)
@@ -446,7 +457,7 @@ struct AttributeDisplayConfig {
         )
     }
     
-    // 移除属性计算规则
+    // 移除属性��算规则
     static func removeCalculationRule(for attributeID: Int) {
         attributeCalculations.removeValue(forKey: attributeID)
     }

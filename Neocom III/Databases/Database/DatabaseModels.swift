@@ -135,6 +135,7 @@ struct DogmaAttribute: Identifiable {
     let iconID: Int         // iconID
     let iconFileName: String // icon_filename
     let value: Double       // value from typeAttributes
+    let unitID: Int?       // unitID from dogmaAttributes
     
     // 显示名称
     var displayTitle: String {
