@@ -4,23 +4,12 @@ import SwiftUI
 struct AttributeItemView: View {
     let attribute: DogmaAttribute
     
-    // 格式化数值的函数
-    private func formatValue(_ value: Double) -> String {
-        let roundedValue = (value * 100).rounded() / 100  // 保留两位小数
-        if roundedValue.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", roundedValue)  // 整数
-        } else {
-            return String(format: "%g", roundedValue)    // 去除末尾的0
-        }
-    }
-    
     // 获取格式化后的显示值
     private var formattedValue: String {
         let result = AttributeDisplayConfig.transformValue(attribute.value, for: attribute.id)
         switch result {
         case .number(let value, let unit):
-            let valueStr = formatValue(value)
-            return unit.map { valueStr + $0 } ?? valueStr
+            return unit.map { NumberFormatUtil.formatWithUnit(value, unit: $0) } ?? NumberFormatUtil.format(value)
         case .text(let str):
             return str
         }
