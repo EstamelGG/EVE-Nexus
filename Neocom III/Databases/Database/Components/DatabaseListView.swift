@@ -353,7 +353,7 @@ struct DatabaseListItemView: View {
                             HStack(spacing: 8) {  // 增加整体的间距
                                 // 电磁伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_20.png")
+                                    IconManager.shared.loadImage(for: "items_22_32_12.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -364,7 +364,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 热能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_18.png")
+                                    IconManager.shared.loadImage(for: "items_22_32_10.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -375,7 +375,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 动能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_17.png")
+                                    IconManager.shared.loadImage(for: "items_22_32_9.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -386,7 +386,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 爆炸伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_19.png")
+                                    IconManager.shared.loadImage(for: "items_22_32_11.png")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
