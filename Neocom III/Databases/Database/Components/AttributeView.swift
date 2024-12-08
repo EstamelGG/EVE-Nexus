@@ -4,6 +4,16 @@ import SwiftUI
 struct AttributeItemView: View {
     let attribute: DogmaAttribute
     
+    // 格式化数值的函数
+    private func formatValue(_ value: Double) -> String {
+        let roundedValue = (value * 100).rounded() / 100  // 保留两位小数
+        if roundedValue.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", roundedValue)  // 整数
+        } else {
+            return String(format: "%g", roundedValue)    // 去除末尾的0
+        }
+    }
+    
     var body: some View {
         HStack {
             // 属性图标
@@ -19,8 +29,8 @@ struct AttributeItemView: View {
             
             Spacer()
             
-            // 属性值
-            Text(String(format: "%.1f", attribute.value))
+            // 属性值 - 使用新的格式化函数
+            Text(formatValue(attribute.value))
                 .font(.body)
                 .foregroundColor(.secondary)
         }
