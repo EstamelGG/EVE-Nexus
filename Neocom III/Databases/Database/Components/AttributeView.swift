@@ -35,7 +35,7 @@ struct ResistanceBarView: View {
         )
     ]
     
-    // 获取四舍五入��的百分比值
+    // 获取四舍五入后的百分比值
     private func roundedPercentage(_ value: Double) -> Int {
         return Int(round(value))
     }
