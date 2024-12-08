@@ -1,41 +1,75 @@
 import SwiftUI
 
 // 用于过滤 HTML 标签并处理换行的函数
-func filterText(_ text: String) -> String {
-    // 1. 处理换行标签
-    var processedText = text.replacingOccurrences(of: "<br>", with: "\n")
+func filterText(_ text: String) -> Text {
+    var result = Text("")
+    var currentText = text
     
-    // 2. 处理加粗标签，确保标签周围有空格
-    processedText = processedText.replacingOccurrences(of: "<b>", with: " **")
-    processedText = processedText.replacingOccurrences(of: "</b>", with: "** ")
+    // 处理换行标签
+    currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
+    currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
+    currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
     
-    // 3. 处理URL标签
-    let urlPattern = "<url=([^>]+)>([^<]*)</url>"
-    let urlRegex = try! NSRegularExpression(pattern: urlPattern, options: [])
-    while let match = urlRegex.firstMatch(in: processedText, options: [], range: NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)) {
-        guard let urlRange = Range(match.range(at: 1), in: processedText),
-              let textRange = Range(match.range(at: 2), in: processedText),
-              let fullRange = Range(match.range(at: 0), in: processedText) else {
+    while !currentText.isEmpty {
+        // 1. 查找最近的特殊标签
+        let boldStart = currentText.range(of: "<b>")
+        let boldEnd = currentText.range(of: "</b>")
+        let urlStart = currentText.range(of: "<url=")
+        let urlEnd = currentText.range(of: "</url>")
+        
+        // 2. 如果没有任何标签了，添加剩余文本并结束
+        if boldStart == nil && urlStart == nil {
+            result = result + Text(currentText)
+            break
+        }
+        
+        // 3. 处理加粗文本
+        if let start = boldStart,
+           let end = boldEnd,
+           (urlStart == nil || start.lowerBound < urlStart!.lowerBound) {
+            // 添���加粗标签前的普通文本
+            let beforeBold = String(currentText[..<start.lowerBound])
+            if !beforeBold.isEmpty {
+                result = result + Text(beforeBold)
+            }
+            
+            // 提取并添加加粗文本
+            let boldText = String(currentText[start.upperBound..<end.lowerBound])
+            result = result + Text(boldText).bold()
+            
+            // 更新剩余文本
+            currentText = String(currentText[end.upperBound...])
             continue
         }
         
-        let url = String(processedText[urlRange])
-        let displayText = String(processedText[textRange])
-        let markdownLink = " [\(displayText)](\(url)) "
-        processedText.replaceSubrange(fullRange, with: markdownLink)
+        // 4. 处理URL文本
+        if let start = urlStart,
+           let end = urlEnd {
+            // 添加URL标签前的普通文本
+            let beforeUrl = String(currentText[..<start.lowerBound])
+            if !beforeUrl.isEmpty {
+                result = result + Text(beforeUrl)
+            }
+            
+            // 提取URL和显示文本
+            let urlText = currentText[start.lowerBound..<end.upperBound]
+            if let urlEndIndex = urlText.range(of: ">")?.upperBound,
+               let textEndIndex = urlText.range(of: "</url>")?.lowerBound {
+                let displayText = String(urlText[urlEndIndex..<textEndIndex])
+                result = result + Text(displayText).foregroundColor(.blue)
+            }
+            
+            // 更新剩余文本
+            currentText = String(currentText[end.upperBound...])
+            continue
+        }
+        
+        // 如果到这里还有文本，说明有不匹配的标签，直接添加剩余文本
+        result = result + Text(currentText)
+        break
     }
     
-    // 4. 删除其他HTML标签
-    let regex = try! NSRegularExpression(pattern: "<(?!br|b|url|a)(.*?)>", options: .caseInsensitive)
-    processedText = regex.stringByReplacingMatches(in: processedText, options: [], range: NSRange(location: 0, length: processedText.utf16.count), withTemplate: "")
-    
-    // 5. 替换多个连续的换行符为一个换行符
-    processedText = processedText.replacingOccurrences(of: "\n\n+", with: "\n\n", options: .regularExpression)
-    
-    // 6. 替换多个连续的空格为一个空格
-    processedText = processedText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
-    
-    return processedText
+    return result
 }
 
 // 处理trait文本，返回组合的Text视图
@@ -209,9 +243,9 @@ struct ShowItemInfo: View {
                         }
                     }
                     
-                    let desc = filterText(itemDetails.description)
+                    let desc = itemDetails.description
                     if !desc.isEmpty {
-                        Text(.init(desc))
+                        processTraitText(desc)
                             .font(.body)
                             .foregroundColor(.primary)
                     }
