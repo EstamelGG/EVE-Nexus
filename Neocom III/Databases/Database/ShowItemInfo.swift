@@ -42,17 +42,10 @@ func filterText(_ text: String) -> String {
 func processTraitText(_ text: String) -> AttributedString {
     var processedText = text
     
-    // 1. 处理加粗标签
-    processedText = processedText.replacingOccurrences(of: "<b>", with: "**")
-    processedText = processedText.replacingOccurrences(of: "</b>", with: "**")
-    
-    // 2. 处理showinfo链接
+    // 1. 处理showinfo链接
     let pattern = "<a href=(?:\")?showinfo:([0-9]+)(?:\")?>(.*?)</a>"
     let regex = try! NSRegularExpression(pattern: pattern, options: [])
     let nsRange = NSRange(processedText.startIndex..<processedText.endIndex, in: processedText)
-    
-    // 创建AttributedString
-    var attributedString = try! AttributedString(processedText)
     
     // 获取所有匹配项并从后向前处理
     let matches = regex.matches(in: processedText, range: nsRange)
@@ -67,10 +60,25 @@ func processTraitText(_ text: String) -> AttributedString {
         processedText.replaceSubrange(fullRange, with: linkText)
     }
     
-    // 3. 重新创建AttributedString（现在文本中已经没有HTML标签）
-    attributedString = try! AttributedString(processedText)
+    // 2. 处理加粗标签
+    let boldPattern = "<b>(.*?)</b>"
+    let boldRegex = try! NSRegularExpression(pattern: boldPattern, options: [])
+    let boldMatches = boldRegex.matches(in: processedText, range: NSRange(processedText.startIndex..<processedText.endIndex, in: processedText))
     
-    // 4. 再次处理链接，为匹配的文本添加蓝色
+    for match in boldMatches.reversed() {
+        guard let textRange = Range(match.range(at: 1), in: processedText),
+              let fullRange = Range(match.range(at: 0), in: processedText) else {
+            continue
+        }
+        
+        let boldText = String(processedText[textRange])
+        processedText.replaceSubrange(fullRange, with: boldText)
+    }
+    
+    // 3. 创建AttributedString
+    var attributedString = try! AttributedString(processedText)
+    
+    // 4. 为链接文本添加蓝色
     let originalMatches = regex.matches(in: text, range: nsRange)
     for match in originalMatches {
         guard let textRange = Range(match.range(at: 2), in: text) else {
@@ -81,6 +89,20 @@ func processTraitText(_ text: String) -> AttributedString {
         if let range = processedText.range(of: linkText) {
             let attributedRange = Range(range, in: attributedString)!
             attributedString[attributedRange].foregroundColor = .blue
+        }
+    }
+    
+    // 5. 为加粗文本添加加粗效果
+    let originalBoldMatches = boldRegex.matches(in: text, range: nsRange)
+    for match in originalBoldMatches {
+        guard let textRange = Range(match.range(at: 1), in: text) else {
+            continue
+        }
+        
+        let boldText = String(text[textRange])
+        if let range = processedText.range(of: boldText) {
+            let attributedRange = Range(range, in: attributedString)!
+            attributedString[attributedRange].inlinePresentationIntent = .stronglyEmphasized
         }
     }
     
@@ -107,9 +129,9 @@ struct ShowItemInfo: View {
         
         // 添加Role Bonuses
         if !roleBonuses.isEmpty {
-            text += "Role Bonuses\n\n"
+            text += "<b>Role Bonuses</b>\n"
             for bonus in roleBonuses {
-                text += bonus.content + "\n\n"
+                text += bonus.content + "\n"
             }
         }
         
@@ -122,11 +144,11 @@ struct ShowItemInfo: View {
             
             for skill in sortedSkills {
                 if let skillName = databaseManager.getTypeName(for: skill) {
-                    text += "\(skillName) bonuses per level\n\n"
+                    text += "\n<b>\(skillName)</b> bonuses per level\n"
                     
                     let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
                     for bonus in bonuses {
-                        text += bonus.content + "\n\n"
+                        text += bonus.content + "\n"
                     }
                 }
             }
@@ -170,7 +192,7 @@ struct ShowItemInfo: View {
                         }
                         .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
                     } else {
-                        // 如果没有渲染图，显示原来的���局
+                        // 如果没有渲染图，显示原来的布局
                         HStack {
                             IconManager.shared.loadImage(for: itemDetails.iconFileName)
                                 .resizable()
@@ -202,6 +224,7 @@ struct ShowItemInfo: View {
                             databaseManager: databaseManager
                         ))
                         .font(.body)
+                        .lineSpacing(2)  // 减小行距
                     }
                 }
             } else {
