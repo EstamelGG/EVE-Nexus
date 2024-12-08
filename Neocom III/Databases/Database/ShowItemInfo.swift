@@ -1,7 +1,7 @@
 import SwiftUI
 
 // 处理trait文本，返回组合的Text视图
-func processTraitText(_ text: String) -> Text {
+func processRichText(_ text: String) -> Text {
     var result = Text("")
     var currentText = text
     
@@ -204,14 +204,14 @@ struct ShowItemInfo: View {
                     
                     let desc = itemDetails.description
                     if !desc.isEmpty {
-                        processTraitText(desc)
+                        processRichText(desc)
                             .font(.body)
                             .foregroundColor(.primary)
                     }
                     
                     // 只有当有traits信息时才显示traits
                     if !itemDetails.roleBonuses.isEmpty || !itemDetails.typeBonuses.isEmpty {
-                        processTraitText(buildTraitsText(
+                        processRichText(buildTraitsText(
                             roleBonuses: itemDetails.roleBonuses,
                             typeBonuses: itemDetails.typeBonuses,
                             databaseManager: databaseManager
