@@ -30,7 +30,7 @@ struct DamageBarView: View {
                 .frame(width: geometry.size.width) // 让文本容器占满整个宽度
             }
         }
-        .frame(height: 20)
+        .frame(height: 16)
         .clipShape(RoundedRectangle(cornerRadius: 2))
         .overlay(
             RoundedRectangle(cornerRadius: 2)

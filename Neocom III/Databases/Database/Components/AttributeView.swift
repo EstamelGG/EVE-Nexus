@@ -81,7 +81,7 @@ struct ResistanceBarView: View {
                                 .frame(width: geometry.size.width * CGFloat(resistances[type.id]) / 100)
                         }
                     }
-                    .frame(height: 20)
+                    .frame(height: 16)
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                     .overlay(
                         RoundedRectangle(cornerRadius: 2)
