@@ -55,7 +55,7 @@ struct ResistanceBarView: View {
                         // 数值
                         Text("\(roundedPercentage(resistances[type.id]))%")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                             
                         Spacer()
                     }
