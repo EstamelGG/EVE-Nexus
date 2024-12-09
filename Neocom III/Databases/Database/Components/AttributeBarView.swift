@@ -215,7 +215,7 @@ struct AttributeItemView: View {
                             .multilineTextAlignment(.trailing)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
         }
     }
