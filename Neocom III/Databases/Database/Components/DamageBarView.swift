@@ -16,8 +16,7 @@ struct DamageBarView: View {
                 // 进度条 - 增加亮度和饱和度
                 Rectangle()
                     .fill(color)
-                    .brightness(0.1)     // 增加亮度
-                    .saturation(1.1)     // 增加饱和度
+                    .saturation(1.2)     // 增加饱和度
                     .frame(width: geometry.size.width * CGFloat(percentage) / 100)
                 
                 // 百分比文字 - 使用额外的 ZStack 使文本居中
@@ -36,8 +35,7 @@ struct DamageBarView: View {
             RoundedRectangle(cornerRadius: 2)
                 // .stroke(color, lineWidth: 1.5)
                 .stroke(color, lineWidth: 0) // 边框粗细
-                .brightness(0.1)     // 增加亮度
-                .saturation(1.1)     // 增加饱和度
+                .saturation(1.2)     // 增加饱和度
         )
     }
 } 

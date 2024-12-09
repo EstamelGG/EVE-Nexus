@@ -46,21 +46,26 @@ struct ResistanceBarView: View {
             // 图标和数值行
             HStack(spacing: 8) {
                 ForEach(resistanceTypes) { type in
-                    HStack(spacing: 4) {
-                        // 图标
-                        IconManager.shared.loadImage(for: type.iconName)
-                            .resizable()
-                            .frame(width: 20, height: 20)
-                        
-                        // 数值
-                        Text("\(roundedPercentage(resistances[type.id]))%")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.primary)
+                    GeometryReader { geometry in
+                        HStack(spacing: 2) {
+                            // 图标
+                            IconManager.shared.loadImage(for: type.iconName)
+                                .resizable()
+                                .frame(width: 20, height: 20)
                             
-                        Spacer()
+                            // 数值
+                            Text("\(roundedPercentage(resistances[type.id]))%")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                                
+                            Spacer()
+                        }
+                        .frame(width: geometry.size.width)
                     }
                 }
             }
+            .frame(height: 24)
             
             // 进度条行
             HStack(spacing: 8) {
@@ -76,8 +81,7 @@ struct ResistanceBarView: View {
                             // 进度条 - 增加亮度和饱和度
                             Rectangle()
                                 .fill(type.color)
-                                .brightness(0.1)     // 增加亮度
-                                .saturation(1.1)     // 增加饱和度
+                                .saturation(1.2)     // 增加饱和度
                                 .frame(width: geometry.size.width * CGFloat(resistances[type.id]) / 100)
                         }
                     }
@@ -87,8 +91,7 @@ struct ResistanceBarView: View {
                         RoundedRectangle(cornerRadius: 2)
                             //.stroke(type.color, lineWidth: 1.5)
                             .stroke(type.color, lineWidth: 0)
-                            .brightness(0.1)     // 增加亮度
-                            .saturation(1.1)     // 增加饱和度
+                            .saturation(1.2)     // 增加饱和度
                     )
                 }
             }
