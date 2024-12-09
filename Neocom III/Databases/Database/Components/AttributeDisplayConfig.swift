@@ -250,11 +250,22 @@ struct AttributeDisplayConfig {
     private static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
         guard let group = findResistanceGroup(for: groupID) else { return nil }
         
-        // 先获取原始值
-        let emValue = allAttributes[group.emID] ?? 0
-        let thermalValue = allAttributes[group.thermalID] ?? 0
-        let kineticValue = allAttributes[group.kineticID] ?? 0
-        let explosiveValue = allAttributes[group.explosiveID] ?? 0
+        // 检查是否至少有一个抗性值存在
+        let hasEmValue = allAttributes[group.emID] != nil
+        let hasThermalValue = allAttributes[group.thermalID] != nil
+        let hasKineticValue = allAttributes[group.kineticID] != nil
+        let hasExplosiveValue = allAttributes[group.explosiveID] != nil
+        
+        // 如果没有任何抗性值，返回 nil
+        if !hasEmValue && !hasThermalValue && !hasKineticValue && !hasExplosiveValue {
+            return nil
+        }
+        
+        // 获取抗性值，如果不存在则使用默认值 1.0
+        let emValue = allAttributes[group.emID] ?? 1.0
+        let thermalValue = allAttributes[group.thermalID] ?? 1.0
+        let kineticValue = allAttributes[group.kineticID] ?? 1.0
+        let explosiveValue = allAttributes[group.explosiveID] ?? 1.0
         
         // 转换为显示值 (1 - value) * 100
         return [
@@ -268,7 +279,8 @@ struct AttributeDisplayConfig {
     // 检查是否是抗性属性组的第一个属性
     private static func isFirstResistanceAttribute(_ attributeID: Int) -> Bool {
         for group in resistanceGroups {
-            if attributeID == group.emID {  // 只有 EM 抗性（第一个）显示整组
+            // 检查是否是任意一个抗性属性
+            if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID) {
                 return true
             }
         }
@@ -296,10 +308,11 @@ struct AttributeDisplayConfig {
         
         // 检查是否属于抗性组
         if isResistanceAttribute(attributeID) {
-            // 只有第一个属性显示整组抗性
+            // 如果是抗性属性，检查是否应该显示抗性组
             if isFirstResistanceAttribute(attributeID) {
                 for group in resistanceGroups {
-                    if attributeID == group.emID,
+                    // 如果是任意一个抗性属性，并且有抗性值可以显示
+                    if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID),
                        let resistances = getResistanceValues(groupID: group.groupID, from: allAttributes) {
                         return .resistance(resistances)
                     }
