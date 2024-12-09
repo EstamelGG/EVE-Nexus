@@ -496,6 +496,19 @@ class DatabaseManager: ObservableObject {
         return nil
     }
     
+    // 获取属性名称
+    func getAttributeName(for typeID: Int) -> String? {
+        let query = "SELECT display_name FROM dogmaAttributes WHERE attribute_id = ?"
+        let result = executeQuery(query, parameters: [typeID])
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let name = row["display_name"] as? String {
+            return name
+        }
+        return nil
+    }
+    
     // 加载物品的所有属性组
     func loadAttributeGroups(for typeID: Int) -> [AttributeGroup] {
         // 1. 首先加载所有属性分类

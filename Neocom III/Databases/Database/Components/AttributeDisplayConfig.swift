@@ -187,7 +187,7 @@ struct AttributeDisplayConfig {
             result += "\(hours)h "
         }
         if minutes > 0 {
-            result += "\(minutes)min "
+            result += "\(minutes)m "
         }
         if remainingSeconds > 0 || (hours == 0 && minutes == 0) {
             result += "\(remainingSeconds)s"

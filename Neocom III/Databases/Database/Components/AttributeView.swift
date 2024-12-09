@@ -121,7 +121,7 @@ struct AttributeItemView: View {
     
     // 检查是否是可跳转的属性
     private var isNavigable: Bool {
-        attribute.unitID == 115 || attribute.unitID == 116 // groupID 或 typeID
+        attribute.unitID == 115 || attribute.unitID == 116 // 只有 groupID 和 typeID 可以跳转
     }
     
     // 获取目标视图
@@ -157,6 +157,8 @@ struct AttributeItemView: View {
             return databaseManager.getGroupName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
         } else if attribute.unitID == 116 { // typeID
             return databaseManager.getTypeName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+        } else if attribute.unitID == 119 { // attributeID
+            return databaseManager.getAttributeName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
         }
         return ""
     }
@@ -184,7 +186,13 @@ struct AttributeItemView: View {
                     Spacer()
                     
                     // 属性值 - 使用转换后的值
-                    if isNavigable, let destination = navigationDestination {
+                    if attribute.unitID == 119 {
+                        // 对于 attributeID，直接显示名称，不使用跳转链接
+                        Text(displayName)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    } else if isNavigable, let destination = navigationDestination {
                         NavigationLink(destination: destination) {
                             HStack {
                                 Spacer()  // 将文本推到右边
@@ -200,7 +208,7 @@ struct AttributeItemView: View {
                         Text(formattedValue)
                             .font(.body)
                             .foregroundColor(.secondary)
-                            .multilineTextAlignment(.trailing)  // 保持一致性
+                            .multilineTextAlignment(.trailing)
                     }
                 }
                 .padding(.vertical, 4)
