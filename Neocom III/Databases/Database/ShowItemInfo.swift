@@ -237,6 +237,29 @@ struct ShowItemInfo: View {
                 
                 // 属性 Sections
                 AttributesView(attributeGroups: attributeGroups, databaseManager: databaseManager)
+                
+                // Industry 部分
+                if let materials = databaseManager.getTypeMaterials(for: itemID), !materials.isEmpty {
+                    Section(header: Text("Industry").font(.headline)) {
+                        // Reprocess 行
+                        NavigationLink(destination: ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)) {
+                            HStack {
+                                Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
+                                Image(systemName: "arrow.3.trianglepath")
+                                Spacer()
+                                Text("\(materials.count)")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 预留行（暂时保持空白）
+                        HStack {
+                            Text("Blueprint")
+                            Spacer()
+                        }
+                        .foregroundColor(.gray)
+                    }
+                }
             } else {
                 Text("Details not found")
                     .foregroundColor(.gray)
@@ -303,3 +326,37 @@ struct RoundedCorner: Shape {
     }
 }
 
+// 重新加工材料列表视图
+struct ReprocessMaterialsView: View {
+    let itemID: Int
+    @ObservedObject var databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            if let materials = databaseManager.getTypeMaterials(for: itemID) {
+                ForEach(materials, id: \.outputMaterial) { material in
+                    HStack {
+                        // 材料图标
+                        IconManager.shared.loadImage(for: material.outputMaterialIcon)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                        
+                        // 材料名称
+                        Text(material.outputMaterialName)
+                            .font(.body)
+                        
+                        Spacer()
+                        
+                        // 数量
+                        Text("\(material.outputQuantity)")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(NSLocalizedString("Main_Database_Item_info_Reprocess_Materials", comment: ""))
+    }
+}

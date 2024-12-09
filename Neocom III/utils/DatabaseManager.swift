@@ -628,4 +628,50 @@ class DatabaseManager: ObservableObject {
         }
         return nil
     }
+    
+    // 重新加工材料数据结构
+    struct TypeMaterial {
+        let outputMaterial: Int
+        let outputQuantity: Int
+        let outputMaterialName: String
+        let outputMaterialIcon: String
+    }
+    
+    func getTypeMaterials(for typeID: Int) -> [TypeMaterial]? {
+        let query = """
+            SELECT output_material, output_quantity, output_material_name, output_material_icon
+            FROM typeMaterials
+            WHERE typeid = ?
+            ORDER BY output_material
+        """
+        
+        let result = sqliteManager.executeQuery(query, parameters: [typeID])
+        var materials: [TypeMaterial] = []
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                guard let outputMaterial = row["output_material"] as? Int,
+                      let outputQuantity = row["output_quantity"] as? Int,
+                      let outputMaterialName = row["output_material_name"] as? String,
+                      let outputMaterialIcon = row["output_material_icon"] as? String else {
+                    continue
+                }
+                
+                let material = TypeMaterial(
+                    outputMaterial: outputMaterial,
+                    outputQuantity: outputQuantity,
+                    outputMaterialName: outputMaterialName,
+                    outputMaterialIcon: outputMaterialIcon.isEmpty ? DatabaseConfig.defaultItemIcon : outputMaterialIcon
+                )
+                materials.append(material)
+            }
+            
+            return materials.isEmpty ? nil : materials
+            
+        case .error(let error):
+            print("Error fetching type materials: \(error)")
+            return nil
+        }
+    }
 }

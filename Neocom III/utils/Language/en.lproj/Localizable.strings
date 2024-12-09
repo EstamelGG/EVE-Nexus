@@ -31,6 +31,8 @@
 "Main_Database_Browse_Variations" = "Browse %d variations";
 "Main_Database_Item_info_Immune" = "Immune";
 "Main_Database_Item_info_NonImmune" = "Non-immune";
+"Main_Database_Item_info_Reprocess" = "Reprocess";
+"Main_Database_Item_info_Reprocess_Materials" = "Reprocess Materials";
 
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";
