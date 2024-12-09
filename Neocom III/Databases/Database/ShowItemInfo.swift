@@ -244,8 +244,8 @@ struct ShowItemInfo: View {
                         // Reprocess 行
                         NavigationLink(destination: ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)) {
                             HStack {
+                                Image("reprocess")
                                 Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
-                                Image(systemName: "arrow.3.trianglepath")
                                 Spacer()
                                 Text("\(materials.count)")
                                     .foregroundColor(.secondary)
