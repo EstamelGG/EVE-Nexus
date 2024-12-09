@@ -602,4 +602,17 @@ class DatabaseManager: ObservableObject {
         
         return units
     }
+    
+    // 获取组名
+    func getGroupName(for groupID: Int) -> String? {
+        let query = "SELECT name FROM groups WHERE group_id = ?"
+        let result = executeQuery(query, parameters: [groupID])
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let name = row["name"] as? String {
+            return name
+        }
+        return nil
+    }
 }

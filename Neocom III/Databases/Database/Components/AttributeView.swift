@@ -50,11 +50,11 @@ struct ResistanceBarView: View {
                         // 图标
                         IconManager.shared.loadImage(for: type.iconName)
                             .resizable()
-                            .frame(width: 18, height: 18)
+                            .frame(width: 20, height: 20)
                         
                         // 数值
                         Text("\(roundedPercentage(resistances[type.id]))%")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.secondary)
                             
                         Spacer()
@@ -100,18 +100,65 @@ struct ResistanceBarView: View {
 struct AttributeItemView: View {
     let attribute: DogmaAttribute
     let allAttributes: [Int: Double]  // 添加所有属性的字典
+    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
     
     // 获取格式化后的显示值
     private var formattedValue: String {
         let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
         switch result {
         case .number(let value, let unit):
+            if attribute.unitID == 115 || attribute.unitID == 116 {
+                // 对于 groupID 和 typeID，我们会显示名称，所以这里返回空
+                return ""
+            }
             return unit.map { "\(NumberFormatUtil.format(value))\($0)" } ?? NumberFormatUtil.format(value)
         case .text(let str):
             return str
         case .resistance:
             return "" // 抗性值使用专门的视图显示
         }
+    }
+    
+    // 检查是否是可跳转的属性
+    private var isNavigable: Bool {
+        attribute.unitID == 115 || attribute.unitID == 116 // groupID 或 typeID
+    }
+    
+    // 获取目标视图
+    private var navigationDestination: AnyView? {
+        guard let value = allAttributes[attribute.id] else { return nil }
+        let id = Int(value)
+        
+        if attribute.unitID == 115 { // groupID
+            let groupName = databaseManager.getGroupName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+            return AnyView(
+                DatabaseBrowserView(
+                    databaseManager: databaseManager,
+                    level: .items(groupID: id, groupName: groupName)
+                )
+            )
+        } else if attribute.unitID == 116 { // typeID
+            return AnyView(
+                ShowItemInfo(
+                    databaseManager: databaseManager,
+                    itemID: id
+                )
+            )
+        }
+        return nil
+    }
+    
+    // 获取显示名称
+    private var displayName: String {
+        guard let value = allAttributes[attribute.id] else { return "" }
+        let id = Int(value)
+        
+        if attribute.unitID == 115 { // groupID
+            return databaseManager.getGroupName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+        } else if attribute.unitID == 116 { // typeID
+            return databaseManager.getTypeName(for: id) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+        }
+        return ""
     }
     
     var body: some View {
@@ -137,9 +184,24 @@ struct AttributeItemView: View {
                     Spacer()
                     
                     // 属性值 - 使用转换后的值
-                    Text(formattedValue)
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                    if isNavigable, let destination = navigationDestination {
+                        NavigationLink(destination: destination) {
+                            HStack {
+                                Spacer()  // 将文本推到右边
+                                Text(displayName)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.trailing)  // 确保多行文本也是右对齐
+                            }
+                            .frame(minWidth: 100)  // 给予足够的空间显示文本
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(formattedValue)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.trailing)  // 保持一致性
+                    }
                 }
                 .padding(.vertical, 4)
             }
@@ -151,6 +213,7 @@ struct AttributeItemView: View {
 struct AttributeGroupView: View {
     let group: AttributeGroup
     let allAttributes: [Int: Double]  // 添加所有属性的字典
+    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
@@ -176,7 +239,7 @@ struct AttributeGroupView: View {
                 
                 // 只显示非抗性属性
                 ForEach(filteredAttributes) { attribute in
-                    AttributeItemView(attribute: attribute, allAttributes: allAttributes)
+                    AttributeItemView(attribute: attribute, allAttributes: allAttributes, databaseManager: databaseManager)
                 }
             } header: {
                 Text(group.name)
@@ -189,6 +252,7 @@ struct AttributeGroupView: View {
 // 所有属性组的显示组件
 struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
+    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
     
     // 构建所有属性的字典
     private var allAttributes: [Int: Double] {
@@ -209,7 +273,7 @@ struct AttributesView: View {
     
     var body: some View {
         ForEach(sortedGroups) { group in
-            AttributeGroupView(group: group, allAttributes: allAttributes)
+            AttributeGroupView(group: group, allAttributes: allAttributes, databaseManager: databaseManager)
         }
     }
 } 

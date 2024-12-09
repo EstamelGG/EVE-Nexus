@@ -236,7 +236,7 @@ struct ShowItemInfo: View {
                 }
                 
                 // 属性 Sections
-                AttributesView(attributeGroups: attributeGroups)
+                AttributesView(attributeGroups: attributeGroups, databaseManager: databaseManager)
             } else {
                 Text("Details not found")
                     .foregroundColor(.gray)
