@@ -9,6 +9,7 @@ struct Neocom_IIIApp: App {
     @State private var loadingState: LoadingState = .unzipping
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
+    @State private var needsUnzip = false
 
     init() {
         configureLanguage()
@@ -25,7 +26,7 @@ struct Neocom_IIIApp: App {
         }
     }
 
-    private func extractIcons() async {
+    private func checkAndExtractIcons() async {
         guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
             print("icons.zip file not found in bundle")
             return
@@ -41,10 +42,15 @@ struct Neocom_IIIApp: App {
            !contents.isEmpty {
             print("Icons folder exists and contains \(contents.count) files, skipping extraction.")
             await MainActor.run {
-                unzipProgress = 1.0
-                loadingState = .unzippingComplete
+                databaseManager.loadDatabase()
+                isInitialized = true
             }
             return
+        }
+
+        // 需要解压
+        await MainActor.run {
+            needsUnzip = true
         }
 
         // 如果目录存在但未完全解压，删除它重新解压
@@ -60,23 +66,13 @@ struct Neocom_IIIApp: App {
             }
             
             await MainActor.run {
-                unzipProgress = 1.0
-                loadingState = .unzippingComplete
+                databaseManager.loadDatabase()
+                loadingState = .complete
             }
         } catch {
             print("Error during icons extraction: \(error)")
             // 解压失败时重置状态
             IconManager.shared.isExtractionComplete = false
-        }
-    }
-    
-    private func initializeApp() async {
-        // 解压图标
-        await extractIcons()
-        
-        // 加载数据库
-        await MainActor.run {
-            databaseManager.loadDatabase()
         }
     }
 
@@ -85,15 +81,17 @@ struct Neocom_IIIApp: App {
             ZStack {
                 if isInitialized {
                     ContentView(databaseManager: databaseManager)
-                } else {
+                } else if needsUnzip {
                     LoadingView(loadingState: $loadingState, progress: unzipProgress) {
                         isInitialized = true
                     }
-                    .onAppear {
-                        Task {
-                            await initializeApp()
+                } else {
+                    Color.clear
+                        .onAppear {
+                            Task {
+                                await checkAndExtractIcons()
+                            }
                         }
-                    }
                 }
             }
         }
