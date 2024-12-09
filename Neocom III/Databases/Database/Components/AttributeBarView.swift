@@ -180,7 +180,7 @@ struct AttributeItemView: View {
                     if attribute.iconID != 0 {
                         IconManager.shared.loadImage(for: attribute.iconFileName)
                             .resizable()
-                            .frame(width: 24, height: 24)
+                            .frame(width: 32, height: 32)
                     }
                     
                     // 属性名称
@@ -215,7 +215,6 @@ struct AttributeItemView: View {
                             .multilineTextAlignment(.trailing)
                     }
                 }
-                .padding(.vertical, 2)
             }
         }
     }

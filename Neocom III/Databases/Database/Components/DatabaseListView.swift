@@ -327,7 +327,7 @@ struct DatabaseListItemView: View {
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
-                
+                    .frame(width: 32, height: 32)
                 Text(item.name)
             }
             

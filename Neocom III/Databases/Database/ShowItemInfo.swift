@@ -339,7 +339,8 @@ struct ReprocessMaterialsView: View {
                         // 材料图标
                         IconManager.shared.loadImage(for: material.outputMaterialIcon)
                             .resizable()
-                            .frame(width: 24, height: 24)
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
                         
                         // 材料名称
                         Text(material.outputMaterialName)
@@ -352,7 +353,6 @@ struct ReprocessMaterialsView: View {
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
