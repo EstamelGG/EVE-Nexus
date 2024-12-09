@@ -35,9 +35,10 @@ struct ResistanceBarView: View {
         )
     ]
     
-    // 获取四舍五入后的百分比值
-    private func roundedPercentage(_ value: Double) -> Int {
-        return Int(round(value))
+    // 获取格式化后的百分比值
+    private func roundedPercentage(_ value: Double) -> String {
+        let formatted = String(format: "%.2f", value)
+        return formatted.replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
     }
     
     var body: some View {
@@ -105,7 +106,7 @@ struct AttributeItemView: View {
         let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
         switch result {
         case .number(let value, let unit):
-            return unit.map { NumberFormatUtil.formatWithUnit(value, unit: $0) } ?? NumberFormatUtil.format(value)
+            return unit.map { "\(NumberFormatUtil.format(value))\($0)" } ?? NumberFormatUtil.format(value)
         case .text(let str):
             return str
         case .resistance:

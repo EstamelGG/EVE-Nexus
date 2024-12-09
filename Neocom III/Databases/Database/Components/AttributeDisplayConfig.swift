@@ -169,7 +169,7 @@ struct AttributeDisplayConfig {
     private static let unitTransformRules: [Int: (Double) -> Double] = [
         108: { value in (1 - value) * 100 }, // 百分比转换
         127: { value in (value) * 100 }, // 百分比转换
-        101: { value in (value) / 1000 }, // 百分比转换
+        101: { value in (value) / 1000 } // 毫秒转秒
     ]
     
     // 基于 unitID 的值格式化规则
@@ -177,8 +177,7 @@ struct AttributeDisplayConfig {
         109: { value, unit in
             let diff = value - 1
             return diff > 0 ? "+\(NumberFormatUtil.format(diff * 100))%" : "\(NumberFormatUtil.format(diff * 100))%"
-        },
-        //124: { value, unit in "\(NumberFormatUtil.format(value))%" }
+        }
     ]
     
     // 布尔值转换规则
@@ -266,8 +265,7 @@ struct AttributeDisplayConfig {
         let thermalValue = allAttributes[group.thermalID] ?? 1.0
         let kineticValue = allAttributes[group.kineticID] ?? 1.0
         let explosiveValue = allAttributes[group.explosiveID] ?? 1.0
-        
-        // 转换为显示值 (1 - value) * 100
+        // 转换为显示值 (1 - value) * 100，保持原始精度
         return [
             (1 - emValue) * 100,
             (1 - thermalValue) * 100,
