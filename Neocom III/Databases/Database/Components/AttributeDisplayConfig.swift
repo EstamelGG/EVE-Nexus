@@ -216,8 +216,8 @@ struct AttributeDisplayConfig {
     
     // 判断具体属性是否应该显示
     static func shouldShowAttribute(_ attributeID: Int) -> Bool {
-        // 如果是抗性属性但不是第一个，则隐藏
-        if isResistanceAttribute(attributeID) && !isFirstResistanceAttribute(attributeID) {
+        // 如果是抗性属性，不单独显示
+        if isResistanceAttribute(attributeID) {
             return false
         }
         return !activeHiddenAttributes.contains(attributeID)
@@ -245,18 +245,27 @@ struct AttributeDisplayConfig {
         return resistanceGroups.first { $0.groupID == groupID }
     }
     
+    // 检查属性组是否包含任何抗性值
+    private static func hasAnyResistance(groupID: Int, in allAttributes: [Int: Double]) -> Bool {
+        guard let group = findResistanceGroup(for: groupID) else { return false }
+        return allAttributes[group.emID] != nil ||
+               allAttributes[group.thermalID] != nil ||
+               allAttributes[group.kineticID] != nil ||
+               allAttributes[group.explosiveID] != nil
+    }
+    
     // 获取抗性值数组
-    private static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
+    static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
         guard let group = findResistanceGroup(for: groupID) else { return nil }
         
         // 检查是否至少有一个抗性值存在
-        let hasEmValue = allAttributes[group.emID] != nil
-        let hasThermalValue = allAttributes[group.thermalID] != nil
-        let hasKineticValue = allAttributes[group.kineticID] != nil
-        let hasExplosiveValue = allAttributes[group.explosiveID] != nil
+        let hasAnyResistance = allAttributes[group.emID] != nil ||
+                              allAttributes[group.thermalID] != nil ||
+                              allAttributes[group.kineticID] != nil ||
+                              allAttributes[group.explosiveID] != nil
         
         // 如果没有任何抗性值，返回 nil
-        if !hasEmValue && !hasThermalValue && !hasKineticValue && !hasExplosiveValue {
+        if !hasAnyResistance {
             return nil
         }
         
@@ -265,6 +274,7 @@ struct AttributeDisplayConfig {
         let thermalValue = allAttributes[group.thermalID] ?? 1.0
         let kineticValue = allAttributes[group.kineticID] ?? 1.0
         let explosiveValue = allAttributes[group.explosiveID] ?? 1.0
+        
         // 转换为显示值 (1 - value) * 100，保持原始精度
         return [
             (1 - emValue) * 100,
@@ -272,17 +282,6 @@ struct AttributeDisplayConfig {
             (1 - kineticValue) * 100,
             (1 - explosiveValue) * 100
         ]
-    }
-    
-    // 检查是否是抗性属性组的第一个属性
-    private static func isFirstResistanceAttribute(_ attributeID: Int) -> Bool {
-        for group in resistanceGroups {
-            // 检查是否是任意一个抗性属性
-            if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID) {
-                return true
-            }
-        }
-        return false
     }
     
     // 检查是否是抗性属性
@@ -302,22 +301,6 @@ struct AttributeDisplayConfig {
         // 检查是否有特殊值映射
         if let specialType = specialValueMappings[attributeID] {
             return .text(specialType.transform(value))
-        }
-        
-        // 检查是否属于抗性组
-        if isResistanceAttribute(attributeID) {
-            // 如果是抗性属性，检查是否应该显示抗性组
-            if isFirstResistanceAttribute(attributeID) {
-                for group in resistanceGroups {
-                    // 如果是任意一个抗性属性，并且有抗性值可以显示
-                    if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID),
-                       let resistances = getResistanceValues(groupID: group.groupID, from: allAttributes) {
-                        return .resistance(resistances)
-                    }
-                }
-            }
-            // 其他抗性属性不显示
-            return .text("")
         }
         
         // 处理布尔值

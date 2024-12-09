@@ -167,8 +167,14 @@ struct AttributeGroupView: View {
     }
     
     var body: some View {
-        if AttributeDisplayConfig.shouldShowGroup(group.id) && !filteredAttributes.isEmpty {
+        if AttributeDisplayConfig.shouldShowGroup(group.id) {
             Section {
+                // 检查是否有抗性值需要显示
+                if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {
+                    ResistanceBarView(resistances: resistances)
+                }
+                
+                // 只显示非抗性属性
                 ForEach(filteredAttributes) { attribute in
                     AttributeItemView(attribute: attribute, allAttributes: allAttributes)
                 }
