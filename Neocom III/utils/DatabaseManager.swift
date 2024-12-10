@@ -55,7 +55,6 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
-            // print("加载分类 - 获取到 \(rows.count) 行数据")
             for (index, row) in rows.enumerated() {
                 // print("处理第 \(index + 1) 行: \(row)")
                 
@@ -89,7 +88,7 @@ class DatabaseManager: ObservableObject {
             // print("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
             
         case .error(let error):
-            print("[X]加载分类失败: \(error)")
+            Logger.error("加载分类失败: \(error)")
         }
         
         return (published, unpublished)
@@ -136,7 +135,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
         case .error(let error):
-            print("[X]加载组失败: \(error)")
+            Logger.error("加载组失败: \(error)")
         }
         
         return (published, unpublished)
@@ -154,18 +153,18 @@ class DatabaseManager: ObservableObject {
         var metaGroupNames: [Int: String] = [:]
         
         if case .success(let metaRows) = metaResult {
-            // print("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
+            Logger.debug("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
             for row in metaRows {
                 if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
-                    //print("加载 MetaGroup: ID=\(id), Name=\(name)")
+                    Logger.debug("加载 MetaGroup: ID=\(id), Name=\(name)")
                 } else {
-                    print("[X]警告: MetaGroup 行数据类型不正确:", row)
+                    Logger.warning("MetaGroup 行数据类型不正确: \(row)")
                 }
             }
         } else {
-            print("[X]加载 metaGroups 失败")
+            Logger.error("加载 metaGroups 失败")
         }
         
         // 查询物品
@@ -193,7 +192,7 @@ class DatabaseManager: ObservableObject {
                       let metaGroupId = row["metaGroupID"] as? Int,
                       let categoryId = row["categoryID"] as? Int,
                       let isPublished = row["published"] as? Int else {
-                    print("[X]警告: 物品基础数据不完整:", row)
+                    Logger.warning("物品基础数据不完整: \(row)")
                     continue
                 }
                 
@@ -250,7 +249,7 @@ class DatabaseManager: ObservableObject {
             }
             
         case .error(let error):
-            print("加载物品失败: \(error)")
+            Logger.error("加载物品失败: \(error)")
         }
         
         // 打印最终的 metaGroupNames 内容

@@ -28,11 +28,11 @@ class SQLiteManager {
     func openDatabase(withName name: String) -> Bool {
         if let databasePath = Bundle.main.path(forResource: name, ofType: "sqlite") {
             if sqlite3_open(databasePath, &db) == SQLITE_OK {
-                print("[+]数据库连接成功: \(databasePath)")
+                Logger.info("数据库连接成功: \(databasePath)")
                 return true
             }
         }
-        print("[X]数据库连接失败")
+        Logger.error("数据库连接失败")
         return false
     }
     
@@ -43,14 +43,14 @@ class SQLiteManager {
             db = nil
             // 清空缓存
             clearCache()
-            print("[!]数据库已关闭")
+            Logger.info("数据库已关闭")
         }
     }
     
     // 清除缓存
     func clearCache() {
         queryCache.removeAllObjects()
-        print("[!]查询缓存已清空")
+        Logger.info("查询缓存已清空")
     }
     
     // 获取查询日志
@@ -65,10 +65,8 @@ class SQLiteManager {
         
         // 如果启用缓存且缓存中存在结果，直接返回
         if useCache, let cachedResult = queryCache.object(forKey: cacheKey) as? [[String: Any]] {
-            print("[+]从缓存中获取结果: \(cacheKey)")
+            Logger.info("从缓存中获取结果: \(cacheKey)")
             return .success(cachedResult)
-        } else {
-            print("[!]记录到缓存: \(cacheKey)")
         }
         
         // 记录查询日志
@@ -80,7 +78,8 @@ class SQLiteManager {
         // 准备语句
         if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
             let errorMessage = String(cString: sqlite3_errmsg(db))
-            return .error("[X]准备语句失败: \(errorMessage)")
+            Logger.error("准备语句失败: \(errorMessage)")
+            return .error("准备语句失败: \(errorMessage)")
         }
         
         // 绑定参数
@@ -101,7 +100,7 @@ class SQLiteManager {
                 sqlite3_bind_null(statement, parameterIndex)
             default:
                 sqlite3_finalize(statement)
-                return .error("[X]不支持的参数类型: \(type(of: parameter))")
+                return .error("不支持的参数类型: \(type(of: parameter))")
             }
         }
         
@@ -117,7 +116,7 @@ class SQLiteManager {
                 }
             }
             
-            //print("查询结果行: \(row)")
+            Logger.debug("查询结果行: \(row)")
             results.append(row)
         }
         
@@ -126,10 +125,11 @@ class SQLiteManager {
         
         // 缓存结果
         if useCache {
+            Logger.info("记录到缓存中: \(cacheKey)")
             queryCache.setObject(results as NSArray, forKey: cacheKey)
         }
         
-        // print("[+]查询总行数: \(results.count)") // 添加调试输出
+        Logger.debug("查询总行数: \(results.count)")
         return .success(results)
     }
     
