@@ -254,7 +254,7 @@ struct ShowItemInfo: View {
                                         .resizable()
                                         .frame(width: 32, height: 32)
                                         .cornerRadius(6)
-                                    Text(NSLocalizedString("Item_Info_Blueprint", comment: ""))
+                                    Text(blueprintDetails.name)
                                     Spacer()
                                 }
                             }
