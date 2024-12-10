@@ -196,10 +196,16 @@ struct ShowBluePrintInfo: View {
     @State private var copying: BlueprintActivity?
     @State private var invention: BlueprintActivity?
     @State private var itemDetails: ItemDetails?
+    @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
     
     // 加载物品基本信息
     private func loadItemDetails() {
         itemDetails = databaseManager.getItemDetails(for: blueprintID)
+    }
+    
+    // 加载蓝图来源
+    private func loadBlueprintSource() {
+        blueprintSource = databaseManager.getBlueprintSource(for: blueprintID)
     }
     
     // 格式化时间显示
@@ -500,12 +506,30 @@ struct ShowBluePrintInfo: View {
                     }
                 }
             }
+            
+            // 来源部分
+            if let source = blueprintSource { // 检查是否有来源
+                Section(header: Text(NSLocalizedString("Blueprint_Source", comment: "")).font(.headline)) {
+                    NavigationLink(destination: ItemInfoMap.getItemInfoView(itemID: source.typeID, categoryID: databaseManager.getCategoryID(for: source.typeID) ?? 0, databaseManager: databaseManager)) {
+                        HStack {
+                            IconManager.shared.loadImage(for: source.typeIcon.isEmpty ? DatabaseConfig.defaultItemIcon : source.typeIcon)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
+                            
+                            Text(source.typeName)
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Blueprint_Info", comment: ""))
         .onAppear {
             loadItemDetails()
             loadBlueprintData()
+            loadBlueprintSource()
         }
     }
 } 
