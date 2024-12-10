@@ -13,7 +13,11 @@ class SQLiteManager {
     private var db: OpaquePointer?
     
     // 查询缓存
-    private var queryCache: [String: [[String: Any]]] = [:]
+    private let queryCache: NSCache<NSString, NSArray> = {
+        let cache = NSCache<NSString, NSArray>()
+        cache.countLimit = 2000  // 设置最大缓存条数
+        return cache
+    }()
     
     // 查询日志
     private var queryLogs: [(query: String, parameters: [Any], timestamp: Date)] = []
@@ -38,14 +42,14 @@ class SQLiteManager {
             sqlite3_close(db)
             db = nil
             // 清空缓存
-            queryCache.removeAll()
+            clearCache()
             print("数据库已关闭")
         }
     }
     
     // 清除缓存
     func clearCache() {
-        queryCache.removeAll()
+        queryCache.removeAllObjects()
         print("查询缓存已清空")
     }
     
@@ -57,10 +61,10 @@ class SQLiteManager {
     // 执行查询并返回结果
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
         // 生成缓存键
-        let cacheKey = generateCacheKey(query: query, parameters: parameters)
+        let cacheKey = generateCacheKey(query: query, parameters: parameters) as NSString
         
         // 如果启用缓存且缓存中存在结果，直接返回
-        if useCache, let cachedResult = queryCache[cacheKey] {
+        if useCache, let cachedResult = queryCache.object(forKey: cacheKey) as? [[String: Any]] {
             print("从缓存中获取结果: \(cacheKey)")
             return .success(cachedResult)
         }
@@ -120,7 +124,7 @@ class SQLiteManager {
         
         // 缓存结果
         if useCache {
-            queryCache[cacheKey] = results
+            queryCache.setObject(results as NSArray, forKey: cacheKey)
         }
         
         print("查询总行数: \(results.count)") // 添加调试输出
