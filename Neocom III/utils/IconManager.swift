@@ -25,7 +25,7 @@ class IconManager {
         }
         
         self.iconsDirectory = iconsDir
-        print("Icons directory setup at: \(iconsDir.path)")
+        Logger.info("Icons directory setup at: \(iconsDir.path)")
     }
     
     var isExtractionComplete: Bool {
@@ -46,7 +46,7 @@ class IconManager {
         
         // 从解压后的目录中读取图片
         guard let iconsDirectory = iconsDirectory else {
-            print("Icons directory is not set")
+            Logger.error("Icons directory is not set")
             return UIImage()
         }
         
@@ -67,7 +67,7 @@ class IconManager {
             }
         }
         
-        print("Failed to load image: \(iconName)")
+        Logger.warning("Failed to load image: \(iconName)")
         return UIImage()
     }
     
@@ -94,8 +94,8 @@ class IconManager {
     }
     
     func unzipIcons(from sourceURL: URL, to destinationURL: URL, progress: @escaping (Double) -> Void) async throws {
-        print("Starting icon extraction from \(sourceURL.path)")
-        print("Extracting to: \(destinationURL.path)")
+        Logger.info("Starting icon extraction from \(sourceURL.path)")
+        Logger.info("Extracting to: \(destinationURL.path)")
         
         // 重置解压状态
         isExtractionComplete = false
@@ -113,7 +113,7 @@ class IconManager {
            !contents.isEmpty {
             // 设置解压完成状态
             isExtractionComplete = true
-            print("Successfully extracted \(contents.count) icons to \(destinationURL.path)")
+            Logger.info("Successfully extracted \(contents.count) icons to \(destinationURL.path)")
         } else {
             throw IconManagerError.readError("Extraction failed: directory is empty")
         }

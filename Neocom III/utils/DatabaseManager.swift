@@ -10,7 +10,7 @@ class DatabaseManager: ObservableObject {
     func loadDatabase() {
         // 获取本地化的数据库名称
         guard let databaseName = getLocalizedDatabaseName() else {
-            print("数据库名称未找到")
+            Logger.error("数据库名称未找到")
             return
         }
 
@@ -56,13 +56,13 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for (index, row) in rows.enumerated() {
-                // print("处理第 \(index + 1) 行: \(row)")
+                Logger.debug("处理第 \(index + 1) 行: \(row)")
                 
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
                       let name = row["name"] as? String,
                       let iconFilename = row["icon_filename"] as? String else {
-                    print("行 \(index + 1) 数据不完整或类型不正确: \(row)")
+                    Logger.error("行 \(index + 1) 数据不完整或类型不正确: \(row)")
                     continue
                 }
                 
@@ -76,7 +76,7 @@ class DatabaseManager: ObservableObject {
                     iconFileNew: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
                 )
                 
-                // print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
+                Logger.debug("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
                 
                 if category.published {
                     published.append(category)
@@ -85,7 +85,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
             
-            // print("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
+            Logger.info("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
             
         case .error(let error):
             Logger.error("加载分类失败: \(error)")
@@ -216,7 +216,7 @@ class DatabaseManager: ObservableObject {
                 let missSlot = row["miss_slot"] as? Int
                 
                 // 打印调试信息
-                // print("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
+                Logger.info("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
                 
                 let item = DatabaseItem(
                     id: typeId,
@@ -254,9 +254,9 @@ class DatabaseManager: ObservableObject {
         
         // 打印最终的 metaGroupNames 内容
         // print("最终的 metaGroupNames 内容:")
-//        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
-//            print("ID: \(id) -> Name: \(name)")
-//        }
+        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
+            Logger.info("ID: \(id) -> Name: \(name)")
+        }
         
         return (published, unpublished, metaGroupNames)
     }
@@ -328,7 +328,7 @@ class DatabaseManager: ObservableObject {
             )
             
         case .error(let error):
-            print("加载物品详情失败: \(error)")
+            Logger.error("加载物品详情失败: \(error)")
             return nil
         }
     }
@@ -428,7 +428,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
         case .error(let error):
-            print("加载 MetaGroup 名称失败: \(error)")
+            Logger.error("加载 MetaGroup 名称失败: \(error)")
         }
         
         return metaGroupNames
@@ -621,7 +621,7 @@ class DatabaseManager: ObservableObject {
             return materials.isEmpty ? nil : materials
             
         case .error(let error):
-            print("Error fetching type materials: \(error)")
+            Logger.error("Error fetching type materials: \(error)")
             return nil
         }
     }
@@ -974,7 +974,7 @@ class DatabaseManager: ObservableObject {
                 return blueprintID
             }
         case .error(let error):
-            print("Error getting blueprint ID: \(error)")
+            Logger.error("Error getting blueprint ID: \(error)")
         }
         
         return nil
@@ -997,7 +997,7 @@ class DatabaseManager: ObservableObject {
                 return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
             }
         case .error(let error):
-            print("Error getting blueprint icon: \(error)")
+            Logger.error("Error getting blueprint icon: \(error)")
         }
         
         return nil

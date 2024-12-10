@@ -28,7 +28,7 @@ struct Neocom_IIIApp: App {
 
     private func checkAndExtractIcons() async {
         guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
-            print("icons.zip file not found in bundle")
+            Logger.error("icons.zip file not found in bundle")
             return
         }
 
@@ -40,7 +40,7 @@ struct Neocom_IIIApp: App {
            FileManager.default.fileExists(atPath: destinationPath.path),
            let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
            !contents.isEmpty {
-            print("Icons folder exists and contains \(contents.count) files, skipping extraction.")
+            Logger.info("Icons folder exists and contains \(contents.count) files, skipping extraction.")
             await MainActor.run {
                 databaseManager.loadDatabase()
                 isInitialized = true
@@ -70,7 +70,7 @@ struct Neocom_IIIApp: App {
                 loadingState = .complete
             }
         } catch {
-            print("Error during icons extraction: \(error)")
+            Logger.error("Error during icons extraction: \(error)")
             // 解压失败时重置状态
             IconManager.shared.isExtractionComplete = false
         }

@@ -298,7 +298,7 @@ struct ShowItemInfo: View {
         if let itemDetail = databaseManager.loadItemDetails(for: itemID) {
             itemDetails = itemDetail
         } else {
-            print("Item details not found for ID: \(itemID)")
+            Logger.error("Item details not found for ID: \(itemID)")
         }
     }
     
@@ -311,7 +311,7 @@ struct ShowItemInfo: View {
                     self.renderImage = image
                 }
             } catch {
-                print("加载渲染图失败: \(error.localizedDescription)")
+                Logger.error("加载渲染图失败: \(error.localizedDescription)")
                 // 加载失败时保持使用原来的小图显示，不需特殊处理
             }
         }

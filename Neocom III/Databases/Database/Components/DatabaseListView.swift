@@ -282,7 +282,7 @@ struct DatabaseListView: View {
                 if let groupName = metaGroupNames[metaGroupID] {
                     return (id: metaGroupID, name: groupName, items: items)
                 } else {
-                    print("警告: MetaGroupID \(metaGroupID) 没有对应的名称")
+                    Logger.warning("MetaGroupID \(metaGroupID) 没有对应的名称")
                     return (id: metaGroupID, name: "MetaGroup \(metaGroupID)", items: items)
                 }
             }

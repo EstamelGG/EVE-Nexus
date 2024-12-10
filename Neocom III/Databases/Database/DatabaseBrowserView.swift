@@ -56,7 +56,7 @@ struct DatabaseBrowserView: View {
         if let cachedData = Self.navigationCache[level] {
             // 更新访问时间
             Self.updateAccessTime(for: level)
-            print("使用导航缓存: \(level)")
+            Logger.info("使用导航缓存: \(level)")
             return cachedData
         }
         return nil

@@ -155,23 +155,23 @@ struct SettingView: View {
         do {
             if fileManager.fileExists(atPath: destinationPath.path) {
                 try fileManager.removeItem(at: destinationPath)
-                print("Successfully deleted Icons directory")
+                Logger.info("Successfully deleted Icons directory")
                 
                 // 确保目录被完全删除
                 if !fileManager.fileExists(atPath: destinationPath.path) {
-                    print("Verified: Icons directory has been removed")
+                    Logger.info("Verified: Icons directory has been removed")
                     // 等待文件系统完成操作
                     Thread.sleep(forTimeInterval: 0.5)
                     exit(0)
                 } else {
-                    print("Warning: Icons directory still exists after deletion")
+                    Logger.warning("Warning: Icons directory still exists after deletion")
                 }
             } else {
-                print("Icons directory does not exist")
+                Logger.info("Icons directory does not exist")
                 exit(0)
             }
         } catch {
-            print("Error deleting Icons directory: \(error)")
+            Logger.error("Error deleting Icons directory: \(error)")
         }
     }
 }

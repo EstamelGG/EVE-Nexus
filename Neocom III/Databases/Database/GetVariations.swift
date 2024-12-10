@@ -68,7 +68,7 @@ extension DatabaseManager {
                 return count
             }
         case .error(let error):
-            print("获取变体数量失败: \(error)")
+            Logger.error("获取变体数量失败: \(error)")
         }
         
         return 0
@@ -185,7 +185,7 @@ extension DatabaseManager {
             }
             
         case .error(let error):
-            print("加载变体失败: \(error)")
+            Logger.error("加载变体失败: \(error)")
         }
         
         return (items, metaGroupNames)  // 返回物品列表和metaGroupNames
