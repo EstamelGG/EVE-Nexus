@@ -55,9 +55,9 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
-            print("加载分类 - 获取到 \(rows.count) 行数据")
+            // print("加载分类 - 获取到 \(rows.count) 行数据")
             for (index, row) in rows.enumerated() {
-                print("处理第 \(index + 1) 行: \(row)")
+                // print("处理第 \(index + 1) 行: \(row)")
                 
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
@@ -77,7 +77,7 @@ class DatabaseManager: ObservableObject {
                     iconFileNew: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
                 )
                 
-                print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
+                // print("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
                 
                 if category.published {
                     published.append(category)
@@ -86,10 +86,10 @@ class DatabaseManager: ObservableObject {
                 }
             }
             
-            print("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
+            // print("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
             
         case .error(let error):
-            print("加载分类失败: \(error)")
+            print("[X]加载分类失败: \(error)")
         }
         
         return (published, unpublished)
@@ -136,7 +136,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
         case .error(let error):
-            print("加载组失败: \(error)")
+            print("[X]加载组失败: \(error)")
         }
         
         return (published, unpublished)
@@ -144,28 +144,28 @@ class DatabaseManager: ObservableObject {
     
     // 加载物品
     func loadItems(for groupID: Int) -> ([DatabaseItem], [DatabaseItem], [Int: String]) {
-        // 首先获取所有 metaGroups 的名称，不使用缓存
+        // 首先获取所有 metaGroups 的名称
         let metaQuery = """
             SELECT metagroup_id, name 
             FROM metaGroups 
             ORDER BY metagroup_id ASC
         """
-        let metaResult = executeQuery(metaQuery, useCache: false)
+        let metaResult = executeQuery(metaQuery, useCache: true)
         var metaGroupNames: [Int: String] = [:]
         
         if case .success(let metaRows) = metaResult {
-            print("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
+            // print("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
             for row in metaRows {
                 if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
-                    print("加载 MetaGroup: ID=\(id), Name=\(name)")
+                    //print("加载 MetaGroup: ID=\(id), Name=\(name)")
                 } else {
-                    print("警告: MetaGroup 行数据类型不正确:", row)
+                    print("[X]警告: MetaGroup 行数据类型不正确:", row)
                 }
             }
         } else {
-            print("加载 metaGroups 失败")
+            print("[X]加载 metaGroups 失败")
         }
         
         // 查询物品
@@ -193,7 +193,7 @@ class DatabaseManager: ObservableObject {
                       let metaGroupId = row["metaGroupID"] as? Int,
                       let categoryId = row["categoryID"] as? Int,
                       let isPublished = row["published"] as? Int else {
-                    print("警告: 物品基础数据不完整:", row)
+                    print("[X]警告: 物品基础数据不完整:", row)
                     continue
                 }
                 
@@ -217,7 +217,7 @@ class DatabaseManager: ObservableObject {
                 let missSlot = row["miss_slot"] as? Int
                 
                 // 打印调试信息
-                print("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
+                // print("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
                 
                 let item = DatabaseItem(
                     id: typeId,
@@ -254,10 +254,10 @@ class DatabaseManager: ObservableObject {
         }
         
         // 打印最终的 metaGroupNames 内容
-        print("最终的 metaGroupNames 内容:")
-        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
-            print("ID: \(id) -> Name: \(name)")
-        }
+        // print("最终的 metaGroupNames 内容:")
+//        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
+//            print("ID: \(id) -> Name: \(name)")
+//        }
         
         return (published, unpublished, metaGroupNames)
     }
