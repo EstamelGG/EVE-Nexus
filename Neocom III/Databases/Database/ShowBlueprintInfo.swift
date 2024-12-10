@@ -198,8 +198,10 @@ struct ShowBluePrintInfo: View {
     @State private var itemDetails: ItemDetails?
     @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
     @State private var isManufacturingMaterialsExpanded = false
-    @State private var isResearchMaterialTimeExpanded = false
-    @State private var isResearchTimeTimeExpanded = false
+    @State private var isResearchMaterialMaterialsExpanded = false
+    @State private var isResearchMaterialLevelsExpanded = false
+    @State private var isResearchTimeMaterialsExpanded = false
+    @State private var isResearchTimeLevelsExpanded = false
     
     // 加载物品基本信息
     private func loadItemDetails() {
@@ -385,10 +387,10 @@ struct ShowBluePrintInfo: View {
             // 材料研究部分
             if let researchMaterial = researchMaterial {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Material", comment: "")).font(.headline)) {
-                    // 材料（使用折叠组）
+                    // 材料折叠组
                     if !researchMaterial.materials.isEmpty {
                         DisclosureGroup(
-                            isExpanded: $isResearchMaterialTimeExpanded,
+                            isExpanded: $isResearchMaterialMaterialsExpanded,
                             content: {
                                 ForEach(researchMaterial.materials, id: \.typeID) { material in
                                     NavigationLink {
@@ -439,9 +441,9 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 材料研究 耗时（使用折叠组）
+                    // 时间等级折叠组
                     DisclosureGroup(
-                        isExpanded: $isResearchMaterialTimeExpanded,
+                        isExpanded: $isResearchMaterialLevelsExpanded,
                         content: {
                             ForEach(1...10, id: \.self) { level in
                                 HStack {
@@ -465,10 +467,10 @@ struct ShowBluePrintInfo: View {
             // 时间研究部分
             if let researchTime = researchTime {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(.headline)) {
-                    // 材料（使用折叠组）
+                    // 材料折叠组
                     if !researchTime.materials.isEmpty {
                         DisclosureGroup(
-                            isExpanded: $isResearchTimeTimeExpanded,
+                            isExpanded: $isResearchTimeMaterialsExpanded,
                             content: {
                                 ForEach(researchTime.materials, id: \.typeID) { material in
                                     NavigationLink {
@@ -519,9 +521,9 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 时间研究 耗时（使用折叠组）
+                    // 时间等级折叠组
                     DisclosureGroup(
-                        isExpanded: $isResearchTimeTimeExpanded,
+                        isExpanded: $isResearchTimeLevelsExpanded,
                         content: {
                             ForEach(1...10, id: \.self) { level in
                                 HStack {
