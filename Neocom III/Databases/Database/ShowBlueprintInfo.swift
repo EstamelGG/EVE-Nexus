@@ -93,18 +93,28 @@ struct MaterialListView: View {
     var body: some View {
         List {
             ForEach(items, id: \.typeID) { item in
-                HStack {
-                    IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    Text(item.typeName)
-                    
-                    Spacer()
-                    
-                    Text("\(item.quantity)")
-                        .foregroundColor(.secondary)
+                NavigationLink {
+                    if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
+                        ItemInfoMap.getItemInfoView(
+                            itemID: item.typeID,
+                            categoryID: categoryID,
+                            databaseManager: databaseManager
+                        )
+                    }
+                } label: {
+                    HStack {
+                        IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+                        
+                        Text(item.typeName)
+                        
+                        Spacer()
+                        
+                        Text("\(item.quantity)")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }

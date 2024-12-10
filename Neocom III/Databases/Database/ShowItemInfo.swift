@@ -353,23 +353,33 @@ struct ReprocessMaterialsView: View {
         List {
             if let materials = databaseManager.getTypeMaterials(for: itemID) {
                 ForEach(materials, id: \.outputMaterial) { material in
-                    HStack {
-                        // 材料图标
-                        IconManager.shared.loadImage(for: material.outputMaterialIcon)
-                            .resizable()
-                            .frame(width: 32, height: 32)
-                            .cornerRadius(6)
-                        
-                        // 材料名称
-                        Text(material.outputMaterialName)
-                            .font(.body)
-                        
-                        Spacer()
-                        
-                        // 数量
-                        Text("\(material.outputQuantity)")
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                    NavigationLink {
+                        if let categoryID = databaseManager.getCategoryID(for: material.outputMaterial) {
+                            ItemInfoMap.getItemInfoView(
+                                itemID: material.outputMaterial,
+                                categoryID: categoryID,
+                                databaseManager: databaseManager
+                            )
+                        }
+                    } label: {
+                        HStack {
+                            // 材料图标
+                            IconManager.shared.loadImage(for: material.outputMaterialIcon)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
+                            
+                            // 材料名称
+                            Text(material.outputMaterialName)
+                                .font(.body)
+                            
+                            Spacer()
+                            
+                            // 数量
+                            Text("\(material.outputQuantity)")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
