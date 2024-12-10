@@ -31,7 +31,7 @@ struct ProductItemView: View {
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
                 
-                Text("产出物")
+                Text(NSLocalizedString("Blueprint_Product", comment: ""))
                     .foregroundColor(.primary)
                 
                 Spacer()
@@ -67,9 +67,9 @@ struct InventionProductItemView: View {
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading) {
-                    Text("发明产出")
+                    Text(NSLocalizedString("Blueprint_Invention_Product", comment: ""))
                     if let probability = product.probability {
-                        Text("成功率: \(Int(probability * 100))%")
+                        Text(String(format: NSLocalizedString("Blueprint_Success_Rate", comment: ""), Int(probability * 100)))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -132,7 +132,7 @@ struct SkillListView: View {
                     
                     Spacer()
                     
-                    Text("等级 \(skill.level)")
+                    Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                         .foregroundColor(.secondary)
                 }
             }
@@ -200,9 +200,9 @@ struct ShowBluePrintInfo: View {
         
         var components: [String] = []
         
-        if hours > 0 { components.append("\(hours)小时") }
-        if minutes > 0 || (hours > 0 && remainingSeconds > 0) { components.append("\(minutes)分") }
-        if remainingSeconds > 0 { components.append("\(remainingSeconds)秒") }
+        if hours > 0 { components.append("\(hours)\(NSLocalizedString("Blueprint_Time_Hour", comment: ""))") }
+        if minutes > 0 || (hours > 0 && remainingSeconds > 0) { components.append("\(minutes)\(NSLocalizedString("Blueprint_Time_Minute", comment: ""))") }
+        if remainingSeconds > 0 { components.append("\(remainingSeconds)\(NSLocalizedString("Blueprint_Time_Second", comment: ""))") }
         
         return components.joined(separator: " ")
     }
@@ -306,7 +306,7 @@ struct ShowBluePrintInfo: View {
             
             // 制造部分
             if let manufacturing = manufacturing {
-                Section(header: Text("制造").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(.headline)) {
                     // 产出物
                     if !manufacturing.products.isEmpty {
                         ForEach(manufacturing.products, id: \.typeID) { product in
@@ -316,9 +316,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 材料
                     if !manufacturing.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: manufacturing.materials, databaseManager: databaseManager)) {
+                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: manufacturing.materials, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需材料")
+                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                 Spacer()
                                 Text("\(manufacturing.materials.count)")
                                     .foregroundColor(.secondary)
@@ -328,7 +328,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 制造时间
                     HStack {
-                        Text("制造时间")
+                        Text(NSLocalizedString("Blueprint_Manufacturing_Time", comment: ""))
                         Spacer()
                         Text(formatTime(manufacturing.time))
                             .foregroundColor(.secondary)
@@ -338,12 +338,12 @@ struct ShowBluePrintInfo: View {
             
             // 材料研究部分
             if let researchMaterial = researchMaterial {
-                Section(header: Text("材料研究").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Blueprint_Research_Material", comment: "")).font(.headline)) {
                     // 材料
                     if !researchMaterial.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchMaterial.materials, databaseManager: databaseManager)) {
+                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: researchMaterial.materials, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需材料")
+                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                 Spacer()
                                 Text("\(researchMaterial.materials.count)")
                                     .foregroundColor(.secondary)
@@ -353,9 +353,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !researchMaterial.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchMaterial.skills, databaseManager: databaseManager)) {
+                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: researchMaterial.skills, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需技能")
+                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                 Spacer()
                                 Text("\(researchMaterial.skills.count)")
                                     .foregroundColor(.secondary)
@@ -365,7 +365,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 研究时间
                     HStack {
-                        Text("研究时间")
+                        Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
                         Spacer()
                         Text(formatTime(researchMaterial.time))
                             .foregroundColor(.secondary)
@@ -375,12 +375,12 @@ struct ShowBluePrintInfo: View {
             
             // 时间研究部分
             if let researchTime = researchTime {
-                Section(header: Text("时间研究").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(.headline)) {
                     // 材料
                     if !researchTime.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchTime.materials, databaseManager: databaseManager)) {
+                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: researchTime.materials, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需材料")
+                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                 Spacer()
                                 Text("\(researchTime.materials.count)")
                                     .foregroundColor(.secondary)
@@ -390,9 +390,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !researchTime.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchTime.skills, databaseManager: databaseManager)) {
+                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: researchTime.skills, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需技能")
+                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                 Spacer()
                                 Text("\(researchTime.skills.count)")
                                     .foregroundColor(.secondary)
@@ -402,7 +402,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 研究时间
                     HStack {
-                        Text("研究时间")
+                        Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
                         Spacer()
                         Text(formatTime(researchTime.time))
                             .foregroundColor(.secondary)
@@ -412,12 +412,12 @@ struct ShowBluePrintInfo: View {
             
             // 复制部分
             if let copying = copying {
-                Section(header: Text("复制").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Blueprint_Copying", comment: "")).font(.headline)) {
                     // 材料
                     if !copying.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: copying.materials, databaseManager: databaseManager)) {
+                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: copying.materials, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需材料")
+                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                 Spacer()
                                 Text("\(copying.materials.count)")
                                     .foregroundColor(.secondary)
@@ -427,9 +427,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !copying.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: copying.skills, databaseManager: databaseManager)) {
+                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: copying.skills, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需技能")
+                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                 Spacer()
                                 Text("\(copying.skills.count)")
                                     .foregroundColor(.secondary)
@@ -439,7 +439,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 复制时间
                     HStack {
-                        Text("复制时间")
+                        Text(NSLocalizedString("Blueprint_Copying_Time", comment: ""))
                         Spacer()
                         Text(formatTime(copying.time))
                             .foregroundColor(.secondary)
@@ -449,7 +449,7 @@ struct ShowBluePrintInfo: View {
             
             // 发明部分
             if let invention = invention {
-                Section(header: Text("发明").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Blueprint_Invention", comment: "")).font(.headline)) {
                     // 产出物
                     if !invention.products.isEmpty {
                         ForEach(invention.products, id: \.typeID) { product in
@@ -459,9 +459,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 材料
                     if !invention.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: invention.materials, databaseManager: databaseManager)) {
+                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: invention.materials, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需材料")
+                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                 Spacer()
                                 Text("\(invention.materials.count)")
                                     .foregroundColor(.secondary)
@@ -471,9 +471,9 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !invention.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: invention.skills, databaseManager: databaseManager)) {
+                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: invention.skills, databaseManager: databaseManager)) {
                             HStack {
-                                Text("所需技能")
+                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                 Spacer()
                                 Text("\(invention.skills.count)")
                                     .foregroundColor(.secondary)
@@ -483,7 +483,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 发明时间
                     HStack {
-                        Text("发明时间")
+                        Text(NSLocalizedString("Blueprint_Invention_Time", comment: ""))
                         Spacer()
                         Text(formatTime(invention.time))
                             .foregroundColor(.secondary)
@@ -492,7 +492,7 @@ struct ShowBluePrintInfo: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("蓝图信息")
+        .navigationTitle(NSLocalizedString("Blueprint_Info", comment: ""))
         .onAppear {
             loadItemDetails()
             loadBlueprintData()

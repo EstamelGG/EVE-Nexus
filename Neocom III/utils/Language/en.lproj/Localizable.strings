@@ -69,4 +69,26 @@
 "Misc_number_item" = "x";
 "Misc_number_point" = "points";
 
+// Blueprint Details
+"Blueprint_Product" = "Product";
+"Blueprint_Invention_Product" = "Invention Product";
+"Blueprint_Success_Rate" = "Success Rate: %d%%";
+"Blueprint_Level" = "Level %d";
+"Blueprint_Time_Hour" = "h";
+"Blueprint_Time_Minute" = "m";
+"Blueprint_Time_Second" = "s";
+
+"Blueprint_Info" = "Blueprint Info";
+"Blueprint_Manufacturing" = "Manufacturing";
+"Blueprint_Research_Material" = "Material Research";
+"Blueprint_Research_Time" = "Time Research";
+"Blueprint_Copying" = "Copying";
+"Blueprint_Invention" = "Invention";
+"Blueprint_Required_Materials" = "Required Materials";
+"Blueprint_Required_Skills" = "Required Skills";
+"Blueprint_Manufacturing_Time" = "Manufacturing Time";
+"Blueprint_Research_Time_Label" = "Research Time";
+"Blueprint_Copying_Time" = "Copying Time";
+"Blueprint_Invention_Time" = "Invention Time";
+
 
