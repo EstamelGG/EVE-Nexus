@@ -1002,4 +1002,35 @@ class DatabaseManager: ObservableObject {
         
         return nil
     }
+    
+    // 获取蓝图源头
+    func getBlueprintSource(for blueprintID: Int) -> (typeID: Int, typeName: String, typeIcon: String)? {
+        let query = """
+            SELECT blueprintTypeID as type_id, 
+                   blueprintTypeName as name, 
+                   blueprintTypeIcon as icon_filename
+            FROM blueprint_invention_products
+            WHERE typeID = ?
+        """
+        
+        let result = executeQuery(query, parameters: [blueprintID])
+        
+        switch result {
+        case .success(let rows):
+            if let row = rows.first,
+               let typeID = row["type_id"] as? Int,
+               let typeName = row["name"] as? String,
+               let iconFileName = row["icon_filename"] as? String {
+                return (
+                    typeID: typeID,
+                    typeName: typeName,
+                    typeIcon: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                )
+            }
+        case .error(let error):
+            Logger.error("Error getting blueprint source: \(error)")
+        }
+        
+        return nil
+    }
 }
