@@ -248,7 +248,7 @@ struct ShowItemInfo: View {
                             HStack {
                                 Image("reprocess")
                                     .resizable()
-                                    .frame(width: 24, height: 24)
+                                    .frame(width: 32, height: 32)
                                 Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
                                 Spacer()
                                 Text("\(materials.count)")

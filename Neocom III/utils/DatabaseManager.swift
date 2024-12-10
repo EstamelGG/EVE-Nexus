@@ -958,12 +958,12 @@ class DatabaseManager: ObservableObject {
     func getBlueprintIDForProduct(_ typeID: Int) -> Int? {
         let query = """
             SELECT DISTINCT blueprintTypeID
-            FROM blueprint_manufacturing_products
-            WHERE productTypeID = ?
+            FROM blueprint_manufacturing_output
+            WHERE typeID = ?
             UNION
             SELECT DISTINCT blueprintTypeID
             FROM blueprint_invention_products
-            WHERE productTypeID = ?
+            WHERE typeID = ?
         """
         
         let result = executeQuery(query, parameters: [typeID, typeID])
