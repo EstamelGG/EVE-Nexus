@@ -336,122 +336,74 @@ class DatabaseManager: ObservableObject {
     
     // 搜索物品
     func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> ([DatabaseListItem], [Int: String]) {
-        // 首先获取所有 metaGroups 的名称
-        let metaQuery = """
-            SELECT metagroup_id, name 
-            FROM metaGroups 
-            ORDER BY metagroup_id ASC
-        """
-        let metaResult = executeQuery(metaQuery)
-        var metaGroupNames: [Int: String] = [:]
-        
-        if case .success(let metaRows) = metaResult {
-            for row in metaRows {
-                if let id = row["metagroup_id"] as? Int,
-                   let name = row["name"] as? String {
-                    metaGroupNames[id] = name
-                    print("加载 MetaGroup: ID=\(id), Name=\(name)")
-                }
-            }
-        }
-        
-        // 搜索物品
         var query = """
-            SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID, t.categoryID,
-                   t.pg_need, t.cpu_need, t.rig_cost, 
+            SELECT t.type_id, t.name, t.icon_filename, t.published, t.categoryID,
+                   t.pg_need, t.cpu_need, t.rig_cost,
                    t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
-                   t.high_slot, t.mid_slot, t.low_slot, t.rig_slot, t.gun_slot, t.miss_slot
+                   t.high_slot, t.mid_slot, t.low_slot, t.rig_slot,
+                   t.gun_slot, t.miss_slot, t.metaGroupID
             FROM types t
             WHERE t.name LIKE ?
         """
         
-        var params: [Any] = ["%\(searchText)%"]
+        var parameters: [Any] = ["%\(searchText)%"]
         
         if let categoryID = categoryID {
             query += " AND t.categoryID = ?"
-            params.append(categoryID)
+            parameters.append(categoryID)
         }
         
         if let groupID = groupID {
             query += " AND t.groupID = ?"
-            params.append(groupID)
+            parameters.append(groupID)
         }
         
-        query += " ORDER BY t.metaGroupID, t.name"
+        query += " ORDER BY t.name"
         
-        let result = executeQuery(query, parameters: params)
+        let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []
         
-        switch result {
-        case .success(let rows):
-            print("搜索到 \(rows.count) 个物品")
+        if case .success(let rows) = result {
             for row in rows {
-                guard let id = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFilename = row["icon_filename"] as? String,
-                      let metaGroupId = row["metaGroupID"] as? Int,
-                      let categoryId = row["categoryID"] as? Int else {
-                    continue
-                }
-                
-                let isPublished = (row["published"] as? Int ?? 0) != 0
-                
-                // 获取可选属性
-                let pgNeed = row["pg_need"] as? Int
-                let cpuNeed = row["cpu_need"] as? Int
-                let rigCost = row["rig_cost"] as? Int
-                let emDamage = row["em_damage"] as? Double ?? 
-                              (row["em_damage"] as? Int).map { Double($0) }
-                let themDamage = row["them_damage"] as? Double ?? 
-                                (row["them_damage"] as? Int).map { Double($0) }
-                let kinDamage = row["kin_damage"] as? Double ?? 
-                               (row["kin_damage"] as? Int).map { Double($0) }
-                let expDamage = row["exp_damage"] as? Double ?? 
-                               (row["exp_damage"] as? Int).map { Double($0) }
-                let highSlot = row["high_slot"] as? Int
-                let midSlot = row["mid_slot"] as? Int
-                let lowSlot = row["low_slot"] as? Int
-                let rigSlot = row["rig_slot"] as? Int
-                let gunSlot = row["gun_slot"] as? Int
-                let missSlot = row["miss_slot"] as? Int
-                
-                let item = DatabaseListItem(
-                    id: id,
-                    name: name,
-                    iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
-                    published: isPublished,
-                    categoryID: categoryId,
-                    pgNeed: pgNeed,
-                    cpuNeed: cpuNeed,
-                    rigCost: rigCost,
-                    emDamage: emDamage,
-                    themDamage: themDamage,
-                    kinDamage: kinDamage,
-                    expDamage: expDamage,
-                    highSlot: highSlot,
-                    midSlot: midSlot,
-                    lowSlot: lowSlot,
-                    rigSlot: rigSlot,
-                    gunSlot: gunSlot,
-                    missSlot: missSlot,
-                    metaGroupID: metaGroupId,
-                    navigationDestination: AnyView(
-                        ShowItemInfo(
-                            databaseManager: self,
-                            itemID: id
+                if let id = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFilename = row["icon_filename"] as? String,
+                   let categoryId = row["categoryID"] as? Int,
+                   let isPublished = row["published"] as? Int {
+                    
+                    items.append(DatabaseListItem(
+                        id: id,
+                        name: name,
+                        iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
+                        published: isPublished != 0,
+                        categoryID: categoryId,
+                        pgNeed: row["pg_need"] as? Int,
+                        cpuNeed: row["cpu_need"] as? Int,
+                        rigCost: row["rig_cost"] as? Int,
+                        emDamage: row["em_damage"] as? Double,
+                        themDamage: row["them_damage"] as? Double,
+                        kinDamage: row["kin_damage"] as? Double,
+                        expDamage: row["exp_damage"] as? Double,
+                        highSlot: row["high_slot"] as? Int,
+                        midSlot: row["mid_slot"] as? Int,
+                        lowSlot: row["low_slot"] as? Int,
+                        rigSlot: row["rig_slot"] as? Int,
+                        gunSlot: row["gun_slot"] as? Int,
+                        missSlot: row["miss_slot"] as? Int,
+                        metaGroupID: row["metaGroupID"] as? Int,
+                        navigationDestination: ItemInfoMap.getItemInfoView(
+                            itemID: id,
+                            categoryID: categoryId,
+                            databaseManager: self
                         )
-                    )
-                )
-                items.append(item)
+                    ))
+                }
             }
-            
-        case .error(let error):
-            print("搜索物品失败: \(error)")
         }
         
-        // 打印最终的数据
-        print("搜索完成: 找到 \(items.count) 个物品")
-        print("MetaGroup 数据: \(metaGroupNames)")
+        // 获取 metaGroup 名称
+        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+        let metaGroupNames = loadMetaGroupNames(for: Array(metaGroupIDs))
         
         return (items, metaGroupNames)
     }

@@ -36,7 +36,7 @@ struct ProductItemView: View {
                 
                 Spacer()
                 
-                Text("\(item.typeName) × \(item.quantity)")
+                Text("\(item.quantity) × \(item.typeName)")
                     .foregroundColor(.primary)
             }
         }
@@ -194,90 +194,89 @@ struct ShowBluePrintInfo: View {
     
     // 格式化时间显示
     private func formatTime(_ seconds: Int) -> String {
-        if seconds < 60 {
-            return "\(seconds)秒"
-        } else if seconds < 3600 {
-            let minutes = seconds / 60
-            let remainingSeconds = seconds % 60
-            return "\(minutes)分\(remainingSeconds)秒"
-        } else {
-            let hours = seconds / 3600
-            let minutes = (seconds % 3600) / 60
-            let remainingSeconds = seconds % 60
-            return "\(hours)小时\(minutes)分\(remainingSeconds)秒"
-        }
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+        
+        var components: [String] = []
+        
+        if hours > 0 { components.append("\(hours)小时") }
+        if minutes > 0 || (hours > 0 && remainingSeconds > 0) { components.append("\(minutes)分") }
+        if remainingSeconds > 0 { components.append("\(remainingSeconds)秒") }
+        
+        return components.joined(separator: " ")
     }
     
     // 加载蓝图数据
     private func loadBlueprintData() {
-        // 加载制造数据
-        let manufacturingMaterials = databaseManager.getBlueprintManufacturingMaterials(for: blueprintID)
-        let manufacturingProducts = databaseManager.getBlueprintManufacturingOutput(for: blueprintID)
-        let manufacturingTime = databaseManager.getBlueprintProcessTime(for: blueprintID)?.manufacturing_time ?? 0
+        // 首先获取所有处理时间
+        guard let processTime = databaseManager.getBlueprintProcessTime(for: blueprintID) else {
+            return
+        }
         
-        if !manufacturingMaterials.isEmpty || !manufacturingProducts.isEmpty {
+        // 制造活动
+        if processTime.manufacturing_time > 0 {
+            let manufacturingMaterials = databaseManager.getBlueprintManufacturingMaterials(for: blueprintID)
+            let manufacturingProducts = databaseManager.getBlueprintManufacturingOutput(for: blueprintID)
+            
             manufacturing = BlueprintActivity(
                 materials: manufacturingMaterials,
                 skills: [], // 制造不需要技能
                 products: manufacturingProducts.map { ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, nil) },
-                time: manufacturingTime
+                time: processTime.manufacturing_time
             )
         }
         
-        // 加载材料研究数据
-        let researchMaterialMaterials = databaseManager.getBlueprintResearchMaterialMaterials(for: blueprintID)
-        let researchMaterialSkills = databaseManager.getBlueprintResearchMaterialSkills(for: blueprintID)
-        let researchMaterialTime = databaseManager.getBlueprintProcessTime(for: blueprintID)?.research_material_time ?? 0
-        
-        if !researchMaterialMaterials.isEmpty || !researchMaterialSkills.isEmpty {
+        // 材料研究活动
+        if processTime.research_material_time > 0 {
+            let researchMaterialMaterials = databaseManager.getBlueprintResearchMaterialMaterials(for: blueprintID)
+            let researchMaterialSkills = databaseManager.getBlueprintResearchMaterialSkills(for: blueprintID)
+            
             researchMaterial = BlueprintActivity(
                 materials: researchMaterialMaterials,
                 skills: researchMaterialSkills,
                 products: [],
-                time: researchMaterialTime
+                time: processTime.research_material_time
             )
         }
         
-        // 加载时间研究数据
-        let researchTimeMaterials = databaseManager.getBlueprintResearchTimeMaterials(for: blueprintID)
-        let researchTimeSkills = databaseManager.getBlueprintResearchTimeSkills(for: blueprintID)
-        let researchTimeTime = databaseManager.getBlueprintProcessTime(for: blueprintID)?.research_time_time ?? 0
-        
-        if !researchTimeMaterials.isEmpty || !researchTimeSkills.isEmpty {
+        // 时间研究活动
+        if processTime.research_time_time > 0 {
+            let researchTimeMaterials = databaseManager.getBlueprintResearchTimeMaterials(for: blueprintID)
+            let researchTimeSkills = databaseManager.getBlueprintResearchTimeSkills(for: blueprintID)
+            
             researchTime = BlueprintActivity(
                 materials: researchTimeMaterials,
                 skills: researchTimeSkills,
                 products: [],
-                time: researchTimeTime
+                time: processTime.research_time_time
             )
         }
         
-        // 加载复制数据
-        let copyingMaterials = databaseManager.getBlueprintCopyingMaterials(for: blueprintID)
-        let copyingSkills = databaseManager.getBlueprintCopyingSkills(for: blueprintID)
-        let copyingTime = databaseManager.getBlueprintProcessTime(for: blueprintID)?.copying_time ?? 0
-        
-        if !copyingMaterials.isEmpty || !copyingSkills.isEmpty {
+        // 复制活动
+        if processTime.copying_time > 0 {
+            let copyingMaterials = databaseManager.getBlueprintCopyingMaterials(for: blueprintID)
+            let copyingSkills = databaseManager.getBlueprintCopyingSkills(for: blueprintID)
+            
             copying = BlueprintActivity(
                 materials: copyingMaterials,
                 skills: copyingSkills,
                 products: [],
-                time: copyingTime
+                time: processTime.copying_time
             )
         }
         
-        // 加载发明数据
-        let inventionMaterials = databaseManager.getBlueprintInventionMaterials(for: blueprintID)
-        let inventionSkills = databaseManager.getBlueprintInventionSkills(for: blueprintID)
-        let inventionProducts = databaseManager.getBlueprintInventionProducts(for: blueprintID)
-        let inventionTime = databaseManager.getBlueprintProcessTime(for: blueprintID)?.invention_time ?? 0
-        
-        if !inventionMaterials.isEmpty || !inventionSkills.isEmpty || !inventionProducts.isEmpty {
+        // 发明活动
+        if processTime.invention_time > 0 {
+            let inventionMaterials = databaseManager.getBlueprintInventionMaterials(for: blueprintID)
+            let inventionSkills = databaseManager.getBlueprintInventionSkills(for: blueprintID)
+            let inventionProducts = databaseManager.getBlueprintInventionProducts(for: blueprintID)
+            
             invention = BlueprintActivity(
                 materials: inventionMaterials,
                 skills: inventionSkills,
                 products: inventionProducts.map { ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, $0.probability) },
-                time: inventionTime
+                time: processTime.invention_time
             )
         }
     }
