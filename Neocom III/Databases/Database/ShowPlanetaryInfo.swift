@@ -12,6 +12,9 @@ struct ShowPlanetaryInfo: View {
     @State private var output: (outputValue: Int, cycleTime: Int)?
     @State private var uses: [(typeID: Int, name: String, iconFileName: String)] = []
     
+    // 添加设施状态
+    @State private var facilities: [(typeID: Int, name: String, iconFileName: String)] = []
+    
     var body: some View {
         List {
             // 基础信息部分
@@ -118,6 +121,33 @@ struct ShowPlanetaryInfo: View {
                     }
                 }
             }
+            
+            // 设施部分
+            if !facilities.isEmpty {
+                Section(header: Text(NSLocalizedString("Planetary_Facilities", comment: ""))) {
+                    ForEach(facilities, id: \.typeID) { facility in
+                        NavigationLink {
+                            if let categoryID = databaseManager.getCategoryID(for: facility.typeID) {
+                                ItemInfoMap.getItemInfoView(
+                                    itemID: facility.typeID,
+                                    categoryID: categoryID,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: facility.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(4)
+                                
+                                Text(facility.name)
+                                    .font(.body)
+                            }
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Info")
@@ -136,6 +166,7 @@ struct ShowPlanetaryInfo: View {
         loadInputs()
         loadOutput()
         loadUses()
+        loadFacilities()
     }
     
     private func loadInputs() {
@@ -189,6 +220,33 @@ struct ShowPlanetaryInfo: View {
                 guard let typeID = row["output_typeid"] as? Int,
                       let details = databaseManager.getItemDetails(for: typeID) else { return nil }
                 return (typeID: typeID, name: details.name, iconFileName: details.iconFileName)
+            }
+        }
+    }
+    
+    // 添加设施加载方法
+    private func loadFacilities() {
+        let query = """
+        SELECT facilitys 
+        FROM planetSchematics 
+        WHERE output_typeid = ?
+        """
+        let result = databaseManager.executeQuery(query, parameters: [itemID])
+        
+        if case .success(let rows) = result, let row = rows.first {
+            if let facilityIDs = row["facilitys"] as? String {
+                facilities = facilityIDs.split(separator: ",")
+                    .compactMap { Int($0) }
+                    .compactMap { facilityID in
+                        guard let details = databaseManager.getItemDetails(for: facilityID) else { 
+                            return nil 
+                        }
+                        return (
+                            typeID: facilityID,
+                            name: details.name,
+                            iconFileName: details.iconFileName
+                        )
+                    }
             }
         }
     }

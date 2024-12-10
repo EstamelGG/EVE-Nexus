@@ -101,6 +101,7 @@
 "Planetary_Output_Quantity" = "Quantity";
 "Planetary_Cycle_Time" = "Cycle time";
 "Planetary_Uses" = "Required for";
+"Planetary_Facilities" = "Facilities";
 
 // Item Info
 "Item_Info_Blueprint" = "Blueprint";

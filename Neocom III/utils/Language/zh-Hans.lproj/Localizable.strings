@@ -101,6 +101,7 @@
 "Planetary_Output_Quantity" = "产量";
 "Planetary_Cycle_Time" = "生产周期";
 "Planetary_Uses" = "用途";
+"Planetary_Facilities" = "加工设施";
 
 // 物品信息
 "Item_Info_Blueprint" = "蓝图";
