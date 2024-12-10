@@ -208,21 +208,6 @@ struct ShowBluePrintInfo: View {
         blueprintSource = databaseManager.getBlueprintSource(for: blueprintID)
     }
     
-    // 格式化时间显示
-    private func formatTime(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let remainingSeconds = seconds % 60
-        
-        var components: [String] = []
-        
-        if hours > 0 { components.append("\(hours)\(NSLocalizedString("Blueprint_Time_Hour", comment: ""))") }
-        if minutes > 0 || (hours > 0 && remainingSeconds > 0) { components.append("\(minutes)\(NSLocalizedString("Blueprint_Time_Minute", comment: ""))") }
-        if remainingSeconds > 0 { components.append("\(remainingSeconds)\(NSLocalizedString("Blueprint_Time_Second", comment: ""))") }
-        
-        return components.joined(separator: " ")
-    }
-    
     // 加载蓝图数据
     private func loadBlueprintData() {
         // 首先获取所有处理时间
@@ -295,6 +280,11 @@ struct ShowBluePrintInfo: View {
                 time: processTime.invention_time
             )
         }
+    }
+    
+    // 计算研究等级
+    private func calculateRank(from baseTime: Int) -> Int {
+        return baseTime / 105 // 使用 level 1 的基础时间 105 来计算 rank
     }
     
     var body: some View {
@@ -380,11 +370,18 @@ struct ShowBluePrintInfo: View {
                     }
                     
                     // 研究时间
-                    HStack {
-                        Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
-                        Spacer()
-                        Text(formatTime(researchMaterial.time))
-                            .foregroundColor(.secondary)
+                    NavigationLink {
+                        ResearchLevelTimeView(
+                            title: NSLocalizedString("Blueprint_Research_Time_Label", comment: ""),
+                            rank: calculateRank(from: researchMaterial.time)
+                        )
+                    } label: {
+                        HStack {
+                            Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                            Spacer()
+                            Text(formatTime(researchMaterial.time))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -417,11 +414,18 @@ struct ShowBluePrintInfo: View {
                     }
                     
                     // 研究时间
-                    HStack {
-                        Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
-                        Spacer()
-                        Text(formatTime(researchTime.time))
-                            .foregroundColor(.secondary)
+                    NavigationLink {
+                        ResearchLevelTimeView(
+                            title: NSLocalizedString("Blueprint_Research_Time_Label", comment: ""),
+                            rank: calculateRank(from: researchTime.time)
+                        )
+                    } label: {
+                        HStack {
+                            Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                            Spacer()
+                            Text(formatTime(researchTime.time))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }

@@ -74,9 +74,12 @@
 "Blueprint_Invention_Product" = "Invention Product";
 "Blueprint_Success_Rate" = "Success Rate: %d%%";
 "Blueprint_Level" = "Level %d";
-"Blueprint_Time_Hour" = "h";
-"Blueprint_Time_Minute" = "m";
-"Blueprint_Time_Second" = "s";
+"Time_Year" = "y";
+"Time_Month" = "mon";
+"Time_Day" = "d";
+"Time_Hour" = "h";
+"Time_Minute" = "m";
+"Time_Second" = "s";
 
 "Item_Info" = "Item Info";
 "Blueprint_Info" = "Blueprint Info";
