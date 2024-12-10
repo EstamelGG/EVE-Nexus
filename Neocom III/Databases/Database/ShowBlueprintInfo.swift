@@ -32,12 +32,13 @@ struct ProductItemView: View {
                     .cornerRadius(6)
                 
                 Text(NSLocalizedString("Blueprint_Product", comment: ""))
-                    .foregroundColor(.primary)
                 
                 Spacer()
                 
                 Text("\(item.quantity) × \(item.typeName)")
                     .foregroundColor(.primary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
@@ -79,6 +80,8 @@ struct InventionProductItemView: View {
                 
                 Text(product.typeName)
                     .foregroundColor(.primary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
@@ -144,6 +147,8 @@ struct SkillListView: View {
                     
                     Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.trailing)
+                        .frame(alignment: .trailing)
                 }
             }
         }
