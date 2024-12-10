@@ -68,6 +68,7 @@
 "Misc_false" = "False";
 "Misc_number_item" = "x";
 "Misc_number_point" = "points";
+"Misc_number_types" = "types";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";

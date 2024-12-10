@@ -381,7 +381,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
-                                    Text("\(manufacturing.materials.count)")
+                                    Text("\(manufacturing.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -436,7 +436,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
-                                    Text("\(researchMaterial.materials.count)")
+                                    Text("\(researchMaterial.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -468,7 +468,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
-                                    Text("\(researchMaterial.skills.count)")
+                                    Text("\(researchMaterial.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -536,7 +536,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
-                                    Text("\(researchTime.materials.count)")
+                                    Text("\(researchTime.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -568,7 +568,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
-                                    Text("\(researchTime.skills.count)")
+                                    Text("\(researchTime.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -636,7 +636,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
-                                    Text("\(copying.materials.count)")
+                                    Text("\(copying.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -668,7 +668,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
-                                    Text("\(copying.skills.count)")
+                                    Text("\(copying.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -730,7 +730,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
-                                    Text("\(invention.materials.count)")
+                                    Text("\(invention.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -762,7 +762,7 @@ struct ShowBluePrintInfo: View {
                                 HStack {
                                     Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
-                                    Text("\(invention.skills.count)")
+                                    Text("\(invention.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }

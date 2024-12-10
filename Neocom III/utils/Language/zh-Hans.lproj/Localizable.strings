@@ -68,6 +68,7 @@
 "Misc_false" = "否";
 "Misc_number_item" = "个";
 "Misc_number_point" = "点";
+"Misc_number_types" = "种";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
