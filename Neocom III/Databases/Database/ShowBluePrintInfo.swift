@@ -8,14 +8,199 @@ struct BlueprintActivity {
     let time: Int
 }
 
+// 产出物项视图
+struct ProductItemView: View {
+    let item: (typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        NavigationLink(
+            destination: {
+                if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
+                    ItemInfoMap.getItemInfoView(
+                        itemID: item.typeID,
+                        categoryID: categoryID,
+                        databaseManager: databaseManager
+                    )
+                }
+            }
+        ) {
+            HStack {
+                IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                
+                Text("产出物")
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                Text("\(item.typeName) × \(item.quantity)")
+                    .foregroundColor(.primary)
+            }
+        }
+    }
+}
+
+// 发明产出项视图
+struct InventionProductItemView: View {
+    let product: (typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        NavigationLink(
+            destination: {
+                if let categoryID = databaseManager.getCategoryID(for: product.typeID) {
+                    ItemInfoMap.getItemInfoView(
+                        itemID: product.typeID,
+                        categoryID: categoryID,
+                        databaseManager: databaseManager
+                    )
+                }
+            }
+        ) {
+            HStack {
+                IconManager.shared.loadImage(for: product.typeIcon.isEmpty ? "items_7_64_15.png" : product.typeIcon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                
+                VStack(alignment: .leading) {
+                    Text("发明产出")
+                    if let probability = product.probability {
+                        Text("成功率: \(Int(probability * 100))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Text(product.typeName)
+                    .foregroundColor(.primary)
+            }
+        }
+    }
+}
+
+// 材料列表视图
+struct MaterialListView: View {
+    let title: String
+    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(items, id: \.typeID) { item in
+                HStack {
+                    IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                    
+                    Text(item.typeName)
+                    
+                    Spacer()
+                    
+                    Text("\(item.quantity)")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(title)
+    }
+}
+
+// 技能列表视图
+struct SkillListView: View {
+    let title: String
+    let skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(skills, id: \.typeID) { skill in
+                HStack {
+                    IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                    
+                    Text(skill.typeName)
+                    
+                    Spacer()
+                    
+                    Text("等级 \(skill.level)")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(title)
+    }
+}
+
+// 产出物列表视图
+struct ProductListView: View {
+    let title: String
+    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(items, id: \.typeID) { item in
+                ProductItemView(item: item, databaseManager: databaseManager)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(title)
+    }
+}
+
+// 发明产出列表视图
+struct InventionProductListView: View {
+    let title: String
+    let products: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(products, id: \.typeID) { product in
+                InventionProductItemView(product: product, databaseManager: databaseManager)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(title)
+    }
+}
+
+// 主视图
 struct ShowBluePrintInfo: View {
     let blueprintID: Int
-    @ObservedObject var databaseManager: DatabaseManager
+    @StateObject var databaseManager: DatabaseManager
     @State private var manufacturing: BlueprintActivity?
     @State private var researchMaterial: BlueprintActivity?
     @State private var researchTime: BlueprintActivity?
     @State private var copying: BlueprintActivity?
     @State private var invention: BlueprintActivity?
+    
+    // 格式化时间显示
+    private func formatTime(_ seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds)秒"
+        } else if seconds < 3600 {
+            let minutes = seconds / 60
+            let remainingSeconds = seconds % 60
+            return "\(minutes)分\(remainingSeconds)秒"
+        } else {
+            let hours = seconds / 3600
+            let minutes = (seconds % 3600) / 60
+            let remainingSeconds = seconds % 60
+            return "\(hours)小时\(minutes)分\(remainingSeconds)秒"
+        }
+    }
     
     // 加载蓝图数据
     private func loadBlueprintData() {
@@ -98,19 +283,14 @@ struct ShowBluePrintInfo: View {
                 Section(header: Text("制造").font(.headline)) {
                     // 产出物
                     if !manufacturing.products.isEmpty {
-                        NavigationLink(destination: ProductListView(title: "产出物", items: manufacturing.products)) {
-                            HStack {
-                                Text("产出物")
-                                Spacer()
-                                Text("\(manufacturing.products.count)")
-                                    .foregroundColor(.secondary)
-                            }
+                        ForEach(manufacturing.products, id: \.typeID) { product in
+                            ProductItemView(item: product, databaseManager: databaseManager)
                         }
                     }
                     
                     // 材料
                     if !manufacturing.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: manufacturing.materials)) {
+                        NavigationLink(destination: MaterialListView(title: "所需材料", items: manufacturing.materials, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需材料")
                                 Spacer()
@@ -135,7 +315,7 @@ struct ShowBluePrintInfo: View {
                 Section(header: Text("材料研究").font(.headline)) {
                     // 材料
                     if !researchMaterial.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchMaterial.materials)) {
+                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchMaterial.materials, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需材料")
                                 Spacer()
@@ -147,7 +327,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !researchMaterial.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchMaterial.skills)) {
+                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchMaterial.skills, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需技能")
                                 Spacer()
@@ -172,7 +352,7 @@ struct ShowBluePrintInfo: View {
                 Section(header: Text("时间研究").font(.headline)) {
                     // 材料
                     if !researchTime.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchTime.materials)) {
+                        NavigationLink(destination: MaterialListView(title: "所需材料", items: researchTime.materials, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需材料")
                                 Spacer()
@@ -184,7 +364,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !researchTime.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchTime.skills)) {
+                        NavigationLink(destination: SkillListView(title: "所需技能", skills: researchTime.skills, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需技能")
                                 Spacer()
@@ -209,7 +389,7 @@ struct ShowBluePrintInfo: View {
                 Section(header: Text("复制").font(.headline)) {
                     // 材料
                     if !copying.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: copying.materials)) {
+                        NavigationLink(destination: MaterialListView(title: "所需材料", items: copying.materials, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需材料")
                                 Spacer()
@@ -221,7 +401,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !copying.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: copying.skills)) {
+                        NavigationLink(destination: SkillListView(title: "所需技能", skills: copying.skills, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需技能")
                                 Spacer()
@@ -246,19 +426,14 @@ struct ShowBluePrintInfo: View {
                 Section(header: Text("发明").font(.headline)) {
                     // 产出物
                     if !invention.products.isEmpty {
-                        NavigationLink(destination: ProductListView(title: "发明产出", items: invention.products)) {
-                            HStack {
-                                Text("发明产出")
-                                Spacer()
-                                Text("\(invention.products.count)")
-                                    .foregroundColor(.secondary)
-                            }
+                        ForEach(invention.products, id: \.typeID) { product in
+                            InventionProductItemView(product: product, databaseManager: databaseManager)
                         }
                     }
                     
                     // 材料
                     if !invention.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: "所需材料", items: invention.materials)) {
+                        NavigationLink(destination: MaterialListView(title: "所需材料", items: invention.materials, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需材料")
                                 Spacer()
@@ -270,7 +445,7 @@ struct ShowBluePrintInfo: View {
                     
                     // 技能
                     if !invention.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: "所需技能", skills: invention.skills)) {
+                        NavigationLink(destination: SkillListView(title: "所需技能", skills: invention.skills, databaseManager: databaseManager)) {
                             HStack {
                                 Text("所需技能")
                                 Spacer()
@@ -295,147 +470,5 @@ struct ShowBluePrintInfo: View {
         .onAppear {
             loadBlueprintData()
         }
-    }
-    
-    // 格式化时间显示
-    private func formatTime(_ seconds: Int) -> String {
-        if seconds < 60 {
-            return "\(seconds)秒"
-        } else if seconds < 3600 {
-            let minutes = seconds / 60
-            let remainingSeconds = seconds % 60
-            return "\(minutes)分\(remainingSeconds)秒"
-        } else {
-            let hours = seconds / 3600
-            let minutes = (seconds % 3600) / 60
-            let remainingSeconds = seconds % 60
-            return "\(hours)小时\(minutes)分\(remainingSeconds)秒"
-        }
-    }
-}
-
-// 材料列表视图
-struct MaterialListView: View {
-    let title: String
-    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
-    
-    var body: some View {
-        List {
-            ForEach(items, id: \.typeID) { item in
-                HStack {
-                    IconManager.shared.loadImage(for: item.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    Text(item.typeName)
-                    
-                    Spacer()
-                    
-                    Text("\(item.quantity)")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 技能列表视图
-struct SkillListView: View {
-    let title: String
-    let skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)]
-    
-    var body: some View {
-        List {
-            ForEach(skills, id: \.typeID) { skill in
-                HStack {
-                    IconManager.shared.loadImage(for: skill.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    Text(skill.typeName)
-                    
-                    Spacer()
-                    
-                    Text("等级 \(skill.level)")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 发明产出列表视图
-struct InventionProductListView: View {
-    let title: String
-    let products: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
-    
-    var body: some View {
-        List {
-            ForEach(products, id: \.typeID) { product in
-                HStack {
-                    IconManager.shared.loadImage(for: product.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading) {
-                        Text(product.typeName)
-                        if let probability = product.probability {
-                            Text("成功率: \(Int(probability * 100))%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Text("\(product.quantity)")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 新增一个专门用于显示带概率的产出物品的视图
-struct ProductListView: View {
-    let title: String
-    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
-    
-    var body: some View {
-        List {
-            ForEach(items, id: \.typeID) { item in
-                HStack {
-                    IconManager.shared.loadImage(for: item.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    VStack(alignment: .leading) {
-                        Text(item.typeName)
-                        if let probability = item.probability {
-                            Text("成功率: \(Int(probability * 100))%")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    Text("\(item.quantity)")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
     }
 } 

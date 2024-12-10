@@ -193,7 +193,7 @@ class DatabaseManager: ObservableObject {
                       let metaGroupId = row["metaGroupID"] as? Int,
                       let categoryId = row["categoryID"] as? Int,
                       let isPublished = row["published"] as? Int else {
-                    print("警告: 物品基础数据不完整:", row)
+                    print("警告: 物品基础���据不完整:", row)
                     continue
                 }
                 
@@ -953,6 +953,19 @@ class DatabaseManager: ObservableObject {
                     invention_time: inventionTime
                 )
             }
+        }
+        return nil
+    }
+    
+    // 获取物品的categoryID
+    func getCategoryID(for typeID: Int) -> Int? {
+        let query = "SELECT categoryID FROM types WHERE type_id = ?"
+        let result = executeQuery(query, parameters: [typeID])
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let categoryID = row["categoryID"] as? Int {
+            return categoryID
         }
         return nil
     }
