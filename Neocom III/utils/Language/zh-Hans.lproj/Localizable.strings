@@ -96,6 +96,12 @@
 "Blueprint_Copying_Time" = "复制时间";
 "Blueprint_Invention_Time" = "发明时间";
 
+"Planetary_Input_Materials" = "输入";
+"Planetary_Output_Info" = "输出";
+"Planetary_Output_Quantity" = "产量";
+"Planetary_Cycle_Time" = "生产周期";
+"Planetary_Uses" = "用途";
+
 // 物品信息
 "Item_Info_Blueprint" = "蓝图";
 "Blueprint_Source" = "发明来源";

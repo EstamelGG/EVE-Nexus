@@ -16,6 +16,20 @@ struct ItemInfoMap {
                     databaseManager: databaseManager
                 )
             )
+        case 43: // 行星开发
+            return AnyView(
+                ShowPlanetaryInfo(
+                    itemID: itemID,
+                    databaseManager: databaseManager
+                )
+            )
+        case 42: // 行星开发
+            return AnyView(
+                ShowPlanetaryInfo(
+                    itemID: itemID,
+                    databaseManager: databaseManager
+                )
+            )
         default: // 默认显示普通物品信息
             return AnyView(
                 ShowItemInfo(

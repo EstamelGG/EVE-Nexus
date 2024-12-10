@@ -96,6 +96,12 @@
 "Blueprint_Copying_Time" = "Copying Time";
 "Blueprint_Invention_Time" = "Invention Time";
 
+"Planetary_Input_Materials" = "Input";
+"Planetary_Output_Info" = "Output";
+"Planetary_Output_Quantity" = "Quantity";
+"Planetary_Cycle_Time" = "Cycle time";
+"Planetary_Uses" = "Required for";
+
 // Item Info
 "Item_Info_Blueprint" = "Blueprint";
 
