@@ -85,7 +85,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
             
-            Logger.info("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
+            Logger.debug("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
             
         case .error(let error):
             Logger.error("加载分类失败: \(error)")
@@ -216,7 +216,7 @@ class DatabaseManager: ObservableObject {
                 let missSlot = row["miss_slot"] as? Int
                 
                 // 打印调试信息
-                Logger.info("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
+                Logger.debug("处理物品: ID=\(typeId), Name=\(name), MetaGroupID=\(metaGroupId)")
                 
                 let item = DatabaseItem(
                     id: typeId,
@@ -255,7 +255,7 @@ class DatabaseManager: ObservableObject {
         // 打印最终的 metaGroupNames 内容
         // print("最终的 metaGroupNames 内容:")
         for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
-            Logger.info("ID: \(id) -> Name: \(name)")
+            Logger.debug("ID: \(id) -> Name: \(name)")
         }
         
         return (published, unpublished, metaGroupNames)

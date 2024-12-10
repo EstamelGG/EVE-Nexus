@@ -40,7 +40,7 @@ struct Neocom_IIIApp: App {
            FileManager.default.fileExists(atPath: destinationPath.path),
            let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
            !contents.isEmpty {
-            Logger.info("Icons folder exists and contains \(contents.count) files, skipping extraction.")
+            Logger.debug("Icons folder exists and contains \(contents.count) files, skipping extraction.")
             await MainActor.run {
                 databaseManager.loadDatabase()
                 isInitialized = true

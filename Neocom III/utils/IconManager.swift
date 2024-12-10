@@ -94,8 +94,7 @@ class IconManager {
     }
     
     func unzipIcons(from sourceURL: URL, to destinationURL: URL, progress: @escaping (Double) -> Void) async throws {
-        Logger.info("Starting icon extraction from \(sourceURL.path)")
-        Logger.info("Extracting to: \(destinationURL.path)")
+        Logger.debug("Starting icon extraction from \(sourceURL.path) to \(destinationURL.path)")
         
         // 重置解压状态
         isExtractionComplete = false

@@ -159,7 +159,7 @@ struct SettingView: View {
                 
                 // 确保目录被完全删除
                 if !fileManager.fileExists(atPath: destinationPath.path) {
-                    Logger.info("Verified: Icons directory has been removed")
+                    Logger.debug("Verified: Icons directory has been removed")
                     // 等待文件系统完成操作
                     Thread.sleep(forTimeInterval: 0.5)
                     exit(0)
@@ -167,7 +167,7 @@ struct SettingView: View {
                     Logger.warning("Warning: Icons directory still exists after deletion")
                 }
             } else {
-                Logger.info("Icons directory does not exist")
+                Logger.error("Icons directory does not exist")
                 exit(0)
             }
         } catch {
