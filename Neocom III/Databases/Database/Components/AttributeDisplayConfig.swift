@@ -89,17 +89,35 @@ struct AttributeDisplayConfig {
     // 抗性属性组定义
     struct ResistanceGroup {
         let groupID: Int
-        let emID: Int
-        let thermalID: Int
-        let kineticID: Int
-        let explosiveID: Int
+        let emIDs: [Int]          // 改为数组
+        let thermalIDs: [Int]     // 改为数组
+        let kineticIDs: [Int]     // 改为数组
+        let explosiveIDs: [Int]   // 改为数组
     }
     
     // 定义抗性属性组
     private static let resistanceGroups: [ResistanceGroup] = [
-        ResistanceGroup(groupID: 2, emID: 271, thermalID: 274, kineticID: 273, explosiveID: 272),      // 护盾抗性
-        ResistanceGroup(groupID: 3, emID: 267, thermalID: 270, kineticID: 269, explosiveID: 268),      // 装甲抗性
-        ResistanceGroup(groupID: 4, emID: 113, thermalID: 110, kineticID: 109, explosiveID: 111)       // 结构抗性
+        ResistanceGroup(
+            groupID: 2, 
+            emIDs: [271],
+            thermalIDs: [274],
+            kineticIDs: [273],
+            explosiveIDs: [272]
+        ),      // 护盾抗性
+        ResistanceGroup(
+            groupID: 3, 
+            emIDs: [267],
+            thermalIDs: [270],
+            kineticIDs: [269],
+            explosiveIDs: [268]
+        ),      // 装甲抗性
+        ResistanceGroup(
+            groupID: 4, 
+            emIDs: [113, 974],
+            thermalIDs: [110, 977],
+            kineticIDs: [109, 976],
+            explosiveIDs: [111, 975]
+        )       // 结构抗性
     ]
     
     // 运算符类型
@@ -275,37 +293,55 @@ struct AttributeDisplayConfig {
         return resistanceGroups.first { $0.groupID == groupID }
     }
     
-    // 检查属性组是否包含任何抗性值
-    private static func hasAnyResistance(groupID: Int, in allAttributes: [Int: Double]) -> Bool {
-        guard let group = findResistanceGroup(for: groupID) else { return false }
-        return allAttributes[group.emID] != nil ||
-               allAttributes[group.thermalID] != nil ||
-               allAttributes[group.kineticID] != nil ||
-               allAttributes[group.explosiveID] != nil
+    // 定义一个结构来存储命中的抗性属性ID
+    struct ResistanceHits {
+        let emID: Int?
+        let thermalID: Int?
+        let kineticID: Int?
+        let explosiveID: Int?
+        
+        var hasAnyResistance: Bool {
+            return emID != nil || thermalID != nil || kineticID != nil || explosiveID != nil
+        }
     }
     
-    // 获取抗性值数组
-    static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
+    // 修改检查方法，返回命中的属性ID
+    private static func findResistanceAttributes(groupID: Int, in allAttributes: [Int: Double]) -> ResistanceHits? {
         guard let group = findResistanceGroup(for: groupID) else { return nil }
         
-        // 检查是否至少有一个抗性值存在
-        let hasAnyResistance = allAttributes[group.emID] != nil ||
-                              allAttributes[group.thermalID] != nil ||
-                              allAttributes[group.kineticID] != nil ||
-                              allAttributes[group.explosiveID] != nil
+        // 查找每种类型中第一个存在的属性ID
+        let emID = group.emIDs.first { allAttributes[$0] != nil }
+        let thermalID = group.thermalIDs.first { allAttributes[$0] != nil }
+        let kineticID = group.kineticIDs.first { allAttributes[$0] != nil }
+        let explosiveID = group.explosiveIDs.first { allAttributes[$0] != nil }
         
-        // 如果没有任何抗性值，返回 nil
-        if !hasAnyResistance {
-            return nil
+        let hits = ResistanceHits(
+            emID: emID,
+            thermalID: thermalID,
+            kineticID: kineticID,
+            explosiveID: explosiveID
+        )
+        
+        return hits.hasAnyResistance ? hits : nil
+    }
+    
+    // 原来的hasAnyResistance方法可以这样使用新方法
+    private static func hasAnyResistance(groupID: Int, in allAttributes: [Int: Double]) -> Bool {
+        return findResistanceAttributes(groupID: groupID, in: allAttributes)?.hasAnyResistance ?? false
+    }
+    
+    // 修改获取抗性值的方法
+    static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
+        guard let hits = findResistanceAttributes(groupID: groupID, in: allAttributes) else { 
+            return nil 
         }
         
-        // 获取抗性值，如果不存在则使用默认值 1.0
-        let emValue = allAttributes[group.emID] ?? 1.0
-        let thermalValue = allAttributes[group.thermalID] ?? 1.0
-        let kineticValue = allAttributes[group.kineticID] ?? 1.0
-        let explosiveValue = allAttributes[group.explosiveID] ?? 1.0
+        // 使用命中的属性ID获取值，如果没有则使用默认值1.0
+        let emValue = hits.emID.flatMap { allAttributes[$0] } ?? 1.0
+        let thermalValue = hits.thermalID.flatMap { allAttributes[$0] } ?? 1.0
+        let kineticValue = hits.kineticID.flatMap { allAttributes[$0] } ?? 1.0
+        let explosiveValue = hits.explosiveID.flatMap { allAttributes[$0] } ?? 1.0
         
-        // 转换为显示值 (1 - value) * 100，保持原始精度
         return [
             (1 - emValue) * 100,
             (1 - thermalValue) * 100,
@@ -317,7 +353,10 @@ struct AttributeDisplayConfig {
     // 检查是否是抗性属性
     private static func isResistanceAttribute(_ attributeID: Int) -> Bool {
         for group in resistanceGroups {
-            if [group.emID, group.thermalID, group.kineticID, group.explosiveID].contains(attributeID) {
+            if group.emIDs.contains(attributeID) ||
+               group.thermalIDs.contains(attributeID) ||
+               group.kineticIDs.contains(attributeID) ||
+               group.explosiveIDs.contains(attributeID) {
                 return true
             }
         }
