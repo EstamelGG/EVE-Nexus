@@ -203,6 +203,7 @@ struct ShowBluePrintInfo: View {
     @State private var itemDetails: ItemDetails?
     @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
     @State private var isManufacturingMaterialsExpanded = false
+    @State private var isManufacturingSkillsExpanded = false
     @State private var isResearchMaterialMaterialsExpanded = false
     @State private var isResearchMaterialSkillsExpanded = false
     @State private var isResearchMaterialLevelsExpanded = false
@@ -235,10 +236,11 @@ struct ShowBluePrintInfo: View {
         if processTime.manufacturing_time > 0 {
             let manufacturingMaterials = databaseManager.getBlueprintManufacturingMaterials(for: blueprintID)
             let manufacturingProducts = databaseManager.getBlueprintManufacturingOutput(for: blueprintID)
+            let manufacturingSkills = databaseManager.getBlueprintManufacturingSkills(for: blueprintID)
             
             manufacturing = BlueprintActivity(
                 materials: manufacturingMaterials,
-                skills: [], // 制造不需要技能
+                skills: manufacturingSkills,
                 products: manufacturingProducts.map { ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, nil) },
                 time: processTime.manufacturing_time
             )
@@ -382,6 +384,38 @@ struct ShowBluePrintInfo: View {
                                     Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
                                     Spacer()
                                     Text("\(manufacturing.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        )
+                    }
+                    
+                    // 技能折叠组
+                    if !manufacturing.skills.isEmpty {
+                        DisclosureGroup(
+                            isExpanded: $isManufacturingSkillsExpanded,
+                            content: {
+                                ForEach(manufacturing.skills, id: \.typeID) { skill in
+                                    HStack {
+                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                        
+                                        Text(skill.typeName)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                    Spacer()
+                                    Text("\(manufacturing.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }

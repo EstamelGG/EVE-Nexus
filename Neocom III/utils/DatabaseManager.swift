@@ -673,6 +673,29 @@ class DatabaseManager: ObservableObject {
         return products
     }
     
+    // 获取蓝图制造所需技能
+    func getBlueprintManufacturingSkills(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, level: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, level
+            FROM blueprint_manufacturing_skills
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let level = row["level"] as? Int {
+                    skills.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, level: level))
+                }
+            }
+        }
+        return skills
+    }
+    
     // 获取蓝图材料研究材料
     func getBlueprintResearchMaterialMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
         let query = """
