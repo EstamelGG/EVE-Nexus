@@ -28,10 +28,44 @@ struct DatabaseBrowserView: View {
     
     // 静态缓存
     private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String])] = [:]
+    private static let maxCacheSize = 10 // 最大缓存层级数
+    private static var cacheAccessTime: [BrowserLevel: Date] = [:] // 记录访问时间
     
     // 清除缓存的方法
     static func clearCache() {
         navigationCache.removeAll()
+        cacheAccessTime.removeAll()
+    }
+    
+    // 更新缓存访问时间
+    private static func updateAccessTime(for level: BrowserLevel) {
+        cacheAccessTime[level] = Date()
+        
+        // 如果超出最大缓存大小，移除最旧的缓存
+        if navigationCache.count > maxCacheSize {
+            let oldestLevel = cacheAccessTime.sorted { $0.value < $1.value }.first?.key
+            if let oldestLevel = oldestLevel {
+                navigationCache.removeValue(forKey: oldestLevel)
+                cacheAccessTime.removeValue(forKey: oldestLevel)
+            }
+        }
+    }
+    
+    // 获取缓存数据
+    private func getCachedData(for level: BrowserLevel) -> ([DatabaseListItem], [Int: String])? {
+        if let cachedData = Self.navigationCache[level] {
+            // 更新访问时间
+            Self.updateAccessTime(for: level)
+            print("使用导航缓存: \(level)")
+            return cachedData
+        }
+        return nil
+    }
+    
+    // 设置缓存数据
+    private func setCacheData(for level: BrowserLevel, data: ([DatabaseListItem], [Int: String])) {
+        Self.navigationCache[level] = data
+        Self.updateAccessTime(for: level)
     }
     
     // 根据层级返回分组类型
@@ -58,14 +92,13 @@ struct DatabaseBrowserView: View {
                 groupingType: groupingType,  // 使用根据层级确定的分组类型
                 loadData: { dbManager in
                     // 检查缓存
-                    if let cachedData = Self.navigationCache[level] {
-                        print("使用导航缓存: \(level)")
+                    if let cachedData = getCachedData(for: level) {
                         return cachedData
                     }
                     
                     // 如果没有缓存，加载数据并缓存
                     let data = loadDataForLevel(dbManager)
-                    Self.navigationCache[level] = data
+                    setCacheData(for: level, data: data)
                     
                     // 预加载图标
                     if case .categories = level {
@@ -97,6 +130,27 @@ struct DatabaseBrowserView: View {
     
     // 根据层级加载数据
     private func loadDataForLevel(_ dbManager: DatabaseManager) -> ([DatabaseListItem], [Int: String]) {
+        // 检查缓存
+        if let cachedData = getCachedData(for: level) {
+            return cachedData
+        }
+        
+        // 如果没有缓存，加载数据并缓存
+        let data = loadDataFromDatabase(dbManager)
+        setCacheData(for: level, data: data)
+        
+        // 预加载图标
+        if case .categories = level {
+            // 预加载分类图标
+            let icons = data.0.map { $0.iconFileName }
+            IconManager.shared.preloadCommonIcons(icons: icons)
+        }
+        
+        return data
+    }
+    
+    // 从数据库加载数据
+    private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> ([DatabaseListItem], [Int: String]) {
         switch level {
         case .categories:
             let (published, unpublished) = dbManager.loadCategories()
