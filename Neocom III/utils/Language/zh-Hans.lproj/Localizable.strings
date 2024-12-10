@@ -74,7 +74,7 @@
 "Blueprint_Invention_Product" = "发明产出";
 "Blueprint_Success_Rate" = "成功率: %d%%";
 "Blueprint_Level" = "等级 %d";
-"Blueprint_Time_Hour" = "小时";
+"Blueprint_Time_Hour" = "时";
 "Blueprint_Time_Minute" = "分";
 "Blueprint_Time_Second" = "秒";
 
