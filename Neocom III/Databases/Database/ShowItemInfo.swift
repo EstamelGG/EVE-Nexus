@@ -33,35 +33,41 @@ func processRichText(_ text: String) -> Text {
     )
     
     while !currentText.isEmpty {
-        // 查找最近的特殊标签
-        let boldStart = currentText.range(of: "<b>")
-        let boldEnd = currentText.range(of: "</b>")
+        // 查找所有标签位置
+        let boldStarts = currentText.ranges(of: "<b>")
+        let boldEnds = currentText.ranges(of: "</b>")
         let linkStart = currentText.range(of: "<a href=")
         let linkEnd = currentText.range(of: "</a>")
         
         // 如果没有任何标签了，添加剩余文本并结束
-        if boldStart == nil && linkStart == nil {
+        if boldStarts.isEmpty && linkStart == nil {
             result = result + Text(currentText)
             break
         }
         
         // 处理加粗文本
-        if let start = boldStart,
-           let end = boldEnd,
-           (linkStart == nil || start.lowerBound < linkStart!.lowerBound) {
-            // 添加加粗标签前的普通文本
-            let beforeBold = String(currentText[..<start.lowerBound])
-            if !beforeBold.isEmpty {
-                result = result + Text(beforeBold)
+        if !boldStarts.isEmpty,
+           !boldEnds.isEmpty,
+           let firstStart = boldStarts.first,
+           (linkStart == nil || firstStart.lowerBound < linkStart!.lowerBound) {
+            // 找到与当前开始标签匹配的最近的结束标签
+            let matchingEnd = boldEnds.first { $0.lowerBound > firstStart.upperBound }
+            
+            if let end = matchingEnd {
+                // 添加加粗标签前的普通文本
+                let beforeBold = String(currentText[..<firstStart.lowerBound])
+                if !beforeBold.isEmpty {
+                    result = result + Text(beforeBold)
+                }
+                
+                // 提取并添加加粗文本
+                let boldText = String(currentText[firstStart.upperBound..<end.lowerBound])
+                result = result + Text(boldText).bold()
+                
+                // 更新剩余文本
+                currentText = String(currentText[end.upperBound...])
+                continue
             }
-            
-            // 提取并添加加粗文本
-            let boldText = String(currentText[start.upperBound..<end.lowerBound])
-            result = result + Text(boldText).bold()
-            
-            // 更新剩余文本
-            currentText = String(currentText[end.upperBound...])
-            continue
         }
         
         // 处理链接文本
@@ -92,6 +98,21 @@ func processRichText(_ text: String) -> Text {
     }
     
     return result
+}
+
+// 扩展 String 以支持查找所有匹配项
+extension String {
+    func ranges(of searchString: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var searchRange = self.startIndex..<self.endIndex
+        
+        while let range = self.range(of: searchString, range: searchRange) {
+            ranges.append(range)
+            searchRange = range.upperBound..<self.endIndex
+        }
+        
+        return ranges
+    }
 }
 
 // ShowItemInfo view
