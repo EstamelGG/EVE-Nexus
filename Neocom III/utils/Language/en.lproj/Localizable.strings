@@ -78,6 +78,7 @@
 "Blueprint_Time_Minute" = "m";
 "Blueprint_Time_Second" = "s";
 
+"Item_Info" = "Item Info";
 "Blueprint_Info" = "Blueprint Info";
 "Blueprint_Manufacturing" = "Manufacturing";
 "Blueprint_Research_Material" = "Material Research";

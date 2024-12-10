@@ -78,6 +78,7 @@
 "Blueprint_Time_Minute" = "分";
 "Blueprint_Time_Second" = "秒";
 
+"Item_Info" = "物品信息";
 "Blueprint_Info" = "蓝图信息";
 "Blueprint_Manufacturing" = "制造";
 "Blueprint_Research_Material" = "材料研究";

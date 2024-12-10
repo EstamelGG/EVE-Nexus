@@ -239,25 +239,12 @@ struct ShowItemInfo: View {
                 AttributesView(attributeGroups: attributeGroups, databaseManager: databaseManager)
                 
                 // Industry Section
-                if let materials = databaseManager.getTypeMaterials(for: itemID), !materials.isEmpty {
+                let materials = databaseManager.getTypeMaterials(for: itemID)
+                let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
+                if materials != nil || blueprintID != nil {
                     Section(header: Text("Industry").font(.headline)) {
-                        // 回收按钮
-                        NavigationLink {
-                            ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)
-                        } label: {
-                            HStack {
-                                Image("reprocess")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
-                                Spacer()
-                                Text("\(materials.count)")
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
                         // 蓝图按钮
-                        if let blueprintID = databaseManager.getBlueprintIDForProduct(itemID),
+                        if let blueprintID = blueprintID,
                            let blueprintDetails = databaseManager.getItemDetails(for: blueprintID) {
                             NavigationLink {
                                 ShowBluePrintInfo(blueprintID: blueprintID, databaseManager: databaseManager)
@@ -272,6 +259,23 @@ struct ShowItemInfo: View {
                                 }
                             }
                         }
+                        
+                        // 回收按钮
+                        if let materials = materials, !materials.isEmpty {
+                            NavigationLink {
+                                ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)
+                            } label: {
+                                HStack {
+                                    Image("reprocess")
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                    Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
+                                    Spacer()
+                                    Text("\(materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -280,7 +284,7 @@ struct ShowItemInfo: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Info")
+        .navigationTitle(NSLocalizedString("Item_Info", comment: ""))
         .navigationBarBackButtonHidden(false)
         .onAppear {
             loadItemDetails(for: itemID)
