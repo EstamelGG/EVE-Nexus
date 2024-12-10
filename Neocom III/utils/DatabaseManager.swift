@@ -953,4 +953,54 @@ class DatabaseManager: ObservableObject {
         }
         return nil
     }
+    
+    // 根据物品ID获取对应的蓝图ID
+    func getBlueprintIDForProduct(_ typeID: Int) -> Int? {
+        let query = """
+            SELECT DISTINCT blueprintTypeID
+            FROM blueprint_manufacturing_products
+            WHERE productTypeID = ?
+            UNION
+            SELECT DISTINCT blueprintTypeID
+            FROM blueprint_invention_products
+            WHERE productTypeID = ?
+        """
+        
+        let result = executeQuery(query, parameters: [typeID, typeID])
+        
+        switch result {
+        case .success(let rows):
+            if let row = rows.first,
+               let blueprintID = row["blueprintTypeID"] as? Int {
+                return blueprintID
+            }
+        case .error(let error):
+            print("Error getting blueprint ID: \(error)")
+        }
+        
+        return nil
+    }
+    
+    // 获取蓝图的图标文件名
+    func getBlueprintIconFileName(_ blueprintID: Int) -> String? {
+        let query = """
+            SELECT icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        
+        let result = executeQuery(query, parameters: [blueprintID])
+        
+        switch result {
+        case .success(let rows):
+            if let row = rows.first,
+               let iconFileName = row["icon_filename"] as? String {
+                return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+            }
+        case .error(let error):
+            print("Error getting blueprint icon: \(error)")
+        }
+        
+        return nil
+    }
 }

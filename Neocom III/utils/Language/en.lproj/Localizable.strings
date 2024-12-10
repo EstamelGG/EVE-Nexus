@@ -91,4 +91,7 @@
 "Blueprint_Copying_Time" = "Copying Time";
 "Blueprint_Invention_Time" = "Invention Time";
 
+// Item Info
+"Item_Info_Blueprint" = "View Blueprint";
+
 

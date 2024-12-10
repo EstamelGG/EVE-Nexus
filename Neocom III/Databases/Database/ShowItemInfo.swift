@@ -238,13 +238,17 @@ struct ShowItemInfo: View {
                 // 属性 Sections
                 AttributesView(attributeGroups: attributeGroups, databaseManager: databaseManager)
                 
-                // Industry 部分
+                // Industry Section
                 if let materials = databaseManager.getTypeMaterials(for: itemID), !materials.isEmpty {
                     Section(header: Text("Industry").font(.headline)) {
-                        // Reprocess 行
-                        NavigationLink(destination: ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)) {
+                        // 回收按钮
+                        NavigationLink {
+                            ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)
+                        } label: {
                             HStack {
                                 Image("reprocess")
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
                                 Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
                                 Spacer()
                                 Text("\(materials.count)")
@@ -252,12 +256,22 @@ struct ShowItemInfo: View {
                             }
                         }
                         
-                        // 预留行（暂时保持空白）
-                        HStack {
-                            Text("Blueprint")
-                            Spacer()
+                        // 蓝图按钮
+                        if let blueprintID = databaseManager.getBlueprintIDForProduct(itemID),
+                           let blueprintDetails = databaseManager.getItemDetails(for: blueprintID) {
+                            NavigationLink {
+                                ShowBluePrintInfo(blueprintID: blueprintID, databaseManager: databaseManager)
+                            } label: {
+                                HStack {
+                                    IconManager.shared.loadImage(for: blueprintDetails.iconFileName)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                    Text(NSLocalizedString("Item_Info_Blueprint", comment: ""))
+                                    Spacer()
+                                }
+                            }
                         }
-                        .foregroundColor(.gray)
                     }
                 }
             } else {
