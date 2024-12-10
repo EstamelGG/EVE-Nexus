@@ -303,6 +303,9 @@ struct ShowBluePrintInfo: View {
         let levelMultipliers = [105, 250, 595, 1414, 3360, 8000, 19000, 45255, 107700, 256000]
         let rank = baseTime / 105
         return levelMultipliers[level - 1] * rank
+        
+        // 此处采用blueprints.yaml中提供的基准时间，除以rank1的基准时间获取rank值，再乘各个rank的标准时间来计算。
+        // rank值也可以通过查询typeAttributes表中对应物品的attribute_id = 1955的值来获取
     }
     
     var body: some View {
