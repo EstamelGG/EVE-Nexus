@@ -243,11 +243,10 @@ struct DatabaseBrowserView: View {
                     gunSlot: item.gunSlot,
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
-                    navigationDestination: AnyView(
-                        ShowItemInfo(
-                            databaseManager: databaseManager,
-                            itemID: item.id
-                        )
+                    navigationDestination: ItemInfoMap.getItemInfoView(
+                        itemID: item.id,
+                        categoryID: item.categoryID,
+                        databaseManager: databaseManager
                     )
                 )
             } + unpublished.map { item in
@@ -271,11 +270,10 @@ struct DatabaseBrowserView: View {
                     gunSlot: item.gunSlot,
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
-                    navigationDestination: AnyView(
-                        ShowItemInfo(
-                            databaseManager: databaseManager,
-                            itemID: item.id
-                        )
+                    navigationDestination: ItemInfoMap.getItemInfoView(
+                        itemID: item.id,
+                        categoryID: item.categoryID,
+                        databaseManager: databaseManager
                     )
                 )
             }

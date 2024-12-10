@@ -674,4 +674,286 @@ class DatabaseManager: ObservableObject {
             return nil
         }
     }
+    
+    // MARK: - Blueprint Methods
+    // 获取蓝图制造材料
+    func getBlueprintManufacturingMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_manufacturing_materials
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    materials.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return materials
+    }
+    
+    // 获取蓝图制造产出
+    func getBlueprintManufacturingOutput(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_manufacturing_output
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var products: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    products.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return products
+    }
+    
+    // 获取蓝图材料研究材料
+    func getBlueprintResearchMaterialMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_research_material_materials
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    materials.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return materials
+    }
+    
+    // 获取蓝图材料研究技能
+    func getBlueprintResearchMaterialSkills(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, level: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, level
+            FROM blueprint_research_material_skills
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let level = row["level"] as? Int {
+                    skills.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, level: level))
+                }
+            }
+        }
+        return skills
+    }
+    
+    // 获取蓝图时间研究材料
+    func getBlueprintResearchTimeMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_research_time_materials
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    materials.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return materials
+    }
+    
+    // 获取蓝图时间研究技能
+    func getBlueprintResearchTimeSkills(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, level: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, level
+            FROM blueprint_research_time_skills
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let level = row["level"] as? Int {
+                    skills.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, level: level))
+                }
+            }
+        }
+        return skills
+    }
+    
+    // 获取蓝图复制材料
+    func getBlueprintCopyingMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_copying_materials
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    materials.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return materials
+    }
+    
+    // 获取蓝图复制技能
+    func getBlueprintCopyingSkills(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, level: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, level
+            FROM blueprint_copying_skills
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let level = row["level"] as? Int {
+                    skills.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, level: level))
+                }
+            }
+        }
+        return skills
+    }
+    
+    // 获取蓝图发明材料
+    func getBlueprintInventionMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity
+            FROM blueprint_invention_materials
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int {
+                    materials.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity))
+                }
+            }
+        }
+        return materials
+    }
+    
+    // 获取蓝图发明技能
+    func getBlueprintInventionSkills(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, level: Int)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, level
+            FROM blueprint_invention_skills
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let level = row["level"] as? Int {
+                    skills.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, level: level))
+                }
+            }
+        }
+        return skills
+    }
+    
+    // 获取蓝图发明产出
+    func getBlueprintInventionProducts(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double)] {
+        let query = """
+            SELECT typeID, typeName, typeIcon, quantity, probability
+            FROM blueprint_invention_products
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        var products: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double)] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["typeID"] as? Int,
+                   let typeName = row["typeName"] as? String,
+                   let typeIcon = row["typeIcon"] as? String,
+                   let quantity = row["quantity"] as? Int,
+                   let probability = row["probability"] as? Double {
+                    products.append((typeID: typeID, typeName: typeName, typeIcon: typeIcon, quantity: quantity, probability: probability))
+                }
+            }
+        }
+        return products
+    }
+    
+    // 获取蓝图处理时间
+    func getBlueprintProcessTime(for blueprintID: Int) -> (manufacturing_time: Int, research_material_time: Int, research_time_time: Int, copying_time: Int, invention_time: Int)? {
+        let query = """
+            SELECT manufacturing_time, research_material_time, research_time_time, copying_time, invention_time
+            FROM blueprint_process_time
+            WHERE blueprintTypeID = ?
+        """
+        let result = executeQuery(query, parameters: [blueprintID])
+        
+        if case .success(let rows) = result, let row = rows.first {
+            if let manufacturingTime = row["manufacturing_time"] as? Int,
+               let researchMaterialTime = row["research_material_time"] as? Int,
+               let researchTimeTime = row["research_time_time"] as? Int,
+               let copyingTime = row["copying_time"] as? Int,
+               let inventionTime = row["invention_time"] as? Int {
+                return (
+                    manufacturing_time: manufacturingTime,
+                    research_material_time: researchMaterialTime,
+                    research_time_time: researchTimeTime,
+                    copying_time: copyingTime,
+                    invention_time: inventionTime
+                )
+            }
+        }
+        return nil
+    }
 }
