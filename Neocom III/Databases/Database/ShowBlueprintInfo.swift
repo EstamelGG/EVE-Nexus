@@ -199,9 +199,15 @@ struct ShowBluePrintInfo: View {
     @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
     @State private var isManufacturingMaterialsExpanded = false
     @State private var isResearchMaterialMaterialsExpanded = false
+    @State private var isResearchMaterialSkillsExpanded = false
     @State private var isResearchMaterialLevelsExpanded = false
     @State private var isResearchTimeMaterialsExpanded = false
+    @State private var isResearchTimeSkillsExpanded = false
     @State private var isResearchTimeLevelsExpanded = false
+    @State private var isCopyingMaterialsExpanded = false
+    @State private var isCopyingSkillsExpanded = false
+    @State private var isInventionMaterialsExpanded = false
+    @State private var isInventionSkillsExpanded = false
     
     // 加载物品基本信息
     private func loadItemDetails() {
@@ -332,7 +338,7 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 材料（使用折叠组）
+                    // 材料折叠组
                     if !manufacturing.materials.isEmpty {
                         DisclosureGroup(
                             isExpanded: $isManufacturingMaterialsExpanded,
@@ -429,16 +435,36 @@ struct ShowBluePrintInfo: View {
                         )
                     }
                     
-                    // 技能
+                    // 技能折叠组
                     if !researchMaterial.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: researchMaterial.skills, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
-                                Spacer()
-                                Text("\(researchMaterial.skills.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isResearchMaterialSkillsExpanded,
+                            content: {
+                                ForEach(researchMaterial.skills, id: \.typeID) { skill in
+                                    HStack {
+                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                        
+                                        Text(skill.typeName)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                    Spacer()
+                                    Text("\(researchMaterial.skills.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 时间等级折叠组
@@ -509,16 +535,36 @@ struct ShowBluePrintInfo: View {
                         )
                     }
                     
-                    // 技能
+                    // 技能折叠组
                     if !researchTime.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: researchTime.skills, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
-                                Spacer()
-                                Text("\(researchTime.skills.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isResearchTimeSkillsExpanded,
+                            content: {
+                                ForEach(researchTime.skills, id: \.typeID) { skill in
+                                    HStack {
+                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                        
+                                        Text(skill.typeName)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                    Spacer()
+                                    Text("\(researchTime.skills.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 时间等级折叠组
@@ -547,28 +593,78 @@ struct ShowBluePrintInfo: View {
             // 复制部分
             if let copying = copying {
                 Section(header: Text(NSLocalizedString("Blueprint_Copying", comment: "")).font(.headline)) {
-                    // 材料
+                    // 材料折叠组
                     if !copying.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: copying.materials, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
-                                Spacer()
-                                Text("\(copying.materials.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isCopyingMaterialsExpanded,
+                            content: {
+                                ForEach(copying.materials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.quantity)")
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
+                                    Spacer()
+                                    Text("\(copying.materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
-                    // 技能
+                    // 技能折叠组
                     if !copying.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: copying.skills, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
-                                Spacer()
-                                Text("\(copying.skills.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isCopyingSkillsExpanded,
+                            content: {
+                                ForEach(copying.skills, id: \.typeID) { skill in
+                                    HStack {
+                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                        
+                                        Text(skill.typeName)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                    Spacer()
+                                    Text("\(copying.skills.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 复制时间
@@ -591,28 +687,78 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 材料
+                    // 材料折叠组
                     if !invention.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: invention.materials, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
-                                Spacer()
-                                Text("\(invention.materials.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isInventionMaterialsExpanded,
+                            content: {
+                                ForEach(invention.materials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.quantity)")
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
+                                    Spacer()
+                                    Text("\(invention.materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
-                    // 技能
+                    // 技能折叠组
                     if !invention.skills.isEmpty {
-                        NavigationLink(destination: SkillListView(title: NSLocalizedString("Blueprint_Required_Skills", comment: ""), skills: invention.skills, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
-                                Spacer()
-                                Text("\(invention.skills.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isInventionSkillsExpanded,
+                            content: {
+                                ForEach(invention.skills, id: \.typeID) { skill in
+                                    HStack {
+                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                        
+                                        Text(skill.typeName)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                    Spacer()
+                                    Text("\(invention.skills.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 发明时间

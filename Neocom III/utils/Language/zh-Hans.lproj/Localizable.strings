@@ -70,7 +70,7 @@
 "Misc_number_point" = "点";
 
 // 蓝图详情
-"Blueprint_Product" = "产出物";
+"Blueprint_Product" = "产品";
 "Blueprint_Invention_Product" = "发明产出";
 "Blueprint_Success_Rate" = "成功率: %d%%";
 "Blueprint_Level" = "等级 %d";
