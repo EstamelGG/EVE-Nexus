@@ -197,6 +197,9 @@ struct ShowBluePrintInfo: View {
     @State private var invention: BlueprintActivity?
     @State private var itemDetails: ItemDetails?
     @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
+    @State private var isManufacturingMaterialsExpanded = false
+    @State private var isResearchMaterialTimeExpanded = false
+    @State private var isResearchTimeTimeExpanded = false
     
     // 加载物品基本信息
     private func loadItemDetails() {
@@ -287,6 +290,13 @@ struct ShowBluePrintInfo: View {
         return baseTime / 105 // 使用 level 1 的基础时间 105 来计算 rank
     }
     
+    // 计算特定等级的时间
+    private func calculateLevelTime(baseTime: Int, level: Int) -> Int {
+        let levelMultipliers = [105, 250, 595, 1414, 3360, 8000, 19000, 45255, 107700, 256000]
+        let rank = baseTime / 105
+        return levelMultipliers[level - 1] * rank
+    }
+    
     var body: some View {
         List {
             // 物品基本信息部分
@@ -320,16 +330,46 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 材料
+                    // 材料（使用折叠组）
                     if !manufacturing.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: manufacturing.materials, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
-                                Spacer()
-                                Text("\(manufacturing.materials.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isManufacturingMaterialsExpanded,
+                            content: {
+                                ForEach(manufacturing.materials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.quantity)")
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
+                                    Spacer()
+                                    Text("\(manufacturing.materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 制造时间
@@ -345,16 +385,46 @@ struct ShowBluePrintInfo: View {
             // 材料研究部分
             if let researchMaterial = researchMaterial {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Material", comment: "")).font(.headline)) {
-                    // 材料
+                    // 材料（使用折叠组）
                     if !researchMaterial.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: researchMaterial.materials, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
-                                Spacer()
-                                Text("\(researchMaterial.materials.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isResearchMaterialTimeExpanded,
+                            content: {
+                                ForEach(researchMaterial.materials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.quantity)")
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
+                                    Spacer()
+                                    Text("\(researchMaterial.materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 技能
@@ -369,36 +439,72 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 研究时间
-                    NavigationLink {
-                        ResearchLevelTimeView(
-                            title: NSLocalizedString("Blueprint_Research_Time_Label", comment: ""),
-                            rank: calculateRank(from: researchMaterial.time)
-                        )
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
-                            Spacer()
-                            Text(formatTime(researchMaterial.time))
-                                .foregroundColor(.secondary)
+                    // 材料研究 耗时（使用折叠组）
+                    DisclosureGroup(
+                        isExpanded: $isResearchMaterialTimeExpanded,
+                        content: {
+                            ForEach(1...10, id: \.self) { level in
+                                HStack {
+                                    Text(String("Level \(level)"))
+                                    Spacer()
+                                    Text(formatTime(calculateLevelTime(baseTime: researchMaterial.time, level: level)))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        },
+                        label: {
+                            HStack {
+                                Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                                Spacer()
+                            }
                         }
-                    }
+                    )
                 }
             }
             
             // 时间研究部分
             if let researchTime = researchTime {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(.headline)) {
-                    // 材料
+                    // 材料（使用折叠组）
                     if !researchTime.materials.isEmpty {
-                        NavigationLink(destination: MaterialListView(title: NSLocalizedString("Blueprint_Required_Materials", comment: ""), items: researchTime.materials, databaseManager: databaseManager)) {
-                            HStack {
-                                Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
-                                Spacer()
-                                Text("\(researchTime.materials.count)")
-                                    .foregroundColor(.secondary)
+                        DisclosureGroup(
+                            isExpanded: $isResearchTimeTimeExpanded,
+                            content: {
+                                ForEach(researchTime.materials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.quantity)")
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            },
+                            label: {
+                                HStack {
+                                    Text(NSLocalizedString("Blueprint_Required_Materials", comment: ""))
+                                    Spacer()
+                                    Text("\(researchTime.materials.count)")
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                        }
+                        )
                     }
                     
                     // 技能
@@ -413,20 +519,26 @@ struct ShowBluePrintInfo: View {
                         }
                     }
                     
-                    // 研究时间
-                    NavigationLink {
-                        ResearchLevelTimeView(
-                            title: NSLocalizedString("Blueprint_Research_Time_Label", comment: ""),
-                            rank: calculateRank(from: researchTime.time)
-                        )
-                    } label: {
-                        HStack {
-                            Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
-                            Spacer()
-                            Text(formatTime(researchTime.time))
-                                .foregroundColor(.secondary)
+                    // 时间研究 耗时（使用折叠组）
+                    DisclosureGroup(
+                        isExpanded: $isResearchTimeTimeExpanded,
+                        content: {
+                            ForEach(1...10, id: \.self) { level in
+                                HStack {
+                                    Text(String("Level \(2 * level)"))
+                                    Spacer()
+                                    Text(formatTime(calculateLevelTime(baseTime: researchTime.time, level: level)))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        },
+                        label: {
+                            HStack {
+                                Text(NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                                Spacer()
+                            }
                         }
-                    }
+                    )
                 }
             }
             
