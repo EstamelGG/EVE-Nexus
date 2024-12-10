@@ -253,7 +253,7 @@ class DatabaseManager: ObservableObject {
         }
         
         // 打印最终的 metaGroupNames 内容
-        // print("最终的 metaGroupNames 内容:")
+        Logger.debug("最终的 metaGroupNames 内容:")
         for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
             Logger.debug("ID: \(id) -> Name: \(name)")
         }
