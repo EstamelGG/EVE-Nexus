@@ -193,7 +193,7 @@ class DatabaseManager: ObservableObject {
                       let metaGroupId = row["metaGroupID"] as? Int,
                       let categoryId = row["categoryID"] as? Int,
                       let isPublished = row["published"] as? Int else {
-                    print("警告: 物品基础���据不完整:", row)
+                    print("警告: 物品基础数据不完整:", row)
                     continue
                 }
                 
@@ -966,6 +966,38 @@ class DatabaseManager: ObservableObject {
            let row = rows.first,
            let categoryID = row["categoryID"] as? Int {
             return categoryID
+        }
+        return nil
+    }
+    
+    // 获取物品详情
+    func getItemDetails(for typeID: Int) -> ItemDetails? {
+        let query = """
+            SELECT t.name, t.description, t.icon_filename,
+                   g.name as groupName, c.name as categoryName
+            FROM types t
+            LEFT JOIN groups g ON t.groupID = g.group_id
+            LEFT JOIN categories c ON g.categoryID = c.category_id
+            WHERE t.type_id = ?
+        """
+        
+        let result = executeQuery(query, parameters: [typeID])
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let name = row["name"] as? String,
+           let description = row["description"] as? String,
+           let iconFileName = row["icon_filename"] as? String,
+           let groupName = row["groupName"] as? String,
+           let categoryName = row["categoryName"] as? String {
+            
+            return ItemDetails(
+                name: name,
+                description: description,
+                iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
+                groupName: groupName,
+                categoryName: categoryName
+            )
         }
         return nil
     }

@@ -179,12 +179,18 @@ struct InventionProductListView: View {
 // 主视图
 struct ShowBluePrintInfo: View {
     let blueprintID: Int
-    @StateObject var databaseManager: DatabaseManager
+    let databaseManager: DatabaseManager
     @State private var manufacturing: BlueprintActivity?
     @State private var researchMaterial: BlueprintActivity?
     @State private var researchTime: BlueprintActivity?
     @State private var copying: BlueprintActivity?
     @State private var invention: BlueprintActivity?
+    @State private var itemDetails: ItemDetails?
+    
+    // 加载物品基本信息
+    private func loadItemDetails() {
+        itemDetails = databaseManager.getItemDetails(for: blueprintID)
+    }
     
     // 格式化时间显示
     private func formatTime(_ seconds: Int) -> String {
@@ -278,6 +284,27 @@ struct ShowBluePrintInfo: View {
     
     var body: some View {
         List {
+            // 物品基本信息部分
+            if let itemDetails = itemDetails {
+                Section {
+                    HStack {
+                        IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                            .resizable()
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(itemDetails.name)
+                                .font(.title2)
+                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            
             // 制造部分
             if let manufacturing = manufacturing {
                 Section(header: Text("制造").font(.headline)) {
@@ -468,6 +495,7 @@ struct ShowBluePrintInfo: View {
         .listStyle(.insetGrouped)
         .navigationTitle("蓝图信息")
         .onAppear {
+            loadItemDetails()
             loadBlueprintData()
         }
     }
