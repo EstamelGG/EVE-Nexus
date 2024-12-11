@@ -102,6 +102,7 @@
 "Planetary_Cycle_Time" = "Cycle time";
 "Planetary_Uses" = "Required for";
 "Planetary_Facilities" = "Facilities";
+"Planetary_Harvest_from" = "Harvest from";
 
 // Item Info
 "Item_Info_Blueprint" = "Blueprint";

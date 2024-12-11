@@ -15,6 +15,9 @@ struct ShowPlanetaryInfo: View {
     // 添加设施状态
     @State private var facilities: [(typeID: Int, name: String, iconFileName: String)] = []
     
+    // 添加收获来源状态
+    @State private var harvestSources: [(typeID: Int, name: String, iconFileName: String)] = []
+    
     var body: some View {
         List {
             // 基础信息部分
@@ -148,12 +151,40 @@ struct ShowPlanetaryInfo: View {
                     }
                 }
             }
+            
+            // 添加收获来源部分
+            if !harvestSources.isEmpty {
+                Section(header: Text(NSLocalizedString("Planetary_Harvest_from", comment: "")).font(.headline)) {
+                    ForEach(harvestSources, id: \.typeID) { source in
+                        NavigationLink {
+                            if let categoryID = databaseManager.getCategoryID(for: source.typeID) {
+                                ItemInfoMap.getItemInfoView(
+                                    itemID: source.typeID,
+                                    categoryID: categoryID,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: source.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(4)
+                                
+                                Text(source.name)
+                                    .font(.body)
+                            }
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Info")
         .onAppear {
             loadItemDetails()
             loadPlanetaryData()
+            loadHarvestSources()
         }
     }
     
@@ -247,6 +278,24 @@ struct ShowPlanetaryInfo: View {
                             iconFileName: details.iconFileName
                         )
                     }
+            }
+        }
+    }
+    
+    // 添加收获来源加载方法
+    private func loadHarvestSources() {
+        let query = """
+        SELECT harvest_typeid 
+        FROM planet_resource_harvest 
+        WHERE typeid = ?
+        """
+        let result = databaseManager.executeQuery(query, parameters: [itemID])
+        
+        if case .success(let rows) = result {
+            harvestSources = rows.compactMap { row in
+                guard let harvestTypeID = row["harvest_typeid"] as? Int,
+                      let details = databaseManager.getItemDetails(for: harvestTypeID) else { return nil }
+                return (typeID: harvestTypeID, name: details.name, iconFileName: details.iconFileName)
             }
         }
     }
