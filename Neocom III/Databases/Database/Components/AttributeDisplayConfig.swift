@@ -99,24 +99,24 @@ struct AttributeDisplayConfig {
     private static let resistanceGroups: [ResistanceGroup] = [
         ResistanceGroup(
             groupID: 2, 
-            emIDs: [271],
-            thermalIDs: [274],
-            kineticIDs: [273],
-            explosiveIDs: [272]
+            emIDs: [271, 1423, 2118],
+            thermalIDs: [274, 1425, 2119],
+            kineticIDs: [273, 1424, 2120],
+            explosiveIDs: [272, 1422, 2121]
         ),      // 护盾抗性
         ResistanceGroup(
             groupID: 3, 
-            emIDs: [267],
-            thermalIDs: [270],
-            kineticIDs: [269],
-            explosiveIDs: [268]
+            emIDs: [267, 1418],
+            thermalIDs: [270, 1419],
+            kineticIDs: [269, 1420],
+            explosiveIDs: [268, 1421]
         ),      // 装甲抗性
         ResistanceGroup(
             groupID: 4, 
-            emIDs: [113, 974],
-            thermalIDs: [110, 977],
-            kineticIDs: [109, 976],
-            explosiveIDs: [111, 975]
+            emIDs: [113, 974, 1426],
+            thermalIDs: [110, 977, 1429],
+            kineticIDs: [109, 976, 1428],
+            explosiveIDs: [111, 975, 1427]
         )       // 结构抗性
     ]
     

@@ -45,7 +45,7 @@ struct ShowPlanetaryInfo: View {
             
             // 输入材料部分
             if !inputs.isEmpty {
-                Section(header: Text(NSLocalizedString("Planetary_Input_Materials", comment: ""))) {
+                Section(header: Text(NSLocalizedString("Planetary_Input_Materials", comment: "")).font(.headline)) {
                     ForEach(inputs, id: \.typeID) { input in
                         NavigationLink {
                             if let categoryID = databaseManager.getCategoryID(for: input.typeID) {
@@ -78,7 +78,7 @@ struct ShowPlanetaryInfo: View {
             
             // 输出信息部分
             if let output = output {
-                Section(header: Text(NSLocalizedString("Planetary_Output_Info", comment: ""))) {
+                Section(header: Text(NSLocalizedString("Planetary_Output_Info", comment: "")).font(.headline)) {
                     HStack {
                         Text(NSLocalizedString("Planetary_Output_Quantity", comment: ""))
                         Spacer()
@@ -97,7 +97,7 @@ struct ShowPlanetaryInfo: View {
             
             // 用途部分
             if !uses.isEmpty {
-                Section(header: Text(NSLocalizedString("Planetary_Uses", comment: ""))) {
+                Section(header: Text(NSLocalizedString("Planetary_Uses", comment: "")).font(.headline)) {
                     ForEach(uses, id: \.typeID) { use in
                         NavigationLink {
                             if let categoryID = databaseManager.getCategoryID(for: use.typeID) {
@@ -124,7 +124,7 @@ struct ShowPlanetaryInfo: View {
             
             // 设施部分
             if !facilities.isEmpty {
-                Section(header: Text(NSLocalizedString("Planetary_Facilities", comment: ""))) {
+                Section(header: Text(NSLocalizedString("Planetary_Facilities", comment: "")).font(.headline)) {
                     ForEach(facilities, id: \.typeID) { facility in
                         NavigationLink {
                             if let categoryID = databaseManager.getCategoryID(for: facility.typeID) {
