@@ -286,7 +286,7 @@ struct ShowPlanetaryInfo: View {
     private func loadHarvestSources() {
         let query = """
         SELECT harvest_typeid 
-        FROM planet_resource_harvest 
+        FROM planetResourceHarvest 
         WHERE typeid = ?
         """
         let result = databaseManager.executeQuery(query, parameters: [itemID])
