@@ -22,7 +22,7 @@ struct ShowPlanetaryInfo: View {
         List {
             // 基础信息部分
             if let itemDetails = itemDetails {
-                ItemBasicInfoView(itemDetails: itemDetails)
+                ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
             }
             
             // 输入材料部分

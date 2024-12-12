@@ -3,6 +3,8 @@ import SwiftUI
 struct ItemBasicInfoView: View {
     let itemDetails: ItemDetails
     @State private var renderImage: UIImage?
+    @State private var selectedLink: LinkInfo?
+    @ObservedObject var databaseManager: DatabaseManager
     
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
@@ -60,9 +62,17 @@ struct ItemBasicInfoView: View {
             
             let desc = itemDetails.description
             if !desc.isEmpty {
-                processRichText(desc)
+                processRichText(desc, databaseManager: databaseManager, showItemSheet: $selectedLink)
                     .font(.body)
                     .foregroundColor(.primary)
+            }
+        }
+        .sheet(item: $selectedLink) { linkInfo in
+            NavigationView {
+                ShowItemInfo(databaseManager: databaseManager, itemID: linkInfo.typeID)
+                    .navigationBarItems(trailing: Button("关闭") {
+                        selectedLink = nil
+                    })
             }
         }
         .onAppear {

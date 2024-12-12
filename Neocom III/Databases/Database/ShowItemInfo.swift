@@ -1,8 +1,22 @@
 import SwiftUI
 
-// 处理trait文本，返回组合的Text视图
-func processRichText(_ text: String) -> Text {
-    var result = Text("")
+// 添加新的结构体来存储链接信息
+struct LinkInfo: Identifiable {
+    let id = UUID()
+    let typeID: Int
+    let displayText: String
+}
+
+// 处理trait文本，现在返回View而不是Text
+@ViewBuilder
+func processRichText(_ text: String, databaseManager: DatabaseManager, showItemSheet: Binding<LinkInfo?>) -> some View {
+    let processedText = processTextSegments(text, showItemSheet: showItemSheet)
+    processedText
+}
+
+// 处理文本段落，返回Text
+private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo?>) -> some View {
+    var segments: [AnyView] = []
     var currentText = text
     
     // 1. 处理换行标签
@@ -11,26 +25,15 @@ func processRichText(_ text: String) -> Text {
     currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
     
     // 2. 删除所有非白名单的HTML标签
-    // 使用负向前瞻，排除我们要保留的标签
     let pattern = "<(?!/?(b|a|br))[^>]*>"
     if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
         let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
         currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "")
     }
     
-    // 3. 优化连续换行
-    currentText = currentText.replacingOccurrences(
-        of: "\n{3,}",
-        with: "\n\n",
-        options: .regularExpression
-    )
-    
-    // 4. 优化连续空格
-    currentText = currentText.replacingOccurrences(
-        of: " +",
-        with: " ",
-        options: .regularExpression
-    )
+    // 3. 优化连续换行和空格
+    currentText = currentText.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+    currentText = currentText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
     
     while !currentText.isEmpty {
         // 查找所有标签位置
@@ -41,7 +44,7 @@ func processRichText(_ text: String) -> Text {
         
         // 如果没有任何标签了，添加剩余文本并结束
         if boldStarts.isEmpty && linkStart == nil {
-            result = result + Text(currentText)
+            segments.append(AnyView(Text(currentText)))
             break
         }
         
@@ -50,21 +53,17 @@ func processRichText(_ text: String) -> Text {
            !boldEnds.isEmpty,
            let firstStart = boldStarts.first,
            (linkStart == nil || firstStart.lowerBound < linkStart!.lowerBound) {
-            // 找到与当前开始标签匹配的最近的结束标签
             let matchingEnd = boldEnds.first { $0.lowerBound > firstStart.upperBound }
             
             if let end = matchingEnd {
-                // 添加加粗标签前的普通文本
                 let beforeBold = String(currentText[..<firstStart.lowerBound])
                 if !beforeBold.isEmpty {
-                    result = result + Text(beforeBold)
+                    segments.append(AnyView(Text(beforeBold)))
                 }
                 
-                // 提取并添加加粗文本
                 let boldText = String(currentText[firstStart.upperBound..<end.lowerBound])
-                result = result + Text(boldText).bold()
+                segments.append(AnyView(Text(boldText).bold()))
                 
-                // 更新剩余文本
                 currentText = String(currentText[end.upperBound...])
                 continue
             }
@@ -73,31 +72,44 @@ func processRichText(_ text: String) -> Text {
         // 处理链接文本
         if let start = linkStart,
            let end = linkEnd {
-            // 添加链接标签前的普通文本
             let beforeLink = String(currentText[..<start.lowerBound])
             if !beforeLink.isEmpty {
-                result = result + Text(beforeLink)
+                segments.append(AnyView(Text(beforeLink)))
             }
             
-            // 提取链接文本
             let linkText = currentText[start.lowerBound..<end.upperBound]
-            if let textStart = linkText.range(of: ">")?.upperBound,
+            if let hrefStart = linkText.range(of: "showinfo:"),
+               let textStart = linkText.range(of: ">")?.upperBound,
                let textEnd = linkText.range(of: "</a>")?.lowerBound {
+                let typeIDEndIndex = linkText[hrefStart.upperBound...].firstIndex(where: { !$0.isNumber }) ?? linkText.endIndex
+                let typeIDString = String(linkText[hrefStart.upperBound..<typeIDEndIndex])
                 let displayText = String(linkText[textStart..<textEnd])
-                result = result + Text(displayText).foregroundColor(.blue)
+                
+                if let typeID = Int(typeIDString) {
+                    segments.append(AnyView(
+                        Text(displayText)
+                            .foregroundColor(.blue)
+                            .underline()
+                            .onTapGesture {
+                                showItemSheet.wrappedValue = LinkInfo(typeID: typeID, displayText: displayText)
+                            }
+                    ))
+                }
             }
             
-            // 更新剩余文本
             currentText = String(currentText[end.upperBound...])
             continue
         }
         
-        // 如果到这里还有文本，说明有不匹配的标签，直接添加剩余文本
-        result = result + Text(currentText)
+        segments.append(AnyView(Text(currentText)))
         break
     }
     
-    return result
+    return HStack(spacing: 0) {
+        ForEach(0..<segments.count, id: \.self) { index in
+            segments[index]
+        }
+    }
 }
 
 // 扩展 String 以支持查找所有匹配项
@@ -123,11 +135,12 @@ struct ShowItemInfo: View {
     
     @State private var itemDetails: ItemDetails?
     @State private var attributeGroups: [AttributeGroup] = []
+    @State private var selectedLink: LinkInfo?
     
     var body: some View {
         List {
             if let itemDetails = itemDetails {
-                ItemBasicInfoView(itemDetails: itemDetails)
+                ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
                 
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
@@ -193,6 +206,14 @@ struct ShowItemInfo: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Item_Info", comment: ""))
         .navigationBarBackButtonHidden(false)
+        .sheet(item: $selectedLink) { linkInfo in
+            NavigationView {
+                ShowItemInfo(databaseManager: databaseManager, itemID: linkInfo.typeID)
+                    .navigationBarItems(trailing: Button("关闭") {
+                        selectedLink = nil
+                    })
+            }
+        }
         .onAppear {
             loadItemDetails(for: itemID)
             loadAttributes(for: itemID)
