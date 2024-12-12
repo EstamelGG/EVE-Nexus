@@ -44,13 +44,13 @@ class NetworkManager {
 }
 
 // 网络错误枚举
-enum NetworkError: Error {
+enum NetworkError: LocalizedError {
     case invalidURL
     case invalidResponse
     case httpError(statusCode: Int)
     case invalidImageData
     
-    var localizedDescription: String {
+    var errorDescription: String? {
         switch self {
         case .invalidURL:
             return "无效的URL"
