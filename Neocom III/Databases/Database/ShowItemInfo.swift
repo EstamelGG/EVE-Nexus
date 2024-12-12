@@ -16,7 +16,7 @@ func processRichText(_ text: String, databaseManager: DatabaseManager, showItemS
 
 // 处理文本段落，返回Text
 private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo?>) -> some View {
-    var segments: [AnyView] = []
+    var textParts: [(text: String, isBold: Bool, isLink: Bool, typeID: Int?)] = []
     var currentText = text
     
     // 1. 处理换行标签
@@ -44,7 +44,7 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
         
         // 如果没有任何标签了，添加剩余文本并结束
         if boldStarts.isEmpty && linkStart == nil {
-            segments.append(AnyView(Text(currentText)))
+            textParts.append((text: currentText, isBold: false, isLink: false, typeID: nil))
             break
         }
         
@@ -58,11 +58,11 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
             if let end = matchingEnd {
                 let beforeBold = String(currentText[..<firstStart.lowerBound])
                 if !beforeBold.isEmpty {
-                    segments.append(AnyView(Text(beforeBold)))
+                    textParts.append((text: beforeBold, isBold: false, isLink: false, typeID: nil))
                 }
                 
                 let boldText = String(currentText[firstStart.upperBound..<end.lowerBound])
-                segments.append(AnyView(Text(boldText).bold()))
+                textParts.append((text: boldText, isBold: true, isLink: false, typeID: nil))
                 
                 currentText = String(currentText[end.upperBound...])
                 continue
@@ -74,7 +74,7 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
            let end = linkEnd {
             let beforeLink = String(currentText[..<start.lowerBound])
             if !beforeLink.isEmpty {
-                segments.append(AnyView(Text(beforeLink)))
+                textParts.append((text: beforeLink, isBold: false, isLink: false, typeID: nil))
             }
             
             let linkText = currentText[start.lowerBound..<end.upperBound]
@@ -86,14 +86,7 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
                 let displayText = String(linkText[textStart..<textEnd])
                 
                 if let typeID = Int(typeIDString) {
-                    segments.append(AnyView(
-                        Text(displayText)
-                            .foregroundColor(.blue)
-                            .underline()
-                            .onTapGesture {
-                                showItemSheet.wrappedValue = LinkInfo(typeID: typeID, displayText: displayText)
-                            }
-                    ))
+                    textParts.append((text: displayText, isBold: false, isLink: true, typeID: typeID))
                 }
             }
             
@@ -101,15 +94,30 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
             continue
         }
         
-        segments.append(AnyView(Text(currentText)))
+        textParts.append((text: currentText, isBold: false, isLink: false, typeID: nil))
         break
     }
     
-    return HStack(spacing: 0) {
-        ForEach(0..<segments.count, id: \.self) { index in
-            segments[index]
+    // 构建最终的Text视图
+    var finalText = Text("")
+    for part in textParts {
+        var textView = Text(part.text)
+        if part.isBold {
+            textView = textView.bold()
         }
+        if part.isLink {
+            textView = textView.foregroundColor(.blue).underline()
+        }
+        finalText = finalText + textView
     }
+    
+    return finalText
+        .onTapGesture {
+            // 找到点击位置最近的链接
+            if let linkPart = textParts.first(where: { $0.isLink }) {
+                showItemSheet.wrappedValue = LinkInfo(typeID: linkPart.typeID!, displayText: linkPart.text)
+            }
+        }
 }
 
 // 扩展 String 以支持查找所有匹配项
