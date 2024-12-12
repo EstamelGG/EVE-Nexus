@@ -47,7 +47,7 @@ struct RichTextView: View {
                         }
                     }
                 }
-                .presentationDetents([.fraction(0.85)])  // 设置为屏幕高度的3/4
+                .presentationDetents([.fraction(0.85)])  // 设置为屏幕高度的85%
                 .presentationDragIndicator(.visible)     // 显示拖动指示器
             }
             .alert("Open Link", isPresented: $showingURLAlert) {
