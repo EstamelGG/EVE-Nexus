@@ -98,7 +98,7 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
         break
     }
     
-    return TextPartsView(parts: textParts, showItemSheet: showItemSheet)
+    return TextPartsView_New(parts: textParts, showItemSheet: showItemSheet)
 }
 
 // 定义一个环境键来存储链接点击处理器
@@ -118,33 +118,56 @@ struct TextPartsView: View {
     let showItemSheet: Binding<LinkInfo?>
     
     var body: some View {
-        var text = Text("")
-        
-        for part in parts {
-            let partText = Text(part.text)
-            if part.isBold {
-                text = text + partText.bold()
-            } else if part.isLink {
-                text = text + (partText
+        HStack(spacing: 0) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                if part.isLink, let typeID = part.typeID {
+                    Button(part.text) {
+                        showItemSheet.wrappedValue = LinkInfo(
+                            typeID: typeID,
+                            displayText: part.text
+                        )
+                    }
                     .foregroundColor(.blue)
-                    .underline())
-            } else {
-                text = text + partText
-            }
-        }
-        
-        return text
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // 找到第一个链接并触发
-                if let linkPart = parts.first(where: { $0.isLink }),
-                   let typeID = linkPart.typeID {
-                    showItemSheet.wrappedValue = LinkInfo(
-                        typeID: typeID,
-                        displayText: linkPart.text
-                    )
+                    .buttonStyle(.plain)
+                } else if part.isBold {
+                    Text(part.text).bold()
+                } else {
+                    Text(part.text)
                 }
             }
+        }
+    }
+}
+
+// 使用原生Link的新实现
+struct TextPartsView_New: View {
+    let parts: [(text: String, isBold: Bool, isLink: Bool, typeID: Int?)]
+    let showItemSheet: Binding<LinkInfo?>
+    
+    var body: some View {
+        let markdownText = parts.map { part -> String in
+            if part.isBold {
+                return "**\(part.text)**"
+            } else if part.isLink, let typeID = part.typeID {
+                return "[\(part.text)](showinfo://\(typeID))"
+            } else {
+                return part.text
+            }
+        }.joined()
+        
+        Text(.init(markdownText))
+            .tint(.blue)  // 设置链接颜色
+            .environment(\.openURL, OpenURLAction { url in
+                if url.scheme == "showinfo",
+                   let typeID = Int(url.host ?? "") {
+                    showItemSheet.wrappedValue = LinkInfo(
+                        typeID: typeID,
+                        displayText: url.lastPathComponent
+                    )
+                    return .handled
+                }
+                return .discarded
+            })
     }
 }
 
