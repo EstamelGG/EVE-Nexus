@@ -23,14 +23,14 @@ struct ItemInfoMap {
                     databaseManager: databaseManager
                 )
             )
-        case 43: // 行星开发 - 商品
+        case 42: // 行星开发 - 商品
             return AnyView(
                 ShowPlanetaryInfo(
                     itemID: itemID,
                     databaseManager: databaseManager
                 )
             )
-        case 42: // 行星开发 - 资源
+        case 43: // 行星开发 - 资源
             return AnyView(
                 ShowPlanetaryInfo(
                     itemID: itemID,
