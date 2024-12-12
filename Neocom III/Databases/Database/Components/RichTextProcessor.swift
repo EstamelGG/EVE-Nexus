@@ -31,6 +31,8 @@ struct RichTextView: View {
                         databaseManager: databaseManager
                     )
                 }
+                .presentationDetents([.fraction(0.85)])  // 允许中等和全屏高度
+                .presentationDragIndicator(.visible)     // 显示拖动指示器
             }
     }
 }
