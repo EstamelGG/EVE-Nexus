@@ -167,10 +167,36 @@ struct ShowItemInfo: View {
                             }
                         }
                         
-                        // 回收按钮
+                        // 回收材料下拉列表
                         if let materials = materials, !materials.isEmpty {
-                            NavigationLink {
-                                ReprocessMaterialsView(itemID: itemID, databaseManager: databaseManager)
+                            DisclosureGroup {
+                                ForEach(materials, id: \.outputMaterial) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.outputMaterial) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.outputMaterial,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.outputMaterialIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.outputMaterialName)
+                                                .font(.body)
+                                            
+                                            Spacer()
+                                            
+                                            Text("\(material.outputQuantity)")
+                                                .font(.body)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
                             } label: {
                                 HStack {
                                     Image("reprocess")
@@ -178,7 +204,7 @@ struct ShowItemInfo: View {
                                         .frame(width: 32, height: 32)
                                     Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
                                     Spacer()
-                                    Text("\(materials.count)")
+                                    Text("\(materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -232,50 +258,5 @@ struct RoundedCorner: Shape {
     func path(in rect: CGRect) -> Path {
         let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
         return Path(path.cgPath)
-    }
-}
-
-// 重新加工材料列表视图
-struct ReprocessMaterialsView: View {
-    let itemID: Int
-    @ObservedObject var databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            if let materials = databaseManager.getTypeMaterials(for: itemID) {
-                ForEach(materials, id: \.outputMaterial) { material in
-                    NavigationLink {
-                        if let categoryID = databaseManager.getCategoryID(for: material.outputMaterial) {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: material.outputMaterial,
-                                categoryID: categoryID,
-                                databaseManager: databaseManager
-                            )
-                        }
-                    } label: {
-                        HStack {
-                            // 材料图标
-                            IconManager.shared.loadImage(for: material.outputMaterialIcon)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            
-                            // 材料名称
-                            Text(material.outputMaterialName)
-                                .font(.body)
-                            
-                            Spacer()
-                            
-                            // 数量
-                            Text("\(material.outputQuantity)")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(NSLocalizedString("Main_Database_Item_info_Reprocess_Materials", comment: ""))
     }
 }
