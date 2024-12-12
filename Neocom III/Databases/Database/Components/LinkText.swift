@@ -20,7 +20,7 @@ struct LinkText: View {
                 .foregroundColor(.blue)
                 .onTapGesture {
                     if let itemID = itemID {
-                        if let categoryID = databaseManager.getCategoryID(for: itemID) {
+                        if databaseManager.getCategoryID(for: itemID) != nil {
                             showingSheet = true
                         }
                     }
