@@ -32,7 +32,7 @@ struct ShowPlanetaryInfo: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(itemDetails.name)
                                 .font(.title2)
-                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName)")
+                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }

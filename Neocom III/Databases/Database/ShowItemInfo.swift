@@ -192,7 +192,7 @@ struct ShowItemInfo: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(itemDetails.name)
                                     .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / \(itemDetails.typeId)")
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
                                     .font(.subheadline)
                             }
                             .padding(.horizontal, standardPadding * 2)
@@ -217,7 +217,7 @@ struct ShowItemInfo: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(itemDetails.name)
                                     .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / \(itemDetails.typeId)")
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
