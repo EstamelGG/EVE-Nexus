@@ -59,7 +59,7 @@ struct RichTextView: View {
                 }
             } message: {
                 if let url = urlToConfirm {
-                    Text("Open Link \n\(url.absoluteString)")
+                    Text("\(url.absoluteString)")
                 }
             }
     }
