@@ -192,7 +192,7 @@ struct ShowItemInfo: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(itemDetails.name)
                                     .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / \(itemDetails.typeId)")
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / TypeID:\(itemDetails.typeId)")
                                     .font(.subheadline)
                             }
                             .padding(.horizontal, standardPadding * 2)
@@ -217,7 +217,7 @@ struct ShowItemInfo: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(itemDetails.name)
                                     .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / \(itemDetails.typeId)")
+                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / TypeID:\(itemDetails.typeId)")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
@@ -316,7 +316,7 @@ struct ShowItemInfo: View {
     
     // 加载 item 详细信息
     private func loadItemDetails(for itemID: Int) {
-        if let itemDetail = databaseManager.loadItemDetails(for: itemID) {
+        if let itemDetail = databaseManager.getItemDetails(for: itemID) {
             itemDetails = itemDetail
         } else {
             Logger.error("Item details not found for ID: \(itemID)")
