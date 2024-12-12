@@ -3,35 +3,43 @@ import SwiftUI
 struct RichTextView: View {
     let text: String
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var selectedItemID: Int?
+    @State private var selectedItem: (itemID: Int, categoryID: Int)?
     @State private var showingSheet = false
     
     var body: some View {
         RichTextProcessor.processRichText(text)
             .environment(\.openURL, OpenURLAction { url in
                 if url.scheme == "showinfo",
-                   let itemID = Int(url.host ?? "") {
-                    if databaseManager.getCategoryID(for: itemID) != nil {
-                        selectedItemID = itemID
+                   let itemID = Int(url.host ?? ""),
+                   let categoryID = databaseManager.getCategoryID(for: itemID) {
+                    selectedItem = (itemID, categoryID)
+                    DispatchQueue.main.async {
                         showingSheet = true
-                        return .handled
                     }
+                    return .handled
                 }
                 return .systemAction
             })
-            .sheet(isPresented: $showingSheet) {
-                if let itemID = selectedItemID,
-                   let categoryID = databaseManager.getCategoryID(for: itemID) {
-                    NavigationView {
-                        ItemInfoMap.getItemInfoView(
-                            itemID: itemID,
-                            categoryID: categoryID,
-                            databaseManager: databaseManager
-                        )
-                    }
+            .sheet(item: Binding(
+                get: { selectedItem.map { SheetItem(itemID: $0.itemID, categoryID: $0.categoryID) } },
+                set: { if $0 == nil { selectedItem = nil } }
+            )) { item in
+                NavigationView {
+                    ItemInfoMap.getItemInfoView(
+                        itemID: item.itemID,
+                        categoryID: item.categoryID,
+                        databaseManager: databaseManager
+                    )
                 }
             }
     }
+}
+
+// 用于sheet的标识符类型
+private struct SheetItem: Identifiable {
+    let id = UUID()
+    let itemID: Int
+    let categoryID: Int
 }
 
 struct RichTextProcessor {
