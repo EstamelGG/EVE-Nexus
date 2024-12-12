@@ -98,53 +98,40 @@ private func processTextSegments(_ text: String, showItemSheet: Binding<LinkInfo
         break
     }
     
-    return TextPartsView(parts: textParts, showItemSheet: showItemSheet)
-}
-
-// 定义一个环境键来存储链接点击处理器
-private struct LinkHandlerKey: EnvironmentKey {
-    static let defaultValue: ((Int, String) -> Void)? = nil
-}
-
-extension EnvironmentValues {
-    var linkHandler: ((Int, String) -> Void)? {
-        get { self[LinkHandlerKey.self] }
-        set { self[LinkHandlerKey.self] = newValue }
+    // 构建最终的Text视图
+    var finalText = Text("")
+    for part in textParts {
+        var textView = Text(part.text)
+        if part.isBold {
+            textView = textView.bold()
+        }
+        if part.isLink {
+            textView = textView.foregroundColor(.blue).underline()
+        }
+        finalText = finalText + textView
     }
-}
-
-struct TextPartsView: View {
-    let parts: [(text: String, isBold: Bool, isLink: Bool, typeID: Int?)]
-    let showItemSheet: Binding<LinkInfo?>
     
-    var body: some View {
-        var text = Text("")
-        
-        for part in parts {
-            let partText = Text(part.text)
-            if part.isBold {
-                text = text + partText.bold()
-            } else if part.isLink {
-                text = text + (partText
-                    .foregroundColor(.blue)
-                    .underline())
-            } else {
-                text = text + partText
+    return finalText
+        .onTapGesture {
+            // 找到点击位置最近的链接
+            if let linkPart = textParts.first(where: { $0.isLink }) {
+                showItemSheet.wrappedValue = LinkInfo(typeID: linkPart.typeID!, displayText: linkPart.text)
             }
         }
+}
+
+// 扩展 String 以支持查找所有匹配项
+extension String {
+    func ranges(of searchString: String) -> [Range<String.Index>] {
+        var ranges: [Range<String.Index>] = []
+        var searchRange = self.startIndex..<self.endIndex
         
-        return text
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // 找到第一个链接并触发
-                if let linkPart = parts.first(where: { $0.isLink }),
-                   let typeID = linkPart.typeID {
-                    showItemSheet.wrappedValue = LinkInfo(
-                        typeID: typeID,
-                        displayText: linkPart.text
-                    )
-                }
-            }
+        while let range = self.range(of: searchString, range: searchRange) {
+            ranges.append(range)
+            searchRange = range.upperBound..<self.endIndex
+        }
+        
+        return ranges
     }
 }
 
