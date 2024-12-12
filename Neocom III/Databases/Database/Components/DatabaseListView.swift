@@ -337,13 +337,13 @@ struct DatabaseListItemView: View {
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
-                                IconWithValueView(iconName: "icon_1539_64.png", numericValue: pgNeed, unit: " MW")
+                                IconWithValueView(iconName: "icon_1353_64.png", numericValue: pgNeed, unit: " MW")
                             }
                             if let cpuNeed = item.cpuNeed {
                                 IconWithValueView(iconName: "icon_3887_64.png", numericValue: cpuNeed, unit: " Tf")
                             }
                             if let rigCost = item.rigCost {
-                                IconWithValueView(iconName: "icon_41312_64.png", numericValue: rigCost)
+                                IconWithValueView(iconName: "icon_21587_64.png", numericValue: rigCost)
                             }
                         }
                     }
