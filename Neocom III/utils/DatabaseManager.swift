@@ -324,7 +324,8 @@ class DatabaseManager: ObservableObject {
                 groupName: groupName,
                 categoryName: categoryName,
                 roleBonuses: roleBonuses,
-                typeBonuses: typeBonuses
+                typeBonuses: typeBonuses,
+                typeId: itemID
             )
             
         case .error(let error):
@@ -970,7 +971,8 @@ class DatabaseManager: ObservableObject {
                 description: description,
                 iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
                 groupName: groupName,
-                categoryName: categoryName
+                categoryName: categoryName,
+                typeId: typeID
             )
         }
         return nil
