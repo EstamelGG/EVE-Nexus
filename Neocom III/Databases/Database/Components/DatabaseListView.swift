@@ -416,7 +416,7 @@ struct DatabaseListItemView: View {
                                 IconWithValueView(iconName: "icon_484_64.png", numericValue: gunSlot)
                             }
                             if let missSlot = item.missSlot, missSlot != 0 {
-                                IconWithValueView(iconName: "icon_44102_64.png", numericValue: missSlot)
+                                IconWithValueView(iconName: "icon_499_64.png", numericValue: missSlot)
                             }
                         }
                     }
