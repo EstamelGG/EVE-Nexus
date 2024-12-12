@@ -5,6 +5,8 @@ struct RichTextView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var selectedItem: (itemID: Int, categoryID: Int)?
     @State private var showingSheet = false
+    @State private var urlToConfirm: URL?
+    @State private var showingURLAlert = false
     
     var body: some View {
         RichTextProcessor.processRichText(text)
@@ -16,6 +18,12 @@ struct RichTextView: View {
                     DispatchQueue.main.async {
                         showingSheet = true
                     }
+                    return .handled
+                } else if url.scheme == "externalurl",
+                          let urlString = url.host?.removingPercentEncoding,
+                          let externalURL = URL(string: urlString) {
+                    urlToConfirm = externalURL
+                    showingURLAlert = true
                     return .handled
                 }
                 return .systemAction
@@ -30,9 +38,29 @@ struct RichTextView: View {
                         categoryID: item.categoryID,
                         databaseManager: databaseManager
                     )
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(NSLocalizedString("Misc_back", comment: "")) {
+                                selectedItem = nil
+                                showingSheet = false
+                            }
+                        }
+                    }
                 }
-                .presentationDetents([.fraction(0.85)])  // 允许中等和全屏高度
+                .presentationDetents([.fraction(0.75)])  // 设置为屏幕高度的3/4
                 .presentationDragIndicator(.visible)     // 显示拖动指示器
+            }
+            .alert("Open Link", isPresented: $showingURLAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Yes") {
+                    if let url = urlToConfirm {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            } message: {
+                if let url = urlToConfirm {
+                    Text("Open Link \n\(url.absoluteString)")
+                }
             }
     }
 }
@@ -97,7 +125,36 @@ struct RichTextProcessor {
             currentText = String(currentText[linkEnd.upperBound...])
         }
         
-        // 6. 处理加粗文本
+        // 6. 处理URL标签
+        while let urlStart = currentText.range(of: "<url="),
+              let urlEnd = currentText.range(of: "</url>") {
+            let urlText = currentText[urlStart.lowerBound..<urlEnd.upperBound]
+            
+            if let urlValueStart = urlText.range(of: "=")?.upperBound,
+               let urlValueEnd = urlText.range(of: ">")?.lowerBound,
+               let textStart = urlText.range(of: ">")?.upperBound,
+               let textEnd = urlText.range(of: "</url>")?.lowerBound {
+                let url = String(urlText[urlValueStart..<urlValueEnd])
+                let displayText = String(urlText[textStart..<textEnd])
+                
+                let startIndex = attributedString.range(of: urlText)?.lowerBound
+                let endIndex = attributedString.range(of: urlText)?.upperBound
+                
+                if let start = startIndex, let end = endIndex {
+                    attributedString.replaceSubrange(start..<end, with: AttributedString(displayText))
+                    attributedString[start..<attributedString.index(start, offsetByCharacters: displayText.count)].foregroundColor = .blue
+                    // 使用自定义scheme来处理外部URL
+                    if let encodedUrl = url.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) {
+                        attributedString[start..<attributedString.index(start, offsetByCharacters: displayText.count)].link = URL(string: "externalurl://\(encodedUrl)")
+                    }
+                }
+            }
+            
+            // 更新剩余文本
+            currentText = String(currentText[urlEnd.upperBound...])
+        }
+        
+        // 7. 处理加粗文本
         while let boldStart = currentText.range(of: "<b>"),
               let boldEnd = currentText.range(of: "</b>") {
             let boldText = currentText[boldStart.upperBound..<boldEnd.lowerBound]
@@ -114,7 +171,7 @@ struct RichTextProcessor {
             currentText = String(currentText[boldEnd.upperBound...])
         }
         
-        // 7. 创建文本视图
+        // 8. 创建文本视图
         return Text(attributedString)
     }
 }
