@@ -319,7 +319,7 @@ struct ShowBluePrintInfo: View {
         List {
             // 基础信息部分
             if let itemDetails = itemDetails {
-                ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
+                ItemBasicInfoView(itemDetails: itemDetails)
             }
             
             // 制造活动
@@ -815,12 +815,11 @@ struct ShowBluePrintInfo: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(NSLocalizedString("Item_Info", comment: ""))
-        .navigationBarBackButtonHidden(false)
+        .navigationTitle(NSLocalizedString("Blueprint_Info", comment: ""))
         .onAppear {
             loadItemDetails()
-            loadBlueprintSource()
             loadBlueprintData()
+            loadBlueprintSource()
         }
     }
 } 
