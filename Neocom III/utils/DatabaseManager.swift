@@ -1029,7 +1029,7 @@ class DatabaseManager: ObservableObject {
     }
     
     // 获取蓝图源头
-    func getBlueprintSource(for blueprintID: Int) -> (typeID: Int, typeName: String, typeIcon: String)? {
+    func getBlueprintSource(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String)] {
         let query = """
             SELECT blueprintTypeID as type_id, 
                    blueprintTypeName as name, 
@@ -1039,23 +1039,25 @@ class DatabaseManager: ObservableObject {
         """
         
         let result = executeQuery(query, parameters: [blueprintID])
+        var sources: [(typeID: Int, typeName: String, typeIcon: String)] = []
         
         switch result {
         case .success(let rows):
-            if let row = rows.first,
-               let typeID = row["type_id"] as? Int,
-               let typeName = row["name"] as? String,
-               let iconFileName = row["icon_filename"] as? String {
-                return (
-                    typeID: typeID,
-                    typeName: typeName,
-                    typeIcon: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                )
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let typeName = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    sources.append((
+                        typeID: typeID,
+                        typeName: typeName,
+                        typeIcon: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    ))
+                }
             }
         case .error(let error):
-            Logger.error("Error getting blueprint source: \(error)")
+            Logger.error("Error getting blueprint sources: \(error)")
         }
         
-        return nil
+        return sources
     }
 }

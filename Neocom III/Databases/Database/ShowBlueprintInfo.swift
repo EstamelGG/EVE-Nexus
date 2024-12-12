@@ -201,7 +201,7 @@ struct ShowBluePrintInfo: View {
     @State private var copying: BlueprintActivity?
     @State private var invention: BlueprintActivity?
     @State private var itemDetails: ItemDetails?
-    @State private var blueprintSource: (typeID: Int, typeName: String, typeIcon: String)?
+    @State private var blueprintSource: [(typeID: Int, typeName: String, typeIcon: String)] = []
     @State private var isManufacturingMaterialsExpanded = false
     @State private var isManufacturingSkillsExpanded = false
     @State private var isResearchMaterialMaterialsExpanded = false
@@ -798,17 +798,23 @@ struct ShowBluePrintInfo: View {
             }
             
             // 来源部分
-            if let source = blueprintSource { // 检查是否有来源
+            if !blueprintSource.isEmpty { // 检查是否有来源
                 Section(header: Text(NSLocalizedString("Blueprint_Source", comment: "")).font(.headline)) {
-                    NavigationLink(destination: ItemInfoMap.getItemInfoView(itemID: source.typeID, categoryID: databaseManager.getCategoryID(for: source.typeID) ?? 0, databaseManager: databaseManager)) {
-                        HStack {
-                            IconManager.shared.loadImage(for: source.typeIcon.isEmpty ? DatabaseConfig.defaultItemIcon : source.typeIcon)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            
-                            Text(source.typeName)
-                                .foregroundColor(.primary)
+                    ForEach(blueprintSource, id: \.typeID) { source in
+                        NavigationLink(destination: ItemInfoMap.getItemInfoView(
+                            itemID: source.typeID,
+                            categoryID: databaseManager.getCategoryID(for: source.typeID) ?? 0,
+                            databaseManager: databaseManager)
+                        ) {
+                            HStack {
+                                IconManager.shared.loadImage(for: source.typeIcon.isEmpty ? DatabaseConfig.defaultItemIcon : source.typeIcon)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                
+                                Text(source.typeName)
+                                    .foregroundColor(.primary)
+                            }
                         }
                     }
                 }
