@@ -61,7 +61,7 @@ struct ItemBasicInfoView: View {
             
             let desc = itemDetails.description
             if !desc.isEmpty {
-                RichTextProcessor.processRichText(desc, databaseManager: databaseManager)
+                RichTextView(text: desc, databaseManager: databaseManager)
                     .font(.body)
                     .foregroundColor(.primary)
             }

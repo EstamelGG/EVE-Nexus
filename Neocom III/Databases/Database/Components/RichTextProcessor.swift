@@ -7,13 +7,15 @@ struct RichTextView: View {
     @State private var showingSheet = false
     
     var body: some View {
-        RichTextProcessor.processRichText(text, databaseManager: databaseManager)
+        RichTextProcessor.processRichText(text)
             .environment(\.openURL, OpenURLAction { url in
                 if url.scheme == "showinfo",
                    let itemID = Int(url.host ?? "") {
-                    selectedItemID = itemID
-                    showingSheet = true
-                    return .handled
+                    if databaseManager.getCategoryID(for: itemID) != nil {
+                        selectedItemID = itemID
+                        showingSheet = true
+                        return .handled
+                    }
                 }
                 return .systemAction
             })
@@ -33,7 +35,7 @@ struct RichTextView: View {
 }
 
 struct RichTextProcessor {
-    static func processRichText(_ text: String, databaseManager: DatabaseManager) -> Text {
+    static func processRichText(_ text: String) -> Text {
         var currentText = text
         
         // 1. 处理换行标签
