@@ -317,28 +317,12 @@ struct ShowBluePrintInfo: View {
     
     var body: some View {
         List {
-            // 物品基本信息部分
+            // 基础信息部分
             if let itemDetails = itemDetails {
-                Section {
-                    HStack {
-                        IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .cornerRadius(8)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(itemDetails.name)
-                                .font(.title2)
-                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
+                ItemBasicInfoView(itemDetails: itemDetails)
             }
             
-            // 制造部分
+            // 制造活动
             if let manufacturing = manufacturing {
                 Section(header: Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(.headline)) {
                     // 产出物
@@ -432,7 +416,7 @@ struct ShowBluePrintInfo: View {
                 }
             }
             
-            // 材料研究部分
+            // 材料研究活动
             if let researchMaterial = researchMaterial {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Material", comment: "")).font(.headline)) {
                     // 材料折叠组
@@ -532,7 +516,7 @@ struct ShowBluePrintInfo: View {
                 }
             }
             
-            // 时间研究部分
+            // 时间研究活动
             if let researchTime = researchTime {
                 Section(header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(.headline)) {
                     // 材料折叠组
@@ -632,7 +616,7 @@ struct ShowBluePrintInfo: View {
                 }
             }
             
-            // 复制部分
+            // 复制活动
             if let copying = copying {
                 Section(header: Text(NSLocalizedString("Blueprint_Copying", comment: "")).font(.headline)) {
                     // 材料折叠组
@@ -719,7 +703,7 @@ struct ShowBluePrintInfo: View {
                 }
             }
             
-            // 发明部分
+            // 发明活动
             if let invention = invention {
                 Section(header: Text(NSLocalizedString("Blueprint_Invention", comment: "")).font(.headline)) {
                     // 产出物

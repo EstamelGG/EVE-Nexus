@@ -22,28 +22,7 @@ struct ShowPlanetaryInfo: View {
         List {
             // 基础信息部分
             if let itemDetails = itemDetails {
-                Section {
-                    HStack {
-                        IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .cornerRadius(8)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(itemDetails.name)
-                                .font(.title2)
-                            Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    let desc = itemDetails.description
-                    if !desc.isEmpty {
-                        processRichText(desc)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                    }
-                }
+                ItemBasicInfoView(itemDetails: itemDetails)
             }
             
             // 输入材料部分

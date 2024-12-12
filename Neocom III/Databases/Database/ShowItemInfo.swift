@@ -122,126 +122,12 @@ struct ShowItemInfo: View {
     var itemID: Int
     
     @State private var itemDetails: ItemDetails?
-    @State private var renderImage: UIImage?
     @State private var attributeGroups: [AttributeGroup] = []
-    
-    // iOS 标准圆角半径
-    private let cornerRadius: CGFloat = 10
-    // 标准边距
-    private let standardPadding: CGFloat = 16
-    
-    // 构建traits文本
-    private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
-        var text = ""
-        
-        // 添加Role Bonuses
-        if !roleBonuses.isEmpty {
-            text += "<b>Role Bonuses</b>\n"
-            text += roleBonuses
-                .map { "• \($0.content)." }
-                .joined(separator: "\n")
-        }
-        
-        if !roleBonuses.isEmpty,!typeBonuses.isEmpty {
-            text += "\n\n"
-        }
-        
-        // 添加Type Bonuses
-        if !typeBonuses.isEmpty {
-            let groupedBonuses = Dictionary(grouping: typeBonuses) { $0.skill }
-            let sortedSkills = groupedBonuses.keys
-                .compactMap { $0 }
-                .sorted()
-            
-            for skill in sortedSkills {
-                let isLast = skill == sortedSkills.last
-                if let skillName = databaseManager.getTypeName(for: skill) {
-                    text += "<b>\(skillName)</b> bonuses per level\n"
-                    
-                    let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
-                    text += bonuses
-                        .map { "• \($0.content)." }
-                        .joined(separator: "\n")
-                    if !isLast {
-                        text += "\n\n"
-                    }
-                }
-            }
-            
-        }
-        
-        return text
-    }
     
     var body: some View {
         List {
             if let itemDetails = itemDetails {
-                Section {
-                    if let renderImage = renderImage {
-                        // 如果有渲染图，显示大图布局
-                        ZStack(alignment: .bottomLeading) {
-                            Image(uiImage: renderImage)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: .infinity)
-                                .cornerRadius(cornerRadius)
-                                .padding(.horizontal, standardPadding)
-                                .padding(.vertical, standardPadding)
-                            
-                            // 物品信息覆盖层
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(itemDetails.name)
-                                    .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
-                                    .font(.subheadline)
-                            }
-                            .padding(.horizontal, standardPadding * 2)
-                            .padding(.vertical, standardPadding)
-                            .background(
-                                Color.black.opacity(0.5)
-                                    .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
-                            )
-                            .foregroundColor(.white)
-                            .padding(.horizontal, standardPadding)
-                            .padding(.bottom, standardPadding)
-                        }
-                        .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
-                    } else {
-                        // 如果没有渲染图，显示原来的布局
-                        HStack {
-                            IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                                .resizable()
-                                .frame(width: 60, height: 60)
-                                .cornerRadius(8)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(itemDetails.name)
-                                    .font(.title)
-                                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                    
-                    let desc = itemDetails.description
-                    if !desc.isEmpty {
-                        processRichText(desc)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                    }
-                    
-                    // 只有当有traits信息时才显示traits
-                    if !itemDetails.roleBonuses.isEmpty || !itemDetails.typeBonuses.isEmpty {
-                        processRichText(buildTraitsText(
-                            roleBonuses: itemDetails.roleBonuses,
-                            typeBonuses: itemDetails.typeBonuses,
-                            databaseManager: databaseManager
-                        ))
-                        .font(.body)
-                        .lineSpacing(2)  // 减小行距
-                    }
-                }
+                ItemBasicInfoView(itemDetails: itemDetails)
                 
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
@@ -309,7 +195,6 @@ struct ShowItemInfo: View {
         .navigationBarBackButtonHidden(false)
         .onAppear {
             loadItemDetails(for: itemID)
-            loadRenderImage(for: itemID)
             loadAttributes(for: itemID)
         }
     }
@@ -320,21 +205,6 @@ struct ShowItemInfo: View {
             itemDetails = itemDetail
         } else {
             Logger.error("Item details not found for ID: \(itemID)")
-        }
-    }
-    
-    // 加载渲染图
-    private func loadRenderImage(for itemID: Int) {
-        Task {
-            do {
-                let image = try await NetworkManager.shared.fetchEVEItemRender(typeID: itemID)
-                await MainActor.run {
-                    self.renderImage = image
-                }
-            } catch {
-                Logger.error("加载渲染图失败: \(error.localizedDescription)")
-                // 加载失败时保持使用原来的小图显示，不需特殊处理
-            }
         }
     }
     
