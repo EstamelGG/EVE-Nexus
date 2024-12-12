@@ -60,7 +60,7 @@ struct ItemBasicInfoView: View {
             
             let desc = itemDetails.description
             if !desc.isEmpty {
-                processRichText(desc)
+                RichTextProcessor.processRichText(desc)
                     .font(.body)
                     .foregroundColor(.primary)
             }
