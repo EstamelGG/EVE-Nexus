@@ -3,6 +3,7 @@ import SwiftUI
 struct ItemBasicInfoView: View {
     let itemDetails: ItemDetails
     @State private var renderImage: UIImage?
+    @ObservedObject var databaseManager: DatabaseManager
     
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
@@ -60,7 +61,7 @@ struct ItemBasicInfoView: View {
             
             let desc = itemDetails.description
             if !desc.isEmpty {
-                RichTextProcessor.processRichText(desc)
+                RichTextProcessor.processRichText(desc, databaseManager: databaseManager)
                     .font(.body)
                     .foregroundColor(.primary)
             }

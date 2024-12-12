@@ -12,7 +12,7 @@ struct ShowItemInfo: View {
     var body: some View {
         List {
             if let itemDetails = itemDetails {
-                ItemBasicInfoView(itemDetails: itemDetails)
+                ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
                 
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
