@@ -16,6 +16,13 @@ struct ItemInfoMap {
                     databaseManager: databaseManager
                 )
             )
+        case 34: // 冬眠者蓝图
+            return AnyView(
+                ShowBluePrintInfo(
+                    blueprintID: itemID,
+                    databaseManager: databaseManager
+                )
+            )
         case 43: // 行星开发
             return AnyView(
                 ShowPlanetaryInfo(
