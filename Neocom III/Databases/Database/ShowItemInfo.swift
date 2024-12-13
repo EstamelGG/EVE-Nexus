@@ -33,8 +33,9 @@ struct ShowItemInfo: View {
                 // Industry Section
                 let materials = databaseManager.getTypeMaterials(for: itemID)
                 let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
+                // 只针对矿物、突变残渣、化学元素、同位素等产物展示精炼来源
                 let sourceMaterials: [(typeID: Int, name: String, iconFileName: String)]? = if let groupID = itemDetails.groupID {
-                    (groupID == 18 || groupID == 1996) ? databaseManager.getSourceMaterials(for: itemID, groupID: groupID) : nil
+                    ([18, 1996, 423, 427].contains(groupID)) ? databaseManager.getSourceMaterials(for: itemID, groupID: groupID) : nil
                 } else {
                     nil
                 }
@@ -129,10 +130,10 @@ struct ShowItemInfo: View {
                                 }
                             } label: {
                                 HStack {
-                                    Image(systemName: "arrow.left.circle")
+                                    IconManager.shared.loadImage(for: sourceMaterials[0].iconFileName)
                                         .resizable()
                                         .frame(width: 32, height: 32)
-                                    Text(NSLocalizedString("Main_Database_Item_info_Source", comment: ""))
+                                    Text(NSLocalizedString("Main_Database_Source", comment: ""))
                                     Spacer()
                                     Text("\(sourceMaterials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)

@@ -5,7 +5,7 @@ import SwiftUI
 class DatabaseManager: ObservableObject {
     @Published var databaseUpdated = false
     private let sqliteManager = SQLiteManager.shared
-
+    
     // 加载数据库
     func loadDatabase() {
         // 获取本地化的数据库名称
@@ -13,18 +13,18 @@ class DatabaseManager: ObservableObject {
             Logger.error("数据库名称未找到")
             return
         }
-
+        
         // 使用 SQLiteManager 打开数据库
         if sqliteManager.openDatabase(withName: databaseName) {
             self.databaseUpdated.toggle()
         }
     }
-
+    
     // 获取本地化的数据库名称
     private func getLocalizedDatabaseName() -> String? {
         return NSLocalizedString("DatabaseName", comment: "数据库文件名基于语言")
     }
-
+    
     // 当应用结束时关闭数据库
     func closeDatabase() {
         sqliteManager.closeDatabase()
@@ -200,14 +200,14 @@ class DatabaseManager: ObservableObject {
                 let pgNeed = row["pg_need"] as? Int
                 let cpuNeed = row["cpu_need"] as? Int
                 let rigCost = row["rig_cost"] as? Int
-                let emDamage = row["em_damage"] as? Double ?? 
-                               (row["em_damage"] as? Int).map { Double($0) }
-                let themDamage = row["them_damage"] as? Double ?? 
-                                 (row["them_damage"] as? Int).map { Double($0) }
-                let kinDamage = row["kin_damage"] as? Double ?? 
-                                (row["kin_damage"] as? Int).map { Double($0) }
-                let expDamage = row["exp_damage"] as? Double ?? 
-                                (row["exp_damage"] as? Int).map { Double($0) }
+                let emDamage = row["em_damage"] as? Double ??
+                (row["em_damage"] as? Int).map { Double($0) }
+                let themDamage = row["them_damage"] as? Double ??
+                (row["them_damage"] as? Int).map { Double($0) }
+                let kinDamage = row["kin_damage"] as? Double ??
+                (row["kin_damage"] as? Int).map { Double($0) }
+                let expDamage = row["exp_damage"] as? Double ??
+                (row["exp_damage"] as? Int).map { Double($0) }
                 let highSlot = row["high_slot"] as? Int
                 let midSlot = row["mid_slot"] as? Int
                 let lowSlot = row["low_slot"] as? Int
@@ -1043,21 +1043,35 @@ class DatabaseManager: ObservableObject {
     // 获取可以精炼/回收得到指定物品的源物品列表
     func getSourceMaterials(for itemID: Int, groupID: Int) -> [(typeID: Int, name: String, iconFileName: String)]? {
         let query: String
-        if groupID == 18 {
+        if groupID == 18 { // 矿物，只看矿石来源
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename 
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 25
             """
-        } else if groupID == 1996 {
+        } else if groupID == 1996 { // 突变残渣，只看装备来源
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename 
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 7
             """
-        } else {
+        } else if groupID == 423 { // 同位素，只看矿石来源
+            query = """
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                FROM typeMaterials tm 
+                JOIN types t ON tm.typeid = t.type_id 
+                WHERE tm.output_material = ? AND tm.categoryid = 25
+            """
+        }else if groupID == 427 { //元素 ，只看矿石来源
+            query = """
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                FROM typeMaterials tm 
+                JOIN types t ON tm.typeid = t.type_id 
+                WHERE tm.output_material = ? AND tm.categoryid = 25
+            """
+        }else {
             return nil
         }
         
@@ -1067,13 +1081,13 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
-                if let typeID = row["typeid"] as? Int,
-                   let name = row["typename"] as? String,
-                   let icon = row["icon"] as? String {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
                     materials.append((
                         typeID: typeID,
                         name: name,
-                        iconFileName: icon.isEmpty ? DatabaseConfig.defaultItemIcon : icon
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
                     ))
                 }
             }
