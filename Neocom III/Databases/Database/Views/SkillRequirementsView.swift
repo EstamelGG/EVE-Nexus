@@ -1,63 +1,9 @@
 import SwiftUI
 
-struct SkillRequirementsView: View {
-    let typeID: Int
-    @ObservedObject var databaseManager: DatabaseManager
-    
-    // 去重并保留最高等级的技能要求
-    private func deduplicateSkillRequirements(_ requirements: [(skillID: Int, level: Int)], _ prerequisites: [SkillRequirement]) -> [(skillID: Int, level: Int)] {
-        var highestLevels: [Int: Int] = [:]
-        
-        // 处理直接要求
-        for requirement in requirements {
-            highestLevels[requirement.skillID] = requirement.level
-        }
-        
-        // 处理前置要求
-        for prereq in prerequisites {
-            if let existingLevel = highestLevels[prereq.skillID] {
-                highestLevels[prereq.skillID] = max(existingLevel, prereq.level)
-            } else {
-                highestLevels[prereq.skillID] = prereq.level
-            }
-        }
-        
-        // 转换回数组并按等级排序
-        return highestLevels.map { (skillID: $0.key, level: $0.value) }
-            .sorted { $0.level > $1.level }
-    }
-    
-    var body: some View {
-        let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
-        if !directRequirements.isEmpty {
-            Section(header: Text(NSLocalizedString("Main_Database_Skill_Requirements", comment: ""))) {
-                // 收集所有前置技能
-                let allPrerequisites = directRequirements.flatMap { requirement in
-                    SkillTreeManager.shared.getAllRequirements(for: requirement.skillID)
-                }
-                
-                // 对所有技能要求进行去重
-                let deduplicatedRequirements = deduplicateSkillRequirements(directRequirements, allPrerequisites)
-                
-                // 显示所有技能要求
-                ForEach(deduplicatedRequirements, id: \.skillID) { requirement in
-                    SkillRequirementRow(
-                        skillID: requirement.skillID,
-                        level: requirement.level,
-                        indentLevel: 0,
-                        databaseManager: databaseManager
-                    )
-                }
-            }
-        }
-    }
-}
-
 // 单个技能要求行
 struct SkillRequirementRow: View {
     let skillID: Int
     let level: Int
-    let indentLevel: Int
     @ObservedObject var databaseManager: DatabaseManager
     
     var body: some View {
@@ -72,11 +18,6 @@ struct SkillRequirementRow: View {
                 }
             } label: {
                 HStack {
-                    if indentLevel > 0 {
-                        Spacer()
-                            .frame(width: CGFloat(indentLevel) * 20)
-                    }
-                    
                     // 技能图标
                     if let iconFileName = databaseManager.getItemIconFileName(for: skillID) {
                         IconManager.shared.loadImage(for: iconFileName)
@@ -95,6 +36,55 @@ struct SkillRequirementRow: View {
                     Text("Lv \(level)")
                         .font(.body)
                         .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+struct SkillRequirementsView: View {
+    let typeID: Int
+    @ObservedObject var databaseManager: DatabaseManager
+    
+    // 获取所有技能要求（包括直接和间接技能）并去重
+    private func getAllSkillRequirements() -> [(skillID: Int, level: Int)] {
+        // 获取直接技能要求
+        let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
+        
+        // 获取所有间接技能要求
+        let indirectRequirements = directRequirements.flatMap { requirement in
+            SkillTreeManager.shared.getAllRequirements(for: requirement.skillID)
+                .map { (skillID: $0.skillID, level: $0.level) }
+        }
+        
+        // 合并所有技能要求并去重，保留最高等级
+        var skillMap: [Int: Int] = [:]  // [skillID: maxLevel]
+        
+        // 处理所有技能要求
+        (directRequirements + indirectRequirements).forEach { requirement in
+            if let existingLevel = skillMap[requirement.skillID] {
+                // 如果已存在该技能，保留更高等级的要求
+                skillMap[requirement.skillID] = max(existingLevel, requirement.level)
+            } else {
+                skillMap[requirement.skillID] = requirement.level
+            }
+        }
+        
+        // 转换为数组并按等级排序
+        return skillMap.map { (skillID: $0.key, level: $0.value) }
+            .sorted { $0.level > $1.level }
+    }
+    
+    var body: some View {
+        let skills = getAllSkillRequirements()
+        if !skills.isEmpty {
+            Section(header: Text(NSLocalizedString("Main_Database_Skill_Requirements", comment: ""))) {
+                ForEach(skills, id: \.skillID) { skill in
+                    SkillRequirementRow(
+                        skillID: skill.skillID,
+                        level: skill.level,
+                        databaseManager: databaseManager
+                    )
                 }
             }
         }
