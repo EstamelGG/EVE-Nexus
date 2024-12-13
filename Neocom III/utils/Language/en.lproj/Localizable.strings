@@ -33,6 +33,7 @@
 "Main_Database_Item_info_NonImmune" = "Non-immune";
 "Main_Database_Item_info_Reprocess" = "Reprocess Output";
 "Main_Database_Source" = "Reprocess Source";
+"Main_Database_Required_By" = "Required for";
 
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";

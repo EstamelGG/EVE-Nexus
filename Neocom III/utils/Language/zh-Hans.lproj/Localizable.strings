@@ -35,6 +35,7 @@
 "Main_Database_Source" = "精炼来源";
 "Main_Database_Role_Bonuses" = "Role Bonuses";
 "Main_Database_Bonuses_Per_Level" = "每级技能加成";
+"Main_Database_Required_By" = "技能等级适用于";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

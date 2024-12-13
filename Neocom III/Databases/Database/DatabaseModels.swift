@@ -115,6 +115,7 @@ public struct ItemDetails {
     public let iconFileName: String
     public let groupName: String
     public let categoryName: String
+    public let categoryID: Int?
     public let roleBonuses: [Trait]?
     public let typeBonuses: [Trait]?
     public let typeId: Int
@@ -123,14 +124,15 @@ public struct ItemDetails {
     public let capacity: Double?
     public let mass: Double?
     
-    public init(name: String, description: String, iconFileName: String, groupName: String, 
-               categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [], 
+    public init(name: String, description: String, iconFileName: String, groupName: String, categoryID: Int? = nil,
+               categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
                typeId: Int, groupID: Int?, volume: Double? = nil, capacity: Double? = nil, mass: Double? = nil) {
         self.name = name
         self.description = description
         self.iconFileName = iconFileName
         self.groupName = groupName
         self.categoryName = categoryName
+        self.categoryID = categoryID
         self.roleBonuses = roleBonuses
         self.typeBonuses = typeBonuses
         self.typeId = typeId

@@ -80,6 +80,15 @@ struct ShowItemInfo: View {
                     databaseManager: databaseManager
                 )
                 
+                // 如果是技能，显示依赖该技能的物品列表
+                if let categoryID = itemDetails.categoryID,
+                   categoryID == 16 {
+                    SkillDependencySection(
+                        skillID: itemID,
+                        databaseManager: databaseManager
+                    )
+                }
+                
                 // Industry Section
                 let materials = databaseManager.getTypeMaterials(for: itemID)
                 let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
@@ -235,6 +244,7 @@ struct ShowItemInfo: View {
                     description: fullDescription,
                     iconFileName: itemDetail.iconFileName,
                     groupName: itemDetail.groupName,
+                    categoryID: itemDetail.categoryID,
                     categoryName: itemDetail.categoryName,
                     typeId: itemDetail.typeId,
                     groupID: itemDetail.groupID,

@@ -270,7 +270,7 @@ class DatabaseManager: ObservableObject {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
                    t.volume, t.capacity, t.mass,
-                   g.name as group_name, c.name as category_name
+                   g.name as group_name, c.name as category_name, t.categoryID
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
             LEFT JOIN categories c ON g.categoryID = c.category_id
@@ -286,6 +286,7 @@ class DatabaseManager: ObservableObject {
                   let description = row["description"] as? String,
                   let iconFilename = row["icon_filename"] as? String,
                   let groupName = row["group_name"] as? String,
+                  let categoryID = row["categoryID"] as? Int,
                   let categoryName = row["category_name"] as? String else {
                 return nil
             }
@@ -334,6 +335,7 @@ class DatabaseManager: ObservableObject {
                 description: description,
                 iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                 groupName: groupName,
+                categoryID: categoryID,
                 categoryName: categoryName,
                 roleBonuses: nil,
                 typeBonuses: nil,
@@ -978,7 +980,7 @@ class DatabaseManager: ObservableObject {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
                    t.volume, t.capacity, t.mass,
-                   g.name as group_name, c.name as category_name
+                   g.name as group_name, c.name as category_name, c.category_id
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
             LEFT JOIN categories c ON g.categoryID = c.category_id
@@ -993,6 +995,7 @@ class DatabaseManager: ObservableObject {
            let description = row["description"] as? String,
            let iconFileName = row["icon_filename"] as? String,
            let groupName = row["group_name"] as? String,
+           let categoryID = row["category_id"] as? Int,
            let categoryName = row["category_name"] as? String {
             
             let groupID = row["groupID"] as? Int
@@ -1005,6 +1008,7 @@ class DatabaseManager: ObservableObject {
                 description: description,
                 iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
                 groupName: groupName,
+                categoryID: categoryID,
                 categoryName: categoryName,
                 roleBonuses: nil,
                 typeBonuses: nil,
@@ -1296,5 +1300,40 @@ class DatabaseManager: ObservableObject {
         }
         
         return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
+    }
+    
+    // 获取需要特定技能和等级的物品列表
+    func getItemsRequiringSkill(skillID: Int, level: Int) -> [(typeID: Int, name: String, iconFileName: String)] {
+        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
+            "(a1.attribute_id = \($0.skillID) AND a1.value = ? AND a2.attribute_id = \($0.levelID) AND a2.value = ?)"
+        }.joined(separator: " OR ")
+        
+        let query = """
+            SELECT DISTINCT t.type_id, t.name, t.icon_filename
+            FROM typeAttributes a1
+            INNER JOIN typeAttributes a2 ON a1.type_id = a2.type_id
+            INNER JOIN types t ON a1.type_id = t.type_id
+            WHERE \(skillPairs)
+            ORDER BY t.name
+        """
+        
+        var items: [(typeID: Int, name: String, iconFileName: String)] = []
+        let parameters = Array(repeating: [skillID, level], count: SkillTreeManager.shared.skillRequirementAttributes.count).flatMap { $0 }
+        
+        if case .success(let rows) = executeQuery(query, parameters: parameters) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    items.append((
+                        typeID: typeID,
+                        name: name,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    ))
+                }
+            }
+        }
+        
+        return items
     }
 }
