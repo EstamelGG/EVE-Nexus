@@ -87,7 +87,7 @@ struct ShowItemInfo: View {
                                     Image("reprocess")
                                         .resizable()
                                         .frame(width: 32, height: 32)
-                                    Text(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))
+                                    Text("\(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))(\(NSLocalizedString("Misc_per", comment: "")) \(materials[0].process_size) \(NSLocalizedString("Misc_unit", comment: "")))")
                                     Spacer()
                                     Text("\(materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)

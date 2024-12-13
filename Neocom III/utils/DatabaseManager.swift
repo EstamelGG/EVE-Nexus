@@ -583,6 +583,7 @@ class DatabaseManager: ObservableObject {
     
     // 重新加工材料数据结构
     struct TypeMaterial {
+        let process_size: Int
         let outputMaterial: Int
         let outputQuantity: Int
         let outputMaterialName: String
@@ -591,7 +592,7 @@ class DatabaseManager: ObservableObject {
     
     func getTypeMaterials(for typeID: Int) -> [TypeMaterial]? {
         let query = """
-            SELECT output_material, output_quantity, output_material_name, output_material_icon
+            SELECT process_size, output_material, output_quantity, output_material_name, output_material_icon
             FROM typeMaterials
             WHERE typeid = ?
             ORDER BY output_material
@@ -603,7 +604,8 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for row in rows {
-                guard let outputMaterial = row["output_material"] as? Int,
+                guard let process_size = row["process_size"] as? Int,
+                      let outputMaterial = row["output_material"] as? Int,
                       let outputQuantity = row["output_quantity"] as? Int,
                       let outputMaterialName = row["output_material_name"] as? String,
                       let outputMaterialIcon = row["output_material_icon"] as? String else {
@@ -611,6 +613,7 @@ class DatabaseManager: ObservableObject {
                 }
                 
                 let material = TypeMaterial(
+                    process_size: process_size,
                     outputMaterial: outputMaterial,
                     outputQuantity: outputQuantity,
                     outputMaterialName: outputMaterialName,

@@ -70,6 +70,8 @@
 "Misc_number_item" = "x";
 "Misc_number_point" = "points";
 "Misc_number_types" = " Items";
+"Misc_per" = "per";
+"Misc_unit" = "unit";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
