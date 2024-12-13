@@ -937,15 +937,15 @@ class DatabaseManager: ObservableObject {
            let name = row["name"] as? String,
            let description = row["description"] as? String,
            let iconFileName = row["icon_filename"] as? String,
-           let groupName = row["groupName"] as? String,
-           let categoryName = row["categoryName"] as? String {
+           let groupName = row["group_name"] as? String,
+           let categoryName = row["category_name"] as? String {
             
             let groupID = row["groupID"] as? Int
             
             return ItemDetails(
                 name: name,
                 description: description,
-                iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
+                iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
                 groupName: groupName,
                 categoryName: categoryName,
                 roleBonuses: nil,
