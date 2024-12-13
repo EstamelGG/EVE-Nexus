@@ -86,6 +86,7 @@ struct ShowItemInfo: View {
                                             Text("\(material.outputQuantity)")
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -98,6 +99,7 @@ struct ShowItemInfo: View {
                                     Spacer()
                                     Text("\(materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         }
@@ -129,6 +131,7 @@ struct ShowItemInfo: View {
                                             Text("\(NumberFormatUtil.format(material.outputQuantityPerUnit))/\(NSLocalizedString("Misc_unit", comment: "")) ")
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -141,6 +144,7 @@ struct ShowItemInfo: View {
                                     Spacer()
                                     Text("\(sourceMaterials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         }

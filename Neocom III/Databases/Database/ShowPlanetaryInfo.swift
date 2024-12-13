@@ -66,6 +66,7 @@ struct ShowPlanetaryInfo: View {
                         Spacer()
                         Text("\(output.outputValue) \(NSLocalizedString("Misc_number_item", comment: ""))")
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                     
                     HStack {
@@ -73,6 +74,7 @@ struct ShowPlanetaryInfo: View {
                         Spacer()
                         Text(formatTime(output.cycleTime))
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }

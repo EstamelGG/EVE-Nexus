@@ -117,6 +117,7 @@ struct MaterialListView: View {
                         
                         Text("\(item.quantity)")
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }
@@ -359,6 +360,7 @@ struct ShowBluePrintInfo: View {
                                             
                                             Text("\(material.quantity)")
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -369,6 +371,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(manufacturing.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -392,6 +395,7 @@ struct ShowBluePrintInfo: View {
                                         
                                         Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                                             .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                     }
                                 }
                             },
@@ -401,6 +405,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(manufacturing.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -412,6 +417,7 @@ struct ShowBluePrintInfo: View {
                         Spacer()
                         Text(formatTime(manufacturing.time))
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }
@@ -446,6 +452,7 @@ struct ShowBluePrintInfo: View {
                                             
                                             Text("\(material.quantity)")
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -456,6 +463,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(researchMaterial.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -479,6 +487,7 @@ struct ShowBluePrintInfo: View {
                                         
                                         Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                                             .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                     }
                                 }
                             },
@@ -488,6 +497,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(researchMaterial.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -503,6 +513,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text(formatTime(calculateLevelTime(baseTime: researchMaterial.time, level: level)))
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         },
@@ -546,6 +557,7 @@ struct ShowBluePrintInfo: View {
                                             
                                             Text("\(material.quantity)")
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -556,6 +568,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(researchTime.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -579,6 +592,7 @@ struct ShowBluePrintInfo: View {
                                         
                                         Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                                             .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                     }
                                 }
                             },
@@ -588,6 +602,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(researchTime.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -603,6 +618,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text(formatTime(calculateLevelTime(baseTime: researchTime.time, level: level)))
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         },
@@ -646,6 +662,7 @@ struct ShowBluePrintInfo: View {
                                             
                                             Text("\(material.quantity)")
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -656,6 +673,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(copying.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -679,6 +697,7 @@ struct ShowBluePrintInfo: View {
                                         
                                         Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                                             .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                     }
                                 }
                             },
@@ -688,6 +707,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(copying.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -699,6 +719,7 @@ struct ShowBluePrintInfo: View {
                         Spacer()
                         Text(formatTime(copying.time))
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }
@@ -740,6 +761,7 @@ struct ShowBluePrintInfo: View {
                                             
                                             Text("\(material.quantity)")
                                                 .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -750,6 +772,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(invention.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -773,6 +796,7 @@ struct ShowBluePrintInfo: View {
                                         
                                         Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
                                             .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                     }
                                 }
                             },
@@ -782,6 +806,7 @@ struct ShowBluePrintInfo: View {
                                     Spacer()
                                     Text("\(invention.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
+                                        .frame(alignment: .trailing)
                                 }
                             }
                         )
@@ -793,6 +818,7 @@ struct ShowBluePrintInfo: View {
                         Spacer()
                         Text(formatTime(invention.time))
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }

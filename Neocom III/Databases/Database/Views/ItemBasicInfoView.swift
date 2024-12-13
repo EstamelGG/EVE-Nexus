@@ -83,6 +83,7 @@ struct ItemBasicInfoView: View {
                         Spacer()
                         Text("\(NumberFormatUtil.format(Double(volume))) m3")
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
                 
@@ -96,6 +97,7 @@ struct ItemBasicInfoView: View {
                         Spacer()
                         Text("\(NumberFormatUtil.format(Double(capacity))) m3")
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
                 
@@ -109,6 +111,7 @@ struct ItemBasicInfoView: View {
                         Spacer()
                         Text("\(NumberFormatUtil.format(Double(mass))) Kg")
                             .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
                     }
                 }
             }

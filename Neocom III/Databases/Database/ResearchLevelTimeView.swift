@@ -20,6 +20,7 @@ struct ResearchLevelTimeView: View {
                     Spacer()
                     Text(formatTime(calculateTime(for: level)))
                         .foregroundColor(.secondary)
+                        .frame(alignment: .trailing)
                 }
             }
         }
