@@ -338,7 +338,7 @@ class DatabaseManager: ObservableObject {
             parameters.append(groupID)
         }
         
-        query += " ORDER BY t.groupID, t.name"
+        query += " ORDER BY t.groupID, t.metaGroupID"
         
         let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []
