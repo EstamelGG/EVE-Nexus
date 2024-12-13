@@ -16,20 +16,8 @@ class DatabaseManager: ObservableObject {
         
         // 使用 SQLiteManager 打开数据库
         if sqliteManager.openDatabase(withName: databaseName) {
-            // 初始化技能树
-            initializeSkillTree()
             self.databaseUpdated.toggle()
         }
-    }
-    
-    // 初始化技能树
-    private func initializeSkillTree() {
-        Logger.info("开始初始化技能树...")
-        // 清除旧数据
-        SkillTreeManager.shared.clear()
-        // 初始化新的技能树
-        SkillTreeManager.shared.initializeSkillTree(databaseManager: self)
-        Logger.info("技能树初始化完成")
     }
     
     // 获取本地化的数据库名称
@@ -40,8 +28,6 @@ class DatabaseManager: ObservableObject {
     // 当应用结束时关闭数据库
     func closeDatabase() {
         sqliteManager.closeDatabase()
-        // 清理技能树数据
-        SkillTreeManager.shared.clear()
     }
     
     // 清除查询缓存

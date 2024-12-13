@@ -153,7 +153,7 @@ extension DatabaseManager {
         let query = """
             SELECT type_id, name 
             FROM types 
-            WHERE categoryID = 16 AND published = 1
+            WHERE category_id = 16 AND published = 1
             ORDER BY name
         """
         

@@ -224,7 +224,7 @@ struct AttributeItemView: View {
 struct AttributeGroupView: View {
     let group: AttributeGroup
     let allAttributes: [Int: Double]  // 添加所有属性的字典
-    @ObservedObject var databaseManager: DatabaseManager
+    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
@@ -242,29 +242,19 @@ struct AttributeGroupView: View {
     
     var body: some View {
         if AttributeDisplayConfig.shouldShowGroup(group.id) {
-            if group.id == 8 {
-                // 技能需求组使用新的技能树视图
-                SkillRequirementsView(
-                    attributeGroup: group,
-                    allAttributes: allAttributes,
-                    databaseManager: databaseManager
-                )
-            } else {
-                // 其他属性组使用原有的显示方式
-                Section {
-                    // 检查是否有抗性值需要显示
-                    if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {
-                        ResistanceBarView(resistances: resistances)
-                    }
-                    
-                    // 只显示非抗性属性
-                    ForEach(filteredAttributes) { attribute in
-                        AttributeItemView(attribute: attribute, allAttributes: allAttributes, databaseManager: databaseManager)
-                    }
-                } header: {
-                    Text(group.name)
-                        .font(.headline)
+            Section {
+                // 检查是否有抗性值需要显示
+                if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {
+                    ResistanceBarView(resistances: resistances)
                 }
+                
+                // 只显示非抗性属性
+                ForEach(filteredAttributes) { attribute in
+                    AttributeItemView(attribute: attribute, allAttributes: allAttributes, databaseManager: databaseManager)
+                }
+            } header: {
+                Text(group.name)
+                    .font(.headline)
             }
         }
     }

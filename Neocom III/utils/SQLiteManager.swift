@@ -116,7 +116,7 @@ class SQLiteManager {
                 }
             }
             
-            Logger.debug("查询结果行: \(row), useCache:\(useCache)")
+            Logger.debug("查询结果行: \(row)")
             results.append(row)
         }
         

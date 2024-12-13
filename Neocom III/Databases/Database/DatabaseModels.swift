@@ -162,11 +162,6 @@ struct DogmaAttribute: Identifiable {
         }
         return true
     }
-    
-    // 获取整数值
-    var intValue: Int {
-        return Int(value)
-    }
 }
 
 // 属性分组模型
