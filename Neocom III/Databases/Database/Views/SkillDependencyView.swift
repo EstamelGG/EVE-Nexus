@@ -43,14 +43,16 @@ struct SkillDependencySection: View {
     var body: some View {
         Section(header: Text(NSLocalizedString("Main_Database_Required_By", comment: "")).font(.headline)) {
             ForEach(1...5, id: \.self) { level in
-                NavigationLink {
-                    SkillDependencyListView(
-                        skillID: skillID,
-                        level: level,
-                        databaseManager: databaseManager
-                    )
-                } label: {
-                    Text("Level \(level)")
+                if !databaseManager.getItemsRequiringSkill(skillID: skillID, level: level).isEmpty {
+                    NavigationLink {
+                        SkillDependencyListView(
+                            skillID: skillID,
+                            level: level,
+                            databaseManager: databaseManager
+                        )
+                    } label: {
+                        Text("Level \(level)")
+                    }
                 }
             }
         }
