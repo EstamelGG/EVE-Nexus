@@ -143,4 +143,33 @@ class SkillTreeManager {
         allSkills.removeAll()
         directRequirements.removeAll()
     }
+    
+    /// 获取物品的所有技能要求（包括直接和间接技能）并去重
+    func getDeduplicatedSkillRequirements(for typeID: Int, databaseManager: DatabaseManager) -> [(skillID: Int, level: Int)] {
+        // 获取直接技能要求
+        let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
+        
+        // 获取所有间接技能要求
+        let indirectRequirements = directRequirements.flatMap { requirement in
+            getAllRequirements(for: requirement.skillID)
+                .map { (skillID: $0.skillID, level: $0.level) }
+        }
+        
+        // 合并所有技能要求并去重，保留最高等级
+        var skillMap: [Int: Int] = [:]  // [skillID: maxLevel]
+        
+        // 处理所有技能要求
+        (directRequirements + indirectRequirements).forEach { requirement in
+            if let existingLevel = skillMap[requirement.skillID] {
+                // 如果已存在该技能，保留更高等级的要求
+                skillMap[requirement.skillID] = max(existingLevel, requirement.level)
+            } else {
+                skillMap[requirement.skillID] = requirement.level
+            }
+        }
+        
+        // 转换为数组并按等级排序
+        return skillMap.map { (skillID: $0.key, level: $0.value) }
+            .sorted { $0.level > $1.level }
+    }
 } 
