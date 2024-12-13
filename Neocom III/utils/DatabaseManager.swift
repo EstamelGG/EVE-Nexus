@@ -265,6 +265,7 @@ class DatabaseManager: ObservableObject {
     func loadItemDetails(for itemID: Int) -> ItemDetails? {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
+                   t.volume, t.capacity, t.mass,
                    g.name as group_name, c.name as category_name
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
@@ -286,6 +287,9 @@ class DatabaseManager: ObservableObject {
             }
             
             let groupID = row["groupID"] as? Int
+            let volume = row["volume"] as? Int
+            let capacity = row["capacity"] as? Int
+            let mass = row["mass"] as? Int
             
             return ItemDetails(
                 name: name,
@@ -293,10 +297,13 @@ class DatabaseManager: ObservableObject {
                 iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                 groupName: groupName,
                 categoryName: categoryName,
-                roleBonuses: nil,  // 这些值会在其他地方设置
+                roleBonuses: nil,
                 typeBonuses: nil,
                 typeId: itemID,
-                groupID: groupID
+                groupID: groupID,
+                volume: volume,
+                capacity: capacity,
+                mass: mass
             )
             
         case .error(let error):
@@ -923,6 +930,7 @@ class DatabaseManager: ObservableObject {
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
+                   t.volume, t.capacity, t.mass,
                    g.name as group_name, c.name as category_name
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
@@ -941,6 +949,9 @@ class DatabaseManager: ObservableObject {
            let categoryName = row["category_name"] as? String {
             
             let groupID = row["groupID"] as? Int
+            let volume = row["volume"] as? Int
+            let capacity = row["capacity"] as? Int
+            let mass = row["mass"] as? Int
             
             return ItemDetails(
                 name: name,
@@ -951,7 +962,10 @@ class DatabaseManager: ObservableObject {
                 roleBonuses: nil,
                 typeBonuses: nil,
                 typeId: typeID,
-                groupID: groupID
+                groupID: groupID,
+                volume: volume,
+                capacity: capacity,
+                mass: mass
             )
         }
         return nil

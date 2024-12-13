@@ -109,8 +109,13 @@ public struct ItemDetails {
     public let typeBonuses: [Trait]?
     public let typeId: Int
     public let groupID: Int?
+    public let volume: Int?
+    public let capacity: Int?
+    public let mass: Int?
     
-    public init(name: String, description: String, iconFileName: String, groupName: String, categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [], typeId: Int, groupID: Int?) {
+    public init(name: String, description: String, iconFileName: String, groupName: String, 
+               categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [], 
+               typeId: Int, groupID: Int?, volume: Int? = nil, capacity: Int? = nil, mass: Int? = nil) {
         self.name = name
         self.description = description
         self.iconFileName = iconFileName
@@ -120,6 +125,9 @@ public struct ItemDetails {
         self.typeBonuses = typeBonuses
         self.typeId = typeId
         self.groupID = groupID
+        self.volume = volume
+        self.capacity = capacity
+        self.mass = mass
     }
 }
 

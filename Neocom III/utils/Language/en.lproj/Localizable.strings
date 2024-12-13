@@ -112,4 +112,9 @@
 
 "Blueprint_Source" = "Source";
 
+"Item_Basic_Info" = "Basic Info";
+"Item_Volume" = "Volume";
+"Item_Capacity" = "Capacity";
+"Item_Mass" = "Mass";
+
 

@@ -110,3 +110,8 @@
 // 物品信息
 "Item_Info_Blueprint" = "蓝图";
 "Blueprint_Source" = "发明来源";
+
+"Item_Basic_Info" = "基础信息";
+"Item_Volume" = "体积";
+"Item_Capacity" = "容量";
+"Item_Mass" = "质量";

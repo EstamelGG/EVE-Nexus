@@ -14,6 +14,38 @@ struct ShowItemInfo: View {
             if let itemDetails = itemDetails {
                 ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
                 
+                // 基础属性 Section
+                if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
+                    Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: ""))) {
+                        if let volume = itemDetails.volume {
+                            HStack {
+                                Text(NSLocalizedString("Item_Volume", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(volume))) m3")
+                                    .font(.headline)
+                            }
+                        }
+                        
+                        if let capacity = itemDetails.capacity {
+                            HStack {
+                                Text(NSLocalizedString("Item_Capacity", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(capacity))) m3")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        if let mass = itemDetails.mass {
+                            HStack {
+                                Text(NSLocalizedString("Item_Mass", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(mass))) Kg")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
                 if variationsCount > 1 {
