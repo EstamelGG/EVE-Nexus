@@ -9,6 +9,47 @@ struct ShowItemInfo: View {
     @State private var itemDetails: ItemDetails?
     @State private var attributeGroups: [AttributeGroup] = []
     
+    private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
+        var text = ""
+        
+        // Role Bonuses
+        if !roleBonuses.isEmpty {
+            text += "<b>\(NSLocalizedString("Main_Database_Role_Bonuses", comment: ""))</b>\n"
+            text += roleBonuses
+                .map { "• \($0.content)" }
+                .joined(separator: "\n")
+        }
+        
+        if !roleBonuses.isEmpty && !typeBonuses.isEmpty {
+            text += "\n\n"
+        }
+        
+        // Type Bonuses
+        if !typeBonuses.isEmpty {
+            let groupedBonuses = Dictionary(grouping: typeBonuses) { $0.skill }
+            let sortedSkills = groupedBonuses.keys
+                .compactMap { $0 }
+                .sorted()
+            
+            for skill in sortedSkills {
+                if let skillName = databaseManager.getTypeName(for: skill) {
+                    text += "<b>\(skillName)</b> \(NSLocalizedString("Main_Database_Bonuses_Per_Level", comment: ""))\n"
+                    
+                    let bonuses = groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
+                    text += bonuses
+                        .map { "• \($0.content)" }
+                        .joined(separator: "\n")
+                    
+                    if skill != sortedSkills.last {
+                        text += "\n\n"
+                    }
+                }
+            }
+        }
+        
+        return text.isEmpty ? NSLocalizedString("Main_Database_No_Traits", comment: "") : text
+    }
+    
     var body: some View {
         List {
             if let itemDetails = itemDetails {

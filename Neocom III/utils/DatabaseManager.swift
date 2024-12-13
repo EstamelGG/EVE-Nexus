@@ -289,6 +289,40 @@ class DatabaseManager: ObservableObject {
                   let categoryName = row["category_name"] as? String else {
                 return nil
             }
+            
+            // 2. 加载 traits
+            let traitsQuery = """
+                SELECT importance, bonus_type, content, skill
+                FROM traits
+                WHERE typeid = ?
+                ORDER BY bonus_type, skill, importance
+            """
+
+            let traitsResult = executeQuery(traitsQuery, parameters: [itemID])
+            var roleBonuses: [Trait] = []
+            var typeBonuses: [Trait] = []
+
+            if case .success(let traitRows) = traitsResult {
+                for traitRow in traitRows {
+                    guard let importance = traitRow["importance"] as? Int,
+                          let bonusType = traitRow["bonus_type"] as? String,
+                          let content = traitRow["content"] as? String else {
+                        continue
+                    }
+
+                    let skill = traitRow["skill"] as? Int
+                    let trait = Trait(content: content,
+                                    importance: importance,
+                                    skill: skill)
+
+                    if bonusType == "roleBonuses" {
+                        roleBonuses.append(trait)
+                    } else if bonusType == "typeBonuses" {
+                        typeBonuses.append(trait)
+                    }
+                }
+            }
+            
             // Logger.debug("\(row)")
             let groupID = row["groupID"] as? Int
             let volume = row["volume"] as? Double
@@ -1210,5 +1244,61 @@ class DatabaseManager: ObservableObject {
             return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
         }
         return DatabaseConfig.defaultItemIcon
+    }
+    
+    func getTraits(for typeID: Int) -> TraitGroup? {
+        guard let db = self.db else { return nil }
+        
+        var roleBonuses: [Trait] = []
+        var typeBonuses: [Trait] = []
+        
+        do {
+            // 获取Role Bonuses
+            let roleQuery = """
+                SELECT bonus_text, importance
+                FROM type_traits 
+                WHERE type_id = ? AND skill_id IS NULL
+                ORDER BY importance
+            """
+            
+            let roleResults = try db.prepare(roleQuery, [typeID])
+            for row in roleResults {
+                if let bonusText = row[0] as? String {
+                    let importance = row[1] as? Int ?? 0
+                    roleBonuses.append(Trait(
+                        content: bonusText,
+                        importance: importance,
+                        skill: nil
+                    ))
+                }
+            }
+            
+            // 获取Type Bonuses
+            let typeQuery = """
+                SELECT bonus_text, importance, skill_id
+                FROM type_traits 
+                WHERE type_id = ? AND skill_id IS NOT NULL
+                ORDER BY skill_id, importance
+            """
+            
+            let typeResults = try db.prepare(typeQuery, [typeID])
+            for row in typeResults {
+                if let bonusText = row[0] as? String,
+                   let skillID = row[2] as? Int {
+                    let importance = row[1] as? Int ?? 0
+                    typeBonuses.append(Trait(
+                        content: bonusText,
+                        importance: importance,
+                        skill: skillID
+                    ))
+                }
+            }
+            
+            return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
+            
+        } catch {
+            Logger.error("Error fetching traits for typeID \(typeID): \(error)")
+            return nil
+        }
     }
 }
