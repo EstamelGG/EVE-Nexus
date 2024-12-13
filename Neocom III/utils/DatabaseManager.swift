@@ -1041,53 +1041,63 @@ class DatabaseManager: ObservableObject {
     }
     
     // 获取可以精炼/回收得到指定物品的源物品列表
-    func getSourceMaterials(for itemID: Int, groupID: Int) -> [(typeID: Int, name: String, iconFileName: String)]? {
+    func getSourceMaterials(for itemID: Int, groupID: Int) -> [(typeID: Int, name: String, iconFileName: String, outputQuantityPerUnit: Double)]? {
         let query: String
         if groupID == 18 { // 矿物，只看矿石来源
             query = """
-                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename,
+                       CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 25
+                ORDER BY output_per_unit DESC
             """
         } else if groupID == 1996 { // 突变残渣，只看装备来源
             query = """
-                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename,
+                       CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 7
+                ORDER BY output_per_unit DESC
             """
         } else if groupID == 423 { // 同位素，只看矿石来源
             query = """
-                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename,
+                       CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 25
+                ORDER BY output_per_unit DESC
             """
-        }else if groupID == 427 { //元素 ，只看矿石来源
+        } else if groupID == 427 { //元素，只看矿石来源
             query = """
-                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename,
+                       CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
                 WHERE tm.output_material = ? AND tm.categoryid = 25
+                ORDER BY output_per_unit DESC
             """
-        }else {
+        } else {
             return nil
         }
         
         let result = executeQuery(query, parameters: [itemID])
-        var materials: [(typeID: Int, name: String, iconFileName: String)] = []
+        var materials: [(typeID: Int, name: String, iconFileName: String, outputQuantityPerUnit: Double)] = []
         
         switch result {
         case .success(let rows):
             for row in rows {
                 if let typeID = row["type_id"] as? Int,
                    let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
+                   let iconFileName = row["icon_filename"] as? String,
+                   let outputPerUnit = row["output_per_unit"] as? Double {
                     materials.append((
                         typeID: typeID,
                         name: name,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
+                        outputQuantityPerUnit: outputPerUnit
                     ))
                 }
             }
