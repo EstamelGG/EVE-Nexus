@@ -19,6 +19,10 @@ struct ShowItemInfo: View {
                     Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
                         if let volume = itemDetails.volume {
                             HStack {
+                                IconManager.shared.loadImage(for: "items_2_64_9.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
                                 Text(NSLocalizedString("Item_Volume", comment: ""))
                                 Spacer()
                                 Text("\(NumberFormatUtil.format(Double(volume))) m3")
@@ -28,6 +32,10 @@ struct ShowItemInfo: View {
                         
                         if let capacity = itemDetails.capacity {
                             HStack {
+                                IconManager.shared.loadImage(for: "items_3_64_13.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
                                 Text(NSLocalizedString("Item_Capacity", comment: ""))
                                 Spacer()
                                 Text("\(NumberFormatUtil.format(Double(capacity))) m3")
@@ -37,6 +45,10 @@ struct ShowItemInfo: View {
                         
                         if let mass = itemDetails.mass {
                             HStack {
+                                IconManager.shared.loadImage(for: "items_2_64_10.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
                                 Text(NSLocalizedString("Item_Mass", comment: ""))
                                 Spacer()
                                 Text("\(NumberFormatUtil.format(Double(mass))) Kg")
