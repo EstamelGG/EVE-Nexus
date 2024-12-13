@@ -25,7 +25,6 @@ struct ShowItemInfo: View {
         if !roleBonuses.isEmpty && !typeBonuses.isEmpty {
             text += "\n\n"
         }
-        
         // Type Bonuses
         if !typeBonuses.isEmpty {
             let groupedBonuses = Dictionary(grouping: typeBonuses) { $0.skill }
@@ -49,7 +48,7 @@ struct ShowItemInfo: View {
             }
         }
         
-        return text.isEmpty ? NSLocalizedString("Main_Database_No_Traits", comment: "") : text
+        return text.isEmpty ? "" : text
     }
     
     var body: some View {
@@ -264,14 +263,22 @@ struct ShowItemInfo: View {
         if let itemDetail = databaseManager.loadItemDetails(for: itemID) {
             // 加载 traits
             if let traitGroup = databaseManager.getTraits(for: itemID) {
+                // 构建trait文本
+                let traitText = buildTraitsText(
+                    roleBonuses: traitGroup.roleBonuses,
+                    typeBonuses: traitGroup.typeBonuses,
+                    databaseManager: databaseManager
+                )
+                
+                // 创建新的描述文本，将trait信息拼接到原始描述后面
+                let fullDescription = itemDetail.description + (traitText.isEmpty ? "" : "\n\n" + traitText)
+                
                 let details = ItemDetails(
                     name: itemDetail.name,
-                    description: itemDetail.description,
+                    description: fullDescription,
                     iconFileName: itemDetail.iconFileName,
                     groupName: itemDetail.groupName,
                     categoryName: itemDetail.categoryName,
-                    roleBonuses: traitGroup.roleBonuses,
-                    typeBonuses: traitGroup.typeBonuses,
                     typeId: itemDetail.typeId,
                     groupID: itemDetail.groupID,
                     volume: itemDetail.volume,
