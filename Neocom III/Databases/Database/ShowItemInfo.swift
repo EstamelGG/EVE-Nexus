@@ -14,9 +14,6 @@ struct ShowItemInfo: View {
             if let itemDetails = itemDetails {
                 ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
                 
-                // 技能要求 Section
-                SkillRequirementsView(typeID: itemID, databaseManager: databaseManager)
-                
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
                 if variationsCount > 1 {
@@ -31,7 +28,11 @@ struct ShowItemInfo: View {
                 }
                 
                 // 属性 Sections
-                AttributesView(attributeGroups: attributeGroups, databaseManager: databaseManager)
+                AttributesView(
+                    attributeGroups: attributeGroups,
+                    typeID: itemID,
+                    databaseManager: databaseManager
+                )
                 
                 // Industry Section
                 let materials = databaseManager.getTypeMaterials(for: itemID)

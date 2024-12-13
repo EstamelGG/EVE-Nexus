@@ -223,8 +223,9 @@ struct AttributeItemView: View {
 // 属性组的显示组件
 struct AttributeGroupView: View {
     let group: AttributeGroup
-    let allAttributes: [Int: Double]  // 添加所有属性的字典
-    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
+    let allAttributes: [Int: Double]
+    let typeID: Int  // 添加typeID参数
+    @ObservedObject var databaseManager: DatabaseManager
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
@@ -263,7 +264,8 @@ struct AttributeGroupView: View {
 // 所有属性组的显示组件
 struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
-    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
+    let typeID: Int
+    @ObservedObject var databaseManager: DatabaseManager
     
     // 构建所有属性的字典
     private var allAttributes: [Int: Double] {
@@ -284,7 +286,43 @@ struct AttributesView: View {
     
     var body: some View {
         ForEach(sortedGroups) { group in
-            AttributeGroupView(group: group, allAttributes: allAttributes, databaseManager: databaseManager)
+            if group.id == 8 {
+                // 技能要求组
+                let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
+                if !directRequirements.isEmpty {
+                    Section(header: Text(group.name).font(.headline)) {
+                        ForEach(directRequirements, id: \.skillID) { requirement in
+                            // 获取该技能的所有前置技能
+                            let allRequirements = SkillTreeManager.shared.getAllRequirements(for: requirement.skillID)
+                            
+                            // 显示直接技能要求
+                            SkillRequirementRow(
+                                skillID: requirement.skillID,
+                                level: requirement.level,
+                                indentLevel: 0,
+                                databaseManager: databaseManager
+                            )
+                            
+                            // 显示前置技能要求
+                            ForEach(allRequirements, id: \.self) { prereq in
+                                SkillRequirementRow(
+                                    skillID: prereq.skillID,
+                                    level: prereq.level,
+                                    indentLevel: 1,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                AttributeGroupView(
+                    group: group,
+                    allAttributes: allAttributes,
+                    typeID: typeID,
+                    databaseManager: databaseManager
+                )
+            }
         }
     }
 } 
