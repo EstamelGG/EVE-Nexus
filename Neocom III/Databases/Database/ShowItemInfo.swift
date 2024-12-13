@@ -25,6 +25,7 @@ struct ShowItemInfo: View {
         if !roleBonuses.isEmpty && !typeBonuses.isEmpty {
             text += "\n\n"
         }
+        
         // Type Bonuses
         if !typeBonuses.isEmpty {
             let groupedBonuses = Dictionary(grouping: typeBonuses) { $0.skill }
@@ -47,6 +48,9 @@ struct ShowItemInfo: View {
                 }
             }
         }
+        
+        // 添加日志以验证文本格式
+        Logger.debug("Generated traits text: \(text)")
         
         return text.isEmpty ? "" : text
     }

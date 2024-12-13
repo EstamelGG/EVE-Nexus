@@ -74,6 +74,9 @@ private struct SheetItem: Identifiable {
 
 struct RichTextProcessor {
     static func processRichText(_ text: String) -> Text {
+        // 记录原始文本
+        Logger.debug("RichText processing - Original text:\n\(text)")
+        
         var currentText = text
         
         // 1. 处理换行标签
@@ -92,10 +95,26 @@ struct RichTextProcessor {
         currentText = currentText.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
         currentText = currentText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
         
-        // 4. 创建AttributedString
+        // 4. 统一链接格式：将带引号的href转换为不带引号的格式
+        currentText = currentText.replacingOccurrences(of: "href=\"", with: "href=")
+        currentText = currentText.replacingOccurrences(of: "href='", with: "href=")
+        // 移除href=后面的引号
+        if let regex = try? NSRegularExpression(pattern: "href=([^\"]*)\"", options: []) {
+            let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "href=$1")
+        }
+        if let regex = try? NSRegularExpression(pattern: "href=([^'])*'", options: []) {
+            let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "href=$1")
+        }
+        
+        // 记录基础清理后的文本
+        Logger.debug("RichText processing - After basic cleanup:\n\(currentText)")
+        
+        // 5. 创建AttributedString
         var attributedString = AttributedString(currentText)
         
-        // 5. 处理链接
+        // 6. 处理链接
         while let linkStart = currentText.range(of: "<a href="),
               let linkEnd = currentText.range(of: "</a>") {
             let linkText = currentText[linkStart.lowerBound..<linkEnd.upperBound]
@@ -117,6 +136,8 @@ struct RichTextProcessor {
                         attributedString.replaceSubrange(start..<end, with: AttributedString(displayText))
                         attributedString[start..<attributedString.index(start, offsetByCharacters: displayText.count)].foregroundColor = .blue
                         attributedString[start..<attributedString.index(start, offsetByCharacters: displayText.count)].link = URL(string: "showinfo://\(itemID)")
+                        
+                        Logger.debug("Processed showinfo link - ID: \(itemID), Text: \(displayText)")
                     }
                 }
             }
@@ -125,7 +146,10 @@ struct RichTextProcessor {
             currentText = String(currentText[linkEnd.upperBound...])
         }
         
-        // 6. 处理URL标签
+        // 记录处理链接后的文本
+        Logger.debug("RichText processing - After processing links:\n\(attributedString.characters)")
+        
+        // 7. 处理URL标签
         while let urlStart = currentText.range(of: "<url="),
               let urlEnd = currentText.range(of: "</url>") {
             let urlText = currentText[urlStart.lowerBound..<urlEnd.upperBound]
@@ -154,24 +178,45 @@ struct RichTextProcessor {
             currentText = String(currentText[urlEnd.upperBound...])
         }
         
-        // 7. 处理加粗文本
-        while let boldStart = currentText.range(of: "<b>"),
-              let boldEnd = currentText.range(of: "</b>") {
-            let boldText = currentText[boldStart.upperBound..<boldEnd.lowerBound]
-            let startIndex = attributedString.range(of: "<b>\(boldText)</b>")?.lowerBound
-            let endIndex = attributedString.range(of: "<b>\(boldText)</b>")?.upperBound
-            
-            if let start = startIndex, let end = endIndex {
-                attributedString.replaceSubrange(start..<end, with: AttributedString(String(boldText)))
-                var container = AttributeContainer()
-                container.font = .boldSystemFont(ofSize: UIFont.systemFontSize)
-                attributedString[start..<attributedString.index(start, offsetByCharacters: boldText.count)].setAttributes(container)
-            }
-            
-            currentText = String(currentText[boldEnd.upperBound...])
+        // 记录处理URL后的文本
+        Logger.debug("RichText processing - After processing URLs:\n\(attributedString.characters)")
+        
+        // 8. 处理加粗文本
+        var boldRanges: [(Range<String.Index>, String)] = []
+        var searchRange = currentText.startIndex..<currentText.endIndex
+        
+        while let boldStart = currentText.range(of: "<b>", range: searchRange),
+              let boldEnd = currentText.range(of: "</b>", range: boldStart.upperBound..<currentText.endIndex) {
+            let boldTextRange = boldStart.upperBound..<boldEnd.lowerBound
+            let boldText = String(currentText[boldTextRange])
+            let fullRange = boldStart.lowerBound..<boldEnd.upperBound
+            boldRanges.append((fullRange, boldText))
+            searchRange = boldEnd.upperBound..<currentText.endIndex
         }
         
-        // 8. 创建文本视图
+        // 记录找到的加粗文本范围
+        Logger.debug("RichText processing - Found \(boldRanges.count) bold ranges:")
+        for (_, boldText) in boldRanges {
+            Logger.debug("Bold text: \(boldText)")
+        }
+        
+        // 从后向前处理加粗文本，避免索引变化的问题
+        for (fullRange, boldText) in boldRanges.reversed() {
+            if let startIndex = attributedString.range(of: currentText[fullRange])?.lowerBound {
+                let endIndex = attributedString.index(startIndex, offsetByCharacters: "<b>".count + boldText.count + "</b>".count)
+                attributedString.replaceSubrange(startIndex..<endIndex, with: AttributedString(boldText))
+                
+                let boldEndIndex = attributedString.index(startIndex, offsetByCharacters: boldText.count)
+                var container = AttributeContainer()
+                container.font = .boldSystemFont(ofSize: UIFont.systemFontSize)
+                attributedString[startIndex..<boldEndIndex].setAttributes(container)
+            }
+        }
+        
+        // 记录最终处理后的文本
+        Logger.debug("RichText processing - Final processed text:\n\(attributedString.characters)")
+        
+        // 9. 创建文本视图
         return Text(attributedString)
     }
 }
