@@ -211,7 +211,8 @@ struct RichTextProcessor {
                 
                 let boldEndIndex = attributedString.index(attrStartIndex, offsetByCharacters: boldText.count)
                 var container = AttributeContainer()
-                container.font = .boldSystemFont(ofSize: UIFont.systemFontSize)
+                // 使用比系统字体大1.2倍的字号
+                container.font = .boldSystemFont(ofSize: UIFont.systemFontSize * 1.2)
                 attributedString[attrStartIndex..<boldEndIndex].setAttributes(container)
                 
                 Logger.debug("Applied bold style to: \(boldText)")
