@@ -4,11 +4,12 @@ import SwiftUI
 struct SkillDependencyListView: View {
     let skillID: Int
     let level: Int
+    let items: [(typeID: Int, name: String, iconFileName: String)]
     @ObservedObject var databaseManager: DatabaseManager
     
     var body: some View {
         List {
-            ForEach(databaseManager.getItemsRequiringSkill(skillID: skillID, level: level), id: \.typeID) { item in
+            ForEach(items, id: \.typeID) { item in
                 NavigationLink {
                     if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
                         ItemInfoMap.getItemInfoView(
@@ -48,31 +49,12 @@ struct SkillDependencySection: View {
                 ForEach(1...5, id: \.self) { level in
                     if let items = itemsByLevel[level], !items.isEmpty {
                         NavigationLink {
-                            List {
-                                ForEach(items, id: \.typeID) { item in
-                                    if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                                        NavigationLink {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: item.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        } label: {
-                                            HStack {
-                                                IconManager.shared.loadImage(for: item.iconFileName)
-                                                    .resizable()
-                                                    .frame(width: 32, height: 32)
-                                                    .cornerRadius(6)
-                                                
-                                                Text(item.name)
-                                                    .font(.body)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .listStyle(.insetGrouped)
-                            .navigationTitle(Text("Level \(level)"))
+                            SkillDependencyListView(
+                                skillID: skillID,
+                                level: level,
+                                items: items,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             Text("Level \(level)")
                         }

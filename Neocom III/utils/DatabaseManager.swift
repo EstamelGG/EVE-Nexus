@@ -1316,54 +1316,25 @@ class DatabaseManager: ObservableObject {
         return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
     }
     
-    // 获取需要特定技能的物品列表，按等级分组
-    func getItemsRequiringSkill(skillID: Int, level: Int) -> [(typeID: Int, name: String, iconFileName: String)] {
-        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
-            "(a1.attribute_id = \($0.skillID) AND a1.value = \(skillID) AND a2.attribute_id = \($0.levelID))"
-        }.joined(separator: " OR ")
-        
-        let query = """
-            SELECT DISTINCT t.type_id, t.name, t.icon_filename, a2.value as required_level
-            FROM typeAttributes a1
-            INNER JOIN typeAttributes a2 ON a1.type_id = a2.type_id
-            INNER JOIN types t ON a1.type_id = t.type_id
-            WHERE \(skillPairs)
-            AND a2.value = ?
-            ORDER BY t.name
-        """
-        
-        var items: [(typeID: Int, name: String, iconFileName: String)] = []
-        
-        if case .success(let rows) = executeQuery(query, parameters: [level]) {
-            for row in rows {
-                if let typeID = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
-                    items.append((
-                        typeID: typeID,
-                        name: name,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                    ))
-                }
-            }
-        }
-        
-        return items
-    }
-    
     // 获取所有需要特定技能的物品及其需求等级
     func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(typeID: Int, name: String, iconFileName: String)]] {
-        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
-            "(a1.attribute_id = \($0.skillID) AND a1.value = \(skillID) AND a2.attribute_id = \($0.levelID))"
-        }.joined(separator: " OR ")
-        
-        let query = """
+        // 使用 UNION ALL 替代 OR 条件，每个技能要求属性对单独查询
+        let subQueries = SkillTreeManager.shared.skillRequirementAttributes.map { attr -> String in
+            """
             SELECT DISTINCT t.type_id, t.name, t.icon_filename, a2.value as required_level
             FROM typeAttributes a1
-            INNER JOIN typeAttributes a2 ON a1.type_id = a2.type_id
+            INNER JOIN typeAttributes a2 
+                ON a1.type_id = a2.type_id 
+                AND a1.attribute_id = \(attr.skillID)
+                AND a1.value = \(skillID)
+                AND a2.attribute_id = \(attr.levelID)
             INNER JOIN types t ON a1.type_id = t.type_id
-            WHERE \(skillPairs)
-            ORDER BY a2.value, t.name
+            """
+        }
+        
+        let query = """
+            \(subQueries.joined(separator: "\nUNION ALL\n"))
+            ORDER BY required_level, name
         """
         
         var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String)]] = [:]
@@ -1385,7 +1356,10 @@ class DatabaseManager: ObservableObject {
                     if itemsByLevel[level] == nil {
                         itemsByLevel[level] = []
                     }
-                    itemsByLevel[level]?.append(item)
+                    // 避免重复添加相同的物品
+                    if !itemsByLevel[level]!.contains(where: { $0.typeID == typeID }) {
+                        itemsByLevel[level]?.append(item)
+                    }
                 }
             }
         }
