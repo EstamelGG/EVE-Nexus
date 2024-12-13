@@ -1058,7 +1058,7 @@ class DatabaseManager: ObservableObject {
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
                 FROM typeMaterials tm 
                 JOIN types t ON tm.typeid = t.type_id 
-                WHERE tm.output_material = ? AND tm.categoryid = 7
+                WHERE tm.output_material = ? AND tm.categoryid = 7 AND tm.output_material != 47975 AND tm.output_material != 48112 
                 ORDER BY output_per_unit DESC
             """
         } else if groupID == 423 { // 同位素，只看矿石来源
