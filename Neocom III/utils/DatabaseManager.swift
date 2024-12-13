@@ -1316,25 +1316,25 @@ class DatabaseManager: ObservableObject {
         return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
     }
     
-    // 获取需要特定技能和等级的物品列表
+    // 获取需要特定技能的物品列表，按等级分组
     func getItemsRequiringSkill(skillID: Int, level: Int) -> [(typeID: Int, name: String, iconFileName: String)] {
         let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
-            "(a1.attribute_id = \($0.skillID) AND a1.value = ? AND a2.attribute_id = \($0.levelID) AND a2.value = ?)"
+            "(a1.attribute_id = \($0.skillID) AND a1.value = \(skillID) AND a2.attribute_id = \($0.levelID))"
         }.joined(separator: " OR ")
         
         let query = """
-            SELECT DISTINCT t.type_id, t.name, t.icon_filename
+            SELECT DISTINCT t.type_id, t.name, t.icon_filename, a2.value as required_level
             FROM typeAttributes a1
             INNER JOIN typeAttributes a2 ON a1.type_id = a2.type_id
             INNER JOIN types t ON a1.type_id = t.type_id
             WHERE \(skillPairs)
+            AND a2.value = ?
             ORDER BY t.name
         """
         
         var items: [(typeID: Int, name: String, iconFileName: String)] = []
-        let parameters = Array(repeating: [skillID, level], count: SkillTreeManager.shared.skillRequirementAttributes.count).flatMap { $0 }
         
-        if case .success(let rows) = executeQuery(query, parameters: parameters) {
+        if case .success(let rows) = executeQuery(query, parameters: [level]) {
             for row in rows {
                 if let typeID = row["type_id"] as? Int,
                    let name = row["name"] as? String,
@@ -1349,5 +1349,47 @@ class DatabaseManager: ObservableObject {
         }
         
         return items
+    }
+    
+    // 获取所有需要特定技能的物品及其需求等级
+    func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(typeID: Int, name: String, iconFileName: String)]] {
+        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
+            "(a1.attribute_id = \($0.skillID) AND a1.value = \(skillID) AND a2.attribute_id = \($0.levelID))"
+        }.joined(separator: " OR ")
+        
+        let query = """
+            SELECT DISTINCT t.type_id, t.name, t.icon_filename, a2.value as required_level
+            FROM typeAttributes a1
+            INNER JOIN typeAttributes a2 ON a1.type_id = a2.type_id
+            INNER JOIN types t ON a1.type_id = t.type_id
+            WHERE \(skillPairs)
+            ORDER BY a2.value, t.name
+        """
+        
+        var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String)]] = [:]
+        
+        if case .success(let rows) = executeQuery(query) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String,
+                   let requiredLevel = row["required_level"] as? Double {
+                    
+                    let level = Int(requiredLevel)
+                    let item = (
+                        typeID: typeID,
+                        name: name,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    )
+                    
+                    if itemsByLevel[level] == nil {
+                        itemsByLevel[level] = []
+                    }
+                    itemsByLevel[level]?.append(item)
+                }
+            }
+        }
+        
+        return itemsByLevel
     }
 }
