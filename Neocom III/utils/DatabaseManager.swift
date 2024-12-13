@@ -313,14 +313,16 @@ class DatabaseManager: ObservableObject {
     }
     
     // 搜索物品
-    func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> ([DatabaseListItem], [Int: String]) {
+    func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> ([DatabaseListItem], [Int: String], [Int: String]) {
         var query = """
-            SELECT t.type_id, t.name, t.icon_filename, t.published, t.categoryID,
+            SELECT t.type_id, t.name, t.icon_filename, t.published, t.categoryID, t.groupID,
                    t.pg_need, t.cpu_need, t.rig_cost,
                    t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
                    t.high_slot, t.mid_slot, t.low_slot, t.rig_slot,
-                   t.gun_slot, t.miss_slot, t.metaGroupID
+                   t.gun_slot, t.miss_slot, t.metaGroupID,
+                   g.name as group_name
             FROM types t
+            LEFT JOIN groups g ON t.groupID = g.group_id
             WHERE t.name LIKE ?
         """
         
@@ -336,10 +338,11 @@ class DatabaseManager: ObservableObject {
             parameters.append(groupID)
         }
         
-        query += " ORDER BY t.name"
+        query += " ORDER BY t.groupID, t.name"
         
         let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []
+        var groupNames: [Int: String] = [:]
         
         if case .success(let rows) = result {
             for row in rows {
@@ -347,7 +350,13 @@ class DatabaseManager: ObservableObject {
                    let name = row["name"] as? String,
                    let iconFilename = row["icon_filename"] as? String,
                    let categoryId = row["categoryID"] as? Int,
+                   let groupId = row["groupID"] as? Int,
                    let isPublished = row["published"] as? Int {
+                    
+                    // 保存组名
+                    if let groupName = row["group_name"] as? String {
+                        groupNames[groupId] = groupName
+                    }
                     
                     items.append(DatabaseListItem(
                         id: id,
@@ -355,6 +364,7 @@ class DatabaseManager: ObservableObject {
                         iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                         published: isPublished != 0,
                         categoryID: categoryId,
+                        groupID: groupId,  // 添加 groupID
                         pgNeed: row["pg_need"] as? Int,
                         cpuNeed: row["cpu_need"] as? Int,
                         rigCost: row["rig_cost"] as? Int,
@@ -383,7 +393,7 @@ class DatabaseManager: ObservableObject {
         let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
         let metaGroupNames = loadMetaGroupNames(for: Array(metaGroupIDs))
         
-        return (items, metaGroupNames)
+        return (items, metaGroupNames, groupNames)
     }
     
     // 加载 MetaGroup 名称
@@ -1121,5 +1131,32 @@ class DatabaseManager: ObservableObject {
             Logger.error("Error getting source materials: \(error)")
             return nil
         }
+    }
+    
+    // 加载组名称
+    func loadGroupNames(for groupIDs: [Int]) -> [Int: String] {
+        let placeholders = String(repeating: "?,", count: groupIDs.count).dropLast()
+        let query = """
+            SELECT group_id, name
+            FROM groups
+            WHERE group_id IN (\(placeholders))
+        """
+        
+        let result = executeQuery(query, parameters: groupIDs)
+        var groupNames: [Int: String] = [:]
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                if let id = row["group_id"] as? Int,
+                   let name = row["name"] as? String {
+                    groupNames[id] = name
+                }
+            }
+        case .error(let error):
+            Logger.error("加载组名称失败: \(error)")
+        }
+        
+        return groupNames
     }
 }

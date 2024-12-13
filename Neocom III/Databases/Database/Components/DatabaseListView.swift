@@ -8,6 +8,7 @@ struct DatabaseListItem: Identifiable {
     let iconFileName: String
     let published: Bool
     let categoryID: Int?
+    let groupID: Int?
     let pgNeed: Int?
     let cpuNeed: Int?
     let rigCost: Int?
@@ -39,13 +40,14 @@ struct DatabaseListView: View {
     let title: String
     let groupingType: GroupingType
     let loadData: (DatabaseManager) -> ([DatabaseListItem], [Int: String])
-    let searchData: ((DatabaseManager, String) -> ([DatabaseListItem], [Int: String]))?
+    let searchData: ((DatabaseManager, String) -> ([DatabaseListItem], [Int: String], [Int: String]))?
     
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
+    @State private var groupNames: [Int: String] = [:]  // 添加组名字典
     @State private var searchText = ""
     @State private var isLoading = false
-    @State private var lastSearchResults: ([DatabaseListItem], [Int: String])? = nil
+    @State private var lastSearchResults: ([DatabaseListItem], [Int: String], [Int: String])? = nil
     @State private var isShowingSearchResults = false
     @State private var isSearchActive = false  // 新增：控制搜索框激活状态
     
@@ -196,6 +198,7 @@ struct DatabaseListView: View {
             if let lastResults = lastSearchResults {
                 items = lastResults.0
                 metaGroupNames = lastResults.1
+                groupNames = lastResults.2
             } else {
                 loadInitialData()
             }
@@ -229,7 +232,7 @@ struct DatabaseListView: View {
         
         // 在主线程中执行搜索
         DispatchQueue.main.async {
-            let (searchResults, searchMetaGroupNames) = searchData(databaseManager, text)
+            let (searchResults, searchMetaGroupNames, searchGroupNames) = searchData(databaseManager, text)
             
             // 更新 UI
             items = searchResults
@@ -242,8 +245,16 @@ struct DatabaseListView: View {
                 metaGroupNames = searchMetaGroupNames
             }
             
+            // 更新 groupNames
+            if searchGroupNames.isEmpty {
+                let groupIDs = Set(searchResults.compactMap { $0.groupID })
+                groupNames = databaseManager.loadGroupNames(for: Array(groupIDs))
+            } else {
+                groupNames = searchGroupNames
+            }
+            
             // 保存搜索结果
-            lastSearchResults = (searchResults, metaGroupNames)
+            lastSearchResults = (searchResults, metaGroupNames, groupNames)
             isShowingSearchResults = true  // 搜索结果标志
             
             isLoading = false  // 搜索完成，隐藏加载状态
@@ -255,11 +266,40 @@ struct DatabaseListView: View {
         let publishedItems = items.filter { $0.published }
         
         // 使用 isShowingSearchResults 而不是 searchText.isEmpty
-        if isShowingSearchResults || groupingType == .metaGroups {
+        if isShowingSearchResults {
+            return groupItemsByGroup(publishedItems)
+        } else if groupingType == .metaGroups {
             return groupItemsByMetaGroup(publishedItems)
         } else {
             return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
         }
+    }
+    
+    private func groupItemsByGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
+        var grouped: [Int: [DatabaseListItem]] = [:]
+        
+        for item in items {
+            let groupID = item.groupID ?? 0
+            if grouped[groupID] == nil {
+                grouped[groupID] = []
+            }
+            grouped[groupID]?.append(item)
+        }
+        
+        return grouped.sorted { $0.key < $1.key }
+            .map { (groupID, items) in
+                if groupID == 0 {
+                    return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
+                }
+                
+                if let groupName = groupNames[groupID] {
+                    return (id: groupID, name: groupName, items: items)
+                } else {
+                    Logger.warning("GroupID \(groupID) 没有对应的名称")
+                    return (id: groupID, name: "Group \(groupID)", items: items)
+                }
+            }
+            .filter { !$0.items.isEmpty }
     }
     
     private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {

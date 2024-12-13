@@ -159,6 +159,7 @@ extension DatabaseManager {
                     iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                     published: isPublished,
                     categoryID: categoryId,
+                    groupID: nil,
                     pgNeed: row["pg_need"] as? Int,
                     cpuNeed: row["cpu_need"] as? Int,
                     rigCost: row["rig_cost"] as? Int,
