@@ -285,12 +285,12 @@ class DatabaseManager: ObservableObject {
                   let categoryName = row["category_name"] as? String else {
                 return nil
             }
-            
+            // Logger.debug("\(row)")
             let groupID = row["groupID"] as? Int
-            let volume = row["volume"] as? Int
-            let capacity = row["capacity"] as? Int
-            let mass = row["mass"] as? Int
-            
+            let volume = row["volume"] as? Double
+            let capacity = row["capacity"] as? Double
+            let mass = row["mass"] as? Double
+            // Logger.debug("\(volume),\(capacity),\(mass)")
             return ItemDetails(
                 name: name,
                 description: description,
@@ -949,9 +949,9 @@ class DatabaseManager: ObservableObject {
            let categoryName = row["category_name"] as? String {
             
             let groupID = row["groupID"] as? Int
-            let volume = row["volume"] as? Int
-            let capacity = row["capacity"] as? Int
-            let mass = row["mass"] as? Int
+            let volume = row["volume"] as? Double
+            let capacity = row["capacity"] as? Double
+            let mass = row["mass"] as? Double
             
             return ItemDetails(
                 name: name,

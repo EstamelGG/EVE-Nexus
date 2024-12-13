@@ -109,13 +109,13 @@ public struct ItemDetails {
     public let typeBonuses: [Trait]?
     public let typeId: Int
     public let groupID: Int?
-    public let volume: Int?
-    public let capacity: Int?
-    public let mass: Int?
+    public let volume: Double?
+    public let capacity: Double?
+    public let mass: Double?
     
     public init(name: String, description: String, iconFileName: String, groupName: String, 
                categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [], 
-               typeId: Int, groupID: Int?, volume: Int? = nil, capacity: Int? = nil, mass: Int? = nil) {
+               typeId: Int, groupID: Int?, volume: Double? = nil, capacity: Double? = nil, mass: Double? = nil) {
         self.name = name
         self.description = description
         self.iconFileName = iconFileName
