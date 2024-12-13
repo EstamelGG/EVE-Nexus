@@ -60,53 +60,6 @@ struct ShowItemInfo: View {
             if let itemDetails = itemDetails {
                 ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
                 
-                // 基础属性 Section
-                if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
-                    Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
-                        if let volume = itemDetails.volume {
-                            HStack {
-                                IconManager.shared.loadImage(for: "items_2_64_9.png")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Item_Volume", comment: ""))
-                                Spacer()
-                                Text("\(NumberFormatUtil.format(Double(volume))) m3")
-                                    .foregroundColor(.secondary)
-                                    .frame(alignment: .trailing)
-                            }
-                        }
-                        
-                        if let capacity = itemDetails.capacity {
-                            HStack {
-                                IconManager.shared.loadImage(for: "items_3_64_13.png")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Item_Capacity", comment: ""))
-                                Spacer()
-                                Text("\(NumberFormatUtil.format(Double(capacity))) m3")
-                                    .foregroundColor(.secondary)
-                                    .frame(alignment: .trailing)
-                            }
-                        }
-                        
-                        if let mass = itemDetails.mass {
-                            HStack {
-                                IconManager.shared.loadImage(for: "items_2_64_10.png")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Item_Mass", comment: ""))
-                                Spacer()
-                                Text("\(NumberFormatUtil.format(Double(mass))) Kg")
-                                    .foregroundColor(.secondary)
-                                    .frame(alignment: .trailing)
-                            }
-                        }
-                    }
-                }
-                
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
                 if variationsCount > 1 {

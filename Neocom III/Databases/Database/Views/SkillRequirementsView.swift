@@ -4,31 +4,49 @@ struct SkillRequirementsView: View {
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
     
+    // 去重并保留最高等级的技能要求
+    private func deduplicateSkillRequirements(_ requirements: [(skillID: Int, level: Int)], _ prerequisites: [SkillRequirement]) -> [(skillID: Int, level: Int)] {
+        var highestLevels: [Int: Int] = [:]
+        
+        // 处理直接要求
+        for requirement in requirements {
+            highestLevels[requirement.skillID] = requirement.level
+        }
+        
+        // 处理前置要求
+        for prereq in prerequisites {
+            if let existingLevel = highestLevels[prereq.skillID] {
+                highestLevels[prereq.skillID] = max(existingLevel, prereq.level)
+            } else {
+                highestLevels[prereq.skillID] = prereq.level
+            }
+        }
+        
+        // 转换回数组并按等级排序
+        return highestLevels.map { (skillID: $0.key, level: $0.value) }
+            .sorted { $0.level > $1.level }
+    }
+    
     var body: some View {
         let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
         if !directRequirements.isEmpty {
             Section(header: Text(NSLocalizedString("Main_Database_Skill_Requirements", comment: ""))) {
-                ForEach(directRequirements, id: \.skillID) { requirement in
-                    // 获取该技能的所有前置技能
-                    let allRequirements = SkillTreeManager.shared.getAllRequirements(for: requirement.skillID)
-                    
-                    // 显示直接技能要求
+                // 收集所有前置技能
+                let allPrerequisites = directRequirements.flatMap { requirement in
+                    SkillTreeManager.shared.getAllRequirements(for: requirement.skillID)
+                }
+                
+                // 对所有技能要求进行去重
+                let deduplicatedRequirements = deduplicateSkillRequirements(directRequirements, allPrerequisites)
+                
+                // 显示所有技能要求
+                ForEach(deduplicatedRequirements, id: \.skillID) { requirement in
                     SkillRequirementRow(
                         skillID: requirement.skillID,
                         level: requirement.level,
                         indentLevel: 0,
                         databaseManager: databaseManager
                     )
-                    
-                    // 显示前置技能要求
-                    ForEach(allRequirements, id: \.self) { prereq in
-                        SkillRequirementRow(
-                            skillID: prereq.skillID,
-                            level: prereq.level,
-                            indentLevel: 1,
-                            databaseManager: databaseManager
-                        )
-                    }
                 }
             }
         }
