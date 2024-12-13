@@ -190,29 +190,6 @@ struct AttributeDisplayConfig {
         127: { value in (value) * 100 }, // 百分比转换
     ]
     
-    // 时间格式化辅助函数
-    private static func formatTimeValue(_ seconds: Double) -> String {
-        if seconds < 100 {
-            return NumberFormatUtil.format(seconds) + " s"
-        }
-        
-        let hours = Int(seconds) / 3600
-        let minutes = (Int(seconds) % 3600) / 60
-        let remainingSeconds = Int(seconds) % 60
-        
-        var result = ""
-        if hours > 0 {
-            result += "\(hours)h "
-        }
-        if minutes > 0 {
-            result += "\(minutes)m "
-        }
-        if remainingSeconds > 0 || (hours == 0 && minutes == 0) {
-            result += "\(remainingSeconds)s"
-        }
-        return result
-    }
-    
     // 基于 unitID 的值格式化规则
     private static let unitFormatRules: [Int: (Double, String?) -> String] = [
         109: { value, unit in
@@ -220,11 +197,11 @@ struct AttributeDisplayConfig {
             return diff > 0 ? "+\(NumberFormatUtil.format(diff * 100))%" : "\(NumberFormatUtil.format(diff * 100))%"
         },
         3: { value, _ in
-            return formatTimeValue(value)
+            return formatTime(Int(value))
         },
         101: { value, _ in
             let seconds = value / 1000
-            return formatTimeValue(seconds)
+            return formatTime(Int(seconds))
         }
     ]
     
