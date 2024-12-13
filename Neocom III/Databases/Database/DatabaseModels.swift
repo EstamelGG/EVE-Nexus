@@ -83,18 +83,28 @@ public struct DatabaseItem: Identifiable {
     }
 }
 
-// Trait模型
+// Trait 相关模型
 public struct Trait {
     public let content: String
     public let importance: Int
-    public let bonusType: String
     public let skill: Int?
+    public let bonusType: String
     
-    public init(content: String, importance: Int, bonusType: String, skill: Int?) {
+    public init(content: String, importance: Int, skill: Int? = nil, bonusType: String = "") {
         self.content = content
         self.importance = importance
-        self.bonusType = bonusType
         self.skill = skill
+        self.bonusType = bonusType
+    }
+}
+
+public struct TraitGroup {
+    public let roleBonuses: [Trait]
+    public let typeBonuses: [Trait]
+    
+    public init(roleBonuses: [Trait], typeBonuses: [Trait]) {
+        self.roleBonuses = roleBonuses
+        self.typeBonuses = typeBonuses
     }
 }
 

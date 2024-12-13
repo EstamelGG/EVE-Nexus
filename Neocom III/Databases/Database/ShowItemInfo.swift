@@ -8,6 +8,8 @@ struct ShowItemInfo: View {
     
     @State private var itemDetails: ItemDetails?
     @State private var attributeGroups: [AttributeGroup] = []
+    @State private var roleBonuses: [Trait] = []
+    @State private var typeBonuses: [Trait] = []
     
     private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
         var text = ""
@@ -54,6 +56,53 @@ struct ShowItemInfo: View {
         List {
             if let itemDetails = itemDetails {
                 ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
+                
+                // 基础属性 Section
+                if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
+                    Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
+                        if let volume = itemDetails.volume {
+                            HStack {
+                                IconManager.shared.loadImage(for: "items_2_64_9.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(NSLocalizedString("Item_Volume", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(volume))) m3")
+                                    .foregroundColor(.secondary)
+                                    .frame(alignment: .trailing)
+                            }
+                        }
+                        
+                        if let capacity = itemDetails.capacity {
+                            HStack {
+                                IconManager.shared.loadImage(for: "items_3_64_13.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(NSLocalizedString("Item_Capacity", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(capacity))) m3")
+                                    .foregroundColor(.secondary)
+                                    .frame(alignment: .trailing)
+                            }
+                        }
+                        
+                        if let mass = itemDetails.mass {
+                            HStack {
+                                IconManager.shared.loadImage(for: "items_2_64_10.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(NSLocalizedString("Item_Mass", comment: ""))
+                                Spacer()
+                                Text("\(NumberFormatUtil.format(Double(mass))) Kg")
+                                    .foregroundColor(.secondary)
+                                    .frame(alignment: .trailing)
+                            }
+                        }
+                    }
+                }
                 
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
@@ -213,7 +262,26 @@ struct ShowItemInfo: View {
     // 加载 item 详细信息
     private func loadItemDetails(for itemID: Int) {
         if let itemDetail = databaseManager.loadItemDetails(for: itemID) {
-            itemDetails = itemDetail
+            // 加载 traits
+            if let traitGroup = databaseManager.getTraits(for: itemID) {
+                let details = ItemDetails(
+                    name: itemDetail.name,
+                    description: itemDetail.description,
+                    iconFileName: itemDetail.iconFileName,
+                    groupName: itemDetail.groupName,
+                    categoryName: itemDetail.categoryName,
+                    roleBonuses: traitGroup.roleBonuses,
+                    typeBonuses: traitGroup.typeBonuses,
+                    typeId: itemDetail.typeId,
+                    groupID: itemDetail.groupID,
+                    volume: itemDetail.volume,
+                    capacity: itemDetail.capacity,
+                    mass: itemDetail.mass
+                )
+                itemDetails = details
+            } else {
+                itemDetails = itemDetail
+            }
         } else {
             Logger.error("Item details not found for ID: \(itemID)")
         }

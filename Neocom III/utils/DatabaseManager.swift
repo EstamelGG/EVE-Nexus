@@ -1247,58 +1247,54 @@ class DatabaseManager: ObservableObject {
     }
     
     func getTraits(for typeID: Int) -> TraitGroup? {
-        guard let db = self.db else { return nil }
+        let roleQuery = """
+            SELECT importance, content
+            FROM traits
+            WHERE typeid = ? AND bonus_type = 'roleBonuses'
+            ORDER BY importance
+        """
+        
+        let typeQuery = """
+            SELECT importance, content, skill
+            FROM traits
+            WHERE typeid = ? AND bonus_type = 'typeBonuses'
+            ORDER BY skill, importance
+        """
         
         var roleBonuses: [Trait] = []
         var typeBonuses: [Trait] = []
         
-        do {
-            // 获取Role Bonuses
-            let roleQuery = """
-                SELECT bonus_text, importance
-                FROM type_traits 
-                WHERE type_id = ? AND skill_id IS NULL
-                ORDER BY importance
-            """
-            
-            let roleResults = try db.prepare(roleQuery, [typeID])
-            for row in roleResults {
-                if let bonusText = row[0] as? String {
-                    let importance = row[1] as? Int ?? 0
+        // 获取 Role Bonuses
+        if case .success(let rows) = executeQuery(roleQuery, parameters: [typeID]) {
+            for row in rows {
+                if let importance = row["importance"] as? Int,
+                   let content = row["content"] as? String {
                     roleBonuses.append(Trait(
-                        content: bonusText,
+                        content: content,
                         importance: importance,
-                        skill: nil
+                        skill: nil,
+                        bonusType: "roleBonuses"
                     ))
                 }
             }
-            
-            // 获取Type Bonuses
-            let typeQuery = """
-                SELECT bonus_text, importance, skill_id
-                FROM type_traits 
-                WHERE type_id = ? AND skill_id IS NOT NULL
-                ORDER BY skill_id, importance
-            """
-            
-            let typeResults = try db.prepare(typeQuery, [typeID])
-            for row in typeResults {
-                if let bonusText = row[0] as? String,
-                   let skillID = row[2] as? Int {
-                    let importance = row[1] as? Int ?? 0
-                    typeBonuses.append(Trait(
-                        content: bonusText,
-                        importance: importance,
-                        skill: skillID
-                    ))
-                }
-            }
-            
-            return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
-            
-        } catch {
-            Logger.error("Error fetching traits for typeID \(typeID): \(error)")
-            return nil
         }
+        
+        // 获取 Type Bonuses
+        if case .success(let rows) = executeQuery(typeQuery, parameters: [typeID]) {
+            for row in rows {
+                if let importance = row["importance"] as? Int,
+                   let content = row["content"] as? String,
+                   let skill = row["skill"] as? Int {
+                    typeBonuses.append(Trait(
+                        content: content,
+                        importance: importance,
+                        skill: skill,
+                        bonusType: "typeBonuses"
+                    ))
+                }
+            }
+        }
+        
+        return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
     }
 }

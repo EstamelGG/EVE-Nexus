@@ -33,6 +33,8 @@
 "Main_Database_Item_info_NonImmune" = "不免疫";
 "Main_Database_Item_info_Reprocess" = "精炼产出";
 "Main_Database_Source" = "精炼来源";
+"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Bonuses_Per_Level" = "每级技能加成";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";
