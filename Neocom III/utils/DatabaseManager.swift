@@ -16,6 +16,10 @@ class DatabaseManager: ObservableObject {
         
         // 使用 SQLiteManager 打开数据库
         if sqliteManager.openDatabase(withName: databaseName) {
+            // 初始化技能树
+            SkillTreeManager.shared.initialize(databaseManager: self)
+            Logger.info("技能树初始化完成")
+            
             self.databaseUpdated.toggle()
         }
     }
