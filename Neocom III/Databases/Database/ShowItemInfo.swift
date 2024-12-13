@@ -33,9 +33,10 @@ struct ShowItemInfo: View {
                 // Industry Section
                 let materials = databaseManager.getTypeMaterials(for: itemID)
                 let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
+                let groups_should_show_source = [18, 1996, 423, 427]
                 // 只针对矿物、突变残渣、化学元素、同位素等产物展示精炼来源
                 let sourceMaterials: [(typeID: Int, name: String, iconFileName: String, outputQuantityPerUnit: Double)]? = if let groupID = itemDetails.groupID {
-                    ([18, 1996, 423, 427].contains(groupID)) ? databaseManager.getSourceMaterials(for: itemID, groupID: groupID) : nil
+                    (groups_should_show_source.contains(groupID)) ? databaseManager.getSourceMaterials(for: itemID, groupID: groupID) : nil
                 } else {
                     nil
                 }
