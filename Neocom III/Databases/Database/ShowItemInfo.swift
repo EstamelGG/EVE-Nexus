@@ -16,13 +16,13 @@ struct ShowItemInfo: View {
                 
                 // 基础属性 Section
                 if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
-                    Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: ""))) {
+                    Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
                         if let volume = itemDetails.volume {
                             HStack {
                                 Text(NSLocalizedString("Item_Volume", comment: ""))
                                 Spacer()
                                 Text("\(NumberFormatUtil.format(Double(volume))) m3")
-                                    .font(.headline)
+                                    .foregroundColor(.secondary)
                             }
                         }
                         
