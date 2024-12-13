@@ -263,11 +263,13 @@ class DatabaseManager: ObservableObject {
     
     // 加载物品详情
     func loadItemDetails(for itemID: Int) -> ItemDetails? {
-        // 1. 加载基本信息
         let query = """
-            SELECT name, description, icon_filename, group_name, category_name
-            FROM types
-            WHERE type_id = ?
+            SELECT t.name, t.description, t.icon_filename, t.groupID,
+                   g.name as group_name, c.name as category_name
+            FROM types t
+            LEFT JOIN groups g ON t.groupID = g.group_id
+            LEFT JOIN categories c ON g.categoryID = c.category_id
+            WHERE t.type_id = ?
         """
         
         let result = executeQuery(query, parameters: [itemID])
@@ -283,39 +285,7 @@ class DatabaseManager: ObservableObject {
                 return nil
             }
             
-            // 2. 加载 traits
-            let traitsQuery = """
-                SELECT importance, bonus_type, content, skill
-                FROM traits
-                WHERE typeid = ?
-                ORDER BY bonus_type, skill, importance
-            """
-            
-            let traitsResult = executeQuery(traitsQuery, parameters: [itemID])
-            var roleBonuses: [Trait] = []
-            var typeBonuses: [Trait] = []
-            
-            if case .success(let traitRows) = traitsResult {
-                for traitRow in traitRows {
-                    guard let importance = traitRow["importance"] as? Int,
-                          let bonusType = traitRow["bonus_type"] as? String,
-                          let content = traitRow["content"] as? String else {
-                        continue
-                    }
-                    
-                    let skill = traitRow["skill"] as? Int
-                    let trait = Trait(content: content,
-                                    importance: importance,
-                                    bonusType: bonusType,
-                                    skill: skill)
-                    
-                    if bonusType == "roleBonuses" {
-                        roleBonuses.append(trait)
-                    } else if bonusType == "typeBonuses" {
-                        typeBonuses.append(trait)
-                    }
-                }
-            }
+            let groupID = row["groupID"] as? Int
             
             return ItemDetails(
                 name: name,
@@ -323,13 +293,14 @@ class DatabaseManager: ObservableObject {
                 iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                 groupName: groupName,
                 categoryName: categoryName,
-                roleBonuses: roleBonuses,
-                typeBonuses: typeBonuses,
-                typeId: itemID
+                roleBonuses: nil,  // 这些值会在其他地方设置
+                typeBonuses: nil,
+                typeId: itemID,
+                groupID: groupID
             )
             
         case .error(let error):
-            Logger.error("加载物品详情失败: \(error)")
+            Logger.error("Error loading item details: \(error)")
             return nil
         }
     }
@@ -951,8 +922,8 @@ class DatabaseManager: ObservableObject {
     // 获取物品详情
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
-            SELECT t.name, t.description, t.icon_filename,
-                   g.name as groupName, c.name as categoryName
+            SELECT t.name, t.description, t.icon_filename, t.groupID,
+                   g.name as group_name, c.name as category_name
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
             LEFT JOIN categories c ON g.categoryID = c.category_id
@@ -969,13 +940,18 @@ class DatabaseManager: ObservableObject {
            let groupName = row["groupName"] as? String,
            let categoryName = row["categoryName"] as? String {
             
+            let groupID = row["groupID"] as? Int
+            
             return ItemDetails(
                 name: name,
                 description: description,
                 iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
                 groupName: groupName,
                 categoryName: categoryName,
-                typeId: typeID
+                roleBonuses: nil,
+                typeBonuses: nil,
+                typeId: typeID,
+                groupID: groupID
             )
         }
         return nil
@@ -1062,5 +1038,50 @@ class DatabaseManager: ObservableObject {
         }
         
         return sources
+    }
+    
+    // 获取可以精炼/回收得到指定物品的源物品列表
+    func getSourceMaterials(for itemID: Int, groupID: Int) -> [(typeID: Int, name: String, iconFileName: String)]? {
+        let query: String
+        if groupID == 18 {
+            query = """
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                FROM typeMaterials tm 
+                JOIN types t ON tm.typeid = t.type_id 
+                WHERE tm.output_material = ? AND tm.categoryid = 25
+            """
+        } else if groupID == 1996 {
+            query = """
+                SELECT DISTINCT t.type_id, t.name, t.icon_filename 
+                FROM typeMaterials tm 
+                JOIN types t ON tm.typeid = t.type_id 
+                WHERE tm.output_material = ? AND tm.categoryid = 7
+            """
+        } else {
+            return nil
+        }
+        
+        let result = executeQuery(query, parameters: [itemID])
+        var materials: [(typeID: Int, name: String, iconFileName: String)] = []
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                if let typeID = row["typeid"] as? Int,
+                   let name = row["typename"] as? String,
+                   let icon = row["icon"] as? String {
+                    materials.append((
+                        typeID: typeID,
+                        name: name,
+                        iconFileName: icon.isEmpty ? DatabaseConfig.defaultItemIcon : icon
+                    ))
+                }
+            }
+            return materials.isEmpty ? nil : materials
+            
+        case .error(let error):
+            Logger.error("Error getting source materials: \(error)")
+            return nil
+        }
     }
 }

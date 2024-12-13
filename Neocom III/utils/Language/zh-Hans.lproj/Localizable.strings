@@ -33,6 +33,8 @@
 "Main_Database_Item_info_NonImmune" = "不免疫";
 "Main_Database_Item_info_Reprocess" = "回收";
 "Main_Database_Item_info_Reprocess_Materials" = "回收材料";
+"Main_Database_Source" = "来源";
+"Main_Database_Item_info_Source" = "可获得该物品的来源";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

@@ -33,7 +33,13 @@ struct ShowItemInfo: View {
                 // Industry Section
                 let materials = databaseManager.getTypeMaterials(for: itemID)
                 let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
-                if materials != nil || blueprintID != nil {
+                let sourceMaterials: [(typeID: Int, name: String, iconFileName: String)]? = if let groupID = itemDetails.groupID {
+                    (groupID == 18 || groupID == 1996) ? databaseManager.getSourceMaterials(for: itemID, groupID: groupID) : nil
+                } else {
+                    nil
+                }
+                
+                if materials != nil || blueprintID != nil || sourceMaterials != nil {
                     Section(header: Text("Industry").font(.headline)) {
                         // 蓝图按钮
                         if let blueprintID = blueprintID,
@@ -90,6 +96,45 @@ struct ShowItemInfo: View {
                                     Text("\(NSLocalizedString("Main_Database_Item_info_Reprocess", comment: ""))(\(NSLocalizedString("Misc_per", comment: "")) \(materials[0].process_size) \(NSLocalizedString("Misc_unit", comment: "")))")
                                     Spacer()
                                     Text("\(materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        
+                        // 源物品下拉列表
+                        if let sourceMaterials = sourceMaterials, !sourceMaterials.isEmpty {
+                            DisclosureGroup {
+                                ForEach(sourceMaterials, id: \.typeID) { material in
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: material.iconFileName)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(material.name)
+                                                .font(.body)
+                                            
+                                            Spacer()
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.left.circle")
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                    Text(NSLocalizedString("Main_Database_Item_info_Source", comment: ""))
+                                    Spacer()
+                                    Text("\(sourceMaterials.count)\(NSLocalizedString("Misc_number_types", comment: ""))")
                                         .foregroundColor(.secondary)
                                 }
                             }
