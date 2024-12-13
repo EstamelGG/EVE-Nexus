@@ -927,12 +927,11 @@ class DatabaseManager: ObservableObject {
         return nil
     }
     
-    // 获取物品的categoryID
+    // 获取物品的分类ID
     func getCategoryID(for typeID: Int) -> Int? {
         let query = "SELECT categoryID FROM types WHERE type_id = ?"
-        let result = executeQuery(query, parameters: [typeID])
         
-        if case .success(let rows) = result,
+        if case .success(let rows) = executeQuery(query, parameters: [typeID]),
            let row = rows.first,
            let categoryID = row["categoryID"] as? Int {
             return categoryID
@@ -1162,5 +1161,54 @@ class DatabaseManager: ObservableObject {
         }
         
         return groupNames
+    }
+    
+    // 获取物品的直接技能要求
+    func getDirectSkillRequirements(for typeID: Int) -> [(skillID: Int, level: Int)] {
+        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
+            "(ta1.attribute_id = \($0.skillID) AND ta2.attribute_id = \($0.levelID))"
+        }.joined(separator: " OR ")
+        
+        let query = """
+            SELECT ta1.attribute_id as skill_attr_id,
+                   ta1.value as required_skill_id,
+                   ta2.value as required_level
+            FROM typeAttributes ta1
+            JOIN typeAttributes ta2 
+            ON ta1.type_id = ta2.type_id
+            WHERE ta1.type_id = ?
+            AND (\(skillPairs))
+            ORDER BY ta1.attribute_id
+        """
+        
+        var requirements: [(skillID: Int, level: Int)] = []
+        
+        if case .success(let rows) = executeQuery(query, parameters: [typeID]) {
+            for row in rows {
+                guard let requiredSkillID = row["required_skill_id"] as? Double,
+                      let requiredLevel = row["required_level"] as? Double else {
+                    continue
+                }
+                
+                requirements.append((
+                    skillID: Int(requiredSkillID),
+                    level: Int(requiredLevel)
+                ))
+            }
+        }
+        
+        return requirements
+    }
+    
+    // 获取物品的图标文件名
+    func getItemIconFileName(for typeID: Int) -> String? {
+        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+        
+        if case .success(let rows) = executeQuery(query, parameters: [typeID]),
+           let row = rows.first,
+           let iconFileName = row["icon_filename"] as? String {
+            return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+        }
+        return DatabaseConfig.defaultItemIcon
     }
 }

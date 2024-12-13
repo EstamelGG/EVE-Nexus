@@ -31,7 +31,7 @@ class SkillTreeManager {
     private var directRequirements: [Int: [(skillID: Int, level: Int)]] = [:]
     
     // 技能要求的属性ID对应关系
-    private let skillRequirementAttributes: [(skillID: Int, levelID: Int)] = [
+    internal let skillRequirementAttributes: [(skillID: Int, levelID: Int)] = [
         (skillID: 182, levelID: 277),   // 主技能
         (skillID: 183, levelID: 278),   // 副技能
         (skillID: 184, levelID: 279),   // 三级技能
