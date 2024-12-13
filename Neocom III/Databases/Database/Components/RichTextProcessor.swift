@@ -113,11 +113,12 @@ struct RichTextProcessor {
         
         // 5. 创建AttributedString
         var attributedString = AttributedString(currentText)
+        var processedText = currentText
         
         // 6. 处理链接
-        while let linkStart = currentText.range(of: "<a href="),
-              let linkEnd = currentText.range(of: "</a>") {
-            let linkText = currentText[linkStart.lowerBound..<linkEnd.upperBound]
+        while let linkStart = processedText.range(of: "<a href="),
+              let linkEnd = processedText.range(of: "</a>") {
+            let linkText = processedText[linkStart.lowerBound..<linkEnd.upperBound]
             
             if let textStart = linkText.range(of: ">")?.upperBound,
                let textEnd = linkText.range(of: "</a>")?.lowerBound {
@@ -143,16 +144,17 @@ struct RichTextProcessor {
             }
             
             // 更新剩余文本
-            currentText = String(currentText[linkEnd.upperBound...])
+            processedText = String(processedText[linkEnd.upperBound...])
         }
         
         // 记录处理链接后的文本
         Logger.debug("RichText processing - After processing links:\n\(attributedString.characters)")
         
         // 7. 处理URL标签
-        while let urlStart = currentText.range(of: "<url="),
-              let urlEnd = currentText.range(of: "</url>") {
-            let urlText = currentText[urlStart.lowerBound..<urlEnd.upperBound]
+        processedText = currentText
+        while let urlStart = processedText.range(of: "<url="),
+              let urlEnd = processedText.range(of: "</url>") {
+            let urlText = processedText[urlStart.lowerBound..<urlEnd.upperBound]
             
             if let urlValueStart = urlText.range(of: "=")?.upperBound,
                let urlValueEnd = urlText.range(of: ">")?.lowerBound,
@@ -175,13 +177,14 @@ struct RichTextProcessor {
             }
             
             // 更新剩余文本
-            currentText = String(currentText[urlEnd.upperBound...])
+            processedText = String(processedText[urlEnd.upperBound...])
         }
         
         // 记录处理URL后的文本
         Logger.debug("RichText processing - After processing URLs:\n\(attributedString.characters)")
         
         // 8. 处理加粗文本
+        // 首先找出所有的加粗标签对
         var boldRanges: [(Range<String.Index>, String)] = []
         var searchRange = currentText.startIndex..<currentText.endIndex
         
@@ -194,22 +197,24 @@ struct RichTextProcessor {
             searchRange = boldEnd.upperBound..<currentText.endIndex
         }
         
-        // 记录找到的加粗文本范围
+        // 记录找到的加粗文本
         Logger.debug("RichText processing - Found \(boldRanges.count) bold ranges:")
-        for (_, boldText) in boldRanges {
-            Logger.debug("Bold text: \(boldText)")
+        for (_, text) in boldRanges {
+            Logger.debug("Bold text: \(text)")
         }
         
-        // 从后向前处理加粗文本，避免索引变化的问题
+        // 从后向前处理每个加粗标签对
         for (fullRange, boldText) in boldRanges.reversed() {
-            if let startIndex = attributedString.range(of: currentText[fullRange])?.lowerBound {
-                let endIndex = attributedString.index(startIndex, offsetByCharacters: "<b>".count + boldText.count + "</b>".count)
-                attributedString.replaceSubrange(startIndex..<endIndex, with: AttributedString(boldText))
+            if let attrStartIndex = attributedString.range(of: String(currentText[fullRange]))?.lowerBound {
+                let attrEndIndex = attributedString.index(attrStartIndex, offsetByCharacters: "<b>".count + boldText.count + "</b>".count)
+                attributedString.replaceSubrange(attrStartIndex..<attrEndIndex, with: AttributedString(boldText))
                 
-                let boldEndIndex = attributedString.index(startIndex, offsetByCharacters: boldText.count)
+                let boldEndIndex = attributedString.index(attrStartIndex, offsetByCharacters: boldText.count)
                 var container = AttributeContainer()
                 container.font = .boldSystemFont(ofSize: UIFont.systemFontSize)
-                attributedString[startIndex..<boldEndIndex].setAttributes(container)
+                attributedString[attrStartIndex..<boldEndIndex].setAttributes(container)
+                
+                Logger.debug("Applied bold style to: \(boldText)")
             }
         }
         
