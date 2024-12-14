@@ -1334,27 +1334,31 @@ class DatabaseManager: ObservableObject {
     }
     
     // 获取所有需要特定技能的物品及其需求等级
-    func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(typeID: Int, name: String, iconFileName: String)]] {
+    func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)]] {
         let query = """
-            SELECT DISTINCT typeid, typename, typeicon, required_skill_level
+            SELECT DISTINCT typeid, typename, typeicon, required_skill_level, categoryID, category_name
             FROM typeSkillRequirement
             WHERE required_skill_id = ?
-            ORDER BY typeid
+            ORDER BY required_skill_level, typename
         """
         
-        var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String)]] = [:]
+        var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)]] = [:]
         
         if case .success(let rows) = executeQuery(query, parameters: [skillID]) {
             for row in rows {
                 if let typeID = row["typeid"] as? Int,
                    let name = row["typename"] as? String,
                    let iconFileName = row["typeicon"] as? String,
-                   let level = row["required_skill_level"] as? Int {
+                   let level = row["required_skill_level"] as? Int,
+                   let categoryID = row["categoryID"] as? Int,
+                   let categoryName = row["category_name"] as? String {
                     
                     let item = (
                         typeID: typeID,
                         name: name,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
+                        categoryID: categoryID,
+                        categoryName: categoryName
                     )
                     
                     if itemsByLevel[level] == nil {
@@ -1369,5 +1373,22 @@ class DatabaseManager: ObservableObject {
         }
         
         return itemsByLevel
+    }
+    
+    // 获取分类名称
+    func getCategoryName(for categoryID: Int) -> String? {
+        let query = """
+            SELECT DISTINCT categoryname
+            FROM typeSkillRequirement
+            WHERE categoryid = ?
+            LIMIT 1
+        """
+        
+        if case .success(let rows) = executeQuery(query, parameters: [categoryID]),
+           let row = rows.first,
+           let categoryName = row["categoryname"] as? String {
+            return categoryName
+        }
+        return nil
     }
 }

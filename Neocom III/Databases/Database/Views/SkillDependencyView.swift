@@ -4,34 +4,32 @@ import SwiftUI
 struct SkillDependencyListView: View {
     let skillID: Int
     let level: Int
-    let items: [(typeID: Int, name: String, iconFileName: String)]
+    let items: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)]
     @ObservedObject var databaseManager: DatabaseManager
     
-    // 按组分类的物品
-    private var itemsByGroup: [(groupName: String, items: [(typeID: Int, name: String, iconFileName: String)])] {
+    // 按分类分组的物品
+    private var itemsByCategory: [(categoryName: String, items: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)])] {
+        // 按分类名称分组
         let groupedItems = Dictionary(grouping: items) { item in
-            if let groupInfo = databaseManager.getGroupInfo(for: item.typeID) {
-                return groupInfo.groupName
-            }
-            return "Other"
+            item.categoryName
         }
-        return groupedItems.map { (groupName: $0.key, items: $0.value) }
-            .sorted { $0.groupName < $1.groupName }
+        
+        // 按分类名称排序
+        return groupedItems.map { (categoryName: $0.key, items: $0.value.sorted { $0.name < $1.name }) }
+            .sorted { $0.categoryName < $1.categoryName }
     }
     
     var body: some View {
         List {
-            ForEach(itemsByGroup, id: \.groupName) { group in
-                Section(header: Text(group.groupName).font(.headline)) {
-                    ForEach(group.items, id: \.typeID) { item in
+            ForEach(itemsByCategory, id: \.categoryName) { category in
+                Section(header: Text(category.categoryName).font(.headline)) {
+                    ForEach(category.items, id: \.typeID) { item in
                         NavigationLink {
-                            if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: item.typeID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
+                            ItemInfoMap.getItemInfoView(
+                                itemID: item.typeID,
+                                categoryID: item.categoryID,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             HStack {
                                 IconManager.shared.loadImage(for: item.iconFileName)
