@@ -148,23 +148,6 @@ struct DatabaseListView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .refreshable {
-            isSearchActive = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isSearchActive = true
-            }
-        }
-        .gesture(
-            DragGesture()
-                .onEnded { gesture in
-                    // 检测右划动作（x轴位移为正）
-                    if gesture.translation.width > 50 && isShowingSearchResults {
-                        searchText = ""
-                        isSearchActive = false
-                        loadInitialData()
-                    }
-                }
-        )
         .navigationBarBackButtonHidden(isShowingSearchResults)
         .toolbar {
             if isShowingSearchResults {
