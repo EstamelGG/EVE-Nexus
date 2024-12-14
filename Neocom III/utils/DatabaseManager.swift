@@ -1582,3 +1582,62 @@ class DatabaseManager: ObservableObject {
         return DatabaseConfig.defaultItemIcon
     }
 }
+
+// NPC相关扩展
+extension DatabaseManager {
+    // 搜索NPC物品
+    func searchNPCItems(searchText: String, scene: String? = nil, faction: String? = nil, type: String? = nil) -> [NPCItem] {
+        var whereConditions: [String] = []
+        var parameters: [Any] = []
+        
+        // 基础搜索条件
+        whereConditions.append("t.name LIKE ?")
+        parameters.append("%\(searchText)%")
+        
+        // 添加场景条件
+        if let scene = scene {
+            whereConditions.append("t.npc_ship_scene = ?")
+            parameters.append(scene)
+        }
+        
+        // 添加阵营条件
+        if let faction = faction {
+            whereConditions.append("t.npc_ship_faction = ?")
+            parameters.append(faction)
+        }
+        
+        // 添加类型条件
+        if let type = type {
+            whereConditions.append("t.npc_ship_type = ?")
+            parameters.append(type)
+        }
+        
+        let query = """
+            SELECT t.type_id, t.name, t.icon_filename
+            FROM types t
+            WHERE \(whereConditions.joined(separator: " AND "))
+            AND t.npc_ship_scene IS NOT NULL
+            ORDER BY t.name
+        """
+        
+        let result = executeQuery(query, parameters: parameters)
+        var items: [NPCItem] = []
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    
+                    items.append(NPCItem(
+                        typeID: typeID,
+                        name: name,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    ))
+                }
+            }
+        }
+        
+        return items
+    }
+}
