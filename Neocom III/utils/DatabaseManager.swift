@@ -1325,6 +1325,7 @@ class DatabaseManager: ObservableObject {
             SELECT DISTINCT typeid, typename, typeicon, required_skill_level, categoryID, category_name
             FROM typeSkillRequirement
             WHERE required_skill_id = ?
+            AND published = 1
             ORDER BY required_skill_level, typename
         """
         
