@@ -7,26 +7,42 @@ struct SkillDependencyListView: View {
     let items: [(typeID: Int, name: String, iconFileName: String)]
     @ObservedObject var databaseManager: DatabaseManager
     
+    // 按组分类的物品
+    private var itemsByGroup: [(groupName: String, items: [(typeID: Int, name: String, iconFileName: String)])] {
+        let groupedItems = Dictionary(grouping: items) { item in
+            if let groupInfo = databaseManager.getGroupInfo(for: item.typeID) {
+                return groupInfo.groupName
+            }
+            return "Other"
+        }
+        return groupedItems.map { (groupName: $0.key, items: $0.value) }
+            .sorted { $0.groupName < $1.groupName }
+    }
+    
     var body: some View {
         List {
-            ForEach(items, id: \.typeID) { item in
-                NavigationLink {
-                    if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                        ItemInfoMap.getItemInfoView(
-                            itemID: item.typeID,
-                            categoryID: categoryID,
-                            databaseManager: databaseManager
-                        )
-                    }
-                } label: {
-                    HStack {
-                        IconManager.shared.loadImage(for: item.iconFileName)
-                            .resizable()
-                            .frame(width: 32, height: 32)
-                            .cornerRadius(6)
-                        
-                        Text(item.name)
-                            .font(.body)
+            ForEach(itemsByGroup, id: \.groupName) { group in
+                Section(header: Text(group.groupName).font(.headline)) {
+                    ForEach(group.items, id: \.typeID) { item in
+                        NavigationLink {
+                            if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
+                                ItemInfoMap.getItemInfoView(
+                                    itemID: item.typeID,
+                                    categoryID: categoryID,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: item.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                
+                                Text(item.name)
+                                    .font(.body)
+                            }
+                        }
                     }
                 }
             }

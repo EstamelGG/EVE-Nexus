@@ -610,12 +610,29 @@ class DatabaseManager: ObservableObject {
         return units
     }
     
-    // 获取组名
+    // 获取物品的组ID和组名
+    func getGroupInfo(for typeID: Int) -> (groupID: Int, groupName: String)? {
+        let query = """
+            SELECT groupid, groupname
+            FROM typeSkillRequirement
+            WHERE typeid = ?
+            LIMIT 1
+        """
+        
+        if case .success(let rows) = executeQuery(query, parameters: [typeID]),
+           let row = rows.first,
+           let groupID = row["groupid"] as? Int,
+           let groupName = row["groupname"] as? String {
+            return (groupID: groupID, groupName: groupName)
+        }
+        return nil
+    }
+    
+    // 获取组名称（从 groups 表获取，用于其他场景）
     func getGroupName(for groupID: Int) -> String? {
         let query = "SELECT name FROM groups WHERE group_id = ?"
-        let result = executeQuery(query, parameters: [groupID])
         
-        if case .success(let rows) = result,
+        if case .success(let rows) = executeQuery(query, parameters: [groupID]),
            let row = rows.first,
            let name = row["name"] as? String {
             return name
@@ -1322,7 +1339,7 @@ class DatabaseManager: ObservableObject {
             SELECT DISTINCT typeid, typename, typeicon, required_skill_level
             FROM typeSkillRequirement
             WHERE required_skill_id = ?
-            ORDER BY required_skill_level, typename
+            ORDER BY typeid
         """
         
         var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String)]] = [:]
