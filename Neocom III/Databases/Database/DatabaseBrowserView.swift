@@ -176,6 +176,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: nil,
                     missSlot: nil,
                     metaGroupID: nil,
+                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
@@ -205,6 +206,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: nil,
                     missSlot: nil,
                     metaGroupID: nil,
+                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
@@ -239,6 +241,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: nil,
                     missSlot: nil,
                     metaGroupID: nil,
+                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
@@ -268,6 +271,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: nil,
                     missSlot: nil,
                     metaGroupID: nil,
+                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
@@ -302,6 +306,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: item.gunSlot,
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
+                    marketGroupID: nil,
                     navigationDestination: ItemInfoMap.getItemInfoView(
                         itemID: item.id,
                         categoryID: item.categoryID,
@@ -330,6 +335,7 @@ struct DatabaseBrowserView: View {
                     gunSlot: item.gunSlot,
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
+                    marketGroupID: nil,
                     navigationDestination: ItemInfoMap.getItemInfoView(
                         itemID: item.id,
                         categoryID: item.categoryID,

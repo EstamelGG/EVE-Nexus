@@ -23,6 +23,7 @@ struct DatabaseListItem: Identifiable {
     let gunSlot: Int?
     let missSlot: Int?
     let metaGroupID: Int?
+    let marketGroupID: Int?  // 添加市场组ID字段
     let navigationDestination: AnyView
 }
 

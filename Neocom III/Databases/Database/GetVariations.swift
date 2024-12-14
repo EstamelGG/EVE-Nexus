@@ -174,12 +174,8 @@ extension DatabaseManager {
                     gunSlot: row["gun_slot"] as? Int,
                     missSlot: row["miss_slot"] as? Int,
                     metaGroupID: metaGroupId,
-                    navigationDestination: AnyView(
-                        ShowItemInfo(
-                            databaseManager: self,
-                            itemID: id
-                        )
-                    )
+                    marketGroupID: nil,
+                    navigationDestination: AnyView(EmptyView())
                 )
                 
                 items.append(item)

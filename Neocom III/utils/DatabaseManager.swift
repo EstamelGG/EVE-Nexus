@@ -430,11 +430,8 @@ class DatabaseManager: ObservableObject {
                         gunSlot: row["gun_slot"] as? Int,
                         missSlot: row["miss_slot"] as? Int,
                         metaGroupID: row["metaGroupID"] as? Int,
-                        navigationDestination: ItemInfoMap.getItemInfoView(
-                            itemID: id,
-                            categoryID: categoryId,
-                            databaseManager: self
-                        )
+                        marketGroupID: nil,
+                        navigationDestination: AnyView(EmptyView())
                     ))
                 }
             }
