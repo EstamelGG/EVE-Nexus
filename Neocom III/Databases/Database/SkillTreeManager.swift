@@ -25,6 +25,9 @@ class SkillTreeManager {
     static let shared = SkillTreeManager()
     private init() {}
     
+    // 技能等级对应的基础点数
+    static let levelBasePoints = [250, 1415, 8000, 45255, 256000]
+    
     // 存储所有技能的基本信息 [typeID: name]
     private var allSkills: [Int: String] = [:]
     

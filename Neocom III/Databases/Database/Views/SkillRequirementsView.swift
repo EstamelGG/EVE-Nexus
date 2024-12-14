@@ -7,15 +7,12 @@ struct SkillRequirementRow: View {
     let timeMultiplier: Double?
     @ObservedObject var databaseManager: DatabaseManager
     
-    // 技能等级对应的基础点数
-    private let levelBasePoints = [250, 1415, 8000, 45255, 256000]
-    
     private var skillPointsText: String {
         guard let multiplier = timeMultiplier,
-              level > 0 && level <= levelBasePoints.count else {
+              level > 0 && level <= SkillTreeManager.levelBasePoints.count else {
             return ""
         }
-        let points = Int(Double(levelBasePoints[level - 1]) * multiplier)
+        let points = Int(Double(SkillTreeManager.levelBasePoints[level - 1]) * multiplier)
         return "\(NumberFormatUtil.format(Double(points))) SP"
     }
     
@@ -68,10 +65,23 @@ struct SkillRequirementsView: View {
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
     
+    // 计算总技能点数
+    private func calculateTotalSkillPoints(_ skills: [(skillID: Int, level: Int, timeMultiplier: Double?)]) -> Int {
+        skills.reduce(0) { total, skill in
+            guard let multiplier = skill.timeMultiplier,
+                  skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count else {
+                return total
+            }
+            let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
+            return total + points
+        }
+    }
+    
     var body: some View {
         let skills = SkillTreeManager.shared.getDeduplicatedSkillRequirements(for: typeID, databaseManager: databaseManager)
         if !skills.isEmpty {
-            Section(header: Text(NSLocalizedString("Main_Database_Skill_Requirements", comment: ""))) {
+            let totalPoints = calculateTotalSkillPoints(skills)
+            Section(header: Text("\(NSLocalizedString("Main_Database_Skill_Requirements", comment: "")) (\(NumberFormatUtil.format(Double(totalPoints))) SP)")) {
                 ForEach(skills, id: \.skillID) { skill in
                     SkillRequirementRow(
                         skillID: skill.skillID,

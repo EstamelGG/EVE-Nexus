@@ -290,7 +290,15 @@ struct AttributesView: View {
                 // 技能要求组
                 let requirements = SkillTreeManager.shared.getDeduplicatedSkillRequirements(for: typeID, databaseManager: databaseManager)
                 if !requirements.isEmpty {
-                    Section(header: Text(group.name).font(.headline)) {
+                    let totalPoints = requirements.reduce(0) { total, skill in
+                        guard let multiplier = skill.timeMultiplier,
+                              skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count else {
+                            return total
+                        }
+                        let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
+                        return total + points
+                    }
+                    Section(header: Text("\(group.name) (\(NumberFormatUtil.format(Double(totalPoints))) SP)").font(.headline)) {
                         ForEach(requirements, id: \.skillID) { requirement in
                             SkillRequirementRow(
                                 skillID: requirement.skillID,
