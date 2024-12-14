@@ -242,7 +242,8 @@ struct AttributeGroupView: View {
     }
     
     var body: some View {
-        if AttributeDisplayConfig.shouldShowGroup(group.id) {
+        if AttributeDisplayConfig.shouldShowGroup(group.id) && 
+           (filteredAttributes.count > 0 || AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil) {
             Section {
                 // 检查是否有抗性值需要显示
                 if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {

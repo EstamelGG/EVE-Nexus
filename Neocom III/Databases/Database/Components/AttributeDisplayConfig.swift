@@ -236,7 +236,24 @@ struct AttributeDisplayConfig {
     
     // 判断属性组是否应该显示
     static func shouldShowGroup(_ groupId: Int) -> Bool {
-        !activeHiddenGroups.contains(groupId)
+        // 首先检查组是否被显式隐藏
+        if activeHiddenGroups.contains(groupId) {
+            return false
+        }
+        return true
+    }
+    
+    // 新增：检查属性组是否有任何可显示的属性
+    static func hasVisibleAttributes(groupId: Int, attributes: [Int]) -> Bool {
+        // 如果组被显式隐藏，直接返回false
+        if !shouldShowGroup(groupId) {
+            return false
+        }
+        
+        // 检查组内是否有任何可显示的属性
+        return attributes.contains { attributeId in
+            shouldShowAttribute(attributeId)
+        }
     }
     
     // 判断具体属性是否应该显示
