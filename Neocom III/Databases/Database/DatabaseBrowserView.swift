@@ -154,43 +154,12 @@ struct DatabaseBrowserView: View {
         switch level {
         case .categories:
             let (published, unpublished) = dbManager.loadCategories()
-            let items = published.map { category in
+            let items = (published + unpublished).map { category in
                 DatabaseListItem(
                     id: category.id,
                     name: category.name,
                     iconFileName: category.iconFileNew,
-                    published: true,
-                    categoryID: nil,
-                    groupID: nil,
-                    groupName: nil,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: nil,
-                    themDamage: nil,
-                    kinDamage: nil,
-                    expDamage: nil,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
-                    navigationDestination: AnyView(
-                        DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .groups(categoryID: category.id, categoryName: category.name)
-                        )
-                    )
-                )
-            } + unpublished.map { category in
-                DatabaseListItem(
-                    id: category.id,
-                    name: category.name,
-                    iconFileName: category.iconFileNew,
-                    published: false,
+                    published: category.published,
                     categoryID: nil,
                     groupID: nil,
                     groupName: nil,
@@ -221,43 +190,12 @@ struct DatabaseBrowserView: View {
             
         case .groups(let categoryID, _):
             let (published, unpublished) = dbManager.loadGroups(for: categoryID)
-            let items = published.map { group in
+            let items = (published + unpublished).map { group in
                 DatabaseListItem(
                     id: group.id,
                     name: group.name,
                     iconFileName: group.icon_filename,
-                    published: true,
-                    categoryID: group.categoryID,
-                    groupID: group.id,
-                    groupName: group.name,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: nil,
-                    themDamage: nil,
-                    kinDamage: nil,
-                    expDamage: nil,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
-                    navigationDestination: AnyView(
-                        DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .items(groupID: group.id, groupName: group.name)
-                        )
-                    )
-                )
-            } + unpublished.map { group in
-                DatabaseListItem(
-                    id: group.id,
-                    name: group.name,
-                    iconFileName: group.icon_filename,
-                    published: false,
+                    published: group.published,
                     categoryID: group.categoryID,
                     groupID: group.id,
                     groupName: group.name,
@@ -288,42 +226,12 @@ struct DatabaseBrowserView: View {
             
         case .items(let groupID, let groupName):
             let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
-            let items = published.map { item in
+            let items = (published + unpublished).map { item in
                 DatabaseListItem(
                     id: item.id,
                     name: item.name,
                     iconFileName: item.iconFileName,
-                    published: true,
-                    categoryID: item.categoryID,
-                    groupID: groupID,
-                    groupName: groupName,
-                    pgNeed: item.pgNeed,
-                    cpuNeed: item.cpuNeed,
-                    rigCost: item.rigCost,
-                    emDamage: item.emDamage,
-                    themDamage: item.themDamage,
-                    kinDamage: item.kinDamage,
-                    expDamage: item.expDamage,
-                    highSlot: item.highSlot,
-                    midSlot: item.midSlot,
-                    lowSlot: item.lowSlot,
-                    rigSlot: item.rigSlot,
-                    gunSlot: item.gunSlot,
-                    missSlot: item.missSlot,
-                    metaGroupID: item.metaGroupID,
-                    marketGroupID: nil,
-                    navigationDestination: ItemInfoMap.getItemInfoView(
-                        itemID: item.id,
-                        categoryID: item.categoryID,
-                        databaseManager: databaseManager
-                    )
-                )
-            } + unpublished.map { item in
-                DatabaseListItem(
-                    id: item.id,
-                    name: item.name,
-                    iconFileName: item.iconFileName,
-                    published: false,
+                    published: item.published,
                     categoryID: item.categoryID,
                     groupID: groupID,
                     groupName: groupName,
