@@ -5,19 +5,101 @@ struct MarketBrowserView: View {
     @State private var marketGroups: [MarketGroup] = []
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var isLoading = false
+    @State private var isShowingSearchResults = false
+    @StateObject private var searchController = SearchController()
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
-                ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
-                    MarketGroupRow(group: group, allGroups: marketGroups, databaseManager: databaseManager)
+                if isShowingSearchResults {
+                    // 搜索结果视图
+                    ForEach(items) { item in
+                        NavigationLink {
+                            MarketItemDetailView(
+                                databaseManager: databaseManager,
+                                itemID: item.id
+                            )
+                        } label: {
+                            DatabaseListItemView(
+                                item: item,
+                                showDetails: true
+                            )
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    }
+                } else {
+                    // 常规市场分组视图
+                    ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
+                        MarketGroupRow(group: group, allGroups: marketGroups, databaseManager: databaseManager)
+                    }
+                }
+            }
+            .searchable(
+                text: $searchText,
+                isPresented: $isSearchActive,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+            )
+            .onChange(of: searchText) { _, newValue in
+                if newValue.isEmpty {
+                    isShowingSearchResults = false
+                    isLoading = false
+                    items = []
+                } else {
+                    if newValue.count >= 1 {
+                        searchController.processSearchInput(newValue)
+                    }
+                }
+            }
+            .overlay {
+                if isLoading {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                        .overlay {
+                            VStack {
+                                ProgressView()
+                                Text("正在搜索...")
+                                    .foregroundColor(.secondary)
+                                    .padding(.top, 8)
+                            }
+                        }
+                } else if items.isEmpty && !searchText.isEmpty {
+                    ContentUnavailableView {
+                        Label("未找到", systemImage: "magnifyingglass")
+                    } description: {
+                        Text("没有找到匹配的项目")
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("Main_Market", comment: ""))
             .onAppear {
                 marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+                setupSearch()
             }
         }
+    }
+    
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { query in
+                guard !searchText.isEmpty else { return }
+                performSearch(with: query)
+            }
+            .store(in: &searchController.cancellables)
+    }
+    
+    private func performSearch(with text: String) {
+        isLoading = true
+        
+        // 暂时留空，等待具体的搜索实现
+        // TODO: 实现市场搜索逻辑
+        
+        isLoading = false
+        isShowingSearchResults = true
     }
 }
 
@@ -25,6 +107,13 @@ struct MarketGroupRow: View {
     let group: MarketGroup
     let allGroups: [MarketGroup]
     let databaseManager: DatabaseManager
+    
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var isLoading = false
+    @State private var isShowingSearchResults = false
+    @State private var items: [DatabaseListItem] = []
+    @StateObject private var searchController = SearchController()
     
     var body: some View {
         if MarketManager.shared.isLeafGroup(group, in: allGroups) {
@@ -42,15 +131,94 @@ struct MarketGroupRow: View {
             // 非最后一级目录，显示子目录
             NavigationLink {
                 List {
-                    ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
-                        MarketGroupRow(group: subGroup, allGroups: allGroups, databaseManager: databaseManager)
+                    if isShowingSearchResults {
+                        // 搜索结果视图
+                        ForEach(items) { item in
+                            NavigationLink {
+                                MarketItemDetailView(
+                                    databaseManager: databaseManager,
+                                    itemID: item.id
+                                )
+                            } label: {
+                                DatabaseListItemView(
+                                    item: item,
+                                    showDetails: true
+                                )
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                    } else {
+                        // 常规子分组视图
+                        ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
+                            MarketGroupRow(group: subGroup, allGroups: allGroups, databaseManager: databaseManager)
+                        }
+                    }
+                }
+                .searchable(
+                    text: $searchText,
+                    isPresented: $isSearchActive,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+                )
+                .onChange(of: searchText) { _, newValue in
+                    if newValue.isEmpty {
+                        isShowingSearchResults = false
+                        isLoading = false
+                        items = []
+                    } else {
+                        if newValue.count >= 1 {
+                            searchController.processSearchInput(newValue)
+                        }
+                    }
+                }
+                .overlay {
+                    if isLoading {
+                        Color(.systemBackground)
+                            .ignoresSafeArea()
+                            .overlay {
+                                VStack {
+                                    ProgressView()
+                                    Text("正在搜索...")
+                                        .foregroundColor(.secondary)
+                                        .padding(.top, 8)
+                                }
+                            }
+                    } else if items.isEmpty && !searchText.isEmpty {
+                        ContentUnavailableView {
+                            Label("未找到", systemImage: "magnifyingglass")
+                        } description: {
+                            Text("没有找到匹配的项目")
+                        }
                     }
                 }
                 .navigationTitle(group.name)
+                .onAppear {
+                    setupSearch()
+                }
             } label: {
                 MarketGroupLabel(group: group)
             }
         }
+    }
+    
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { query in
+                guard !searchText.isEmpty else { return }
+                performSearch(with: query)
+            }
+            .store(in: &searchController.cancellables)
+    }
+    
+    private func performSearch(with text: String) {
+        isLoading = true
+        
+        // 暂时留空，等待具体的搜索实现
+        // TODO: 实现市场搜索逻辑
+        
+        isLoading = false
+        isShowingSearchResults = true
     }
 }
 
