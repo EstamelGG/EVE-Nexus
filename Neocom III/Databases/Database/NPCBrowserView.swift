@@ -29,7 +29,13 @@ struct NPCBrowserView: View {
                 // 显示一级目录（场景）列表
                 ForEach(databaseManager.getNPCScenes(), id: \.self) { scene in
                     NavigationLink(destination: NPCBrowserView(databaseManager: databaseManager, level: .faction, scene: scene)) {
-                        Text(scene)
+                        HStack {
+                            IconManager.shared.loadImage(for: "items_73_16_50.png")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
+                            Text(scene)
+                        }
                     }
                 }
             case .faction:
@@ -37,7 +43,15 @@ struct NPCBrowserView: View {
                 if let scene = scene {
                     ForEach(databaseManager.getNPCFactions(for: scene), id: \.self) { faction in
                         NavigationLink(destination: NPCBrowserView(databaseManager: databaseManager, level: .type, scene: scene, faction: faction)) {
-                            Text(faction)
+                            HStack {
+                                if let iconFileName = databaseManager.getNPCFactionIcon(for: faction) {
+                                    IconManager.shared.loadImage(for: iconFileName)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                }
+                                Text(faction)
+                            }
                         }
                     }
                 }
@@ -46,7 +60,13 @@ struct NPCBrowserView: View {
                 if let scene = scene, let faction = faction {
                     ForEach(databaseManager.getNPCTypes(for: scene, faction: faction), id: \.self) { type in
                         NavigationLink(destination: NPCBrowserView(databaseManager: databaseManager, level: .items, scene: scene, faction: faction, type: type)) {
-                            Text(type)
+                            HStack {
+                                IconManager.shared.loadImage(for: "items_73_16_50.png")
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(type)
+                            }
                         }
                     }
                 }

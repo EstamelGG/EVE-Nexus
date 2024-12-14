@@ -806,7 +806,7 @@ class DatabaseManager: ObservableObject {
         return skills
     }
     
-    // 获取蓝���时间研究材料
+    // 获取蓝图时间研究材料
     func getBlueprintResearchTimeMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
         let query = """
             SELECT typeID, typeName, typeIcon, quantity
@@ -1562,5 +1562,23 @@ class DatabaseManager: ObservableObject {
             }
         }
         return items
+    }
+    
+    // 获取NPC阵营的图标
+    func getNPCFactionIcon(for faction: String) -> String? {
+        let query = """
+            SELECT DISTINCT npc_ship_faction_icon 
+            FROM types 
+            WHERE npc_ship_faction = ? 
+            AND npc_ship_faction_icon IS NOT NULL 
+            LIMIT 1
+        """
+        
+        if case .success(let rows) = executeQuery(query, parameters: [faction]),
+           let row = rows.first,
+           let iconFileName = row["npc_ship_faction_icon"] as? String {
+            return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+        }
+        return DatabaseConfig.defaultItemIcon
     }
 }
