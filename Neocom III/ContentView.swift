@@ -85,7 +85,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market", comment: ""),
-                        iconName: "market"
+                        iconName: "market",
+                        destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: "NPC",
@@ -255,7 +256,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market", comment: ""),
-                        iconName: "market"
+                        iconName: "market",
+                        destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: "NPC",
