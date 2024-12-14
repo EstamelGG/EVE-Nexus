@@ -95,11 +95,56 @@ struct MarketBrowserView: View {
     private func performSearch(with text: String) {
         isLoading = true
         
-        // 暂时留空，等待具体的搜索实现
-        // TODO: 实现市场搜索逻辑
+        // 搜索所有市场物品（marketGroupID不为0的物品）
+        let query = """
+            SELECT type_id as id, name, published, icon_filename as iconFileName,
+                   categoryID, groupID, metaGroupID,
+                   pg_need as pgNeed, cpu_need as cpuNeed, rig_cost as rigCost,
+                   em_damage as emDamage, them_damage as themDamage, kin_damage as kinDamage, exp_damage as expDamage,
+                   high_slot as highSlot, mid_slot as midSlot, low_slot as lowSlot,
+                   rig_slot as rigSlot, gun_slot as gunSlot, miss_slot as missSlot
+            FROM types
+            WHERE marketGroupID IS NOT NULL AND name LIKE ?
+            ORDER BY name
+        """
+        
+        let searchPattern = "%\(text)%"
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [searchPattern as Any]) {
+            items = rows.compactMap { row in
+                guard let id = row["id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconFileName = row["iconFileName"] as? String,
+                      let published = row["published"] as? Int
+                else { return nil }
+                
+                return DatabaseListItem(
+                    id: id,
+                    name: name,
+                    iconFileName: iconFileName,
+                    published: published == 1,
+                    categoryID: row["categoryID"] as? Int,
+                    groupID: row["groupID"] as? Int,
+                    pgNeed: row["pgNeed"] as? Int,
+                    cpuNeed: row["cpuNeed"] as? Int,
+                    rigCost: row["rigCost"] as? Int,
+                    emDamage: row["emDamage"] as? Double,
+                    themDamage: row["themDamage"] as? Double,
+                    kinDamage: row["kinDamage"] as? Double,
+                    expDamage: row["expDamage"] as? Double,
+                    highSlot: row["highSlot"] as? Int,
+                    midSlot: row["midSlot"] as? Int,
+                    lowSlot: row["lowSlot"] as? Int,
+                    rigSlot: row["rigSlot"] as? Int,
+                    gunSlot: row["gunSlot"] as? Int,
+                    missSlot: row["missSlot"] as? Int,
+                    metaGroupID: row["metaGroupID"] as? Int,
+                    navigationDestination: AnyView(EmptyView())
+                )
+            }
+            isShowingSearchResults = true
+        }
         
         isLoading = false
-        isShowingSearchResults = true
     }
 }
 
