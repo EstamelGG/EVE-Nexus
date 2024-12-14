@@ -55,6 +55,11 @@ struct SkillDependencySection: View {
     let skillID: Int
     @ObservedObject var databaseManager: DatabaseManager
     
+    // 获取等级对应的图标名称
+    private func getIconForLevel(_ level: Int) -> String {
+        return "items_79_64_\(level + 1).png"
+    }
+    
     var body: some View {
         let itemsByLevel = databaseManager.getAllItemsRequiringSkill(skillID: skillID)
         
@@ -70,7 +75,14 @@ struct SkillDependencySection: View {
                                 databaseManager: databaseManager
                             )
                         } label: {
-                            Text("Level \(level)")
+                            HStack {
+                                IconManager.shared.loadImage(for: getIconForLevel(level))
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                
+                                Text("Level \(level)")
+                            }
                         }
                     }
                 }
