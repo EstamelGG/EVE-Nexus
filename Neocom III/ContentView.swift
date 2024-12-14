@@ -90,7 +90,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: "NPC",
-                        iconName: "criminal"
+                        iconName: "criminal",
+                        destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_WH", comment: ""),
@@ -261,7 +262,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: "NPC",
-                        iconName: "criminal"
+                        iconName: "criminal",
+                        destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_WH", comment: ""),

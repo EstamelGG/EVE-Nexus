@@ -806,7 +806,7 @@ class DatabaseManager: ObservableObject {
         return skills
     }
     
-    // 获取蓝图时间研究材料
+    // 获取蓝���时间研究材料
     func getBlueprintResearchTimeMaterials(for blueprintID: Int) -> [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)] {
         let query = """
             SELECT typeID, typeName, typeIcon, quantity
@@ -1468,5 +1468,99 @@ class DatabaseManager: ObservableObject {
             }
         }
         return []
+    }
+    
+    // NPC浏览相关的数据结构
+    struct NPCItem {
+        let typeID: Int
+        let name: String
+        let iconFileName: String
+    }
+    
+    // 获取所有NPC场景（一级目录）
+    func getNPCScenes() -> [String] {
+        let query = """
+            SELECT DISTINCT npc_ship_scene 
+            FROM types 
+            WHERE npc_ship_scene IS NOT NULL 
+            ORDER BY npc_ship_scene
+        """
+        
+        var scenes: [String] = []
+        if case .success(let rows) = executeQuery(query) {
+            for row in rows {
+                if let scene = row["npc_ship_scene"] as? String {
+                    scenes.append(scene)
+                }
+            }
+        }
+        return scenes
+    }
+    
+    // 获取特定场景下的所有阵营（二级目录）
+    func getNPCFactions(for scene: String) -> [String] {
+        let query = """
+            SELECT DISTINCT npc_ship_faction 
+            FROM types 
+            WHERE npc_ship_scene = ? 
+            AND npc_ship_faction IS NOT NULL 
+            ORDER BY npc_ship_faction
+        """
+        
+        var factions: [String] = []
+        if case .success(let rows) = executeQuery(query, parameters: [scene]) {
+            for row in rows {
+                if let faction = row["npc_ship_faction"] as? String {
+                    factions.append(faction)
+                }
+            }
+        }
+        return factions
+    }
+    
+    // 获取特定场景和阵营下的所有类型（三级目录）
+    func getNPCTypes(for scene: String, faction: String) -> [String] {
+        let query = """
+            SELECT DISTINCT npc_ship_type 
+            FROM types 
+            WHERE npc_ship_scene = ? 
+            AND npc_ship_faction = ? 
+            AND npc_ship_type IS NOT NULL 
+            ORDER BY npc_ship_type
+        """
+        
+        var types: [String] = []
+        if case .success(let rows) = executeQuery(query, parameters: [scene, faction]) {
+            for row in rows {
+                if let type = row["npc_ship_type"] as? String {
+                    types.append(type)
+                }
+            }
+        }
+        return types
+    }
+    
+    // 获取特定场景、阵营和类型下的所有物品
+    func getNPCItems(for scene: String, faction: String, type: String) -> [NPCItem] {
+        let query = """
+            SELECT type_id, name, icon_filename 
+            FROM types 
+            WHERE npc_ship_scene = ? 
+            AND npc_ship_faction = ? 
+            AND npc_ship_type = ?
+            ORDER BY name
+        """
+        
+        var items: [NPCItem] = []
+        if case .success(let rows) = executeQuery(query, parameters: [scene, faction, type]) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    items.append(NPCItem(typeID: typeID, name: name, iconFileName: iconFileName))
+                }
+            }
+        }
+        return items
     }
 }
