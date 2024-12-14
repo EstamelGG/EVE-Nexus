@@ -36,6 +36,8 @@
 "Main_Database_Role_Bonuses" = "Role Bonuses";
 "Main_Database_Bonuses_Per_Level" = "每级技能加成";
 "Main_Database_Required_By" = "技能等级适用于";
+"Main_Database_NPC_Scene" = "NPC";
+"Main_Database_NPC_Ships" = "舰船";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";
