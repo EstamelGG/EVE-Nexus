@@ -282,13 +282,11 @@ class DatabaseManager: ObservableObject {
     // 加载物品详情
     func loadItemDetails(for itemID: Int) -> ItemDetails? {
         let query = """
-            SELECT t.name, t.description, t.icon_filename, t.groupID,
-                   t.volume, t.capacity, t.mass,
-                   g.name as group_name, c.name as category_name, c.category_id
-            FROM types t
-            LEFT JOIN groups g ON t.groupID = g.group_id
-            LEFT JOIN categories c ON g.categoryID = c.category_id
-            WHERE t.type_id = ?
+            SELECT name, description, icon_filename, groupID, group_name,
+                   categoryID, category_name,
+                   volume, capacity, mass
+            FROM types
+            WHERE type_id = ?
         """
         
         let result = executeQuery(query, parameters: [itemID])
@@ -298,9 +296,9 @@ class DatabaseManager: ObservableObject {
             guard let row = rows.first,
                   let name = row["name"] as? String,
                   let description = row["description"] as? String,
-                  let iconFilename = row["icon_filename"] as? String,
+                  let iconFileName = row["icon_filename"] as? String,
                   let groupName = row["group_name"] as? String,
-                  let categoryID = row["category_id"] as? Int,
+                  let categoryID = row["categoryID"] as? Int,
                   let categoryName = row["category_name"] as? String else {
                 return nil
             }
@@ -338,21 +336,20 @@ class DatabaseManager: ObservableObject {
                 }
             }
             
-            // Logger.debug("\(row)")
             let groupID = row["groupID"] as? Int
             let volume = row["volume"] as? Double
             let capacity = row["capacity"] as? Double
             let mass = row["mass"] as? Double
-            // Logger.debug("\(volume),\(capacity),\(mass)")
+            
             return ItemDetails(
                 name: name,
                 description: description,
-                iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
+                iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
                 groupName: groupName,
                 categoryID: categoryID,
                 categoryName: categoryName,
-                roleBonuses: nil,
-                typeBonuses: nil,
+                roleBonuses: roleBonuses.isEmpty ? nil : roleBonuses,
+                typeBonuses: typeBonuses.isEmpty ? nil : typeBonuses,
                 typeId: itemID,
                 groupID: groupID,
                 volume: volume,
@@ -994,7 +991,7 @@ class DatabaseManager: ObservableObject {
         return nil
     }
     
-    // 获取物品的分类ID
+    // 获取物品的类ID
     func getCategoryID(for typeID: Int) -> Int? {
         let query = "SELECT categoryID FROM types WHERE type_id = ?"
         
@@ -1375,6 +1372,34 @@ class DatabaseManager: ObservableObject {
            let row = rows.first,
            let categoryName = row["categoryname"] as? String {
             return categoryName
+        }
+        return nil
+    }
+    
+    // 获取物品的市场路径
+    func getMarketPath(for typeID: Int) -> [String]? {
+        let query = """
+            WITH RECURSIVE market_path AS (
+                -- 基础查询：获取物品所在的市场组
+                SELECT mg.group_id, mg.name, mg.parentgroup_id
+                FROM marketGroups mg
+                JOIN invTypes t ON t.marketGroupID = mg.group_id
+                WHERE t.typeID = ?
+                
+                UNION ALL
+                
+                -- 递归查询：获取父市场组
+                SELECT mg.group_id, mg.name, mg.parentgroup_id
+                FROM marketGroups mg
+                JOIN market_path mp ON mg.group_id = mp.parentgroup_id
+            )
+            SELECT name
+            FROM market_path
+            ORDER BY group_id DESC
+        """
+        
+        if case .success(let rows) = executeQuery(query, parameters: [typeID]) {
+            return rows.compactMap { $0["name"] as? String }
         }
         return nil
     }
