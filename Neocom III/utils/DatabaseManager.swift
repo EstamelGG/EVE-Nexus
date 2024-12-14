@@ -417,8 +417,8 @@ class DatabaseManager: ObservableObject {
                         iconFileName: iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename,
                         published: isPublished != 0,
                         categoryID: categoryId,
-                        groupID: groupId,  // 添加 groupID
-                        groupName: row["group_name"] as? String,  // 添加 groupName
+                        groupID: groupId,
+                        groupName: row["group_name"] as? String,
                         pgNeed: row["pg_need"] as? Int,
                         cpuNeed: row["cpu_need"] as? Int,
                         rigCost: row["rig_cost"] as? Int,
@@ -434,7 +434,11 @@ class DatabaseManager: ObservableObject {
                         missSlot: row["miss_slot"] as? Int,
                         metaGroupID: row["metaGroupID"] as? Int,
                         marketGroupID: nil,
-                        navigationDestination: AnyView(EmptyView())
+                        navigationDestination: ItemInfoMap.getItemInfoView(
+                            itemID: id,
+                            categoryID: categoryId,
+                            databaseManager: self
+                        )
                     ))
                 }
             }
@@ -1423,7 +1427,8 @@ class DatabaseManager: ObservableObject {
         if case .success(let rows) = executeQuery(query, parameters: parameters) {
             return rows.compactMap { row in
                 guard let id = row["id"] as? Int,
-                      let name = row["name"] as? String
+                      let name = row["name"] as? String,
+                      let categoryId = row["categoryID"] as? Int
                 else { return nil }
                 
                 let iconFileName = (row["iconFileName"] as? String) ?? "items_7_64_15.png"
@@ -1436,7 +1441,7 @@ class DatabaseManager: ObservableObject {
                     name: name,
                     iconFileName: iconFileName,
                     published: published == 1,
-                    categoryID: row["categoryID"] as? Int,
+                    categoryID: categoryId,
                     groupID: groupID,
                     groupName: groupName,
                     pgNeed: row["pgNeed"] as? Int,
@@ -1454,7 +1459,11 @@ class DatabaseManager: ObservableObject {
                     missSlot: row["missSlot"] as? Int,
                     metaGroupID: row["metaGroupID"] as? Int,
                     marketGroupID: row["marketGroupID"] as? Int,
-                    navigationDestination: AnyView(EmptyView())
+                    navigationDestination: ItemInfoMap.getItemInfoView(
+                        itemID: id,
+                        categoryID: categoryId,
+                        databaseManager: self
+                    )
                 )
             }
         }
