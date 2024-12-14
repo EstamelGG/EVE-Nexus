@@ -1401,4 +1401,61 @@ class DatabaseManager: ObservableObject {
         }
         return nil
     }
+    
+    // 加载市场物品的通用查询
+    func loadMarketItems(whereClause: String, parameters: [Any]) -> [DatabaseListItem] {
+        let query = """
+            SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
+                   t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
+                   t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
+                   t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
+                   t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
+                   t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
+                   g.name as groupName
+            FROM types t
+            LEFT JOIN groups g ON t.groupID = g.group_id
+            WHERE \(whereClause)
+            ORDER BY t.metaGroupID
+        """
+        
+        if case .success(let rows) = executeQuery(query, parameters: parameters) {
+            return rows.compactMap { row in
+                guard let id = row["id"] as? Int,
+                      let name = row["name"] as? String
+                else { return nil }
+                
+                let iconFileName = (row["iconFileName"] as? String) ?? "items_7_64_15.png"
+                let published = (row["published"] as? Int) ?? 0
+                let groupID = row["groupID"] as? Int
+                let groupName = row["groupName"] as? String
+                
+                return DatabaseListItem(
+                    id: id,
+                    name: name,
+                    iconFileName: iconFileName,
+                    published: published == 1,
+                    categoryID: row["categoryID"] as? Int,
+                    groupID: groupID,
+                    groupName: groupName,
+                    pgNeed: row["pgNeed"] as? Int,
+                    cpuNeed: row["cpuNeed"] as? Int,
+                    rigCost: row["rigCost"] as? Int,
+                    emDamage: row["emDamage"] as? Double,
+                    themDamage: row["themDamage"] as? Double,
+                    kinDamage: row["kinDamage"] as? Double,
+                    expDamage: row["expDamage"] as? Double,
+                    highSlot: row["highSlot"] as? Int,
+                    midSlot: row["midSlot"] as? Int,
+                    lowSlot: row["lowSlot"] as? Int,
+                    rigSlot: row["rigSlot"] as? Int,
+                    gunSlot: row["gunSlot"] as? Int,
+                    missSlot: row["missSlot"] as? Int,
+                    metaGroupID: row["metaGroupID"] as? Int,
+                    marketGroupID: row["marketGroupID"] as? Int,
+                    navigationDestination: AnyView(EmptyView())
+                )
+            }
+        }
+        return []
+    }
 }

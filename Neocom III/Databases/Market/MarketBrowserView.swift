@@ -145,48 +145,11 @@ struct MarketBaseView<Content: View>: View {
     private func performSearch(with text: String) {
         isLoading = true
         
-        let query = searchQuery(text)
+        let whereClause = searchQuery(text)
         let parameters = searchParameters(text)
         
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: parameters) {
-            items = rows.compactMap { row in
-                guard let id = row["id"] as? Int,
-                      let name = row["name"] as? String
-                else { return nil }
-                
-                let iconFileName = (row["iconFileName"] as? String) ?? "items_7_64_15.png"
-                let published = (row["published"] as? Int) ?? 0
-                let groupID = row["groupID"] as? Int
-                let groupName = row["groupName"] as? String
-                
-                return DatabaseListItem(
-                    id: id,
-                    name: name,
-                    iconFileName: iconFileName,
-                    published: published == 1,
-                    categoryID: row["categoryID"] as? Int,
-                    groupID: groupID,
-                    groupName: groupName,
-                    pgNeed: row["pgNeed"] as? Int,
-                    cpuNeed: row["cpuNeed"] as? Int,
-                    rigCost: row["rigCost"] as? Int,
-                    emDamage: row["emDamage"] as? Double,
-                    themDamage: row["themDamage"] as? Double,
-                    kinDamage: row["kinDamage"] as? Double,
-                    expDamage: row["expDamage"] as? Double,
-                    highSlot: row["highSlot"] as? Int,
-                    midSlot: row["midSlot"] as? Int,
-                    lowSlot: row["lowSlot"] as? Int,
-                    rigSlot: row["rigSlot"] as? Int,
-                    gunSlot: row["gunSlot"] as? Int,
-                    missSlot: row["missSlot"] as? Int,
-                    metaGroupID: row["metaGroupID"] as? Int,
-                    marketGroupID: row["marketGroupID"] as? Int,
-                    navigationDestination: AnyView(EmptyView())
-                )
-            }
-            isShowingSearchResults = true
-        }
+        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
+        isShowingSearchResults = true
         
         isLoading = false
     }
@@ -207,20 +170,8 @@ struct MarketBrowserView: View {
                         MarketGroupRow(group: group, allGroups: marketGroups, databaseManager: databaseManager)
                     }
                 },
-                searchQuery: { text in
-                    """
-                    SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
-                           t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
-                           t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                           t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                           t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                           t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                           g.name as groupName
-                    FROM types t
-                    LEFT JOIN groups g ON t.groupID = g.group_id
-                    WHERE t.marketGroupID IS NOT NULL AND t.name LIKE ?
-                    ORDER BY t.metaGroupID
-                    """
+                searchQuery: { _ in
+                    "t.marketGroupID IS NOT NULL AND t.name LIKE ?"
                 },
                 searchParameters: { text in
                     ["%\(text)%"]
@@ -248,22 +199,10 @@ struct MarketGroupView: View {
                     MarketGroupRow(group: subGroup, allGroups: allGroups, databaseManager: databaseManager)
                 }
             },
-            searchQuery: { text in
+            searchQuery: { _ in
                 let groupIDs = MarketManager.shared.getAllSubGroupIDs(allGroups, startingFrom: group.id)
                 let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
-                return """
-                    SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
-                           t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
-                           t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                           t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                           t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                           t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                           g.name as groupName
-                    FROM types t
-                    LEFT JOIN groups g ON t.groupID = g.group_id
-                    WHERE t.marketGroupID IN (\(groupIDsString)) AND t.name LIKE ?
-                    ORDER BY t.metaGroupID
-                    """
+                return "t.marketGroupID IN (\(groupIDsString)) AND t.name LIKE ?"
             },
             searchParameters: { text in
                 ["%\(text)%"]
@@ -346,20 +285,8 @@ struct MarketItemListView: View {
                     }
                 }
             },
-            searchQuery: { text in
-                """
-                SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
-                       t.categoryID, t.groupID, t.metaGroupID,
-                       t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                       t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                       t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                       t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                       g.name as groupName
-                FROM types t
-                LEFT JOIN groups g ON t.groupID = g.group_id
-                WHERE t.marketGroupID = ? AND t.name LIKE ?
-                ORDER BY t.metaGroupID
-                """
+            searchQuery: { _ in
+                "t.marketGroupID = ? AND t.name LIKE ?"
             },
             searchParameters: { text in
                 [marketGroupID, "%\(text)%"]
@@ -371,59 +298,14 @@ struct MarketItemListView: View {
     }
     
     private func loadItems() {
-        let query = """
-            SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
-                   t.categoryID, t.groupID, t.metaGroupID,
-                   t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                   t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                   t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                   t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                   g.name as groupName
-            FROM types t
-            LEFT JOIN groups g ON t.groupID = g.group_id
-            WHERE t.marketGroupID = ?
-            ORDER BY t.metaGroupID
-        """
+        items = databaseManager.loadMarketItems(
+            whereClause: "t.marketGroupID = ?",
+            parameters: [marketGroupID]
+        )
         
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [marketGroupID]) {
-            items = rows.compactMap { row in
-                guard let id = row["id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFileName = row["iconFileName"] as? String,
-                      let published = row["published"] as? Int
-                else { return nil }
-                
-                return DatabaseListItem(
-                    id: id,
-                    name: name,
-                    iconFileName: iconFileName,
-                    published: published == 1,
-                    categoryID: row["categoryID"] as? Int,
-                    groupID: row["groupID"] as? Int,
-                    groupName: row["groupName"] as? String,
-                    pgNeed: row["pgNeed"] as? Int,
-                    cpuNeed: row["cpuNeed"] as? Int,
-                    rigCost: row["rigCost"] as? Int,
-                    emDamage: row["emDamage"] as? Double,
-                    themDamage: row["themDamage"] as? Double,
-                    kinDamage: row["kinDamage"] as? Double,
-                    expDamage: row["expDamage"] as? Double,
-                    highSlot: row["highSlot"] as? Int,
-                    midSlot: row["midSlot"] as? Int,
-                    lowSlot: row["lowSlot"] as? Int,
-                    rigSlot: row["rigSlot"] as? Int,
-                    gunSlot: row["gunSlot"] as? Int,
-                    missSlot: row["missSlot"] as? Int,
-                    metaGroupID: row["metaGroupID"] as? Int,
-                    marketGroupID: marketGroupID,
-                    navigationDestination: AnyView(EmptyView())
-                )
-            }
-            
-            // 加载科技等级名称
-            let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
-            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
-        }
+        // 加载科技等级名称
+        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+        metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
     }
 }
 
