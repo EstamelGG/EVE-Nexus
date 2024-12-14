@@ -4,7 +4,20 @@ import SwiftUI
 struct SkillRequirementRow: View {
     let skillID: Int
     let level: Int
+    let timeMultiplier: Double?
     @ObservedObject var databaseManager: DatabaseManager
+    
+    // 技能等级对应的基础点数
+    private let levelBasePoints = [250, 1415, 8000, 45255, 256000]
+    
+    private var skillPointsText: String {
+        guard let multiplier = timeMultiplier,
+              level > 0 && level <= levelBasePoints.count else {
+            return ""
+        }
+        let points = Int(Double(levelBasePoints[level - 1]) * multiplier)
+        return "\(NumberFormatUtil.format(Double(points))) SP"
+    }
     
     var body: some View {
         if let skillName = SkillTreeManager.shared.getSkillName(for: skillID) {
@@ -26,9 +39,18 @@ struct SkillRequirementRow: View {
                             .cornerRadius(6)
                     }
                     
-                    // 技能名称
-                    Text(skillName)
-                        .font(.body)
+                    VStack(alignment: .leading) {
+                        // 技能名称
+                        Text(skillName)
+                            .font(.body)
+                        
+                        // 所需技能点数
+                        if !skillPointsText.isEmpty {
+                            Text(skillPointsText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     
                     Spacer()
                     
@@ -54,6 +76,7 @@ struct SkillRequirementsView: View {
                     SkillRequirementRow(
                         skillID: skill.skillID,
                         level: skill.level,
+                        timeMultiplier: skill.timeMultiplier,
                         databaseManager: databaseManager
                     )
                 }

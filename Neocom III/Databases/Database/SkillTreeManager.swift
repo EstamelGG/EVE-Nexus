@@ -6,6 +6,7 @@ struct SkillRequirement: Hashable {
     let name: String          // 技能名称
     let level: Int           // 需要的等级
     let parentSkillID: Int?   // 哪个技能需要这个技能
+    let timeMultiplier: Double? // 训练时间倍增系数
     
     // Hashable 实现
     func hash(into hasher: inout Hasher) {
@@ -97,9 +98,12 @@ class SkillTreeManager {
     }
     
     /// 获取技能的所有前置要求（包括递归依赖）
-    func getAllRequirements(for skillID: Int) -> [SkillRequirement] {
+    func getAllRequirements(for skillID: Int, databaseManager: DatabaseManager? = nil) -> [SkillRequirement] {
         var result: [SkillRequirement] = []
         var visited = Set<Int>()
+        
+        // 如果提供了databaseManager，获取所有技能的训练时间倍增系数
+        var timeMultipliers: [Int: Double] = [:]
         
         func recursiveGetRequirements(for currentSkillID: Int, parentID: Int?) {
             // 防止循环依赖
@@ -108,13 +112,25 @@ class SkillTreeManager {
             
             // 获取直接依赖
             if let requirements = directRequirements[currentSkillID] {
+                // 收集这一层所有需要查询的技能ID
+                let skillIDs = requirements.map { $0.skillID }
+                
+                // 如果提供了databaseManager且有新的技能ID需要查询
+                if let db = databaseManager {
+                    let newSkillIDs = skillIDs.filter { !timeMultipliers.keys.contains($0) }
+                    if !newSkillIDs.isEmpty {
+                        timeMultipliers.merge(getTrainingTimeMultipliers(for: newSkillIDs, databaseManager: db)) { current, _ in current }
+                    }
+                }
+                
                 for (requiredSkillID, level) in requirements {
                     if let skillName = allSkills[requiredSkillID] {
                         let requirement = SkillRequirement(
                             skillID: requiredSkillID,
                             name: skillName,
                             level: level,
-                            parentSkillID: parentID
+                            parentSkillID: parentID,
+                            timeMultiplier: timeMultipliers[requiredSkillID]
                         )
                         result.append(requirement)
                         // 递归获取这个技能的前置要求
@@ -145,13 +161,13 @@ class SkillTreeManager {
     }
     
     /// 获取物品的所有技能要求（包括直接和间接技能）并去重
-    func getDeduplicatedSkillRequirements(for typeID: Int, databaseManager: DatabaseManager) -> [(skillID: Int, level: Int)] {
+    func getDeduplicatedSkillRequirements(for typeID: Int, databaseManager: DatabaseManager) -> [(skillID: Int, level: Int, timeMultiplier: Double?)] {
         // 获取直接技能要求
         let directRequirements = databaseManager.getDirectSkillRequirements(for: typeID)
         
         // 获取所有间接技能要求
         let indirectRequirements = directRequirements.flatMap { requirement in
-            getAllRequirements(for: requirement.skillID)
+            getAllRequirements(for: requirement.skillID, databaseManager: databaseManager)
                 .map { (skillID: $0.skillID, level: $0.level) }
         }
         
@@ -168,8 +184,43 @@ class SkillTreeManager {
             }
         }
         
+        // 一次性获取所有技能的训练时间倍增系数
+        let skillIDs = Array(skillMap.keys)
+        let multipliers = getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+        
         // 转换为数组并按等级排序
-        return skillMap.map { (skillID: $0.key, level: $0.value) }
+        return skillMap.map { (skillID: $0.key, level: $0.value, timeMultiplier: multipliers[$0.key]) }
             .sorted { $0.level > $1.level }
+    }
+    
+    /// 批量获取技能的训练时间倍增系数
+    private func getTrainingTimeMultipliers(for skillIDs: [Int], databaseManager: DatabaseManager) -> [Int: Double] {
+        guard !skillIDs.isEmpty else { return [:] }
+        
+        let placeholders = String(repeating: "?,", count: skillIDs.count).dropLast()
+        let query = """
+            SELECT type_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(placeholders))
+            AND attribute_id = 275
+        """
+        
+        var multipliers: [Int: Double] = [:]
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: skillIDs) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let value = row["value"] as? Double {
+                    multipliers[typeID] = value
+                }
+            }
+        }
+        
+        return multipliers
+    }
+    
+    /// 获取技能的训练时间倍增系数（单个技能版本，建议使用批量版本）
+    func getTrainingTimeMultiplier(for skillID: Int, databaseManager: DatabaseManager) -> Double? {
+        return getTrainingTimeMultipliers(for: [skillID], databaseManager: databaseManager)[skillID]
     }
 } 

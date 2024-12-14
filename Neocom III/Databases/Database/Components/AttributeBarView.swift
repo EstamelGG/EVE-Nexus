@@ -295,6 +295,7 @@ struct AttributesView: View {
                             SkillRequirementRow(
                                 skillID: requirement.skillID,
                                 level: requirement.level,
+                                timeMultiplier: requirement.timeMultiplier,
                                 databaseManager: databaseManager
                             )
                         }
