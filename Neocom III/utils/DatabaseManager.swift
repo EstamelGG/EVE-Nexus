@@ -1234,35 +1234,21 @@ class DatabaseManager: ObservableObject {
     
     // 获取物品的直接技能要求
     func getDirectSkillRequirements(for typeID: Int) -> [(skillID: Int, level: Int)] {
-        let skillPairs = SkillTreeManager.shared.skillRequirementAttributes.map { 
-            "(ta1.attribute_id = \($0.skillID) AND ta2.attribute_id = \($0.levelID))"
-        }.joined(separator: " OR ")
-        
         let query = """
-            SELECT ta1.attribute_id as skill_attr_id,
-                   ta1.value as required_skill_id,
-                   ta2.value as required_level
-            FROM typeAttributes ta1
-            JOIN typeAttributes ta2 
-            ON ta1.type_id = ta2.type_id
-            WHERE ta1.type_id = ?
-            AND (\(skillPairs))
-            ORDER BY ta1.attribute_id
+            SELECT DISTINCT required_skill_id, required_skill_level
+            FROM typeSkillRequirement
+            WHERE typeid = ?
+            ORDER BY required_skill_level DESC
         """
         
         var requirements: [(skillID: Int, level: Int)] = []
         
         if case .success(let rows) = executeQuery(query, parameters: [typeID]) {
             for row in rows {
-                guard let requiredSkillID = row["required_skill_id"] as? Double,
-                      let requiredLevel = row["required_level"] as? Double else {
-                    continue
+                if let skillID = row["required_skill_id"] as? Int,
+                   let level = row["required_skill_level"] as? Int {
+                    requirements.append((skillID: skillID, level: level))
                 }
-                
-                requirements.append((
-                    skillID: Int(requiredSkillID),
-                    level: Int(requiredLevel)
-                ))
             }
         }
         
