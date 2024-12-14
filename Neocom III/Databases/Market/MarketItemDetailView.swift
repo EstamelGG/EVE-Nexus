@@ -26,7 +26,6 @@ struct MarketItemBasicInfoView: View {
 struct MarketItemDetailView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let itemID: Int
-    @State private var showFullItemInfo = false
     @State private var marketPath: [String] = []
     @State private var itemDetails: ItemDetails?
     
@@ -35,36 +34,25 @@ struct MarketItemDetailView: View {
             // 基本信息部分
             Section {
                 if let details = itemDetails {
-                    HStack {
+                    NavigationLink {
+                        if let categoryID = itemDetails?.categoryID {
+                            ItemInfoMap.getItemInfoView(
+                                itemID: itemID,
+                                categoryID: categoryID,
+                                databaseManager: databaseManager
+                            )
+                        }
+                    } label: {
                         MarketItemBasicInfoView(
                             itemDetails: details,
                             marketPath: marketPath
                         )
-                        
-                        Spacer()
-                        
-                        // 查看详情按钮
-                        Button {
-                            showFullItemInfo = true
-                        } label: {
-                            Image(systemName: "info.circle")
-                                .font(.title2)
-                        }
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showFullItemInfo) {
-            if let categoryID = itemDetails?.categoryID {
-                ItemInfoMap.getItemInfoView(
-                    itemID: itemID,
-                    categoryID: categoryID,
-                    databaseManager: databaseManager
-                )
-            }
-        }
         .onAppear {
             loadItemDetails()
             loadMarketPath()
