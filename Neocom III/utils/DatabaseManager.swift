@@ -416,6 +416,7 @@ class DatabaseManager: ObservableObject {
                         published: isPublished != 0,
                         categoryID: categoryId,
                         groupID: groupId,  // 添加 groupID
+                        groupName: row["group_name"] as? String,  // 添加 groupName
                         pgNeed: row["pg_need"] as? Int,
                         cpuNeed: row["cpu_need"] as? Int,
                         rigCost: row["rig_cost"] as? Int,

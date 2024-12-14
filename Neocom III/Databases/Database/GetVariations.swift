@@ -160,6 +160,7 @@ extension DatabaseManager {
                     published: isPublished,
                     categoryID: categoryId,
                     groupID: nil,
+                    groupName: nil,
                     pgNeed: row["pg_need"] as? Int,
                     cpuNeed: row["cpu_need"] as? Int,
                     rigCost: row["rig_cost"] as? Int,

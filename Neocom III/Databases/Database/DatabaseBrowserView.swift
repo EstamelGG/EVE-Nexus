@@ -162,6 +162,7 @@ struct DatabaseBrowserView: View {
                     published: true,
                     categoryID: nil,
                     groupID: nil,
+                    groupName: nil,
                     pgNeed: nil,
                     cpuNeed: nil,
                     rigCost: nil,
@@ -192,6 +193,7 @@ struct DatabaseBrowserView: View {
                     published: false,
                     categoryID: nil,
                     groupID: nil,
+                    groupName: nil,
                     pgNeed: nil,
                     cpuNeed: nil,
                     rigCost: nil,
@@ -207,12 +209,7 @@ struct DatabaseBrowserView: View {
                     missSlot: nil,
                     metaGroupID: nil,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(
-                        DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .groups(categoryID: category.id, categoryName: category.name)
-                        )
-                    )
+                    navigationDestination: AnyView(EmptyView())
                 )
             }
             return (items, [:])
@@ -227,6 +224,7 @@ struct DatabaseBrowserView: View {
                     published: true,
                     categoryID: group.categoryID,
                     groupID: group.id,
+                    groupName: group.name,
                     pgNeed: nil,
                     cpuNeed: nil,
                     rigCost: nil,
@@ -257,6 +255,7 @@ struct DatabaseBrowserView: View {
                     published: false,
                     categoryID: group.categoryID,
                     groupID: group.id,
+                    groupName: group.name,
                     pgNeed: nil,
                     cpuNeed: nil,
                     rigCost: nil,
@@ -272,17 +271,12 @@ struct DatabaseBrowserView: View {
                     missSlot: nil,
                     metaGroupID: nil,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(
-                        DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .items(groupID: group.id, groupName: group.name)
-                        )
-                    )
+                    navigationDestination: AnyView(EmptyView())
                 )
             }
             return (items, [:])
             
-        case .items(let groupID, _):
+        case .items(let groupID, let groupName):
             let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
             let items = published.map { item in
                 DatabaseListItem(
@@ -292,6 +286,7 @@ struct DatabaseBrowserView: View {
                     published: true,
                     categoryID: item.categoryID,
                     groupID: groupID,
+                    groupName: groupName,
                     pgNeed: item.pgNeed,
                     cpuNeed: item.cpuNeed,
                     rigCost: item.rigCost,
@@ -321,6 +316,7 @@ struct DatabaseBrowserView: View {
                     published: false,
                     categoryID: item.categoryID,
                     groupID: groupID,
+                    groupName: groupName,
                     pgNeed: item.pgNeed,
                     cpuNeed: item.cpuNeed,
                     rigCost: item.rigCost,
@@ -336,11 +332,7 @@ struct DatabaseBrowserView: View {
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
                     marketGroupID: nil,
-                    navigationDestination: ItemInfoMap.getItemInfoView(
-                        itemID: item.id,
-                        categoryID: item.categoryID,
-                        databaseManager: databaseManager
-                    )
+                    navigationDestination: AnyView(EmptyView())
                 )
             }
             return (items, metaGroupNames)
