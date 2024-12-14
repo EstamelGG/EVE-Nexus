@@ -1,5 +1,28 @@
 import SwiftUI
 
+struct MarketItemBasicInfoView: View {
+    let itemDetails: ItemDetails
+    let marketPath: [String]
+    
+    var body: some View {
+        HStack {
+            IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                .resizable()
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(itemDetails.name)
+                    .font(.title)
+                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
 struct MarketItemDetailView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let itemID: Int
@@ -13,23 +36,10 @@ struct MarketItemDetailView: View {
             Section {
                 if let details = itemDetails {
                     HStack {
-                        // 物品图标
-                        IconManager.shared.loadImage(for: details.iconFileName)
-                            .resizable()
-                            .frame(width: 64, height: 64)
-                            .cornerRadius(8)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 物品名称
-                            Text(details.name)
-                                .font(.headline)
-                            
-                            // 分类路径
-                            Text(marketPath.joined(separator: " > "))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .lineLimit(2)
-                        }
+                        MarketItemBasicInfoView(
+                            itemDetails: details,
+                            marketPath: marketPath
+                        )
                         
                         Spacer()
                         
@@ -40,22 +50,21 @@ struct MarketItemDetailView: View {
                             Image(systemName: "info.circle")
                                 .font(.title2)
                         }
-                        .sheet(isPresented: $showFullItemInfo) {
-                            if let categoryID = itemDetails?.categoryID {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: itemID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
-                        }
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showFullItemInfo) {
+            if let categoryID = itemDetails?.categoryID {
+                ItemInfoMap.getItemInfoView(
+                    itemID: itemID,
+                    categoryID: categoryID,
+                    databaseManager: databaseManager
+                )
+            }
+        }
         .onAppear {
             loadItemDetails()
             loadMarketPath()
