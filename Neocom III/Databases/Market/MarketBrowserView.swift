@@ -92,6 +92,8 @@ struct MarketBrowserView: View {
                     isLoading = false
                     items = []
                 } else {
+                    isLoading = true  // 立即显示加载状态
+                    items = []  // 清空当前显示的物品
                     if newValue.count >= 1 {
                         searchController.processSearchInput(newValue)
                     }
@@ -99,7 +101,7 @@ struct MarketBrowserView: View {
             }
             .overlay {
                 if isLoading {
-                    Color(.systemBackground)
+                    Color(.systemBackground)  // 使用系统背景色作为不透明遮罩
                         .ignoresSafeArea()
                         .overlay {
                             VStack {
@@ -336,6 +338,8 @@ struct MarketGroupView: View {
                 isLoading = false
                 items = []
             } else {
+                isLoading = true  // 立即显示加载状态
+                items = []  // 清空当前显示的物品
                 if newValue.count >= 1 {
                     searchController.processSearchInput(newValue)
                 }
@@ -343,7 +347,7 @@ struct MarketGroupView: View {
         }
         .overlay {
             if isLoading {
-                Color(.systemBackground)
+                Color(.systemBackground)  // 使用系统背景色作为不透明遮罩
                     .ignoresSafeArea()
                     .overlay {
                         VStack {
@@ -556,6 +560,8 @@ struct MarketItemListView: View {
                 isLoading = false
                 searchResults = []
             } else {
+                isLoading = true  // 立即显示加载状态
+                searchResults = []  // 清空当前显示的物品
                 if newValue.count >= 1 {
                     searchController.processSearchInput(newValue)
                 }
@@ -563,7 +569,7 @@ struct MarketItemListView: View {
         }
         .overlay {
             if isLoading {
-                Color(.systemBackground)
+                Color(.systemBackground)  // 使用系统背景色作为不透明遮罩
                     .ignoresSafeArea()
                     .overlay {
                         VStack {

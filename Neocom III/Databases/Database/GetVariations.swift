@@ -175,7 +175,13 @@ extension DatabaseManager {
                     missSlot: row["miss_slot"] as? Int,
                     metaGroupID: metaGroupId,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
+                    navigationDestination: AnyView(
+                        ItemInfoMap.getItemInfoView(
+                            itemID: id,
+                            categoryID: categoryId,
+                            databaseManager: self
+                        )
+                    )
                 )
                 
                 items.append(item)
