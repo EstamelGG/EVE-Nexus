@@ -115,9 +115,10 @@ class DatabaseManager: ObservableObject {
     // 加载组
     func loadGroups(for categoryID: Int) -> ([Group], [Group]) {
         let query = """
-            SELECT group_id, name, categoryID, published, icon_filename
-            FROM groups
-            WHERE categoryID = ?
+            SELECT g.group_id, g.name, g.categoryID, g.published, g.icon_filename
+            FROM groups g
+            WHERE g.categoryID = ?
+            ORDER BY g.name
         """
         
         let result = executeQuery(query, parameters: [categoryID])
@@ -152,6 +153,11 @@ class DatabaseManager: ObservableObject {
                     unpublished.append(group)
                 }
             }
+            
+            // 按名称排序
+            published.sort { $0.name < $1.name }
+            unpublished.sort { $0.name < $1.name }
+            
         case .error(let error):
             Logger.error("加载组失败: \(error)")
         }

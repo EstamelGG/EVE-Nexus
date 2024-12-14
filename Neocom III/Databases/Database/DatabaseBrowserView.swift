@@ -209,7 +209,12 @@ struct DatabaseBrowserView: View {
                     missSlot: nil,
                     metaGroupID: nil,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .groups(categoryID: category.id, categoryName: category.name)
+                        )
+                    )
                 )
             }
             return (items, [:])
@@ -271,7 +276,12 @@ struct DatabaseBrowserView: View {
                     missSlot: nil,
                     metaGroupID: nil,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
+                    navigationDestination: AnyView(
+                        DatabaseBrowserView(
+                            databaseManager: databaseManager,
+                            level: .items(groupID: group.id, groupName: group.name)
+                        )
+                    )
                 )
             }
             return (items, [:])
@@ -332,7 +342,11 @@ struct DatabaseBrowserView: View {
                     missSlot: item.missSlot,
                     metaGroupID: item.metaGroupID,
                     marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
+                    navigationDestination: ItemInfoMap.getItemInfoView(
+                        itemID: item.id,
+                        categoryID: item.categoryID,
+                        databaseManager: databaseManager
+                    )
                 )
             }
             return (items, metaGroupNames)
