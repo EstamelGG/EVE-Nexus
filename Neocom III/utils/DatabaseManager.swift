@@ -284,7 +284,7 @@ class DatabaseManager: ObservableObject {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
                    t.volume, t.capacity, t.mass,
-                   g.name as group_name, c.name as category_name, t.categoryID
+                   g.name as group_name, c.name as category_name, c.category_id
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
             LEFT JOIN categories c ON g.categoryID = c.category_id
@@ -300,7 +300,7 @@ class DatabaseManager: ObservableObject {
                   let description = row["description"] as? String,
                   let iconFilename = row["icon_filename"] as? String,
                   let groupName = row["group_name"] as? String,
-                  let categoryID = row["categoryID"] as? Int,
+                  let categoryID = row["category_id"] as? Int,
                   let categoryName = row["category_name"] as? String else {
                 return nil
             }
@@ -1318,35 +1318,22 @@ class DatabaseManager: ObservableObject {
     
     // 获取所有需要特定技能的物品及其需求等级
     func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(typeID: Int, name: String, iconFileName: String)]] {
-        // 使用 UNION ALL 替代 OR 条件，每个技能要求属性对单独查询
-        let subQueries = SkillTreeManager.shared.skillRequirementAttributes.map { attr -> String in
-            """
-            SELECT DISTINCT t.type_id, t.name, t.icon_filename, a2.value as required_level
-            FROM typeAttributes a1
-            INNER JOIN typeAttributes a2 
-                ON a1.type_id = a2.type_id 
-                AND a1.attribute_id = \(attr.skillID)
-                AND a1.value = \(skillID)
-                AND a2.attribute_id = \(attr.levelID)
-            INNER JOIN types t ON a1.type_id = t.type_id
-            """
-        }
-        
         let query = """
-            \(subQueries.joined(separator: "\nUNION ALL\n"))
-            ORDER BY required_level, name
+            SELECT DISTINCT typeid, typename, typeicon, required_skill_level
+            FROM typeSkillRequirement
+            WHERE required_skill_id = ?
+            ORDER BY required_skill_level, typename
         """
         
         var itemsByLevel: [Int: [(typeID: Int, name: String, iconFileName: String)]] = [:]
         
-        if case .success(let rows) = executeQuery(query) {
+        if case .success(let rows) = executeQuery(query, parameters: [skillID]) {
             for row in rows {
-                if let typeID = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String,
-                   let requiredLevel = row["required_level"] as? Double {
+                if let typeID = row["typeid"] as? Int,
+                   let name = row["typename"] as? String,
+                   let iconFileName = row["typeicon"] as? String,
+                   let level = row["required_skill_level"] as? Int {
                     
-                    let level = Int(requiredLevel)
                     let item = (
                         typeID: typeID,
                         name: name,
