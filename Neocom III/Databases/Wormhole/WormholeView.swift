@@ -101,45 +101,7 @@ struct WormholeDetailView: View {
         List {
             // 基本信息部分
             Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    // 图标和渲染图
-                    HStack(alignment: .top, spacing: 12) {
-                        // 图标
-                        IconManager.shared.loadImage(for: wormhole.icon)
-                            .resizable()
-                            .frame(width: 64, height: 64)
-                            .cornerRadius(8)
-                        
-                        // 渲染图
-                        if let image = renderImage {
-                            Image(uiImage: image)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 200)
-                                .cornerRadius(8)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    
-                    // 名称和目标空间
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(wormhole.name)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text(wormhole.target)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // 描述
-                    Text(wormhole.description)
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 8)
-                }
+                WormholeBasicInfoView(wormhole: wormhole)
             }
             
             // 详细信息部分
@@ -180,6 +142,87 @@ struct InfoRow: View {
                 .foregroundColor(.gray)
             Spacer()
             Text(value)
+        }
+    }
+}
+
+// 虫洞基本信息视图
+struct WormholeBasicInfoView: View {
+    let wormhole: WormholeInfo
+    @State private var renderImage: UIImage? = nil
+    // iOS 标准圆角半径
+    private let cornerRadius: CGFloat = 10
+    // 标准边距
+    private let standardPadding: CGFloat = 16
+    var body: some View {
+        Section {
+            if let image = renderImage {
+                // 大图布局
+                ZStack(alignment: .bottomLeading) {
+                    // 渲染图
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .cornerRadius(cornerRadius)
+                        .padding(.horizontal, standardPadding)
+                        .padding(.vertical, standardPadding)
+                    
+                    // 信息覆盖层
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(wormhole.name)
+                            .font(.title)
+                        Text("\(wormhole.target) / ID:\(wormhole.id)" )
+                            .font(.subheadline)
+                    }
+                    .padding(.horizontal, standardPadding * 2)
+                    .padding(.vertical, standardPadding)
+                    .background(
+                        Color.black.opacity(0.5)
+                            .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
+                    )
+                    .foregroundColor(.white)
+                    .padding(.horizontal, standardPadding)
+                    .padding(.bottom, standardPadding)
+                }
+                .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
+            } else {
+                // 小图标布局
+                HStack(alignment: .top, spacing: 12) {
+                    // 图标
+                    IconManager.shared.loadImage(for: wormhole.icon)
+                        .resizable()
+                        .frame(width: 64, height: 64)
+                        .cornerRadius(8)
+                    
+                    // 名称和目录
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(wormhole.name)
+                            .font(.headline)
+                        Text(wormhole.target)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            // 描述
+            Text(wormhole.description)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+        }
+        .task {
+            await loadRenderImage()
+        }
+    }
+    
+    private func loadRenderImage() async {
+        do {
+            renderImage = try await NetworkManager.shared.fetchEVEItemRender(typeID: wormhole.id)
+        } catch {
+            Logger.error("Failed to load render image: \(error.localizedDescription)")
         }
     }
 }
