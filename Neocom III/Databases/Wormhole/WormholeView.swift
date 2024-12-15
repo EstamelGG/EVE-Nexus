@@ -106,11 +106,21 @@ struct WormholeDetailView: View {
             
             // 详细信息部分
             Section {
-                InfoRow(title: NSLocalizedString("Main_Market_WH_Leadsto", comment: ""), value: wormhole.sizeType)
-                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableTime", comment: ""), value: wormhole.stableTime)
-                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableMass", comment: ""), value: wormhole.maxStableMass)
-                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxJumpMass", comment: ""), value: wormhole.maxJumpMass)
-                InfoRow(title: NSLocalizedString("Main_Market_WH_Size", comment: ""), value: wormhole.sizeType)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_Leadsto", comment: ""), 
+                       value: wormhole.sizeType,
+                       iconName: "items_7_64_4.png")
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableTime", comment: ""),
+                       value: wormhole.stableTime,
+                       iconName: "items_22_32_16.png")
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableMass", comment: ""),
+                       value: wormhole.maxStableMass,
+                       iconName: "icon_1333_64.png")
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxJumpMass", comment: ""),
+                       value: wormhole.maxJumpMass,
+                       iconName: "items_9_64_5.png")
+                InfoRow(title: NSLocalizedString("Main_Market_WH_Size", comment: ""),
+                       value: wormhole.sizeType,
+                        iconName: "items_22_32_15.png")
             } header: {
                 Text(NSLocalizedString("Main_Market_WH_Details", comment: ""))
                     .font(.headline)
@@ -136,13 +146,29 @@ struct WormholeDetailView: View {
 struct InfoRow: View {
     let title: String
     let value: String
+    let iconName: String?
+    
+    init(title: String, value: String, iconName: String? = nil) {
+        self.title = title
+        self.value = value
+        self.iconName = iconName
+    }
     
     var body: some View {
         HStack {
+            if let iconName = iconName {
+                IconManager.shared.loadImage(for: iconName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .aspectRatio(contentMode: .fit)
+            }
             Text(title)
+                .font(.body)
                 .foregroundColor(.gray)
             Spacer()
             Text(value)
+                .font(.body)
+                .foregroundColor(.secondary)
         }
     }
 }
