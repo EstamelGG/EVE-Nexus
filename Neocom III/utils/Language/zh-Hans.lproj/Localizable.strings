@@ -38,6 +38,8 @@
 "Main_Database_Required_By" = "技能等级适用于";
 "Main_Database_NPC_Scene" = "NPC";
 "Main_Database_NPC_Ships" = "舰船";
+"Main_Market_Current_Price" = "当前 Jita 售价";
+
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

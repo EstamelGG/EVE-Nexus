@@ -86,7 +86,7 @@ struct MarketItemDetailView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
-                            Text("Price")
+                            Text(NSLocalizedString("Main_Market_Current_Price", comment: ""))
                             Button(action: {
                                 Task {
                                     await loadMarketData(forceRefresh: true)
