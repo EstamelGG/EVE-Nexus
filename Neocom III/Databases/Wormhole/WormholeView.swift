@@ -107,7 +107,7 @@ struct WormholeDetailView: View {
             // 详细信息部分
             Section {
                 InfoRow(title: NSLocalizedString("Main_Market_WH_Leadsto", comment: ""), 
-                       value: wormhole.sizeType,
+                        value: wormhole.target,
                        iconName: "items_7_64_4.png")
                 InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableTime", comment: ""),
                        value: wormhole.stableTime,
@@ -164,7 +164,7 @@ struct InfoRow: View {
             }
             Text(title)
                 .font(.body)
-                .foregroundColor(.gray)
+                .foregroundColor(.primary)
             Spacer()
             Text(value)
                 .font(.body)
@@ -236,9 +236,7 @@ struct WormholeBasicInfoView: View {
             // 描述
             Text(wormhole.description)
                 .font(.body)
-                .foregroundColor(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
+                .foregroundColor(.primary)
         }
         .task {
             await loadRenderImage()
