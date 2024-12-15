@@ -263,6 +263,21 @@ struct MarketItemDetailView: View {
                     }
                 }
             }
+            
+            // 市场订单按钮
+            Section {
+                NavigationLink {
+                    if let orders = marketOrders {
+                        MarketOrdersView(
+                            itemID: itemID,
+                            orders: orders,
+                            databaseManager: databaseManager
+                        )
+                    }
+                } label: {
+                    Text("Show market orders")
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)

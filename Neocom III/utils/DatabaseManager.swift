@@ -1167,7 +1167,7 @@ class DatabaseManager: ObservableObject {
                 WHERE tm.output_material = ? AND tm.categoryid = 25
                 ORDER BY output_per_unit DESC
             """
-        } else if groupID == 427 { //元素，只看矿石来源
+        } else if groupID == 427 { //元素，只看���石来源
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1580,6 +1580,59 @@ class DatabaseManager: ObservableObject {
             return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
         }
         return DatabaseConfig.defaultItemIcon
+    }
+    
+    // MARK: - Station Info
+    struct StationInfo: Hashable {
+        let stationName: String
+        let security: Double
+    }
+    
+    private var stationInfoCache: [Int: StationInfo] = [:]
+    
+    func getStationInfo(stationID: Int) -> StationInfo? {
+        // 检查缓存
+        if let cachedInfo = stationInfoCache[stationID] {
+            return cachedInfo
+        }
+        
+        // 从数据库加载
+        let query = """
+            SELECT stationName, security
+            FROM stations
+            WHERE stationID = ?
+        """
+        
+        let result = executeQuery(query, parameters: [stationID])
+        
+        switch result {
+        case .success(let rows):
+            if let row = rows.first,
+               let stationName = row["stationName"] as? String,
+               let security = row["security"] as? Double {
+                let info = StationInfo(
+                    stationName: stationName,
+                    security: security
+                )
+                // 更新缓存
+                stationInfoCache[stationID] = info
+                return info
+            }
+        case .error(let error):
+            Logger.error("获取空间站信息失败: \(error)")
+        }
+        
+        return nil
+    }
+    
+    func clearStationInfoCache() {
+        stationInfoCache.removeAll()
+    }
+    
+    // 清除所有缓存
+    func clearAllCaches() {
+        sqliteManager.clearCache()
+        clearStationInfoCache()
     }
 }
 
