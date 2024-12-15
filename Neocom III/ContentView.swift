@@ -95,7 +95,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_WH", comment: ""),
-                        iconName: "terminate"
+                        iconName: "terminate",
+                        destination: AnyView(WormholeView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Incursions", comment: ""),
@@ -267,7 +268,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_WH", comment: ""),
-                        iconName: "terminate"
+                        iconName: "terminate",
+                        destination: AnyView(WormholeView(databaseManager: databaseManager))
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Incursions", comment: ""),

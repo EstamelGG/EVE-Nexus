@@ -1167,7 +1167,7 @@ class DatabaseManager: ObservableObject {
                 WHERE tm.output_material = ? AND tm.categoryid = 25
                 ORDER BY output_per_unit DESC
             """
-        } else if groupID == 427 { //元素，只看���石来源
+        } else if groupID == 427 { //元素，只看石来源
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1694,3 +1694,64 @@ extension DatabaseManager {
         return items
     }
 }
+
+// 虫洞信息结构体
+public struct WormholeInfo: Identifiable {
+    public let id: Int
+    public let name: String
+    public let description: String
+    public let icon: String
+    public let target: String
+    public let stableTime: String
+    public let maxStableMass: String
+    public let maxJumpMass: String
+    public let sizeType: String
+}
+
+extension DatabaseManager {
+    // 加载虫洞数据
+    func loadWormholes() -> [WormholeInfo] {
+        let query = """
+            SELECT type_id, name, description, icon, target, stable_time, max_stable_mass, max_jump_mass, size_type
+            FROM wormholes
+            ORDER BY target, name
+        """
+        
+        let result = executeQuery(query)
+        var wormholes: [WormholeInfo] = []
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let description = row["description"] as? String,
+                   let icon = row["icon"] as? String,
+                   let target = row["target"] as? String,
+                   let stableTime = row["stable_time"] as? String,
+                   let maxStableMass = row["max_stable_mass"] as? String,
+                   let maxJumpMass = row["max_jump_mass"] as? String,
+                   let sizeType = row["size_type"] as? String {
+                    
+                    let wormhole = WormholeInfo(
+                        id: typeId,
+                        name: name,
+                        description: description,
+                        icon: icon,
+                        target: target,
+                        stableTime: stableTime,
+                        maxStableMass: maxStableMass,
+                        maxJumpMass: maxJumpMass,
+                        sizeType: sizeType
+                    )
+                    wormholes.append(wormhole)
+                }
+            }
+        case .error(let error):
+            Logger.error("加载虫洞数据失败: \(error)")
+        }
+        
+        return wormholes
+    }
+}
+
