@@ -298,17 +298,7 @@ struct MarketItemDetailView: View {
                                     .foregroundColor(.blue)
                             }
                             .disabled(isLoadingPrice)
-                            
                             Spacer()
-                            
-                            // 星域选择按钮
-                            Button(action: {
-                                showRegionPicker = true
-                            }) {
-                                Image(systemName: "globe")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
                         }
                         HStack {
                             if isLoadingPrice {
@@ -389,6 +379,15 @@ struct MarketItemDetailView: View {
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showRegionPicker = true
+                }) {
+                    Image(systemName: "globe")
+                }
+            }
+        }
         .sheet(isPresented: $showRegionPicker) {
             RegionPickerView(
                 regions: groupedRegionsCache,
