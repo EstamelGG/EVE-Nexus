@@ -270,8 +270,16 @@ struct MarketItemDetailView: View {
                         )
                     }
                 } label: {
-                    Text(NSLocalizedString("Main_Market_Show_market_orders", comment: ""))
+                    HStack {
+                        Text(NSLocalizedString("Main_Market_Show_market_orders", comment: ""))
+                        Spacer()
+                        if isLoadingPrice {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        }
+                    }
                 }
+                .disabled(marketOrders == nil || isLoadingPrice)
             }
 
             // 历史价格图表部分
