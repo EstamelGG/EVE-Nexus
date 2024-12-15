@@ -43,6 +43,12 @@
 "Main_Market_Show_market_orders" = "查看市场订单";
 "Main_Market_Choose_Region" = "选择星域";
 "Main_Market_WH_info" = "虫洞信息";
+"Main_Market_WH_Details" = "详细信息";
+"Main_Market_WH_MaxStableTime" = "最大稳定时间";
+"Main_Market_WH_MaxStableMass" = "最大稳定质量";
+"Main_Market_WH_MaxJumpMass" = "最大单次跳跃质量";
+"Main_Market_WH_Leadsto" = "通往";
+"Main_Market_WH_Size" = "尺寸类型";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

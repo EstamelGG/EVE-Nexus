@@ -106,12 +106,13 @@ struct WormholeDetailView: View {
             
             // 详细信息部分
             Section {
-                InfoRow(title: "稳定时间", value: wormhole.stableTime)
-                InfoRow(title: "最大稳定质量", value: wormhole.maxStableMass)
-                InfoRow(title: "最大跃迁质量", value: wormhole.maxJumpMass)
-                InfoRow(title: "尺寸类型", value: wormhole.sizeType)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_Leadsto", comment: ""), value: wormhole.sizeType)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableTime", comment: ""), value: wormhole.stableTime)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxStableMass", comment: ""), value: wormhole.maxStableMass)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_MaxJumpMass", comment: ""), value: wormhole.maxJumpMass)
+                InfoRow(title: NSLocalizedString("Main_Market_WH_Size", comment: ""), value: wormhole.sizeType)
             } header: {
-                Text("详细信息")
+                Text(NSLocalizedString("Main_Market_WH_Details", comment: ""))
                     .font(.headline)
                     .textCase(.none)
             }

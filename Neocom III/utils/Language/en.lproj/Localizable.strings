@@ -41,6 +41,12 @@
 "Main_Market_Show_market_orders" = "Show market orders";
 "Main_Market_Choose_Region" = "Choose region";
 "Main_Market_WH_info" = "Info of wormhole";
+"Main_Market_WH_Details" = "Details";
+"Main_Market_WH_MaxStableTime" = "Maximum Stable Time";
+"Main_Market_WH_MaxStableMass" = "Maximum Stable Mass";
+"Main_Market_WH_MaxJumpMass" = "Maximum Jump Mass";
+"Main_Market_WH_Leadsto" = "Leads Into";
+"Main_Market_WH_Size" = "Size";
 
 
 "Main_Market" = "Market";
