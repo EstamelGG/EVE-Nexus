@@ -30,7 +30,6 @@ struct SelectLanguageView: View {
     @AppStorage("selectedLanguage") var storedLanguage: String?
     @State private var selectedLanguage: String?
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var showConfirmationDialog = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -43,7 +42,7 @@ struct SelectLanguageView: View {
                         onTap: {
                             if language != selectedLanguage {
                                 selectedLanguage = language
-                                showConfirmationDialog = true
+                                applyLanguageChange()
                             }
                         }
                     )
@@ -56,19 +55,6 @@ struct SelectLanguageView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
-        .confirmationDialog(
-            NSLocalizedString("Main_Setting_SwitchLanguageConfirmation", comment: ""),
-            isPresented: $showConfirmationDialog,
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("Continue", comment: ""), role: .destructive) {
-                applyLanguageChange()
-            }
-            
-            Button(NSLocalizedString("Cancel", comment: ""), role: .cancel) {
-                restoreOriginalLanguage()
-            }
-        }
     }
     
     private func setupInitialLanguage() {
@@ -110,13 +96,6 @@ struct SelectLanguageView: View {
         
         // 6. 关闭当前视图
         dismiss()
-    }
-    
-    private func restoreOriginalLanguage() {
-        if let storedLang = storedLanguage,
-           let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
-            selectedLanguage = defaultLanguage
-        }
     }
 }
 
