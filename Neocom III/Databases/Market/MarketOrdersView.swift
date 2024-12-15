@@ -53,41 +53,45 @@ struct MarketOrdersView: View {
     }
     
     var body: some View {
-        List {
-            ForEach(filteredOrders, id: \.orderId) { order in
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(formatPrice(order.price))
-                                .font(.headline)
-                            Spacer()
-                            Text("Qty: \(order.volumeRemain)")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
-                            HStack(spacing: 4) {
-                                Text(String(format: "%.1f", stationInfo.security))
-                                    .foregroundColor(getSecurityColor(stationInfo.security))
-                                Text(stationInfo.stationName)
+        VStack(spacing: 0) {
+            // 买卖单切换按钮
+            Picker("Order Type", selection: $showBuyOrders) {
+                Text("Sell Orders").tag(false)
+                Text("Buy Orders").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color(.systemGroupedBackground))
+            
+            // 订单列表
+            List {
+                ForEach(filteredOrders, id: \.orderId) { order in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(formatPrice(order.price))
+                                    .font(.headline)
+                                Spacer()
+                                Text("Qty: \(order.volumeRemain)")
+                                    .font(.headline)
                                     .foregroundColor(.secondary)
                             }
-                            .font(.caption)
+                            
+                            if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
+                                HStack(spacing: 4) {
+                                    Text(String(format: "%.1f", stationInfo.security))
+                                        .foregroundColor(getSecurityColor(stationInfo.security))
+                                    Text(stationInfo.stationName)
+                                        .foregroundColor(.secondary)
+                                }
+                                .font(.caption)
+                            }
                         }
                     }
                 }
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Order Type", selection: $showBuyOrders) {
-                    Text("Sell Orders").tag(false)
-                    Text("Buy Orders").tag(true)
-                }
-                .pickerStyle(.segmented)
-            }
-        }
     }
 }
