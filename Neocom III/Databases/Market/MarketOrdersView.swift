@@ -45,8 +45,14 @@ struct MarketOrdersView: View {
             ForEach(filteredOrders, id: \.orderId) { order in
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(formatPrice(order.price))
-                            .font(.headline)
+                        HStack {
+                            Text(formatPrice(order.price))
+                                .font(.headline)
+                            Spacer()
+                            Text("Qty: \(order.volumeRemain)")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                        }
                         
                         if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
                             Text(String(format: "%.1f", stationInfo.security) + " " + stationInfo.stationName)
@@ -54,12 +60,6 @@ struct MarketOrdersView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    
-                    Spacer()
-                    
-                    Text("Qty: \(order.volumeRemain)")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
                 }
             }
         }
