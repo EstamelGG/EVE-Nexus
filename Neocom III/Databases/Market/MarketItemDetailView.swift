@@ -58,16 +58,17 @@ struct MarketHistoryChartView: View {
     var body: some View {
         let priceValues = history.map { $0.average }
         let volumeValues = history.map { Double($0.volume) }
+        let maxVolume = volumeValues.max() ?? 1
         
         Chart {
             ForEach(history, id: \.date) { item in
-                // 成交量柱状图
+                // 成交量柱状图 - 归一化处理
+                let normalizedVolume = Double(item.volume) / maxVolume * (priceValues.max() ?? 1)
                 BarMark(
                     x: .value("Date", item.date),
-                    y: .value("Volume", Double(item.volume))
+                    y: .value("Volume", normalizedVolume)
                 )
-                .foregroundStyle(.gray.opacity(0.3))
-                .position(by: .value("Type", "Volume"))
+                .foregroundStyle(.gray.opacity(0.8))
             }
             
             ForEach(history, id: \.date) { item in
@@ -78,13 +79,12 @@ struct MarketHistoryChartView: View {
                 )
                 .foregroundStyle(.blue)
                 .lineStyle(StrokeStyle(lineWidth: 1))
-                .position(by: .value("Type", "Price"))
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false), type: .linear)
+        .chartYScale(domain: .automatic(includesZero: false))
         .chartYAxis {
             // 价格轴（左侧）
-            AxisMarks(position: .leading) { value in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
                 if let price = value.as(Double.self) {
                     AxisValueLabel {
                         Text(formatPriceSimple(price))
@@ -95,10 +95,11 @@ struct MarketHistoryChartView: View {
         }
         .chartYAxis {
             // 成交量轴（右侧）
-            AxisMarks(position: .trailing) { value in
-                if let volume = value.as(Double.self) {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
+                if let price = value.as(Double.self) {
+                    let volume = Int(price * maxVolume / (priceValues.max() ?? 1))
                     AxisValueLabel {
-                        Text("\(Int(volume))")
+                        Text("\(volume)")
                             .foregroundColor(.gray)
                     }
                 }
