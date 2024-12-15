@@ -70,6 +70,25 @@ struct ItemBasicInfoView: View {
             loadRenderImage(for: itemDetails.typeId)
         }
         
+        // 市场详情 Section
+        Section {
+            NavigationLink {
+                MarketItemDetailView(
+                    databaseManager: databaseManager,
+                    itemID: itemDetails.typeId
+                )
+            } label: {
+                HStack {
+                    IconManager.shared.loadImage(for: "icon_52996_64.png")
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                    Text(NSLocalizedString("Main_Market", comment: ""))
+                    Spacer()
+                }
+            }
+        }
+        
         // 基础属性 Section
         if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
             Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
