@@ -258,7 +258,22 @@ struct MarketItemDetailView: View {
                     }
                 }
             }
-            
+                        
+            // 市场订单按钮
+            Section {
+                NavigationLink {
+                    if let orders = marketOrders {
+                        MarketOrdersView(
+                            itemID: itemID,
+                            orders: orders,
+                            databaseManager: databaseManager
+                        )
+                    }
+                } label: {
+                    Text(NSLocalizedString("Main_Market_Show_market_orders", comment: ""))
+                }
+            }
+
             // 历史价格图表部分
             Section {
                 VStack(alignment: .leading) {
@@ -288,21 +303,6 @@ struct MarketItemDetailView: View {
                         Text("Loading...")
                             .foregroundColor(.secondary)
                     }
-                }
-            }
-            
-            // 市场订单按钮
-            Section {
-                NavigationLink {
-                    if let orders = marketOrders {
-                        MarketOrdersView(
-                            itemID: itemID,
-                            orders: orders,
-                            databaseManager: databaseManager
-                        )
-                    }
-                } label: {
-                    Text(NSLocalizedString("Main_Market_Show_market_orders", comment: ""))
                 }
             }
         }
