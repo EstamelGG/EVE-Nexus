@@ -70,20 +70,21 @@ struct MarketItemDetailView: View {
                                 }
                             }) {
                                 Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
                                     .foregroundColor(.blue)
                             }
                             .disabled(isLoadingPrice)
                         }
                         if isLoadingPrice {
                             ProgressView()
-                                .scaleEffect(0.7)
+                                .font(.caption)
                         } else if let price = lowestPrice {
                             Text("\(price, specifier: "%.2f") ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
                             Text("Loading...")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
