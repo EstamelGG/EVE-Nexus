@@ -95,50 +95,78 @@ struct WormholeView: View {
 
 struct WormholeDetailView: View {
     let wormhole: WormholeInfo
+    @State private var renderImage: UIImage? = nil
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // 大图标
-                Image(wormhole.icon.replacingOccurrences(of: ".png", with: ""))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 128, maxHeight: 128)
-                    .padding()
-                
-                // 名称
-                Text(wormhole.name)
-                    .font(.title)
-                    .padding(.horizontal)
-                
-                // 目标分类
-                HStack {
-                    Text("目标空间：")
-                        .foregroundColor(.gray)
-                    Text(wormhole.target)
-                }
-                .padding(.horizontal)
-                
-                // 基本信息
-                VStack(alignment: .leading, spacing: 8) {
-                    InfoRow(title: "稳定时间", value: wormhole.stableTime)
-                    InfoRow(title: "最大稳定质量", value: wormhole.maxStableMass)
-                    InfoRow(title: "最大跃迁质量", value: wormhole.maxJumpMass)
-                    InfoRow(title: "尺寸类型", value: wormhole.sizeType)
-                }
-                .padding()
-                
-                // 描述信息
-                VStack(alignment: .leading) {
-                    Text("描述")
-                        .font(.headline)
+        List {
+            // 基本信息部分
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    // 图标和渲染图
+                    HStack(alignment: .top, spacing: 12) {
+                        // 图标
+                        IconManager.shared.loadImage(for: wormhole.icon)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                            .cornerRadius(8)
+                        
+                        // 渲染图
+                        if let image = renderImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200)
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    
+                    // 名称和目标空间
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(wormhole.name)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text(wormhole.target)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // 描述
                     Text(wormhole.description)
-                        .foregroundColor(.gray)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
                 }
-                .padding()
+            }
+            
+            // 详细信息部分
+            Section {
+                InfoRow(title: "稳定时间", value: wormhole.stableTime)
+                InfoRow(title: "最大稳定质量", value: wormhole.maxStableMass)
+                InfoRow(title: "最大跃迁质量", value: wormhole.maxJumpMass)
+                InfoRow(title: "尺寸类型", value: wormhole.sizeType)
+            } header: {
+                Text("详细信息")
+                    .font(.headline)
+                    .textCase(.none)
             }
         }
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadRenderImage()
+        }
+    }
+    
+    private func loadRenderImage() async {
+        do {
+            renderImage = try await NetworkManager.shared.fetchEVEItemRender(typeID: wormhole.id)
+        } catch {
+            Logger.error("Failed to load render image: \(error.localizedDescription)")
+        }
     }
 }
 
