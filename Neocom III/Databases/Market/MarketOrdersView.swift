@@ -78,15 +78,19 @@ struct MarketOrdersView: View {
                                     .foregroundColor(.secondary)
                             }
                             
-                            if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
-                                HStack(spacing: 4) {
+                            HStack(spacing: 4) {
+                                if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
                                     Text(String(format: "%.1f", stationInfo.security))
                                         .foregroundColor(getSecurityColor(stationInfo.security))
                                     Text(stationInfo.stationName)
-                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("0.0")
+                                        .foregroundColor(.red)
+                                    Text("Unknown Station")
                                 }
-                                .font(.caption)
                             }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
                     }
                 }

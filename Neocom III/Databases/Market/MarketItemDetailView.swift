@@ -248,6 +248,10 @@ struct MarketItemDetailView: View {
                                 Text(formatPrice(price))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
+                            } else if marketOrders?.isEmpty ?? true {
+                                Text("Null")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             } else {
                                 Text("Loading...")
                                     .font(.caption)
@@ -278,7 +282,7 @@ struct MarketItemDetailView: View {
                         }
                     }
                 }
-                .disabled(marketOrders == nil || isLoadingPrice)
+                .disabled(marketOrders == nil || isLoadingPrice || (marketOrders?.isEmpty ?? true))
             }
             
             // 历史价格图表部分
@@ -301,13 +305,13 @@ struct MarketItemDetailView: View {
                     }
                     if isLoadingHistory {
                         ProgressView()
-                    } else if let history = marketHistory {
+                    } else if let history = marketHistory, !history.isEmpty {
                         CachedMarketHistoryChartView(
                             history: history,
                             orders: marketOrders ?? []
                         )
                     } else {
-                        Text("Loading...")
+                        Text("Null")
                             .foregroundColor(.secondary)
                     }
                 }
