@@ -1,6 +1,12 @@
 import SwiftUI
 import Charts
 
+// 星域数据模型
+struct Region: Identifiable {
+    let id: Int
+    let name: String
+}
+
 struct MarketHistoryChartView: View {
     let history: [MarketHistory]
     let orders: [MarketOrder]
@@ -161,6 +167,46 @@ struct CachedMarketHistoryChartView: View {
     }
 }
 
+// 星域选择器视图
+struct RegionPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    let regions: [(key: String, regions: [Region])]
+    let selectedRegionID: Int
+    let onRegionSelect: (Region) -> Void
+    
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(regions, id: \.key) { group in
+                    Section(header: Text(group.key)) {
+                        ForEach(group.regions) { region in
+                            Button(action: {
+                                onRegionSelect(region)
+                                dismiss()
+                            }) {
+                                HStack {
+                                    Text(region.name)
+                                    Spacer()
+                                    if region.id == selectedRegionID {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                            }
+                            .foregroundColor(.primary)
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("选择星域")
+            .navigationBarItems(trailing: Button("关闭") {
+                dismiss()
+            })
+        }
+    }
+}
+
 struct MarketItemDetailView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let itemID: Int
@@ -172,6 +218,19 @@ struct MarketItemDetailView: View {
     @State private var marketHistory: [MarketHistory]?
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
+    @State private var showRegionPicker = false
+    @State private var selectedRegionID: Int = 10000002 // 默认为 The Forge
+    @State private var regions: [Region] = []
+    @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
+    
+    // 计算分组的星域列表
+    private func calculateGroupedRegions() {
+        let grouped = Dictionary(grouping: regions) { region in
+            String(region.name.prefix(1)).uppercased()
+        }
+        groupedRegionsCache = grouped.map { (key: $0.key, regions: $0.value) }
+            .sorted { $0.key < $1.key }
+    }
     
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
@@ -239,6 +298,17 @@ struct MarketItemDetailView: View {
                                     .foregroundColor(.blue)
                             }
                             .disabled(isLoadingPrice)
+                            
+                            Spacer()
+                            
+                            // 星域选择按钮
+                            Button(action: {
+                                showRegionPicker = true
+                            }) {
+                                Image(systemName: "globe")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
                         }
                         HStack {
                             if isLoadingPrice {
@@ -319,9 +389,30 @@ struct MarketItemDetailView: View {
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showRegionPicker) {
+            RegionPickerView(
+                regions: groupedRegionsCache,
+                selectedRegionID: selectedRegionID
+            ) { region in
+                selectedRegionID = region.id
+                // 保存选择的星域ID
+                UserDefaults.standard.set(region.id, forKey: "selected_region_id")
+                // 重新加载数据
+                Task {
+                    await loadMarketData(forceRefresh: true)
+                    await loadHistoryData(forceRefresh: true)
+                }
+            }
+        }
         .onAppear {
             loadItemDetails()
             loadMarketPath()
+            loadRegions()
+            
+            // 加载保存的星域ID
+            if let savedRegionID = UserDefaults.standard.object(forKey: "selected_region_id") as? Int {
+                selectedRegionID = savedRegionID
+            }
             
             if isFromParent {
                 Task {
@@ -357,13 +448,18 @@ struct MarketItemDetailView: View {
         defer { isLoadingPrice = false }
         
         do {
-            marketOrders = try await NetworkManager.shared.fetchMarketOrders(typeID: itemID, forceRefresh: forceRefresh)
+            NetworkManager.shared.setRegionID(selectedRegionID)
+            marketOrders = try await NetworkManager.shared.fetchMarketOrders(
+                typeID: itemID,
+                forceRefresh: forceRefresh
+            )
             if let orders = marketOrders {
                 let sellOrders = orders.filter { !$0.isBuyOrder }
                 lowestPrice = sellOrders.map { $0.price }.min()
             }
         } catch {
             Logger.error("加载市场订单失败: \(error)")
+            marketOrders = []
         }
     }
     
@@ -378,9 +474,33 @@ struct MarketItemDetailView: View {
         defer { isLoadingHistory = false }
         
         do {
-            marketHistory = try await NetworkManager.shared.fetchMarketHistory(typeID: itemID, forceRefresh: forceRefresh)
+            NetworkManager.shared.setRegionID(selectedRegionID)
+            marketHistory = try await NetworkManager.shared.fetchMarketHistory(
+                typeID: itemID,
+                forceRefresh: forceRefresh
+            )
         } catch {
             Logger.error("加载市场历史数据失败: \(error)")
+            marketHistory = []
+        }
+    }
+    
+    private func loadRegions() {
+        let query = """
+            SELECT regionID, regionName, UPPER(SUBSTR(regionName, 1, 1)) as initial
+            FROM Regions
+            ORDER BY initial, regionName
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            regions = rows.compactMap { row in
+                guard let id = row["regionID"] as? Int,
+                      let name = row["regionName"] as? String else {
+                    return nil
+                }
+                return Region(id: id, name: name)
+            }
+            calculateGroupedRegions()
         }
     }
 }

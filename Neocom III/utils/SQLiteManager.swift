@@ -181,4 +181,29 @@ class SQLiteManager {
             return nil
         }
     }
+    
+    // 保存选择的星域ID
+    func saveSelectedRegion(regionID: Int) {
+        let query = """
+            INSERT OR REPLACE INTO UserPreferences (key, value)
+            VALUES ('selected_region_id', ?)
+        """
+        
+        _ = executeQuery(query, parameters: [regionID])
+    }
+    
+    // 获取保存的星域ID
+    func getSelectedRegion() -> Int? {
+        let query = """
+            SELECT value FROM UserPreferences
+            WHERE key = 'selected_region_id'
+        """
+        
+        if case .success(let rows) = executeQuery(query),
+           let row = rows.first,
+           let value = row["value"] as? Int {
+            return value
+        }
+        return nil
+    }
 } 

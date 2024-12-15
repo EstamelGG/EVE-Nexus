@@ -41,6 +41,11 @@ struct MarketHistory: Codable {
 
 class NetworkManager {
     static let shared = NetworkManager()
+    private var regionID: Int = 10000002 // 默认为 The Forge
+    
+    func setRegionID(_ id: Int) {
+        regionID = id
+    }
     
     // 市场订单缓存
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
@@ -111,7 +116,7 @@ class NetworkManager {
             return cachedOrders
         }
         
-        let urlString = "https://esi.evetech.net/latest/markets/10000002/orders/?type_id=\(typeID)"
+        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/orders/?type_id=\(typeID)"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for market orders, typeID: \(typeID)")
             throw NetworkError.invalidURL
@@ -154,7 +159,7 @@ class NetworkManager {
             return cachedHistory
         }
         
-        let urlString = "https://esi.evetech.net/latest/markets/10000002/history/?type_id=\(typeID)"
+        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/history/?type_id=\(typeID)"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for market history, typeID: \(typeID)")
             throw NetworkError.invalidURL
