@@ -56,6 +56,9 @@ struct MarketHistoryChartView: View {
     }
     
     var body: some View {
+        let priceValues = history.map { $0.average }
+        let volumeValues = history.map { Double($0.volume) }
+        
         Chart {
             ForEach(history, id: \.date) { item in
                 // 成交量柱状图
@@ -79,7 +82,8 @@ struct MarketHistoryChartView: View {
         .chartYAxis {
             // 价格轴（左侧）
             AxisMarks(preset: .extended, position: .leading, values: .automatic(desiredCount: 10)) { value in
-                if let price = value.as(Double.self) {
+                let price = value.as(Double.self) ?? 0
+                if price >= priceValues.min() ?? 0 && price <= priceValues.max() ?? 0 {
                     AxisValueLabel {
                         Text(formatPriceSimple(price))
                     }
@@ -89,22 +93,19 @@ struct MarketHistoryChartView: View {
             
             // 成交量轴（右侧）
             AxisMarks(preset: .extended, position: .trailing, values: .automatic(desiredCount: 10)) { value in
-                let volumes = history.map { $0.volume }
-                let maxVolume = Double(volumes.max() ?? 0)
-                let minVolume = Double(volumes.min() ?? 0)
-                let range = maxVolume - minVolume
-                let step = range / 10
-                
-                let volumeValues = stride(from: minVolume, through: maxVolume, by: step).map { $0 }
-                if volumeValues.contains(value.as(Double.self) ?? 0) {
+                let volume = value.as(Double.self) ?? 0
+                if volume >= volumeValues.min() ?? 0 && volume <= volumeValues.max() ?? 0 {
                     AxisValueLabel {
-                        Text("\(Int(value.as(Double.self) ?? 0))")
+                        Text("\(Int(volume))")
                             .foregroundColor(.gray)
                     }
                 }
             }
         }
-        .chartYScale(type: .linear)
+        .chartPlotStyle { plotArea in
+            plotArea
+                .background(.gray.opacity(0.1))
+        }
         .chartXAxis {
             let dates = history.map { $0.date }
             AxisMarks(values: dates) { value in
