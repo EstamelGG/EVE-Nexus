@@ -174,9 +174,38 @@ struct RegionPickerView: View {
     let selectedRegionID: Int
     let onRegionSelect: (Region) -> Void
     
+    // 常用星域列表
+    private let frequentRegions = [
+        Region(id: 10000002, name: "The Forge"),
+        Region(id: 10000043, name: "Domain"),
+        Region(id: 10000032, name: "Sinq Laison"),
+        Region(id: 10000030, name: "Heimatar")
+    ]
+    
     var body: some View {
         NavigationView {
             List {
+                // 常用星域分组
+                Section(header: Text("#")) {
+                    ForEach(frequentRegions) { region in
+                        Button(action: {
+                            onRegionSelect(region)
+                            dismiss()
+                        }) {
+                            HStack {
+                                Text(region.name)
+                                Spacer()
+                                if region.id == selectedRegionID {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    }
+                }
+                
+                // 其他星域分组
                 ForEach(regions, id: \.key) { group in
                     Section(header: Text(group.key)) {
                         ForEach(group.regions) { region in
