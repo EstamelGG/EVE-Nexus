@@ -61,7 +61,7 @@ struct MarketItemDetailView: View {
                         .resizable()
                         .frame(width: 40, height: 40)
                     
-                    VStack(alignment: .leading) {
+                    VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text("Price")
                             Button(action: {
@@ -78,7 +78,6 @@ struct MarketItemDetailView: View {
                         HStack {
                             if isLoadingPrice {
                                 ProgressView()
-                                    .font(.caption)
                                     .scaleEffect(0.7)
                             } else if let price = lowestPrice {
                                 Text("\(price, specifier: "%.2f") ISK")
@@ -91,7 +90,7 @@ struct MarketItemDetailView: View {
                             }
                             Spacer()
                         }
-                        .frame(height: 10) // 固定第二行的高度
+                        .frame(height: 15) // 稍微调整高度以配合更小的间距
                     }
                 }
             }
