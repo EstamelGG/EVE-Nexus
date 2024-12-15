@@ -28,6 +28,9 @@ struct MarketItemDetailView: View {
     let itemID: Int
     @State private var marketPath: [String] = []
     @State private var itemDetails: ItemDetails?
+    @State private var lowestPrice: Double?
+    @State private var isLoadingPrice: Bool = false
+    @State private var marketOrders: [MarketOrder]?
     
     var body: some View {
         List {
@@ -50,12 +53,53 @@ struct MarketItemDetailView: View {
                     }
                 }
             }
+            
+            // 价格信息部分
+            Section {
+                HStack {
+                    IconManager.shared.loadImage(for: "icon_52996_64.png")
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                    
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Price")
+                            Button(action: {
+                                Task {
+                                    await loadMarketData(forceRefresh: true)
+                                }
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .foregroundColor(.blue)
+                            }
+                            .disabled(isLoadingPrice)
+                        }
+                        if isLoadingPrice {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        } else if let price = lowestPrice {
+                            Text("\(price, specifier: "%.2f") ISK")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Loading...")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadItemDetails()
             loadMarketPath()
+            Task {
+                // 延迟0.5秒后加载价格
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await loadMarketData()
+            }
         }
     }
     
@@ -67,6 +111,22 @@ struct MarketItemDetailView: View {
         // 从数据库加载市场路径
         if let path = databaseManager.getMarketPath(for: itemID) {
             marketPath = path
+        }
+    }
+    
+    private func loadMarketData(forceRefresh: Bool = false) async {
+        guard !isLoadingPrice else { return }
+        isLoadingPrice = true
+        defer { isLoadingPrice = false }
+        
+        do {
+            marketOrders = try await NetworkManager.shared.fetchMarketOrders(typeID: itemID, forceRefresh: forceRefresh)
+            if let orders = marketOrders {
+                let sellOrders = orders.filter { !$0.isBuyOrder }
+                lowestPrice = sellOrders.map { $0.price }.min()
+            }
+        } catch {
+            print("Failed to load market data: \(error)")
         }
     }
 }
