@@ -6,6 +6,18 @@ struct MarketOrdersView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showBuyOrders = false
     
+    // 获取安全等级对应的颜色
+    private func getSecurityColor(_ security: Double) -> Color {
+        switch security {
+        case 0.5...1.0:
+            return .blue
+        case 0.1..<0.5:
+            return .yellow
+        default:
+            return .red
+        }
+    }
+    
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
         let billion = 1_000_000_000.0
@@ -55,9 +67,13 @@ struct MarketOrdersView: View {
                         }
                         
                         if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
-                            Text(String(format: "%.1f", stationInfo.security) + " " + stationInfo.stationName)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            HStack(spacing: 4) {
+                                Text(String(format: "%.1f", stationInfo.security))
+                                    .foregroundColor(getSecurityColor(stationInfo.security))
+                                Text(stationInfo.stationName)
+                                    .foregroundColor(.secondary)
+                            }
+                            .font(.caption)
                         }
                     }
                 }
