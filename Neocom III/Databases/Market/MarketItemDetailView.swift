@@ -1,4 +1,101 @@
 import SwiftUI
+import Charts
+
+struct MarketHistoryChartView: View {
+    let history: [MarketHistory]
+    
+    // 格式化价格显示（简化版）
+    private func formatPriceSimple(_ price: Double) -> String {
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
+        
+        if price >= billion {
+            let value = price / billion
+            if value >= 100 {
+                return String(format: "%.0fB", value)
+            } else if value >= 10 {
+                return String(format: "%.1fB", value)
+            } else {
+                return String(format: "%.2fB", value)
+            }
+        } else if price >= million {
+            let value = price / million
+            if value >= 100 {
+                return String(format: "%.0fM", value)
+            } else if value >= 10 {
+                return String(format: "%.1fM", value)
+            } else {
+                return String(format: "%.2fM", value)
+            }
+        } else {
+            if price >= 100 {
+                return String(format: "%.0f", price)
+            } else if price >= 10 {
+                return String(format: "%.1f", price)
+            } else {
+                return String(format: "%.2f", price)
+            }
+        }
+    }
+    
+    // 格式化日期显示（只显示月份）
+    private func formatMonth(_ dateString: String) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "en_US")
+        guard let date = dateFormatter.date(from: dateString) else { return "" }
+        
+        dateFormatter.dateFormat = "MMM"
+        return dateFormatter.string(from: date).uppercased()
+    }
+    
+    var body: some View {
+        Chart {
+            ForEach(history, id: \.date) { item in
+                // 价格线
+                LineMark(
+                    x: .value("Date", item.date),
+                    y: .value("Price", item.average)
+                )
+                .foregroundStyle(.blue)
+                .lineStyle(StrokeStyle(lineWidth: 1))
+                
+                // 成交量柱状图
+                BarMark(
+                    x: .value("Date", item.date),
+                    y: .value("Volume", item.volume)
+                )
+                .foregroundStyle(.gray.opacity(0.3))
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                if let price = value.as(Double.self) {
+                    AxisValueLabel {
+                        Text(formatPriceSimple(price))
+                    }
+                    AxisGridLine()
+                }
+            }
+        }
+        .chartXAxis {
+            let dates = history.map { $0.date }
+            AxisMarks(values: dates) { value in
+                if let dateStr = value.as(String.self),
+                   dates.firstIndex(of: dateStr).map({ $0 % (dates.count / 12 + 1) == 0 }) ?? false {
+                    AxisValueLabel(anchor: .top) {
+                        Text(formatMonth(dateStr))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    AxisGridLine()
+                }
+            }
+        }
+        .frame(height: 200)
+        .padding(.top, 30)
+    }
+}
 
 struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
@@ -31,6 +128,8 @@ struct MarketItemDetailView: View {
     @State private var lowestPrice: Double?
     @State private var isLoadingPrice: Bool = false
     @State private var marketOrders: [MarketOrder]?
+    @State private var marketHistory: [MarketHistory]?
+    @State private var isLoadingHistory: Bool = false
     
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
@@ -117,6 +216,22 @@ struct MarketItemDetailView: View {
                     }
                 }
             }
+            
+            // 历史价格图表部分
+            Section {
+                VStack(alignment: .leading) {
+                    Text("Price History")
+                        .font(.headline)
+                    if isLoadingHistory {
+                        ProgressView()
+                    } else if let history = marketHistory {
+                        MarketHistoryChartView(history: history)
+                    } else {
+                        Text("Loading...")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
@@ -127,6 +242,7 @@ struct MarketItemDetailView: View {
                 // 延迟0.5秒后加载价格
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 await loadMarketData()
+                await loadHistoryData()
             }
         }
     }
@@ -155,6 +271,18 @@ struct MarketItemDetailView: View {
             }
         } catch {
             print("Failed to load market data: \(error)")
+        }
+    }
+    
+    private func loadHistoryData(forceRefresh: Bool = false) async {
+        guard !isLoadingHistory else { return }
+        isLoadingHistory = true
+        defer { isLoadingHistory = false }
+        
+        do {
+            marketHistory = try await NetworkManager.shared.fetchMarketHistory(typeID: itemID, forceRefresh: forceRefresh)
+        } catch {
+            print("Failed to load market history: \(error)")
         }
     }
 }

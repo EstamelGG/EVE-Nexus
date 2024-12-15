@@ -32,6 +32,13 @@ struct MarketOrder: Codable {
     }
 }
 
+// 市场历史数据模型
+struct MarketHistory: Codable {
+    let average: Double
+    let date: String
+    let volume: Int
+}
+
 class NetworkManager {
     static let shared = NetworkManager()
     
@@ -39,6 +46,10 @@ class NetworkManager {
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
     private let cacheValidDuration: TimeInterval = 300 // 缓存有效期5分钟
+    
+    // 市场历史数据缓存
+    private var marketHistoryCache: [Int: [MarketHistory]] = [:]
+    private var marketHistoryTimestamp: [Int: Date] = [:]
     
     private init() {}
     
@@ -130,10 +141,63 @@ class NetworkManager {
         return lowestPrice
     }
     
+    // 获取市场历史数据
+    func fetchMarketHistory(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
+        Logger.info("Fetching market history for typeID: \(typeID), forceRefresh: \(forceRefresh)")
+        
+        // 检查缓存是否有效
+        if !forceRefresh,
+           let timestamp = marketHistoryTimestamp[typeID],
+           let cachedHistory = marketHistoryCache[typeID],
+           Date().timeIntervalSince(timestamp) < cacheValidDuration {
+            Logger.info("Using cached market history for typeID: \(typeID)")
+            return cachedHistory
+        }
+        
+        let urlString = "https://esi.evetech.net/latest/markets/10000002/history/?type_id=\(typeID)"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for market history, typeID: \(typeID)")
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        var history = try JSONDecoder().decode([MarketHistory].self, from: data)
+        
+        // 只保留最近一年的数据
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        let calendar = Calendar.current
+        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
+        
+        history = history.filter { historyItem in
+            guard let itemDate = dateFormatter.date(from: historyItem.date),
+                  let oneYearAgo = oneYearAgo else { return false }
+            return itemDate >= oneYearAgo
+        }
+        
+        // 按日期排序
+        history.sort { $0.date < $1.date }
+        
+        // 更新缓存
+        marketHistoryCache[typeID] = history
+        marketHistoryTimestamp[typeID] = Date()
+        Logger.info("Successfully fetched and cached \(history.count) market history records for typeID: \(typeID)")
+        
+        return history
+    }
+    
     // 清除缓存
     func clearMarketOrdersCache() {
         marketOrdersCache.removeAll()
         marketOrdersTimestamp.removeAll()
+    }
+    
+    // 清除所有缓存
+    func clearAllCaches() {
+        clearMarketOrdersCache()
+        marketHistoryCache.removeAll()
+        marketHistoryTimestamp.removeAll()
     }
 }
 
