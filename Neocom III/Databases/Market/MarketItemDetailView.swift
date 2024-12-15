@@ -3,6 +3,7 @@ import Charts
 
 struct MarketHistoryChartView: View {
     let history: [MarketHistory]
+    let orders: [MarketOrder]
     
     // 格式化价格显示（简化版）
     private func formatPriceSimple(_ price: Double) -> String {
@@ -49,9 +50,22 @@ struct MarketHistoryChartView: View {
         return dateFormatter.string(from: date).uppercased()
     }
     
+    // 获取当前总交易量
+    private var totalVolume: Int {
+        orders.filter { !$0.isBuyOrder }.reduce(0) { $0 + $1.volumeTotal }
+    }
+    
     var body: some View {
         Chart {
             ForEach(history, id: \.date) { item in
+                // 成交量柱状图
+                BarMark(
+                    x: .value("Date", item.date),
+                    y: .value("Volume", Double(item.volume))
+                )
+                .foregroundStyle(.gray.opacity(0.3))
+                .position(by: .value("Type", "Volume"))
+                
                 // 价格线
                 LineMark(
                     x: .value("Date", item.date),
@@ -59,17 +73,12 @@ struct MarketHistoryChartView: View {
                 )
                 .foregroundStyle(.blue)
                 .lineStyle(StrokeStyle(lineWidth: 1))
-                
-                // 成交量柱状图
-                BarMark(
-                    x: .value("Date", item.date),
-                    y: .value("Volume", item.volume)
-                )
-                .foregroundStyle(.gray.opacity(0.3))
+                .position(by: .value("Type", "Price"))
             }
         }
         .chartYAxis {
-            AxisMarks(position: .leading) { value in
+            // 价格轴（左侧）
+            AxisMarks(preset: .extended, position: .leading, values: .automatic(desiredCount: 10)) { value in
                 if let price = value.as(Double.self) {
                     AxisValueLabel {
                         Text(formatPriceSimple(price))
@@ -77,7 +86,25 @@ struct MarketHistoryChartView: View {
                     AxisGridLine()
                 }
             }
+            
+            // 成交量轴（右侧）
+            AxisMarks(preset: .extended, position: .trailing, values: .automatic(desiredCount: 10)) { value in
+                let volumes = history.map { $0.volume }
+                let maxVolume = Double(volumes.max() ?? 0)
+                let minVolume = Double(volumes.min() ?? 0)
+                let range = maxVolume - minVolume
+                let step = range / 10
+                
+                let volumeValues = stride(from: minVolume, through: maxVolume, by: step).map { $0 }
+                if volumeValues.contains(value.as(Double.self) ?? 0) {
+                    AxisValueLabel {
+                        Text("\(Int(value.as(Double.self) ?? 0))")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
         }
+        .chartYScale(type: .linear)
         .chartXAxis {
             let dates = history.map { $0.date }
             AxisMarks(values: dates) { value in
@@ -225,7 +252,7 @@ struct MarketItemDetailView: View {
                     if isLoadingHistory {
                         ProgressView()
                     } else if let history = marketHistory {
-                        MarketHistoryChartView(history: history)
+                        MarketHistoryChartView(history: history, orders: marketOrders ?? [])
                     } else {
                         Text("Loading...")
                             .foregroundColor(.secondary)
