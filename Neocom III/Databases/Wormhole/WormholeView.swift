@@ -66,9 +66,9 @@ struct WormholeView: View {
             text: $searchText,
             isPresented: $isSearchActive,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text("搜索虫洞")
+            prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
-        .navigationTitle("虫洞信息")
+        .navigationTitle(NSLocalizedString("Main_Market_WH_info", comment: ""))
         .onAppear {
             loadWormholes()
         }

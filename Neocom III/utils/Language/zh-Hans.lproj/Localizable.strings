@@ -42,6 +42,7 @@
 "Main_Market_Price_History" = "历史价格";
 "Main_Market_Show_market_orders" = "查看市场订单";
 "Main_Market_Choose_Region" = "选择星域";
+"Main_Market_WH_info" = "虫洞信息";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";
