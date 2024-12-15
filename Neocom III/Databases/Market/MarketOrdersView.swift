@@ -57,7 +57,7 @@ struct MarketOrdersView: View {
                     
                     Spacer()
                     
-                    Text("\(order.volumeRemain)")
+                    Text("Qty: \(order.volumeRemain)")
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
