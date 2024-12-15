@@ -54,7 +54,7 @@ struct WormholeView: View {
                                 
                                 Spacer()
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 0)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
