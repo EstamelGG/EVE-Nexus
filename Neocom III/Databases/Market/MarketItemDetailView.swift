@@ -220,6 +220,7 @@ struct MarketItemDetailView: View {
             
             // 价格信息部分
             Section {
+                // 当前价格
                 HStack {
                     IconManager.shared.loadImage(for: "icon_52996_64.png")
                         .resizable()
@@ -257,10 +258,8 @@ struct MarketItemDetailView: View {
                         .frame(height: 15)
                     }
                 }
-            }
-                        
-            // 市场订单按钮
-            Section {
+                
+                // 市场订单按钮
                 NavigationLink {
                     if let orders = marketOrders {
                         MarketOrdersView(
@@ -281,7 +280,7 @@ struct MarketItemDetailView: View {
                 }
                 .disabled(marketOrders == nil || isLoadingPrice)
             }
-
+            
             // 历史价格图表部分
             Section {
                 VStack(alignment: .leading) {
