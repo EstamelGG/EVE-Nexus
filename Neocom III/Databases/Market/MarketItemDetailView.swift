@@ -124,7 +124,7 @@ struct MarketHistoryChartView: View {
             }
         }
         .frame(height: 200)
-        .padding(.top, 30)
+        .padding(.top, 8)
     }
 }
 
@@ -263,7 +263,7 @@ struct MarketItemDetailView: View {
             Section {
                 VStack(alignment: .leading) {
                     HStack {
-                        Text("Price History")
+                        Text(NSLocalizedString("Main_Market_Price_History", comment: ""))
                             .font(.headline)
                         if !isLoadingHistory {
                             Button(action: {
@@ -302,7 +302,7 @@ struct MarketItemDetailView: View {
                         )
                     }
                 } label: {
-                    Text("Show market orders")
+                    Text(NSLocalizedString("Main_Market_Show_market_orders", comment: ""))
                 }
             }
         }

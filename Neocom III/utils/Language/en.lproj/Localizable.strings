@@ -37,6 +37,8 @@
 "Main_Database_NPC_Scene" = "NPC";
 "Main_Database_NPC_Ships" = "Ships";
 "Main_Market_Current_Price" = "Current Jita Price";
+"Main_Market_Price_History" = "Price History";
+"Main_Market_Show_market_orders" = "Show market orders";
 
 
 "Main_Market" = "Market";
