@@ -50,7 +50,7 @@ struct MarketOrdersView: View {
                         
                         if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
                             Text(String(format: "%.1f", stationInfo.security) + " " + stationInfo.stationName)
-                                .font(.subheadline)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
