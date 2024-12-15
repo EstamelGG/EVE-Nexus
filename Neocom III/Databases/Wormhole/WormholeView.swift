@@ -3,6 +3,7 @@ import SwiftUI
 struct WormholeView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var wormholes: [String: [WormholeInfo]] = [:]
+    @State private var targetOrder: [String] = []
     @State private var searchText = ""
     @State private var isSearchActive = false
     
@@ -27,14 +28,14 @@ struct WormholeView: View {
     
     var body: some View {
         List {
-            ForEach(Array(filteredWormholes.keys.sorted()), id: \.self) { target in
+            ForEach(searchText.isEmpty ? targetOrder : Array(filteredWormholes.keys.sorted()), id: \.self) { target in
                 Section(header: Text(target)
                     .fontWeight(.bold)
                     .font(.system(size: 18))
                     .foregroundColor(.primary)
                     .textCase(.none)
                 ) {
-                    ForEach(filteredWormholes[target] ?? []) { wormhole in
+                    ForEach(filteredWormholes[target] ?? wormholes[target] ?? []) { wormhole in
                         NavigationLink(destination: WormholeDetailView(wormhole: wormhole)) {
                             HStack(spacing: 12) {
                                 // 左侧图标
@@ -77,15 +78,18 @@ struct WormholeView: View {
     private func loadWormholes() {
         let items = databaseManager.loadWormholes()
         var tempWormholes: [String: [WormholeInfo]] = [:]
+        var tempTargetOrder: [String] = []
         
         for item in items {
             if tempWormholes[item.target] == nil {
                 tempWormholes[item.target] = []
+                tempTargetOrder.append(item.target)
             }
             tempWormholes[item.target]?.append(item)
         }
         
         wormholes = tempWormholes
+        targetOrder = tempTargetOrder
     }
 }
 
