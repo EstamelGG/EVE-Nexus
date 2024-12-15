@@ -151,6 +151,16 @@ struct MarketItemBasicInfoView: View {
     }
 }
 
+// 缓存的图表视图
+struct CachedMarketHistoryChartView: View {
+    let history: [MarketHistory]
+    let orders: [MarketOrder]
+    
+    var body: some View {
+        MarketHistoryChartView(history: history, orders: orders)
+    }
+}
+
 struct MarketItemDetailView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let itemID: Int
@@ -161,6 +171,7 @@ struct MarketItemDetailView: View {
     @State private var marketOrders: [MarketOrder]?
     @State private var marketHistory: [MarketHistory]?
     @State private var isLoadingHistory: Bool = false
+    @State private var isFromParent: Bool = true
     
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
@@ -251,12 +262,28 @@ struct MarketItemDetailView: View {
             // 历史价格图表部分
             Section {
                 VStack(alignment: .leading) {
-                    Text("Price History")
-                        .font(.headline)
+                    HStack {
+                        Text("Price History")
+                            .font(.headline)
+                        if !isLoadingHistory {
+                            Button(action: {
+                                Task {
+                                    await loadHistoryData(forceRefresh: true)
+                                }
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
                     if isLoadingHistory {
                         ProgressView()
                     } else if let history = marketHistory {
-                        MarketHistoryChartView(history: history, orders: marketOrders ?? [])
+                        CachedMarketHistoryChartView(
+                            history: history,
+                            orders: marketOrders ?? []
+                        )
                     } else {
                         Text("Loading...")
                             .foregroundColor(.secondary)
@@ -284,11 +311,13 @@ struct MarketItemDetailView: View {
         .onAppear {
             loadItemDetails()
             loadMarketPath()
-            Task {
-                // 延迟0.5秒后加载价格
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                await loadMarketData()
-                await loadHistoryData()
+            
+            if isFromParent {
+                Task {
+                    await loadMarketData()
+                    await loadHistoryData()
+                }
+                isFromParent = false
             }
         }
     }
@@ -306,6 +335,13 @@ struct MarketItemDetailView: View {
     
     private func loadMarketData(forceRefresh: Bool = false) async {
         guard !isLoadingPrice else { return }
+        
+        if !forceRefresh, let orders = marketOrders {
+            let sellOrders = orders.filter { !$0.isBuyOrder }
+            lowestPrice = sellOrders.map { $0.price }.min()
+            return
+        }
+        
         isLoadingPrice = true
         defer { isLoadingPrice = false }
         
@@ -316,19 +352,24 @@ struct MarketItemDetailView: View {
                 lowestPrice = sellOrders.map { $0.price }.min()
             }
         } catch {
-            print("Failed to load market data: \(error)")
+            Logger.error("加载市场订单失败: \(error)")
         }
     }
     
     private func loadHistoryData(forceRefresh: Bool = false) async {
         guard !isLoadingHistory else { return }
+        
+        if !forceRefresh, let _ = marketHistory {
+            return
+        }
+        
         isLoadingHistory = true
         defer { isLoadingHistory = false }
         
         do {
             marketHistory = try await NetworkManager.shared.fetchMarketHistory(typeID: itemID, forceRefresh: forceRefresh)
         } catch {
-            print("Failed to load market history: \(error)")
+            Logger.error("加载市场历史数据失败: \(error)")
         }
     }
 }
