@@ -75,18 +75,23 @@ struct MarketItemDetailView: View {
                             }
                             .disabled(isLoadingPrice)
                         }
-                        if isLoadingPrice {
-                            ProgressView()
-                                .font(.caption)
-                        } else if let price = lowestPrice {
-                            Text("\(price, specifier: "%.2f") ISK")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("Loading...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        HStack {
+                            if isLoadingPrice {
+                                ProgressView()
+                                    .font(.caption)
+                                    .scaleEffect(0.7)
+                            } else if let price = lowestPrice {
+                                Text("\(price, specifier: "%.2f") ISK")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Loading...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
                         }
+                        .frame(height: 10) // 固定第二行的高度
                     }
                 }
             }
