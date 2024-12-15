@@ -1712,9 +1712,9 @@ extension DatabaseManager {
     // 加载虫洞数据
     func loadWormholes() -> [WormholeInfo] {
         let query = """
-            SELECT type_id, name, description, icon, target, stable_time, max_stable_mass, max_jump_mass, size_type
+            SELECT type_id, name, description, icon, target_value, target, stable_time, max_stable_mass, max_jump_mass, size_type
             FROM wormholes
-            ORDER BY target, name
+            ORDER BY target_value
         """
         
         let result = executeQuery(query)
