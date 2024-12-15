@@ -68,7 +68,9 @@ struct MarketHistoryChartView: View {
                 )
                 .foregroundStyle(.gray.opacity(0.3))
                 .position(by: .value("Type", "Volume"))
-                
+            }
+            
+            ForEach(history, id: \.date) { item in
                 // 价格线
                 LineMark(
                     x: .value("Date", item.date),
@@ -79,22 +81,22 @@ struct MarketHistoryChartView: View {
                 .position(by: .value("Type", "Price"))
             }
         }
+        .chartYScale(domain: .automatic(includesZero: false), type: .linear)
         .chartYAxis {
             // 价格轴（左侧）
-            AxisMarks(preset: .extended, position: .leading, values: .automatic(desiredCount: 10)) { value in
-                let price = value.as(Double.self) ?? 0
-                if price >= priceValues.min() ?? 0 && price <= priceValues.max() ?? 0 {
+            AxisMarks(position: .leading) { value in
+                if let price = value.as(Double.self) {
                     AxisValueLabel {
                         Text(formatPriceSimple(price))
                     }
                     AxisGridLine()
                 }
             }
-            
+        }
+        .chartYAxis {
             // 成交量轴（右侧）
-            AxisMarks(preset: .extended, position: .trailing, values: .automatic(desiredCount: 10)) { value in
-                let volume = value.as(Double.self) ?? 0
-                if volume >= volumeValues.min() ?? 0 && volume <= volumeValues.max() ?? 0 {
+            AxisMarks(position: .trailing) { value in
+                if let volume = value.as(Double.self) {
                     AxisValueLabel {
                         Text("\(Int(volume))")
                             .foregroundColor(.gray)
