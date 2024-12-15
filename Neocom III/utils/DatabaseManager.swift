@@ -1737,7 +1737,7 @@ extension DatabaseManager {
                         id: typeId,
                         name: name,
                         description: description,
-                        icon: icon,
+                        icon: icon.isEmpty ? "items_7_64_15.png" : icon,
                         target: target,
                         stableTime: stableTime,
                         maxStableMass: maxStableMass,

@@ -36,18 +36,25 @@ struct WormholeView: View {
                 ) {
                     ForEach(filteredWormholes[target] ?? []) { wormhole in
                         NavigationLink(destination: WormholeDetailView(wormhole: wormhole)) {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    IconManager.shared.loadImage(for: wormhole.icon)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
+                            HStack(spacing: 12) {
+                                // 左侧图标
+                                IconManager.shared.loadImage(for: wormhole.icon)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                
+                                // 右侧文本
+                                VStack(alignment: .leading) {
                                     Text(wormhole.name)
+                                        .font(.body)
+                                    Text(wormhole.sizeType)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
                                 }
-                                Text(wormhole.sizeType)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                
+                                Spacer()
                             }
+                            .padding(.vertical, 4)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
