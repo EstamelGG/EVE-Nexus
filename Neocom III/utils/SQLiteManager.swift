@@ -87,7 +87,7 @@ class SQLiteManager {
             let parameterIndex = Int32(index + 1)
             switch parameter {
             case let value as Int:
-                sqlite3_bind_int(statement, parameterIndex, Int32(value))
+                sqlite3_bind_int64(statement, parameterIndex, Int64(value))
             case let value as Double:
                 sqlite3_bind_double(statement, parameterIndex, value)
             case let value as String:

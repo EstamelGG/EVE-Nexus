@@ -75,13 +75,3 @@ struct MarketOrdersView: View {
         }
     }
 }
-
-#Preview {
-    NavigationView {
-        MarketOrdersView(
-            itemID: 34,
-            orders: [],
-            databaseManager: DatabaseManager()
-        )
-    }
-} 
