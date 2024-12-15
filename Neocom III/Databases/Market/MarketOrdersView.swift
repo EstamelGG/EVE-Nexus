@@ -12,7 +12,7 @@ struct MarketOrdersView: View {
         case 0.5...1.0:
             return .blue
         case 0.1..<0.5:
-            return .yellow
+            return .orange
         default:
             return .red
         }

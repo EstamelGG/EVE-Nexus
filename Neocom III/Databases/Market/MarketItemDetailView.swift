@@ -228,8 +228,8 @@ struct RegionPickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("选择星域")
-            .navigationBarItems(trailing: Button("关闭") {
+            .navigationTitle(NSLocalizedString("Main_Market_Choose_Region", comment: ""))
+            .navigationBarItems(trailing: Button("Close") {
                 dismiss()
             })
         }
@@ -523,7 +523,7 @@ struct MarketItemDetailView: View {
     private func loadRegions() {
         let query = """
             SELECT regionID, regionName, UPPER(SUBSTR(regionName, 1, 1)) as initial
-            FROM Regions
+            FROM regions
             ORDER BY initial, regionName
         """
         
