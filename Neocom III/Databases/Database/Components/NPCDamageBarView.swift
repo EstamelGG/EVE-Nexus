@@ -12,10 +12,10 @@ struct MissileInfo {
     
     var actualDamages: (em: Double, therm: Double, kin: Double, exp: Double) {
         (
-            em: damages.em * multiplier,
-            therm: damages.therm * multiplier,
-            kin: damages.kin * multiplier,
-            exp: damages.exp * multiplier
+            em: (damages.em * multiplier).rounded(toDecimalPlaces: 1),
+            therm: (damages.therm * multiplier).rounded(toDecimalPlaces: 1),
+            kin: (damages.kin * multiplier).rounded(toDecimalPlaces: 1),
+            exp: (damages.exp * multiplier).rounded(toDecimalPlaces: 1)
         )
     }
 }
@@ -142,5 +142,120 @@ extension AttributeGroupView {
                 databaseManager: databaseManager
             )
         }
+    }
+}
+
+// 武器伤害信息结构体
+struct WeaponInfo {
+    let damages: (em: Double, therm: Double, kin: Double, exp: Double)
+    let multiplier: Double
+    
+    var totalDamage: Double {
+        damages.em + damages.therm + damages.kin + damages.exp
+    }
+    
+    var actualDamages: (em: Double, therm: Double, kin: Double, exp: Double) {
+        (
+            em: (damages.em * multiplier).rounded(toDecimalPlaces: 1),
+            therm: (damages.therm * multiplier).rounded(toDecimalPlaces: 1),
+            kin: (damages.kin * multiplier).rounded(toDecimalPlaces: 1),
+            exp: (damages.exp * multiplier).rounded(toDecimalPlaces: 1)
+        )
+    }
+}
+
+// 武器伤害显示组件
+struct WeaponDamageView: View {
+    let damages: (em: Double, therm: Double, kin: Double, exp: Double)
+    let damageMultiplier: Double
+    
+    private var weaponInfo: WeaponInfo {
+        WeaponInfo(damages: damages, multiplier: damageMultiplier)
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            // 伤害条
+            HStack(spacing: 8) {
+                // 电磁伤害
+                DamageTypeView(
+                    iconName: "items_22_32_12.png",
+                    percentage: Int(round((weaponInfo.damages.em / weaponInfo.totalDamage) * 100)),
+                    value: weaponInfo.actualDamages.em,
+                    color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                )
+                
+                // 热能伤害
+                DamageTypeView(
+                    iconName: "items_22_32_10.png",
+                    percentage: Int(round((weaponInfo.damages.therm / weaponInfo.totalDamage) * 100)),
+                    value: weaponInfo.actualDamages.therm,
+                    color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                )
+                
+                // 动能伤害
+                DamageTypeView(
+                    iconName: "items_22_32_9.png",
+                    percentage: Int(round((weaponInfo.damages.kin / weaponInfo.totalDamage) * 100)),
+                    value: weaponInfo.actualDamages.kin,
+                    color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                )
+                
+                // 爆炸伤害
+                DamageTypeView(
+                    iconName: "items_22_32_11.png",
+                    percentage: Int(round((weaponInfo.damages.exp / weaponInfo.totalDamage) * 100)),
+                    value: weaponInfo.actualDamages.exp,
+                    color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                )
+            }
+        }
+    }
+}
+
+// 在 AttributeGroupView 扩展中添加武器伤害相关方法
+extension AttributeGroupView {
+    // 获取武器伤害信息
+    func getWeaponInfo() -> WeaponInfo? {
+        let damages = (
+            em: allAttributes[114] ?? 0,
+            therm: allAttributes[116] ?? 0,
+            kin: allAttributes[117] ?? 0,
+            exp: allAttributes[118] ?? 0
+        )
+        
+        // 检查是否有任何伤害不为0
+        guard damages.em > 0 || damages.therm > 0 || damages.kin > 0 || damages.exp > 0 else {
+            return nil
+        }
+        
+        // 获取伤害倍增系数
+        let multiplier = allAttributes[64] ?? 1.0
+        
+        return WeaponInfo(damages: damages, multiplier: multiplier)
+    }
+    
+    // 检查当前组是否包含武器伤害属性
+    private var hasWeaponDamageAttributes: Bool {
+        let damageAttributeIDs = [114, 116, 117, 118]
+        return group.attributes.contains { damageAttributeIDs.contains($0.id) }
+    }
+    
+    @ViewBuilder
+    func weaponDamageView() -> some View {
+        if hasWeaponDamageAttributes, let weaponInfo = getWeaponInfo() {
+            WeaponDamageView(
+                damages: weaponInfo.damages,
+                damageMultiplier: weaponInfo.multiplier
+            )
+        }
+    }
+}
+
+// 添加 Double 扩展来处理小数位数
+private extension Double {
+    func rounded(toDecimalPlaces places: Int) -> Double {
+        let multiplier = pow(10.0, Double(places))
+        return (self * multiplier).rounded() / multiplier
     }
 } 

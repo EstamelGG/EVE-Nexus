@@ -248,9 +248,18 @@ struct AttributeGroupView: View {
         group.attributes.contains { $0.id == 507 }
     }
     
+    // 检查当前组是否包含武器伤害属性
+    private var hasWeaponDamageAttributes: Bool {
+        let damageAttributeIDs = [114, 116, 117, 118]
+        return group.attributes.contains { damageAttributeIDs.contains($0.id) }
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowGroup(group.id) && 
-           (filteredAttributes.count > 0 || AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil || (hasMissileAttribute && getMissileInfo() != nil)) {
+           (filteredAttributes.count > 0 || 
+            AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil || 
+            (hasMissileAttribute && getMissileInfo() != nil) ||
+            (hasWeaponDamageAttributes && getWeaponInfo() != nil)) {
             Section {
                 // 检查是否有抗性值需要显示
                 if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {
@@ -270,6 +279,11 @@ struct AttributeGroupView: View {
                 // 只在包含507属性的组中显示导弹伤害信息
                 if hasMissileAttribute {
                     missileInfoView()
+                }
+                
+                // 显示武器伤害信息
+                if hasWeaponDamageAttributes {
+                    weaponDamageView()
                 }
                 
             } header: {
