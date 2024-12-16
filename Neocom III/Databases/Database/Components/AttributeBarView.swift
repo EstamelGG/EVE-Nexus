@@ -186,6 +186,11 @@ struct AttributeItemView: View {
         return Int(round((damage / total) * 100))
     }
     
+    // 在 AttributeItemView 中添加获取弹药名称的方法
+    private func getAmmoName(ammoID: Int) -> String {
+        return databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode) {
             let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
@@ -194,86 +199,85 @@ struct AttributeItemView: View {
             case .resistance(let resistances):
                 ResistanceBarView(resistances: resistances)
             default:
-                // 处理弹药伤害显示
-                if attribute.id == 507, let ammoID = allAttributes[507].map({ Int($0) }) {
-                    if let damages = getAmmoDamages(ammoID: ammoID), hasAnyDamage(damages) {
-                        let totalDamage = damages.em + damages.therm + damages.kin + damages.exp
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 属性名称行
-                            HStack {
-                                if attribute.iconID != 0 {
-                                    IconManager.shared.loadImage(for: attribute.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                }
-                                Text(attribute.displayTitle)
-                                    .font(.body)
-                                Spacer()
-                            }
-                            
-                            // 伤害条
-                            HStack(spacing: 8) {
-                                // 电磁伤害
-                                HStack(spacing: 4) {
-                                    IconManager.shared.loadImage(for: "items_22_32_12.png")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(damages.em, total: totalDamage),
-                                        color: Color(red: 74/255, green: 128/255, blue: 192/255),
-                                        value: damages.em,
-                                        showValue: true
-                                    )
-                                }
-                                
-                                // 热能伤害
-                                HStack(spacing: 4) {
-                                    IconManager.shared.loadImage(for: "items_22_32_10.png")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(damages.therm, total: totalDamage),
-                                        color: Color(red: 176/255, green: 53/255, blue: 50/255),
-                                        value: damages.therm,
-                                        showValue: true
-                                    )
-                                }
-                                
-                                // 动能伤害
-                                HStack(spacing: 4) {
-                                    IconManager.shared.loadImage(for: "items_22_32_9.png")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(damages.kin, total: totalDamage),
-                                        color: Color(red: 155/255, green: 155/255, blue: 155/255),
-                                        value: damages.kin,
-                                        showValue: true
-                                    )
-                                }
-                                
-                                // 爆炸伤害
-                                HStack(spacing: 4) {
-                                    IconManager.shared.loadImage(for: "items_22_32_11.png")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(damages.exp, total: totalDamage),
-                                        color: Color(red: 185/255, green: 138/255, blue: 62/255),
-                                        value: damages.exp,
-                                        showValue: true
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // 如果没有伤害数据，显示常规属性视图
-                        defaultAttributeView
-                    }
-                } else {
-                    // 其他属性的常规显示
+                VStack(alignment: .leading, spacing: 4) {
+                    // 显示常规属性视图
                     defaultAttributeView
+                    
+                    // 如果是507属性，在下方添加伤害条
+                    if attribute.id == 507, let ammoID = allAttributes[507].map({ Int($0) }) {
+                        if let damages = getAmmoDamages(ammoID: ammoID), hasAnyDamage(damages) {
+                            let totalDamage = damages.em + damages.therm + damages.kin + damages.exp
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                // 弹药名称和跳转链接
+                                NavigationLink(destination: ItemInfoMap.getItemInfoView(
+                                    itemID: ammoID,
+                                    categoryID: 8, // 假设弹药都在categoryID 8下，如果不是请调整
+                                    databaseManager: databaseManager
+                                )) {
+                                    Text(getAmmoName(ammoID: ammoID))
+                                        .font(.body)
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                // 伤害条
+                                HStack(spacing: 8) {
+                                    // 电磁伤害
+                                    HStack(spacing: 4) {
+                                        IconManager.shared.loadImage(for: "items_22_32_12.png")
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                        DamageBarView(
+                                            percentage: calculateDamagePercentage(damages.em, total: totalDamage),
+                                            color: Color(red: 74/255, green: 128/255, blue: 192/255),
+                                            value: damages.em,
+                                            showValue: true
+                                        )
+                                    }
+                                    
+                                    // 热能伤害
+                                    HStack(spacing: 4) {
+                                        IconManager.shared.loadImage(for: "items_22_32_10.png")
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                        DamageBarView(
+                                            percentage: calculateDamagePercentage(damages.therm, total: totalDamage),
+                                            color: Color(red: 176/255, green: 53/255, blue: 50/255),
+                                            value: damages.therm,
+                                            showValue: true
+                                        )
+                                    }
+                                    
+                                    // 动能伤害
+                                    HStack(spacing: 4) {
+                                        IconManager.shared.loadImage(for: "items_22_32_9.png")
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                        DamageBarView(
+                                            percentage: calculateDamagePercentage(damages.kin, total: totalDamage),
+                                            color: Color(red: 155/255, green: 155/255, blue: 155/255),
+                                            value: damages.kin,
+                                            showValue: true
+                                        )
+                                    }
+                                    
+                                    // 爆炸伤害
+                                    HStack(spacing: 4) {
+                                        IconManager.shared.loadImage(for: "items_22_32_11.png")
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                        DamageBarView(
+                                            percentage: calculateDamagePercentage(damages.exp, total: totalDamage),
+                                            color: Color(red: 185/255, green: 138/255, blue: 62/255),
+                                            value: damages.exp,
+                                            showValue: true
+                                        )
+                                    }
+                                }
+                            }
+                            .padding(.leading, 32) // 对齐原属性图标的缩进
+                        }
+                    }
                 }
             }
         }
