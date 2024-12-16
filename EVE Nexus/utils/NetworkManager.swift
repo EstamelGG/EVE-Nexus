@@ -44,11 +44,13 @@ struct SovereigntyData: Codable {
     let systemId: Int
     let allianceId: Int?
     let corporationId: Int?
+    let factionId: Int?
     
     enum CodingKeys: String, CodingKey {
         case systemId = "system_id"
         case allianceId = "alliance_id"
         case corporationId = "corporation_id"
+        case factionId = "faction_id"
     }
 }
 
@@ -70,6 +72,7 @@ class NetworkManager {
     private var marketHistoryTimestamp: [Int: Date] = [:]
     
     private let sovereigntyCache = NSCache<NSString, CachedSovereigntyData>()
+    private let allianceLogoCache = NSCache<NSString, CachedAllianceLogo>()
     
     // 缓存包装类
     class CachedSovereigntyData {
@@ -78,6 +81,17 @@ class NetworkManager {
         
         init(data: [SovereigntyData], timestamp: Date) {
             self.data = data
+            self.timestamp = timestamp
+        }
+    }
+    
+    // 联盟图标缓存包装类
+    class CachedAllianceLogo {
+        let image: UIImage
+        let timestamp: Date
+        
+        init(image: UIImage, timestamp: Date) {
+            self.image = image
             self.timestamp = timestamp
         }
     }
@@ -275,6 +289,37 @@ class NetworkManager {
     func getCachedSovereigntyData() -> [SovereigntyData]? {
         let cacheKey = "sovereigntyData" as NSString
         return sovereigntyCache.object(forKey: cacheKey)?.data
+    }
+    
+    // 获取联盟图标
+    func fetchAllianceLogo(allianceId: Int) async throws -> UIImage {
+        let cacheKey = "allianceLogo_\(allianceId)" as NSString
+        let cacheValidDuration: TimeInterval = 8 * 60 * 60 // 8小时
+        
+        // 检查缓存
+        if let cachedLogo = allianceLogoCache.object(forKey: cacheKey),
+           Date().timeIntervalSince(cachedLogo.timestamp) < cacheValidDuration {
+            Logger.info("Using cached alliance logo for ID: \(allianceId)")
+            return cachedLogo.image
+        }
+        
+        let urlString = "https://images.evetech.net/alliances/\(allianceId)/logo"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for alliance logo: \(allianceId)")
+            throw NetworkError.invalidURL
+        }
+        
+        do {
+            let image = try await fetchImage(from: url)
+            // 更新缓存
+            let cachedLogo = CachedAllianceLogo(image: image, timestamp: Date())
+            allianceLogoCache.setObject(cachedLogo, forKey: cacheKey)
+            Logger.info("Successfully fetched and cached alliance logo for ID: \(allianceId)")
+            return image
+        } catch {
+            Logger.error("Failed to fetch alliance logo for ID \(allianceId): \(error)")
+            throw error
+        }
     }
 }
 
