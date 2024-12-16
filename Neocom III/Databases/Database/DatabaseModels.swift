@@ -152,27 +152,23 @@ struct DogmaAttributeCategory: Identifiable {
 
 // 属性模型
 struct DogmaAttribute: Identifiable {
-    let id: Int              // attribute_id
-    let categoryID: Int      // categoryID
-    let name: String         // name
-    let displayName: String? // display_name
-    let iconID: Int         // iconID
-    let iconFileName: String // icon_filename
-    let value: Double       // value from typeAttributes
-    let unitID: Int?       // unitID from dogmaAttributes
+    let id: Int              
+    let categoryID: Int      
+    let name: String         
+    let displayName: String? 
+    let iconID: Int         
+    let iconFileName: String 
+    let value: Double       
+    let unitID: Int?       
     
-    // 显示名称
+    // 修改显示名称逻辑
     var displayTitle: String {
-        return displayName?.isEmpty == false ? displayName! : name
+        return displayName ?? name  // 如果displayName为nil，则使用name
     }
     
-    // 是否应该显示
+    // 修改显示逻辑
     var shouldDisplay: Bool {
-        // 如果 displayName 为空或为空字符串，不显示
-        guard let displayName = displayName, !displayName.isEmpty else {
-            return false
-        }
-        return true
+        return true  // 始终显示，因为现在总是有可用的显示名称
     }
 }
 
