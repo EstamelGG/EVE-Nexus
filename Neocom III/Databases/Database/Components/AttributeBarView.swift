@@ -262,34 +262,73 @@ struct AmmoInfoView: View {
             categoryID: 8,
             databaseManager: databaseManager
         )) {
-            DatabaseListItemView(
-                item: DatabaseListItem(
-                    id: ammoID,
-                    name: databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"),
-                    iconFileName: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon,
-                    published: true,
-                    categoryID: 8,
-                    groupID: nil,
-                    groupName: nil,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: damages.em,
-                    themDamage: damages.therm,
-                    kinDamage: damages.kin,
-                    expDamage: damages.exp,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
-                ),
-                showDetails: true
-            )
+            VStack(alignment: .leading, spacing: 2) {
+                // 弹药名称和图标
+                HStack {
+                    IconManager.shared.loadImage(for: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                    Text(databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"))
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+                
+                // 伤害条
+                HStack(spacing: 8) {
+                    // 电磁伤害
+                    HStack(spacing: 4) {
+                        IconManager.shared.loadImage(for: "items_22_32_12.png")
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        DamageBarView(
+                            percentage: Int(round((damages.em / totalDamage) * 100)),
+                            color: Color(red: 74/255, green: 128/255, blue: 192/255),
+                            value: damages.em,
+                            showValue: true
+                        )
+                    }
+                    
+                    // 热能伤害
+                    HStack(spacing: 4) {
+                        IconManager.shared.loadImage(for: "items_22_32_10.png")
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        DamageBarView(
+                            percentage: Int(round((damages.therm / totalDamage) * 100)),
+                            color: Color(red: 176/255, green: 53/255, blue: 50/255),
+                            value: damages.therm,
+                            showValue: true
+                        )
+                    }
+                    
+                    // 动能伤害
+                    HStack(spacing: 4) {
+                        IconManager.shared.loadImage(for: "items_22_32_9.png")
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        DamageBarView(
+                            percentage: Int(round((damages.kin / totalDamage) * 100)),
+                            color: Color(red: 155/255, green: 155/255, blue: 155/255),
+                            value: damages.kin,
+                            showValue: true
+                        )
+                    }
+                    
+                    // 爆炸伤害
+                    HStack(spacing: 4) {
+                        IconManager.shared.loadImage(for: "items_22_32_11.png")
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        DamageBarView(
+                            percentage: Int(round((damages.exp / totalDamage) * 100)),
+                            color: Color(red: 185/255, green: 138/255, blue: 62/255),
+                            value: damages.exp,
+                            showValue: true
+                        )
+                    }
+                }
+            }
         }
         .buttonStyle(.plain)
     }
