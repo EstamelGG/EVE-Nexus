@@ -143,8 +143,8 @@ class IconLoadManager: ObservableObject {
     static let shared = IconLoadManager()
     
     // 存储图标加载状态和结果
-    private var iconCache: [IconKey: IconState] = [:]
-    private var loadingTasks: [IconKey: Task<Void, Never>] = [:]
+    @Published private var iconCache: [IconKey: IconState] = [:]
+    @Published private var loadingTasks: [IconKey: Task<Void, Never>] = [:]
     // 存储ID到系统的映射关系
     private var systemMapping: [IconKey: Set<Int>] = [:]
     
@@ -169,27 +169,24 @@ class IconLoadManager: ObservableObject {
             var systems = systemMapping[key] ?? Set<Int>()
             systems.insert(systemId)
             systemMapping[key] = systems
-            if iconCache[key] == nil {
-                iconCache[key] = IconState(image: nil, isLoading: true)
-            }
         } else if let factionId = factionId {
             let key = IconKey.faction(factionId)
             var systems = systemMapping[key] ?? Set<Int>()
             systems.insert(systemId)
             systemMapping[key] = systems
-            if iconCache[key] == nil {
-                iconCache[key] = IconState(image: nil, isLoading: true)
-            }
         }
     }
     
     // 获取系统对应的图标状态
     func getIconState(systemId: Int) -> (Image?, Bool) {
-        // 先查找联盟图标
         for (key, systems) in systemMapping {
             if systems.contains(systemId) {
                 if let state = iconCache[key] {
-                    return (state.image, state.isLoading)
+                    let isLoading = loadingTasks[key] != nil
+                    return (state.image, isLoading)
+                } else {
+                    // 如果缓存中没有状态，返回加载中状态
+                    return (nil, true)
                 }
             }
         }
@@ -198,8 +195,17 @@ class IconLoadManager: ObservableObject {
     
     // 开始加载所有注册的图标
     func startLoadingIcons(databaseManager: DatabaseManager) {
-        let uniqueKeys = Set(systemMapping.keys)
+        // 取消所有现有任务
+        for task in loadingTasks.values {
+            task.cancel()
+        }
+        loadingTasks.removeAll()
         
+        // 清除缓存状态
+        iconCache.removeAll()
+        
+        // 重新加载所有图标
+        let uniqueKeys = Set(systemMapping.keys)
         for key in uniqueKeys {
             switch key {
             case .alliance(let allianceId):
@@ -212,22 +218,39 @@ class IconLoadManager: ObservableObject {
     
     private func loadAllianceIcon(allianceId: Int) {
         let key = IconKey.alliance(allianceId)
+        
+        // 如果已经有任务在运行，不要创建新任务
         guard loadingTasks[key] == nil else { return }
         
         let task = Task { @MainActor in
             do {
                 let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
                 if !Task.isCancelled {
-                    iconCache[key] = IconState(image: Image(uiImage: uiImage), isLoading: false)
+                    withAnimation {
+                        iconCache[key] = IconState(image: Image(uiImage: uiImage), isLoading: false)
+                    }
+                    Logger.debug("联盟图标加载成功: \(allianceId)")
                 }
             } catch {
-                Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
                 if !Task.isCancelled {
-                    iconCache[key] = IconState(image: nil, isLoading: false)
+                    if (error as NSError).code == NSURLErrorCancelled {
+                        Logger.debug("联盟图标加载已取消: \(allianceId)")
+                    } else {
+                        Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                        withAnimation {
+                            iconCache[key] = IconState(image: nil, isLoading: false)
+                        }
+                    }
                 }
             }
-            loadingTasks[key] = nil
+            
+            if !Task.isCancelled {
+                withAnimation {
+                    loadingTasks.removeValue(forKey: key)
+                }
+            }
         }
+        
         loadingTasks[key] = task
     }
     
@@ -238,24 +261,39 @@ class IconLoadManager: ObservableObject {
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
            let row = rows.first,
            let iconName = row["iconName"] as? String {
-            iconCache[key] = IconState(image: IconManager.shared.loadImage(for: iconName), isLoading: false)
+            withAnimation {
+                iconCache[key] = IconState(image: IconManager.shared.loadImage(for: iconName), isLoading: false)
+            }
+            Logger.debug("派系图标加载成功: \(factionId)")
         } else {
-            iconCache[key] = IconState(image: nil, isLoading: false)
+            withAnimation {
+                iconCache[key] = IconState(image: nil, isLoading: false)
+            }
+            Logger.error("派系图标加载失败: \(factionId)")
         }
     }
     
     func reset() {
-        for task in loadingTasks.values {
-            task.cancel()
+        Task { @MainActor in
+            // 取消所有任务
+            for task in loadingTasks.values {
+                task.cancel()
+            }
+            
+            // 清除所有状态
+            withAnimation {
+                loadingTasks.removeAll()
+                iconCache.removeAll()
+                systemMapping.removeAll()
+            }
         }
-        loadingTasks.removeAll()
-        iconCache.removeAll()
-        systemMapping.removeAll()
     }
     
     deinit {
-        for task in loadingTasks.values {
-            task.cancel()
+        Task { @MainActor in
+            for task in loadingTasks.values {
+                task.cancel()
+            }
         }
     }
 }
