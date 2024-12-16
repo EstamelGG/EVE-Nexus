@@ -305,6 +305,7 @@ struct AttributeGroupView: View {
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
+            // 移除这里对507的特殊处理，让它跟其他属性一样受过滤影响
             .filter { attribute in
                 AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
             }
@@ -312,23 +313,31 @@ struct AttributeGroupView: View {
                 let order1 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr1.id, in: group.id)
                 let order2 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr2.id, in: group.id)
                 if order1 == order2 {
-                    // 如果顺序相同，按属性ID排序
                     return attr1.id < attr2.id
                 }
                 return order1 < order2
             }
     }
     
+    // 添加一个单独的计算属性来检查是否存在507属性及其值
+    private var ammoInfo: (attribute: DogmaAttribute, ammoID: Int)? {
+        if let attribute = group.attributes.first(where: { $0.id == 507 }),
+           let ammoID = allAttributes[507].map({ Int($0) }) {
+            return (attribute, ammoID)
+        }
+        return nil
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowGroup(group.id) && 
-           (filteredAttributes.count > 0 || AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil) {
+           (filteredAttributes.count > 0 || AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil || ammoInfo != nil) {
             Section {
                 // 检查是否有抗性值需要显示
                 if let resistances = AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) {
                     ResistanceBarView(resistances: resistances)
                 }
                 
-                // 显示所有属性
+                // 显示所有属性（包括507，受过滤影响）
                 ForEach(filteredAttributes) { attribute in
                     AttributeItemView(
                         attribute: attribute,
@@ -338,9 +347,8 @@ struct AttributeGroupView: View {
                     )
                 }
                 
-                // 单独显示507属性的伤害条
-                if let attribute = filteredAttributes.first(where: { $0.id == 507 }),
-                   let ammoID = allAttributes[507].map({ Int($0) }),
+                // 显示弹药伤害条（不受过滤影响）
+                if let (_, ammoID) = ammoInfo,
                    let damages = databaseManager.getItemDamages(for: ammoID),
                    damages.em + damages.therm + damages.kin + damages.exp > 0 {
                     
