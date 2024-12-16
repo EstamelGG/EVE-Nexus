@@ -250,10 +250,21 @@ struct AttributeItemView: View {
 struct AmmoInfoView: View {
     let ammoID: Int
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
+    let damageMultiplier: Double  // 添加伤害倍增系数
     @ObservedObject var databaseManager: DatabaseManager
     
     private var totalDamage: Double {
         damages.em + damages.therm + damages.kin + damages.exp
+    }
+    
+    // 计算实际伤害值
+    private var actualDamages: (em: Double, therm: Double, kin: Double, exp: Double) {
+        (
+            em: damages.em * damageMultiplier,
+            therm: damages.therm * damageMultiplier,
+            kin: damages.kin * damageMultiplier,
+            exp: damages.exp * damageMultiplier
+        )
     }
     
     var body: some View {
@@ -284,7 +295,7 @@ struct AmmoInfoView: View {
                         DamageBarView(
                             percentage: Int(round((damages.em / totalDamage) * 100)),
                             color: Color(red: 74/255, green: 128/255, blue: 192/255),
-                            value: damages.em,
+                            value: actualDamages.em,  // 使用实际伤害值
                             showValue: true
                         )
                     }
@@ -297,7 +308,7 @@ struct AmmoInfoView: View {
                         DamageBarView(
                             percentage: Int(round((damages.therm / totalDamage) * 100)),
                             color: Color(red: 176/255, green: 53/255, blue: 50/255),
-                            value: damages.therm,
+                            value: actualDamages.therm,  // 使用实际伤害值
                             showValue: true
                         )
                     }
@@ -310,7 +321,7 @@ struct AmmoInfoView: View {
                         DamageBarView(
                             percentage: Int(round((damages.kin / totalDamage) * 100)),
                             color: Color(red: 155/255, green: 155/255, blue: 155/255),
-                            value: damages.kin,
+                            value: actualDamages.kin,  // 使用实际伤害值
                             showValue: true
                         )
                     }
@@ -323,7 +334,7 @@ struct AmmoInfoView: View {
                         DamageBarView(
                             percentage: Int(round((damages.exp / totalDamage) * 100)),
                             color: Color(red: 185/255, green: 138/255, blue: 62/255),
-                            value: damages.exp,
+                            value: actualDamages.exp,  // 使用实际伤害值
                             showValue: true
                         )
                     }
@@ -367,6 +378,14 @@ struct AttributeGroupView: View {
         return nil
     }
     
+    // 获取伤害倍增系数
+    private func getDamageMultiplier() -> Double {
+        if let multiplier = allAttributes[212] {
+            return multiplier
+        }
+        return 1.0  // 如果没有倍增系数，返回1
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowGroup(group.id) && 
            (filteredAttributes.count > 0 || AttributeDisplayConfig.getResistanceValues(groupID: group.id, from: allAttributes) != nil || ammoInfo != nil) {
@@ -394,6 +413,7 @@ struct AttributeGroupView: View {
                     AmmoInfoView(
                         ammoID: ammoID,
                         damages: damages,
+                        damageMultiplier: getDamageMultiplier(),  // 传递伤害倍增系数
                         databaseManager: databaseManager
                     )
                 }
