@@ -176,10 +176,10 @@ struct RegionPickerView: View {
     
     // 常用星域列表
     private let frequentRegions = [
-        Region(id: 10000002, name: "The Forge"),
-        Region(id: 10000043, name: "Domain"),
-        Region(id: 10000032, name: "Sinq Laison"),
-        Region(id: 10000030, name: "Heimatar")
+        Region(id: 10000002, name: "The Forge (Jita)"),
+        Region(id: 10000043, name: "Domain (Amarr)"),
+        Region(id: 10000032, name: "Sinq Laison (Dodixie)"),
+        Region(id: 10000030, name: "Heimatar (Rens)")
     ]
     
     var body: some View {
