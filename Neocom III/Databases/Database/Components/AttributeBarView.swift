@@ -231,7 +231,15 @@ struct AttributeGroupView: View {
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
             .filter { attribute in
-                AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
+                // 如果是伤害属性且已经显示了伤害进度条，则不显示属性本身
+                if hasWeaponDamageAttributes && getWeaponInfo() != nil {
+                    let damageAttributeIDs = [114, 116, 117, 118]
+                    if damageAttributeIDs.contains(attribute.id) {
+                        return false
+                    }
+                }
+                
+                return AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
             }
             .sorted { attr1, attr2 in
                 let order1 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr1.id, in: group.id)

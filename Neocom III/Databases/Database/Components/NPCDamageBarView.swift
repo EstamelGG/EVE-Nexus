@@ -210,6 +210,7 @@ struct WeaponDamageView: View {
                 )
             }
         }
+        .padding(.bottom, 4)
     }
 }
 
