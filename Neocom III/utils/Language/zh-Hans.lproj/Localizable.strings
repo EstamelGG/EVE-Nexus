@@ -49,8 +49,6 @@
 "Main_Market_WH_MaxJumpMass" = "最大单次跳跃质量";
 "Main_Market_WH_Leadsto" = "通往";
 "Main_Market_WH_Size" = "尺寸类型";
-"Main_Database_toComplete" = "精简";
-"Main_Database_toSimplified" = "完整";
 
 "Main_Market" = "市场";
 "Main_WH" = "虫洞";

@@ -244,37 +244,25 @@ struct AttributeDisplayConfig {
     }
     
     // 新增：检查属性组是否有任何可显示的属性
-    static func hasVisibleAttributes(groupId: Int, attributes: [DogmaAttribute], isSimplifiedMode: Bool) -> Bool {
+    static func hasVisibleAttributes(groupId: Int, attributes: [Int]) -> Bool {
         // 如果组被显式隐藏，直接返回false
         if !shouldShowGroup(groupId) {
             return false
         }
         
         // 检查组内是否有任何可显示的属性
-        return attributes.contains { attribute in
-            shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
+        return attributes.contains { attributeId in
+            shouldShowAttribute(attributeId)
         }
     }
     
     // 判断具体属性是否应该显示
-    static func shouldShowAttribute(_ attributeID: Int, attribute: DogmaAttribute, isSimplifiedMode: Bool) -> Bool {
+    static func shouldShowAttribute(_ attributeID: Int) -> Bool {
         // 如果是抗性属性，不单独显示
         if isResistanceAttribute(attributeID) {
             return false
         }
-        
-        // 如果属性在隐藏列表中，不显示
-        if activeHiddenAttributes.contains(attributeID) {
-            return false
-        }
-        
-        // 在简化模式下，只显示有displayName的属性
-        if isSimplifiedMode {
-            return attribute.displayName != nil
-        }
-        
-        // 在完整模式下，显示所有有name的属性
-        return !attribute.name.isEmpty
+        return !activeHiddenAttributes.contains(attributeID)
     }
     
     // 获取属性组的排序权重

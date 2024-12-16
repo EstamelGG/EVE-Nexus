@@ -47,8 +47,7 @@
 "Main_Market_WH_MaxJumpMass" = "Maximum Jump Mass";
 "Main_Market_WH_Leadsto" = "Leads Into";
 "Main_Market_WH_Size" = "Size";
-"Main_Database_toComplete" = "Lite";
-"Main_Database_toSimplified" = "Full";
+
 
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";
