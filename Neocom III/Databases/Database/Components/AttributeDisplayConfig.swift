@@ -269,7 +269,7 @@ struct AttributeDisplayConfig {
         }
         
         // 如果属性的 categoryID 是 16，始终显示
-        if attribute.categoryID == 8 {
+        if attribute.categoryID == 16 {
             return true
         }
         
