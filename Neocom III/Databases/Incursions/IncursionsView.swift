@@ -52,11 +52,13 @@ class IncursionsViewModel: ObservableObject {
         guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
               let universeRow = universeRows.first,
               let regionId = universeRow["region_id"] as? Int,
-              let constellationId = universeRow["constellation_id"] as? Int,
-              let securityStr = universeRow["system_security"] as? String,
-              let security = Double(securityStr) else {
+              let constellationId = universeRow["constellation_id"] as? Int else {
             return nil
         }
+        
+        // 获取安全等级
+        let securityStr = (universeRow["system_security"] as? String) ?? "0.0"
+        let security = Double(securityStr) ?? 0.0
         
         // 获取星系名称
         let systemQuery = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
@@ -96,8 +98,9 @@ struct IncursionCell: View {
             if let factionInfo = viewModel.getFactionInfo(factionId: incursion.factionId) {
                 IconManager.shared.loadImage(for: factionInfo.iconName)
                     .resizable()
-                    .frame(width: 48, height: 48)
-                    .cornerRadius(6)
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     // 势力名称
@@ -109,15 +112,18 @@ struct IncursionCell: View {
                         HStack(spacing: 4) {
                             Text(formatSecurity(locationInfo.security))
                                 .foregroundColor(getSecurityColor(locationInfo.security))
+                                .font(.system(size: 14))
                             Text("\(locationInfo.systemName) / \(locationInfo.constellationName) / \(locationInfo.regionName)")
                                 .foregroundColor(.secondary)
+                                .font(.system(size: 14))
                         }
-                        .font(.subheadline)
                     }
                 }
+                
+                Spacer()
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 }
 
@@ -130,7 +136,7 @@ struct IncursionsView: View {
     
     var body: some View {
         List {
-            Section(header: Text("")) {
+            Section {
                 ForEach(viewModel.incursions, id: \.constellationId) { incursion in
                     IncursionCell(incursion: incursion, viewModel: viewModel)
                 }
