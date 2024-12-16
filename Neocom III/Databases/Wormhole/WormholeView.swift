@@ -55,6 +55,7 @@ struct WormholeView: View {
                                 
                                 Spacer()
                             }
+                            .frame(height: 36)
                             .padding(.vertical, 0)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -143,7 +144,7 @@ struct WormholeDetailView: View {
     }
 }
 
-struct InfoRow: View { // 虫洞列表
+struct InfoRow: View { // 虫洞详情
     let title: String
     let value: String
     let iconName: String?

@@ -55,42 +55,8 @@ struct SkillRequirementRow: View {
                     Text("Lv \(level)")
                         .font(.body)
                         .foregroundColor(.secondary)
-                }
+                }.frame(height: 36)
             }
         }
     }
 }
-
-struct SkillRequirementsView: View {
-    let typeID: Int
-    @ObservedObject var databaseManager: DatabaseManager
-    
-    // 计算总技能点数
-    private func calculateTotalSkillPoints(_ skills: [(skillID: Int, level: Int, timeMultiplier: Double?)]) -> Int {
-        skills.reduce(0) { total, skill in
-            guard let multiplier = skill.timeMultiplier,
-                  skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count else {
-                return total
-            }
-            let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
-            return total + points
-        }
-    }
-    
-    var body: some View {
-        let skills = SkillTreeManager.shared.getDeduplicatedSkillRequirements(for: typeID, databaseManager: databaseManager)
-        if !skills.isEmpty {
-            let totalPoints = calculateTotalSkillPoints(skills)
-            Section(header: Text("\(NSLocalizedString("Main_Database_Skill_Requirements", comment: "")) (\(NumberFormatUtil.format(Double(totalPoints))) SP)")) {
-                ForEach(skills, id: \.skillID) { skill in
-                    SkillRequirementRow(
-                        skillID: skill.skillID,
-                        level: skill.level,
-                        timeMultiplier: skill.timeMultiplier,
-                        databaseManager: databaseManager
-                    )
-                }
-            }
-        }
-    }
-} 
