@@ -1,6 +1,6 @@
 import SwiftUI
 
-class SystemInfo: Identifiable {
+@objc class SystemInfo: NSObject, Identifiable, @unchecked Sendable {
     let id: Int
     let systemName: String
     let security: Double
@@ -8,17 +8,21 @@ class SystemInfo: Identifiable {
     var allianceId: Int?
     var factionId: Int?
     var icon: Image?
+    var isLoadingIcon: Bool = false
     
     init(systemName: String, security: Double, systemId: Int) {
         self.id = systemId
         self.systemName = systemName
         self.security = security
         self.systemId = systemId
+        super.init()
     }
 }
 
+@MainActor
 class InfestedSystemsViewModel: ObservableObject {
     @Published var systems: [SystemInfo] = []
+    @Published var isLoading: Bool = false
     let databaseManager: DatabaseManager
     private var allianceIconTasks: [Int: Task<Void, Never>] = [:]
     
@@ -28,6 +32,7 @@ class InfestedSystemsViewModel: ObservableObject {
     }
     
     private func loadSystems(systemIds: [Int]) {
+        isLoading = true
         var tempSystems: [SystemInfo] = []
         
         for systemId in systemIds {
@@ -78,10 +83,9 @@ class InfestedSystemsViewModel: ObservableObject {
         // 按安全等级排序
         tempSystems.sort { $0.security > $1.security }
         
-        DispatchQueue.main.async {
-            self.systems = tempSystems
-            self.loadIcons()
-        }
+        systems = tempSystems
+        isLoading = false
+        loadIcons()
     }
     
     private func loadIcons() {
@@ -90,14 +94,30 @@ class InfestedSystemsViewModel: ObservableObject {
         
         // 为每个联盟异步加载图标
         for allianceId in uniqueAllianceIds {
-            let task = Task {
+            let systemIds = systems.filter { $0.allianceId == allianceId }.map { $0.systemId }
+            let task = Task { @MainActor [weak self] in
+                guard let self = self else { return }
                 do {
+                    // 设置加载状态
+                    for systemId in systemIds {
+                        if let system = self.systems.first(where: { $0.systemId == systemId }) {
+                            system.isLoadingIcon = true
+                        }
+                    }
+                    
                     let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
                     let image = Image(uiImage: uiImage)
                     updateAllianceIcon(allianceId: allianceId, image: image)
                 } catch {
                     // 如果加载失败，使用默认图标
-                    updateAllianceIcon(allianceId: allianceId, image: IconManager.shared.loadImage(for: "corporations_1.png"))
+                    updateAllianceIcon(allianceId: allianceId, image: IconManager.shared.loadImage(for: "corporations_1"))
+                }
+                
+                // 重置加载状态
+                for systemId in systemIds {
+                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
+                        system.isLoadingIcon = false
+                    }
                 }
             }
             allianceIconTasks[allianceId] = task
@@ -106,12 +126,15 @@ class InfestedSystemsViewModel: ObservableObject {
         // 加载派系图标
         for system in systems {
             if let factionId = system.factionId {
+                let systemId = system.systemId
+                system.isLoadingIcon = true
                 let query = "SELECT iconName FROM factions WHERE id = ?"
                 if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
                    let row = rows.first,
                    let iconName = row["iconName"] as? String {
-                    DispatchQueue.main.async {
+                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
                         system.icon = IconManager.shared.loadImage(for: iconName)
+                        system.isLoadingIcon = false
                     }
                 }
             }
@@ -119,11 +142,9 @@ class InfestedSystemsViewModel: ObservableObject {
     }
     
     private func updateAllianceIcon(allianceId: Int, image: Image) {
-        DispatchQueue.main.async {
-            for system in self.systems {
-                if system.allianceId == allianceId {
-                    system.icon = image
-                }
+        for system in systems {
+            if system.allianceId == allianceId {
+                system.icon = image
             }
         }
     }
@@ -144,24 +165,32 @@ struct InfestedSystemsView: View {
     }
     
     var body: some View {
-        List {
-            ForEach(viewModel.systems) { system in
-                HStack {
-                    Text(formatSecurity(system.security))
-                        .foregroundColor(getSecurityColor(system.security))
-                    Text(system.systemName)
-                        .fontWeight(.medium)
-                    Spacer()
-                    if let icon = system.icon {
-                        icon
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 32, height: 32)
+        if viewModel.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List {
+                ForEach(viewModel.systems) { system in
+                    HStack {
+                        Text(formatSecurity(system.security))
+                            .foregroundColor(getSecurityColor(system.security))
+                        Text(system.systemName)
+                            .fontWeight(.medium)
+                        Spacer()
+                        if system.isLoadingIcon {
+                            ProgressView()
+                                .frame(width: 32, height: 32)
+                        } else if let icon = system.icon {
+                            icon
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 32, height: 32)
+                        }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
+            .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
     }
 } 
