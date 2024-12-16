@@ -103,8 +103,9 @@ struct ResistanceBarView: View {
 // 单个属性的显示组件
 struct AttributeItemView: View {
     let attribute: DogmaAttribute
-    let allAttributes: [Int: Double]  // 添加所有属性的字典
-    @ObservedObject var databaseManager: DatabaseManager // 添加数据库管理器
+    let allAttributes: [Int: Double]
+    @ObservedObject var databaseManager: DatabaseManager
+    let isSimplifiedMode: Bool  // 新增显示模式参数
     
     // 获取格式化后的显示值
     private var formattedValue: String {
@@ -168,7 +169,7 @@ struct AttributeItemView: View {
     }
     
     var body: some View {
-        if AttributeDisplayConfig.shouldShowAttribute(attribute.id) {
+        if AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode) {
             let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
             
             switch result {
@@ -224,12 +225,15 @@ struct AttributeItemView: View {
 struct AttributeGroupView: View {
     let group: AttributeGroup
     let allAttributes: [Int: Double]
-    let typeID: Int  // 添加typeID参数
+    let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
+    let isSimplifiedMode: Bool  // 新增显示模式参数
     
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
-            .filter { AttributeDisplayConfig.shouldShowAttribute($0.id) }
+            .filter { attribute in
+                AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
+            }
             .sorted { attr1, attr2 in
                 let order1 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr1.id, in: group.id)
                 let order2 = AttributeDisplayConfig.getAttributeOrder(attributeID: attr2.id, in: group.id)
@@ -252,7 +256,12 @@ struct AttributeGroupView: View {
                 
                 // 只显示非抗性属性
                 ForEach(filteredAttributes) { attribute in
-                    AttributeItemView(attribute: attribute, allAttributes: allAttributes, databaseManager: databaseManager)
+                    AttributeItemView(
+                        attribute: attribute,
+                        allAttributes: allAttributes,
+                        databaseManager: databaseManager,
+                        isSimplifiedMode: isSimplifiedMode  // 传递显示模式
+                    )
                 }
             } header: {
                 Text(group.name)
@@ -267,6 +276,7 @@ struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
+    let isSimplifiedMode: Bool  // 新增显示模式参数
     
     // 构建所有属性的字典
     private var allAttributes: [Int: Double] {
@@ -315,7 +325,8 @@ struct AttributesView: View {
                     group: group,
                     allAttributes: allAttributes,
                     typeID: typeID,
-                    databaseManager: databaseManager
+                    databaseManager: databaseManager,
+                    isSimplifiedMode: isSimplifiedMode  // 传递显示模式
                 )
             }
         }

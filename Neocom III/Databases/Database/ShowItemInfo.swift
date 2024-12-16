@@ -10,6 +10,7 @@ struct ShowItemInfo: View {
     @State private var attributeGroups: [AttributeGroup] = []
     @State private var roleBonuses: [Trait] = []
     @State private var typeBonuses: [Trait] = []
+    @State private var isSimplifiedMode: Bool = UserDefaultsManager.shared.isSimplifiedMode  // 从UserDefaults加载初始值
     
     private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
         var text = ""
@@ -77,7 +78,8 @@ struct ShowItemInfo: View {
                 AttributesView(
                     attributeGroups: attributeGroups,
                     typeID: itemID,
-                    databaseManager: databaseManager
+                    databaseManager: databaseManager,
+                    isSimplifiedMode: isSimplifiedMode
                 )
                 
                 // 如果是技能，显示依赖该技能的物品列表
@@ -218,6 +220,18 @@ struct ShowItemInfo: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Item_Info", comment: ""))
         .navigationBarBackButtonHidden(false)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    isSimplifiedMode.toggle()
+                    UserDefaultsManager.shared.isSimplifiedMode = isSimplifiedMode  // 保存设置
+                }) {
+                    Text(isSimplifiedMode ? 
+                         NSLocalizedString("Main_Database_toComplete", comment: "") :
+                         NSLocalizedString("Main_Database_toSimplified", comment: ""))
+                }
+            }
+        }
         .onAppear {
             loadItemDetails(for: itemID)
             loadAttributes(for: itemID)
