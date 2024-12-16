@@ -89,6 +89,7 @@ struct MissileDamageView: View {
             )
         }
         .padding(.vertical, 4)
+        .frame(minHeight: 44)
     }
 }
 
@@ -218,7 +219,8 @@ struct WeaponDamageView: View {
                 )
             }
         }
-        .padding(.vertical, 4)  // 添加垂直间距使其居中
+        .padding(.vertical, 4)
+        .frame(minHeight: 44)
     }
 }
 
