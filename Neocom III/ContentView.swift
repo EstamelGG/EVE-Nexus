@@ -100,7 +100,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Incursions", comment: ""),
-                        iconName: "incursions"
+                        iconName: "incursions",
+                        destination: AnyView(IncursionsView(databaseManager: databaseManager))
                     )
                 ]
             ),
@@ -273,7 +274,8 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Incursions", comment: ""),
-                        iconName: "incursions"
+                        iconName: "incursions",
+                        destination: AnyView(IncursionsView(databaseManager: databaseManager))
                     )
                 ]
             ),

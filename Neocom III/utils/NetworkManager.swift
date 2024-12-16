@@ -192,6 +192,18 @@ class NetworkManager {
         return history
     }
     
+    // 获取入侵数据
+    func fetchIncursions() async throws -> [Incursion] {
+        let urlString = "https://esi.evetech.net/latest/incursions/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for incursions")
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        return try JSONDecoder().decode([Incursion].self, from: data)
+    }
+    
     // 清除缓存
     func clearMarketOrdersCache() {
         marketOrdersCache.removeAll()
