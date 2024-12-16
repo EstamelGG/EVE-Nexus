@@ -247,7 +247,7 @@ struct AttributeItemView: View {
 }
 
 // 添加一个新的 View 来显示弹药信息
-struct AmmoInfoView: View {
+struct MissileInfoView: View {
     let ammoID: Int
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
     let damageMultiplier: Double  // 添加伤害倍增系数
@@ -277,9 +277,9 @@ struct AmmoInfoView: View {
                 // 弹药名称和图标
                 HStack {
                     IconManager.shared.loadImage(for: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .cornerRadius(6)
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
                     Text(databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"))
                         .font(.body)
                         .foregroundColor(.primary)
@@ -288,53 +288,73 @@ struct AmmoInfoView: View {
                 // 伤害条
                 HStack(spacing: 8) {
                     // 电磁伤害
-                    HStack(spacing: 4) {
-                        IconManager.shared.loadImage(for: "items_22_32_12.png")
-                            .resizable()
-                            .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            IconManager.shared.loadImage(for: "items_22_32_12.png")
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text("\(Int(round((damages.em / totalDamage) * 100)))%")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                        }
                         DamageBarView(
                             percentage: Int(round((damages.em / totalDamage) * 100)),
                             color: Color(red: 74/255, green: 128/255, blue: 192/255),
-                            value: actualDamages.em,  // 使用实际伤害值
+                            value: actualDamages.em,
                             showValue: true
                         )
                     }
                     
                     // 热能伤害
-                    HStack(spacing: 4) {
-                        IconManager.shared.loadImage(for: "items_22_32_10.png")
-                            .resizable()
-                            .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            IconManager.shared.loadImage(for: "items_22_32_10.png")
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text("\(Int(round((damages.therm / totalDamage) * 100)))%")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                        }
                         DamageBarView(
                             percentage: Int(round((damages.therm / totalDamage) * 100)),
                             color: Color(red: 176/255, green: 53/255, blue: 50/255),
-                            value: actualDamages.therm,  // 使用实际伤害值
+                            value: actualDamages.therm,
                             showValue: true
                         )
                     }
                     
                     // 动能伤害
-                    HStack(spacing: 4) {
-                        IconManager.shared.loadImage(for: "items_22_32_9.png")
-                            .resizable()
-                            .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            IconManager.shared.loadImage(for: "items_22_32_9.png")
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text("\(Int(round((damages.kin / totalDamage) * 100)))%")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                        }
                         DamageBarView(
                             percentage: Int(round((damages.kin / totalDamage) * 100)),
                             color: Color(red: 155/255, green: 155/255, blue: 155/255),
-                            value: actualDamages.kin,  // 使用实际伤害值
+                            value: actualDamages.kin,
                             showValue: true
                         )
                     }
                     
                     // 爆炸伤害
-                    HStack(spacing: 4) {
-                        IconManager.shared.loadImage(for: "items_22_32_11.png")
-                            .resizable()
-                            .frame(width: 18, height: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            IconManager.shared.loadImage(for: "items_22_32_11.png")
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            Text("\(Int(round((damages.exp / totalDamage) * 100)))%")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                        }
                         DamageBarView(
                             percentage: Int(round((damages.exp / totalDamage) * 100)),
                             color: Color(red: 185/255, green: 138/255, blue: 62/255),
-                            value: actualDamages.exp,  // 使用实际伤害值
+                            value: actualDamages.exp,
                             showValue: true
                         )
                     }
@@ -410,7 +430,7 @@ struct AttributeGroupView: View {
                    let damages = databaseManager.getItemDamages(for: ammoID),
                    damages.em + damages.therm + damages.kin + damages.exp > 0 {
                     
-                    AmmoInfoView(
+                    MissileInfoView(
                         ammoID: ammoID,
                         damages: damages,
                         damageMultiplier: getDamageMultiplier(),  // 传递伤害倍增系数
