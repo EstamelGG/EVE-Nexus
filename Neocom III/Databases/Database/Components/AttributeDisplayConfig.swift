@@ -148,7 +148,7 @@ struct AttributeDisplayConfig {
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
     private static let defaultHiddenAttributes: Set<Int> = [
-        3,15,104,600,715,716,866,868,1137,1336,1547,1785,1970,1973,2754
+        3,15,715,716,1137,1336,1547
     ] // 要隐藏的属性id
     
     // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
