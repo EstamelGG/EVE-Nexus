@@ -28,20 +28,23 @@ class IncursionsViewModel: ObservableObject {
     }
     
     func getFactionInfo(factionId: Int) -> (iconName: String, name: String)? {
-        let query = "SELECT iconName, name FROM factions WHERE id = ?"
+        // 根据 faction_id 确定图标
+        let iconName = factionId == 500019 ? "corporations_44_128_2.png" : "items_7_64_4.png"
+        
+        // 获取势力名称
+        let query = "SELECT name FROM factions WHERE id = ?"
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
            let row = rows.first,
-           let iconName = row["iconName"] as? String,
            let name = row["name"] as? String {
             return (iconName, name)
         }
         return nil
     }
     
-    func getSystemInfo(solarSystemId: Int) -> (systemName: String, security: String, constellationName: String, regionName: String)? {
-        // 从 universe 表获取所有需要的 ID 和安全等级
+    func getLocationInfo(solarSystemId: Int) -> (systemName: String, constellationName: String, regionName: String)? {
+        // 从 universe 表获取 region_id 和 constellation_id
         let universeQuery = """
-            SELECT region_id, constellation_id, solarsystem_id, system_security
+            SELECT region_id, constellation_id
             FROM universe
             WHERE solarsystem_id = ?
         """
@@ -49,8 +52,7 @@ class IncursionsViewModel: ObservableObject {
         guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
               let universeRow = universeRows.first,
               let regionId = universeRow["region_id"] as? Int,
-              let constellationId = universeRow["constellation_id"] as? Int,
-              let security = universeRow["system_security"] as? String else {
+              let constellationId = universeRow["constellation_id"] as? Int else {
             return nil
         }
         
@@ -78,7 +80,7 @@ class IncursionsViewModel: ObservableObject {
             return nil
         }
         
-        return (systemName, security, constellationName, regionName)
+        return (systemName, constellationName, regionName)
     }
 }
 
@@ -87,53 +89,29 @@ struct IncursionCell: View {
     let viewModel: IncursionsViewModel
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 第一行
-            HStack(spacing: 12) {
-                // 势力图标
-                if let factionInfo = viewModel.getFactionInfo(factionId: incursion.factionId) {
-                    IconManager.shared.loadImage(for: factionInfo.iconName)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 40, height: 40)
-                }
+        HStack(spacing: 12) {
+            // 势力图标
+            if let factionInfo = viewModel.getFactionInfo(factionId: incursion.factionId) {
+                IconManager.shared.loadImage(for: factionInfo.iconName)
+                    .resizable()
+                    .frame(width: 48, height: 48)
+                    .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    // 势力名称和Boss图标
-                    HStack {
-                        if let factionInfo = viewModel.getFactionInfo(factionId: incursion.factionId) {
-                            Text(factionInfo.name)
-                                .font(.headline)
-                        }
-                        if incursion.hasBoss {
-                            IconManager.shared.loadImage(for: "items_4_64_7.png")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                        }
-                    }
+                    // 势力名称
+                    Text(factionInfo.name)
+                        .font(.headline)
                     
-                    // 状态和位置信息
-                    if let systemInfo = viewModel.getSystemInfo(solarSystemId: incursion.stagingSolarSystemId) {
-                        Text("\(incursion.state.capitalized) - \(systemInfo.security) \(systemInfo.systemName) - \(systemInfo.constellationName) (\(systemInfo.regionName))")
+                    // 位置信息
+                    if let locationInfo = viewModel.getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) {
+                        Text("\(locationInfo.systemName) / \(locationInfo.constellationName) / \(locationInfo.regionName)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
                 }
             }
-            
-            // 第二行 - 进度条
-            ProgressView(value: incursion.influence)
-                .tint(.red)
-                .overlay(
-                    Text("\(Int(incursion.influence * 100))%")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                )
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
+        .padding(.vertical, 8)
     }
 }
 
@@ -146,20 +124,20 @@ struct IncursionsView: View {
     
     var body: some View {
         List {
-            ForEach(viewModel.incursions, id: \.constellationId) { incursion in
-                IncursionCell(incursion: incursion, viewModel: viewModel)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
+            Section(header: Text("")) {
+                ForEach(viewModel.incursions, id: \.constellationId) { incursion in
+                    IncursionCell(incursion: incursion, viewModel: viewModel)
+                }
             }
         }
-        .listStyle(.plain)
+        .listStyle(.insetGrouped)
         .task {
             await viewModel.fetchIncursions()
         }
         .refreshable {
             await viewModel.fetchIncursions()
         }
-        .navigationTitle("入侵")
+        .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }
 }
 
