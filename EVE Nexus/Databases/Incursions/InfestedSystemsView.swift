@@ -196,6 +196,7 @@ struct InfestedSystemsView: View {
             List {
                 ForEach(viewModel.systems) { system in
                     SystemRow(system: system)
+                        .environmentObject(viewModel)
                 }
             }
             .listStyle(.insetGrouped)
@@ -206,6 +207,8 @@ struct InfestedSystemsView: View {
 
 struct SystemRow: View {
     @ObservedObject var system: SystemInfo
+    @StateObject private var iconLoader = IconLoader()
+    @EnvironmentObject private var viewModel: InfestedSystemsViewModel
     
     var body: some View {
         HStack {
@@ -214,23 +217,65 @@ struct SystemRow: View {
             Text(system.systemName)
                 .fontWeight(.medium)
             Spacer()
-            if system.isLoadingIcon {
+            if iconLoader.isLoading {
                 ProgressView()
                     .frame(width: 32, height: 32)
-            } else if system.shouldShowIcon, let icon = system.icon {
+            } else if let icon = iconLoader.icon {
                 icon
                     .resizable()
                     .scaledToFit()
                     .frame(width: 32, height: 32)
-                    .onAppear {
-                        Logger.debug("图标显示: \(system.systemName)")
-                    }
-            } else {
-                EmptyView()
-                    .onAppear {
-                        Logger.debug("图标未显示: \(system.systemName), isLoading: \(system.isLoadingIcon), shouldShow: \(system.shouldShowIcon)")
-                    }
             }
         }
+        .onAppear {
+            loadIcon()
+        }
     }
-} 
+    
+    private func loadIcon() {
+        if let allianceId = system.allianceId {
+            // 加载联盟图标
+            Task {
+                await iconLoader.loadAllianceIcon(allianceId: allianceId)
+            }
+        } else if let factionId = system.factionId {
+            // 加载派系图标
+            iconLoader.loadFactionIcon(factionId: factionId, databaseManager: viewModel.databaseManager)
+        }
+    }
+}
+
+@MainActor
+class IconLoader: ObservableObject {
+    @Published var icon: Image?
+    @Published var isLoading = false
+    
+    func loadAllianceIcon(allianceId: Int) async {
+        isLoading = true
+        icon = nil
+        
+        do {
+            let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
+            icon = Image(uiImage: uiImage)
+        } catch {
+            Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+            icon = nil
+        }
+        
+        isLoading = false
+    }
+    
+    func loadFactionIcon(factionId: Int, databaseManager: DatabaseManager) {
+        isLoading = true
+        icon = nil
+        
+        let query = "SELECT iconName FROM factions WHERE id = ?"
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
+           let row = rows.first,
+           let iconName = row["iconName"] as? String {
+            icon = IconManager.shared.loadImage(for: iconName)
+        }
+        
+        isLoading = false
+    }
+}
