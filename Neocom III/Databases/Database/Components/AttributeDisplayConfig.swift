@@ -268,11 +268,6 @@ struct AttributeDisplayConfig {
             return false
         }
         
-        // 如果属性的 categoryID 是 16，始终显示
-        if attribute.categoryID == 16 {
-            return true
-        }
-        
         // 在简化模式下，只显示有displayName的属性
         if isSimplifiedMode {
             return attribute.displayName != nil
