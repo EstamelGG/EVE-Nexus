@@ -147,16 +147,17 @@ struct InfestedSystemsView: View {
         List {
             ForEach(viewModel.systems) { system in
                 HStack {
+                    Text(formatSecurity(system.security))
+                        .foregroundColor(getSecurityColor(system.security))
+                    Text(system.systemName)
+                        .fontWeight(.medium)
+                    Spacer()
                     if let icon = system.icon {
                         icon
                             .resizable()
                             .scaledToFit()
                             .frame(width: 32, height: 32)
                     }
-                    Text(formatSecurity(system.security))
-                        .foregroundColor(getSecurityColor(system.security))
-                    Text(system.systemName)
-                        .fontWeight(.medium)
                 }
             }
         }
