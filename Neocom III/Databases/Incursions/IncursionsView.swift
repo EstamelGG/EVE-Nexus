@@ -41,10 +41,10 @@ class IncursionsViewModel: ObservableObject {
         return nil
     }
     
-    func getLocationInfo(solarSystemId: Int) -> (systemName: String, constellationName: String, regionName: String)? {
-        // 从 universe 表获取 region_id 和 constellation_id
+    func getLocationInfo(solarSystemId: Int) -> (systemName: String, security: Double, constellationName: String, regionName: String)? {
+        // 从 universe 表获取 region_id、constellation_id 和 security
         let universeQuery = """
-            SELECT region_id, constellation_id
+            SELECT region_id, constellation_id, system_security
             FROM universe
             WHERE solarsystem_id = ?
         """
@@ -52,7 +52,9 @@ class IncursionsViewModel: ObservableObject {
         guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
               let universeRow = universeRows.first,
               let regionId = universeRow["region_id"] as? Int,
-              let constellationId = universeRow["constellation_id"] as? Int else {
+              let constellationId = universeRow["constellation_id"] as? Int,
+              let securityStr = universeRow["system_security"] as? String,
+              let security = Double(securityStr) else {
             return nil
         }
         
@@ -80,7 +82,7 @@ class IncursionsViewModel: ObservableObject {
             return nil
         }
         
-        return (systemName, constellationName, regionName)
+        return (systemName, security, constellationName, regionName)
     }
 }
 
@@ -104,9 +106,13 @@ struct IncursionCell: View {
                     
                     // 位置信息
                     if let locationInfo = viewModel.getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) {
-                        Text("\(locationInfo.systemName) / \(locationInfo.constellationName) / \(locationInfo.regionName)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Text(formatSecurity(locationInfo.security))
+                                .foregroundColor(getSecurityColor(locationInfo.security))
+                            Text("\(locationInfo.systemName) / \(locationInfo.constellationName) / \(locationInfo.regionName)")
+                                .foregroundColor(.secondary)
+                        }
+                        .font(.subheadline)
                     }
                 }
             }
