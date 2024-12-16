@@ -25,7 +25,6 @@ class InfestedSystemsViewModel: ObservableObject {
     @Published var systems: [SystemInfo] = []
     @Published var isLoading: Bool = false
     let databaseManager: DatabaseManager
-    private var allianceIconTasks: [Int: Task<Void, Never>] = [:]
     
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
@@ -35,6 +34,9 @@ class InfestedSystemsViewModel: ObservableObject {
     private func loadSystems(systemIds: [Int]) {
         isLoading = true
         var tempSystems: [SystemInfo] = []
+        
+        // 重置图标管理器
+        IconLoadManager.shared.reset()
         
         for systemId in systemIds {
             // 从 universe 表获取安全等级
@@ -60,22 +62,16 @@ class InfestedSystemsViewModel: ObservableObject {
             
             let systemInfo = SystemInfo(systemName: systemName, security: security, systemId: systemId)
             
-            // 获取主权信息
+            // 注册系统的图标信息
             if let sovereigntyData = NetworkManager.shared.getCachedSovereigntyData(),
                let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
                 if let allianceId = systemData.allianceId {
-                    // 有联盟ID，设置联盟ID
                     systemInfo.allianceId = allianceId
+                    IconLoadManager.shared.registerSystem(systemId: systemId, allianceId: allianceId, factionId: nil)
                 } else if let factionId = systemData.factionId {
-                    // 没有联盟ID但有派系ID，设置派系ID
                     systemInfo.factionId = factionId
-                } else {
-                    // 都没有，设置派系ID为1
-                    systemInfo.factionId = 1
+                    IconLoadManager.shared.registerSystem(systemId: systemId, allianceId: nil, factionId: factionId)
                 }
-            } else {
-                // 找不到主权数据，设置派系ID为1
-                systemInfo.factionId = 1
             }
             
             tempSystems.append(systemInfo)
@@ -86,98 +82,9 @@ class InfestedSystemsViewModel: ObservableObject {
         
         systems = tempSystems
         isLoading = false
-        loadIcons()
-    }
-    
-    private func loadIcons() {
-        // 获取所有不重复的联盟ID
-        let uniqueAllianceIds = Set(systems.compactMap { $0.allianceId })
         
-        // 为每个联盟异步加载图标
-        for allianceId in uniqueAllianceIds {
-            let systemIds = systems.filter { $0.allianceId == allianceId }.map { $0.systemId }
-            let task = Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                
-                // 设置加载状态
-                for systemId in systemIds {
-                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
-                        system.isLoadingIcon = true
-                        system.shouldShowIcon = false
-                        system.icon = nil
-                    }
-                }
-                
-                do {
-                    let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
-                    Logger.debug("成功获取联盟图标: \(allianceId)")
-                    let image = Image(uiImage: uiImage)
-                    Logger.debug("成功转换为SwiftUI Image: \(allianceId)")
-                    updateAllianceIcon(allianceId: allianceId, image: image, shouldShow: true)
-                    Logger.debug("已更新联盟图标: \(allianceId), shouldShow: true")
-                } catch {
-                    Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
-                    updateAllianceIcon(allianceId: allianceId, image: nil, shouldShow: false)
-                }
-                
-                // 重置加载状态
-                for systemId in systemIds {
-                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
-                        system.isLoadingIcon = false
-                    }
-                }
-            }
-            allianceIconTasks[allianceId] = task
-        }
-        
-        // 加载派系图标
-        for system in systems {
-            if let factionId = system.factionId {
-                let systemId = system.systemId
-                system.isLoadingIcon = true
-                system.shouldShowIcon = false
-                system.icon = nil
-                
-                let query = "SELECT iconName FROM factions WHERE id = ?"
-                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
-                   let row = rows.first,
-                   let iconName = row["iconName"] as? String {
-                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
-                        system.icon = IconManager.shared.loadImage(for: iconName)
-                        system.shouldShowIcon = true
-                        system.isLoadingIcon = false
-                    }
-                } else {
-                    // 如果查询失败，不显示任何图标
-                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
-                        system.icon = nil
-                        system.shouldShowIcon = false
-                        system.isLoadingIcon = false
-                    }
-                }
-            }
-        }
-    }
-    
-    private func updateAllianceIcon(allianceId: Int, image: Image?, shouldShow: Bool) {
-        var updatedCount = 0
-        for system in systems {
-            if system.allianceId == allianceId {
-                DispatchQueue.main.async {
-                    system.icon = image
-                    system.shouldShowIcon = shouldShow
-                }
-                updatedCount += 1
-            }
-        }
-        Logger.debug("更新了 \(updatedCount) 个系统的联盟图标 \(allianceId)")
-    }
-    
-    deinit {
-        // 取消所有未完成的图标加载任务
-        for task in allianceIconTasks.values {
-            task.cancel()
-        }
+        // 开始加载所有图标
+        IconLoadManager.shared.startLoadingIcons(databaseManager: databaseManager)
     }
 }
 
@@ -217,40 +124,16 @@ struct SystemRow: View {
             Text(system.systemName)
                 .fontWeight(.medium)
             Spacer()
-            if let allianceId = system.allianceId {
-                let (icon, isLoading) = iconLoadManager.getAllianceIcon(allianceId: allianceId)
-                if isLoading {
-                    ProgressView()
-                        .frame(width: 32, height: 32)
-                } else if let icon = icon {
-                    icon
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                }
-            } else if let factionId = system.factionId {
-                let (icon, isLoading) = iconLoadManager.getFactionIcon(factionId: factionId)
-                if isLoading {
-                    ProgressView()
-                        .frame(width: 32, height: 32)
-                } else if let icon = icon {
-                    icon
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                }
+            let (icon, isLoading) = iconLoadManager.getIconState(systemId: system.systemId)
+            if isLoading {
+                ProgressView()
+                    .frame(width: 32, height: 32)
+            } else if let icon = icon {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
             }
-        }
-        .onAppear {
-            loadIcon()
-        }
-    }
-    
-    private func loadIcon() {
-        if let allianceId = system.allianceId {
-            iconLoadManager.loadAllianceIcon(allianceId: allianceId)
-        } else if let factionId = system.factionId {
-            iconLoadManager.loadFactionIcon(factionId: factionId, databaseManager: viewModel.databaseManager)
         }
     }
 }
@@ -259,78 +142,115 @@ struct SystemRow: View {
 class IconLoadManager: ObservableObject {
     static let shared = IconLoadManager()
     
-    @Published private var allianceIcons: [Int: (Image?, Bool)] = [:]  // [allianceId: (icon, isLoading)]
-    @Published private var factionIcons: [Int: (Image?, Bool)] = [:]   // [factionId: (icon, isLoading)]
-    private var loadingTasks: [Int: Task<Void, Never>] = [:]
+    // 存储图标加载状态和结果
+    private var iconCache: [IconKey: IconState] = [:]
+    private var loadingTasks: [IconKey: Task<Void, Never>] = [:]
+    // 存储ID到系统的映射关系
+    private var systemMapping: [IconKey: Set<Int>] = [:]
     
     private init() {}
     
-    func getAllianceIcon(allianceId: Int) -> (Image?, Bool) {
-        allianceIcons[allianceId] ?? (nil, false)
+    // 图标的唯一标识
+    enum IconKey: Hashable {
+        case alliance(Int)
+        case faction(Int)
     }
     
-    func getFactionIcon(factionId: Int) -> (Image?, Bool) {
-        factionIcons[factionId] ?? (nil, false)
+    // 图标状态
+    struct IconState {
+        var image: Image?
+        var isLoading: Bool
     }
     
-    func loadAllianceIcon(allianceId: Int) {
-        // 如果已经在加载或已经加载完成，直接返回
-        if allianceIcons[allianceId] != nil || loadingTasks[allianceId] != nil {
-            return
+    // 注册系统和其对应的图标ID
+    func registerSystem(systemId: Int, allianceId: Int?, factionId: Int?) {
+        if let allianceId = allianceId {
+            let key = IconKey.alliance(allianceId)
+            var systems = systemMapping[key] ?? Set<Int>()
+            systems.insert(systemId)
+            systemMapping[key] = systems
+            if iconCache[key] == nil {
+                iconCache[key] = IconState(image: nil, isLoading: true)
+            }
+        } else if let factionId = factionId {
+            let key = IconKey.faction(factionId)
+            var systems = systemMapping[key] ?? Set<Int>()
+            systems.insert(systemId)
+            systemMapping[key] = systems
+            if iconCache[key] == nil {
+                iconCache[key] = IconState(image: nil, isLoading: true)
+            }
         }
+    }
+    
+    // 获取系统对应的图标状态
+    func getIconState(systemId: Int) -> (Image?, Bool) {
+        // 先查找联盟图标
+        for (key, systems) in systemMapping {
+            if systems.contains(systemId) {
+                if let state = iconCache[key] {
+                    return (state.image, state.isLoading)
+                }
+            }
+        }
+        return (nil, false)
+    }
+    
+    // 开始加载所有注册的图标
+    func startLoadingIcons(databaseManager: DatabaseManager) {
+        let uniqueKeys = Set(systemMapping.keys)
         
-        // 标记为正在加载
-        allianceIcons[allianceId] = (nil, true)
+        for key in uniqueKeys {
+            switch key {
+            case .alliance(let allianceId):
+                loadAllianceIcon(allianceId: allianceId)
+            case .faction(let factionId):
+                loadFactionIcon(factionId: factionId, databaseManager: databaseManager)
+            }
+        }
+    }
+    
+    private func loadAllianceIcon(allianceId: Int) {
+        let key = IconKey.alliance(allianceId)
+        guard loadingTasks[key] == nil else { return }
         
         let task = Task { @MainActor in
             do {
                 let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
                 if !Task.isCancelled {
-                    allianceIcons[allianceId] = (Image(uiImage: uiImage), false)
+                    iconCache[key] = IconState(image: Image(uiImage: uiImage), isLoading: false)
                 }
             } catch {
                 Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
                 if !Task.isCancelled {
-                    allianceIcons[allianceId] = (nil, false)
+                    iconCache[key] = IconState(image: nil, isLoading: false)
                 }
             }
-            loadingTasks[allianceId] = nil
+            loadingTasks[key] = nil
         }
-        loadingTasks[allianceId] = task
+        loadingTasks[key] = task
     }
     
-    func loadFactionIcon(factionId: Int, databaseManager: DatabaseManager) {
-        // 如果已经在加载或已经加载完成，直接返回
-        if factionIcons[factionId] != nil {
-            return
-        }
-        
-        // 标记为正在加载
-        factionIcons[factionId] = (nil, true)
+    private func loadFactionIcon(factionId: Int, databaseManager: DatabaseManager) {
+        let key = IconKey.faction(factionId)
         
         let query = "SELECT iconName FROM factions WHERE id = ?"
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
            let row = rows.first,
            let iconName = row["iconName"] as? String {
-            factionIcons[factionId] = (IconManager.shared.loadImage(for: iconName), false)
+            iconCache[key] = IconState(image: IconManager.shared.loadImage(for: iconName), isLoading: false)
         } else {
-            factionIcons[factionId] = (nil, false)
+            iconCache[key] = IconState(image: nil, isLoading: false)
         }
     }
     
-    private func cleanupTasks() {
+    func reset() {
         for task in loadingTasks.values {
             task.cancel()
         }
         loadingTasks.removeAll()
-        allianceIcons.removeAll()
-        factionIcons.removeAll()
-    }
-    
-    func cancelAllTasks() {
-        Task { @MainActor in
-            cleanupTasks()
-        }
+        iconCache.removeAll()
+        systemMapping.removeAll()
     }
     
     deinit {
