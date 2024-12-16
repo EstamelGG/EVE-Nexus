@@ -20,7 +20,7 @@ struct MissileInfo {
     }
 }
 
-// 导弹伤害显示组件
+// 导弹信息显示组件
 struct MissileInfoView: View {
     let ammoID: Int
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
@@ -32,13 +32,13 @@ struct MissileInfoView: View {
     }
     
     var body: some View {
-        NavigationLink(destination: ItemInfoMap.getItemInfoView(
-            itemID: ammoID,
-            categoryID: 8,
-            databaseManager: databaseManager
-        )) {
-            VStack(alignment: .leading, spacing: 2) {
-                // 弹药名称和图标
+        VStack(spacing: 0) {
+            // 导弹名称和图标（第一个单元格）
+            NavigationLink(destination: ItemInfoMap.getItemInfoView(
+                itemID: ammoID,
+                categoryID: 8,
+                databaseManager: databaseManager
+            )) {
                 HStack {
                     IconManager.shared.loadImage(for: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon)
                         .resizable()
@@ -48,44 +48,45 @@ struct MissileInfoView: View {
                         .font(.body)
                         .foregroundColor(.primary)
                 }
-                
-                // 伤害条
-                HStack(spacing: 8) {
-                    // 电磁伤害
-                    DamageTypeView(
-                        iconName: "items_22_32_12.png",
-                        percentage: Int(round((missileInfo.damages.em / missileInfo.totalDamage) * 100)),
-                        value: missileInfo.actualDamages.em,
-                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
-                    )
-                    
-                    // 热能伤害
-                    DamageTypeView(
-                        iconName: "items_22_32_10.png",
-                        percentage: Int(round((missileInfo.damages.therm / missileInfo.totalDamage) * 100)),
-                        value: missileInfo.actualDamages.therm,
-                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
-                    )
-                    
-                    // 动能伤害
-                    DamageTypeView(
-                        iconName: "items_22_32_9.png",
-                        percentage: Int(round((missileInfo.damages.kin / missileInfo.totalDamage) * 100)),
-                        value: missileInfo.actualDamages.kin,
-                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
-                    )
-                    
-                    // 爆炸伤害
-                    DamageTypeView(
-                        iconName: "items_22_32_11.png",
-                        percentage: Int(round((missileInfo.damages.exp / missileInfo.totalDamage) * 100)),
-                        value: missileInfo.actualDamages.exp,
-                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
-                    )
-                }
             }
+            .buttonStyle(.plain)
+            
+            // 伤害条（第二个单元格）
+            HStack(spacing: 8) {
+                // 电磁伤害
+                DamageTypeView(
+                    iconName: "items_22_32_12.png",
+                    percentage: Int(round((missileInfo.damages.em / missileInfo.totalDamage) * 100)),
+                    value: missileInfo.actualDamages.em,
+                    color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                )
+                
+                // 热能伤害
+                DamageTypeView(
+                    iconName: "items_22_32_10.png",
+                    percentage: Int(round((missileInfo.damages.therm / missileInfo.totalDamage) * 100)),
+                    value: missileInfo.actualDamages.therm,
+                    color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                )
+                
+                // 动能伤害
+                DamageTypeView(
+                    iconName: "items_22_32_9.png",
+                    percentage: Int(round((missileInfo.damages.kin / missileInfo.totalDamage) * 100)),
+                    value: missileInfo.actualDamages.kin,
+                    color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                )
+                
+                // 爆炸伤害
+                DamageTypeView(
+                    iconName: "items_22_32_11.png",
+                    percentage: Int(round((missileInfo.damages.exp / missileInfo.totalDamage) * 100)),
+                    value: missileInfo.actualDamages.exp,
+                    color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                )
+            }
+            .padding(.vertical, 4)  // 添加垂直间距使其居中
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -210,7 +211,7 @@ struct WeaponDamageView: View {
                 )
             }
         }
-        .padding(.bottom, 4)
+        .padding(.vertical, 4)  // 添加垂直间距使其居中
     }
 }
 
