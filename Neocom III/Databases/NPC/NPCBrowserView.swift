@@ -72,16 +72,14 @@ struct NPCBaseView<Content: View>: View {
                     .overlay {
                         VStack {
                             ProgressView()
-                            Text("正在搜索...")
+                            Text(NSLocalizedString("Main_Database_Searching", comment: ""))
                                 .foregroundColor(.secondary)
                                 .padding(.top, 8)
                         }
                     }
             } else if items.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView {
-                    Label("未找到", systemImage: "magnifyingglass")
-                } description: {
-                    Text("没有找到匹配的项目")
+                    Label("Not Found", systemImage: "magnifyingglass")
                 }
             } else if searchText.isEmpty && isSearchActive {
                 Color.black.opacity(0.2)

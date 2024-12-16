@@ -27,6 +27,7 @@
 "Main_Database_unpublished" = "未发布";
 "Main_Database_published" = "已发布";
 "Main_Database_Search" = "搜索";
+"Main_Database_Searching" = "正在搜索...";
 "Main_Database_Variations" = "变体";
 "Main_Database_Browse_Variations" = "浏览 %d 个变体";
 "Main_Database_Item_info_Immune" = "免疫";

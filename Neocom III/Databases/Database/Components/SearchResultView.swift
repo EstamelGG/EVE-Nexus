@@ -107,16 +107,14 @@ struct DatabaseListView: View {
                 .overlay {
                     VStack {
                         ProgressView()
-                        Text("正在搜索...")
+                        Text(NSLocalizedString("Main_Database_Searching", comment: ""))
                             .foregroundColor(.secondary)
                             .padding(.top, 8)
                     }
                 }
         } else if items.isEmpty && !searchText.isEmpty {
             ContentUnavailableView {
-                Label("未找到", systemImage: "magnifyingglass")
-            } description: {
-                Text("没有找到匹配的项目")
+                Label("Not found", systemImage: "magnifyingglass")
             }
         } else if searchText.isEmpty && isSearchActive {
             // 添加一个可点击的半透明遮罩

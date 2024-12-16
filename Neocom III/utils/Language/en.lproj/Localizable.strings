@@ -27,6 +27,7 @@
 "Main_Database_unpublished" = "Unpublished";
 "Main_Database_published" = "Published";
 "Main_Database_Search" = "Search";
+"Main_Database_Searching" = "Searching...";
 "Main_Database_Variations" = "Variations";
 "Main_Database_Browse_Variations" = "Browse %d variations";
 "Main_Database_Item_info_Immune" = "Immune";
