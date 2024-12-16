@@ -14,12 +14,50 @@ class IncursionsViewModel: ObservableObject {
     @Published var isLoading = false
     let databaseManager: DatabaseManager
     
+    // 缓存管理器
+    private static let cache: NSCache<NSString, CacheEntry> = {
+        let cache = NSCache<NSString, CacheEntry>()
+        cache.countLimit = 1 // 只缓存最新的一次数据
+        return cache
+    }()
+    
+    private let cacheKey = "incursions_cache" as NSString
+    
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+        loadFromCache()
+    }
+    
+    private func loadFromCache() {
+        guard let entry = Self.cache.object(forKey: cacheKey),
+              !entry.isExpired else {
+            return
+        }
+        
+        self.preparedIncursions = entry.data
+        Logger.info("ViewModel: 从缓存加载了 \(entry.data.count) 条入侵数据")
+    }
+    
+    private func saveToCache(_ data: [(Incursion, (String, String), (String, Double, String, String))]) {
+        let entry = CacheEntry(data: data)
+        Self.cache.setObject(entry, forKey: cacheKey)
+        Logger.info("ViewModel: 成功将 \(data.count) 条入侵数据保存到缓存")
     }
     
     @MainActor
-    func fetchIncursions() async {
+    func fetchIncursions(forceRefresh: Bool = false) async {
+        if !forceRefresh,
+           let entry = Self.cache.object(forKey: cacheKey),
+           !entry.isExpired {
+            Logger.info("ViewModel: 使用缓存数据")
+            return
+        }
+        
+        await fetchFromNetwork()
+    }
+    
+    @MainActor
+    private func fetchFromNetwork() async {
         isLoading = true
         preparedIncursions = []
         
@@ -28,16 +66,13 @@ class IncursionsViewModel: ObservableObject {
             let decodedIncursions = try await NetworkManager.shared.fetchIncursions()
             Logger.info("ViewModel: 获取到 \(decodedIncursions.count) 条入侵数据，开始准备显示数据")
             
-            // 处理每个入侵数据
             var prepared: [(Incursion, (String, String), (String, Double, String, String))] = []
             for incursion in decodedIncursions {
-                // 获取势力信息
                 guard let factionInfo = getFactionInfo(factionId: incursion.factionId) else {
                     Logger.error("无法获取势力信息: factionId = \(incursion.factionId)")
                     continue
                 }
                 
-                // 获取位置信息
                 guard let locationInfo = getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) else {
                     Logger.error("无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
                     continue
@@ -46,10 +81,10 @@ class IncursionsViewModel: ObservableObject {
                 prepared.append((incursion, factionInfo, locationInfo))
             }
             
-            // 只有当所有数据都准备好时才更新
             if !prepared.isEmpty {
                 Logger.info("ViewModel: 成功准备 \(prepared.count) 条完整数据")
                 preparedIncursions = prepared
+                saveToCache(prepared)
             } else {
                 Logger.error("ViewModel: 没有可显示的完整数据")
             }
@@ -115,6 +150,22 @@ class IncursionsViewModel: ObservableObject {
         }
         
         return (systemName, security, constellationName, regionName)
+    }
+}
+
+// 缓存条目
+final class CacheEntry {
+    let data: [(incursion: Incursion, faction: (iconName: String, name: String), location: (systemName: String, security: Double, constellationName: String, regionName: String))]
+    private let timestamp: Date
+    private let validityDuration: TimeInterval = 8 * 3600 // 8小时
+    
+    init(data: [(Incursion, (String, String), (String, Double, String, String))]) {
+        self.data = data
+        self.timestamp = Date()
+    }
+    
+    var isExpired: Bool {
+        Date().timeIntervalSince(timestamp) >= validityDuration
     }
 }
 
@@ -184,7 +235,7 @@ struct IncursionsView: View {
                         .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
                 } else if viewModel.preparedIncursions.isEmpty {
-                    Text("暂无入侵数据")
+                    Text("Can not get incursions data")
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity)
                         .listRowBackground(Color.clear)
@@ -206,14 +257,9 @@ struct IncursionsView: View {
             await viewModel.fetchIncursions()
         }
         .refreshable {
-            // 重新请求数据
-            await viewModel.fetchIncursions()
+            // 强制刷新数据
+            await viewModel.fetchIncursions(forceRefresh: true)
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }
 }
-
-#Preview {
-    IncursionsView(databaseManager: DatabaseManager())
-}
-
