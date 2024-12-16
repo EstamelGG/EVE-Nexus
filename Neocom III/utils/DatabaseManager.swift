@@ -1641,9 +1641,9 @@ class DatabaseManager: ObservableObject {
         var hasData = false
         
         let query = """
-            SELECT attribute_id , value 
-            FROM typeAttributes ta 
-            WHERE type_id = 17857 AND attribute_id IN (114, 116, 117, 118)
+            SELECT attribute_id, value 
+            FROM typeAttributes 
+            WHERE type_id = ? AND attribute_id IN (114, 116, 117, 118)
         """
         
         let result = executeQuery(query, parameters: [itemID])
