@@ -199,86 +199,8 @@ struct AttributeItemView: View {
             case .resistance(let resistances):
                 ResistanceBarView(resistances: resistances)
             default:
-                VStack(alignment: .leading, spacing: 4) {
-                    // 显示常规属性视图
-                    defaultAttributeView
-                    
-                    // 如果是507属性，在下方添加伤害条
-                    if attribute.id == 507, let ammoID = allAttributes[507].map({ Int($0) }) {
-                        if let damages = getAmmoDamages(ammoID: ammoID), hasAnyDamage(damages) {
-                            let totalDamage = damages.em + damages.therm + damages.kin + damages.exp
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                // 弹药名称和跳转链接
-                                NavigationLink(destination: ItemInfoMap.getItemInfoView(
-                                    itemID: ammoID,
-                                    categoryID: 8, // 假设弹药都在categoryID 8下，如果不是请调整
-                                    databaseManager: databaseManager
-                                )) {
-                                    Text(getAmmoName(ammoID: ammoID))
-                                        .font(.body)
-                                        .foregroundColor(.blue)
-                                }
-                                
-                                // 伤害条
-                                HStack(spacing: 8) {
-                                    // 电磁伤害
-                                    HStack(spacing: 4) {
-                                        IconManager.shared.loadImage(for: "items_22_32_12.png")
-                                            .resizable()
-                                            .frame(width: 18, height: 18)
-                                        DamageBarView(
-                                            percentage: calculateDamagePercentage(damages.em, total: totalDamage),
-                                            color: Color(red: 74/255, green: 128/255, blue: 192/255),
-                                            value: damages.em,
-                                            showValue: true
-                                        )
-                                    }
-                                    
-                                    // 热能伤害
-                                    HStack(spacing: 4) {
-                                        IconManager.shared.loadImage(for: "items_22_32_10.png")
-                                            .resizable()
-                                            .frame(width: 18, height: 18)
-                                        DamageBarView(
-                                            percentage: calculateDamagePercentage(damages.therm, total: totalDamage),
-                                            color: Color(red: 176/255, green: 53/255, blue: 50/255),
-                                            value: damages.therm,
-                                            showValue: true
-                                        )
-                                    }
-                                    
-                                    // 动能伤害
-                                    HStack(spacing: 4) {
-                                        IconManager.shared.loadImage(for: "items_22_32_9.png")
-                                            .resizable()
-                                            .frame(width: 18, height: 18)
-                                        DamageBarView(
-                                            percentage: calculateDamagePercentage(damages.kin, total: totalDamage),
-                                            color: Color(red: 155/255, green: 155/255, blue: 155/255),
-                                            value: damages.kin,
-                                            showValue: true
-                                        )
-                                    }
-                                    
-                                    // 爆炸伤害
-                                    HStack(spacing: 4) {
-                                        IconManager.shared.loadImage(for: "items_22_32_11.png")
-                                            .resizable()
-                                            .frame(width: 18, height: 18)
-                                        DamageBarView(
-                                            percentage: calculateDamagePercentage(damages.exp, total: totalDamage),
-                                            color: Color(red: 185/255, green: 138/255, blue: 62/255),
-                                            value: damages.exp,
-                                            showValue: true
-                                        )
-                                    }
-                                }
-                            }
-                            .padding(.leading, 32) // 对齐原属性图标的缩进
-                        }
-                    }
-                }
+                // 直接显示常规属性视图，移除伤害条相关代码
+                defaultAttributeView
             }
         }
     }
@@ -324,6 +246,55 @@ struct AttributeItemView: View {
     }
 }
 
+// 添加一个新的 View 来显示弹药信息
+struct AmmoInfoView: View {
+    let ammoID: Int
+    let damages: (em: Double, therm: Double, kin: Double, exp: Double)
+    @ObservedObject var databaseManager: DatabaseManager
+    
+    private var totalDamage: Double {
+        damages.em + damages.therm + damages.kin + damages.exp
+    }
+    
+    var body: some View {
+        NavigationLink(destination: ItemInfoMap.getItemInfoView(
+            itemID: ammoID,
+            categoryID: 8,
+            databaseManager: databaseManager
+        )) {
+            DatabaseListItemView(
+                item: DatabaseListItem(
+                    id: ammoID,
+                    name: databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"),
+                    iconFileName: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon,
+                    published: true,
+                    categoryID: 8,
+                    groupID: nil,
+                    groupName: nil,
+                    pgNeed: nil,
+                    cpuNeed: nil,
+                    rigCost: nil,
+                    emDamage: damages.em,
+                    themDamage: damages.therm,
+                    kinDamage: damages.kin,
+                    expDamage: damages.exp,
+                    highSlot: nil,
+                    midSlot: nil,
+                    lowSlot: nil,
+                    rigSlot: nil,
+                    gunSlot: nil,
+                    missSlot: nil,
+                    metaGroupID: nil,
+                    marketGroupID: nil,
+                    navigationDestination: AnyView(EmptyView())
+                ),
+                showDetails: true
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // 属性组的显示组件
 struct AttributeGroupView: View {
     let group: AttributeGroup
@@ -357,13 +328,26 @@ struct AttributeGroupView: View {
                     ResistanceBarView(resistances: resistances)
                 }
                 
-                // 只显示非抗性属性
+                // 显示所有属性
                 ForEach(filteredAttributes) { attribute in
                     AttributeItemView(
                         attribute: attribute,
                         allAttributes: allAttributes,
                         databaseManager: databaseManager,
-                        isSimplifiedMode: isSimplifiedMode  // 传递显示模式
+                        isSimplifiedMode: isSimplifiedMode
+                    )
+                }
+                
+                // 单独显示507属性的伤害条
+                if let attribute = filteredAttributes.first(where: { $0.id == 507 }),
+                   let ammoID = allAttributes[507].map({ Int($0) }),
+                   let damages = databaseManager.getItemDamages(for: ammoID),
+                   damages.em + damages.therm + damages.kin + damages.exp > 0 {
+                    
+                    AmmoInfoView(
+                        ammoID: ammoID,
+                        damages: damages,
+                        databaseManager: databaseManager
                     )
                 }
             } header: {
