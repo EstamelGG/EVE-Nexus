@@ -20,73 +20,75 @@ struct MissileInfo {
     }
 }
 
-// 导弹信息显示组件
-struct MissileInfoView: View {
+// 导弹名称和图标组件
+struct MissileNameView: View {
     let ammoID: Int
-    let damages: (em: Double, therm: Double, kin: Double, exp: Double)
-    let damageMultiplier: Double
     @ObservedObject var databaseManager: DatabaseManager
     
+    var body: some View {
+        NavigationLink(destination: ItemInfoMap.getItemInfoView(
+            itemID: ammoID,
+            categoryID: 8,
+            databaseManager: databaseManager
+        )) {
+            HStack {
+                IconManager.shared.loadImage(for: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                Text(databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"))
+                    .font(.body)
+                    .foregroundColor(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// 导弹伤害条组件
+struct MissileDamageView: View {
+    let damages: (em: Double, therm: Double, kin: Double, exp: Double)
+    let damageMultiplier: Double
+    
     private var missileInfo: MissileInfo {
-        MissileInfo(ammoID: ammoID, damages: damages, multiplier: damageMultiplier)
+        MissileInfo(ammoID: 0, damages: damages, multiplier: damageMultiplier)
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 导弹名称和图标（第一个单元格）
-            NavigationLink(destination: ItemInfoMap.getItemInfoView(
-                itemID: ammoID,
-                categoryID: 8,
-                databaseManager: databaseManager
-            )) {
-                HStack {
-                    IconManager.shared.loadImage(for: databaseManager.getItemIconFileName(for: ammoID) ?? DatabaseConfig.defaultItemIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    Text(databaseManager.getTypeName(for: ammoID) ?? NSLocalizedString("Main_Database_Unknown", comment: "未知"))
-                        .font(.body)
-                        .foregroundColor(.primary)
-                }
-            }
-            .buttonStyle(.plain)
+        HStack(spacing: 8) {
+            // 电磁伤害
+            DamageTypeView(
+                iconName: "items_22_32_12.png",
+                percentage: Int(round((missileInfo.damages.em / missileInfo.totalDamage) * 100)),
+                value: missileInfo.actualDamages.em,
+                color: Color(red: 74/255, green: 128/255, blue: 192/255)
+            )
             
-            // 伤害条（第二个单元格）
-            HStack(spacing: 8) {
-                // 电磁伤害
-                DamageTypeView(
-                    iconName: "items_22_32_12.png",
-                    percentage: Int(round((missileInfo.damages.em / missileInfo.totalDamage) * 100)),
-                    value: missileInfo.actualDamages.em,
-                    color: Color(red: 74/255, green: 128/255, blue: 192/255)
-                )
-                
-                // 热能伤害
-                DamageTypeView(
-                    iconName: "items_22_32_10.png",
-                    percentage: Int(round((missileInfo.damages.therm / missileInfo.totalDamage) * 100)),
-                    value: missileInfo.actualDamages.therm,
-                    color: Color(red: 176/255, green: 53/255, blue: 50/255)
-                )
-                
-                // 动能伤害
-                DamageTypeView(
-                    iconName: "items_22_32_9.png",
-                    percentage: Int(round((missileInfo.damages.kin / missileInfo.totalDamage) * 100)),
-                    value: missileInfo.actualDamages.kin,
-                    color: Color(red: 155/255, green: 155/255, blue: 155/255)
-                )
-                
-                // 爆炸伤害
-                DamageTypeView(
-                    iconName: "items_22_32_11.png",
-                    percentage: Int(round((missileInfo.damages.exp / missileInfo.totalDamage) * 100)),
-                    value: missileInfo.actualDamages.exp,
-                    color: Color(red: 185/255, green: 138/255, blue: 62/255)
-                )
-            }
-            .padding(.vertical, 4)  // 添加垂直间距使其居中
+            // 热能伤害
+            DamageTypeView(
+                iconName: "items_22_32_10.png",
+                percentage: Int(round((missileInfo.damages.therm / missileInfo.totalDamage) * 100)),
+                value: missileInfo.actualDamages.therm,
+                color: Color(red: 176/255, green: 53/255, blue: 50/255)
+            )
+            
+            // 动能伤害
+            DamageTypeView(
+                iconName: "items_22_32_9.png",
+                percentage: Int(round((missileInfo.damages.kin / missileInfo.totalDamage) * 100)),
+                value: missileInfo.actualDamages.kin,
+                color: Color(red: 155/255, green: 155/255, blue: 155/255)
+            )
+            
+            // 爆炸伤害
+            DamageTypeView(
+                iconName: "items_22_32_11.png",
+                percentage: Int(round((missileInfo.damages.exp / missileInfo.totalDamage) * 100)),
+                value: missileInfo.actualDamages.exp,
+                color: Color(red: 185/255, green: 138/255, blue: 62/255)
+            )
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -136,11 +138,16 @@ extension AttributeGroupView {
     @ViewBuilder
     func missileInfoView() -> some View {
         if let missileInfo = getMissileInfo() {
-            MissileInfoView(
+            // 导弹名称和图标（第一个单元格）
+            MissileNameView(
                 ammoID: missileInfo.ammoID,
-                damages: missileInfo.damages,
-                damageMultiplier: missileInfo.multiplier,
                 databaseManager: databaseManager
+            )
+            
+            // 导弹伤害条（第二个单元格）
+            MissileDamageView(
+                damages: missileInfo.damages,
+                damageMultiplier: missileInfo.multiplier
             )
         }
     }
