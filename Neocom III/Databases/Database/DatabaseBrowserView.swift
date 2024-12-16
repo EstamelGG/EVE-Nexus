@@ -306,9 +306,163 @@ struct DatabaseBrowserView: View {
     }
 }
 
-#Preview {
-    DatabaseBrowserView(
-        databaseManager: DatabaseManager(),
-        level: .categories
-    )
-} 
+// 数据库列表项视图
+struct DatabaseListItemView: View {
+    let item: DatabaseListItem
+    let showDetails: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                // 加载并显示图标
+                Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                    .frame(width: 32, height: 32)
+                Text(item.name)
+            }
+            
+            if showDetails, let categoryID = item.categoryID {
+                VStack(alignment: .leading, spacing: 2) {
+                    // 装备、建筑装备和改装件
+                    if categoryID == 7 || categoryID == 66 {
+                        HStack(spacing: 8) {
+                            if let pgNeed = item.pgNeed {
+                                IconWithValueView(iconName: "icon_1353_64.png", numericValue: pgNeed, unit: " MW")
+                            }
+                            if let cpuNeed = item.cpuNeed {
+                                IconWithValueView(iconName: "icon_3887_64.png", numericValue: cpuNeed, unit: " Tf")
+                            }
+                            if let rigCost = item.rigCost {
+                                IconWithValueView(iconName: "icon_21587_64.png", numericValue: rigCost)
+                            }
+                        }
+                    }
+                    // 弹药和无人机
+                    else if categoryID == 18 || categoryID == 8 {
+                        if hasAnyDamage {  // 添加检查是否有任何伤害值
+                            HStack(spacing: 8) {  // 增加整体的间距
+                                // 电磁伤害
+                                HStack(spacing: 4) {  // 增加图标和条之间的间距
+                                    IconManager.shared.loadImage(for: "items_22_32_12.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(item.emDamage ?? 0),
+                                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                                    )
+                                }
+                                
+                                // 热能伤害
+                                HStack(spacing: 4) {  // 增加图标和条之间的间距
+                                    IconManager.shared.loadImage(for: "items_22_32_10.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(item.themDamage ?? 0),
+                                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                                    )
+                                }
+                                
+                                // 动能伤害
+                                HStack(spacing: 4) {  // 增加图标和条之间的间距
+                                    IconManager.shared.loadImage(for: "items_22_32_9.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(item.kinDamage ?? 0),
+                                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                                    )
+                                }
+                                
+                                // 爆炸伤害
+                                HStack(spacing: 4) {  // 增加图标和条之间的间距
+                                    IconManager.shared.loadImage(for: "items_22_32_11.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(item.expDamage ?? 0),
+                                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // 舰船
+                    else if categoryID == 6 {
+                        HStack(spacing: 8) {  // 减小槽位之间的间距
+                            if let highSlot = item.highSlot, highSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_11.png", numericValue: highSlot)
+                            }
+                            if let midSlot = item.midSlot, midSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_10.png", numericValue: midSlot)
+                            }
+                            if let lowSlot = item.lowSlot, lowSlot != 0 {
+                                IconWithValueView(iconName: "items_8_64_9.png", numericValue: lowSlot)
+                            }
+                            if let rigSlot = item.rigSlot, rigSlot != 0 {
+                                IconWithValueView(iconName: "items_68_64_1.png", numericValue: rigSlot)
+                            }
+                            if let gunSlot = item.gunSlot, gunSlot != 0 {
+                                IconWithValueView(iconName: "icon_484_64.png", numericValue: gunSlot)
+                            }
+                            if let missSlot = item.missSlot, missSlot != 0 {
+                                IconWithValueView(iconName: "icon_499_64.png", numericValue: missSlot)
+                            }
+                        }
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private var hasAnyDamage: Bool {
+        let damages = [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
+        return !damages.contains(nil) && damages.compactMap { $0 }.contains { $0 > 0 }
+    }
+    
+    private func calculateDamagePercentage(_ damage: Double) -> Int {
+        let damages = [
+            item.emDamage,
+            item.themDamage,
+            item.kinDamage,
+            item.expDamage
+        ].compactMap { $0 }
+        
+        let totalDamage = damages.reduce(0, +)
+        guard totalDamage > 0 else { return 0 }
+        
+        // 直接计算百分比并四舍五入
+        return Int(round((damage / totalDamage) * 100))
+    }
+}
+
+// 图标和数值的组合图
+struct IconWithValueView: View {
+    let iconName: String
+    let value: String
+    
+    // 添加一个便利初始化方法，用于处理数值类型
+    init(iconName: String, numericValue: Int, unit: String? = nil) {
+        self.iconName = iconName
+        self.value = unit.map { "\(NumberFormatUtil.format(Double(numericValue)))\($0)" } ?? NumberFormatUtil.format(Double(numericValue))
+    }
+    
+    // 原有的字符串初始化方法
+    init(iconName: String, value: String) {
+        self.iconName = iconName
+        self.value = value
+    }
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            IconManager.shared.loadImage(for: iconName)
+                .resizable()
+                .frame(width: 18, height: 18)
+            Text(value)
+        }
+    }
+}
