@@ -122,42 +122,50 @@ struct IncursionCell: View {
     let incursion: Incursion
     let factionInfo: (iconName: String, name: String)
     let locationInfo: (systemName: String, security: Double, constellationName: String, regionName: String)
+    let databaseManager: DatabaseManager
     
     var body: some View {
-        HStack(spacing: 12) {
-            // 势力图标
-            IconManager.shared.loadImage(for: factionInfo.iconName)
-                .resizable()
-                .frame(width: 48, height: 48)
-                .cornerRadius(6)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                // 势力名称
-                HStack(spacing: 4) {
-                    Text(factionInfo.name)
-                    Text("[\(String(format: "%.1f", incursion.influence * 100))%]")
-                        .foregroundColor(.secondary)
-                    if incursion.hasBoss {
-                        IconManager.shared.loadImage(for: "items_4_64_7.png")
-                            .resizable()
-                            .frame(width: 18, height: 18)
-                    }
-                }
-                .font(.headline)
+        NavigationLink(destination: InfestedSystemsView(databaseManager: databaseManager, systemIds: incursion.infestedSolarSystems)) {
+            HStack(spacing: 12) {
+                // 势力图标
+                IconManager.shared.loadImage(for: factionInfo.iconName)
+                    .resizable()
+                    .frame(width: 48, height: 48)
+                    .cornerRadius(6)
                 
-                // 位置信息
-                HStack(spacing: 4) {
-                    Text(formatSecurity(locationInfo.security))
-                        .foregroundColor(getSecurityColor(locationInfo.security))
-                    Text(locationInfo.systemName)
-                        .fontWeight(.bold)
-                    Text("/ \(locationInfo.constellationName) / \(locationInfo.regionName)")
-                        .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    // 势力名称
+                    HStack(spacing: 4) {
+                        Text(factionInfo.name)
+                        Text("[\(String(format: "%.1f", incursion.influence * 100))%]")
+                            .foregroundColor(.secondary)
+                        if incursion.hasBoss {
+                            IconManager.shared.loadImage(for: "items_4_64_7.png")
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                        }
+                    }
+                    .font(.headline)
+                    
+                    // 位置信息
+                    VStack(alignment: .leading, spacing: 2) {
+                        // 安全等级和星系名
+                        HStack(spacing: 4) {
+                            Text(formatSecurity(locationInfo.security))
+                                .foregroundColor(getSecurityColor(locationInfo.security))
+                            Text(locationInfo.systemName)
+                                .fontWeight(.bold)
+                        }
+                        
+                        // 星座和星域
+                        Text("\(locationInfo.constellationName) / \(locationInfo.regionName)")
+                            .foregroundColor(.secondary)
+                    }
+                    .font(.subheadline)
                 }
-                .font(.subheadline)
             }
+            .padding(.vertical, 8)
         }
-        .padding(.vertical, 8)
     }
 }
 
@@ -185,7 +193,8 @@ struct IncursionsView: View {
                         IncursionCell(
                             incursion: prepared.incursion,
                             factionInfo: prepared.faction,
-                            locationInfo: prepared.location
+                            locationInfo: prepared.location,
+                            databaseManager: viewModel.databaseManager
                         )
                     }
                 }
