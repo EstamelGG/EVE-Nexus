@@ -1,14 +1,15 @@
 import SwiftUI
 
-@objc class SystemInfo: NSObject, Identifiable, @unchecked Sendable {
+class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject {
     let id: Int
     let systemName: String
     let security: Double
     let systemId: Int
     var allianceId: Int?
     var factionId: Int?
-    var icon: Image?
-    var isLoadingIcon: Bool = false
+    @Published var icon: Image?
+    @Published var isLoadingIcon: Bool = false
+    @Published var shouldShowIcon: Bool = false
     
     init(systemName: String, security: Double, systemId: Int) {
         self.id = systemId
@@ -97,20 +98,26 @@ class InfestedSystemsViewModel: ObservableObject {
             let systemIds = systems.filter { $0.allianceId == allianceId }.map { $0.systemId }
             let task = Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                do {
-                    // 设置加载状态
-                    for systemId in systemIds {
-                        if let system = self.systems.first(where: { $0.systemId == systemId }) {
-                            system.isLoadingIcon = true
-                        }
+                
+                // 设置加载状态
+                for systemId in systemIds {
+                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
+                        system.isLoadingIcon = true
+                        system.shouldShowIcon = false
+                        system.icon = nil
                     }
-                    
+                }
+                
+                do {
                     let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
+                    Logger.debug("成功获取联盟图标: \(allianceId)")
                     let image = Image(uiImage: uiImage)
-                    updateAllianceIcon(allianceId: allianceId, image: image)
+                    Logger.debug("成功转换为SwiftUI Image: \(allianceId)")
+                    updateAllianceIcon(allianceId: allianceId, image: image, shouldShow: true)
+                    Logger.debug("已更新联盟图标: \(allianceId), shouldShow: true")
                 } catch {
-                    // 如果加载失败，使用默认图标
-                    updateAllianceIcon(allianceId: allianceId, image: IconManager.shared.loadImage(for: "corporations_1"))
+                    Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                    updateAllianceIcon(allianceId: allianceId, image: nil, shouldShow: false)
                 }
                 
                 // 重置加载状态
@@ -128,12 +135,23 @@ class InfestedSystemsViewModel: ObservableObject {
             if let factionId = system.factionId {
                 let systemId = system.systemId
                 system.isLoadingIcon = true
+                system.shouldShowIcon = false
+                system.icon = nil
+                
                 let query = "SELECT iconName FROM factions WHERE id = ?"
                 if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
                    let row = rows.first,
                    let iconName = row["iconName"] as? String {
                     if let system = self.systems.first(where: { $0.systemId == systemId }) {
                         system.icon = IconManager.shared.loadImage(for: iconName)
+                        system.shouldShowIcon = true
+                        system.isLoadingIcon = false
+                    }
+                } else {
+                    // 如果查询失败，不显示任何图标
+                    if let system = self.systems.first(where: { $0.systemId == systemId }) {
+                        system.icon = nil
+                        system.shouldShowIcon = false
                         system.isLoadingIcon = false
                     }
                 }
@@ -141,12 +159,18 @@ class InfestedSystemsViewModel: ObservableObject {
         }
     }
     
-    private func updateAllianceIcon(allianceId: Int, image: Image) {
+    private func updateAllianceIcon(allianceId: Int, image: Image?, shouldShow: Bool) {
+        var updatedCount = 0
         for system in systems {
             if system.allianceId == allianceId {
-                system.icon = image
+                DispatchQueue.main.async {
+                    system.icon = image
+                    system.shouldShowIcon = shouldShow
+                }
+                updatedCount += 1
             }
         }
+        Logger.debug("更新了 \(updatedCount) 个系统的联盟图标 \(allianceId)")
     }
     
     deinit {
@@ -171,26 +195,42 @@ struct InfestedSystemsView: View {
         } else {
             List {
                 ForEach(viewModel.systems) { system in
-                    HStack {
-                        Text(formatSecurity(system.security))
-                            .foregroundColor(getSecurityColor(system.security))
-                        Text(system.systemName)
-                            .fontWeight(.medium)
-                        Spacer()
-                        if system.isLoadingIcon {
-                            ProgressView()
-                                .frame(width: 32, height: 32)
-                        } else if let icon = system.icon {
-                            icon
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 32, height: 32)
-                        }
-                    }
+                    SystemRow(system: system)
                 }
             }
             .listStyle(.insetGrouped)
             .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
+        }
+    }
+}
+
+struct SystemRow: View {
+    @ObservedObject var system: SystemInfo
+    
+    var body: some View {
+        HStack {
+            Text(formatSecurity(system.security))
+                .foregroundColor(getSecurityColor(system.security))
+            Text(system.systemName)
+                .fontWeight(.medium)
+            Spacer()
+            if system.isLoadingIcon {
+                ProgressView()
+                    .frame(width: 32, height: 32)
+            } else if system.shouldShowIcon, let icon = system.icon {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 32, height: 32)
+                    .onAppear {
+                        Logger.debug("图标显示: \(system.systemName)")
+                    }
+            } else {
+                EmptyView()
+                    .onAppear {
+                        Logger.debug("图标未显示: \(system.systemName), isLoading: \(system.isLoadingIcon), shouldShow: \(system.shouldShowIcon)")
+                    }
+            }
         }
     }
 } 
