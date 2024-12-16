@@ -221,7 +221,9 @@ struct AttributeItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(damages.em, total: totalDamage),
-                                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                                        color: Color(red: 74/255, green: 128/255, blue: 192/255),
+                                        value: damages.em,
+                                        showValue: true
                                     )
                                 }
                                 
@@ -232,7 +234,9 @@ struct AttributeItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(damages.therm, total: totalDamage),
-                                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                                        color: Color(red: 176/255, green: 53/255, blue: 50/255),
+                                        value: damages.therm,
+                                        showValue: true
                                     )
                                 }
                                 
@@ -243,7 +247,9 @@ struct AttributeItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(damages.kin, total: totalDamage),
-                                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                                        color: Color(red: 155/255, green: 155/255, blue: 155/255),
+                                        value: damages.kin,
+                                        showValue: true
                                     )
                                 }
                                 
@@ -254,7 +260,9 @@ struct AttributeItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(damages.exp, total: totalDamage),
-                                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                                        color: Color(red: 185/255, green: 138/255, blue: 62/255),
+                                        value: damages.exp,
+                                        showValue: true
                                     )
                                 }
                             }
