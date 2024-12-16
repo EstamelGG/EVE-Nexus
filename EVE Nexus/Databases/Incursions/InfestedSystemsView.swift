@@ -62,6 +62,11 @@ class InfestedSystemsViewModel: ObservableObject {
     let databaseManager: DatabaseManager
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
     
+    // 存储联盟ID到系统的映射
+    private var allianceToSystems: [Int: [SystemInfo]] = [:]
+    // 存储派系ID到系统的映射
+    private var factionToSystems: [Int: [SystemInfo]] = [:]
+    
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
         loadSystems(systemIds: systemIds)
@@ -74,6 +79,10 @@ class InfestedSystemsViewModel: ObservableObject {
         // 取消所有现有的加载任务
         loadingTasks.values.forEach { $0.cancel() }
         loadingTasks.removeAll()
+        
+        // 清除现有映射
+        allianceToSystems.removeAll()
+        factionToSystems.removeAll()
         
         for systemId in systemIds {
             // 从 universe 表获取安全等级
@@ -99,17 +108,20 @@ class InfestedSystemsViewModel: ObservableObject {
             
             let systemInfo = SystemInfo(systemName: systemName, security: security, systemId: systemId)
             
-            // 设置主权信息
+            // 设置主权信息并建立映射关系
             if let sovereigntyData = NetworkManager.shared.getCachedSovereigntyData(),
                let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
                 systemInfo.allianceId = systemData.allianceId
                 systemInfo.factionId = systemData.factionId
                 
-                // 创建加载任务
-                let task = Task {
-                    await systemInfo.loadIcon(databaseManager: databaseManager)
+                // 建立联盟到系统的映射
+                if let allianceId = systemData.allianceId {
+                    allianceToSystems[allianceId, default: []].append(systemInfo)
                 }
-                loadingTasks[systemId] = task
+                // 建立派系到系统的映射
+                if let factionId = systemData.factionId {
+                    factionToSystems[factionId, default: []].append(systemInfo)
+                }
             }
             
             tempSystems.append(systemInfo)
@@ -118,7 +130,72 @@ class InfestedSystemsViewModel: ObservableObject {
         // 按安全等级排序
         tempSystems.sort { $0.security > $1.security }
         systems = tempSystems
+        
+        // 开始加载图标，每个联盟/派系只加载一次
+        loadAllIcons()
+        
         isLoading = false
+    }
+    
+    private func loadAllIcons() {
+        // 加载联盟图标
+        for (allianceId, systems) in allianceToSystems {
+            let task = Task {
+                if systems.first != nil {
+                    do {
+                        Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(systems.count) 个星系")
+                        let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
+                        if !Task.isCancelled {
+                            let icon = Image(uiImage: uiImage)
+                            // 更新所有使用这个联盟图标的系统
+                            for system in systems {
+                                system.icon = icon
+                            }
+                            Logger.debug("联盟图标加载成功: \(allianceId)")
+                        }
+                    } catch {
+                        if (error as NSError).code == NSURLErrorCancelled {
+                            Logger.debug("联盟图标加载已取消: \(allianceId)")
+                        } else {
+                            Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                        }
+                    }
+                    // 更新所有相关系统的加载状态
+                    for system in systems {
+                        system.isLoadingIcon = false
+                    }
+                }
+            }
+            loadingTasks[allianceId] = task
+            // 设置所有相关系统的加载状态
+            for system in systems {
+                system.isLoadingIcon = true
+            }
+        }
+        
+        // 加载派系图标
+        for (factionId, systems) in factionToSystems {
+            if systems.first != nil {
+                Logger.debug("开始加载派系图标: \(factionId)，影响 \(systems.count) 个星系")
+                let query = "SELECT iconName FROM factions WHERE id = ?"
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let iconName = row["iconName"] as? String {
+                    let icon = IconManager.shared.loadImage(for: iconName)
+                    // 更新所有使用这个派系图标的系统
+                    for system in systems {
+                        system.icon = icon
+                    }
+                    Logger.debug("派系图标加载成功: \(factionId)")
+                } else {
+                    Logger.error("派系图标加载失败: \(factionId)")
+                }
+                // 更新所有相关系统的加载状态
+                for system in systems {
+                    system.isLoadingIcon = false
+                }
+            }
+        }
     }
     
     deinit {
