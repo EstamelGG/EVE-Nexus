@@ -10,21 +10,54 @@ import SwiftUI
 // 视图模型
 class IncursionsViewModel: ObservableObject {
     @Published var incursions: [Incursion] = []
+    @Published private(set) var preparedIncursions: [(incursion: Incursion, faction: (iconName: String, name: String), location: (systemName: String, security: Double, constellationName: String, regionName: String))] = []
+    @Published var isLoading = false
     let databaseManager: DatabaseManager
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
     }
     
+    @MainActor
     func fetchIncursions() async {
+        isLoading = true
+        preparedIncursions = []
+        
+        Logger.info("ViewModel: 开始获取入侵数据")
         do {
             let decodedIncursions = try await NetworkManager.shared.fetchIncursions()
-            await MainActor.run {
-                self.incursions = decodedIncursions
+            Logger.info("ViewModel: 获取到 \(decodedIncursions.count) 条入侵数据，开始准备显示数据")
+            
+            // 处理每个入侵数据
+            var prepared: [(Incursion, (String, String), (String, Double, String, String))] = []
+            for incursion in decodedIncursions {
+                // 获取势力信息
+                guard let factionInfo = getFactionInfo(factionId: incursion.factionId) else {
+                    Logger.error("无法获取势力信息: factionId = \(incursion.factionId)")
+                    continue
+                }
+                
+                // 获取位置信息
+                guard let locationInfo = getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) else {
+                    Logger.error("无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
+                    continue
+                }
+                
+                prepared.append((incursion, factionInfo, locationInfo))
+            }
+            
+            // 只有当所有数据都准备好时才更新
+            if !prepared.isEmpty {
+                Logger.info("ViewModel: 成功准备 \(prepared.count) 条完整数据")
+                preparedIncursions = prepared
+            } else {
+                Logger.error("ViewModel: 没有可显示的完整数据")
             }
         } catch {
-            Logger.error("Error fetching incursions: \(error)")
+            Logger.error("ViewModel: 获取入侵数据失败: \(error)")
         }
+        
+        isLoading = false
     }
     
     func getFactionInfo(factionId: Int) -> (iconName: String, name: String)? {
@@ -52,13 +85,10 @@ class IncursionsViewModel: ObservableObject {
         guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
               let universeRow = universeRows.first,
               let regionId = universeRow["region_id"] as? Int,
-              let constellationId = universeRow["constellation_id"] as? Int else {
+              let constellationId = universeRow["constellation_id"] as? Int,
+              let security = universeRow["system_security"] as? Double else {
             return nil
         }
-        
-        // 获取安全等级
-        let securityStr = (universeRow["system_security"] as? String) ?? "0.0"
-        let security = Double(securityStr) ?? 0.0
         
         // 获取星系名称
         let systemQuery = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
@@ -90,40 +120,44 @@ class IncursionsViewModel: ObservableObject {
 
 struct IncursionCell: View {
     let incursion: Incursion
-    let viewModel: IncursionsViewModel
+    let factionInfo: (iconName: String, name: String)
+    let locationInfo: (systemName: String, security: Double, constellationName: String, regionName: String)
     
     var body: some View {
         HStack(spacing: 12) {
             // 势力图标
-            if let factionInfo = viewModel.getFactionInfo(factionId: incursion.factionId) {
-                IconManager.shared.loadImage(for: factionInfo.iconName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-                    .cornerRadius(4)
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    // 势力名称
+            IconManager.shared.loadImage(for: factionInfo.iconName)
+                .resizable()
+                .frame(width: 48, height: 48)
+                .cornerRadius(6)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                // 势力名称
+                HStack(spacing: 4) {
                     Text(factionInfo.name)
-                        .font(.headline)
-                    
-                    // 位置信息
-                    if let locationInfo = viewModel.getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) {
-                        HStack(spacing: 4) {
-                            Text(formatSecurity(locationInfo.security))
-                                .foregroundColor(getSecurityColor(locationInfo.security))
-                                .font(.system(size: 14))
-                            Text("\(locationInfo.systemName) / \(locationInfo.constellationName) / \(locationInfo.regionName)")
-                                .foregroundColor(.secondary)
-                                .font(.system(size: 14))
-                        }
+                    Text("[\(String(format: "%.1f", incursion.influence * 100))%]")
+                        .foregroundColor(.secondary)
+                    if incursion.hasBoss {
+                        IconManager.shared.loadImage(for: "items_4_64_7.png")
+                            .resizable()
+                            .frame(width: 18, height: 18)
                     }
                 }
+                .font(.headline)
                 
-                Spacer()
+                // 位置信息
+                HStack(spacing: 4) {
+                    Text(formatSecurity(locationInfo.security))
+                        .foregroundColor(getSecurityColor(locationInfo.security))
+                    Text(locationInfo.systemName)
+                        .fontWeight(.bold)
+                    Text("/ \(locationInfo.constellationName) / \(locationInfo.regionName)")
+                        .foregroundColor(.secondary)
+                }
+                .font(.subheadline)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 }
 
@@ -137,16 +171,33 @@ struct IncursionsView: View {
     var body: some View {
         List {
             Section {
-                ForEach(viewModel.incursions, id: \.constellationId) { incursion in
-                    IncursionCell(incursion: incursion, viewModel: viewModel)
+                if viewModel.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                } else if viewModel.preparedIncursions.isEmpty {
+                    Text("暂无入侵数据")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                } else {
+                    ForEach(viewModel.preparedIncursions, id: \.incursion.constellationId) { prepared in
+                        IncursionCell(
+                            incursion: prepared.incursion,
+                            factionInfo: prepared.faction,
+                            locationInfo: prepared.location
+                        )
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
         .task {
+            // 首次加载
             await viewModel.fetchIncursions()
         }
         .refreshable {
+            // 重新请求数据
             await viewModel.fetchIncursions()
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))

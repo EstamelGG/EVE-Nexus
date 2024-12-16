@@ -60,7 +60,7 @@ class NetworkManager {
     
     // 通用的数据获取函数
     func fetchData(from url: URL) async throws -> Data {
-        Logger.info("Fetching data from: \(url.absoluteString)")
+        Logger.info("Fetching data from URL: \(url.absoluteString)")
         let (data, response) = try await URLSession.shared.data(from: url)
         
         guard let httpResponse = response as? HTTPURLResponse else {
