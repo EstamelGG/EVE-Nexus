@@ -275,20 +275,24 @@ class IconLoadManager: ObservableObject {
     
     func loadAllianceIcon(allianceId: Int) {
         // 如果已经在加载或已经加载完成，直接返回
-        if allianceIcons[allianceId] != nil {
+        if allianceIcons[allianceId] != nil || loadingTasks[allianceId] != nil {
             return
         }
         
         // 标记为正在加载
         allianceIcons[allianceId] = (nil, true)
         
-        let task = Task {
+        let task = Task { @MainActor in
             do {
                 let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
-                allianceIcons[allianceId] = (Image(uiImage: uiImage), false)
+                if !Task.isCancelled {
+                    allianceIcons[allianceId] = (Image(uiImage: uiImage), false)
+                }
             } catch {
                 Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
-                allianceIcons[allianceId] = (nil, false)
+                if !Task.isCancelled {
+                    allianceIcons[allianceId] = (nil, false)
+                }
             }
             loadingTasks[allianceId] = nil
         }
@@ -314,10 +318,24 @@ class IconLoadManager: ObservableObject {
         }
     }
     
-    func cancelAllTasks() {
+    private func cleanupTasks() {
         for task in loadingTasks.values {
             task.cancel()
         }
         loadingTasks.removeAll()
+        allianceIcons.removeAll()
+        factionIcons.removeAll()
+    }
+    
+    func cancelAllTasks() {
+        Task { @MainActor in
+            cleanupTasks()
+        }
+    }
+    
+    deinit {
+        for task in loadingTasks.values {
+            task.cancel()
+        }
     }
 }
