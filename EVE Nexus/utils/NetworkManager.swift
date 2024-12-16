@@ -39,6 +39,19 @@ struct MarketHistory: Codable {
     let volume: Int
 }
 
+// 主权数据模型
+struct SovereigntyData: Codable {
+    let systemId: Int
+    let allianceId: Int?
+    let corporationId: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case systemId = "system_id"
+        case allianceId = "alliance_id"
+        case corporationId = "corporation_id"
+    }
+}
+
 class NetworkManager {
     static let shared = NetworkManager()
     private var regionID: Int = 10000002 // 默认为 The Forge
@@ -55,6 +68,19 @@ class NetworkManager {
     // 市场历史数据缓存
     private var marketHistoryCache: [Int: [MarketHistory]] = [:]
     private var marketHistoryTimestamp: [Int: Date] = [:]
+    
+    private let sovereigntyCache = NSCache<NSString, CachedSovereigntyData>()
+    
+    // 缓存包装类
+    class CachedSovereigntyData {
+        let data: [SovereigntyData]
+        let timestamp: Date
+        
+        init(data: [SovereigntyData], timestamp: Date) {
+            self.data = data
+            self.timestamp = timestamp
+        }
+    }
     
     private init() {}
     
@@ -212,6 +238,43 @@ class NetworkManager {
         clearMarketOrdersCache()
         marketHistoryCache.removeAll()
         marketHistoryTimestamp.removeAll()
+    }
+    
+    // 获取主权数据
+    func fetchSovereigntyData() async {
+        let cacheKey = "sovereigntyData" as NSString
+        let cacheValidDuration: TimeInterval = 24 * 60 * 60 // 24小时
+        
+        // 检查缓存
+        if let cachedData = sovereigntyCache.object(forKey: cacheKey),
+           Date().timeIntervalSince(cachedData.timestamp) < cacheValidDuration {
+            Logger.info("Using cached sovereignty data")
+            return
+        }
+        
+        let urlString = "https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for sovereignty data")
+            return
+        }
+        
+        do {
+            let data = try await fetchData(from: url)
+            let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
+            
+            // 更新缓存
+            let cachedData = CachedSovereigntyData(data: sovereigntyData, timestamp: Date())
+            sovereigntyCache.setObject(cachedData, forKey: cacheKey)
+            Logger.info("Successfully fetched and cached sovereignty data")
+        } catch {
+            Logger.error("Error fetching sovereignty data: \(error)")
+        }
+    }
+    
+    // 获取缓存的主权数据
+    func getCachedSovereigntyData() -> [SovereigntyData]? {
+        let cacheKey = "sovereigntyData" as NSString
+        return sovereigntyCache.object(forKey: cacheKey)?.data
     }
 }
 

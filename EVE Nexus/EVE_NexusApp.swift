@@ -13,6 +13,10 @@ struct EVE_NexusApp: App {
 
     init() {
         configureLanguage()
+        // 加载主权数据
+        Task {
+            await NetworkManager.shared.fetchSovereigntyData()
+        }
     }
 
     private func configureLanguage() {

@@ -30,3 +30,4 @@
 - https://esi.evetech.net/latest/markets/10000002/history/?type_id=17715
 - https://whtype.info/
 - https://esi.evetech.net/latest/incursions/?datasource=tranquility
+- https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility
