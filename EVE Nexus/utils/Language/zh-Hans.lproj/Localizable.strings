@@ -1,0 +1,137 @@
+/* 
+  Localizable.strings
+  EVE Nexus
+
+  Created by GG Estamel on 2024/11/30.
+  
+*/
+
+"Main_Title" = "EVE Nexus";
+"Main_Character" = "人物";
+"Main_Character Sheet" = "人物表单";
+"Main_Jump Clones" = "克隆体";
+"Main_Jump Clones Available" = "跳跃克隆可用: ";
+"Main_Skills" = "技能";
+"Main_Skills Ponits" = "$num SP";
+"Main_Skills Queue" = "队列长度：$num ($day天 $hour时 $minutes分)";
+"Main_EVE Mail" = "EVE 邮件";
+"Main_Calendar" = "日历";
+"Main_Wealth" = "财产";
+"Main_Wealth ISK" = "$num ISK";
+"Main_Loyalty Points" = "忠诚点";
+"Main_Databases" = "数据";
+"Main_Database" = "数据库";
+"Main_Database_title" = "数据库";
+"Main_Database_nothing_found" = "无数据";
+"DatabaseName" = "item_db_zh";
+"Main_Database_unpublished" = "未发布";
+"Main_Database_published" = "已发布";
+"Main_Database_Search" = "搜索";
+"Main_Database_Searching" = "正在搜索...";
+"Main_Database_Variations" = "变体";
+"Main_Database_Browse_Variations" = "浏览 %d 个变体";
+"Main_Database_Item_info_Immune" = "免疫";
+"Main_Database_Item_info_NonImmune" = "不免疫";
+"Main_Database_Item_info_Reprocess" = "精炼产出";
+"Main_Database_Source" = "精炼来源";
+"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Bonuses_Per_Level" = "每级技能加成";
+"Main_Database_Required_By" = "技能等级适用于";
+"Main_Database_NPC_Scene" = "NPC";
+"Main_Database_NPC_Ships" = "舰船";
+"Main_Market_Current_Price" = "当前售价";
+"Main_Market_Price_History" = "历史价格";
+"Main_Market_Show_market_orders" = "查看市场订单";
+"Main_Market_Choose_Region" = "选择星域";
+"Main_Market_WH_info" = "虫洞信息";
+"Main_Market_WH_Details" = "详细信息";
+"Main_Market_WH_MaxStableTime" = "最大稳定时间";
+"Main_Market_WH_MaxStableMass" = "最大稳定质量";
+"Main_Market_WH_MaxJumpMass" = "最大单次跳跃质量";
+"Main_Market_WH_Leadsto" = "通往";
+"Main_Market_WH_Size" = "尺寸类型";
+"Main_Database_toComplete" = "精简";
+"Main_Database_toSimplified" = "完整";
+
+"Main_Market" = "市场";
+"Main_WH" = "虫洞";
+"Main_Incursions" = "入侵";
+"Main_Infested_Systems" = "受影响星系";
+"Main_Business" = "商业";
+"Main_Assets" = "个人资产";
+"Main_Market Orders" = "市场订单";
+"Main_Contracts" = "合同";
+"Main_Market Transactions" = "交易记录";
+"Main_Wallet Journal" = "钱包日志";
+"Main_Industry Jobs" = "工业任务";
+"Main_Other" = "其他";
+
+"Main_Setting" = "设置";
+"Main_Setting_Title" = "设置";
+"Main_Setting_Language" = "语言";
+"Main_Setting_Select your language" = "选择语言";
+"Main_Setting_Appearance" = "外观";
+"Main_Setting_ColorMode" = "颜色模式";
+"Main_Setting_Others" = "其他";
+"Main_Setting_Dark" = "深色";
+"Main_Setting_Light" = "浅色";
+"Main_Setting_Auto" = "跟随系统";
+"Main_Setting_Select Language" = "选择语言";
+"Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
+"Main_Setting_Clean_Cache" = "清理缓存";
+"Main_Setting_Clean_Cache_detail" = "清理图片缓存并重启APP";
+
+"Main_About" = "关于";
+"Main_About_Title" = "关于";
+
+"Misc_true" = "是";
+"Misc_false" = "否";
+"Misc_back" = "返回";
+"Misc_number_item" = "个";
+"Misc_number_point" = "点";
+"Misc_number_types" = "种";
+"Misc_per" = "每";
+"Misc_unit" = "单位";
+
+// 蓝图详情
+"Blueprint_Product" = "产品";
+"Blueprint_Invention_Product" = "发明产出";
+"Blueprint_Success_Rate" = "成功率: %d%%";
+"Blueprint_Level" = "等级 %d";
+"Time_Year" = "年";
+"Time_Month" = "月";
+"Time_Day" = "日";
+"Time_Hour" = "时";
+"Time_Minute" = "分";
+"Time_Second" = "秒";
+
+"Item_Info" = "物品信息";
+"Blueprint_Info" = "蓝图信息";
+"Blueprint_Manufacturing" = "制造";
+"Blueprint_Research_Material" = "材料研究";
+"Blueprint_Research_Time" = "时间研究";
+"Blueprint_Copying" = "复制";
+"Blueprint_Invention" = "发明";
+"Blueprint_Required_Materials" = "所需材料";
+"Blueprint_Required_Skills" = "所需技能";
+"Blueprint_Manufacturing_Time" = "制造时间";
+"Blueprint_Research_Time_Label" = "研究时间";
+"Blueprint_Copying_Time" = "复制时间";
+"Blueprint_Invention_Time" = "发明时间";
+
+"Planetary_Input_Materials" = "输入";
+"Planetary_Output_Info" = "输出";
+"Planetary_Output_Quantity" = "产量";
+"Planetary_Cycle_Time" = "生产周期";
+"Planetary_Uses" = "用于生产";
+"Planetary_Facilities" = "加工设施";
+"Planetary_Harvest_from" = "采集来源";
+
+// 物品信息
+"Item_Info_Blueprint" = "蓝图";
+"Blueprint_Source" = "发明来源";
+
+"Item_Basic_Info" = "基础信息";
+"Item_Volume" = "体积";
+"Item_Capacity" = "容量";
+"Item_Mass" = "质量";

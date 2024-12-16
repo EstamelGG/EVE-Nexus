@@ -15,8 +15,8 @@
 
 通过 EveSDK 项目，将EVE SDE制作成数据库文件，以及整理好图标压缩包，将这资源放在以下位置
 
-- 'Neocom-III/Neocom III/utils/icons_archive'
-- 'Neocom-III/Neocom III/utils/SQLite'
+- 'EVE-Nexus/EVE Nexus/utils/icons_archive'
+- 'EVE-Nexus/EVE Nexus/utils/SQLite'
 
 # 编译运行
 
