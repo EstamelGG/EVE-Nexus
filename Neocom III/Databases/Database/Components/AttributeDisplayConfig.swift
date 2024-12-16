@@ -98,21 +98,21 @@ struct AttributeDisplayConfig {
     // 定义抗性属性组
     private static let resistanceGroups: [ResistanceGroup] = [
         ResistanceGroup(
-            groupID: 2,
+            groupID: 2, 
             emIDs: [271, 1423, 2118],
             thermalIDs: [274, 1425, 2119],
             kineticIDs: [273, 1424, 2120],
             explosiveIDs: [272, 1422, 2121]
         ),      // 护盾抗性
         ResistanceGroup(
-            groupID: 3,
+            groupID: 3, 
             emIDs: [267, 1418],
             thermalIDs: [270, 1419],
             kineticIDs: [269, 1420],
             explosiveIDs: [268, 1421]
         ),      // 装甲抗性
         ResistanceGroup(
-            groupID: 4,
+            groupID: 4, 
             emIDs: [113, 974, 1426],
             thermalIDs: [110, 977, 1429],
             kineticIDs: [109, 976, 1428],
@@ -148,18 +148,18 @@ struct AttributeDisplayConfig {
     private static let defaultGroupOrder: [Int: Int] = [:]  // [categoryId: order] 自定义展示分组的顺序
     private static let defaultHiddenGroups: Set<Int> = [9, 52]   // 要隐藏的属性分组id
     private static let defaultHiddenAttributes: Set<Int> = [
-        3,15,104,600,715,716,866,868,1137,1336,1547,1785,1970,1973,2754
+        3,15,104,252,600,715,716,866,868,1137,1336,1547,1785,1970,1973,2754
     ] // 要隐藏的属性id
     
     // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
     private static let defaultAttributeOrder: [Int: [Int: Int]] = [:]
     //[
-    // 装备属性组
-    //        1: [
-    //            141: 1,  // 数量
-    //            120: 2,  // 点数
-    //            283: 3   // 体积
-    //        ],
+        // 装备属性组
+//        1: [
+//            141: 1,  // 数量
+//            120: 2,  // 点数
+//            283: 3   // 体积
+//        ],
     //]
     
     // 属性单位
@@ -326,8 +326,8 @@ struct AttributeDisplayConfig {
     
     // 修改获取抗性值的方法
     static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
-        guard let hits = findResistanceAttributes(groupID: groupID, in: allAttributes) else {
-            return nil
+        guard let hits = findResistanceAttributes(groupID: groupID, in: allAttributes) else { 
+            return nil 
         }
         
         // 使用命中的属性ID获取值，如果没有则使用默认值1.0
@@ -348,9 +348,9 @@ struct AttributeDisplayConfig {
     private static func isResistanceAttribute(_ attributeID: Int) -> Bool {
         for group in resistanceGroups {
             if group.emIDs.contains(attributeID) ||
-                group.thermalIDs.contains(attributeID) ||
-                group.kineticIDs.contains(attributeID) ||
-                group.explosiveIDs.contains(attributeID) {
+               group.thermalIDs.contains(attributeID) ||
+               group.kineticIDs.contains(attributeID) ||
+               group.explosiveIDs.contains(attributeID) {
                 return true
             }
         }
@@ -369,7 +369,7 @@ struct AttributeDisplayConfig {
         // 处理布尔值
         if booleanTransformRules.contains(attributeID) {
             if attributeID == 188 {
-                return value == 1 ?
+                return value == 1 ? 
                     .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: "")) :
                     .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
             }
