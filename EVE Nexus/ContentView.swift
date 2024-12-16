@@ -1,12 +1,12 @@
 import SwiftUI
 
-// 定义树形结构的节点
-class TableRowNode: Identifiable, ObservableObject {
-    var id = UUID()
-    var title: String
-    var iconName: String
-    var note: String?
-    var destination: AnyView? // 使用 AnyView 来表示目标视图
+// 优化数据模型为值类型
+struct TableRowNode: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    let iconName: String
+    let note: String?
+    let destination: AnyView?
     
     init(title: String, iconName: String, note: String? = nil, destination: AnyView? = nil) {
         self.title = title
@@ -14,16 +14,29 @@ class TableRowNode: Identifiable, ObservableObject {
         self.note = note
         self.destination = destination
     }
+    
+    static func == (lhs: TableRowNode, rhs: TableRowNode) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.iconName == rhs.iconName &&
+        lhs.note == rhs.note
+    }
 }
 
-class TableNode: Identifiable, ObservableObject {
-    var id = UUID()
-    var title: String
-    @Published var rows: [TableRowNode]
+struct TableNode: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    var rows: [TableRowNode]
     
     init(title: String, rows: [TableRowNode]) {
         self.title = title
         self.rows = rows
+    }
+    
+    static func == (lhs: TableNode, rhs: TableNode) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.rows == rhs.rows
     }
 }
 
@@ -155,6 +168,30 @@ struct ContentView: View {
     // 使用 @AppStorage 来读取存储的主题设置
     @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
     
+    // 添加图标缓存
+    private let cachedIcons: [String: Image] = [
+        "charactersheet": Image("charactersheet"),
+        "jumpclones": Image("jumpclones"),
+        "skills": Image("skills"),
+        "evemail": Image("evemail"),
+        "calendar": Image("calendar"),
+        "Folder": Image("Folder"),
+        "lpstore": Image("lpstore"),
+        "items": Image("items"),
+        "market": Image("market"),
+        "criminal": Image("criminal"),
+        "terminate": Image("terminate"),
+        "incursions": Image("incursions"),
+        "assets": Image("assets"),
+        "marketdeliveries": Image("marketdeliveries"),
+        "contracts": Image("contracts"),
+        "journal": Image("journal"),
+        "wallet": Image("wallet"),
+        "industry": Image("industry"),
+        "Settings": Image("Settings"),
+        "info": Image("info")
+    ]
+    
     func getDestination(for row: TableRowNode) -> AnyView {
         if let destination = row.destination {
             return AnyView(destination)
@@ -162,35 +199,43 @@ struct ContentView: View {
         return AnyView(Text("Details for \(row.title)"))
     }
     
+    @ViewBuilder
+    private func rowContent(_ row: TableRowNode) -> some View {
+        HStack {
+            // 使用缓存的图标
+            (cachedIcons[row.iconName] ?? Image(row.iconName))
+                .resizable()
+                .frame(width: 36, height: 36)
+                .cornerRadius(6)
+                .drawingGroup() // 使用 Metal 渲染
+            
+            VStack(alignment: .leading) {
+                Text(row.title)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let note = row.note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer()
+        }
+        .frame(height: 36)
+    }
+    
     var body: some View {
         NavigationStack {
-            // 根据 selectedTheme 的值应用主题
             List {
                 ForEach(tables) { table in
                     Section(header: Text(table.title)
                         .fontWeight(.bold)
-                        .font(.system(size: 18)).foregroundColor(.primary)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
                     ) {
                         ForEach(table.rows) { row in
                             NavigationLink(destination: getDestination(for: row)) {
-                                HStack {
-                                    // 图标和文本
-                                    Image(row.iconName)  // 使用来自 Assets Catalog 的图标
-                                        .resizable()
-                                        .frame(width: 36, height: 36)
-                                        .cornerRadius(6)
-                                    
-                                    VStack(alignment: .leading) {
-                                        Text(row.title)
-                                        if let note = row.note, !note.isEmpty {
-                                            Text(note)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.gray)
-                                        }
-                                    }
-                                    Spacer() // 右侧空白，推动箭头到右边
-                                }
-                                .frame(height: 36) // 确保每个单元格最大高度为 36
+                                rowContent(row)
                             }
                         }
                     }

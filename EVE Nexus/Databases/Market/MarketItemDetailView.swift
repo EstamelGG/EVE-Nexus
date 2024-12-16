@@ -436,7 +436,6 @@ struct MarketItemDetailView: View {
         }
         .onAppear {
             loadItemDetails()
-            loadMarketPath()
             loadRegions()
             
             // 加载保存的星域ID和名称
@@ -459,13 +458,7 @@ struct MarketItemDetailView: View {
     private func loadItemDetails() {
         itemDetails = databaseManager.loadItemDetails(for: itemID)
     }
-    
-    private func loadMarketPath() {
-        // 从数据库加载市场路径
-        if let path = databaseManager.getMarketPath(for: itemID) {
-            marketPath = path
-        }
-    }
+
     
     private func loadMarketData(forceRefresh: Bool = false) async {
         guard !isLoadingPrice else { return }

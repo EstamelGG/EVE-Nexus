@@ -1380,34 +1380,6 @@ class DatabaseManager: ObservableObject {
         return nil
     }
     
-    // 获取物品的市场路径
-    func getMarketPath(for typeID: Int) -> [String]? {
-        let query = """
-            WITH RECURSIVE market_path AS (
-                -- 基础查询：获取物品所在的市场组
-                SELECT mg.group_id, mg.name, mg.parentgroup_id
-                FROM marketGroups mg
-                JOIN invTypes t ON t.marketGroupID = mg.group_id
-                WHERE t.typeID = ?
-                
-                UNION ALL
-                
-                -- 递归查询：获取父市场组
-                SELECT mg.group_id, mg.name, mg.parentgroup_id
-                FROM marketGroups mg
-                JOIN market_path mp ON mg.group_id = mp.parentgroup_id
-            )
-            SELECT name
-            FROM market_path
-            ORDER BY group_id DESC
-        """
-        
-        if case .success(let rows) = executeQuery(query, parameters: [typeID]) {
-            return rows.compactMap { $0["name"] as? String }
-        }
-        return nil
-    }
-    
     // 加载市场物品的通用查询
     func loadMarketItems(whereClause: String, parameters: [Any]) -> [DatabaseListItem] {
         let query = """
