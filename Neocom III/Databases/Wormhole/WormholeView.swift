@@ -143,7 +143,7 @@ struct WormholeDetailView: View {
     }
 }
 
-struct InfoRow: View {
+struct InfoRow: View { // 虫洞列表
     let title: String
     let value: String
     let iconName: String?
@@ -219,16 +219,16 @@ struct WormholeBasicInfoView: View {
                     // 图标
                     IconManager.shared.loadImage(for: wormhole.icon)
                         .resizable()
-                        .frame(width: 64, height: 64)
+                        .frame(width: 60, height: 60)
                         .cornerRadius(8)
                     
                     // 名称和目录
                     VStack(alignment: .leading, spacing: 4) {
                         Text(wormhole.name)
-                            .font(.headline)
-                        Text(wormhole.target)
+                            .font(.title)
+                        Text("\(wormhole.target) / ID:\(wormhole.id)" )
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.gray)
                     }
                 }
             }
