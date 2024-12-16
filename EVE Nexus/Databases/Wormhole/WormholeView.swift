@@ -130,17 +130,6 @@ struct WormholeDetailView: View {
         }
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await loadRenderImage()
-        }
-    }
-    
-    private func loadRenderImage() async {
-        do {
-            renderImage = try await NetworkManager.shared.fetchEVEItemRender(typeID: wormhole.id)
-        } catch {
-            Logger.error("Failed to load render image: \(error.localizedDescription)")
-        }
     }
 }
 

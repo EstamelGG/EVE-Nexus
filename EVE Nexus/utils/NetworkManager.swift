@@ -69,7 +69,7 @@ class NetworkManager {
         }
         
         guard httpResponse.statusCode == 200 else {
-            Logger.error("HTTP error: \(httpResponse.statusCode)")
+            Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
             throw NetworkError.httpError(statusCode: httpResponse.statusCode)
         }
         
@@ -79,7 +79,6 @@ class NetworkManager {
     
     // 专门用于获取图片的函数
     func fetchImage(from url: URL) async throws -> UIImage {
-        Logger.info("Fetching image from: \(url.absoluteString)")
         let data = try await fetchData(from: url)
         
         guard let image = UIImage(data: data) else {
@@ -87,13 +86,11 @@ class NetworkManager {
             throw NetworkError.invalidImageData
         }
         
-        Logger.info("Successfully fetched image from: \(url.absoluteString)")
         return image
     }
     
     // 获取EVE物品渲染图
     func fetchEVEItemRender(typeID: Int) async throws -> UIImage {
-        Logger.info("Fetching EVE item render for typeID: \(typeID)")
         let urlString = "https://images.evetech.net/types/\(typeID)/render"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for typeID: \(typeID)")
