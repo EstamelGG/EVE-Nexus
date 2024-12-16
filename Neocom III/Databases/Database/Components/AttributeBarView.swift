@@ -168,6 +168,24 @@ struct AttributeItemView: View {
         return ""
     }
     
+    // 获取弹药的伤害数据
+    private func getAmmoDamages(ammoID: Int) -> (em: Double, therm: Double, kin: Double, exp: Double)? {
+        let damages = databaseManager.getItemDamages(for: ammoID)
+        Logger.debug("Get ammo dmg of \(ammoID)")
+        return damages
+    }
+    
+    // 检查是否有任何伤害值
+    private func hasAnyDamage(_ damages: (em: Double, therm: Double, kin: Double, exp: Double)) -> Bool {
+        return damages.em > 0 || damages.therm > 0 || damages.kin > 0 || damages.exp > 0
+    }
+    
+    // 计算伤害百分比
+    private func calculateDamagePercentage(_ damage: Double, total: Double) -> Int {
+        guard total > 0 else { return 0 }
+        return Int(round((damage / total) * 100))
+    }
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode) {
             let result = AttributeDisplayConfig.transformValue(attribute.id, allAttributes: allAttributes, unitID: attribute.unitID)
@@ -176,46 +194,119 @@ struct AttributeItemView: View {
             case .resistance(let resistances):
                 ResistanceBarView(resistances: resistances)
             default:
-                HStack {
-                    // 属性图标
-                    if attribute.iconID != 0 {
-                        IconManager.shared.loadImage(for: attribute.iconFileName)
-                            .resizable()
-                            .frame(width: 32, height: 32)
+                // 处理弹药伤害显示
+                if attribute.id == 507, let ammoID = allAttributes[507].map({ Int($0) }) {
+                    if let damages = getAmmoDamages(ammoID: ammoID), hasAnyDamage(damages) {
+                        let totalDamage = damages.em + damages.therm + damages.kin + damages.exp
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            // 属性名称行
+                            HStack {
+                                if attribute.iconID != 0 {
+                                    IconManager.shared.loadImage(for: attribute.iconFileName)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                }
+                                Text(attribute.displayTitle)
+                                    .font(.body)
+                                Spacer()
+                            }
+                            
+                            // 伤害条
+                            HStack(spacing: 8) {
+                                // 电磁伤害
+                                HStack(spacing: 4) {
+                                    IconManager.shared.loadImage(for: "items_22_32_12.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(damages.em, total: totalDamage),
+                                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                                    )
+                                }
+                                
+                                // 热能伤害
+                                HStack(spacing: 4) {
+                                    IconManager.shared.loadImage(for: "items_22_32_10.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(damages.therm, total: totalDamage),
+                                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                                    )
+                                }
+                                
+                                // 动能伤害
+                                HStack(spacing: 4) {
+                                    IconManager.shared.loadImage(for: "items_22_32_9.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(damages.kin, total: totalDamage),
+                                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                                    )
+                                }
+                                
+                                // 爆炸伤害
+                                HStack(spacing: 4) {
+                                    IconManager.shared.loadImage(for: "items_22_32_11.png")
+                                        .resizable()
+                                        .frame(width: 18, height: 18)
+                                    DamageBarView(
+                                        percentage: calculateDamagePercentage(damages.exp, total: totalDamage),
+                                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // 如果没有伤害数据，显示常规属性视图
+                        defaultAttributeView
                     }
-                    
-                    // 属性名称
-                    Text(attribute.displayTitle)
-                        .font(.body)
-                    
-                    Spacer()
-                    
-                    // 属性值 - 使用转换后的值
-                    if attribute.unitID == 119 {
-                        // 对于 attributeID，直接显示名称，不使用跳转链接
+                } else {
+                    // 其他属性的常规显示
+                    defaultAttributeView
+                }
+            }
+        }
+    }
+    
+    // 提取常规属性显示视图为一个计算属性
+    private var defaultAttributeView: some View {
+        HStack {
+            if attribute.iconID != 0 {
+                IconManager.shared.loadImage(for: attribute.iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+            }
+            
+            Text(attribute.displayTitle)
+                .font(.body)
+            
+            Spacer()
+            
+            if attribute.unitID == 119 {
+                Text(displayName)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.trailing)
+            } else if isNavigable, let destination = navigationDestination {
+                NavigationLink(destination: destination) {
+                    HStack {
+                        Spacer()
                         Text(displayName)
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.trailing)
-                    } else if isNavigable, let destination = navigationDestination {
-                        NavigationLink(destination: destination) {
-                            HStack {
-                                Spacer()  // 将文本推到右边
-                                Text(displayName)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.trailing)  // 确保多行文本也是右对齐
-                            }
-                            .frame(minWidth: 100)  // 给予足够的空间显示文本
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        Text(formattedValue)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.trailing)
                     }
+                    .frame(minWidth: 100)
                 }
+                .buttonStyle(.plain)
+            } else {
+                Text(formattedValue)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.trailing)
             }
         }
     }

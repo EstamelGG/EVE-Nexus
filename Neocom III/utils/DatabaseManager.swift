@@ -1634,6 +1634,42 @@ class DatabaseManager: ObservableObject {
         sqliteManager.clearCache()
         clearStationInfoCache()
     }
+    
+    // 在 DatabaseManager 类中添加
+    func getItemDamages(for itemID: Int) -> (em: Double, therm: Double, kin: Double, exp: Double)? {
+        var damages: (em: Double, therm: Double, kin: Double, exp: Double) = (0, 0, 0, 0)
+        var hasData = false
+        
+        let query = """
+            SELECT attribute_id , value 
+            FROM typeAttributes ta 
+            WHERE type_id = 17857 AND attribute_id IN (114, 116, 117, 118)
+        """
+        
+        let result = executeQuery(query, parameters: [itemID])
+        
+        switch result {
+        case .success(let rows):
+            for row in rows {
+                if let attributeID = row["attribute_id"] as? Int,
+                   let value = row["value"] as? Double {
+                    switch attributeID {
+                    case 114: damages.em = value
+                    case 116: damages.therm = value
+                    case 117: damages.kin = value
+                    case 118: damages.exp = value
+                    default: break
+                    }
+                    hasData = true
+                }
+            }
+        case .error(let error):
+            Logger.error("Error fetching damages for item \(itemID): \(error)")
+            return nil
+        }
+        
+        return hasData ? damages : nil
+    }
 }
 
 // NPC相关扩展
