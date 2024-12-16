@@ -252,6 +252,9 @@ class NetworkManager {
         clearMarketOrdersCache()
         marketHistoryCache.removeAll()
         marketHistoryTimestamp.removeAll()
+        sovereigntyCache.removeAllObjects()
+        allianceLogoCache.removeAllObjects()
+        Logger.info("Cleared all NetworkManager caches")
     }
     
     // 获取主权数据

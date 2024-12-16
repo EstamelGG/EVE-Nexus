@@ -153,6 +153,7 @@ struct SettingView: View {
         let destinationPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
         
         do {
+            // 清除图标文件夹
             if fileManager.fileExists(atPath: destinationPath.path) {
                 try fileManager.removeItem(at: destinationPath)
                 Logger.info("Successfully deleted Icons directory")
@@ -160,16 +161,20 @@ struct SettingView: View {
                 // 确保目录被完全删除
                 if !fileManager.fileExists(atPath: destinationPath.path) {
                     Logger.debug("Verified: Icons directory has been removed")
-                    // 等待文件系统完成操作
-                    Thread.sleep(forTimeInterval: 0.5)
-                    exit(0)
                 } else {
                     Logger.warning("Warning: Icons directory still exists after deletion")
                 }
             } else {
                 Logger.error("Icons directory does not exist")
-                exit(0)
             }
+            
+            // 清除NetworkManager中的缓存
+            NetworkManager.shared.clearAllCaches()
+            Logger.info("Cleared NetworkManager caches")
+            
+            // 等待文件系统完成操作
+            Thread.sleep(forTimeInterval: 0.5)
+            exit(0)
         } catch {
             Logger.error("Error deleting Icons directory: \(error)")
         }
