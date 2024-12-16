@@ -18,6 +18,19 @@ struct MissileInfo {
             exp: (damages.exp * multiplier).rounded(toDecimalPlaces: 1)
         )
     }
+    
+    // 计算各个伤害类型的百分比
+    func getDamagePercentages() -> (em: Int, therm: Int, kin: Int, exp: Int) {
+        if totalDamage <= 0 {
+            return (0, 0, 0, 0)  // 如果总伤害为0，所有百分比都为0
+        }
+        return (
+            em: Int(round((damages.em / totalDamage) * 100)),
+            therm: Int(round((damages.therm / totalDamage) * 100)),
+            kin: Int(round((damages.kin / totalDamage) * 100)),
+            exp: Int(round((damages.exp / totalDamage) * 100))
+        )
+    }
 }
 
 // 导弹名称和图标组件
@@ -55,11 +68,12 @@ struct MissileDamageView: View {
     }
     
     var body: some View {
+        let percentages = missileInfo.getDamagePercentages()
         HStack(spacing: 8) {
             // 电磁伤害
             DamageTypeView(
                 iconName: "items_22_32_12.png",
-                percentage: Int(round((missileInfo.damages.em / missileInfo.totalDamage) * 100)),
+                percentage: percentages.em,
                 value: missileInfo.actualDamages.em,
                 color: Color(red: 74/255, green: 128/255, blue: 192/255)
             )
@@ -67,7 +81,7 @@ struct MissileDamageView: View {
             // 热能伤害
             DamageTypeView(
                 iconName: "items_22_32_10.png",
-                percentage: Int(round((missileInfo.damages.therm / missileInfo.totalDamage) * 100)),
+                percentage: percentages.therm,
                 value: missileInfo.actualDamages.therm,
                 color: Color(red: 176/255, green: 53/255, blue: 50/255)
             )
@@ -75,7 +89,7 @@ struct MissileDamageView: View {
             // 动能伤害
             DamageTypeView(
                 iconName: "items_22_32_9.png",
-                percentage: Int(round((missileInfo.damages.kin / missileInfo.totalDamage) * 100)),
+                percentage: percentages.kin,
                 value: missileInfo.actualDamages.kin,
                 color: Color(red: 155/255, green: 155/255, blue: 155/255)
             )
@@ -83,7 +97,7 @@ struct MissileDamageView: View {
             // 爆炸伤害
             DamageTypeView(
                 iconName: "items_22_32_11.png",
-                percentage: Int(round((missileInfo.damages.exp / missileInfo.totalDamage) * 100)),
+                percentage: percentages.exp,
                 value: missileInfo.actualDamages.exp,
                 color: Color(red: 185/255, green: 138/255, blue: 62/255)
             )
@@ -171,6 +185,19 @@ struct WeaponInfo {
             exp: (damages.exp * multiplier).rounded(toDecimalPlaces: 1)
         )
     }
+    
+    // 计算各个伤害类型的百分比
+    func getDamagePercentages() -> (em: Int, therm: Int, kin: Int, exp: Int) {
+        if totalDamage <= 0 {
+            return (0, 0, 0, 0)  // 如果总伤害为0，所有百分比都为0
+        }
+        return (
+            em: Int(round((damages.em / totalDamage) * 100)),
+            therm: Int(round((damages.therm / totalDamage) * 100)),
+            kin: Int(round((damages.kin / totalDamage) * 100)),
+            exp: Int(round((damages.exp / totalDamage) * 100))
+        )
+    }
 }
 
 // 武器伤害显示组件
@@ -183,13 +210,13 @@ struct WeaponDamageView: View {
     }
     
     var body: some View {
+        let percentages = weaponInfo.getDamagePercentages()
         VStack(alignment: .leading, spacing: 2) {
-            // 伤害条
             HStack(spacing: 8) {
                 // 电磁伤害
                 DamageTypeView(
                     iconName: "items_22_32_12.png",
-                    percentage: Int(round((weaponInfo.damages.em / weaponInfo.totalDamage) * 100)),
+                    percentage: percentages.em,
                     value: weaponInfo.actualDamages.em,
                     color: Color(red: 74/255, green: 128/255, blue: 192/255)
                 )
@@ -197,7 +224,7 @@ struct WeaponDamageView: View {
                 // 热能伤害
                 DamageTypeView(
                     iconName: "items_22_32_10.png",
-                    percentage: Int(round((weaponInfo.damages.therm / weaponInfo.totalDamage) * 100)),
+                    percentage: percentages.therm,
                     value: weaponInfo.actualDamages.therm,
                     color: Color(red: 176/255, green: 53/255, blue: 50/255)
                 )
@@ -205,7 +232,7 @@ struct WeaponDamageView: View {
                 // 动能伤害
                 DamageTypeView(
                     iconName: "items_22_32_9.png",
-                    percentage: Int(round((weaponInfo.damages.kin / weaponInfo.totalDamage) * 100)),
+                    percentage: percentages.kin,
                     value: weaponInfo.actualDamages.kin,
                     color: Color(red: 155/255, green: 155/255, blue: 155/255)
                 )
@@ -213,7 +240,7 @@ struct WeaponDamageView: View {
                 // 爆炸伤害
                 DamageTypeView(
                     iconName: "items_22_32_11.png",
-                    percentage: Int(round((weaponInfo.damages.exp / weaponInfo.totalDamage) * 100)),
+                    percentage: percentages.exp,
                     value: weaponInfo.actualDamages.exp,
                     color: Color(red: 185/255, green: 138/255, blue: 62/255)
                 )
@@ -228,22 +255,21 @@ struct WeaponDamageView: View {
 extension AttributeGroupView {
     // 获取武器伤害信息
     func getWeaponInfo() -> WeaponInfo? {
-        let damages = (
-            em: allAttributes[114] ?? 0,
-            therm: allAttributes[116] ?? 0,
-            kin: allAttributes[117] ?? 0,
-            exp: allAttributes[118] ?? 0
-        )
-        
-        // 检查是否有任何伤害不为0
-        guard damages.em > 0 || damages.therm > 0 || damages.kin > 0 || damages.exp > 0 else {
-            return nil
+        // 只要有这些属性就返回伤害信息，不检查数值是否为0
+        if hasWeaponDamageAttributes {
+            let damages = (
+                em: allAttributes[114] ?? 0,
+                therm: allAttributes[116] ?? 0,
+                kin: allAttributes[117] ?? 0,
+                exp: allAttributes[118] ?? 0
+            )
+            
+            // 获取伤害倍增系数
+            let multiplier = allAttributes[64] ?? 1.0
+            
+            return WeaponInfo(damages: damages, multiplier: multiplier)
         }
-        
-        // 获取伤害倍增系数
-        let multiplier = allAttributes[64] ?? 1.0
-        
-        return WeaponInfo(damages: damages, multiplier: multiplier)
+        return nil
     }
     
     // 检查当前组是否包含武器伤害属性
@@ -254,7 +280,8 @@ extension AttributeGroupView {
     
     @ViewBuilder
     func weaponDamageView() -> some View {
-        if hasWeaponDamageAttributes, let weaponInfo = getWeaponInfo() {
+        // 只要有武器伤害属性就显示
+        if let weaponInfo = getWeaponInfo() {
             WeaponDamageView(
                 damages: weaponInfo.damages,
                 damageMultiplier: weaponInfo.multiplier

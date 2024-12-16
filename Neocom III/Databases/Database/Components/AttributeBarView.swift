@@ -231,12 +231,10 @@ struct AttributeGroupView: View {
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
             .filter { attribute in
-                // 如果是伤害属性且已经显示了伤害进度条，则不显示属性本身
-                if hasWeaponDamageAttributes && getWeaponInfo() != nil {
-                    let damageAttributeIDs = [114, 116, 117, 118]
-                    if damageAttributeIDs.contains(attribute.id) {
-                        return false
-                    }
+                // 始终隐藏武器伤害属性
+                let damageAttributeIDs = [114, 116, 117, 118]
+                if damageAttributeIDs.contains(attribute.id) {
+                    return false
                 }
                 
                 return AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode)
