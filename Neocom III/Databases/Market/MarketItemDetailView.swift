@@ -248,10 +248,10 @@ struct MarketItemDetailView: View {
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
-    @State private var selectedRegionID: Int = 10000002 // 默认为 The Forge
+    @State private var selectedRegionID: Int = UserDefaultsManager.shared.selectedRegionID
     @State private var regions: [Region] = []
     @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
-    @State private var selectedRegionName: String = "The Forge" // 添加状态变量存储当前星域名称
+    @State private var selectedRegionName: String = "The Forge"
     
     // 计算分组的星域列表
     private func calculateGroupedRegions() {
@@ -425,9 +425,8 @@ struct MarketItemDetailView: View {
                 selectedRegionID: selectedRegionID
             ) { region in
                 selectedRegionID = region.id
-                selectedRegionName = region.name // 更新选中的星域名称
-                // 保存选择的星域ID
-                UserDefaults.standard.set(region.id, forKey: "selected_region_id")
+                selectedRegionName = region.name
+                UserDefaultsManager.shared.selectedRegionID = region.id
                 // 重新加载数据
                 Task {
                     await loadMarketData(forceRefresh: true)
@@ -441,12 +440,10 @@ struct MarketItemDetailView: View {
             loadRegions()
             
             // 加载保存的星域ID和名称
-            if let savedRegionID = UserDefaults.standard.object(forKey: "selected_region_id") as? Int {
-                selectedRegionID = savedRegionID
-                // 根据ID查找对应的星域名称
-                if let region = regions.first(where: { $0.id == savedRegionID }) {
-                    selectedRegionName = region.name
-                }
+            selectedRegionID = UserDefaultsManager.shared.selectedRegionID
+            // 根据ID查找对应的星域名称
+            if let region = regions.first(where: { $0.id == selectedRegionID }) {
+                selectedRegionName = region.name
             }
             
             if isFromParent {
