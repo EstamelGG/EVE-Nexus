@@ -36,6 +36,11 @@ class StaticResourceManager {
         }
     }
     
+    // 缓存有效期常量
+    private let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
+    private let RENDER_CACHE_DURATION: TimeInterval = 30 * 24 * 3600      // 30天
+    private let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
+    
     private init() {}
     
     // 缓存包装类
@@ -134,18 +139,41 @@ class StaticResourceManager {
         cache.removeAllObjects()
     }
     
+    /// 检查文件是否过期
+    /// - Parameters:
+    ///   - filePath: 文件路径
+    ///   - duration: 有效期（秒）
+    /// - Returns: 是否过期
+    private func isFileExpired(at filePath: String, duration: TimeInterval) -> Bool {
+        guard let attributes = try? fileManager.attributesOfItem(atPath: filePath),
+              let modificationDate = attributes[.modificationDate] as? Date else {
+            return true
+        }
+        return Date().timeIntervalSince(modificationDate) >= duration
+    }
+    
     /// 获取主权数据
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权数据数组
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
+        let cacheKey = "sovereignty_data" as NSString
+        let filename = ResourceType.sovereignty.filename
+        let filePath = getStaticDataSetPath().appendingPathComponent(filename)
+        
+        // 确定是否需要刷新
+        var shouldRefresh = forceRefresh
+        
+        // 检查文件是否过期
+        if fileManager.fileExists(atPath: filePath.path) && 
+           isFileExpired(at: filePath.path, duration: SOVEREIGNTY_CACHE_DURATION) {
+            shouldRefresh = true
+        }
+        
         // 如果需要强制刷新，先执行刷新操作
-        if forceRefresh {
+        if shouldRefresh {
             try await self.forceRefresh(.sovereignty)
             return try await fetchSovereigntyData(forceRefresh: false)
         }
-        
-        let cacheKey = "sovereignty_data" as NSString
-        let filename = ResourceType.sovereignty.filename
         
         // 1. 尝试从缓存获取
         if let cached = cache.object(forKey: cacheKey) {
@@ -159,8 +187,6 @@ class StaticResourceManager {
         }
         
         // 2. 尝试从文件读取
-        let filePath = getStaticDataSetPath().appendingPathComponent(filename)
-        
         if fileManager.fileExists(atPath: filePath.path) {
             do {
                 let data = try Data(contentsOf: filePath)
@@ -233,7 +259,17 @@ class StaticResourceManager {
     /// - Returns: 图标数据
     func getAllianceIcon(allianceId: Int) -> Data? {
         let iconFile = getAllianceIconPath().appendingPathComponent("\(allianceId).png")
-        return try? Data(contentsOf: iconFile)
+        
+        // 检查文件是否存在且未过期
+        if fileManager.fileExists(atPath: iconFile.path) {
+            if isFileExpired(at: iconFile.path, duration: ALLIANCE_ICON_CACHE_DURATION) {
+                // 如果过期，删除文件
+                try? fileManager.removeItem(at: iconFile)
+                return nil
+            }
+            return try? Data(contentsOf: iconFile)
+        }
+        return nil
     }
     
     /// 清理联盟图标缓存
@@ -407,7 +443,7 @@ class StaticResourceManager {
                             let attributes = try fileManager.attributesOfItem(atPath: filePath)
                             totalSize += attributes[.size] as? Int64 ?? 0
                             
-                            // 使��最新的修改时间
+                            // 使用最新的修改时间
                             if let fileModified = attributes[.modificationDate] as? Date {
                                 if lastModified == nil || fileModified > lastModified! {
                                     lastModified = fileModified
@@ -461,7 +497,17 @@ class StaticResourceManager {
     /// - Returns: 图片数据
     func getNetRender(typeId: Int) -> Data? {
         let renderFile = getNetRendersPath().appendingPathComponent("\(typeId).png")
-        return try? Data(contentsOf: renderFile)
+        
+        // 检查文件是否存在且未过期
+        if fileManager.fileExists(atPath: renderFile.path) {
+            if isFileExpired(at: renderFile.path, duration: RENDER_CACHE_DURATION) {
+                // 如果过期，删除文件
+                try? fileManager.removeItem(at: renderFile)
+                return nil
+            }
+            return try? Data(contentsOf: renderFile)
+        }
+        return nil
     }
     
     /// 清理渲染图缓存
