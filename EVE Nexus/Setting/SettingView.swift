@@ -262,6 +262,8 @@ struct SettingView: View {
     @State private var isRefreshing: String? = nil
     @State private var isReextractingIcons = false
     @State private var unzipProgress: Double = 0
+    @State private var loadingState: LoadingState = .unzipping
+    @State private var showingLoadingView = false
     
     /// 计算相对时间显示
     private func getRelativeTimeString(from date: Date) -> String {
@@ -304,130 +306,178 @@ struct SettingView: View {
         }
     }
     
+    // 外观设置组
+    private var appearanceGroup: SettingGroup {
+        SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
+                detail: getAppearanceDetail(),
+                icon: getThemeIcon(),
+                action: toggleAppearance
+            )
+        ])
+    }
+    
+    // 其他设置组
+    private var othersGroup: SettingGroup {
+        SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Language", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                icon: "globe",
+                action: { showingLanguageView = true }
+            )
+        ])
+    }
+    
+    // 缓存设置组
+    private var cacheGroup: SettingGroup {
+        SettingGroup(header: "Cache", items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
+                detail: formatCacheDetails(),
+                icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
+                iconColor: .red,
+                action: { showingCleanCacheAlert = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
+                detail: isReextractingIcons ? 
+                    String(format: "%.0f%%", unzipProgress * 100) :
+                    NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
+                icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
+                iconColor: .red,
+                action: { showingDeleteIconsAlert = true }
+            )
+        ])
+    }
+    
+    // 静态资源设置组
+    private var staticResourceGroup: SettingGroup {
+        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
+            var title = resource.name
+            if let downloadTime = resource.downloadTime {
+                title += " (" + getRelativeTimeString(from: downloadTime) + ")"
+            }
+            return SettingItem(
+                title: title,
+                detail: formatResourceInfo(resource),
+                icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
+                      (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
+                iconColor: isRefreshing == resource.name ? .blue :
+                         (resource.exists ? .green : .red),
+                action: { refreshResource(resource) }
+            )
+        }
+        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
+    }
+    
     private var settingGroups: [SettingGroup] {
         [
-            SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
-                SettingItem(
-                    title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
-                    detail: getAppearanceDetail(),
-                    icon: getThemeIcon(),
-                    action: toggleAppearance
-                )
-            ]),
-            
-            SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
-                SettingItem(
-                    title: NSLocalizedString("Main_Setting_Language", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
-                    icon: "globe",
-                    action: { showingLanguageView = true }
-                )
-            ]),
-            
-            SettingGroup(header: "Cache", items: [
-                SettingItem(
-                    title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
-                    detail: formatCacheDetails(),
-                    icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
-                    iconColor: .red,
-                    action: { showingCleanCacheAlert = true }
-                ),
-                SettingItem(
-                    title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
-                    detail: isReextractingIcons ? 
-                        String(format: "%.0f%%", unzipProgress * 100) :
-                        NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
-                    icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
-                    iconColor: .red,
-                    action: { showingDeleteIconsAlert = true }
-                )
-            ]),
-            
-            SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items:
-                StaticResourceManager.shared.getAllResourcesStatus().map { resource in
-                    var title = resource.name
-                    if let downloadTime = resource.downloadTime {
-                        title += " (" + getRelativeTimeString(from: downloadTime) + ")"
-                    }
-                    return SettingItem(
-                        title: title,
-                        detail: formatResourceInfo(resource),
-                        icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
-                              (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
-                        iconColor: isRefreshing == resource.name ? .blue :
-                                 (resource.exists ? .green : .red),
-                        action: { refreshResource(resource) }
-                    )
-                }
-            )
+            appearanceGroup,
+            othersGroup,
+            cacheGroup,
+            staticResourceGroup
         ]
     }
     
+    // 全屏遮罩视图
+    private struct FullScreenCover: View {
+        let progress: Double
+        @Binding var loadingState: LoadingState
+        let onComplete: () -> Void
+        
+        var body: some View {
+            GeometryReader { geometry in
+                ZStack {
+                    Color.black
+                        .opacity(0.8)
+                    
+                    LoadingView(loadingState: $loadingState,
+                              progress: progress,
+                              onComplete: onComplete)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .edgesIgnoringSafeArea(.all)
+            .interactiveDismissDisabled()
+        }
+    }
+    
     var body: some View {
-        List {
-            ForEach(settingGroups) { group in
-                Section(
-                    header: Text(group.header)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                ) {
-                    ForEach(group.items) { item in
-                        Button(action: item.action) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(item.title)
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.primary)
-                                    if let detail = item.detail {
-                                        Text(detail)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.gray)
+        NavigationView {
+            List {
+                ForEach(settingGroups) { group in
+                    Section(
+                        header: Text(group.header)
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                    ) {
+                        ForEach(group.items) { item in
+                            Button(action: item.action) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(item.title)
+                                            .font(.system(size: 16))
+                                            .foregroundColor(.primary)
+                                        if let detail = item.detail {
+                                            Text(detail)
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                    Spacer()
+                                    if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                                        ProgressView()
+                                            .frame(width: 36, height: 36)
+                                    } else {
+                                        Image(systemName: item.icon)
+                                            .font(.system(size: 20))
+                                            .frame(width: 36, height: 36)
+                                            .foregroundColor(item.iconColor)
                                     }
                                 }
-                                Spacer()
-                                if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
-                                    ProgressView()
-                                        .frame(width: 36, height: 36)
-                                } else {
-                                    Image(systemName: item.icon)
-                                        .font(.system(size: 20))
-                                        .frame(width: 36, height: 36)
-                                        .foregroundColor(item.iconColor)
-                                }
+                                .frame(height: 36)
                             }
-                            .frame(height: 36)
+                            .disabled(isCleaningCache || showingLoadingView)
                         }
-                        .disabled(isCleaningCache)
                     }
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
-        .navigationDestination(isPresented: $showingLanguageView) {
-            SelectLanguageView(databaseManager: databaseManager)
-        }
-        .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
-            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
-            Button(NSLocalizedString("Main_Setting_Clean", comment: ""), role: .destructive) {
-                cleanCache()
+            .listStyle(.insetGrouped)
+            .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
+            .navigationDestination(isPresented: $showingLanguageView) {
+                SelectLanguageView(databaseManager: databaseManager)
             }
-        } message: {
-            Text(NSLocalizedString("Main_Setting_Clean_Cache_Message", comment: ""))
-        }
-        .alert(NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""), isPresented: $showingDeleteIconsAlert) {
-            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
-            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
-                deleteIconsAndRestart()
+            .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
+                Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("Main_Setting_Clean", comment: ""), role: .destructive) {
+                    cleanCache()
+                }
+            } message: {
+                Text(NSLocalizedString("Main_Setting_Clean_Cache_Message", comment: ""))
             }
-        } message: {
-            Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
+            .alert(NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""), isPresented: $showingDeleteIconsAlert) {
+                Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+                Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
+                    deleteIconsAndRestart()
+                }
+            } message: {
+                Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
+            }
+            .onAppear {
+                calculateCacheSize()
+            }
         }
-        .onAppear {
-            calculateCacheSize()
-        }
+        .fullScreenCover(isPresented: $showingLoadingView, content: {
+            FullScreenCover(
+                progress: unzipProgress,
+                loadingState: $loadingState,
+                onComplete: { showingLoadingView = false }
+            )
+        })
     }
     
     private func getThemeIcon() -> String {
@@ -543,6 +593,8 @@ struct SettingView: View {
     private func deleteIconsAndRestart() {
         Task {
             isReextractingIcons = true
+            showingLoadingView = true
+            loadingState = .unzipping
             
             let fileManager = FileManager.default
             let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -572,8 +624,15 @@ struct SettingView: View {
                 }
                 
                 Logger.info("Successfully reextracted icons")
+                
+                await MainActor.run {
+                    loadingState = .complete
+                }
             } catch {
                 Logger.error("Error reextracting icons: \(error)")
+                await MainActor.run {
+                    showingLoadingView = false
+                }
             }
             
             await MainActor.run {
