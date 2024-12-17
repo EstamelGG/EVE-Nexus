@@ -57,6 +57,9 @@ class CacheManager {
         // 4. 临时文件统计
         stats["Temp"] = await getTempFileStats()
         
+        // 5. 静态资源统计
+        stats["StaticDataSet"] = await getStaticDataStats()
+        
         return stats
     }
     
@@ -122,6 +125,29 @@ class CacheManager {
         return CacheStats(size: totalSize, count: fileCount)
     }
     
+    // 获取静态资源统计
+    private func getStaticDataStats() async -> CacheStats {
+        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+        var totalSize: Int64 = 0
+        var fileCount: Int = 0
+        
+        if fileManager.fileExists(atPath: staticDataSetPath.path),
+           let enumerator = fileManager.enumerator(atPath: staticDataSetPath.path) {
+            for case let fileName as String in enumerator {
+                let filePath = (staticDataSetPath.path as NSString).appendingPathComponent(fileName)
+                do {
+                    let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                    totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
+                    fileCount += 1
+                } catch {
+                    Logger.error("Error calculating static data size: \(error)")
+                }
+            }
+        }
+        
+        return CacheStats(size: totalSize, count: fileCount)
+    }
+    
     // 清理所有缓存
     func clearAllCaches() async {
         await withTaskGroup(of: Void.self) { group in
@@ -175,6 +201,15 @@ class CacheManager {
                 }
             }
             
+            // 7. 清理静态资源
+            group.addTask {
+                do {
+                    try StaticResourceManager.shared.clearAllStaticData()
+                } catch {
+                    Logger.error("Error clearing static data: \(error)")
+                }
+            }
+            
             // 等待所有任务完成
             await group.waitForAll()
         }
@@ -225,6 +260,23 @@ struct SettingView: View {
     @State private var cacheDetails: [String: CacheStats] = [:]
     @State private var isCleaningCache = false
     
+    /// 计算相对时间显示
+    private func getRelativeTimeString(from date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: now)
+        
+        if let days = components.day, days > 0 {
+            return String(format: NSLocalizedString("Time_Days_Ago", comment: ""), days)
+        } else if let hours = components.hour, hours > 0 {
+            return String(format: NSLocalizedString("Time_Hours_Ago", comment: ""), hours)
+        } else if let minutes = components.minute, minutes > 0 {
+            return String(format: NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
+        } else {
+            return NSLocalizedString("Time_Just_Now", comment: "")
+        }
+    }
+    
     private var settingGroups: [SettingGroup] {
         [
             SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
@@ -264,8 +316,12 @@ struct SettingView: View {
             
             SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items:
                 StaticResourceManager.shared.getAllResourcesStatus().map { resource in
-                    SettingItem(
-                        title: NSLocalizedString("Main_Setting_Static_Resource_\(resource.name)", comment: ""),
+                    var title = NSLocalizedString("Main_Setting_Static_Resource_\(resource.name)", comment: "")
+                    if let downloadTime = resource.downloadTime {
+                        title += " (" + getRelativeTimeString(from: downloadTime) + ")"
+                    }
+                    return SettingItem(
+                        title: title,
                         detail: formatResourceInfo(resource),
                         icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                         iconColor: resource.exists ? .green : .red,
@@ -413,6 +469,8 @@ struct SettingView: View {
             return NSLocalizedString("Main_Setting_Cache_Type_Temp", comment: "")
         case "Database":
             return NSLocalizedString("Main_Setting_Cache_Type_Database", comment: "")
+        case "StaticDataSet":
+            return NSLocalizedString("Main_Setting_Cache_Type_StaticDataSet", comment: "")
         default:
             return type
         }
@@ -476,11 +534,9 @@ struct SettingView: View {
             if let size = resource.fileSize {
                 info += formatFileSize(size)
             }
-            if let date = resource.lastModified {
-                let formatter = DateFormatter()
-                formatter.dateStyle = .medium
-                formatter.timeStyle = .medium
-                info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), formatter.string(from: date))
+            if let lastModified = resource.lastModified {
+                info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
+                    getRelativeTimeString(from: lastModified))
             }
             return info
         } else {

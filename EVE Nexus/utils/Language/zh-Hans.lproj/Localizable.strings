@@ -97,6 +97,7 @@
 "Main_Setting_Cache_Type_UserDefaults" = "用户设置";
 "Main_Setting_Cache_Type_Temp" = "临时文件";
 "Main_Setting_Cache_Type_Database" = "数据库缓存";
+"Main_Setting_Cache_Type_StaticDataSet" = "静态数据集";
 "Main_Setting_Cache_Cleared_Message" = "已清理 %@ 缓存";
 
 "Main_About" = "关于";
@@ -159,3 +160,9 @@
 "Main_Setting_Static_Resource_Not_Downloaded" = "未下载";
 "Main_Setting_Static_Resource_Last_Updated" = "更新时间：%@";
 "Main_Setting_Static_Resource_Sovereignty" = "主权数据";
+
+// 时间显示
+"Time_Days_Ago" = "%d天前";
+"Time_Hours_Ago" = "%d小时前";
+"Time_Minutes_Ago" = "%d分钟前";
+"Time_Just_Now" = "刚刚";

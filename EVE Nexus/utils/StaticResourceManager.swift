@@ -5,6 +5,7 @@ class StaticResourceManager {
     static let shared = StaticResourceManager()
     private let fileManager = FileManager.default
     private let cache = NSCache<NSString, CachedResource>()
+    private let defaults = UserDefaults.standard
     
     // 静态资源信息结构
     struct ResourceInfo {
@@ -12,6 +13,7 @@ class StaticResourceManager {
         let exists: Bool
         let lastModified: Date?
         let fileSize: Int64?
+        let downloadTime: Date?
     }
     
     // 资源类型枚举
@@ -28,6 +30,10 @@ class StaticResourceManager {
                 return "Sovereignty"
             }
         }
+        
+        var downloadTimeKey: String {
+            return "StaticResource_\(self.rawValue)_DownloadTime"
+        }
     }
     
     private init() {}
@@ -43,20 +49,25 @@ class StaticResourceManager {
         }
     }
     
+    /// 获取静态资源目录路径
+    func getStaticDataSetPath() -> URL {
+        return fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("StaticDataSet")
+    }
+    
     /// 获取所有静态资源的状态
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
-            let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("StaticResources")
-                .appendingPathComponent(type.filename)
+            let filePath = getStaticDataSetPath().appendingPathComponent(type.filename)
             
-            let exists = fileManager.fileExists(atPath: documentPath.path)
+            let exists = fileManager.fileExists(atPath: filePath.path)
             var lastModified: Date? = nil
             var fileSize: Int64? = nil
+            let downloadTime = defaults.object(forKey: type.downloadTimeKey) as? Date
             
             if exists {
                 do {
-                    let attributes = try fileManager.attributesOfItem(atPath: documentPath.path)
+                    let attributes = try fileManager.attributesOfItem(atPath: filePath.path)
                     lastModified = attributes[.modificationDate] as? Date
                     fileSize = attributes[.size] as? Int64
                 } catch {
@@ -68,7 +79,8 @@ class StaticResourceManager {
                 name: type.displayName,
                 exists: exists,
                 lastModified: lastModified,
-                fileSize: fileSize
+                fileSize: fileSize,
+                downloadTime: downloadTime
             )
         }
     }
@@ -78,16 +90,21 @@ class StaticResourceManager {
     ///   - data: 要保存的数据
     ///   - filename: 文件名（包含扩展名）
     func saveToFile(_ data: Data, filename: String) throws {
-        let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StaticResources")
+        let staticDataSetPath = getStaticDataSetPath()
         
         // 确保目录存在
-        if !fileManager.fileExists(atPath: documentPath.path) {
-            try fileManager.createDirectory(at: documentPath, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: staticDataSetPath.path) {
+            try fileManager.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
         }
         
-        let fileURL = documentPath.appendingPathComponent(filename)
+        let fileURL = staticDataSetPath.appendingPathComponent(filename)
         try data.write(to: fileURL)
+        
+        // 保存下载时间
+        if let resourceType = ResourceType.allCases.first(where: { $0.filename == filename }) {
+            defaults.set(Date(), forKey: resourceType.downloadTimeKey)
+        }
+        
         Logger.info("Saved static resource to file: \(filename)")
     }
     
@@ -109,13 +126,11 @@ class StaticResourceManager {
         }
         
         // 2. 尝试从文件读取
-        let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StaticResources")
-            .appendingPathComponent(filename)
+        let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
-        if fileManager.fileExists(atPath: documentPath.path) {
+        if fileManager.fileExists(atPath: filePath.path) {
             do {
-                let data = try Data(contentsOf: documentPath)
+                let data = try Data(contentsOf: filePath)
                 let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
                 
                 // 更新缓存
@@ -140,5 +155,21 @@ class StaticResourceManager {
         cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: cacheKey)
         
         return sovereigntyData
+    }
+    
+    /// 清理所有静态资源数据
+    func clearAllStaticData() throws {
+        let staticDataSetPath = getStaticDataSetPath()
+        if fileManager.fileExists(atPath: staticDataSetPath.path) {
+            try fileManager.removeItem(at: staticDataSetPath)
+            Logger.info("Cleared all static data")
+            
+            // 清理下载时间记录
+            for type in ResourceType.allCases {
+                defaults.removeObject(forKey: type.downloadTimeKey)
+            }
+        }
+        // 清理内存缓存
+        cache.removeAllObjects()
     }
 } 
