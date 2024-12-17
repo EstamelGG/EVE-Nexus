@@ -245,6 +245,7 @@ struct SettingView: View {
     @State private var unzipProgress: Double = 0
     @State private var loadingState: LoadingState = .unzipping
     @State private var showingLoadingView = false
+    @State private var refreshingResources: Set<String> = []  // 添加新的状态变量
     
     /// 计算相对时间显示
     private func getRelativeTimeString(from date: Date) -> String {
@@ -264,8 +265,17 @@ struct SettingView: View {
     }
     
     private func refreshResource(_ resource: StaticResourceManager.ResourceInfo) {
+        // 如果该资源正在刷新中，直接返回
+        guard !refreshingResources.contains(resource.name) else {
+            return
+        }
+        
         Task {
-            isRefreshing = resource.name
+            // 标记资源开始刷新
+            await MainActor.run {
+                refreshingResources.insert(resource.name)
+                isRefreshing = resource.name
+            }
             
             do {
                 // 找到对应的资源类型
@@ -300,8 +310,12 @@ struct SettingView: View {
                 Logger.error("Failed to refresh resource: \(error)")
             }
             
+            // 标记资源刷新完成
             await MainActor.run {
-                self.isRefreshing = nil
+                refreshingResources.remove(resource.name)
+                if isRefreshing == resource.name {
+                    isRefreshing = nil
+                }
             }
         }
     }
@@ -394,7 +408,7 @@ struct SettingView: View {
             )
         }
         
-        // 添加市场数据统���
+        // 添加市场数据统计
         let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
         let marketItem = SettingItem(
             title: marketDataStats.name,
