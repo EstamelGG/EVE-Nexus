@@ -7,12 +7,34 @@
 
 import SwiftUI
 
+// 在 IncursionsViewModel 类之前添加这个结构体
+struct PreparedIncursion: Codable {
+    let incursion: Incursion
+    let faction: FactionInfo
+    let location: LocationInfo
+    
+    struct FactionInfo: Codable {
+        let iconName: String
+        let name: String
+    }
+    
+    struct LocationInfo: Codable {
+        let systemName: String
+        let security: Double
+        let constellationName: String
+        let regionName: String
+    }
+}
+
 // 视图模型
 class IncursionsViewModel: ObservableObject {
     @Published var incursions: [Incursion] = []
     @Published private(set) var preparedIncursions: [(incursion: Incursion, faction: (iconName: String, name: String), location: (systemName: String, security: Double, constellationName: String, regionName: String))] = []
     @Published var isLoading = false
     let databaseManager: DatabaseManager
+    
+    private let userDefaults = UserDefaults.standard
+    private let persistentCacheKey = "persistent_incursions_cache"
     
     // 缓存管理器
     private static let cache: NSCache<NSString, CacheEntry> = {
@@ -26,7 +48,61 @@ class IncursionsViewModel: ObservableObject {
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
-        loadFromCache()
+        loadFromPersistentCache() // 先从持久化缓存加载
+        loadFromCache() // 再从内存缓存加载
+    }
+    
+    // 修改持久化缓存加载方法
+    private func loadFromPersistentCache() {
+        guard let data = userDefaults.data(forKey: persistentCacheKey),
+              let cached = try? JSONDecoder().decode([PreparedIncursion].self, from: data) else {
+            Logger.info("ViewModel: [持久化缓存] 没有找到缓存数据")
+            return
+        }
+        
+        // 将 PreparedIncursion 转换回元组格式
+        self.preparedIncursions = cached.map { prepared in
+            (
+                incursion: prepared.incursion,
+                faction: (iconName: prepared.faction.iconName, name: prepared.faction.name),
+                location: (
+                    systemName: prepared.location.systemName,
+                    security: prepared.location.security,
+                    constellationName: prepared.location.constellationName,
+                    regionName: prepared.location.regionName
+                )
+            )
+        }
+        
+        Logger.info("ViewModel: [持久化缓存] 成功加载 \(cached.count) 条入侵数据")
+    }
+    
+    // 修改持久化缓存保存方法
+    private func saveToPersistentCache(_ data: [(Incursion, (String, String), (String, Double, String, String))]) {
+        // 将元组格式转换为 PreparedIncursion
+        let preparedData = data.map { tuple in
+            PreparedIncursion(
+                incursion: tuple.0,
+                faction: PreparedIncursion.FactionInfo(
+                    iconName: tuple.1.0,
+                    name: tuple.1.1
+                ),
+                location: PreparedIncursion.LocationInfo(
+                    systemName: tuple.2.0,
+                    security: tuple.2.1,
+                    constellationName: tuple.2.2,
+                    regionName: tuple.2.3
+                )
+            )
+        }
+        
+        guard let encoded = try? JSONEncoder().encode(preparedData) else {
+            Logger.error("ViewModel: [持久化缓存] 数据编码失败")
+            return
+        }
+        
+        userDefaults.set(encoded, forKey: persistentCacheKey)
+        Logger.info("ViewModel: [持久化缓存] 成功保存 \(data.count) 条入侵数据")
     }
     
     private func loadFromCache() {
@@ -47,16 +123,20 @@ class IncursionsViewModel: ObservableObject {
     }
     
     @MainActor
-    func fetchIncursions(forceRefresh: Bool = false) async {
+    func fetchIncursions(forceRefresh: Bool = false, silent: Bool = false) async {
+        if !silent {
+            isLoading = true
+        }
+        
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh,
            let cachedIncursions = NetworkManager.shared.getCachedIncursions() {
             await processIncursions(cachedIncursions)
+            if !silent {
+                isLoading = false
+            }
             return
         }
-        
-        isLoading = true
-        preparedIncursions = []
         
         Logger.info("ViewModel: [网络] 开始获取入侵数据")
         do {
@@ -66,7 +146,9 @@ class IncursionsViewModel: ObservableObject {
             Logger.error("ViewModel: [网络] 获取入侵数据失败: \(error)")
         }
         
-        isLoading = false
+        if !silent {
+            isLoading = false
+        }
     }
     
     @MainActor
@@ -91,6 +173,7 @@ class IncursionsViewModel: ObservableObject {
             Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
             preparedIncursions = prepared
             saveToCache(prepared)
+            saveToPersistentCache(prepared) // 添加持久化缓存保存
         } else {
             Logger.error("ViewModel: 没有可显示的完整数据")
         }
@@ -253,8 +336,11 @@ struct IncursionsView: View {
         }
         .listStyle(.insetGrouped)
         .task {
-            // 页面加载时，优先使用缓存
+            // 页面加载时，先使用缓存数据显示
             await viewModel.fetchIncursions()
+            
+            // 然后在后台静默更新数据
+            await viewModel.fetchIncursions(forceRefresh: true, silent: true)
         }
         .refreshable {
             // 下拉刷新时，强制从网络获取新数据
