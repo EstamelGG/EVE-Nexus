@@ -151,8 +151,8 @@ class InfestedSystemsViewModel: ObservableObject {
                 tempSystems.append(systemInfo)
             }
             
-            // 按安全等级排序
-            tempSystems.sort { $0.security > $1.security }
+            // 按星系名称字母顺序排序
+            tempSystems.sort { $0.systemName < $1.systemName }
             systems = tempSystems
             
             // 开始加载图标
@@ -239,18 +239,20 @@ struct InfestedSystemsView: View {
     }
     
     var body: some View {
-        if viewModel.isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List {
-                ForEach(viewModel.systems) { system in
-                    SystemRow(system: system)
+        ZStack {
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(viewModel.systems) { system in
+                        SystemRow(system: system)
+                    }
                 }
+                .listStyle(.insetGrouped)
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
         }
+        .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
     }
 }
 

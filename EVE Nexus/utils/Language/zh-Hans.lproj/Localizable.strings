@@ -80,6 +80,18 @@
 "Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
 "Main_Setting_Clean_Cache" = "清理缓存";
 "Main_Setting_Clean_Cache_detail" = "清理图片缓存并重启APP";
+"Main_Setting_Clean_Cache_Title" = "清理缓存";
+"Main_Setting_Clean_Cache_Message" = "这将清理应用缓存，包括网络缓存和临时文件。是否确认？";
+"Main_Setting_Reset_Icons" = "重置图标缓存";
+"Main_Setting_Reset_Icons_Detail" = "删除所有图标缓存并重启应用";
+"Main_Setting_Reset_Icons_Title" = "重置图标缓存";
+"Main_Setting_Reset_Icons_Message" = "这将删除所有已下载的图标缓存并重启应用。是否确认？";
+"Main_Setting_Cancel" = "取消";
+"Main_Setting_Clean" = "清理";
+"Main_Setting_Reset" = "重置";
+"Main_Setting_Cache_Total_Count" = "\n总数量：%d 项";
+"Main_Setting_Cache_Details" = "各项统计：";
+"Main_Setting_Cache_Item_Format" = "%@：%@ (%d 项)";
 
 "Main_About" = "关于";
 "Main_About_Title" = "关于";

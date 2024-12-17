@@ -159,6 +159,9 @@ final class IncursionsViewModel: ObservableObject {
                     result.append(prepared)
                 }
             }
+            
+            // 按影响力从大到小排序
+            result.sort { $0.incursion.influence > $1.incursion.influence }
             return result
         }
         

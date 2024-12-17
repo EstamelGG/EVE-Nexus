@@ -185,8 +185,8 @@ struct SettingView: View {
                     action: { showingCleanCacheAlert = true }
                 ),
                 SettingItem(
-                    title: "重置图标缓存",
-                    detail: "删除所有图标缓存并重启应用",
+                    title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
                     icon: "arrow.triangle.2.circlepath",
                     iconColor: .red,
                     action: { showingDeleteIconsAlert = true }
@@ -235,21 +235,21 @@ struct SettingView: View {
         .navigationDestination(isPresented: $showingLanguageView) {
             SelectLanguageView(databaseManager: databaseManager)
         }
-        .alert("清理缓存", isPresented: $showingCleanCacheAlert) {
-            Button("取消", role: .cancel) { }
-            Button("清理", role: .destructive) {
+        .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Main_Setting_Clean", comment: ""), role: .destructive) {
                 cleanCache()
             }
         } message: {
-            Text("这将清理应用缓存，包括网络缓存和临时文件。是否确认？")
+            Text(NSLocalizedString("Main_Setting_Clean_Cache_Message", comment: ""))
         }
-        .alert("重置图标缓存", isPresented: $showingDeleteIconsAlert) {
-            Button("取消", role: .cancel) { }
-            Button("重置", role: .destructive) {
+        .alert(NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""), isPresented: $showingDeleteIconsAlert) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
                 deleteIconsAndRestart()
             }
         } message: {
-            Text("这将删除所有已下载的图标缓存并重启应用。是否确认？")
+            Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
         }
         .onAppear {
             calculateCacheSize()
@@ -294,15 +294,18 @@ struct SettingView: View {
         let totalSize = cacheDetails.values.reduce(0) { $0 + $1.size }
         let totalCount = cacheDetails.values.reduce(0) { $0 + $1.count }
         
-        var details = "\(formatFileSize(totalSize))"
-        details += "\n总数量：\(totalCount) 项"
+        var details = formatFileSize(totalSize)
+        details += String(format: NSLocalizedString("Main_Setting_Cache_Total_Count", comment: ""), totalCount)
         
         // 添加详细统计
         if !cacheDetails.isEmpty {
-            details += "\n\n各项统计："
+            details += "\n\n" + NSLocalizedString("Main_Setting_Cache_Details", comment: "")
             for (type, stats) in cacheDetails.sorted(by: { $0.key < $1.key }) {
                 if stats.size > 0 || stats.count > 0 {
-                    details += "\n• \(type)：\(formatFileSize(stats.size)) (\(stats.count) 项)"
+                    details += "\n• " + String(format: NSLocalizedString("Main_Setting_Cache_Item_Format", comment: ""), 
+                        type, 
+                        formatFileSize(stats.size), 
+                        stats.count)
                 }
             }
         }
