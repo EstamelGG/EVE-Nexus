@@ -88,6 +88,7 @@ struct Cache<Value: Codable> {
 final class IncursionsViewModel: ObservableObject {
     @Published private(set) var preparedIncursions: [PreparedIncursion] = []
     @Published var isLoading = false
+    @Published var isRefreshing = false
     
     @Cache(key: "incursions_cache", validityDuration: 8 * 3600)
     private var cachedIncursions: [PreparedIncursion]?
@@ -108,12 +109,17 @@ final class IncursionsViewModel: ObservableObject {
     
     func fetchIncursions(forceRefresh: Bool = false, silent: Bool = false) async {
         if !silent {
-            isLoading = true
+            if preparedIncursions.isEmpty {
+                isLoading = true
+            } else {
+                isRefreshing = true
+            }
         }
         
         defer {
             if !silent {
                 isLoading = false
+                isRefreshing = false
             }
         }
         
@@ -284,14 +290,21 @@ struct IncursionsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            await viewModel.fetchIncursions(forceRefresh: true)
+        }
+        .overlay {
+            if viewModel.isRefreshing {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: 60)
+                    .background(Color(.systemBackground).opacity(0.8))
+            }
+        }
         .task {
             if viewModel.preparedIncursions.isEmpty {
                 await viewModel.fetchIncursions()
                 await viewModel.fetchIncursions(forceRefresh: true, silent: true)
             }
-        }
-        .refreshable {
-            await viewModel.fetchIncursions(forceRefresh: true)
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }

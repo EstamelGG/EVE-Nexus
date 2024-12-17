@@ -290,4 +290,147 @@ class StaticResourceManager {
             downloadTime: nil
         )
     }
+    
+    /// 获取市场数据目录路径
+    func getMarketDataPath() -> URL {
+        return getStaticDataSetPath().appendingPathComponent("Market")
+    }
+    
+    /// 获取指定物品的市场数据目录
+    /// - Parameter itemId: 物品ID
+    /// - Returns: 目录URL
+    func getItemMarketPath(itemId: Int) -> URL {
+        return getMarketDataPath().appendingPathComponent("Market_\(itemId)")
+    }
+    
+    /// 保存市场订单数据
+    /// - Parameters:
+    ///   - orders: 订单数据
+    ///   - itemId: 物品ID
+    ///   - regionId: 星域ID
+    func saveMarketOrders(_ orders: [MarketOrder], itemId: Int, regionId: Int) throws {
+        let marketPath = getItemMarketPath(itemId: itemId)
+        
+        // 确保目录存在
+        if !fileManager.fileExists(atPath: marketPath.path) {
+            try fileManager.createDirectory(at: marketPath, withIntermediateDirectories: true)
+        }
+        
+        let orderFile = marketPath.appendingPathComponent("orders_\(regionId).json")
+        let data = try JSONEncoder().encode(MarketDataContainer(data: orders, timestamp: Date()))
+        try data.write(to: orderFile)
+        Logger.info("Saved market orders for item \(itemId) in region \(regionId)")
+    }
+    
+    /// 保存市场历史数据
+    /// - Parameters:
+    ///   - history: 历史数据
+    ///   - itemId: 物品ID
+    ///   - regionId: 星域ID
+    func saveMarketHistory(_ history: [MarketHistory], itemId: Int, regionId: Int) throws {
+        let marketPath = getItemMarketPath(itemId: itemId)
+        
+        // 确保目录存在
+        if !fileManager.fileExists(atPath: marketPath.path) {
+            try fileManager.createDirectory(at: marketPath, withIntermediateDirectories: true)
+        }
+        
+        let historyFile = marketPath.appendingPathComponent("history_\(regionId).json")
+        let data = try JSONEncoder().encode(MarketDataContainer(data: history, timestamp: Date()))
+        try data.write(to: historyFile)
+        Logger.info("Saved market history for item \(itemId) in region \(regionId)")
+    }
+    
+    /// 获取市场订单数据
+    /// - Parameters:
+    ///   - itemId: 物品ID
+    ///   - regionId: 星域ID
+    /// - Returns: 订单数据（如果存在且未过期）
+    func getMarketOrders(itemId: Int, regionId: Int) -> [MarketOrder]? {
+        let orderFile = getItemMarketPath(itemId: itemId).appendingPathComponent("orders_\(regionId).json")
+        guard let data = try? Data(contentsOf: orderFile),
+              let container = try? JSONDecoder().decode(MarketDataContainer<[MarketOrder]>.self, from: data),
+              Date().timeIntervalSince(container.timestamp) < 300 // 5分钟有效期
+        else {
+            return nil
+        }
+        return container.data
+    }
+    
+    /// 获取市场历史数据
+    /// - Parameters:
+    ///   - itemId: 物品ID
+    ///   - regionId: 星域ID
+    /// - Returns: 历史数据（如果存在且未过期）
+    func getMarketHistory(itemId: Int, regionId: Int) -> [MarketHistory]? {
+        let historyFile = getItemMarketPath(itemId: itemId).appendingPathComponent("history_\(regionId).json")
+        guard let data = try? Data(contentsOf: historyFile),
+              let container = try? JSONDecoder().decode(MarketDataContainer<[MarketHistory]>.self, from: data),
+              Date().timeIntervalSince(container.timestamp) < 3600 // 1小时有效期
+        else {
+            return nil
+        }
+        return container.data
+    }
+    
+    /// 清理市场数据缓存
+    func clearMarketData() throws {
+        let marketPath = getMarketDataPath()
+        if fileManager.fileExists(atPath: marketPath.path) {
+            try fileManager.removeItem(at: marketPath)
+            Logger.info("Cleared market data cache")
+        }
+    }
+    
+    /// 市场数据容器
+    private struct MarketDataContainer<T: Codable>: Codable {
+        let data: T
+        let timestamp: Date
+    }
+    
+    /// 获取市场数据统计
+    func getMarketDataStats() -> ResourceInfo {
+        let marketPath = getMarketDataPath()
+        let exists = fileManager.fileExists(atPath: marketPath.path)
+        var totalSize: Int64 = 0
+        var lastModified: Date? = nil
+        var itemCount: Int = 0
+        var dataCount: Int = 0
+        
+        if exists {
+            if let enumerator = fileManager.enumerator(atPath: marketPath.path) {
+                for case let fileName as String in enumerator {
+                    if fileName.hasSuffix(".json") {
+                        dataCount += 1
+                        let filePath = (marketPath.path as NSString).appendingPathComponent(fileName)
+                        do {
+                            let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                            totalSize += attributes[.size] as? Int64 ?? 0
+                            
+                            // 使用最新的修改时间
+                            if let fileModified = attributes[.modificationDate] as? Date {
+                                if lastModified == nil || fileModified > lastModified! {
+                                    lastModified = fileModified
+                                }
+                            }
+                        } catch {
+                            Logger.error("Error getting market data attributes: \(error)")
+                        }
+                    } else if fileName.hasPrefix("Market_") {
+                        itemCount += 1
+                    }
+                }
+            }
+        }
+        
+        let name = String(format: NSLocalizedString("Main_Setting_Market_Data", comment: ""), itemCount, dataCount)
+        
+        return ResourceInfo(
+            name: name,
+            exists: exists,
+            lastModified: lastModified,
+            fileSize: totalSize,
+            downloadTime: nil
+        )
+    }
 } 

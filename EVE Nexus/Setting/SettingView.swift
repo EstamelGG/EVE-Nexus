@@ -395,6 +395,18 @@ struct SettingView: View {
             )
         )
         
+        // 添加市场数据统计
+        let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
+        items.append(
+            SettingItem(
+                title: marketDataStats.name,
+                detail: formatResourceInfo(marketDataStats),
+                icon: marketDataStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                iconColor: marketDataStats.exists ? .green : .red,
+                action: { }  // 市场数据不支持手动刷新
+            )
+        )
+        
         return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
     }
     
@@ -626,10 +638,17 @@ struct SettingView: View {
                 Logger.error("Failed to clear alliance icons: \(error)")
             }
             
-            // 3. 重新计算缓存大小并立即更新UI
+            // 3. 清理市场数据缓存
+            do {
+                try StaticResourceManager.shared.clearMarketData()
+            } catch {
+                Logger.error("Failed to clear market data: \(error)")
+            }
+            
+            // 4. 重新计算缓存大小并立即更新UI
             calculateCacheSize()
             
-            // 4. 隐藏加载指示器
+            // 5. 隐藏加载指示器
             isCleaningCache = false
         }
     }

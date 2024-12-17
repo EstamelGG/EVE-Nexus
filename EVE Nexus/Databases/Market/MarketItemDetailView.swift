@@ -463,10 +463,18 @@ struct MarketItemDetailView: View {
     private func loadMarketData(forceRefresh: Bool = false) async {
         guard !isLoadingPrice else { return }
         
-        if !forceRefresh, let orders = marketOrders {
-            let sellOrders = orders.filter { !$0.isBuyOrder }
-            lowestPrice = sellOrders.map { $0.price }.min()
-            return
+        // 1. 尝试从缓存获取
+        var shouldRefresh = forceRefresh
+        if !shouldRefresh {
+            if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
+                marketOrders = orders
+                let sellOrders = orders.filter { !$0.isBuyOrder }
+                lowestPrice = sellOrders.map { $0.price }.min()
+                return
+            } else {
+                // 如果缓存不存在或已过期，强制刷新
+                shouldRefresh = true
+            }
         }
         
         isLoadingPrice = true
@@ -474,14 +482,17 @@ struct MarketItemDetailView: View {
         
         do {
             NetworkManager.shared.setRegionID(selectedRegionID)
-            marketOrders = try await NetworkManager.shared.fetchMarketOrders(
+            let orders = try await NetworkManager.shared.fetchMarketOrders(
                 typeID: itemID,
-                forceRefresh: forceRefresh
+                forceRefresh: shouldRefresh
             )
-            if let orders = marketOrders {
-                let sellOrders = orders.filter { !$0.isBuyOrder }
-                lowestPrice = sellOrders.map { $0.price }.min()
-            }
+            
+            // 2. 保存到缓存
+            try StaticResourceManager.shared.saveMarketOrders(orders, itemId: itemID, regionId: selectedRegionID)
+            
+            marketOrders = orders
+            let sellOrders = orders.filter { !$0.isBuyOrder }
+            lowestPrice = sellOrders.map { $0.price }.min()
         } catch {
             Logger.error("加载市场订单失败: \(error)")
             marketOrders = []
@@ -491,8 +502,16 @@ struct MarketItemDetailView: View {
     private func loadHistoryData(forceRefresh: Bool = false) async {
         guard !isLoadingHistory else { return }
         
-        if !forceRefresh, let _ = marketHistory {
-            return
+        // 1. 尝试从缓存获取
+        var shouldRefresh = forceRefresh
+        if !shouldRefresh {
+            if let history = StaticResourceManager.shared.getMarketHistory(itemId: itemID, regionId: selectedRegionID) {
+                marketHistory = history
+                return
+            } else {
+                // 如果缓存不存在或已过期，强制刷新
+                shouldRefresh = true
+            }
         }
         
         isLoadingHistory = true
@@ -500,10 +519,15 @@ struct MarketItemDetailView: View {
         
         do {
             NetworkManager.shared.setRegionID(selectedRegionID)
-            marketHistory = try await NetworkManager.shared.fetchMarketHistory(
+            let history = try await NetworkManager.shared.fetchMarketHistory(
                 typeID: itemID,
-                forceRefresh: forceRefresh
+                forceRefresh: shouldRefresh
             )
+            
+            // 2. 保存到缓存
+            try StaticResourceManager.shared.saveMarketHistory(history, itemId: itemID, regionId: selectedRegionID)
+            
+            marketHistory = history
         } catch {
             Logger.error("加载市场历史数据失败: \(error)")
             marketHistory = []

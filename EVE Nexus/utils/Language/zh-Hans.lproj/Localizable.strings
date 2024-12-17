@@ -176,3 +176,5 @@
 "Network_Error_Invalid_Image" = "无效的图片数据";
 "Network_Error_No_Price" = "没有有效的价格数据";
 "Network_Error_Invalid_Data" = "无效的数据";
+
+"Main_Setting_Market_Data" = "市场数据 (%d个物品, %d条记录)";

@@ -180,4 +180,6 @@
 "Network_Error_No_Price" = "No Valid Price Data";
 "Network_Error_Invalid_Data" = "Invalid Data";
 
+"Main_Setting_Market_Data" = "Market Data (%d items, %d records)";
+
 
