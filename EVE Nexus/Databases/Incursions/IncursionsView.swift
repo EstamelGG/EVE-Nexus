@@ -26,6 +26,12 @@ struct PreparedIncursion: Codable {
     }
 }
 
+// 添加一个包装结构体
+private struct CacheData: Codable {
+    let preparedIncursions: [PreparedIncursion]
+    let timestamp: Date
+}
+
 // 视图模型
 class IncursionsViewModel: ObservableObject {
     @Published var incursions: [Incursion] = []
@@ -260,33 +266,27 @@ final class CacheEntry: Codable {
         Date().timeIntervalSince(timestamp) >= validityDuration
     }
     
-    // 修改 Codable 实现
-    private enum CodingKeys: String, CodingKey {
-        case data, timestamp
-    }
-    
     required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let preparedIncursions = try container.decode([PreparedIncursion].self, forKey: .data)
-        self.timestamp = try container.decode(Date.self, forKey: .timestamp)
+        let container = try decoder.singleValueContainer()
+        let cacheData = try container.decode(CacheData.self)
         
-        self.data = preparedIncursions.map { prepared in
-            (
-                incursion: prepared.incursion,
-                faction: (iconName: prepared.faction.iconName, name: prepared.faction.name),
-                location: (
-                    systemName: prepared.location.systemName,
-                    security: prepared.location.security,
-                    constellationName: prepared.location.constellationName,
-                    regionName: prepared.location.regionName
+        self.timestamp = cacheData.timestamp
+        self.data = cacheData.preparedIncursions.map { prepared in
+            return (
+                prepared.incursion,
+                (prepared.faction.iconName, prepared.faction.name),
+                (
+                    prepared.location.systemName,
+                    prepared.location.security,
+                    prepared.location.constellationName,
+                    prepared.location.regionName
                 )
             )
         }
     }
     
     func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(timestamp, forKey: .timestamp)
+        var container = encoder.singleValueContainer()
         
         let preparedData = data.map { tuple in
             PreparedIncursion(
@@ -303,7 +303,9 @@ final class CacheEntry: Codable {
                 )
             )
         }
-        try container.encode(preparedData, forKey: .data)
+        
+        let cacheData = CacheData(preparedIncursions: preparedData, timestamp: timestamp)
+        try container.encode(cacheData)
     }
 }
 
