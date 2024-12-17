@@ -162,6 +162,7 @@
 "Main_Setting_Static_Resource_Sovereignty" = "主权数据";
 "Main_Setting_Static_Resource_Alliance_Icons" = "联盟图标";
 "Main_Setting_Static_Resource_Icon_Count" = " (%d个)";
+"Main_Setting_Static_Resource_Net_Renders" = "物品渲染图";
 
 // 时间显示
 "Time_Days_Ago" = "%d天前";

@@ -140,8 +140,24 @@ struct ItemBasicInfoView: View {
     // 加载渲染图
     private func loadRenderImage(for itemID: Int) {
         Task {
+            // 1. 先尝试从缓存获取
+            if let cachedData = StaticResourceManager.shared.getNetRender(typeId: itemID),
+               let cachedImage = UIImage(data: cachedData) {
+                await MainActor.run {
+                    self.renderImage = cachedImage
+                }
+                return
+            }
+            
+            // 2. 从网络获取
             do {
                 let image = try await NetworkManager.shared.fetchEVEItemRender(typeID: itemID)
+                
+                // 3. 保存到缓存
+                if let imageData = image.pngData() {
+                    try StaticResourceManager.shared.saveNetRender(imageData, typeId: itemID)
+                }
+                
                 await MainActor.run {
                     self.renderImage = image
                 }

@@ -391,7 +391,19 @@ struct SettingView: View {
                 detail: formatResourceInfo(allianceIconStats),
                 icon: allianceIconStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                 iconColor: allianceIconStats.exists ? .green : .red,
-                action: { }  // 联盟图标不支持手动刷新
+                action: { }  // 联��图标不支持手动刷新
+            )
+        )
+        
+        // 添加渲染图统计
+        let renderStats = StaticResourceManager.shared.getNetRendersStats()
+        items.append(
+            SettingItem(
+                title: renderStats.name,
+                detail: formatResourceInfo(renderStats),
+                icon: renderStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                iconColor: renderStats.exists ? .green : .red,
+                action: { }  // 渲染图不支持手动刷新
             )
         )
         
@@ -645,10 +657,17 @@ struct SettingView: View {
                 Logger.error("Failed to clear market data: \(error)")
             }
             
-            // 4. 重新计算缓存大小并立即更新UI
+            // 4. 清理渲染图缓存
+            do {
+                try StaticResourceManager.shared.clearNetRenders()
+            } catch {
+                Logger.error("Failed to clear net renders: \(error)")
+            }
+            
+            // 5. 重新计算缓存大小并立即更新UI
             calculateCacheSize()
             
-            // 5. 隐藏加载指示器
+            // 6. 隐藏加载指示器
             isCleaningCache = false
         }
     }

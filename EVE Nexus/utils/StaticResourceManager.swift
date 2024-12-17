@@ -407,7 +407,7 @@ class StaticResourceManager {
                             let attributes = try fileManager.attributesOfItem(atPath: filePath)
                             totalSize += attributes[.size] as? Int64 ?? 0
                             
-                            // 使用最新的修改时间
+                            // 使��最新的修改时间
                             if let fileModified = attributes[.modificationDate] as? Date {
                                 if lastModified == nil || fileModified > lastModified! {
                                     lastModified = fileModified
@@ -424,6 +424,91 @@ class StaticResourceManager {
         }
         
         let name = String(format: NSLocalizedString("Main_Setting_Market_Data", comment: ""), itemCount, dataCount)
+        
+        return ResourceInfo(
+            name: name,
+            exists: exists,
+            lastModified: lastModified,
+            fileSize: totalSize,
+            downloadTime: nil
+        )
+    }
+    
+    /// 获取渲染图目录路径
+    func getNetRendersPath() -> URL {
+        return getStaticDataSetPath().appendingPathComponent("NetRenders")
+    }
+    
+    /// 保存渲染图
+    /// - Parameters:
+    ///   - data: 图片数据
+    ///   - typeId: 物品ID
+    func saveNetRender(_ data: Data, typeId: Int) throws {
+        let renderPath = getNetRendersPath()
+        
+        // 确保目录存在
+        if !fileManager.fileExists(atPath: renderPath.path) {
+            try fileManager.createDirectory(at: renderPath, withIntermediateDirectories: true)
+        }
+        
+        let renderFile = renderPath.appendingPathComponent("\(typeId).png")
+        try data.write(to: renderFile)
+        Logger.info("Saved net render: \(typeId)")
+    }
+    
+    /// 获取渲染图
+    /// - Parameter typeId: 物品ID
+    /// - Returns: 图片数据
+    func getNetRender(typeId: Int) -> Data? {
+        let renderFile = getNetRendersPath().appendingPathComponent("\(typeId).png")
+        return try? Data(contentsOf: renderFile)
+    }
+    
+    /// 清理渲染图缓存
+    func clearNetRenders() throws {
+        let renderPath = getNetRendersPath()
+        if fileManager.fileExists(atPath: renderPath.path) {
+            try fileManager.removeItem(at: renderPath)
+            Logger.info("Cleared net renders cache")
+        }
+    }
+    
+    /// 获取渲染图缓存统计
+    func getNetRendersStats() -> ResourceInfo {
+        let renderPath = getNetRendersPath()
+        let exists = fileManager.fileExists(atPath: renderPath.path)
+        var totalSize: Int64 = 0
+        var lastModified: Date? = nil
+        var renderCount: Int = 0
+        
+        if exists {
+            if let enumerator = fileManager.enumerator(atPath: renderPath.path) {
+                for case let fileName as String in enumerator {
+                    if fileName.hasSuffix(".png") {
+                        renderCount += 1
+                        let filePath = (renderPath.path as NSString).appendingPathComponent(fileName)
+                        do {
+                            let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                            totalSize += attributes[.size] as? Int64 ?? 0
+                            
+                            // 使用最新的修改时间
+                            if let fileModified = attributes[.modificationDate] as? Date {
+                                if lastModified == nil || fileModified > lastModified! {
+                                    lastModified = fileModified
+                                }
+                            }
+                        } catch {
+                            Logger.error("Error getting net render attributes: \(error)")
+                        }
+                    }
+                }
+            }
+        }
+        
+        var name = NSLocalizedString("Main_Setting_Static_Resource_Net_Renders", comment: "")
+        if renderCount > 0 {
+            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), renderCount)
+        }
         
         return ResourceInfo(
             name: name,
