@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// 设置项结构
+// MARK: - 数据模型
 struct SettingItem: Identifiable {
     let id = UUID()
     let title: String
@@ -19,14 +19,14 @@ struct SettingItem: Identifiable {
     }
 }
 
-// 设置组结构
+// MARK: - 设置组
 struct SettingGroup: Identifiable {
     let id = UUID()
     let header: String
     let items: [SettingItem]
 }
 
-// 缓存统计结构
+// MARK: - 缓存模型
 struct CacheStats {
     var size: Int64
     var count: Int
@@ -36,7 +36,7 @@ struct CacheStats {
     }
 }
 
-// 缓存管理器
+// MARK: - 缓存管理器
 class CacheManager {
     static let shared = CacheManager()
     private let fileManager = FileManager.default
@@ -231,7 +231,9 @@ class CacheManager {
     }
 }
 
+// MARK: - 设置视图
 struct SettingView: View {
+    // MARK: - 属性定义
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
@@ -246,7 +248,7 @@ struct SettingView: View {
     @State private var showingLoadingView = false
     @State private var refreshingResources: Set<String> = []
     
-    /// 计算相对时间显示
+    // MARK: - 时间处理工具
     private func getRelativeTimeString(from date: Date) -> String {
         let calendar = Calendar.current
         let now = Date()
@@ -263,6 +265,7 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 资源管理
     private func refreshResource(_ resource: StaticResourceManager.ResourceInfo) {
         // 如果该资源正在刷新中，直接返回
         guard !refreshingResources.contains(resource.name) else {
@@ -315,7 +318,7 @@ struct SettingView: View {
         }
     }
     
-    // 外观设置组
+    // MARK: - 设置组配置
     private var appearanceGroup: SettingGroup {
         SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
             SettingItem(
@@ -327,7 +330,6 @@ struct SettingView: View {
         ])
     }
     
-    // 其他设置组
     private var othersGroup: SettingGroup {
         SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
             SettingItem(
@@ -339,7 +341,6 @@ struct SettingView: View {
         ])
     }
     
-    // 缓存设置组
     private var cacheGroup: SettingGroup {
         SettingGroup(header: "Cache", items: [
             SettingItem(
@@ -361,7 +362,6 @@ struct SettingView: View {
         ])
     }
     
-    // 静态资源设置组
     private var staticResourceGroup: SettingGroup {
         let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
             var title = resource.name
@@ -426,7 +426,7 @@ struct SettingView: View {
         ]
     }
     
-    // 全屏遮罩视图
+    // MARK: - 界面组件
     private struct FullScreenCover: View {
         let progress: Double
         @Binding var loadingState: LoadingState
@@ -449,6 +449,7 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 视图主体
     var body: some View {
         NavigationView {
             List {
@@ -542,6 +543,7 @@ struct SettingView: View {
         })
     }
     
+    // MARK: - 主题管理
     private func getThemeIcon() -> String {
         switch selectedTheme {
         case "light": return "sun.max.fill"
@@ -562,7 +564,7 @@ struct SettingView: View {
             break
         }
     }
-
+    
     private func getAppearanceDetail() -> String {
         switch selectedTheme {
         case "light":
@@ -576,6 +578,7 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 缓存管理
     private func formatCacheDetails() -> String {
         // 如果正在清理，显示"-"
         if isCleaningCache {
@@ -696,6 +699,7 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 图标管理
     private func deleteIconsAndRestart() {
         Task {
             isReextractingIcons = true
@@ -748,6 +752,7 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 资源信息格式化
     private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
         if resource.exists {
             var info = ""
