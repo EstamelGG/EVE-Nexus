@@ -69,6 +69,11 @@ class InfestedSystemsViewModel: ObservableObject {
     
     private static var systemsCache: [Int: [SystemInfo]] = [:]
     
+    // 添加公共的清理缓存方法
+    static func clearCache() {
+        systemsCache.removeAll()
+    }
+    
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
         

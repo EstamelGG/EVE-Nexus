@@ -124,63 +124,92 @@ class CacheManager {
     
     // 清理所有缓存
     func clearAllCaches() async {
-        // 1. 清理URLCache
-        URLCache.shared.removeAllCachedResponses()
-        
-        // 2. 清理NSCache（如果有自定义实例）
-        // yourNSCache.removeAllObjects()
-        
-        // 3. 清理临时文件
-        let tempPath = NSTemporaryDirectory()
-        do {
-            let tempFiles = try fileManager.contentsOfDirectory(atPath: tempPath)
-            for file in tempFiles {
-                let filePath = (tempPath as NSString).appendingPathComponent(file)
-                try fileManager.removeItem(atPath: filePath)
+        await withTaskGroup(of: Void.self) { group in
+            // 1. 清理URLCache（异步）
+            group.addTask {
+                await MainActor.run {
+                    URLCache.shared.removeAllCachedResponses()
+                }
             }
-        } catch {
-            Logger.error("Error clearing temp files: \(error)")
+            
+            // 2. 清理临时文件（异步）
+            group.addTask {
+                let tempPath = NSTemporaryDirectory()
+                do {
+                    let files = try await MainActor.run {
+                        try self.fileManager.contentsOfDirectory(atPath: tempPath)
+                    }
+                    for file in files {
+                        let filePath = (tempPath as NSString).appendingPathComponent(file)
+                        try? await MainActor.run {
+                            try self.fileManager.removeItem(atPath: filePath)
+                        }
+                    }
+                } catch {
+                    Logger.error("Error clearing temp files: \(error)")
+                }
+            }
+            
+            // 3. 清理NetworkManager缓存
+            group.addTask {
+                NetworkManager.shared.clearAllCaches()
+            }
+            
+            // 4. 清理URL Session缓存（异步）
+            group.addTask {
+                await self.clearURLSessionCacheAsync()
+            }
+            
+            // 5. 清理入侵相关缓存（异步）
+            group.addTask {
+                await MainActor.run {
+                    UserDefaults.standard.removeObject(forKey: "incursions_cache")
+                    InfestedSystemsViewModel.clearCache()
+                }
+            }
+            
+            // 6. 清理数据库浏览器缓存
+            group.addTask {
+                await MainActor.run {
+                    DatabaseBrowserView.clearCache()
+                }
+            }
+            
+            // 等待所有任务完成
+            await group.waitForAll()
         }
-        
-        // 4. 清理NetworkManager缓存
-        NetworkManager.shared.clearAllCaches()
-        
-        // 5. 清理URL Session缓存
-        clearURLSessionCache()
-        
-        // 6. 清理入侵页面缓存
-        UserDefaults.standard.removeObject(forKey: "incursions_cache")
-        
-        // 7. 清理数据库浏览器缓存
-        await DatabaseBrowserView.clearCache()
         
         Logger.info("所有缓存清理完成")
     }
     
-    // 清理URL Session缓存
-    private func clearURLSessionCache() {
-        // 清理默认session的缓存
-        URLCache.shared.removeAllCachedResponses()
+    // 异步清理URL Session缓存
+    private func clearURLSessionCacheAsync() async {
+        await MainActor.run {
+            // 清理默认session的缓存
+            URLCache.shared.removeAllCachedResponses()
+            
+            // 清理cookies
+            if let cookies = HTTPCookieStorage.shared.cookies {
+                for cookie in cookies {
+                    HTTPCookieStorage.shared.deleteCookie(cookie)
+                }
+            }
+        }
         
-        // 清理磁盘和内存缓存
+        // 清理磁盘缓存
         if let cachesPath = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first {
             do {
-                let files = try fileManager.contentsOfDirectory(atPath: cachesPath)
-                for file in files {
-                    if file.contains("com.apple.nsurlsessiond") {
-                        let filePath = (cachesPath as NSString).appendingPathComponent(file)
-                        try fileManager.removeItem(atPath: filePath)
+                let files = try await MainActor.run {
+                    try self.fileManager.contentsOfDirectory(atPath: cachesPath)
+                }
+                for file in files where file.contains("com.apple.nsurlsessiond") {
+                    let filePath = (cachesPath as NSString).appendingPathComponent(file)
+                    try? await MainActor.run {
+                        try self.fileManager.removeItem(atPath: filePath)
                     }
                 }
             } catch {
                 Logger.error("Error clearing URL session cache: \(error)")
-            }
-        }
-        
-        // 清理cookies
-        if let cookies = HTTPCookieStorage.shared.cookies {
-            for cookie in cookies {
-                HTTPCookieStorage.shared.deleteCookie(cookie)
             }
         }
     }
