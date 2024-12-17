@@ -229,17 +229,18 @@ class StaticResourceManager {
         cache.removeAllObjects()
     }
     
-    /// 检查文件是否过期
-    /// - Parameters:
-    ///   - filePath: 文件路径
-    ///   - duration: 有效期（秒）
-    /// - Returns: 是否过期
+    // MARK: - 缓存时间计算
+    private func getRemainingCacheTime(lastModified: Date, duration: TimeInterval) -> TimeInterval {
+        let elapsed = Date().timeIntervalSince(lastModified)
+        return max(0, duration - elapsed)
+    }
+    
     private func isFileExpired(at filePath: String, duration: TimeInterval) -> Bool {
         guard let attributes = try? fileManager.attributesOfItem(atPath: filePath),
               let modificationDate = attributes[.modificationDate] as? Date else {
             return true
         }
-        return Date().timeIntervalSince(modificationDate) >= duration
+        return getRemainingCacheTime(lastModified: modificationDate, duration: duration) <= 0
     }
     
     /// 获取主权数据

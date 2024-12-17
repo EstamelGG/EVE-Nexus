@@ -449,6 +449,15 @@ struct SettingView: View {
         }
     }
     
+    // MARK: - 辅助计算属性
+    private func getResourceBaseName(_ title: String) -> String {
+        return title.components(separatedBy: " (").first ?? title
+    }
+    
+    private func isResourceRefreshing(_ title: String) -> Bool {
+        return refreshingResources.contains(getResourceBaseName(title))
+    }
+    
     // MARK: - 视图主体
     var body: some View {
         NavigationView {
@@ -478,7 +487,7 @@ struct SettingView: View {
                                     if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                         ProgressView()
                                             .frame(width: 36, height: 36)
-                                    } else if refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") {
+                                    } else if isResourceRefreshing(item.title) {
                                         ProgressView()
                                             .frame(width: 36, height: 36)
                                     } else {
@@ -487,12 +496,12 @@ struct SettingView: View {
                                             .frame(width: 36, height: 36)
                                             .foregroundColor(item.iconColor)
                                             .rotationEffect(.degrees(
-                                                refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") ? 360 : 0
+                                                isResourceRefreshing(item.title) ? 360 : 0
                                             ))
                                             .animation(
-                                                refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") ?
+                                                isResourceRefreshing(item.title) ?
                                                     Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                                                value: refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "")
+                                                value: isResourceRefreshing(item.title)
                                             )
                                     }
                                 }
