@@ -20,6 +20,8 @@ class StaticResourceManager {
     enum ResourceType: String, CaseIterable {
         case sovereignty = "sovereignty"
         case incursions = "incursions"
+        case allianceIcons = "allianceIcons"
+        case netRenders = "netRenders"
         
         var filename: String {
             return "\(self.rawValue).json"
@@ -31,19 +33,48 @@ class StaticResourceManager {
                 return NSLocalizedString("Main_Setting_Static_Resource_Sovereignty", comment: "")
             case .incursions:
                 return NSLocalizedString("Main_Setting_Static_Resource_Incursions", comment: "")
+            case .allianceIcons:
+                let stats = StaticResourceManager.shared.getAllianceIconsStats()
+                var name = NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: "")
+                if stats.exists {
+                    let count = StaticResourceManager.shared.getAllianceIconCount()
+                    name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                }
+                return name
+            case .netRenders:
+                let stats = StaticResourceManager.shared.getNetRendersStats()
+                var name = NSLocalizedString("Main_Setting_Static_Resource_Net_Renders", comment: "")
+                if stats.exists {
+                    let count = StaticResourceManager.shared.getNetRenderCount()
+                    name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                }
+                return name
             }
         }
         
         var downloadTimeKey: String {
             return "StaticResource_\(self.rawValue)_DownloadTime"
         }
+        
+        var cacheDuration: TimeInterval {
+            switch self {
+            case .sovereignty:
+                return StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION
+            case .incursions:
+                return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
+            case .allianceIcons:
+                return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
+            case .netRenders:
+                return StaticResourceManager.shared.RENDER_CACHE_DURATION
+            }
+        }
     }
     
     // 缓存有效期常量
-    private let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
-    private let RENDER_CACHE_DURATION: TimeInterval = 30 * 24 * 3600      // 30天
-    private let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
-    private let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
+    public let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
+    public let RENDER_CACHE_DURATION: TimeInterval = 60 * 24 * 3600      // 30天
+    public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
+    public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
     
     private init() {}
     
@@ -67,30 +98,52 @@ class StaticResourceManager {
     /// 获取所有静态资源的状态
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
-            let filePath = getStaticDataSetPath().appendingPathComponent(type.filename)
-            
-            let exists = fileManager.fileExists(atPath: filePath.path)
-            var lastModified: Date? = nil
-            var fileSize: Int64? = nil
-            let downloadTime = defaults.object(forKey: type.downloadTimeKey) as? Date
-            
-            if exists {
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: filePath.path)
-                    lastModified = attributes[.modificationDate] as? Date
-                    fileSize = attributes[.size] as? Int64
-                } catch {
-                    Logger.error("Error getting attributes for \(type.filename): \(error)")
+            switch type {
+            case .sovereignty, .incursions:
+                let filePath = getStaticDataSetPath().appendingPathComponent(type.filename)
+                let exists = fileManager.fileExists(atPath: filePath.path)
+                var lastModified: Date? = nil
+                var fileSize: Int64? = nil
+                let downloadTime = defaults.object(forKey: type.downloadTimeKey) as? Date
+                
+                if exists {
+                    do {
+                        let attributes = try fileManager.attributesOfItem(atPath: filePath.path)
+                        lastModified = attributes[.modificationDate] as? Date
+                        fileSize = attributes[.size] as? Int64
+                    } catch {
+                        Logger.error("Error getting attributes for \(type.filename): \(error)")
+                    }
                 }
+                
+                return ResourceInfo(
+                    name: type.displayName,
+                    exists: exists,
+                    lastModified: lastModified,
+                    fileSize: fileSize,
+                    downloadTime: downloadTime
+                )
+                
+            case .allianceIcons:
+                let stats = getAllianceIconsStats()
+                return ResourceInfo(
+                    name: type.displayName,
+                    exists: stats.exists,
+                    lastModified: stats.lastModified,
+                    fileSize: stats.fileSize,
+                    downloadTime: nil
+                )
+                
+            case .netRenders:
+                let stats = getNetRendersStats()
+                return ResourceInfo(
+                    name: type.displayName,
+                    exists: stats.exists,
+                    lastModified: stats.lastModified,
+                    fileSize: stats.fileSize,
+                    downloadTime: nil
+                )
             }
-            
-            return ResourceInfo(
-                name: type.displayName,
-                exists: exists,
-                lastModified: lastModified,
-                fileSize: fileSize,
-                downloadTime: downloadTime
-            )
         }
     }
     
@@ -163,6 +216,11 @@ class StaticResourceManager {
             cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
             
             Logger.info("Successfully refreshed incursions data")
+            
+        case .allianceIcons, .netRenders:
+            // 这两种类型的资源是按需获取的，不支持批量刷新
+            Logger.info("Alliance icons and net renders are refreshed on-demand")
+            break
         }
     }
     
@@ -197,7 +255,7 @@ class StaticResourceManager {
         
         // 检查文件是否过期
         if fileManager.fileExists(atPath: filePath.path) && 
-           isFileExpired(at: filePath.path, duration: SOVEREIGNTY_CACHE_DURATION) {
+           isFileExpired(at: filePath.path, duration: ResourceType.sovereignty.cacheDuration) {
             shouldRefresh = true
         }
         
@@ -603,7 +661,7 @@ class StaticResourceManager {
         
         // 检查文件是否过期
         if fileManager.fileExists(atPath: filePath.path) && 
-           isFileExpired(at: filePath.path, duration: INCURSIONS_CACHE_DURATION) {
+           isFileExpired(at: filePath.path, duration: ResourceType.incursions.cacheDuration) {
             shouldRefresh = true
         }
         
@@ -645,5 +703,39 @@ class StaticResourceManager {
         try saveToFile(jsonData, filename: filename)
         
         return incursionsData
+    }
+    
+    /// 获取联盟图标数量
+    func getAllianceIconCount() -> Int {
+        let iconPath = getAllianceIconPath()
+        var count = 0
+        
+        if fileManager.fileExists(atPath: iconPath.path),
+           let enumerator = fileManager.enumerator(atPath: iconPath.path) {
+            for case let fileName as String in enumerator {
+                if fileName.hasSuffix(".png") {
+                    count += 1
+                }
+            }
+        }
+        
+        return count
+    }
+    
+    /// 获取渲染图数量
+    func getNetRenderCount() -> Int {
+        let renderPath = getNetRendersPath()
+        var count = 0
+        
+        if fileManager.fileExists(atPath: renderPath.path),
+           let enumerator = fileManager.enumerator(atPath: renderPath.path) {
+            for case let fileName as String in enumerator {
+                if fileName.hasSuffix(".png") {
+                    count += 1
+                }
+            }
+        }
+        
+        return count
     }
 } 

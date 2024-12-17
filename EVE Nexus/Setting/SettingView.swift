@@ -305,6 +305,9 @@ struct SettingView: View {
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
                     try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                case .allianceIcons, .netRenders:
+                    Logger.info("Alliance icons and net renders are refreshed on-demand")
+                    break
                 }
                 
                 // 刷新缓存大小统计
@@ -348,7 +351,7 @@ struct SettingView: View {
     
     // 缓存设置组
     private var cacheGroup: SettingGroup {
-        SettingGroup(header: NSLocalizedString("Setting_Cache", comment: ""), items: [
+        SettingGroup(header: "Cache", items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
                 detail: formatCacheDetails(),
@@ -370,59 +373,57 @@ struct SettingView: View {
     
     // 静态资源设置组
     private var staticResourceGroup: SettingGroup {
-        var items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
+        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
             var title = resource.name
             if let downloadTime = resource.downloadTime {
                 title += " (" + getRelativeTimeString(from: downloadTime) + ")"
             }
+            
+            // 根据资源类型决定是否可刷新
+            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+                switch type {
+                case .sovereignty, .incursions:
+                    return SettingItem(
+                        title: title,
+                        detail: formatResourceInfo(resource),
+                        icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
+                              (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
+                        iconColor: isRefreshing == resource.name ? .blue :
+                                 (resource.exists ? .green : .red),
+                        action: { refreshResource(resource) }
+                    )
+                case .allianceIcons, .netRenders:
+                    return SettingItem(
+                        title: title,
+                        detail: formatResourceInfo(resource),
+                        icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                        iconColor: resource.exists ? .green : .red,
+                        action: { }  // 空操作
+                    )
+                }
+            }
+            
+            // 默认情况（不应该发生）
             return SettingItem(
                 title: title,
                 detail: formatResourceInfo(resource),
-                icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
-                      (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
-                iconColor: isRefreshing == resource.name ? .blue :
-                         (resource.exists ? .green : .red),
-                action: { refreshResource(resource) }
+                icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                iconColor: resource.exists ? .green : .red,
+                action: { }
             )
         }
         
-        // 添加联盟图标统计
-        let allianceIconStats = StaticResourceManager.shared.getAllianceIconsStats()
-        items.append(
-            SettingItem(
-                title: allianceIconStats.name,
-                detail: formatResourceInfo(allianceIconStats),
-                icon: allianceIconStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                iconColor: allianceIconStats.exists ? .green : .red,
-                action: { }  // 联盟图标不支持手动刷新
-            )
-        )
-        
-        // 添加渲染图统计
-        let renderStats = StaticResourceManager.shared.getNetRendersStats()
-        items.append(
-            SettingItem(
-                title: renderStats.name,
-                detail: formatResourceInfo(renderStats),
-                icon: renderStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                iconColor: renderStats.exists ? .green : .red,
-                action: { }  // 渲染图不支持手动刷新
-            )
-        )
-        
         // 添加市场数据统计
         let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
-        items.append(
-            SettingItem(
-                title: marketDataStats.name,
-                detail: formatResourceInfo(marketDataStats),
-                icon: marketDataStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                iconColor: marketDataStats.exists ? .green : .red,
-                action: { }  // 市场数据不支持手动刷新
-            )
+        let marketItem = SettingItem(
+            title: marketDataStats.name,
+            detail: formatResourceInfo(marketDataStats),
+            icon: marketDataStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+            iconColor: marketDataStats.exists ? .green : .red,
+            action: { }  // 市场数据不支持手动刷新
         )
         
-        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
+        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items + [marketItem])
     }
     
     private var settingGroups: [SettingGroup] {
@@ -730,13 +731,25 @@ struct SettingView: View {
     private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
         if resource.exists {
             var info = ""
-            if let size = resource.fileSize {
-                info += formatFileSize(size)
+            if let fileSize = resource.fileSize {
+                info += formatFileSize(fileSize)
             }
+            
+            // 获取缓存有效期
+            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+                let duration = type.cacheDuration
+                if duration >= 24 * 3600 {
+                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), Int(duration / (24 * 3600))) + ")"
+                } else {
+                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), Int(duration / 3600)) + ")"
+                }
+            }
+            
             if let lastModified = resource.lastModified {
                 info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
                     getRelativeTimeString(from: lastModified))
             }
+            
             return info
         } else {
             return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
