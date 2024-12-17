@@ -291,7 +291,14 @@ struct SettingView: View {
         
         Task {
             do {
-                try await StaticResourceManager.shared.forceRefresh(type)
+                // 强制从网络获取新数据
+                switch type {
+                case .sovereignty:
+                    let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
+                    let jsonData = try JSONEncoder().encode(sovereigntyData)
+                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                }
+                
                 // 刷新缓存大小统计
                 let stats = await CacheManager.shared.getAllCacheStats()
                 await MainActor.run {
@@ -300,6 +307,7 @@ struct SettingView: View {
             } catch {
                 Logger.error("Failed to refresh resource: \(error)")
             }
+            
             await MainActor.run {
                 self.isRefreshing = nil
             }
@@ -437,6 +445,14 @@ struct SettingView: View {
                                             .font(.system(size: 20))
                                             .frame(width: 36, height: 36)
                                             .foregroundColor(item.iconColor)
+                                            .rotationEffect(.degrees(
+                                                (isRefreshing != nil && item.icon == "arrow.triangle.2.circlepath") ? 360 : 0
+                                            ))
+                                            .animation(
+                                                (isRefreshing != nil && item.icon == "arrow.triangle.2.circlepath") ?
+                                                    Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
+                                                value: isRefreshing
+                                            )
                                     }
                                 }
                                 .frame(height: 36)
