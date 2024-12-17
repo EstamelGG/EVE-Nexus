@@ -289,11 +289,16 @@ struct SettingView: View {
             do {
                 try await StaticResourceManager.shared.forceRefresh(type)
                 // 刷新缓存大小统计
-                await calculateCacheSize()
+                let stats = await CacheManager.shared.getAllCacheStats()
+                await MainActor.run {
+                    self.cacheDetails = stats
+                }
             } catch {
                 Logger.error("Failed to refresh resource: \(error)")
             }
-            isRefreshing = nil
+            await MainActor.run {
+                self.isRefreshing = nil
+            }
         }
     }
     
@@ -501,8 +506,9 @@ struct SettingView: View {
     private func calculateCacheSize() {
         Task {
             let stats = await CacheManager.shared.getAllCacheStats()
+            // 在主线程更新 UI
             await MainActor.run {
-                cacheDetails = stats
+                self.cacheDetails = stats
             }
         }
     }
