@@ -164,6 +164,7 @@
 "Main_Setting_Static_Resource_Download_Time" = "Downloaded: %@";
 "Main_Setting_Static_Resource_Sovereignty" = "Sovereignty Data";
 "Main_Setting_Static_Resource_Alliance_Icons" = "Alliance Icons";
+"Main_Setting_Static_Resource_Icon_Count" = " (%d)";
 
 // Time Display
 "Time_Days_Ago" = "%d days ago";

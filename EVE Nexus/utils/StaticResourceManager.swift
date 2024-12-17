@@ -251,30 +251,39 @@ class StaticResourceManager {
         let exists = fileManager.fileExists(atPath: iconPath.path)
         var totalSize: Int64 = 0
         var lastModified: Date? = nil
+        var iconCount: Int = 0
         
         if exists {
             if let enumerator = fileManager.enumerator(atPath: iconPath.path) {
                 for case let fileName as String in enumerator {
-                    let filePath = (iconPath.path as NSString).appendingPathComponent(fileName)
-                    do {
-                        let attributes = try fileManager.attributesOfItem(atPath: filePath)
-                        totalSize += attributes[.size] as? Int64 ?? 0
-                        
-                        // 使用最新的修改时间
-                        if let fileModified = attributes[.modificationDate] as? Date {
-                            if lastModified == nil || fileModified > lastModified! {
-                                lastModified = fileModified
+                    if fileName.hasSuffix(".png") {
+                        iconCount += 1
+                        let filePath = (iconPath.path as NSString).appendingPathComponent(fileName)
+                        do {
+                            let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                            totalSize += attributes[.size] as? Int64 ?? 0
+                            
+                            // 使用最新的修改时间
+                            if let fileModified = attributes[.modificationDate] as? Date {
+                                if lastModified == nil || fileModified > lastModified! {
+                                    lastModified = fileModified
+                                }
                             }
+                        } catch {
+                            Logger.error("Error getting alliance icon attributes: \(error)")
                         }
-                    } catch {
-                        Logger.error("Error getting alliance icon attributes: \(error)")
                     }
                 }
             }
         }
         
+        var name = NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: "")
+        if iconCount > 0 {
+            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), iconCount)
+        }
+        
         return ResourceInfo(
-            name: NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: ""),
+            name: name,
             exists: exists,
             lastModified: lastModified,
             fileSize: totalSize,
