@@ -156,8 +156,8 @@
 "Main_Setting_Cache_Type_Database" = "Database Cache";
 "Main_Setting_Cache_Type_StaticDataSet" = "Static Dataset";
 "Main_Setting_Cache_Cleared_Message" = "Cleared %@ cache";
-"Main_Setting_Cache_Expiration_Days" = "%d days";
-"Main_Setting_Cache_Expiration_Hours" = "%d hours";
+"Main_Setting_Cache_Expiration_Days" = "%d days remaining";
+"Main_Setting_Cache_Expiration_Hours" = "%d hours remaining";
 
 // Static Resources
 "Main_Setting_Static_Resources" = "Static Resources";

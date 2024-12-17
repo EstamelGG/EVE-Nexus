@@ -99,8 +99,8 @@
 "Main_Setting_Cache_Type_Database" = "数据库缓存";
 "Main_Setting_Cache_Type_StaticDataSet" = "静态数据集";
 "Main_Setting_Cache_Cleared_Message" = "已清理%@缓存";
-"Main_Setting_Cache_Expiration_Days" = "%d天";
-"Main_Setting_Cache_Expiration_Hours" = "%d小时";
+"Main_Setting_Cache_Expiration_Days" = "剩余%d天";
+"Main_Setting_Cache_Expiration_Hours" = "剩余%d小时";
 
 "Main_About" = "关于";
 "Main_About_Title" = "关于";

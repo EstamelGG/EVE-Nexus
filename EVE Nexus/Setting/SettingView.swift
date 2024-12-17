@@ -760,13 +760,21 @@ struct SettingView: View {
                 info += formatFileSize(fileSize)
             }
             
-            // 获取缓存有效期
-            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+            // 获取缓存有效期和剩余时间
+            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }),
+               let lastModified = resource.lastModified {
                 let duration = type.cacheDuration
-                if duration >= 24 * 3600 {
-                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), Int(duration / (24 * 3600))) + ")"
+                let elapsed = Date().timeIntervalSince(lastModified)
+                let remaining = duration - elapsed
+                
+                if remaining > 0 {
+                    if remaining >= 24 * 3600 {
+                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), Int(remaining / (24 * 3600))) + ")"
+                    } else {
+                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), Int(remaining / 3600)) + ")"
+                    }
                 } else {
-                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), Int(duration / 3600)) + ")"
+                    info += " (已过期)"
                 }
             }
             
