@@ -260,7 +260,19 @@ struct SettingView: View {
                     iconColor: .red,
                     action: { showingDeleteIconsAlert = true }
                 )
-            ])
+            ]),
+            
+            SettingGroup(header: "静态资源", items:
+                StaticResourceManager.shared.getAllResourcesStatus().map { resource in
+                    SettingItem(
+                        title: resource.name,
+                        detail: formatResourceInfo(resource),
+                        icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                        iconColor: resource.exists ? .green : .red,
+                        action: {}
+                    )
+                }
+            )
         ]
     }
     
@@ -455,6 +467,24 @@ struct SettingView: View {
             } catch {
                 Logger.error("Error deleting Icons directory: \(error)")
             }
+        }
+    }
+    
+    private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
+        if resource.exists {
+            var info = ""
+            if let size = resource.fileSize {
+                info += formatFileSize(size)
+            }
+            if let date = resource.lastModified {
+                let formatter = DateFormatter()
+                formatter.dateStyle = .medium
+                formatter.timeStyle = .medium
+                info += "\n更新时间：\(formatter.string(from: date))"
+            }
+            return info
+        } else {
+            return "未下载"
         }
     }
 }

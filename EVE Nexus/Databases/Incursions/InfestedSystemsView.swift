@@ -99,16 +99,12 @@ class InfestedSystemsViewModel: ObservableObject {
             allianceToSystems.removeAll()
             factionToSystems.removeAll()
             
-            // 确保有主权数据
+            // 获取主权数据
             var sovereigntyData: [SovereigntyData]?
-            if let cached = NetworkManager.shared.getCachedSovereigntyData() {
-                sovereigntyData = cached
-            } else {
-                do {
-                    sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
-                } catch {
-                    Logger.error("无法获取主权数据: \(error)")
-                }
+            do {
+                sovereigntyData = try await StaticResourceManager.shared.getSovereigntyData()
+            } catch {
+                Logger.error("无法获取主权数据: \(error)")
             }
             
             for systemId in systemIds {
