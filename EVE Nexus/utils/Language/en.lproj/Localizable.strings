@@ -156,4 +156,10 @@
 "Main_Setting_Cache_Type_Database" = "Database Cache";
 "Main_Setting_Cache_Cleared_Message" = "Cleared %@ cache";
 
+// Static Resources
+"Main_Setting_Static_Resources" = "Static Resources";
+"Main_Setting_Static_Resource_Not_Downloaded" = "Not Downloaded";
+"Main_Setting_Static_Resource_Last_Updated" = "Last Updated: %@";
+"Main_Setting_Static_Resource_Sovereignty" = "Sovereignty Data";
+
 

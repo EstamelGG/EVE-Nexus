@@ -25,7 +25,7 @@ class StaticResourceManager {
         var displayName: String {
             switch self {
             case .sovereignty:
-                return "主权数据"
+                return "Sovereignty"
             }
         }
     }

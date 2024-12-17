@@ -153,3 +153,9 @@
 "Item_Volume" = "体积";
 "Item_Capacity" = "容量";
 "Item_Mass" = "质量";
+
+// 静态资源
+"Main_Setting_Static_Resources" = "静态资源";
+"Main_Setting_Static_Resource_Not_Downloaded" = "未下载";
+"Main_Setting_Static_Resource_Last_Updated" = "更新时间：%@";
+"Main_Setting_Static_Resource_Sovereignty" = "主权数据";

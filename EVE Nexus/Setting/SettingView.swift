@@ -262,10 +262,10 @@ struct SettingView: View {
                 )
             ]),
             
-            SettingGroup(header: "静态资源", items:
+            SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items:
                 StaticResourceManager.shared.getAllResourcesStatus().map { resource in
                     SettingItem(
-                        title: resource.name,
+                        title: NSLocalizedString("Main_Setting_Static_Resource_\(resource.name)", comment: ""),
                         detail: formatResourceInfo(resource),
                         icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                         iconColor: resource.exists ? .green : .red,
@@ -480,11 +480,11 @@ struct SettingView: View {
                 let formatter = DateFormatter()
                 formatter.dateStyle = .medium
                 formatter.timeStyle = .medium
-                info += "\n更新时间：\(formatter.string(from: date))"
+                info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), formatter.string(from: date))
             }
             return info
         } else {
-            return "未下载"
+            return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
         }
     }
 }
