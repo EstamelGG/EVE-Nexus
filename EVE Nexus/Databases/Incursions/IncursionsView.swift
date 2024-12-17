@@ -90,21 +90,10 @@ final class IncursionsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isRefreshing = false
     
-    @Cache(key: "incursions_cache", validityDuration: 8 * 3600)
-    private var cachedIncursions: [PreparedIncursion]?
-    
     let databaseManager: DatabaseManager
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
-        loadFromCache()
-    }
-    
-    private func loadFromCache() {
-        if let cached = cachedIncursions {
-            preparedIncursions = cached
-            Logger.info("ViewModel: [缓存] 成功加载 \(cached.count) 条入侵数据")
-        }
     }
     
     func fetchIncursions(forceRefresh: Bool = false, silent: Bool = false) async {
@@ -123,17 +112,12 @@ final class IncursionsViewModel: ObservableObject {
             }
         }
         
-        if !forceRefresh, let cached = NetworkManager.shared.getCachedIncursions() {
-            await processIncursions(cached)
-            return
-        }
-        
-        Logger.info("ViewModel: [网络] 开始获取入侵数据")
+        Logger.info("ViewModel: 开始获取入侵数据")
         do {
-            let incursions = try await NetworkManager.shared.fetchIncursions(forceRefresh: forceRefresh)
+            let incursions = try await StaticResourceManager.shared.fetchIncursionsData(forceRefresh: forceRefresh)
             await processIncursions(incursions)
         } catch {
-            Logger.error("ViewModel: [网络] 获取入侵数据失败: \(error)")
+            Logger.error("ViewModel: 获取入侵数据失败: \(error)")
         }
     }
     
@@ -174,7 +158,6 @@ final class IncursionsViewModel: ObservableObject {
         if !prepared.isEmpty {
             Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
             preparedIncursions = prepared
-            cachedIncursions = prepared
         } else {
             Logger.error("ViewModel: 没有可显示的完整数据")
         }

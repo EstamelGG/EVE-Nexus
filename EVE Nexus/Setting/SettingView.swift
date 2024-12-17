@@ -283,24 +283,27 @@ struct SettingView: View {
     }
     
     private func refreshResource(_ resource: StaticResourceManager.ResourceInfo) {
-        guard let type = StaticResourceManager.ResourceType.allCases.first(where: { type in
-            type.displayName == resource.name
-        }) else { return }
-        
-        isRefreshing = resource.name
-        
         Task {
+            isRefreshing = resource.name
+            
             do {
-                // 强制从网络获取新数据
+                // 找到对应的资源类型
+                guard let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) else {
+                    Logger.error("Unknown resource type: \(resource.name)")
+                    return
+                }
+                
+                // 根据类型执行不同的刷新操作
                 switch type {
                 case .sovereignty:
-                    // 1. 先清理相关缓存
-                    StaticResourceManager.shared.clearMemoryCache()
-                    URLCache.shared.removeAllCachedResponses()
-                    
-                    // 2. 强制从网络获取新数据
+                    Logger.info("Refreshing sovereignty data")
                     let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
+                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                case .incursions:
+                    Logger.info("Refreshing incursions data")
+                    let incursionsData = try await NetworkManager.shared.fetchIncursions()
+                    let jsonData = try JSONEncoder().encode(incursionsData)
                     try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
                 }
                 
@@ -391,7 +394,7 @@ struct SettingView: View {
                 detail: formatResourceInfo(allianceIconStats),
                 icon: allianceIconStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                 iconColor: allianceIconStats.exists ? .green : .red,
-                action: { }  // 联��图标不支持手动刷新
+                action: { }  // 联盟图标不支持手动刷新
             )
         )
         

@@ -19,6 +19,7 @@ class StaticResourceManager {
     // 资源类型枚举
     enum ResourceType: String, CaseIterable {
         case sovereignty = "sovereignty"
+        case incursions = "incursions"
         
         var filename: String {
             return "\(self.rawValue).json"
@@ -28,6 +29,8 @@ class StaticResourceManager {
             switch self {
             case .sovereignty:
                 return NSLocalizedString("Main_Setting_Static_Resource_Sovereignty", comment: "")
+            case .incursions:
+                return NSLocalizedString("Main_Setting_Static_Resource_Incursions", comment: "")
             }
         }
         
@@ -40,6 +43,7 @@ class StaticResourceManager {
     private let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
     private let RENDER_CACHE_DURATION: TimeInterval = 30 * 24 * 3600      // 30天
     private let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
+    private let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
     
     private init() {}
     
@@ -131,6 +135,20 @@ class StaticResourceManager {
             cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
             
             Logger.info("Successfully refreshed sovereignty data")
+            
+        case .incursions:
+            Logger.info("Force refreshing incursions data")
+            // 从网络获取新数据
+            let incursionsData = try await NetworkManager.shared.fetchIncursions()
+            let jsonData = try JSONEncoder().encode(incursionsData)
+            
+            // 保存到文件
+            try saveToFile(jsonData, filename: type.filename)
+            
+            // 更新缓存
+            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            
+            Logger.info("Successfully refreshed incursions data")
         }
     }
     
@@ -327,7 +345,7 @@ class StaticResourceManager {
         )
     }
     
-    /// 获取市场数据目录路径
+    /// 获取市���数据目录路径
     func getMarketDataPath() -> URL {
         return getStaticDataSetPath().appendingPathComponent("Market")
     }
@@ -563,5 +581,69 @@ class StaticResourceManager {
             fileSize: totalSize,
             downloadTime: nil
         )
+    }
+    
+    /// 获取入侵数据
+    /// - Parameter forceRefresh: 是否强制刷新
+    /// - Returns: 入侵数据数组
+    func fetchIncursionsData(forceRefresh: Bool = false) async throws -> [Incursion] {
+        let cacheKey = "incursions_data" as NSString
+        let filename = ResourceType.incursions.filename
+        let filePath = getStaticDataSetPath().appendingPathComponent(filename)
+        
+        // 确定是否需要刷新
+        var shouldRefresh = forceRefresh
+        
+        // 检查文件是否过期
+        if fileManager.fileExists(atPath: filePath.path) && 
+           isFileExpired(at: filePath.path, duration: INCURSIONS_CACHE_DURATION) {
+            shouldRefresh = true
+        }
+        
+        // 如果需要强制刷新，先执行刷新操作
+        if shouldRefresh {
+            try await self.forceRefresh(.incursions)
+            return try await fetchIncursionsData(forceRefresh: false)
+        }
+        
+        // 1. 尝试从缓存获取
+        if let cached = cache.object(forKey: cacheKey) {
+            do {
+                let data = try JSONDecoder().decode([Incursion].self, from: cached.data)
+                Logger.info("Got incursions data from cache")
+                return data
+            } catch {
+                Logger.error("Failed to decode cached incursions data: \(error)")
+            }
+        }
+        
+        // 2. 尝试从文件读取
+        if fileManager.fileExists(atPath: filePath.path) {
+            do {
+                let data = try Data(contentsOf: filePath)
+                let incursionsData = try JSONDecoder().decode([Incursion].self, from: data)
+                
+                // 更新缓存
+                cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey)
+                
+                Logger.info("Got incursions data from file")
+                return incursionsData
+            } catch {
+                Logger.error("Failed to load incursions data from file: \(error)")
+            }
+        }
+        
+        // 3. 从网络获取
+        Logger.info("Fetching incursions data from network")
+        let incursionsData = try await NetworkManager.shared.fetchIncursions()
+        let jsonData = try JSONEncoder().encode(incursionsData)
+        
+        // 保存到文件
+        try saveToFile(jsonData, filename: filename)
+        
+        // 更新缓存
+        cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: cacheKey)
+        
+        return incursionsData
     }
 } 
