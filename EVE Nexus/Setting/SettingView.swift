@@ -150,6 +150,7 @@ class CacheManager {
 struct SettingView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @State private var showingCleanCacheAlert = false
+    @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
     @State private var cacheSize: String = "计算中..."
     @ObservedObject var databaseManager: DatabaseManager
@@ -182,6 +183,13 @@ struct SettingView: View {
                     icon: "trash",
                     iconColor: .red,
                     action: { showingCleanCacheAlert = true }
+                ),
+                SettingItem(
+                    title: "重置图标缓存",
+                    detail: "删除所有图标缓存并重启应用",
+                    icon: "arrow.triangle.2.circlepath",
+                    iconColor: .red,
+                    action: { showingDeleteIconsAlert = true }
                 )
             ])
         ]
@@ -227,13 +235,21 @@ struct SettingView: View {
         .navigationDestination(isPresented: $showingLanguageView) {
             SelectLanguageView(databaseManager: databaseManager)
         }
-        .alert("Clean Cache", isPresented: $showingCleanCacheAlert) {
+        .alert("清理缓存", isPresented: $showingCleanCacheAlert) {
             Button("取消", role: .cancel) { }
             Button("清理", role: .destructive) {
                 cleanCache()
             }
         } message: {
             Text("这将清理应用缓存，包括网络缓存和临时文件。是否确认？")
+        }
+        .alert("重置图标缓存", isPresented: $showingDeleteIconsAlert) {
+            Button("取消", role: .cancel) { }
+            Button("重置", role: .destructive) {
+                deleteIconsAndRestart()
+            }
+        } message: {
+            Text("这将删除所有已下载的图标缓存并重启应用。是否确认？")
         }
         .onAppear {
             calculateCacheSize()
@@ -316,6 +332,26 @@ struct SettingView: View {
             let stats = await CacheManager.shared.getAllCacheStats()
             await MainActor.run {
                 cacheDetails = stats
+            }
+        }
+    }
+    
+    private func deleteIconsAndRestart() {
+        Task {
+            let fileManager = FileManager.default
+            let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let iconPath = documentPath.appendingPathComponent("Icons")
+            
+            do {
+                if fileManager.fileExists(atPath: iconPath.path) {
+                    try fileManager.removeItem(at: iconPath)
+                    Logger.info("Successfully deleted Icons directory")
+                }
+                // 等待文件系统完成操作
+                try await Task.sleep(for: .milliseconds(500))
+                exit(0)
+            } catch {
+                Logger.error("Error deleting Icons directory: \(error)")
             }
         }
     }
