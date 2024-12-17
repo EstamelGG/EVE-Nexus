@@ -777,13 +777,11 @@ struct SettingView: View {
                 let remaining = duration - elapsed
                 
                 if remaining > 0 {
-                    if remaining >= 24 * 3600 {
-                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), Int(remaining / (24 * 3600))) + ")"
-                    } else {
-                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), Int(remaining / 3600)) + ")"
-                    }
+                    let days = Int(remaining / (24 * 3600))
+                    let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
+                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), days) + String(format: NSLocalizedString("Time_Hour", comment: ""), hours) + ")"
                 } else {
-                    info += " (已过期)"
+                    info += " \(NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: ""))"
                 }
             }
             
