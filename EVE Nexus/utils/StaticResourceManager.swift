@@ -112,9 +112,23 @@ class StaticResourceManager {
         // 保存下载时间
         if let resourceType = ResourceType.allCases.first(where: { $0.filename == filename }) {
             defaults.set(Date(), forKey: resourceType.downloadTimeKey)
+            // 同时更新内存缓存
+            cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: resourceType.rawValue as NSString)
         }
         
         Logger.info("Saved static resource to file: \(filename)")
+    }
+    
+    /// 从文件加载数据并更新内存缓存
+    /// - Parameters:
+    ///   - filePath: 文件路径
+    ///   - cacheKey: 缓存键
+    /// - Returns: 文件数据
+    private func loadFromFileAndCache(filePath: String, cacheKey: NSString) throws -> Data {
+        let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
+        // 更新内存缓存
+        cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey)
+        return data
     }
     
     /// 强制刷新指定资源
@@ -174,7 +188,7 @@ class StaticResourceManager {
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权数据数组
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        let cacheKey = "sovereignty_data" as NSString
+        let cacheKey = ResourceType.sovereignty.rawValue as NSString
         let filename = ResourceType.sovereignty.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
@@ -193,11 +207,11 @@ class StaticResourceManager {
             return try await fetchSovereigntyData(forceRefresh: false)
         }
         
-        // 1. 尝试从缓存获取
+        // 1. 尝试从内存缓存获取
         if let cached = cache.object(forKey: cacheKey) {
             do {
                 let data = try JSONDecoder().decode([SovereigntyData].self, from: cached.data)
-                Logger.info("Got sovereignty data from cache")
+                Logger.info("Got sovereignty data from memory cache")
                 return data
             } catch {
                 Logger.error("Failed to decode cached sovereignty data: \(error)")
@@ -207,12 +221,8 @@ class StaticResourceManager {
         // 2. 尝试从文件读取
         if fileManager.fileExists(atPath: filePath.path) {
             do {
-                let data = try Data(contentsOf: filePath)
+                let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
                 let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
-                
-                // 更新缓存
-                cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey)
-                
                 Logger.info("Got sovereignty data from file")
                 return sovereigntyData
             } catch {
@@ -225,11 +235,8 @@ class StaticResourceManager {
         let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
         let jsonData = try JSONEncoder().encode(sovereigntyData)
         
-        // 保存到文件
+        // 保存到文件（同时会更新内存缓存）
         try saveToFile(jsonData, filename: filename)
-        
-        // 更新缓存
-        cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: cacheKey)
         
         return sovereigntyData
     }
@@ -345,7 +352,7 @@ class StaticResourceManager {
         )
     }
     
-    /// 获取市���数据目录路径
+    /// 获取市场数据目录路径
     func getMarketDataPath() -> URL {
         return getStaticDataSetPath().appendingPathComponent("Market")
     }
@@ -587,7 +594,7 @@ class StaticResourceManager {
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 入侵数据数组
     func fetchIncursionsData(forceRefresh: Bool = false) async throws -> [Incursion] {
-        let cacheKey = "incursions_data" as NSString
+        let cacheKey = ResourceType.incursions.rawValue as NSString
         let filename = ResourceType.incursions.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
@@ -606,11 +613,11 @@ class StaticResourceManager {
             return try await fetchIncursionsData(forceRefresh: false)
         }
         
-        // 1. 尝试从缓存获取
+        // 1. 尝试从内存缓存获取
         if let cached = cache.object(forKey: cacheKey) {
             do {
                 let data = try JSONDecoder().decode([Incursion].self, from: cached.data)
-                Logger.info("Got incursions data from cache")
+                Logger.info("Got incursions data from memory cache")
                 return data
             } catch {
                 Logger.error("Failed to decode cached incursions data: \(error)")
@@ -620,12 +627,8 @@ class StaticResourceManager {
         // 2. 尝试从文件读取
         if fileManager.fileExists(atPath: filePath.path) {
             do {
-                let data = try Data(contentsOf: filePath)
+                let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
                 let incursionsData = try JSONDecoder().decode([Incursion].self, from: data)
-                
-                // 更新缓存
-                cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey)
-                
                 Logger.info("Got incursions data from file")
                 return incursionsData
             } catch {
@@ -638,11 +641,8 @@ class StaticResourceManager {
         let incursionsData = try await NetworkManager.shared.fetchIncursions()
         let jsonData = try JSONEncoder().encode(incursionsData)
         
-        // 保存到文件
+        // 保存到文件（同时会更新内存缓存）
         try saveToFile(jsonData, filename: filename)
-        
-        // 更新缓存
-        cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: cacheKey)
         
         return incursionsData
     }
