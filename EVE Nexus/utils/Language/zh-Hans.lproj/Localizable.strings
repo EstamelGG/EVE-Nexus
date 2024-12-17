@@ -160,6 +160,7 @@
 // 静态资源
 "Main_Setting_Static_Resources" = "静态资源";
 "Main_Setting_Static_Resource_Not_Downloaded" = "未下载";
+"Main_Setting_Static_Resource_No_Cache" = "无缓存";
 "Main_Setting_Static_Resource_Last_Updated" = "更新时间：%@";
 "Main_Setting_Static_Resource_Sovereignty" = "主权数据";
 "Main_Setting_Static_Resource_Alliance_Icons" = "联盟图标";

@@ -785,7 +785,16 @@ struct SettingView: View {
             
             return info
         } else {
-            return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
+            // 根据资源类型返回不同的提示文本
+            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+                switch type {
+                case .sovereignty, .incursions:
+                    return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
+                case .allianceIcons, .netRenders:
+                    return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
+                }
+            }
+            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
         }
     }
 }
