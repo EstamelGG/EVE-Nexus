@@ -140,7 +140,7 @@
 "Main_Setting_Clean_Cache_Title" = "Clean Cache";
 "Main_Setting_Clean_Cache_Message" = "This will clean app cache, including network cache and temporary files. Are you sure?";
 "Main_Setting_Reset_Icons" = "Reset Icons Cache";
-"Main_Setting_Reset_Icons_Detail" = "Delete all icon cache and restart app";
+"Main_Setting_Reset_Icons_Detail" = "Delete all icon cache and re-release";
 "Main_Setting_Reset_Icons_Title" = "Reset Icons Cache";
 "Main_Setting_Reset_Icons_Message" = "This will delete all downloaded icon cache and restart the app. Are you sure?";
 "Main_Setting_Cancel" = "Cancel";
