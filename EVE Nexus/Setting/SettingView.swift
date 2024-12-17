@@ -259,6 +259,7 @@ struct SettingView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var cacheDetails: [String: CacheStats] = [:]
     @State private var isCleaningCache = false
+    @State private var isRefreshing: String? = nil
     
     /// 计算相对时间显示
     private func getRelativeTimeString(from date: Date) -> String {
@@ -274,6 +275,25 @@ struct SettingView: View {
             return String(format: NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
         } else {
             return NSLocalizedString("Time_Just_Now", comment: "")
+        }
+    }
+    
+    private func refreshResource(_ resource: StaticResourceManager.ResourceInfo) {
+        guard let type = StaticResourceManager.ResourceType.allCases.first(where: { type in
+            type.displayName == resource.name
+        }) else { return }
+        
+        isRefreshing = resource.name
+        
+        Task {
+            do {
+                try await StaticResourceManager.shared.forceRefresh(type)
+                // 刷新缓存大小统计
+                await calculateCacheSize()
+            } catch {
+                Logger.error("Failed to refresh resource: \(error)")
+            }
+            isRefreshing = nil
         }
     }
     
@@ -316,16 +336,18 @@ struct SettingView: View {
             
             SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items:
                 StaticResourceManager.shared.getAllResourcesStatus().map { resource in
-                    var title = NSLocalizedString("Main_Setting_Static_Resource_\(resource.name)", comment: "")
+                    var title = resource.name
                     if let downloadTime = resource.downloadTime {
                         title += " (" + getRelativeTimeString(from: downloadTime) + ")"
                     }
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
-                        icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                        iconColor: resource.exists ? .green : .red,
-                        action: {}
+                        icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
+                              (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
+                        iconColor: isRefreshing == resource.name ? .blue :
+                                 (resource.exists ? .green : .red),
+                        action: { refreshResource(resource) }
                     )
                 }
             )

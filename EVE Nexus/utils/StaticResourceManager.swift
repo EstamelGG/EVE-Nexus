@@ -27,7 +27,7 @@ class StaticResourceManager {
         var displayName: String {
             switch self {
             case .sovereignty:
-                return "Sovereignty"
+                return NSLocalizedString("Main_Setting_Static_Resource_Sovereignty", comment: "")
             }
         }
         
@@ -108,11 +108,39 @@ class StaticResourceManager {
         Logger.info("Saved static resource to file: \(filename)")
     }
     
+    /// 强制刷新指定资源
+    /// - Parameter type: 资源类型
+    /// - Returns: 是否刷新成功
+    func forceRefresh(_ type: ResourceType) async throws {
+        switch type {
+        case .sovereignty:
+            Logger.info("Force refreshing sovereignty data")
+            // 从网络获取新数据
+            let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
+            let jsonData = try JSONEncoder().encode(sovereigntyData)
+            
+            // 保存到文件
+            try saveToFile(jsonData, filename: type.filename)
+            
+            // 更新缓存
+            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            
+            Logger.info("Successfully refreshed sovereignty data")
+        }
+    }
+    
     /// 获取主权数据
+    /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权数据数组
-    func getSovereigntyData() async throws -> [SovereigntyData] {
+    func getSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
+        // 如果需要强制刷新，先执行刷新操作
+        if forceRefresh {
+            try await self.forceRefresh(.sovereignty)
+            return try await getSovereigntyData(forceRefresh: false)
+        }
+        
         let cacheKey = "sovereignty_data" as NSString
-        let filename = "sovereignty.json"
+        let filename = ResourceType.sovereignty.filename
         
         // 1. 尝试从缓存获取
         if let cached = cache.object(forKey: cacheKey) {
