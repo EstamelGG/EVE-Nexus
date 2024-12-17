@@ -147,6 +147,14 @@ class CacheManager {
         
         // 5. 清理URL Session缓存
         clearURLSessionCache()
+        
+        // 6. 清理入侵页面缓存
+        UserDefaults.standard.removeObject(forKey: "incursions_cache")
+        
+        // 7. 清理数据库浏览器缓存
+        await DatabaseBrowserView.clearCache()
+        
+        Logger.info("所有缓存清理完成")
     }
     
     // 清理URL Session缓存
