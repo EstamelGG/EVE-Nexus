@@ -76,7 +76,7 @@ struct ItemBasicInfoView: View {
         }
         
         // 市场详情 Section
-        if let marketGroupID = itemDetails.marketGroupID {
+        if let _ = itemDetails.marketGroupID {
             Section {
                 NavigationLink {
                     MarketItemDetailView(
