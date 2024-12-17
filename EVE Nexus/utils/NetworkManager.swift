@@ -294,31 +294,38 @@ class NetworkManager {
     
     // 获取主权数据
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        let cacheKey = "sovereigntyData" as NSString
-        let cacheValidDuration: TimeInterval = 24 * 60 * 60 // 24小时
+        let cacheKey = "sovereignty_data" as NSString
         
         // 检查缓存
-        if !forceRefresh,
-           let cachedData = sovereigntyCache.object(forKey: cacheKey),
-           Date().timeIntervalSince(cachedData.timestamp) < cacheValidDuration {
-            Logger.info("Using cached sovereignty data")
-            return cachedData.data
+        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
+            // 检查缓存是否过期（1小时有效期）
+            if Date().timeIntervalSince(cached.timestamp) < 3600 {
+                Logger.info("Using cached sovereignty data")
+                return cached.data
+            }
         }
         
-        let urlString = "https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/latest/sovereignty/map/"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for sovereignty data")
             throw NetworkError.invalidURL
+        }
+        
+        // 如果强制刷新，清除 URLCache 中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
         }
         
         let data = try await fetchData(from: url)
         let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
         
         // 更新缓存
-        let cachedData = CachedSovereigntyData(data: sovereigntyData, timestamp: Date())
-        sovereigntyCache.setObject(cachedData, forKey: cacheKey)
-        Logger.info("Successfully fetched and cached sovereignty data")
+        sovereigntyCache.setObject(
+            CachedSovereigntyData(data: sovereigntyData, timestamp: Date()),
+            forKey: cacheKey
+        )
         
+        Logger.info("Successfully fetched sovereignty data")
         return sovereigntyData
     }
     

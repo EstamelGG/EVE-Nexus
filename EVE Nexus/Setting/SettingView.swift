@@ -294,7 +294,12 @@ struct SettingView: View {
                 // 强制从网络获取新数据
                 switch type {
                 case .sovereignty:
-                    let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
+                    // 1. 先清理相关缓存
+                    StaticResourceManager.shared.clearMemoryCache()
+                    URLCache.shared.removeAllCachedResponses()
+                    
+                    // 2. 强制从网络获取新数据
+                    let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
                     try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
                 }

@@ -129,14 +129,19 @@ class StaticResourceManager {
         }
     }
     
+    /// 清理内存缓存
+    func clearMemoryCache() {
+        cache.removeAllObjects()
+    }
+    
     /// 获取主权数据
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权数据数组
-    func getSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
+    func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
         // 如果需要强制刷新，先执行刷新操作
         if forceRefresh {
             try await self.forceRefresh(.sovereignty)
-            return try await getSovereigntyData(forceRefresh: false)
+            return try await fetchSovereigntyData(forceRefresh: false)
         }
         
         let cacheKey = "sovereignty_data" as NSString
