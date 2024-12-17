@@ -22,6 +22,7 @@ class IncursionsViewModel: ObservableObject {
     }()
     
     private let cacheKey = "incursions_cache" as NSString
+    private let validityDuration: TimeInterval = 8 * 3600 // 8小时缓存有效期
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -30,29 +31,33 @@ class IncursionsViewModel: ObservableObject {
     
     private func loadFromCache() {
         guard let entry = Self.cache.object(forKey: cacheKey),
-              !entry.isExpired else {
+              !entry.isExpired(validityDuration: validityDuration) else {
+            Logger.info("ViewModel: [缓存] 缓存不存在或已过期")
             return
         }
         
         self.preparedIncursions = entry.data
-        Logger.info("ViewModel: 从缓存加载了 \(entry.data.count) 条入侵数据")
+        Logger.info("ViewModel: [缓存] 成功加载 \(entry.data.count) 条入侵数据")
     }
     
     private func saveToCache(_ data: [(Incursion, (String, String), (String, Double, String, String))]) {
         let entry = CacheEntry(data: data)
         Self.cache.setObject(entry, forKey: cacheKey)
-        Logger.info("ViewModel: 成功将 \(data.count) 条入侵数据保存到缓存")
+        Logger.info("ViewModel: [缓存] 成功保存 \(data.count) 条入侵数据")
     }
     
     @MainActor
     func fetchIncursions(forceRefresh: Bool = false) async {
+        // 如果不是强制刷新，且有有效缓存，直接使用缓存
         if !forceRefresh,
            let entry = Self.cache.object(forKey: cacheKey),
-           !entry.isExpired {
-            Logger.info("ViewModel: 使用缓存数据")
+           !entry.isExpired(validityDuration: validityDuration) {
+            self.preparedIncursions = entry.data
+            Logger.info("ViewModel: [缓存] 使用缓存中的 \(entry.data.count) 条入侵数据")
             return
         }
         
+        // 否则从网络加载
         await fetchFromNetwork()
     }
     
@@ -61,20 +66,20 @@ class IncursionsViewModel: ObservableObject {
         isLoading = true
         preparedIncursions = []
         
-        Logger.info("ViewModel: 开始获取入侵数据")
+        Logger.info("ViewModel: [网络] 开始获取入侵数据")
         do {
             let decodedIncursions = try await NetworkManager.shared.fetchIncursions()
-            Logger.info("ViewModel: 获取到 \(decodedIncursions.count) 条入侵数据，开始准备显示数据")
+            Logger.info("ViewModel: [网络] 获取到 \(decodedIncursions.count) 条入侵数据")
             
             var prepared: [(Incursion, (String, String), (String, Double, String, String))] = []
             for incursion in decodedIncursions {
                 guard let factionInfo = getFactionInfo(factionId: incursion.factionId) else {
-                    Logger.error("无法获取势力信息: factionId = \(incursion.factionId)")
+                    Logger.error("ViewModel: [网络] 无法获取势力信息: factionId = \(incursion.factionId)")
                     continue
                 }
                 
                 guard let locationInfo = getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) else {
-                    Logger.error("无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
+                    Logger.error("ViewModel: [网络] 无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
                     continue
                 }
                 
@@ -82,14 +87,14 @@ class IncursionsViewModel: ObservableObject {
             }
             
             if !prepared.isEmpty {
-                Logger.info("ViewModel: 成功准备 \(prepared.count) 条完整数据")
+                Logger.info("ViewModel: [网络] 成功准备 \(prepared.count) 条数据")
                 preparedIncursions = prepared
                 saveToCache(prepared)
             } else {
-                Logger.error("ViewModel: 没有可显示的完整数据")
+                Logger.error("ViewModel: [网络] 没有可显示的完整数据")
             }
         } catch {
-            Logger.error("ViewModel: 获取入侵数据失败: \(error)")
+            Logger.error("ViewModel: [网络] 获取入侵数据失败: \(error)")
         }
         
         isLoading = false
@@ -157,14 +162,13 @@ class IncursionsViewModel: ObservableObject {
 final class CacheEntry {
     let data: [(incursion: Incursion, faction: (iconName: String, name: String), location: (systemName: String, security: Double, constellationName: String, regionName: String))]
     private let timestamp: Date
-    private let validityDuration: TimeInterval = 8 * 3600 // 8小时
     
     init(data: [(Incursion, (String, String), (String, Double, String, String))]) {
         self.data = data
         self.timestamp = Date()
     }
     
-    var isExpired: Bool {
+    func isExpired(validityDuration: TimeInterval) -> Bool {
         Date().timeIntervalSince(timestamp) >= validityDuration
     }
 }
@@ -253,11 +257,11 @@ struct IncursionsView: View {
         }
         .listStyle(.insetGrouped)
         .task {
-            // 首次加载
+            // 页面加载时，优先使用缓存
             await viewModel.fetchIncursions()
         }
         .refreshable {
-            // 强制刷新数据
+            // 下拉刷新时，强制从网络获取新数据
             await viewModel.fetchIncursions(forceRefresh: true)
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
