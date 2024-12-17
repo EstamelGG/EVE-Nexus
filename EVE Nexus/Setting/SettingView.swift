@@ -150,68 +150,49 @@ class CacheManager {
     
     // 清理所有缓存
     func clearAllCaches() async {
-        await withTaskGroup(of: Void.self) { group in
-            // 1. 清理URLCache（异步）
-            group.addTask {
-                await MainActor.run {
-                    URLCache.shared.removeAllCachedResponses()
+        // 1. 清理 URLCache
+        await MainActor.run {
+            URLCache.shared.removeAllCachedResponses()
+        }
+        
+        // 2. 清理临时文件
+        let tempPath = NSTemporaryDirectory()
+        do {
+            let files = try await MainActor.run {
+                try self.fileManager.contentsOfDirectory(atPath: tempPath)
+            }
+            for file in files {
+                let filePath = (tempPath as NSString).appendingPathComponent(file)
+                try? await MainActor.run {
+                    try self.fileManager.removeItem(atPath: filePath)
                 }
             }
-            
-            // 2. 清理临时文件（异步）
-            group.addTask {
-                let tempPath = NSTemporaryDirectory()
-                do {
-                    let files = try await MainActor.run {
-                        try self.fileManager.contentsOfDirectory(atPath: tempPath)
-                    }
-                    for file in files {
-                        let filePath = (tempPath as NSString).appendingPathComponent(file)
-                        try? await MainActor.run {
-                            try self.fileManager.removeItem(atPath: filePath)
-                        }
-                    }
-                } catch {
-                    Logger.error("Error clearing temp files: \(error)")
-                }
-            }
-            
-            // 3. 清理NetworkManager缓存
-            group.addTask {
-                NetworkManager.shared.clearAllCaches()
-            }
-            
-            // 4. 清理URL Session缓存（异步）
-            group.addTask {
-                await self.clearURLSessionCacheAsync()
-            }
-            
-            // 5. 清理入侵相关缓存（异步）
-            group.addTask {
-                await MainActor.run {
-                    UserDefaults.standard.removeObject(forKey: "incursions_cache")
-                    InfestedSystemsViewModel.clearCache()
-                }
-            }
-            
-            // 6. 清理数据库浏览器缓存
-            group.addTask {
-                await MainActor.run {
-                    DatabaseBrowserView.clearCache()
-                }
-            }
-            
-            // 7. 清理静态资源
-            group.addTask {
-                do {
-                    try StaticResourceManager.shared.clearAllStaticData()
-                } catch {
-                    Logger.error("Error clearing static data: \(error)")
-                }
-            }
-            
-            // 等待所有任务完成
-            await group.waitForAll()
+        } catch {
+            Logger.error("Error clearing temp files: \(error)")
+        }
+        
+        // 3. 清理 NetworkManager 缓存
+        NetworkManager.shared.clearAllCaches()
+        
+        // 4. 清理 URL Session 缓存
+        await clearURLSessionCacheAsync()
+        
+        // 5. 清理入侵相关缓存
+        await MainActor.run {
+            UserDefaults.standard.removeObject(forKey: "incursions_cache")
+            InfestedSystemsViewModel.clearCache()
+        }
+        
+        // 6. 清理数据库浏览器缓存
+        await MainActor.run {
+            DatabaseBrowserView.clearCache()
+        }
+        
+        // 7. 清理静态资源
+        do {
+            try StaticResourceManager.shared.clearAllStaticData()
+        } catch {
+            Logger.error("Error clearing static data: \(error)")
         }
         
         Logger.info("所有缓存清理完成")
@@ -413,7 +394,7 @@ struct SettingView: View {
             )
         }
         
-        // 添加市场数据统计
+        // 添加市场数据统���
         let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
         let marketItem = SettingItem(
             title: marketDataStats.name,
@@ -586,6 +567,11 @@ struct SettingView: View {
     }
     
     private func formatCacheDetails() -> String {
+        // 如果正在清理，显示"-"
+        if isCleaningCache {
+            return "-"
+        }
+        
         let totalSize = cacheDetails.values.reduce(0) { $0 + $1.size }
         let totalCount = cacheDetails.values.reduce(0) { $0 + $1.count }
         
@@ -649,9 +635,18 @@ struct SettingView: View {
         showingCleanCacheAlert = false
         isCleaningCache = true
         
+        // 清空当前缓存显示
+        cacheDetails = [:]
+        
         Task {
+            // 等待一小段时间，确保之前的文件操作都完成
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            
             // 1. 执行网络缓存清理
             await CacheManager.shared.clearAllCaches()
+            
+            // 等待文件系统操作完成
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
             
             // 2. 清理联盟图标缓存
             do {
@@ -660,6 +655,9 @@ struct SettingView: View {
                 Logger.error("Failed to clear alliance icons: \(error)")
             }
             
+            // 等待文件系统操作完成
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            
             // 3. 清理市场数据缓存
             do {
                 try StaticResourceManager.shared.clearMarketData()
@@ -667,12 +665,18 @@ struct SettingView: View {
                 Logger.error("Failed to clear market data: \(error)")
             }
             
+            // 等待文件系统操作完成
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            
             // 4. 清理渲染图缓存
             do {
                 try StaticResourceManager.shared.clearNetRenders()
             } catch {
                 Logger.error("Failed to clear net renders: \(error)")
             }
+            
+            // 等待文件系统操作完成
+            try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
             
             // 5. 所有清理完成后，再计算一次大小
             await MainActor.run {
