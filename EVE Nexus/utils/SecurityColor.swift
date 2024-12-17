@@ -34,6 +34,6 @@ func getSecurityColor(_ security: Double) -> Color {
     case ...0.4 where truncatedSecurity > 0.0:
         return Color(red: 208/255, green: 113/255, blue: 45/255)
     default:
-        return Color(red: 131/255, green: 55/255, blue: 100/255)
+        return .red
     }
 }
