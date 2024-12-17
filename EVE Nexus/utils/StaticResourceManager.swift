@@ -205,4 +205,80 @@ class StaticResourceManager {
         // 清理内存缓存
         cache.removeAllObjects()
     }
+    
+    /// 获取联盟图标目录路径
+    func getAllianceIconPath() -> URL {
+        return getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+    }
+    
+    /// 保存联盟图标
+    /// - Parameters:
+    ///   - data: 图标数据
+    ///   - allianceId: 联盟ID
+    func saveAllianceIcon(_ data: Data, allianceId: Int) throws {
+        let iconPath = getAllianceIconPath()
+        
+        // 确保目录存在
+        if !fileManager.fileExists(atPath: iconPath.path) {
+            try fileManager.createDirectory(at: iconPath, withIntermediateDirectories: true)
+        }
+        
+        let iconFile = iconPath.appendingPathComponent("\(allianceId).png")
+        try data.write(to: iconFile)
+        Logger.info("Saved alliance icon: \(allianceId)")
+    }
+    
+    /// 获取联盟图标
+    /// - Parameter allianceId: 联盟ID
+    /// - Returns: 图标数据
+    func getAllianceIcon(allianceId: Int) -> Data? {
+        let iconFile = getAllianceIconPath().appendingPathComponent("\(allianceId).png")
+        return try? Data(contentsOf: iconFile)
+    }
+    
+    /// 清理联盟图标缓存
+    func clearAllianceIcons() throws {
+        let iconPath = getAllianceIconPath()
+        if fileManager.fileExists(atPath: iconPath.path) {
+            try fileManager.removeItem(at: iconPath)
+            Logger.info("Cleared alliance icons cache")
+        }
+    }
+    
+    /// 获取联盟图标缓存统计
+    func getAllianceIconsStats() -> ResourceInfo {
+        let iconPath = getAllianceIconPath()
+        let exists = fileManager.fileExists(atPath: iconPath.path)
+        var totalSize: Int64 = 0
+        var lastModified: Date? = nil
+        
+        if exists {
+            if let enumerator = fileManager.enumerator(atPath: iconPath.path) {
+                for case let fileName as String in enumerator {
+                    let filePath = (iconPath.path as NSString).appendingPathComponent(fileName)
+                    do {
+                        let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                        totalSize += attributes[.size] as? Int64 ?? 0
+                        
+                        // 使用最新的修改时间
+                        if let fileModified = attributes[.modificationDate] as? Date {
+                            if lastModified == nil || fileModified > lastModified! {
+                                lastModified = fileModified
+                            }
+                        }
+                    } catch {
+                        Logger.error("Error getting alliance icon attributes: \(error)")
+                    }
+                }
+            }
+        }
+        
+        return ResourceInfo(
+            name: NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: ""),
+            exists: exists,
+            lastModified: lastModified,
+            fileSize: totalSize,
+            downloadTime: nil
+        )
+    }
 } 

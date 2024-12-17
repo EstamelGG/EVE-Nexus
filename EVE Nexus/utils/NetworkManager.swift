@@ -340,34 +340,37 @@ class NetworkManager {
     }
     
     // 获取联盟图标
+    /// - Parameter allianceId: 联盟ID
+    /// - Returns: 联盟图标
     func fetchAllianceLogo(allianceId: Int) async throws -> UIImage {
-        let cacheKey = "allianceLogo_\(allianceId)" as NSString
-        let cacheValidDuration: TimeInterval = 8 * 60 * 60 // 8小时
-        
-        // 检查缓存
-        if let cachedLogo = allianceLogoCache.object(forKey: cacheKey),
-           Date().timeIntervalSince(cachedLogo.timestamp) < cacheValidDuration {
-            Logger.info("Using cached alliance logo for ID: \(allianceId)")
-            return cachedLogo.image
+        // 1. 先尝试从静态资源目录获取
+        if let cachedData = StaticResourceManager.shared.getAllianceIcon(allianceId: allianceId),
+           let cachedImage = UIImage(data: cachedData) {
+            Logger.debug("Got alliance logo from cache: \(allianceId)")
+            return cachedImage
         }
         
-        let urlString = "https://images.evetech.net/alliances/\(allianceId)/logo"
+        // 2. 从网络获取
+        let urlString = "https://images.evetech.net/alliances/\(allianceId)/logo?size=128"
         guard let url = URL(string: urlString) else {
-            Logger.error("Invalid URL for alliance logo: \(allianceId)")
             throw NetworkError.invalidURL
         }
         
-        do {
-            let image = try await fetchImage(from: url)
-            // 更新缓存
-            let cachedLogo = CachedAllianceLogo(image: image, timestamp: Date())
-            allianceLogoCache.setObject(cachedLogo, forKey: cacheKey)
-            Logger.info("Successfully fetched and cached alliance logo for ID: \(allianceId)")
-            return image
-        } catch {
-            Logger.error("Failed to fetch alliance logo for ID \(allianceId): \(error)")
-            throw error
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw NetworkError.invalidResponse
         }
+        
+        guard let image = UIImage(data: data) else {
+            throw NetworkError.invalidData
+        }
+        
+        // 3. 保存到静态资源目录
+        try StaticResourceManager.shared.saveAllianceIcon(data, allianceId: allianceId)
+        
+        return image
     }
     
     // 获取缓存的入侵数据
@@ -388,19 +391,22 @@ enum NetworkError: LocalizedError {
     case httpError(statusCode: Int)
     case invalidImageData
     case noValidPrice
+    case invalidData
     
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "无效的URL"
+            return NSLocalizedString("Network_Error_Invalid_URL", comment: "")
         case .invalidResponse:
-            return "无效的响应"
+            return NSLocalizedString("Network_Error_Invalid_Response", comment: "")
         case .httpError(let statusCode):
-            return "HTTP错误: \(statusCode)"
+            return String(format: NSLocalizedString("Network_Error_HTTP_Error", comment: ""), statusCode)
         case .invalidImageData:
-            return "无效的图片数据"
+            return NSLocalizedString("Network_Error_Invalid_Image", comment: "")
         case .noValidPrice:
-            return "没有有效的价格数据"
+            return NSLocalizedString("Network_Error_No_Price", comment: "")
+        case .invalidData:
+            return NSLocalizedString("Network_Error_Invalid_Data", comment: "")
         }
     }
 }

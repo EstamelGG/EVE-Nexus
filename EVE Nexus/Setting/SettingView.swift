@@ -367,7 +367,7 @@ struct SettingView: View {
     
     // 静态资源设置组
     private var staticResourceGroup: SettingGroup {
-        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
+        var items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
             var title = resource.name
             if let downloadTime = resource.downloadTime {
                 title += " (" + getRelativeTimeString(from: downloadTime) + ")"
@@ -382,6 +382,19 @@ struct SettingView: View {
                 action: { refreshResource(resource) }
             )
         }
+        
+        // 添加联盟图标统计
+        let allianceIconStats = StaticResourceManager.shared.getAllianceIconsStats()
+        items.append(
+            SettingItem(
+                title: allianceIconStats.name,
+                detail: formatResourceInfo(allianceIconStats),
+                icon: allianceIconStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
+                iconColor: allianceIconStats.exists ? .green : .red,
+                action: { }  // 联盟图标不支持手动刷新
+            )
+        )
+        
         return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
     }
     
@@ -606,10 +619,17 @@ struct SettingView: View {
             // 1. 执行清理
             await CacheManager.shared.clearAllCaches()
             
-            // 2. 重新计算缓存大小并立即更新UI
+            // 2. 清理联盟图标缓存
+            do {
+                try StaticResourceManager.shared.clearAllianceIcons()
+            } catch {
+                Logger.error("Failed to clear alliance icons: \(error)")
+            }
+            
+            // 3. 重新计算缓存大小并立即更新UI
             calculateCacheSize()
             
-            // 3. 隐藏加载指示器
+            // 4. 隐藏加载指示器
             isCleaningCache = false
         }
     }
