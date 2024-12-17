@@ -398,7 +398,7 @@ struct SettingView: View {
                         detail: formatResourceInfo(resource),
                         icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                         iconColor: resource.exists ? .green : .red,
-                        action: { }  // 空操作
+                        action: { } 
                     )
                 }
             }
@@ -534,13 +534,19 @@ struct SettingView: View {
             .onAppear {
                 calculateCacheSize()
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                calculateCacheSize()  // 从后台返回时重新计算
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
         .fullScreenCover(isPresented: $showingLoadingView, content: {
             FullScreenCover(
                 progress: unzipProgress,
                 loadingState: $loadingState,
-                onComplete: { showingLoadingView = false }
+                onComplete: {
+                    showingLoadingView = false
+                    calculateCacheSize()  // 重置图标完成后重新计算
+                }
             )
         })
     }
@@ -644,7 +650,7 @@ struct SettingView: View {
         isCleaningCache = true
         
         Task {
-            // 1. 执行清理
+            // 1. 执行网络缓存清理
             await CacheManager.shared.clearAllCaches()
             
             // 2. 清理联盟图标缓存
@@ -668,11 +674,11 @@ struct SettingView: View {
                 Logger.error("Failed to clear net renders: \(error)")
             }
             
-            // 5. 重新计算缓存大小并立即更新UI
-            calculateCacheSize()
-            
-            // 6. 隐藏加载指示器
-            isCleaningCache = false
+            // 5. 所有清理完成后，再计算一次大小
+            await MainActor.run {
+                calculateCacheSize()
+                isCleaningCache = false
+            }
         }
     }
     
