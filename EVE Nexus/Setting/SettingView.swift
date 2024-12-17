@@ -779,9 +779,13 @@ struct SettingView: View {
                 if remaining > 0 {
                     let days = Int(remaining / (24 * 3600))
                     let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
-                    info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days", comment: ""), days) + String(format: NSLocalizedString("Time_Hour", comment: ""), hours) + ")"
+                    if days > 0 {
+                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours) + ")"
+                    } else {
+                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), hours) + ")"
+                    }
                 } else {
-                    info += " \(NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: ""))"
+                    info += " (" + NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: "") + ")"
                 }
             }
             
@@ -801,7 +805,7 @@ struct SettingView: View {
                     return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
                 }
             }
-            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
+            return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
         }
     }
 }
