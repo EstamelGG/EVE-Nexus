@@ -186,6 +186,7 @@ struct SettingView: View {
     @State private var cacheSize: String = "计算中..."
     @ObservedObject var databaseManager: DatabaseManager
     @State private var cacheDetails: [String: CacheStats] = [:]
+    @State private var isCleaningCache = false
     
     private var settingGroups: [SettingGroup] {
         [
@@ -211,7 +212,7 @@ struct SettingView: View {
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
                     detail: formatCacheDetails(),
-                    icon: "trash",
+                    icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
                     iconColor: .red,
                     action: { showingCleanCacheAlert = true }
                 ),
@@ -250,13 +251,19 @@ struct SettingView: View {
                                     }
                                 }
                                 Spacer()
-                                Image(systemName: item.icon)
-                                    .font(.system(size: 20))
-                                    .frame(width: 36, height: 36)
-                                    .foregroundColor(item.iconColor)
+                                if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                                    ProgressView()
+                                        .frame(width: 36, height: 36)
+                                } else {
+                                    Image(systemName: item.icon)
+                                        .font(.system(size: 20))
+                                        .frame(width: 36, height: 36)
+                                        .foregroundColor(item.iconColor)
+                                }
                             }
                             .frame(height: 36)
                         }
+                        .disabled(isCleaningCache)
                     }
                 }
             }
@@ -379,12 +386,18 @@ struct SettingView: View {
     }
     
     private func cleanCache() {
+        showingCleanCacheAlert = false
+        isCleaningCache = true
+        
         Task {
             // 1. 执行清理
             await CacheManager.shared.clearAllCaches()
             
             // 2. 重新计算缓存大小并立即更新UI
             calculateCacheSize()
+            
+            // 3. 隐藏加载指示器
+            isCleaningCache = false
         }
     }
     
