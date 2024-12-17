@@ -236,16 +236,15 @@ struct SettingView: View {
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
-    @State private var cacheSize: String = "计算中..."
+    @State private var cacheSize: String = "Calc..."
     @ObservedObject var databaseManager: DatabaseManager
     @State private var cacheDetails: [String: CacheStats] = [:]
     @State private var isCleaningCache = false
-    @State private var isRefreshing: String? = nil
     @State private var isReextractingIcons = false
     @State private var unzipProgress: Double = 0
     @State private var loadingState: LoadingState = .unzipping
     @State private var showingLoadingView = false
-    @State private var refreshingResources: Set<String> = []  // 添加新的状态变量
+    @State private var refreshingResources: Set<String> = []
     
     /// 计算相对时间显示
     private func getRelativeTimeString(from date: Date) -> String {
@@ -272,9 +271,8 @@ struct SettingView: View {
         
         Task {
             // 标记资源开始刷新
-            await MainActor.run {
+            _ = await MainActor.run {
                 refreshingResources.insert(resource.name)
-                isRefreshing = resource.name
             }
             
             do {
@@ -311,11 +309,8 @@ struct SettingView: View {
             }
             
             // 标记资源刷新完成
-            await MainActor.run {
+            _ = await MainActor.run {
                 refreshingResources.remove(resource.name)
-                if isRefreshing == resource.name {
-                    isRefreshing = nil
-                }
             }
         }
     }
@@ -378,7 +373,7 @@ struct SettingView: View {
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
                 case .sovereignty, .incursions:
-                    let isRefreshingThis = isRefreshing == resource.name
+                    let isRefreshingThis = refreshingResources.contains(resource.name)
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
@@ -482,7 +477,7 @@ struct SettingView: View {
                                     if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                         ProgressView()
                                             .frame(width: 36, height: 36)
-                                    } else if isRefreshing == item.title.components(separatedBy: " (").first {
+                                    } else if refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") {
                                         ProgressView()
                                             .frame(width: 36, height: 36)
                                     } else {
@@ -491,12 +486,12 @@ struct SettingView: View {
                                             .frame(width: 36, height: 36)
                                             .foregroundColor(item.iconColor)
                                             .rotationEffect(.degrees(
-                                                (isRefreshing != nil && item.icon == "arrow.triangle.2.circlepath") ? 360 : 0
+                                                refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") ? 360 : 0
                                             ))
                                             .animation(
-                                                (isRefreshing != nil && item.icon == "arrow.triangle.2.circlepath") ?
+                                                refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "") ?
                                                     Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                                                value: isRefreshing
+                                                value: refreshingResources.contains(item.title.components(separatedBy: " (").first ?? "")
                                             )
                                     }
                                 }
@@ -655,13 +650,13 @@ struct SettingView: View {
         
         Task {
             // 等待一小段时间，确保之前的文件操作都完成
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
             
             // 1. 执行网络缓存清理
             await CacheManager.shared.clearAllCaches()
             
             // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
             
             // 2. 清理联盟图标缓存
             do {
@@ -671,7 +666,7 @@ struct SettingView: View {
             }
             
             // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
             
             // 3. 清理市场数据缓存
             do {
@@ -681,7 +676,7 @@ struct SettingView: View {
             }
             
             // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 0.5秒
+            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
             
             // 4. 清理渲染图缓存
             do {

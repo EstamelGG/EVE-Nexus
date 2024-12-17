@@ -37,7 +37,7 @@ struct LoadingView: View {
             // 加载文本
             Text("Unzipping Icons...")
                 .font(.headline)
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
         }
         .onChange(of: loadingState) { _, newState in
             if newState == .complete {
