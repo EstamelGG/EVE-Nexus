@@ -29,7 +29,11 @@ struct NPCBaseView<Content: View>: View {
                 ForEach(items, id: \.typeID) { item in
                     NavigationLink {
                         if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                            ItemInfoMap.getItemInfoView(itemID: item.typeID, categoryID: categoryID, databaseManager: databaseManager)
+                            ItemInfoMap.getItemInfoView(
+                                itemID: item.typeID,
+                                categoryID: categoryID,
+                                databaseManager: databaseManager
+                            )
                         }
                     } label: {
                         HStack {
@@ -214,7 +218,11 @@ struct NPCBrowserView: View {
                         ForEach(databaseManager.getNPCItems(for: scene, faction: faction, type: type), id: \.typeID) { item in
                             NavigationLink {
                                 if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                                    ItemInfoMap.getItemInfoView(itemID: item.typeID, categoryID: categoryID, databaseManager: databaseManager)
+                                    ItemInfoMap.getItemInfoView(
+                                        itemID: item.typeID,
+                                        categoryID: categoryID,
+                                        databaseManager: databaseManager
+                                    )
                                 }
                             } label: {
                                 HStack {

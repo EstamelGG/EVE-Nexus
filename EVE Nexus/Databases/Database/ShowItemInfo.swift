@@ -50,16 +50,16 @@ struct ShowItemInfo: View {
             }
         }
         
-        // 添加日志以验证文本格式
-        Logger.debug("Generated traits text: \(text)")
-        
         return text.isEmpty ? "" : text
     }
     
     var body: some View {
         List {
             if let itemDetails = itemDetails {
-                ItemBasicInfoView(itemDetails: itemDetails, databaseManager: databaseManager)
+                ItemBasicInfoView(
+                    itemDetails: itemDetails,
+                    databaseManager: databaseManager
+                )
                 
                 // 变体 Section（如果有的话）
                 let variationsCount = databaseManager.getVariationsCount(for: itemID)
@@ -264,14 +264,13 @@ struct ShowItemInfo: View {
                     groupID: itemDetail.groupID,
                     volume: itemDetail.volume,
                     capacity: itemDetail.capacity,
-                    mass: itemDetail.mass
+                    mass: itemDetail.mass,
+                    marketGroupID: itemDetail.marketGroupID
                 )
                 itemDetails = details
             } else {
                 itemDetails = itemDetail
             }
-        } else {
-            Logger.error("Item details not found for ID: \(itemID)")
         }
     }
     

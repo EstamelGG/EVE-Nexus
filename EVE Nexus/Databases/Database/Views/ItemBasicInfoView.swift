@@ -68,23 +68,30 @@ struct ItemBasicInfoView: View {
         }
         .onAppear {
             loadRenderImage(for: itemDetails.typeId)
+            // 调试输出移到这里
+            Logger.debug("物品 \(itemDetails.name) 的 marketGroupID: \(String(describing: itemDetails.marketGroupID))")
+            if let marketGroupID = itemDetails.marketGroupID {
+                Logger.debug("显示市场按钮，marketGroupID: \(marketGroupID)")
+            }
         }
         
         // 市场详情 Section
-        Section {
-            NavigationLink {
-                MarketItemDetailView(
-                    databaseManager: databaseManager,
-                    itemID: itemDetails.typeId
-                )
-            } label: {
-                HStack {
-                    IconManager.shared.loadImage(for: "icon_52996_64.png")
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    Text(NSLocalizedString("Main_Market", comment: ""))
-                    Spacer()
+        if let marketGroupID = itemDetails.marketGroupID {
+            Section {
+                NavigationLink {
+                    MarketItemDetailView(
+                        databaseManager: databaseManager,
+                        itemID: itemDetails.typeId
+                    )
+                } label: {
+                    HStack {
+                        IconManager.shared.loadImage(for: "icon_52996_64.png")
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+                        Text(NSLocalizedString("Main_Market", comment: ""))
+                        Spacer()
+                    }
                 }
             }
         }

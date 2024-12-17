@@ -123,10 +123,12 @@ public struct ItemDetails {
     public let volume: Double?
     public let capacity: Double?
     public let mass: Double?
+    public let marketGroupID: Int?
     
     public init(name: String, description: String, iconFileName: String, groupName: String, categoryID: Int? = nil,
                categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
-               typeId: Int, groupID: Int?, volume: Double? = nil, capacity: Double? = nil, mass: Double? = nil) {
+               typeId: Int, groupID: Int?, volume: Double? = nil, capacity: Double? = nil, mass: Double? = nil,
+               marketGroupID: Int? = nil) {
         self.name = name
         self.description = description
         self.iconFileName = iconFileName
@@ -140,6 +142,7 @@ public struct ItemDetails {
         self.volume = volume
         self.capacity = capacity
         self.mass = mass
+        self.marketGroupID = marketGroupID
     }
 }
 

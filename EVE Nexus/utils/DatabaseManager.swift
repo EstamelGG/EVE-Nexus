@@ -284,64 +284,46 @@ class DatabaseManager: ObservableObject {
     // 加载物品详情
     func loadItemDetails(for itemID: Int) -> ItemDetails? {
         let query = """
-            SELECT name, description, icon_filename, groupID, group_name,
+            SELECT name, description, icon_filename, groupID, marketGroupID, group_name,
                    categoryID, category_name,
                    volume, capacity, mass
             FROM types
             WHERE type_id = ?
         """
         
-        let result = executeQuery(query, parameters: [itemID])
+        Logger.debug("加载物品详情，ID: \(itemID)")
         
-        switch result {
+        switch executeQuery(query, parameters: [itemID]) {
         case .success(let rows):
-            guard let row = rows.first,
-                  let name = row["name"] as? String,
+            guard let row = rows.first else {
+                Logger.error("未找到物品详情，ID: \(itemID)")
+                return nil
+            }
+            
+            Logger.debug("原始数据: \(row)")
+            
+            guard let name = row["name"] as? String,
                   let description = row["description"] as? String,
                   let iconFileName = row["icon_filename"] as? String,
                   let groupName = row["group_name"] as? String,
                   let categoryID = row["categoryID"] as? Int,
                   let categoryName = row["category_name"] as? String else {
+                Logger.error("物品详情数据不完整，ID: \(itemID)")
                 return nil
-            }
-            
-            // 2. 加载 traits
-            let traitsQuery = """
-                SELECT importance, bonus_type, content, skill
-                FROM traits
-                WHERE typeid = ?
-                ORDER BY bonus_type, skill, importance
-            """
-
-            let traitsResult = executeQuery(traitsQuery, parameters: [itemID])
-            var roleBonuses: [Trait] = []
-            var typeBonuses: [Trait] = []
-
-            if case .success(let traitRows) = traitsResult {
-                for traitRow in traitRows {
-                    guard let importance = traitRow["importance"] as? Int,
-                          let bonusType = traitRow["bonus_type"] as? String,
-                          let content = traitRow["content"] as? String else {
-                        continue
-                    }
-
-                    let skill = traitRow["skill"] as? Int
-                    let trait = Trait(content: content,
-                                    importance: importance,
-                                    skill: skill)
-
-                    if bonusType == "roleBonuses" {
-                        roleBonuses.append(trait)
-                    } else if bonusType == "typeBonuses" {
-                        typeBonuses.append(trait)
-                    }
-                }
             }
             
             let groupID = row["groupID"] as? Int
             let volume = row["volume"] as? Double
             let capacity = row["capacity"] as? Double
             let mass = row["mass"] as? Double
+            let marketGroupID = row["marketGroupID"] as? Int
+            
+            Logger.debug("处理后的 marketGroupID: \(String(describing: marketGroupID))")
+            
+            // 加载特征
+            let traitGroup = getTraits(for: itemID)
+            let roleBonuses = traitGroup?.roleBonuses ?? []
+            let typeBonuses = traitGroup?.typeBonuses ?? []
             
             return ItemDetails(
                 name: name,
@@ -356,7 +338,8 @@ class DatabaseManager: ObservableObject {
                 groupID: groupID,
                 volume: volume,
                 capacity: capacity,
-                mass: mass
+                mass: mass,
+                marketGroupID: marketGroupID
             )
             
         case .error(let error):
