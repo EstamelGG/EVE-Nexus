@@ -362,6 +362,7 @@ struct IncursionsView: View {
     @StateObject private var viewModel: IncursionsViewModel
     
     init(databaseManager: DatabaseManager) {
+        // 使用 @StateObject 确保 viewModel 在视图生命周期内保持状态
         _viewModel = StateObject(wrappedValue: IncursionsViewModel(databaseManager: databaseManager))
     }
     
@@ -391,11 +392,14 @@ struct IncursionsView: View {
         }
         .listStyle(.insetGrouped)
         .task {
-            // 页面加载时，先使用缓存数据显示
-            await viewModel.fetchIncursions()
-            
-            // 然后在后台静默更新数据
-            await viewModel.fetchIncursions(forceRefresh: true, silent: true)
+            // 只在 preparedIncursions 为空时才加载数据
+            if viewModel.preparedIncursions.isEmpty {
+                // 页面加载时，先使用缓存数据显示
+                await viewModel.fetchIncursions()
+                
+                // 然后在后台静默更新数据
+                await viewModel.fetchIncursions(forceRefresh: true, silent: true)
+            }
         }
         .refreshable {
             // 下拉刷新时，强制从网络获取新数据
