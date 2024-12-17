@@ -348,7 +348,7 @@ struct SettingView: View {
     
     // 缓存设置组
     private var cacheGroup: SettingGroup {
-        SettingGroup(header: "Cache", items: [
+        SettingGroup(header: NSLocalizedString("Setting_Cache", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
                 detail: formatCacheDetails(),
@@ -511,7 +511,6 @@ struct SettingView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
             .navigationDestination(isPresented: $showingLanguageView) {
                 SelectLanguageView(databaseManager: databaseManager)
             }
@@ -535,6 +534,7 @@ struct SettingView: View {
                 calculateCacheSize()
             }
         }
+        .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
         .fullScreenCover(isPresented: $showingLoadingView, content: {
             FullScreenCover(
                 progress: unzipProgress,
@@ -742,8 +742,4 @@ struct SettingView: View {
             return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
         }
     }
-}
-
-#Preview {
-    SettingView(databaseManager: DatabaseManager())
 }
