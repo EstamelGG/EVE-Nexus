@@ -54,27 +54,24 @@ class IncursionsViewModel: ObservableObject {
     
     // 修改持久化缓存加载方法
     private func loadFromPersistentCache() {
-        guard let data = userDefaults.data(forKey: persistentCacheKey),
-              let cached = try? JSONDecoder().decode([PreparedIncursion].self, from: data) else {
-            Logger.info("ViewModel: [持久化缓存] 没有找到缓存数据")
-            return
+        do {
+            guard let data = userDefaults.data(forKey: persistentCacheKey) else {
+                Logger.info("ViewModel: [持久化缓存] 没有找到缓存数据")
+                return
+            }
+            
+            let entry = try JSONDecoder().decode(CacheEntry.self, from: data)
+            if entry.isExpired(validityDuration: validityDuration) {
+                Logger.info("ViewModel: [持久化缓存] 缓存已过期")
+                return
+            }
+            
+            self.preparedIncursions = entry.data
+            Self.cache.setObject(entry, forKey: cacheKey)
+            Logger.info("ViewModel: [持久化缓存] 成功加载 \(entry.data.count) 条入侵数据")
+        } catch {
+            Logger.error("ViewModel: [持久化缓存] 加载失败: \(error)")
         }
-        
-        // 将 PreparedIncursion 转换回元组格式
-        self.preparedIncursions = cached.map { prepared in
-            (
-                incursion: prepared.incursion,
-                faction: (iconName: prepared.faction.iconName, name: prepared.faction.name),
-                location: (
-                    systemName: prepared.location.systemName,
-                    security: prepared.location.security,
-                    constellationName: prepared.location.constellationName,
-                    regionName: prepared.location.regionName
-                )
-            )
-        }
-        
-        Logger.info("ViewModel: [持久化缓存] 成功加载 \(cached.count) 条入侵数据")
     }
     
     // 修改持久化缓存保存方法
@@ -112,14 +109,26 @@ class IncursionsViewModel: ObservableObject {
             return
         }
         
+        // 保存到持久化存储，确保下次启动时可用
+        if let encoded = try? JSONEncoder().encode(entry) {
+            userDefaults.set(encoded, forKey: persistentCacheKey)
+        }
+        
         self.preparedIncursions = entry.data
         Logger.info("ViewModel: [缓存] 成功加载 \(entry.data.count) 条入侵数据")
     }
     
     private func saveToCache(_ data: [(Incursion, (String, String), (String, Double, String, String))]) {
-        let entry = CacheEntry(data: data)
-        Self.cache.setObject(entry, forKey: cacheKey)
-        Logger.info("ViewModel: [缓存] 成功保存 \(data.count) 条入侵数据")
+        do {
+            let entry = CacheEntry(data: data)
+            Self.cache.setObject(entry, forKey: cacheKey)
+            
+            let encoded = try JSONEncoder().encode(entry)
+            userDefaults.set(encoded, forKey: persistentCacheKey)
+            Logger.info("ViewModel: [缓存] 成功保存 \(data.count) 条入侵数据到内存和持久化存储")
+        } catch {
+            Logger.error("ViewModel: [缓存] 保存失败: \(error)")
+        }
     }
     
     @MainActor
@@ -238,7 +247,7 @@ class IncursionsViewModel: ObservableObject {
 }
 
 // 缓存条目
-final class CacheEntry {
+final class CacheEntry: Codable {
     let data: [(incursion: Incursion, faction: (iconName: String, name: String), location: (systemName: String, security: Double, constellationName: String, regionName: String))]
     private let timestamp: Date
     
@@ -249,6 +258,52 @@ final class CacheEntry {
     
     func isExpired(validityDuration: TimeInterval) -> Bool {
         Date().timeIntervalSince(timestamp) >= validityDuration
+    }
+    
+    // 修改 Codable 实现
+    private enum CodingKeys: String, CodingKey {
+        case data, timestamp
+    }
+    
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let preparedIncursions = try container.decode([PreparedIncursion].self, forKey: .data)
+        self.timestamp = try container.decode(Date.self, forKey: .timestamp)
+        
+        self.data = preparedIncursions.map { prepared in
+            (
+                incursion: prepared.incursion,
+                faction: (iconName: prepared.faction.iconName, name: prepared.faction.name),
+                location: (
+                    systemName: prepared.location.systemName,
+                    security: prepared.location.security,
+                    constellationName: prepared.location.constellationName,
+                    regionName: prepared.location.regionName
+                )
+            )
+        }
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(timestamp, forKey: .timestamp)
+        
+        let preparedData = data.map { tuple in
+            PreparedIncursion(
+                incursion: tuple.incursion,
+                faction: PreparedIncursion.FactionInfo(
+                    iconName: tuple.faction.iconName,
+                    name: tuple.faction.name
+                ),
+                location: PreparedIncursion.LocationInfo(
+                    systemName: tuple.location.systemName,
+                    security: tuple.location.security,
+                    constellationName: tuple.location.constellationName,
+                    regionName: tuple.location.regionName
+                )
+            )
+        }
+        try container.encode(preparedData, forKey: .data)
     }
 }
 
