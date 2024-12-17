@@ -445,6 +445,9 @@ struct SettingView: View {
                                     if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                         ProgressView()
                                             .frame(width: 36, height: 36)
+                                    } else if isRefreshing == item.title.components(separatedBy: " (").first {
+                                        ProgressView()
+                                            .frame(width: 36, height: 36)
                                     } else {
                                         Image(systemName: item.icon)
                                             .font(.system(size: 20))
