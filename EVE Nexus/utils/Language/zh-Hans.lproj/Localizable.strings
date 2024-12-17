@@ -92,6 +92,12 @@
 "Main_Setting_Cache_Total_Count" = "\n总数量：%d 项";
 "Main_Setting_Cache_Details" = "各项统计：";
 "Main_Setting_Cache_Item_Format" = "%@：%@ (%d 项)";
+"Main_Setting_Cache_Type_Network" = "网络缓存";
+"Main_Setting_Cache_Type_Memory" = "内存缓存";
+"Main_Setting_Cache_Type_UserDefaults" = "用户设置";
+"Main_Setting_Cache_Type_Temp" = "临时文件";
+"Main_Setting_Cache_Type_Database" = "数据库缓存";
+"Main_Setting_Cache_Cleared_Message" = "已清理 %@ 缓存";
 
 "Main_About" = "关于";
 "Main_About_Title" = "关于";

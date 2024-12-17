@@ -144,6 +144,37 @@ class CacheManager {
         
         // 4. 清理NetworkManager缓存
         NetworkManager.shared.clearAllCaches()
+        
+        // 5. 清理URL Session缓存
+        clearURLSessionCache()
+    }
+    
+    // 清理URL Session缓存
+    private func clearURLSessionCache() {
+        // 清理默认session的缓存
+        URLCache.shared.removeAllCachedResponses()
+        
+        // 清理磁盘和内存缓存
+        if let cachesPath = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first {
+            do {
+                let files = try fileManager.contentsOfDirectory(atPath: cachesPath)
+                for file in files {
+                    if file.contains("com.apple.nsurlsessiond") {
+                        let filePath = (cachesPath as NSString).appendingPathComponent(file)
+                        try fileManager.removeItem(atPath: filePath)
+                    }
+                }
+            } catch {
+                Logger.error("Error clearing URL session cache: \(error)")
+            }
+        }
+        
+        // 清理cookies
+        if let cookies = HTTPCookieStorage.shared.cookies {
+            for cookie in cookies {
+                HTTPCookieStorage.shared.deleteCookie(cookie)
+            }
+        }
     }
 }
 
@@ -302,8 +333,9 @@ struct SettingView: View {
             details += "\n\n" + NSLocalizedString("Main_Setting_Cache_Details", comment: "")
             for (type, stats) in cacheDetails.sorted(by: { $0.key < $1.key }) {
                 if stats.size > 0 || stats.count > 0 {
+                    let typeLocalized = localizedCacheType(type)
                     details += "\n• " + String(format: NSLocalizedString("Main_Setting_Cache_Item_Format", comment: ""), 
-                        type, 
+                        typeLocalized,
                         formatFileSize(stats.size), 
                         stats.count)
                 }
@@ -311,6 +343,23 @@ struct SettingView: View {
         }
         
         return details
+    }
+    
+    private func localizedCacheType(_ type: String) -> String {
+        switch type {
+        case "Network":
+            return NSLocalizedString("Main_Setting_Cache_Type_Network", comment: "")
+        case "Memory":
+            return NSLocalizedString("Main_Setting_Cache_Type_Memory", comment: "")
+        case "UserDefaults":
+            return NSLocalizedString("Main_Setting_Cache_Type_UserDefaults", comment: "")
+        case "Temp":
+            return NSLocalizedString("Main_Setting_Cache_Type_Temp", comment: "")
+        case "Database":
+            return NSLocalizedString("Main_Setting_Cache_Type_Database", comment: "")
+        default:
+            return type
+        }
     }
     
     private func calculateCacheSize() {
@@ -331,11 +380,11 @@ struct SettingView: View {
     
     private func cleanCache() {
         Task {
+            // 1. 执行清理
             await CacheManager.shared.clearAllCaches()
-            let stats = await CacheManager.shared.getAllCacheStats()
-            await MainActor.run {
-                cacheDetails = stats
-            }
+            
+            // 2. 重新计算缓存大小并立即更新UI
+            calculateCacheSize()
         }
     }
     
