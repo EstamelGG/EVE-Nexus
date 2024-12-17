@@ -73,6 +73,7 @@ class NetworkManager {
     
     private let sovereigntyCache = NSCache<NSString, CachedSovereigntyData>()
     private let allianceLogoCache = NSCache<NSString, CachedAllianceLogo>()
+    private let incursionsCache = NSCache<NSString, CachedIncursionData>()
     
     // 缓存包装类
     class CachedSovereigntyData {
@@ -93,6 +94,22 @@ class NetworkManager {
         init(image: UIImage, timestamp: Date) {
             self.image = image
             self.timestamp = timestamp
+        }
+    }
+    
+    // 添加入侵数据缓存包装类
+    class CachedIncursionData {
+        let data: [Incursion]
+        let timestamp: Date
+        
+        init(data: [Incursion], timestamp: Date) {
+            self.data = data
+            self.timestamp = timestamp
+        }
+        
+        var isValid: Bool {
+            // 入侵数据缓存有效期为1小时
+            Date().timeIntervalSince(timestamp) < 3600
         }
     }
     
@@ -230,7 +247,17 @@ class NetworkManager {
     }
     
     // 获取入侵数据
-    func fetchIncursions() async throws -> [Incursion] {
+    func fetchIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
+        let cacheKey = "incursions_data" as NSString
+        
+        // 检查缓存
+        if !forceRefresh,
+           let cachedData = incursionsCache.object(forKey: cacheKey),
+           cachedData.isValid {
+            Logger.info("Using cached incursions data")
+            return cachedData.data
+        }
+        
         let urlString = "https://esi.evetech.net/latest/incursions/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for incursions")
@@ -238,7 +265,14 @@ class NetworkManager {
         }
         
         let data = try await fetchData(from: url)
-        return try JSONDecoder().decode([Incursion].self, from: data)
+        let incursions = try JSONDecoder().decode([Incursion].self, from: data)
+        
+        // 更新缓存
+        let cachedData = CachedIncursionData(data: incursions, timestamp: Date())
+        incursionsCache.setObject(cachedData, forKey: cacheKey)
+        Logger.info("Successfully fetched and cached incursions data")
+        
+        return incursions
     }
     
     // 清除缓存
@@ -254,44 +288,48 @@ class NetworkManager {
         marketHistoryTimestamp.removeAll()
         sovereigntyCache.removeAllObjects()
         allianceLogoCache.removeAllObjects()
+        incursionsCache.removeAllObjects()
         Logger.info("Cleared all NetworkManager caches")
     }
     
     // 获取主权数据
-    func fetchSovereigntyData() async {
+    func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
         let cacheKey = "sovereigntyData" as NSString
         let cacheValidDuration: TimeInterval = 24 * 60 * 60 // 24小时
         
         // 检查缓存
-        if let cachedData = sovereigntyCache.object(forKey: cacheKey),
+        if !forceRefresh,
+           let cachedData = sovereigntyCache.object(forKey: cacheKey),
            Date().timeIntervalSince(cachedData.timestamp) < cacheValidDuration {
             Logger.info("Using cached sovereignty data")
-            return
+            return cachedData.data
         }
         
         let urlString = "https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for sovereignty data")
-            return
+            throw NetworkError.invalidURL
         }
         
-        do {
-            let data = try await fetchData(from: url)
-            let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
-            
-            // 更新缓存
-            let cachedData = CachedSovereigntyData(data: sovereigntyData, timestamp: Date())
-            sovereigntyCache.setObject(cachedData, forKey: cacheKey)
-            Logger.info("Successfully fetched and cached sovereignty data")
-        } catch {
-            Logger.error("Error fetching sovereignty data: \(error)")
-        }
+        let data = try await fetchData(from: url)
+        let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
+        
+        // 更新缓存
+        let cachedData = CachedSovereigntyData(data: sovereigntyData, timestamp: Date())
+        sovereigntyCache.setObject(cachedData, forKey: cacheKey)
+        Logger.info("Successfully fetched and cached sovereignty data")
+        
+        return sovereigntyData
     }
     
     // 获取缓存的主权数据
     func getCachedSovereigntyData() -> [SovereigntyData]? {
         let cacheKey = "sovereigntyData" as NSString
-        return sovereigntyCache.object(forKey: cacheKey)?.data
+        guard let cachedData = sovereigntyCache.object(forKey: cacheKey),
+              Date().timeIntervalSince(cachedData.timestamp) < 24 * 60 * 60 else {
+            return nil
+        }
+        return cachedData.data
     }
     
     // 获取联盟图标
@@ -323,6 +361,16 @@ class NetworkManager {
             Logger.error("Failed to fetch alliance logo for ID \(allianceId): \(error)")
             throw error
         }
+    }
+    
+    // 获取缓存的入侵数据
+    func getCachedIncursions() -> [Incursion]? {
+        let cacheKey = "incursions_data" as NSString
+        guard let cachedData = incursionsCache.object(forKey: cacheKey),
+              cachedData.isValid else {
+            return nil
+        }
+        return cachedData.data
     }
 }
 

@@ -48,56 +48,52 @@ class IncursionsViewModel: ObservableObject {
     
     @MainActor
     func fetchIncursions(forceRefresh: Bool = false) async {
-        // 如果不是强制刷新，且有有效缓存，直接使用缓存
+        // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh,
-           let entry = Self.cache.object(forKey: cacheKey),
-           !entry.isExpired(validityDuration: validityDuration) {
-            self.preparedIncursions = entry.data
-            Logger.info("ViewModel: [缓存] 使用缓存中的 \(entry.data.count) 条入侵数据")
+           let cachedIncursions = NetworkManager.shared.getCachedIncursions() {
+            await processIncursions(cachedIncursions)
             return
         }
         
-        // 否则从网络加载
-        await fetchFromNetwork()
-    }
-    
-    @MainActor
-    private func fetchFromNetwork() async {
         isLoading = true
         preparedIncursions = []
         
         Logger.info("ViewModel: [网络] 开始获取入侵数据")
         do {
-            let decodedIncursions = try await NetworkManager.shared.fetchIncursions()
-            Logger.info("ViewModel: [网络] 获取到 \(decodedIncursions.count) 条入侵数据")
-            
-            var prepared: [(Incursion, (String, String), (String, Double, String, String))] = []
-            for incursion in decodedIncursions {
-                guard let factionInfo = getFactionInfo(factionId: incursion.factionId) else {
-                    Logger.error("ViewModel: [网络] 无法获取势力信息: factionId = \(incursion.factionId)")
-                    continue
-                }
-                
-                guard let locationInfo = getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) else {
-                    Logger.error("ViewModel: [网络] 无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
-                    continue
-                }
-                
-                prepared.append((incursion, factionInfo, locationInfo))
-            }
-            
-            if !prepared.isEmpty {
-                Logger.info("ViewModel: [网络] 成功准备 \(prepared.count) 条数据")
-                preparedIncursions = prepared
-                saveToCache(prepared)
-            } else {
-                Logger.error("ViewModel: [网络] 没有可显示的完整数据")
-            }
+            let decodedIncursions = try await NetworkManager.shared.fetchIncursions(forceRefresh: forceRefresh)
+            await processIncursions(decodedIncursions)
         } catch {
             Logger.error("ViewModel: [网络] 获取入侵数据失败: \(error)")
         }
         
         isLoading = false
+    }
+    
+    @MainActor
+    private func processIncursions(_ incursions: [Incursion]) async {
+        var prepared: [(Incursion, (String, String), (String, Double, String, String))] = []
+        
+        for incursion in incursions {
+            guard let factionInfo = getFactionInfo(factionId: incursion.factionId) else {
+                Logger.error("ViewModel: 无法获取势力信息: factionId = \(incursion.factionId)")
+                continue
+            }
+            
+            guard let locationInfo = getLocationInfo(solarSystemId: incursion.stagingSolarSystemId) else {
+                Logger.error("ViewModel: 无法获取位置信息: solarSystemId = \(incursion.stagingSolarSystemId)")
+                continue
+            }
+            
+            prepared.append((incursion, factionInfo, locationInfo))
+        }
+        
+        if !prepared.isEmpty {
+            Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
+            preparedIncursions = prepared
+            saveToCache(prepared)
+        } else {
+            Logger.error("ViewModel: 没有可显示的完整数据")
+        }
     }
     
     func getFactionInfo(factionId: Int) -> (iconName: String, name: String)? {

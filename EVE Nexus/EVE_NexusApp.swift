@@ -13,10 +13,6 @@ struct EVE_NexusApp: App {
 
     init() {
         configureLanguage()
-        // 加载主权数据
-        Task {
-            await NetworkManager.shared.fetchSovereigntyData()
-        }
     }
 
     private func configureLanguage() {
@@ -80,6 +76,24 @@ struct EVE_NexusApp: App {
         }
     }
 
+    private func initializeApp() async {
+        do {
+            // 在图标解压完成后加载主权数据
+            _ = try await NetworkManager.shared.fetchSovereigntyData()
+            await MainActor.run {
+                databaseManager.loadDatabase()
+                isInitialized = true
+            }
+        } catch {
+            Logger.error("初始化主权数据失败: \(error)")
+            // 即使主权数据加载失败，也继续初始化应用
+            await MainActor.run {
+                databaseManager.loadDatabase()
+                isInitialized = true
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -87,7 +101,9 @@ struct EVE_NexusApp: App {
                     ContentView(databaseManager: databaseManager)
                 } else if needsUnzip {
                     LoadingView(loadingState: $loadingState, progress: unzipProgress) {
-                        isInitialized = true
+                        Task {
+                            await initializeApp()
+                        }
                     }
                 } else {
                     Color.clear
