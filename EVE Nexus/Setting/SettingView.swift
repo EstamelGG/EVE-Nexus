@@ -260,6 +260,8 @@ struct SettingView: View {
     @State private var cacheDetails: [String: CacheStats] = [:]
     @State private var isCleaningCache = false
     @State private var isRefreshing: String? = nil
+    @State private var isReextractingIcons = false
+    @State private var unzipProgress: Double = 0
     
     /// 计算相对时间显示
     private func getRelativeTimeString(from date: Date) -> String {
@@ -332,8 +334,10 @@ struct SettingView: View {
                 ),
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
-                    icon: "arrow.triangle.2.circlepath",
+                    detail: isReextractingIcons ? 
+                        String(format: "%.0f%%", unzipProgress * 100) :
+                        NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
+                    icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
                     iconColor: .red,
                     action: { showingDeleteIconsAlert = true }
                 )
@@ -538,20 +542,43 @@ struct SettingView: View {
     
     private func deleteIconsAndRestart() {
         Task {
+            isReextractingIcons = true
+            
             let fileManager = FileManager.default
             let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let iconPath = documentPath.appendingPathComponent("Icons")
             
             do {
+                // 1. 删除现有图标
                 if fileManager.fileExists(atPath: iconPath.path) {
                     try fileManager.removeItem(at: iconPath)
                     Logger.info("Successfully deleted Icons directory")
                 }
-                // 等待文件系统完成操作
-                try await Task.sleep(for: .milliseconds(500))
-                exit(0)
+                
+                // 2. 重置解压状态
+                IconManager.shared.isExtractionComplete = false
+                
+                // 3. 重新解压图标
+                guard let bundleIconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
+                    Logger.error("icons.zip file not found in bundle")
+                    return
+                }
+                
+                let iconURL = URL(fileURLWithPath: bundleIconPath)
+                try await IconManager.shared.unzipIcons(from: iconURL, to: iconPath) { progress in
+                    Task { @MainActor in
+                        self.unzipProgress = progress
+                    }
+                }
+                
+                Logger.info("Successfully reextracted icons")
             } catch {
-                Logger.error("Error deleting Icons directory: \(error)")
+                Logger.error("Error reextracting icons: \(error)")
+            }
+            
+            await MainActor.run {
+                isReextractingIcons = false
+                showingDeleteIconsAlert = false
             }
         }
     }
