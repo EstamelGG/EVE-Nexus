@@ -26,11 +26,134 @@ struct SettingGroup: Identifiable {
     let items: [SettingItem]
 }
 
+// 缓存统计结构
+struct CacheStats {
+    var size: Int64
+    var count: Int
+    
+    static func + (lhs: CacheStats, rhs: CacheStats) -> CacheStats {
+        return CacheStats(size: lhs.size + rhs.size, count: lhs.count + rhs.count)
+    }
+}
+
+// 缓存管理器
+class CacheManager {
+    static let shared = CacheManager()
+    private let fileManager = FileManager.default
+    
+    // 获取所有缓存统计信息
+    func getAllCacheStats() async -> [String: CacheStats] {
+        var stats: [String: CacheStats] = [:]
+        
+        // 1. URLCache统计
+        stats["Network"] = getURLCacheStats()
+        
+        // 2. NSCache统计
+        stats["Memory"] = getNSCacheStats()
+        
+        // 3. UserDefaults统计
+        stats["UserDefaults"] = getUserDefaultsStats()
+        
+        // 4. 临时文件统计
+        stats["Temp"] = await getTempFileStats()
+        
+        return stats
+    }
+    
+    // 获取URLCache统计
+    private func getURLCacheStats() -> CacheStats {
+        let urlCache = URLCache.shared
+        return CacheStats(
+            size: Int64(urlCache.currentDiskUsage + urlCache.currentMemoryUsage),
+            count: 1  // URLCache不提供缓存项数量的API
+        )
+    }
+    
+    // 获取NSCache统计（如果您的应用使用了自定义的NSCache实例，需要在这里添加）
+    private func getNSCacheStats() -> CacheStats {
+        let totalCount = 0
+        
+        // 如果您有自定义的NSCache实例，在这里添加统计代码
+        // 例如：totalCount += yourNSCache.totalCostLimit
+        
+        return CacheStats(
+            size: 0,  // NSCache不提供大小信息
+            count: totalCount
+        )
+    }
+    
+    // 获取UserDefaults统计
+    private func getUserDefaultsStats() -> CacheStats {
+        let defaults = UserDefaults.standard
+        let dictionary = defaults.dictionaryRepresentation()
+        
+        var totalSize: Int64 = 0
+        let count = dictionary.count
+        
+        // 估算UserDefaults大小
+        for (_, value) in dictionary {
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: false) {
+                totalSize += Int64(data.count)
+            }
+        }
+        
+        return CacheStats(size: totalSize, count: count)
+    }
+    
+    // 获取临时文件统计
+    private func getTempFileStats() async -> CacheStats {
+        let tempPath = NSTemporaryDirectory()
+        var totalSize: Int64 = 0
+        var fileCount: Int = 0
+        
+        if let tempEnumerator = fileManager.enumerator(atPath: tempPath) {
+            for case let fileName as String in tempEnumerator {
+                let filePath = (tempPath as NSString).appendingPathComponent(fileName)
+                do {
+                    let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                    totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
+                    fileCount += 1
+                } catch {
+                    Logger.error("Error calculating temp file size: \(error)")
+                }
+            }
+        }
+        
+        return CacheStats(size: totalSize, count: fileCount)
+    }
+    
+    // 清理所有缓存
+    func clearAllCaches() async {
+        // 1. 清理URLCache
+        URLCache.shared.removeAllCachedResponses()
+        
+        // 2. 清理NSCache（如果有自定义实例）
+        // yourNSCache.removeAllObjects()
+        
+        // 3. 清理临时文件
+        let tempPath = NSTemporaryDirectory()
+        do {
+            let tempFiles = try fileManager.contentsOfDirectory(atPath: tempPath)
+            for file in tempFiles {
+                let filePath = (tempPath as NSString).appendingPathComponent(file)
+                try fileManager.removeItem(atPath: filePath)
+            }
+        } catch {
+            Logger.error("Error clearing temp files: \(error)")
+        }
+        
+        // 4. 清理NetworkManager缓存
+        NetworkManager.shared.clearAllCaches()
+    }
+}
+
 struct SettingView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @State private var showingCleanCacheAlert = false
     @State private var showingLanguageView = false
+    @State private var cacheSize: String = "计算中..."
     @ObservedObject var databaseManager: DatabaseManager
+    @State private var cacheDetails: [String: CacheStats] = [:]
     
     private var settingGroups: [SettingGroup] {
         [
@@ -55,7 +178,7 @@ struct SettingView: View {
             SettingGroup(header: "Cache", items: [
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Clean_Cache_detail", comment: ""),
+                    detail: formatCacheDetails(),
                     icon: "trash",
                     iconColor: .red,
                     action: { showingCleanCacheAlert = true }
@@ -105,12 +228,15 @@ struct SettingView: View {
             SelectLanguageView(databaseManager: databaseManager)
         }
         .alert("Clean Cache", isPresented: $showingCleanCacheAlert) {
-            Button("Cancel", role: .cancel) { }
-            Button("Clean", role: .destructive) {
+            Button("取消", role: .cancel) { }
+            Button("清理", role: .destructive) {
                 cleanCache()
             }
         } message: {
-            Text("This will clean the icons cache and restart the app. Are you sure?")
+            Text("这将清理应用缓存，包括网络缓存和临时文件。是否确认？")
+        }
+        .onAppear {
+            calculateCacheSize()
         }
     }
     
@@ -148,35 +274,49 @@ struct SettingView: View {
         }
     }
     
-    private func cleanCache() {
-        let fileManager = FileManager.default
-        let destinationPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
+    private func formatCacheDetails() -> String {
+        let totalSize = cacheDetails.values.reduce(0) { $0 + $1.size }
+        let totalCount = cacheDetails.values.reduce(0) { $0 + $1.count }
         
-        do {
-            // 清除图标文件夹
-            if fileManager.fileExists(atPath: destinationPath.path) {
-                try fileManager.removeItem(at: destinationPath)
-                Logger.info("Successfully deleted Icons directory")
-                
-                // 确保目录被完全删除
-                if !fileManager.fileExists(atPath: destinationPath.path) {
-                    Logger.debug("Verified: Icons directory has been removed")
-                } else {
-                    Logger.warning("Warning: Icons directory still exists after deletion")
+        var details = "\(formatFileSize(totalSize))"
+        details += "\n总数量：\(totalCount) 项"
+        
+        // 添加详细统计
+        if !cacheDetails.isEmpty {
+            details += "\n\n各项统计："
+            for (type, stats) in cacheDetails.sorted(by: { $0.key < $1.key }) {
+                if stats.size > 0 || stats.count > 0 {
+                    details += "\n• \(type)：\(formatFileSize(stats.size)) (\(stats.count) 项)"
                 }
-            } else {
-                Logger.error("Icons directory does not exist")
             }
-            
-            // 清除NetworkManager中的缓存
-            NetworkManager.shared.clearAllCaches()
-            Logger.info("Cleared NetworkManager caches")
-            
-            // 等待文件系统完成操作
-            Thread.sleep(forTimeInterval: 0.5)
-            exit(0)
-        } catch {
-            Logger.error("Error deleting Icons directory: \(error)")
+        }
+        
+        return details
+    }
+    
+    private func calculateCacheSize() {
+        Task {
+            let stats = await CacheManager.shared.getAllCacheStats()
+            await MainActor.run {
+                cacheDetails = stats
+            }
+        }
+    }
+    
+    private func formatFileSize(_ size: Int64) -> String {
+        let byteCountFormatter = ByteCountFormatter()
+        byteCountFormatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        byteCountFormatter.countStyle = .file
+        return byteCountFormatter.string(fromByteCount: size)
+    }
+    
+    private func cleanCache() {
+        Task {
+            await CacheManager.shared.clearAllCaches()
+            let stats = await CacheManager.shared.getAllCacheStats()
+            await MainActor.run {
+                cacheDetails = stats
+            }
         }
     }
 }
