@@ -378,13 +378,14 @@ struct SettingView: View {
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
                 case .sovereignty, .incursions:
+                    let isRefreshingThis = isRefreshing == resource.name
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
-                        icon: isRefreshing == resource.name ? "arrow.triangle.2.circlepath" : 
-                              (resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill"),
-                        iconColor: isRefreshing == resource.name ? .blue :
-                                 (resource.exists ? .green : .red),
+                        icon: isRefreshingThis ? "arrow.triangle.2.circlepath" : 
+                              (resource.exists ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath"),
+                        iconColor: isRefreshingThis ? .blue :
+                                 (resource.exists ? .green : .blue),
                         action: { refreshResource(resource) }
                     )
                 case .allianceIcons, .netRenders:
@@ -393,7 +394,7 @@ struct SettingView: View {
                         detail: formatResourceInfo(resource),
                         icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
                         iconColor: resource.exists ? .green : .red,
-                        action: { } 
+                        action: { }  // 空操作
                     )
                 }
             }
