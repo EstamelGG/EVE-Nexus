@@ -142,7 +142,7 @@
 "Main_Setting_Reset_Icons" = "Reset Icons Cache";
 "Main_Setting_Reset_Icons_Detail" = "Delete all icon cache and re-release";
 "Main_Setting_Reset_Icons_Title" = "Reset Icons Cache";
-"Main_Setting_Reset_Icons_Message" = "This will delete all downloaded icon cache and restart the app. Are you sure?";
+"Main_Setting_Reset_Icons_Message" = "This will delete all downloaded icon cache and unzip icons. Are you sure?";
 "Main_Setting_Cancel" = "Cancel";
 "Main_Setting_Clean" = "Clean";
 "Main_Setting_Reset" = "Reset";
