@@ -30,14 +30,6 @@ struct ESIConfig: Codable {
         let token: String
         let verify: String
     }
-    
-    init(clientId: String, clientSecret: String, callbackUrl: String, urls: ESIUrls, scopes: [String]) {
-        self.clientId = clientId
-        self.clientSecret = clientSecret
-        self.callbackUrl = callbackUrl
-        self.urls = urls
-        self.scopes = scopes
-    }
 }
 
 // 导入NetworkError
@@ -53,76 +45,30 @@ class EVELogin {
     private init() {
         session = URLSession.shared
         loadConfig()
-        Logger.info("EVELogin: 初始化完成，配置状态: \(config != nil ? "已加载" : "未加载")")
     }
     
     private func loadConfig() {
-        Logger.info("EVELogin: 开始加载配置...")
-        
-        // 1. 首先加载 scopes
+        // 1. 加载 scopes
         var allScopes: [String] = []
         if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json") {
             do {
                 let scopesData = try Data(contentsOf: scopesURL)
                 let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
-                
-                // 合并所有 scopes
                 var scopesSet = Set<String>()
                 for scopeArray in scopesDict.values {
                     scopesSet.formUnion(scopeArray)
                 }
                 allScopes = Array(scopesSet)
-                Logger.info("EVELogin: 成功加载 \(allScopes.count) 个权限")
             } catch {
                 Logger.error("EVELogin: 加载权限配置失败: \(error)")
                 return
             }
         }
         
-        // 2. 加载主配置
-        guard let configURL = Bundle.main.url(forResource: "esi_config", withExtension: "json") else {
-            Logger.error("EVELogin: 找不到 esi_config.json 文件")
-            return
-        }
-        
-        Logger.info("EVELogin: 找到配置文件: \(configURL.path)")
-        
-        do {
-            let configData = try Data(contentsOf: configURL)
-            
-            // 3. 先解析为原始字典
-            guard let jsonDict = try JSONSerialization.jsonObject(with: configData) as? [String: Any],
-                  let clientId = jsonDict["clientId"] as? String,
-                  let clientSecret = jsonDict["clientSecret"] as? String,
-                  let callbackUrl = jsonDict["callbackUrl"] as? String,
-                  let urlsDict = jsonDict["urls"] as? [String: String],
-                  let authorizeUrl = urlsDict["authorize"],
-                  let tokenUrl = urlsDict["token"],
-                  let verifyUrl = urlsDict["verify"] else {
-                Logger.error("EVELogin: 配置文件格式错误")
-                return
-            }
-            
-            // 4. 创建配置对象
-            let urls = ESIConfig.ESIUrls(
-                authorize: authorizeUrl,
-                token: tokenUrl,
-                verify: verifyUrl
-            )
-            
-            config = ESIConfig(
-                clientId: clientId,
-                clientSecret: clientSecret,
-                callbackUrl: callbackUrl,
-                urls: urls,
-                scopes: allScopes
-            )
-            
-            Logger.info("EVELogin: 配置加载成功")
-            
-        } catch {
-            Logger.error("EVELogin: 加载配置失败: \(error)")
-        }
+        // 2. 使用默认配置并添加权限
+        var configWithScopes = EVELogin.defaultConfig
+        configWithScopes.scopes = allScopes
+        self.config = configWithScopes
     }
     
     // 获取授权URL
@@ -137,14 +83,12 @@ class EVELogin {
             return nil
         }
         
-        let state = UUID().uuidString
-        
         components.queryItems = [
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: config.callbackUrl),
             URLQueryItem(name: "client_id", value: config.clientId),
             URLQueryItem(name: "scope", value: config.scopes.joined(separator: " ")),
-            URLQueryItem(name: "state", value: state)
+            URLQueryItem(name: "state", value: UUID().uuidString)
         ]
         
         return components.url
@@ -153,45 +97,21 @@ class EVELogin {
     // 处理授权回调
     func handleAuthCallback(url: URL) async throws -> EVEAuthToken {
         guard let config = config else {
-            Logger.error("EVELogin: 配置为空")
             throw NetworkError.invalidData
         }
         
-        // 先解析 URL 组件
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
-            Logger.error("EVELogin: 无法解析回调 URL")
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
+              let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
             throw NetworkError.invalidURL
         }
         
-        // 检查是否有错误
-        if let error = components.queryItems?.first(where: { $0.name == "error" })?.value {
-            Logger.error("EVELogin: EVE Online 返回错误: \(error)")
-            if let errorDescription = components.queryItems?.first(where: { $0.name == "error_description" })?.value {
-                Logger.error("EVELogin: 错误描述: \(errorDescription)")
-            }
-            throw NetworkError.invalidURL
-        }
-        
-        // 获取授权码
-        guard let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
-            Logger.error("EVELogin: 无法从回调 URL 中获取授权码")
-            throw NetworkError.invalidURL
-        }
-        
-        // 使用授权码获取访问令牌
-        guard let tokenURL = URL(string: config.urls.token) else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: tokenURL)
+        var request = URLRequest(url: URL(string: config.urls.token)!)
         request.httpMethod = "POST"
         
-        // 设置Basic认证
         let authString = "\(config.clientId):\(config.clientSecret)"
         let authData = authString.data(using: .utf8)!.base64EncodedString()
         request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
         
-        // 设置请求体
         let bodyParams = [
             "grant_type": "authorization_code",
             "code": code,
@@ -199,32 +119,13 @@ class EVELogin {
         ]
         
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        let bodyString = bodyParams.map { key, value in
-            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-            return "\(encodedKey)=\(encodedValue)"
-        }.joined(separator: "&")
+        request.httpBody = bodyParams
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
         
-        request.httpBody = bodyString.data(using: .utf8)
-        
-        do {
-            let (data, response) = try await session.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode != 200 {
-                let errorString = String(data: data, encoding: .utf8) ?? "未知错误"
-                Logger.error("EVELogin: 请求失败: \(errorString)")
-                throw NetworkError.invalidData
-            }
-            
-            return try JSONDecoder().decode(EVEAuthToken.self, from: data)
-        } catch let error as DecodingError {
-            Logger.error("EVELogin: 解析令牌失败: \(error)")
-            throw NetworkError.invalidData
-        } catch {
-            Logger.error("EVELogin: 网络请求失败: \(error)")
-            throw NetworkError.invalidData
-        }
+        let (data, _) = try await session.data(for: request)
+        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
     }
     
     // 获取角色信息
@@ -241,36 +142,6 @@ class EVELogin {
         return try JSONDecoder().decode(EVECharacterInfo.self, from: data)
     }
     
-    // 刷新访问令牌
-    func refreshToken(_ refreshToken: String) async throws -> EVEAuthToken {
-        guard let config = config,
-              let tokenURL = URL(string: config.urls.token) else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        
-        // 设置Basic认证
-        let authString = "\(config.clientId):\(config.clientSecret)"
-        let authData = authString.data(using: .utf8)!.base64EncodedString()
-        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
-        
-        // 设置请求体
-        let bodyParams = [
-            "grant_type": "refresh_token",
-            "refresh_token": refreshToken
-        ]
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyParams
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-        
-        let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
-    }
-    
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) {
         let defaults = UserDefaults.standard
@@ -281,7 +152,7 @@ class EVELogin {
             defaults.set(characterData, forKey: "EVECharacterInfo")
             defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
         } catch {
-            print("Error saving auth info: \(error)")
+            Logger.error("EVELogin: 保存认证信息失败: \(error)")
         }
     }
     
@@ -297,19 +168,11 @@ class EVELogin {
                 token = try JSONDecoder().decode(EVEAuthToken.self, from: tokenData)
                 character = try JSONDecoder().decode(EVECharacterInfo.self, from: characterData)
             } catch {
-                print("Error loading auth info: \(error)")
+                Logger.error("EVELogin: 加载认证信息失败: \(error)")
             }
         }
         
         return (token, character)
-    }
-    
-    // 检查令牌是否过期
-    func isTokenExpired() -> Bool {
-        guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
-            return true
-        }
-        return Date() >= expirationDate
     }
     
     // 清除认证信息
@@ -318,53 +181,21 @@ class EVELogin {
         defaults.removeObject(forKey: "EVEAuthToken")
         defaults.removeObject(forKey: "EVECharacterInfo")
         defaults.removeObject(forKey: "TokenExpirationDate")
+        Logger.info("EVELogin: 认证信息已清除")
     }
-    
-    // 获取钱包余额
-    func getWalletBalance() async throws -> Double {
-        guard let characterId = self.loadAuthInfo().character?.CharacterID else {
-            Logger.error("EVELogin: 无法获取角色ID")
-            throw NetworkError.invalidData
-        }
-        
-        guard let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/?datasource=tranquility") else {
-            Logger.error("EVELogin: 无法构建钱包API URL")
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        
-        // 获取当前的访问令牌
-        guard let accessToken = self.loadAuthInfo().token?.access_token else {
-            Logger.error("EVELogin: 无法获取访问令牌")
-            throw NetworkError.invalidData
-        }
-        
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        
-        do {
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                Logger.error("EVELogin: 无效的响应类型")
-                throw NetworkError.invalidResponse
-            }
-            
-            if httpResponse.statusCode != 200 {
-                Logger.error("EVELogin: 获取钱包余额失败，状态码: \(httpResponse.statusCode)")
-                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-            }
-            
-            let balance = try JSONDecoder().decode(Double.self, from: data)
-            Logger.info("EVELogin: 成功获取钱包余额: \(balance) ISK")
-            return balance
-            
-        } catch let error as NetworkError {
-            Logger.error("EVELogin: 获取钱包余额时发生网络错误: \(error)")
-            throw error
-        } catch {
-            Logger.error("EVELogin: 获取钱包余额时发生错误: \(error)")
-            throw NetworkError.invalidData
-        }
-    }
+}
+
+// 在 EVELogin 类中添加私有静态配置
+private extension EVELogin {
+    static let defaultConfig = ESIConfig(
+        clientId: "7339147833b44ad3815c7ef0957950c2",
+        clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
+        callbackUrl: "eveauthpanel://callback/",
+        urls: ESIConfig.ESIUrls(
+            authorize: "https://login.eveonline.com/v2/oauth/authorize/",
+            token: "https://login.eveonline.com/v2/oauth/token",
+            verify: "https://login.eveonline.com/oauth/verify"
+        ),
+        scopes: []  // 将在 loadConfig 中填充
+    )
 } 
