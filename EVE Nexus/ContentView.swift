@@ -1,5 +1,6 @@
 import SwiftUI
 import SafariServices
+import WebKit
 
 // 优化数据模型为值类型
 struct TableRowNode: Identifiable, Equatable {
@@ -38,6 +39,123 @@ struct TableNode: Identifiable, Equatable {
         lhs.id == rhs.id &&
         lhs.title == rhs.title &&
         lhs.rows == rhs.rows
+    }
+}
+
+// 用于显示EVE Online登录页面的WebView
+struct EVEWebView: UIViewRepresentable {
+    let url: URL
+    @Environment(\.presentationMode) var presentationMode
+    @Binding var characterInfo: EVECharacterInfo?
+    @Binding var isLoggedIn: Bool
+    @Binding var showingError: Bool
+    @Binding var errorMessage: String
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    func makeUIView(context: Context) -> WKWebView {
+        Logger.info("EVEWebView: 创建 WKWebView")
+        
+        // 创建WKWebView配置
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        
+        // 创建WKWebView
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        
+        // 加载URL
+        let request = URLRequest(url: url)
+        webView.load(request)
+        
+        return webView
+    }
+    
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        // 不需要更新
+    }
+    
+    class Coordinator: NSObject, WKNavigationDelegate {
+        let parent: EVEWebView
+        
+        init(_ parent: EVEWebView) {
+            self.parent = parent
+        }
+        
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            if let url = navigationAction.request.url {
+                Logger.info("EVEWebView: 请求URL: \(url.absoluteString)")
+                Logger.info("EVEWebView: 请求方法: \(navigationAction.request.httpMethod ?? "unknown")")
+                
+                if let headers = navigationAction.request.allHTTPHeaderFields {
+                    Logger.info("EVEWebView: 请求头: \(headers)")
+                }
+                
+                // 检查是否是回调URL
+                if let config = EVELogin.shared.config,
+                   let callbackURL = URL(string: config.callbackUrl),
+                   url.scheme == callbackURL.scheme {
+                    Logger.info("EVEWebView: 检测到回调URL")
+                    
+                    // 检查是否包含授权码
+                    if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                       let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+                        Logger.info("EVEWebView: 检测到授权码: \(code)")
+                        
+                        // 关闭WebView
+                        DispatchQueue.main.async {
+                            self.parent.presentationMode.wrappedValue.dismiss()
+                            
+                            // 处理授权回调
+                            Task {
+                                do {
+                                    let token = try await EVELogin.shared.handleAuthCallback(url: url)
+                                    Logger.info("EVEWebView: 获取到访问令牌")
+                                    
+                                    let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
+                                    Logger.info("EVEWebView: 获取到角色信息: \(character.CharacterName)")
+                                    
+                                    // 保存认证信息
+                                    EVELogin.shared.saveAuthInfo(token: token, character: character)
+                                    
+                                    // 更新UI
+                                    await MainActor.run {
+                                        self.parent.characterInfo = character
+                                        self.parent.isLoggedIn = true
+                                    }
+                                } catch {
+                                    Logger.error("EVEWebView: 处理授权失败: \(error)")
+                                    await MainActor.run {
+                                        self.parent.errorMessage = error.localizedDescription
+                                        self.parent.showingError = true
+                                    }
+                                }
+                            }
+                        }
+                        
+                        decisionHandler(.cancel)
+                        return
+                    }
+                }
+            }
+            
+            decisionHandler(.allow)
+        }
+        
+        func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            // 接受所有证书
+            completionHandler(.useCredential, URLCredential(trust: challenge.protectionSpace.serverTrust!))
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            Logger.error("EVEWebView: 导航失败: \(error)")
+        }
+        
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            Logger.error("EVEWebView: 预加载失败: \(error)")
+        }
     }
 }
 
@@ -103,7 +221,13 @@ struct AccountsView: View {
                 Logger.info("WebView dismissed")
             } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
-                    SafariView(url: url)
+                    EVEWebView(
+                        url: url,
+                        characterInfo: $characterInfo,
+                        isLoggedIn: $isLoggedIn,
+                        showingError: $showingError,
+                        errorMessage: $errorMessage
+                    )
                 } else {
                     Text("无法获取授权URL")
                 }
@@ -138,90 +262,6 @@ struct AccountsView: View {
         characterInfo = nil
         isLoggedIn = false
         Logger.info("登出完成")
-    }
-}
-
-// 用于显示EVE Online登录页面的Safari视图
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    @Environment(\.presentationMode) var presentationMode
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        Logger.info("SafariView: 创建 SFSafariViewController")
-        let config = SFSafariViewController.Configuration()
-        config.entersReaderIfAvailable = false
-        let controller = SFSafariViewController(url: url, configuration: config)
-        controller.delegate = context.coordinator
-        controller.dismissButtonStyle = .close
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
-        // 不需要更新
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, SFSafariViewControllerDelegate {
-        let parent: SafariView
-        
-        init(_ parent: SafariView) {
-            self.parent = parent
-        }
-        
-        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-            Logger.info("SafariView: 用户关闭了登录页面")
-            parent.presentationMode.wrappedValue.dismiss()
-        }
-        
-        func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
-            Logger.info("SafariView: 初始加载完成，成功: \(didLoadSuccessfully)")
-        }
-        
-        func safariViewController(_ controller: SFSafariViewController, initialLoadDidRedirectTo url: URL) {
-            Logger.info("SafariView: 页面重定向到: \(url.absoluteString)")
-            Logger.info("SafariView: URL scheme: \(url.scheme ?? "nil")")
-            Logger.info("SafariView: URL host: \(url.host ?? "nil")")
-            Logger.info("SafariView: URL path: \(url.path)")
-            Logger.info("SafariView: URL query: \(url.query ?? "nil")")
-            
-            // 检查是否已配置URL Scheme
-            guard let config = EVELogin.shared.config,
-                  let callbackURL = URL(string: config.callbackUrl) else {
-                Logger.error("SafariView: 无法获取配置信息或解析回调URL")
-                return
-            }
-            
-            Logger.info("SafariView: 检查URL配置: 期望的回调URL=\(config.callbackUrl)")
-            
-            // 检查是否是我们的回调 URL
-            if url.scheme == callbackURL.scheme && url.host == callbackURL.host {
-                Logger.info("SafariView: 检测到授权回调，准备处理")
-                
-                // 先关闭 Safari 视图，再处理 URL
-                DispatchQueue.main.async {
-                    self.parent.presentationMode.wrappedValue.dismiss()
-                    
-                    // 延迟一小段时间后处理 URL，确保视图已经完全关闭
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        let shared = UIApplication.shared
-                        if shared.canOpenURL(url) {
-                            Logger.info("SafariView: 开始打开回调 URL")
-                            shared.open(url, options: [:]) { success in
-                                Logger.info("SafariView: URL 处理结果: \(success)")
-                                if !success {
-                                    Logger.error("SafariView: 处理回调 URL 失败")
-                                }
-                            }
-                        } else {
-                            Logger.error("SafariView: 无法打开回调 URL")
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

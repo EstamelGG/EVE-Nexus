@@ -37,12 +37,122 @@ extension EVELogin {
     typealias NetworkError = EVE_Nexus.NetworkError
 }
 
+// 添加自定义URLProtocol
+class EVEURLProtocol: URLProtocol {
+    static var requestCallback: ((URLRequest) -> Void)?
+    static var responseCallback: ((URLResponse?, Data?) -> Void)?
+    
+    // 标记已处理的请求，避免重复处理
+    private static let RequestHandledKey = "EVEURLProtocolHandledKey"
+    
+    // 判断是否处理该请求
+    override class func canInit(with request: URLRequest) -> Bool {
+        // 检查请求是否已被处理
+        if URLProtocol.property(forKey: RequestHandledKey, in: request) != nil {
+            return false
+        }
+        
+        // 只处理EVE Online相关的请求
+        guard let url = request.url?.absoluteString.lowercased() else { return false }
+        return url.contains("eveonline.com") || url.contains("evetech.net")
+    }
+    
+    // 规范化请求
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        return request
+    }
+    
+    // 开始加载请求
+    override func startLoading() {
+        guard let client = client else { return }
+        
+        // 标记请求已被处理
+        let newRequest = (request as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+        URLProtocol.setProperty(true, forKey: EVEURLProtocol.RequestHandledKey, in: newRequest)
+        
+        // 记录请求信息
+        Logger.info("EVEURLProtocol: 发送请求: \(request.url?.absoluteString ?? "unknown")")
+        Logger.info("EVEURLProtocol: 请求方法: \(request.httpMethod ?? "unknown")")
+        if let headers = request.allHTTPHeaderFields {
+            Logger.info("EVEURLProtocol: 请求头: \(headers)")
+        }
+        if let body = request.httpBody {
+            Logger.info("EVEURLProtocol: 请求体: \(String(data: body, encoding: .utf8) ?? "无法解码")")
+        }
+        
+        // 回调请求信息
+        EVEURLProtocol.requestCallback?(request)
+        
+        // 创建数据任务
+        let task = URLSession.shared.dataTask(with: newRequest as URLRequest) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                Logger.error("EVEURLProtocol: 请求错误: \(error)")
+                client.urlProtocol(self, didFailWithError: error)
+                return
+            }
+            
+            if let response = response {
+                Logger.info("EVEURLProtocol: 收到响应: \(response)")
+                client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                
+                if let httpResponse = response as? HTTPURLResponse {
+                    Logger.info("EVEURLProtocol: 响应状态码: \(httpResponse.statusCode)")
+                    Logger.info("EVEURLProtocol: 响应头: \(httpResponse.allHeaderFields)")
+                }
+            }
+            
+            if let data = data {
+                Logger.info("EVEURLProtocol: 响应体: \(String(data: data, encoding: .utf8) ?? "无法解码")")
+                client.urlProtocol(self, didLoad: data)
+                
+                // 回调响应信息
+                EVEURLProtocol.responseCallback?(response, data)
+            }
+            
+            client.urlProtocolDidFinishLoading(self)
+        }
+        task.resume()
+    }
+    
+    // 停止加载请求
+    override func stopLoading() {
+        // 实现为空即可
+    }
+}
+
 class EVELogin {
     static let shared = EVELogin()
     internal var config: ESIConfig?
+    private var session: URLSession!
     
     private init() {
         loadConfig()
+        setupURLProtocol()
+        
+        // 创建配置了URLProtocol的URLSession
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [EVEURLProtocol.self]
+        session = URLSession(configuration: config)
+    }
+    
+    private func setupURLProtocol() {
+        // 注册自定义URLProtocol
+        URLProtocol.registerClass(EVEURLProtocol.self)
+        
+        // 配置回调
+        EVEURLProtocol.requestCallback = { request in
+            // 在这里处理请求信息
+            Logger.info("EVELogin: 拦截到请求: \(request.url?.absoluteString ?? "unknown")")
+        }
+        
+        EVEURLProtocol.responseCallback = { response, data in
+            // 在这里处理响应信息
+            if let httpResponse = response as? HTTPURLResponse {
+                Logger.info("EVELogin: 拦截到响应: \(httpResponse.statusCode)")
+            }
+        }
     }
     
     private func loadConfig() {
@@ -58,18 +168,24 @@ class EVELogin {
     
     // 获取授权URL
     func getAuthorizationURL() -> URL? {
-        guard let config = config else { return nil }
+        guard let config = config else { 
+            Logger.error("EVELogin: 配置为空，无法获取授权URL")
+            return nil 
+        }
         
         var components = URLComponents(string: config.urls.authorize)
         
+        let state = UUID().uuidString
+        Logger.info("EVELogin: 生成的state值: \(state)")
         Logger.info("EVELogin: 使用回调 URL: \(config.callbackUrl)")
+        Logger.info("EVELogin: 使用的scopes: \(config.scopes.joined(separator: " "))")
         
         components?.queryItems = [
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: config.callbackUrl),
             URLQueryItem(name: "client_id", value: config.clientId),
             URLQueryItem(name: "scope", value: config.scopes.joined(separator: " ")),
-            URLQueryItem(name: "state", value: UUID().uuidString)
+            URLQueryItem(name: "state", value: state)
         ]
         
         guard let finalURL = components?.url else {
@@ -83,7 +199,8 @@ class EVELogin {
     
     // 处理授权回调
     func handleAuthCallback(url: URL) async throws -> EVEAuthToken {
-        Logger.info("EVELogin: 开始处理授权回调: \(url.absoluteString)")
+        Logger.info("EVELogin: 开始处理授权回调")
+        Logger.info("EVELogin: 收到的完整URL: \(url.absoluteString)")
         
         guard let config = config else {
             Logger.error("EVELogin: 配置为空")
@@ -95,12 +212,19 @@ class EVELogin {
             throw NetworkError.invalidURL
         }
         
-        Logger.info("EVELogin: URL 组件: \(components)")
+        Logger.info("EVELogin: URL 组件解析结果:")
+        Logger.info("- Scheme: \(components.scheme ?? "nil")")
+        Logger.info("- Host: \(components.host ?? "nil")")
+        Logger.info("- Path: \(components.path)")
+        Logger.info("- Query Items: \(String(describing: components.queryItems))")
         
         guard let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
             Logger.error("EVELogin: 无法从回调 URL 中获取授权码")
             if let error = components.queryItems?.first(where: { $0.name == "error" })?.value {
                 Logger.error("EVELogin: EVE Online 返回错误: \(error)")
+                if let errorDescription = components.queryItems?.first(where: { $0.name == "error_description" })?.value {
+                    Logger.error("EVELogin: 错误描述: \(errorDescription)")
+                }
             }
             throw NetworkError.invalidURL
         }
@@ -142,7 +266,7 @@ class EVELogin {
         
         Logger.info("EVELogin: 发送令牌请求")
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
                 Logger.info("EVELogin: 收到响应，状态码: \(httpResponse.statusCode)")
@@ -183,7 +307,7 @@ class EVELogin {
         var request = URLRequest(url: verifyURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(EVECharacterInfo.self, from: data)
     }
     
@@ -216,7 +340,7 @@ class EVELogin {
             .joined(separator: "&")
             .data(using: .utf8)
         
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, _) = try await session.data(for: request)
         return try JSONDecoder().decode(EVEAuthToken.self, from: data)
     }
     
