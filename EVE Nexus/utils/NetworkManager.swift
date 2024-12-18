@@ -233,6 +233,9 @@ class NetworkManager: NSObject {
         // 设置缓存删除时的回调
         dataCache.delegate = self
         imageCache.delegate = self
+        
+        // 让系统自动管理 URLCache，不需要我们手动配置
+        // URLCache 会在需要时自动创建和初始化缓存文件
     }
     
     func setRegionID(_ id: Int) {
@@ -541,20 +544,57 @@ class NetworkManager: NSObject {
         dataCacheKeys.removeAll()
         imageCacheKeys.removeAll()
         serverStatusCache = nil
+        Logger.info("Cleared memory caches")
         
         // 清理 StaticDataSet 目录
         let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
         do {
-            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
-                try FileManager.default.removeItem(at: staticDataSetPath)
+            let contents = try FileManager.default.contentsOfDirectory(
+                at: staticDataSetPath,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+            
+            Logger.info("Found \(contents.count) items in StaticDataSet directory")
+            
+            // 逐个删除文件，跳过系统缓存文件
+            for url in contents {
+                let filename = url.lastPathComponent
+                // 跳过系统缓存文件
+                if filename.starts(with: "Cache.db") {
+                    Logger.info("Skipping system cache file: \(filename)")
+                    continue
+                }
+                // 跳过 .DS_Store 文件
+                if filename == ".DS_Store" {
+                    Logger.info("Skipping .DS_Store file")
+                    continue
+                }
+                
+                // 获取文件大小
+                if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                   let fileSize = attributes[.size] as? Int64 {
+                    Logger.info("Deleting file: \(filename)")
+                } else {
+                    Logger.info("Deleting file: \(filename)")
+                }
+                
+                // 删除文件
+                do {
+                    try FileManager.default.removeItem(at: url)
+                } catch {
+                    Logger.error("Failed to delete file \(filename): \(error)")
+                }
             }
-            try FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
-            Logger.info("Cleared StaticDataSet directory")
+            
+            Logger.info("Finished clearing StaticDataSet directory")
         } catch {
-            Logger.error("Error clearing StaticDataSet directory: \(error)")
+            // 如果目录不存在，创建它
+            try? FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
+            Logger.error("Error accessing StaticDataSet directory: \(error)")
         }
         
-        Logger.info("Cleared all local caches")
+        Logger.info("Completed clearing all local caches")
     }
     
     // 获取联盟图标
