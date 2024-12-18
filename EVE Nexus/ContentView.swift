@@ -52,7 +52,6 @@ struct SafariView: UIViewControllerRepresentable {
     @Binding var errorMessage: String
     
     func makeUIViewController(context: Context) -> SFSafariViewController {
-        Logger.info("SafariView: 创建 SFSafariViewController")
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = false
         let controller = SFSafariViewController(url: url, configuration: config)
@@ -77,12 +76,13 @@ struct SafariView: UIViewControllerRepresentable {
         }
         
         func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-            Logger.info("SafariView: 用户关闭了登录页面")
             parent.presentationMode.wrappedValue.dismiss()
         }
         
         func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
-            Logger.info("SafariView: 初始加载完成，成功: \(didLoadSuccessfully)")
+            if !didLoadSuccessfully {
+                Logger.error("SafariView: 加载失败")
+            }
         }
     }
 }
@@ -109,9 +109,7 @@ struct AccountsView: View {
                         }
                     } else {
                         Button(action: {
-                            Logger.info("点击登录按钮")
-                            if let authURL = EVELogin.shared.getAuthorizationURL() {
-                                Logger.info("获取到授权URL: \(authURL)")
+                            if EVELogin.shared.getAuthorizationURL() != nil {
                                 showingWebView = true
                             } else {
                                 Logger.error("获取授权URL失败")
@@ -146,7 +144,6 @@ struct AccountsView: View {
                 }
             }
             .sheet(isPresented: $showingWebView) {
-                Logger.info("WebView dismissed")
             } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
                     SafariView(
@@ -166,11 +163,9 @@ struct AccountsView: View {
                 Text(errorMessage)
             }
             .onAppear {
-                Logger.info("AccountsView appeared")
                 checkExistingAuth()
             }
             .onOpenURL { url in
-                Logger.info("AccountsView: 收到URL回调: \(url)")
                 handleCallback(url: url)
             }
         }
@@ -180,10 +175,7 @@ struct AccountsView: View {
         Task {
             do {
                 let token = try await EVELogin.shared.handleAuthCallback(url: url)
-                Logger.info("AccountsView: 获取到访问令牌")
-                
                 let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
-                Logger.info("AccountsView: 获取到角色信息: \(character.CharacterName)")
                 
                 // 保存认证信息
                 EVELogin.shared.saveAuthInfo(token: token, character: character)
@@ -195,7 +187,7 @@ struct AccountsView: View {
                     self.showingWebView = false
                 }
             } catch {
-                Logger.error("AccountsView: 处理授权失败: \(error)")
+                Logger.error("处理授权失败: \(error)")
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
                     self.showingError = true
@@ -206,23 +198,17 @@ struct AccountsView: View {
     }
     
     private func checkExistingAuth() {
-        Logger.info("检查现有认证信息")
         let authInfo = EVELogin.shared.loadAuthInfo()
         if let character = authInfo.character {
-            Logger.info("找到现有角色信息: \(character.CharacterName)")
             characterInfo = character
             isLoggedIn = true
-        } else {
-            Logger.info("未找到现有认证信息")
         }
     }
     
     private func logout() {
-        Logger.info("执行登出操作")
         EVELogin.shared.clearAuthInfo()
         characterInfo = nil
         isLoggedIn = false
-        Logger.info("登出完成")
     }
 }
 
