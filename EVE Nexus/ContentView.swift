@@ -177,6 +177,8 @@ struct AccountsView: View {
                 let token = try await EVELogin.shared.handleAuthCallback(url: url)
                 let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
                 
+                Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
+                
                 // 保存认证信息
                 EVELogin.shared.saveAuthInfo(token: token, character: character)
                 
@@ -200,6 +202,7 @@ struct AccountsView: View {
     private func checkExistingAuth() {
         let authInfo = EVELogin.shared.loadAuthInfo()
         if let character = authInfo.character {
+            Logger.info("加载已保存的角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
             characterInfo = character
             isLoggedIn = true
         }
