@@ -183,6 +183,34 @@ class EVELogin {
         defaults.removeObject(forKey: "TokenExpirationDate")
         Logger.info("EVELogin: 认证信息已清除")
     }
+    
+    // 添加一个新的方法来处理整个认证流程
+    func handleAuthenticationCallback(url: URL, completion: @escaping (Result<EVECharacterInfo, Error>) -> Void) {
+        Task {
+            do {
+                // 1. 处理授权回调，获取token
+                let token = try await handleAuthCallback(url: url)
+                
+                // 2. 获取角色信息
+                let character = try await getCharacterInfo(token: token.access_token)
+                Logger.info("EVELogin: 获取到角色信息: CharacterID=\(character.CharacterID), CharacterName=\(character.CharacterName)")
+                
+                // 3. 保存认证信息
+                saveAuthInfo(token: token, character: character)
+                
+                // 4. 返回成功结果
+                await MainActor.run {
+                    completion(.success(character))
+                }
+                
+            } catch {
+                Logger.error("EVELogin: 认证过程出错: \(error)")
+                await MainActor.run {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
 }
 
 // 在 EVELogin 类中添加私有静态配置
