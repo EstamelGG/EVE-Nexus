@@ -204,9 +204,9 @@ enum EVEResource: CaseIterable, NetworkResource {
         case .marketOrders:
             return 300 // 5分钟
         case .marketHistory:
-            return 3600 // 1小时
+            return 7 * 24 * 3600 // 1周
         case .serverStatus:
-            return 60 // 1分钟
+            return 300 // 5分钟
         }
     }
 }
