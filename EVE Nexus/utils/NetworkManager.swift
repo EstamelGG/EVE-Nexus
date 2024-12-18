@@ -300,10 +300,12 @@ class NetworkManager: NSObject {
         if cacheKey.starts(with: "alliance_") {
             // 联盟图标存储在 StaticDataSet/AllianceIcons 目录
             fileURL = StaticResourceManager.shared.getAllianceIconPath().appendingPathComponent(filename)
+        } else if cacheKey.starts(with: "item_") {
+            // 物品渲染图存储在 StaticDataSet/NetRenders 目录
+            fileURL = StaticResourceManager.shared.getNetRendersPath().appendingPathComponent(filename)
         } else {
-            // 其他图片存储在系统缓存目录
-            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            fileURL = cacheDirectory.appendingPathComponent(filename)
+            // 其他图片存储在 StaticDataSet/Images 目录
+            fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Images").appendingPathComponent(filename)
         }
         
         // 确保目录存在
@@ -538,21 +540,17 @@ class NetworkManager: NSObject {
         imageCacheKeys.removeAll()
         serverStatusCache = nil
         
-        let fileManager = FileManager.default
-        
-        // 1. 清理系统缓存目录
-        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                   in: .userDomainMask, 
-                                                   appropriateFor: nil, 
-                                                   create: false) {
-            try? fileManager.removeItem(at: cacheDirectory)
-            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
-        }
-        
-        // 2. 清理StaticDataSet目录
+        // 清理 StaticDataSet 目录
         let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
-        try? fileManager.removeItem(at: staticDataSetPath)
-        try? fileManager.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
+        do {
+            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
+                try FileManager.default.removeItem(at: staticDataSetPath)
+            }
+            try FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
+            Logger.info("Cleared StaticDataSet directory")
+        } catch {
+            Logger.error("Error clearing StaticDataSet directory: \(error)")
+        }
         
         Logger.info("Cleared all NetworkManager caches")
     }
@@ -601,33 +599,7 @@ class NetworkManager: NSObject {
             // 2. 检查文件缓存
             if request.cacheStrategy == .fileOnly || request.cacheStrategy == .both {
                 let fileManager = FileManager.default
-                let fileURL: URL
-                
-                // 根据资源类型选择存储位置
-                if let resource = request.resource as? EVEResource {
-                    switch resource {
-                    case .sovereignty, .incursions, .sovereigntyCampaigns:
-                        // 这些资源存储在 StaticDataSet 目录
-                        fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
-                    default:
-                        // 其他资源存储在系统缓存目录
-                        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                                      in: .userDomainMask, 
-                                                                      appropriateFor: nil, 
-                                                                      create: true) else {
-                            throw NetworkError.invalidData
-                        }
-                        fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
-                    }
-                } else {
-                    guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                                  in: .userDomainMask, 
-                                                                  appropriateFor: nil, 
-                                                                  create: true) else {
-                        throw NetworkError.invalidData
-                    }
-                    fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
-                }
+                let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(request.resource.fileName)
                 
                 if fileManager.fileExists(atPath: fileURL.path) {
                     do {
@@ -681,33 +653,7 @@ class NetworkManager: NSObject {
         if request.cacheStrategy == .fileOnly || request.cacheStrategy == .both {
             do {
                 let fileManager = FileManager.default
-                let fileURL: URL
-                
-                // 根据资源类型选择存储位置
-                if let resource = request.resource as? EVEResource {
-                    switch resource {
-                    case .sovereignty, .incursions, .sovereigntyCampaigns:
-                        // 这些资源存储在 StaticDataSet 目录
-                        fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
-                    default:
-                        // 其他资源存储在系统缓存目录
-                        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                                      in: .userDomainMask, 
-                                                                      appropriateFor: nil, 
-                                                                      create: true) else {
-                            throw NetworkError.invalidData
-                        }
-                        fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
-                    }
-                } else {
-                    guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                                  in: .userDomainMask, 
-                                                                  appropriateFor: nil, 
-                                                                  create: true) else {
-                        throw NetworkError.invalidData
-                    }
-                    fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
-                }
+                let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(request.resource.fileName)
                 
                 // 确保目录存在
                 try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), 
