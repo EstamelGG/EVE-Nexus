@@ -284,7 +284,11 @@ struct ContentView: View {
         let utcTime = formatter.string(from: currentTime)
         
         guard let status = serverStatus else {
-            return AttributedString("\(utcTime) - Checking Status...")
+            var attributed = AttributedString("\(utcTime) - Checking Status...")
+            if let timeRange = attributed.range(of: utcTime) {
+                attributed[timeRange].font = .monospacedDigit(.caption)()
+            }
+            return attributed
         }
         
         // 格式化玩家数，添加千分位
@@ -294,12 +298,23 @@ struct ContentView: View {
         let formattedPlayers = numberFormatter.string(from: NSNumber(value: status.players)) ?? "\(status.players)"
         
         var attributed = AttributedString("\(utcTime) - ")
+        // 为时间部分设置等宽字体
+        if let timeRange = attributed.range(of: utcTime) {
+            attributed[timeRange].font = .monospacedDigit(.caption)()
+        }
+        
         if status.isOnline {
             var onlineText = AttributedString("Online")
             onlineText.font = .caption.bold()
             onlineText.foregroundColor = Color(red: 0, green: 0.5, blue: 0)
             attributed.append(onlineText)
-            attributed.append(AttributedString(" (\(formattedPlayers) players)"))
+            
+            var playersText = AttributedString(" (\(formattedPlayers) players)")
+            // 为玩家数设置等宽字体
+            if let playersRange = playersText.range(of: formattedPlayers) {
+                playersText[playersRange].font = .monospacedDigit(.caption)()
+            }
+            attributed.append(playersText)
         } else {
             var offlineText = AttributedString("Offline")
             offlineText.font = .caption.bold()
