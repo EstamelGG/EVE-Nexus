@@ -233,6 +233,29 @@ class CacheManager {
 
 // MARK: - 设置视图
 struct SettingView: View {
+    // MARK: - 界面组件
+    private struct FullScreenCover: View {
+        let progress: Double
+        @Binding var loadingState: LoadingState
+        let onComplete: () -> Void
+        
+        var body: some View {
+            GeometryReader { geometry in
+                ZStack {
+                    Color.black
+                        .opacity(0.8)
+                    
+                    LoadingView(loadingState: $loadingState,
+                              progress: progress,
+                              onComplete: onComplete)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .edgesIgnoringSafeArea(.all)
+            .interactiveDismissDisabled()
+        }
+    }
+    
     // MARK: - 属性定义
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @State private var showingCleanCacheAlert = false
@@ -247,6 +270,10 @@ struct SettingView: View {
     @State private var loadingState: LoadingState = .unzipping
     @State private var showingLoadingView = false
     @State private var refreshingResources: Set<String> = []
+    
+    // 新增状态属性
+    @State private var settingGroups: [SettingGroup] = []
+    @State private var resourceInfoCache: [String: String] = [:]
     
     // MARK: - 时间处理工具
     private func getRelativeTimeString(from date: Date) -> String {
@@ -263,6 +290,117 @@ struct SettingView: View {
         } else {
             return NSLocalizedString("Time_Just_Now", comment: "")
         }
+    }
+    
+    // MARK: - 数据更新函数
+    private func updateAllData() {
+        Task {
+            let stats = await CacheManager.shared.getAllCacheStats()
+            await MainActor.run {
+                self.cacheDetails = stats
+                updateSettingGroups()
+            }
+        }
+    }
+    
+    private func updateSettingGroups() {
+        settingGroups = [
+            createAppearanceGroup(),
+            createOthersGroup(),
+            createCacheGroup(),
+            createStaticResourceGroup()
+        ]
+    }
+    
+    // MARK: - 设置组创建函数
+    private func createAppearanceGroup() -> SettingGroup {
+        SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
+                detail: getAppearanceDetail(),
+                icon: getThemeIcon(),
+                action: toggleAppearance
+            )
+        ])
+    }
+    
+    private func createOthersGroup() -> SettingGroup {
+        SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Language", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                icon: "globe",
+                action: { showingLanguageView = true }
+            )
+        ])
+    }
+    
+    private func createCacheGroup() -> SettingGroup {
+        SettingGroup(header: "Cache", items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
+                detail: formatCacheDetails(),
+                icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
+                iconColor: .red,
+                action: { showingCleanCacheAlert = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
+                detail: isReextractingIcons ? 
+                    String(format: "%.0f%%", unzipProgress * 100) :
+                    NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
+                icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
+                iconColor: .red,
+                action: { showingDeleteIconsAlert = true }
+            )
+        ])
+    }
+    
+    private func createStaticResourceGroup() -> SettingGroup {
+        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
+            var title = resource.name
+            if let downloadTime = resource.downloadTime {
+                title += " (" + getRelativeTimeString(from: downloadTime) + ")"
+            }
+            
+            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+                switch type {
+                case .sovereignty, .incursions:
+                    let isRefreshingThis = refreshingResources.contains(resource.name)
+                    
+                    let isExpired = resource.exists && resource.lastModified != nil && 
+                        Date().timeIntervalSince(resource.lastModified!) > type.cacheDuration
+                    
+                    return SettingItem(
+                        title: title,
+                        detail: formatResourceInfo(resource),
+                        icon: isRefreshingThis ? "arrow.triangle.2.circlepath" : 
+                              (resource.exists ? 
+                                (isExpired ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") : 
+                                "arrow.triangle.2.circlepath"),
+                        iconColor: isRefreshingThis ? .blue :
+                                 (resource.exists ? 
+                                    (isExpired ? .yellow : .green) : 
+                                    .blue),
+                        action: { refreshResource(resource) }
+                    )
+                case .allianceIcons, .netRenders, .marketData:
+                    return SettingItem(
+                        title: title,
+                        detail: formatResourceInfo(resource),
+                        action: { }
+                    )
+                }
+            }
+            
+            return SettingItem(
+                title: title,
+                detail: formatResourceInfo(resource),
+                action: { }
+            )
+        }
+        
+        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
     }
     
     // MARK: - 资源管理
@@ -302,10 +440,9 @@ struct SettingView: View {
                     break
                 }
                 
-                // 刷新缓存大小统计
-                let stats = await CacheManager.shared.getAllCacheStats()
+                // 刷新完成后更新UI
                 await MainActor.run {
-                    self.cacheDetails = stats
+                    updateAllData()
                 }
             } catch {
                 Logger.error("Failed to refresh resource: \(error)")
@@ -315,131 +452,6 @@ struct SettingView: View {
             _ = await MainActor.run {
                 refreshingResources.remove(resource.name)
             }
-        }
-    }
-    
-    // MARK: - 设置组配置
-    private var appearanceGroup: SettingGroup {
-        SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
-            SettingItem(
-                title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
-                detail: getAppearanceDetail(),
-                icon: getThemeIcon(),
-                action: toggleAppearance
-            )
-        ])
-    }
-    
-    private var othersGroup: SettingGroup {
-        SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
-            SettingItem(
-                title: NSLocalizedString("Main_Setting_Language", comment: ""),
-                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
-                icon: "globe",
-                action: { showingLanguageView = true }
-            )
-        ])
-    }
-    
-    private var cacheGroup: SettingGroup {
-        SettingGroup(header: "Cache", items: [
-            SettingItem(
-                title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
-                detail: formatCacheDetails(),
-                icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
-                iconColor: .red,
-                action: { showingCleanCacheAlert = true }
-            ),
-            SettingItem(
-                title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
-                detail: isReextractingIcons ? 
-                    String(format: "%.0f%%", unzipProgress * 100) :
-                    NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
-                icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
-                iconColor: .red,
-                action: { showingDeleteIconsAlert = true }
-            )
-        ])
-    }
-    
-    private var staticResourceGroup: SettingGroup {
-        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
-            var title = resource.name
-            if let downloadTime = resource.downloadTime {
-                title += " (" + getRelativeTimeString(from: downloadTime) + ")"
-            }
-            
-            // 根据资源类型决定显示方式
-            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
-                switch type {
-                case .sovereignty, .incursions:
-                    let isRefreshingThis = refreshingResources.contains(resource.name)
-                    
-                    // 检查资源是否过期
-                    let isExpired = resource.exists && resource.lastModified != nil && 
-                        Date().timeIntervalSince(resource.lastModified!) > type.cacheDuration
-                    
-                    return SettingItem(
-                        title: title,
-                        detail: formatResourceInfo(resource),
-                        icon: isRefreshingThis ? "arrow.triangle.2.circlepath" : 
-                              (resource.exists ? 
-                                (isExpired ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") : 
-                                "arrow.triangle.2.circlepath"),
-                        iconColor: isRefreshingThis ? .blue :
-                                 (resource.exists ? 
-                                    (isExpired ? .yellow : .green) : 
-                                    .blue),
-                        action: { refreshResource(resource) }
-                    )
-                case .allianceIcons, .netRenders, .marketData:
-                    return SettingItem(
-                        title: title,
-                        detail: formatResourceInfo(resource),
-                        action: { }
-                    )
-                }
-            }
-            
-            return SettingItem(
-                title: title,
-                detail: formatResourceInfo(resource),
-                action: { }
-            )
-        }
-        
-        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
-    }
-    
-    private var settingGroups: [SettingGroup] {
-        [
-            appearanceGroup,
-            othersGroup,
-            cacheGroup,
-            staticResourceGroup
-        ]
-    }
-    
-    // MARK: - 界面组件
-    private struct FullScreenCover: View {
-        let progress: Double
-        @Binding var loadingState: LoadingState
-        let onComplete: () -> Void
-        
-        var body: some View {
-            GeometryReader { geometry in
-                ZStack {
-                    Color.black
-                        .opacity(0.8)
-                    
-                    LoadingView(loadingState: $loadingState,
-                              progress: progress,
-                              onComplete: onComplete)
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-            }
-            .edgesIgnoringSafeArea(.all)
-            .interactiveDismissDisabled()
         }
     }
     
@@ -529,10 +541,10 @@ struct SettingView: View {
                 Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
             }
             .onAppear {
-                calculateCacheSize()
+                updateAllData() // 首次加载时更新
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                calculateCacheSize()  // 从后台返回时重新计算
+                updateAllData() // 从后台返回时更新
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
@@ -542,7 +554,7 @@ struct SettingView: View {
                 loadingState: $loadingState,
                 onComplete: {
                     showingLoadingView = false
-                    calculateCacheSize()  // 重置图标完成后重新计算
+                    updateAllData() // 重置图标完成后更新
                 }
             )
         })
@@ -696,9 +708,9 @@ struct SettingView: View {
             // 等待文件系统操作完成
             try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
             
-            // 5. 所有清理完成后，再计算一次大小
+            // 5. 所有清理完成后，更新数据
             await MainActor.run {
-                calculateCacheSize()
+                updateAllData()
                 isCleaningCache = false
             }
         }
