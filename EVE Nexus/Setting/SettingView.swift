@@ -6,11 +6,11 @@ struct SettingItem: Identifiable {
     let id = UUID()
     let title: String
     let detail: String?
-    let icon: String
+    let icon: String?
     let iconColor: Color
     let action: () -> Void
     
-    init(title: String, detail: String? = nil, icon: String, iconColor: Color = .blue, action: @escaping () -> Void) {
+    init(title: String, detail: String? = nil, icon: String? = nil, iconColor: Color = .blue, action: @escaping () -> Void) {
         self.title = title
         self.detail = detail
         self.icon = icon
@@ -387,7 +387,6 @@ struct SettingView: View {
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
-                        icon: "",
                         action: { }
                     )
                 }
@@ -396,7 +395,8 @@ struct SettingView: View {
             return SettingItem(
                 title: title,
                 detail: formatResourceInfo(resource),
-                icon: "",
+                icon: "doc",  // 使用一个通用的文档图标
+                iconColor: .gray,  // 使用灰色
                 action: { }
             )
         }
@@ -471,25 +471,27 @@ struct SettingView: View {
                                         }
                                     }
                                     Spacer()
-                                    if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
-                                        ProgressView()
-                                            .frame(width: 36, height: 36)
-                                    } else if isResourceRefreshing(item.title) {
-                                        ProgressView()
-                                            .frame(width: 36, height: 36)
-                                    } else {
-                                        Image(systemName: item.icon)
-                                            .font(.system(size: 20))
-                                            .frame(width: 36, height: 36)
-                                            .foregroundColor(item.iconColor)
-                                            .rotationEffect(.degrees(
-                                                isResourceRefreshing(item.title) ? 360 : 0
-                                            ))
-                                            .animation(
-                                                isResourceRefreshing(item.title) ?
-                                                    Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                                                value: isResourceRefreshing(item.title)
-                                            )
+                                    if let icon = item.icon {
+                                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                                            ProgressView()
+                                                .frame(width: 36, height: 36)
+                                        } else if isResourceRefreshing(item.title) {
+                                            ProgressView()
+                                                .frame(width: 36, height: 36)
+                                        } else {
+                                            Image(systemName: icon)
+                                                .font(.system(size: 20))
+                                                .frame(width: 36, height: 36)
+                                                .foregroundColor(item.iconColor)
+                                                .rotationEffect(.degrees(
+                                                    isResourceRefreshing(item.title) ? 360 : 0
+                                                ))
+                                                .animation(
+                                                    isResourceRefreshing(item.title) ?
+                                                        Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
+                                                    value: isResourceRefreshing(item.title)
+                                                )
+                                        }
                                     }
                                 }
                                 .frame(height: 36)
