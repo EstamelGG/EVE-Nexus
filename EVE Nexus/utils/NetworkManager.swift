@@ -75,6 +75,17 @@ struct ServerStatus: Codable {
     }
 }
 
+// 修改缓存包装类为泛型
+class CachedData<T> {
+    let data: T
+    let timestamp: Date
+    
+    init(data: T, timestamp: Date) {
+        self.data = data
+        self.timestamp = timestamp
+    }
+}
+
 class NetworkManager {
     static let shared = NetworkManager()
     private var regionID: Int = 10000002 // 默认为 The Forge
@@ -92,19 +103,8 @@ class NetworkManager {
     private var marketHistoryCache: [Int: [MarketHistory]] = [:]
     private var marketHistoryTimestamp: [Int: Date] = [:]
     
-    private let sovereigntyCache = NSCache<NSString, CachedSovereigntyData>()
+    private let sovereigntyCache = NSCache<NSString, CachedData<Any>>()
     private let allianceLogoCache = NSCache<NSString, CachedAllianceLogo>()
-    
-    // 缓存包装类
-    class CachedSovereigntyData {
-        let data: [SovereigntyData]
-        let timestamp: Date
-        
-        init(data: [SovereigntyData], timestamp: Date) {
-            self.data = data
-            self.timestamp = timestamp
-        }
-    }
     
     // 联盟图标缓存包装类
     class CachedAllianceLogo {
@@ -290,7 +290,7 @@ class NetworkManager {
             // 检查缓存是否过期（1小时有效期）
             if Date().timeIntervalSince(cached.timestamp) < 3600 {
                 Logger.info("Using cached sovereignty data")
-                return cached.data
+                return cached.data as! [SovereigntyData]
             }
         }
         
@@ -310,7 +310,7 @@ class NetworkManager {
         
         // 更新缓存
         sovereigntyCache.setObject(
-            CachedSovereigntyData(data: sovereigntyData, timestamp: Date()),
+            CachedData(data: sovereigntyData, timestamp: Date()),
             forKey: cacheKey
         )
         
@@ -325,7 +325,7 @@ class NetworkManager {
               Date().timeIntervalSince(cachedData.timestamp) < 24 * 60 * 60 else {
             return nil
         }
-        return cachedData.data
+        return cachedData.data as? [SovereigntyData]
     }
     
     // 获取联盟图标
@@ -375,6 +375,45 @@ class NetworkManager {
         Logger.info("Successfully fetched server status")
         
         return status
+    }
+    
+    // 添加缓存相关方法
+    func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
+        let cacheKey = "sovereignty_campaigns" as NSString
+        
+        // 检查缓存
+        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
+            // 检查缓存是否过期（5分钟有效期）
+            if Date().timeIntervalSince(cached.timestamp) < 300 {
+                Logger.info("使用缓存的主权争夺数据")
+                if let campaigns = cached.data as? [SovereigntyCampaign] {
+                    return campaigns
+                }
+            }
+        }
+        
+        let urlString = "https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            Logger.error("主权争夺数据URL无效")
+            throw NetworkError.invalidURL
+        }
+        
+        // 如果强制刷新，清除URLCache中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
+        }
+        
+        let data = try await fetchData(from: url)
+        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+        
+        // 更新缓存
+        sovereigntyCache.setObject(
+            CachedData(data: campaigns, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        Logger.info("成功获取主权争夺数据")
+        return campaigns
     }
 }
 
