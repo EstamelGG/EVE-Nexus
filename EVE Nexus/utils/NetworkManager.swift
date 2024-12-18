@@ -377,7 +377,7 @@ class NetworkManager {
         return status
     }
     
-    // 添加缓存相关方法
+    // 添加主权争夺缓存相关方法
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
         let cacheKey = "sovereignty_campaigns" as NSString
         
