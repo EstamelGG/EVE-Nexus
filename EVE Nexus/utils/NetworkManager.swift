@@ -198,9 +198,29 @@ enum EVEResource: NetworkResource {
     }
 }
 
-class NetworkManager {
+// 修改类定义，继承自NSObject
+class NetworkManager: NSObject {
     static let shared = NetworkManager()
     private var regionID: Int = 10000002 // 默认为 The Forge
+    
+    // 通用缓存（用于JSON数据）
+    private let dataCache = NSCache<NSString, CachedData<Any>>()
+    private var dataCacheKeys = Set<String>()  // 跟踪数据缓存的键
+    
+    // 图片缓存
+    private let imageCache = NSCache<NSString, CachedData<UIImage>>()
+    private var imageCacheKeys = Set<String>()  // 跟踪图片缓存的键
+    
+    private override init() {
+        super.init()
+        // 设置缓存限制
+        dataCache.countLimit = 100
+        imageCache.countLimit = 200
+        
+        // 设置缓存删除时的回调
+        dataCache.delegate = self
+        imageCache.delegate = self
+    }
     
     func setRegionID(_ id: Int) {
         regionID = id
@@ -213,18 +233,6 @@ class NetworkManager {
     
     // 服务器状态缓存（仅内存）
     private var serverStatusCache: CachedData<ServerStatus>?
-    
-    // 通用缓存（用于JSON数据）
-    private let dataCache = NSCache<NSString, CachedData<Any>>()
-    
-    // 图片缓存
-    private let imageCache = NSCache<NSString, CachedData<UIImage>>()
-    
-    private init() {
-        // 设置缓存限制
-        dataCache.countLimit = 100
-        imageCache.countLimit = 200
-    }
     
     // 通用的数据获取函数
     func fetchData(from url: URL) async throws -> Data {
@@ -500,6 +508,8 @@ class NetworkManager {
         clearMarketOrdersCache()
         dataCache.removeAllObjects()
         imageCache.removeAllObjects()
+        dataCacheKeys.removeAll()
+        imageCacheKeys.removeAll()
         serverStatusCache = nil
         Logger.info("Cleared all NetworkManager caches")
     }
@@ -647,5 +657,193 @@ enum NetworkError: LocalizedError {
         case .invalidData:
             return NSLocalizedString("Network_Error_Invalid_Data", comment: "")
         }
+    }
+}
+
+extension NetworkManager: NSCacheDelegate {
+    func cache(_ cache: NSCache<AnyObject, AnyObject>, willEvictObject obj: Any) {
+        // 当缓存项被移除时，从对应的键集合中移除键
+        if cache === dataCache {
+            if let key = obj as? NSString {
+                dataCacheKeys.remove(key as String)
+            }
+        } else if cache === imageCache {
+            if let key = obj as? NSString {
+                imageCacheKeys.remove(key as String)
+            }
+        }
+    }
+}
+
+extension NetworkManager {
+    // 缓存信息结构
+    struct CacheInfo {
+        let size: Int64
+        let count: Int
+        let lastModified: Date?
+    }
+    
+    // 在设置缓存时添加键
+    private func setDataCache<T: Encodable>(_ data: T, forKey key: String) {
+        dataCache.setObject(CachedData(data: data, timestamp: Date()), forKey: key as NSString)
+        dataCacheKeys.insert(key)
+    }
+    
+    private func setImageCache(_ image: UIImage, forKey key: String) {
+        imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
+        imageCacheKeys.insert(key)
+    }
+    
+    // 获取内存缓存信息
+    func getMemoryCacheInfo() -> CacheInfo {
+        var totalSize: Int64 = 0
+        var count = 0
+        var lastModified: Date? = nil
+        
+        // 遍历数据缓存
+        for key in dataCacheKeys {
+            if let cached = dataCache.object(forKey: key as NSString) {
+                count += 1
+                // 由于无法准确计算内存中对象的大小，我们使用估算值
+                totalSize += 1024  // 假设每个缓存项平均1KB
+                // 更新最后修改时间
+                if lastModified == nil || cached.timestamp > lastModified! {
+                    lastModified = cached.timestamp
+                }
+            }
+        }
+        
+        // 遍历图片缓存
+        for key in imageCacheKeys {
+            if let cached = imageCache.object(forKey: key as NSString) {
+                count += 1
+                if let imageData = cached.data.pngData() {
+                    totalSize += Int64(imageData.count)
+                } else {
+                    // 如果无法获取图片数据，使用估算值
+                    totalSize += 100 * 1024  // 假设每张图片平均100KB
+                }
+                if lastModified == nil || cached.timestamp > lastModified! {
+                    lastModified = cached.timestamp
+                }
+            }
+        }
+        
+        return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
+    }
+    
+    // 获取文件缓存信息
+    func getFileCacheInfo() -> CacheInfo {
+        var totalSize: Int64 = 0
+        var count = 0
+        var lastModified: Date? = nil
+        
+        let fileManager = FileManager.default
+        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                      in: .userDomainMask, 
+                                                      appropriateFor: nil, 
+                                                      create: false) else {
+            return CacheInfo(size: 0, count: 0, lastModified: nil)
+        }
+        
+        guard let enumerator = fileManager.enumerator(at: cacheDirectory, 
+                                                    includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) else {
+            return CacheInfo(size: 0, count: 0, lastModified: nil)
+        }
+        
+        for case let fileURL as URL in enumerator {
+            do {
+                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                if let fileSize = attributes[.size] as? Int64 {
+                    totalSize += fileSize
+                    count += 1
+                }
+                if let modificationDate = attributes[.modificationDate] as? Date {
+                    if lastModified == nil || modificationDate > lastModified! {
+                        lastModified = modificationDate
+                    }
+                }
+            } catch {
+                Logger.error("Error getting file attributes: \(error)")
+            }
+        }
+        
+        return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
+    }
+    
+    // 清理特定资源的缓存时也清除键
+    func clearCache(for resource: EVEResource) {
+        // 清理内存缓存
+        let cacheKey = resource.cacheKey
+        dataCache.removeObject(forKey: cacheKey as NSString)
+        dataCacheKeys.remove(cacheKey)
+        
+        // 清理文件缓存
+        let fileManager = FileManager.default
+        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                      in: .userDomainMask, 
+                                                      appropriateFor: nil, 
+                                                      create: false) else {
+            return
+        }
+        
+        let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
+        try? fileManager.removeItem(at: fileURL)
+        
+        Logger.info("Cleared cache for resource: \(resource)")
+    }
+    
+    // 重新加载特定资源
+    func reloadResource<T: Codable>(_ resource: EVEResource) async throws -> T {
+        let request = ResourceRequest<T>(
+            resource: resource,
+            parameters: ["datasource": "tranquility"],
+            cacheStrategy: .both,
+            forceRefresh: true  // 强制从网络重新加载
+        )
+        
+        return try await fetchResource(request)
+    }
+    
+    // 获取特定资源的缓存状态
+    func getCacheStatus(for resource: EVEResource) -> (inMemory: Bool, inFile: Bool, age: TimeInterval?) {
+        var inMemory = false
+        var inFile = false
+        var age: TimeInterval? = nil
+        
+        // 检查内存缓存
+        if let cached = dataCache.object(forKey: resource.cacheKey as NSString) {
+            inMemory = true
+            age = Date().timeIntervalSince(cached.timestamp)
+        }
+        
+        // 检查文件缓存
+        let fileManager = FileManager.default
+        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                   in: .userDomainMask, 
+                                                   appropriateFor: nil, 
+                                                   create: false) {
+            let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
+            if fileManager.fileExists(atPath: fileURL.path) {
+                inFile = true
+                if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
+                   let modificationDate = attributes[.modificationDate] as? Date {
+                    // 如果没有内存缓存的年龄，使用文件缓存的年龄
+                    if age == nil {
+                        age = Date().timeIntervalSince(modificationDate)
+                    }
+                }
+            }
+        }
+        
+        return (inMemory, inFile, age)
+    }
+    
+    // 格式化缓存大小
+    static func formatFileSize(_ size: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: size)
     }
 }
