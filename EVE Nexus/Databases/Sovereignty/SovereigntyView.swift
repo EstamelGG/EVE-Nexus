@@ -94,7 +94,7 @@ final class SovereigntyViewModel: ObservableObject {
                 if campaigns.first != nil {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(campaigns.count) 个战役")
-                        let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
+                        let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceID:allianceId)
                         if !Task.isCancelled {
                             let icon = Image(uiImage: uiImage)
                             // 更新所有使用这个联盟图标的战役

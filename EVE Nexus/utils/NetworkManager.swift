@@ -94,30 +94,29 @@ class NetworkManager {
         regionID = id
     }
     
-    // 市场订单缓存
+    // 市场订单缓存（仅内存）
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
-    private let cacheValidDuration: TimeInterval = 300 // 市场缓存有效期5分钟
+    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存有效期5分钟
     
     // 市场历史数据缓存
     private var marketHistoryCache: [Int: [MarketHistory]] = [:]
     private var marketHistoryTimestamp: [Int: Date] = [:]
     
-    private let sovereigntyCache = NSCache<NSString, CachedData<Any>>()
-    private let allianceLogoCache = NSCache<NSString, CachedAllianceLogo>()
+    // 服务器状态缓存（仅内存）
+    private var serverStatusCache: CachedData<ServerStatus>?
     
-    // 联盟图标缓存包装类
-    class CachedAllianceLogo {
-        let image: UIImage
-        let timestamp: Date
-        
-        init(image: UIImage, timestamp: Date) {
-            self.image = image
-            self.timestamp = timestamp
-        }
+    // 通缓存（用于JSON数据）
+    private let dataCache = NSCache<NSString, CachedData<Any>>()
+    
+    // 图片缓存
+    private let imageCache = NSCache<NSString, CachedData<UIImage>>()
+    
+    private init() {
+        // 设置缓存限制
+        dataCache.countLimit = 100
+        imageCache.countLimit = 200
     }
-    
-    private init() {}
     
     // 通用的数据获取函数
     func fetchData(from url: URL) async throws -> Data {
@@ -152,42 +151,102 @@ class NetworkManager {
     
     // 获取EVE物品渲染图
     func fetchEVEItemRender(typeID: Int) async throws -> UIImage {
-        let urlString = "https://images.evetech.net/types/\(typeID)/render"
+        let cacheKey = "item_\(typeID)" as NSString
+        
+        // 检查内存缓存
+        if let cached = imageCache.object(forKey: cacheKey),
+           Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.RENDER_CACHE_DURATION {
+            Logger.info("Using memory cached item render for ID: \(typeID)")
+            return cached.data
+        }
+        
+        // 检查本地文件缓存
+        let fileName = "item_\(typeID).png"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        if fileManager.fileExists(atPath: fileURL.path) {
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                let modificationDate = attributes[.modificationDate] as! Date
+                
+                if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.RENDER_CACHE_DURATION,
+                   let image = UIImage(data: data) {
+                    // 更新内存缓存
+                    imageCache.setObject(
+                        CachedData(data: image, timestamp: modificationDate),
+                        forKey: cacheKey
+                    )
+                    Logger.info("Using file cached item render for ID: \(typeID)")
+                    return image
+                }
+            } catch {
+                Logger.error("Error reading item render cache file: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://images.evetech.net/types/\(typeID)/render?size=128"
         guard let url = URL(string: urlString) else {
-            Logger.error("Invalid URL for typeID: \(typeID)")
+            Logger.error("Invalid URL for item render")
             throw NetworkError.invalidURL
         }
         
-        return try await fetchImage(from: url)
+        let data = try await fetchData(from: url)
+        guard let image = UIImage(data: data) else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 更新内存缓存
+        imageCache.setObject(
+            CachedData(data: image, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        // 更新文件缓存
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved item render to file for ID: \(typeID)")
+        } catch {
+            Logger.error("Error saving item render to file: \(error)")
+        }
+        
+        Logger.info("Successfully fetched item render for ID: \(typeID)")
+        return image
     }
     
-    // 获取物品市场订单
+    // 获取市场订单
     func fetchMarketOrders(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketOrder] {
-        Logger.info("Fetching market orders for typeID: \(typeID), forceRefresh: \(forceRefresh)")
-        
-        // 检查缓存是否有效
+        // 如果不是强制刷新，检查内存缓存
         if !forceRefresh,
            let timestamp = marketOrdersTimestamp[typeID],
            let cachedOrders = marketOrdersCache[typeID],
-           Date().timeIntervalSince(timestamp) < cacheValidDuration {
+           Date().timeIntervalSince(timestamp) < marketOrdersCacheDuration {
             Logger.info("Using cached market orders for typeID: \(typeID)")
             return cachedOrders
         }
         
-        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/orders/?type_id=\(typeID)"
+        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/orders/?datasource=tranquility&type_id=\(typeID)"
         guard let url = URL(string: urlString) else {
-            Logger.error("Invalid URL for market orders, typeID: \(typeID)")
+            Logger.error("Invalid URL for market orders")
             throw NetworkError.invalidURL
+        }
+        
+        // 如果强制刷新，清除 URLCache 中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
         }
         
         let data = try await fetchData(from: url)
         let orders = try JSONDecoder().decode([MarketOrder].self, from: data)
         
-        // 更新缓存
+        // 更新内存缓存
         marketOrdersCache[typeID] = orders
         marketOrdersTimestamp[typeID] = Date()
-        Logger.info("Successfully fetched and cached \(orders.count) market orders for typeID: \(typeID)")
         
+        Logger.info("Successfully fetched market orders for typeID: \(typeID)")
         return orders
     }
     
@@ -206,52 +265,117 @@ class NetworkManager {
     
     // 获取市场历史数据
     func fetchMarketHistory(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
-        Logger.info("Fetching market history for typeID: \(typeID), forceRefresh: \(forceRefresh)")
-        
-        // 检查缓存是否有效
+        // 如果不是强制刷新，检查内存缓存
         if !forceRefresh,
            let timestamp = marketHistoryTimestamp[typeID],
            let cachedHistory = marketHistoryCache[typeID],
-           Date().timeIntervalSince(timestamp) < cacheValidDuration {
-            Logger.info("Using cached market history for typeID: \(typeID)")
+           Date().timeIntervalSince(timestamp) < StaticResourceManager.shared.MARKET_HISTORY_CACHE_DURATION {
+            Logger.info("Using memory cached market history for typeID: \(typeID)")
             return cachedHistory
         }
         
-        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/history/?type_id=\(typeID)"
+        // 如果不是强制刷新，检查本地文件缓存
+        if !forceRefresh {
+            let fileName = "market_history_\(typeID)_\(regionID).json"
+            let fileManager = FileManager.default
+            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let fileURL = cacheDirectory.appendingPathComponent(fileName)
+            
+            if fileManager.fileExists(atPath: fileURL.path) {
+                do {
+                    let data = try Data(contentsOf: fileURL)
+                    let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                    let modificationDate = attributes[.modificationDate] as! Date
+                    
+                    if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.MARKET_HISTORY_CACHE_DURATION {
+                        let history = try JSONDecoder().decode([MarketHistory].self, from: data)
+                        // 更新内存缓存
+                        marketHistoryCache[typeID] = history
+                        marketHistoryTimestamp[typeID] = modificationDate
+                        Logger.info("Using file cached market history for typeID: \(typeID)")
+                        return history
+                    }
+                } catch {
+                    Logger.error("Error reading market history cache file: \(error)")
+                }
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/markets/\(regionID)/history/?datasource=tranquility&type_id=\(typeID)"
         guard let url = URL(string: urlString) else {
-            Logger.error("Invalid URL for market history, typeID: \(typeID)")
+            Logger.error("Invalid URL for market history")
             throw NetworkError.invalidURL
         }
         
-        let data = try await fetchData(from: url)
-        var history = try JSONDecoder().decode([MarketHistory].self, from: data)
-        
-        // 只保留最近一年的数据
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        
-        let calendar = Calendar.current
-        let oneYearAgo = calendar.date(byAdding: .year, value: -1, to: Date())
-        
-        history = history.filter { historyItem in
-            guard let itemDate = dateFormatter.date(from: historyItem.date),
-                  let oneYearAgo = oneYearAgo else { return false }
-            return itemDate >= oneYearAgo
+        // 如果强制刷新，清除 URLCache 中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
         }
         
-        // 按日期排序
-        history.sort { $0.date < $1.date }
+        let data = try await fetchData(from: url)
+        let history = try JSONDecoder().decode([MarketHistory].self, from: data)
         
-        // 更新缓存
+        // 更新内存缓存
         marketHistoryCache[typeID] = history
         marketHistoryTimestamp[typeID] = Date()
-        Logger.info("Successfully fetched and cached \(history.count) market history records for typeID: \(typeID)")
         
+        // 更新文件缓存
+        let fileName = "market_history_\(typeID)_\(regionID).json"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved market history to file for typeID: \(typeID)")
+        } catch {
+            Logger.error("Error saving market history to file: \(error)")
+        }
+        
+        Logger.info("Successfully fetched market history for typeID: \(typeID)")
         return history
     }
     
     // 获取入侵数据
     func fetchIncursions() async throws -> [Incursion] {
+        let cacheKey = "incursions" as NSString
+        
+        // 检查内存缓存
+        if let cached = dataCache.object(forKey: cacheKey) as? CachedData<[Incursion]>,
+           Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.INCURSIONS_CACHE_DURATION {
+            Logger.info("Using memory cached incursions data")
+            return cached.data
+        }
+        
+        // 检查本地文件缓存
+        let fileName = "Incursions.json"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        if fileManager.fileExists(atPath: fileURL.path) {
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                let modificationDate = attributes[.modificationDate] as! Date
+                
+                if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.INCURSIONS_CACHE_DURATION {
+                    let incursions = try JSONDecoder().decode([Incursion].self, from: data)
+                    // 更新内存缓存
+                    dataCache.setObject(
+                        CachedData(data: incursions, timestamp: modificationDate),
+                        forKey: cacheKey
+                    )
+                    Logger.info("Using file cached incursions data")
+                    return incursions
+                }
+            } catch {
+                Logger.error("Error reading incursions cache file: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
         let urlString = "https://esi.evetech.net/latest/incursions/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for incursions")
@@ -260,8 +384,22 @@ class NetworkManager {
         
         let data = try await fetchData(from: url)
         let incursions = try JSONDecoder().decode([Incursion].self, from: data)
-        Logger.info("Successfully fetched incursions data")
         
+        // 更新内存缓存
+        dataCache.setObject(
+            CachedData(data: incursions, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        // 更新文件缓存
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved incursions data to file")
+        } catch {
+            Logger.error("Error saving incursions data to file: \(error)")
+        }
+        
+        Logger.info("Successfully fetched incursions data")
         return incursions
     }
     
@@ -276,25 +414,55 @@ class NetworkManager {
         clearMarketOrdersCache()
         marketHistoryCache.removeAll()
         marketHistoryTimestamp.removeAll()
-        sovereigntyCache.removeAllObjects()
-        allianceLogoCache.removeAllObjects()
+        dataCache.removeAllObjects()
+        imageCache.removeAllObjects()
+        serverStatusCache = nil
         Logger.info("Cleared all NetworkManager caches")
     }
     
     // 获取主权数据
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        let cacheKey = "sovereignty_data" as NSString
+        let cacheKey = "sovereigntyData" as NSString
         
-        // 检查缓存
-        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
-            // 检查缓存是否过期（1小时有效期）
-            if Date().timeIntervalSince(cached.timestamp) < 3600 {
-                Logger.info("Using cached sovereignty data")
-                return cached.data as! [SovereigntyData]
+        // 如果不是强制刷新，检查内存缓存
+        if !forceRefresh,
+           let cached = dataCache.object(forKey: cacheKey) as? CachedData<[SovereigntyData]>,
+           Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION {
+            Logger.info("Using memory cached sovereignty data")
+            return cached.data
+        }
+        
+        // 如果不是强制刷新，检查本地文件缓存
+        if !forceRefresh {
+            let fileName = "SovereigntyData.json"
+            let fileManager = FileManager.default
+            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let fileURL = cacheDirectory.appendingPathComponent(fileName)
+            
+            if fileManager.fileExists(atPath: fileURL.path) {
+                do {
+                    let data = try Data(contentsOf: fileURL)
+                    let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                    let modificationDate = attributes[.modificationDate] as! Date
+                    
+                    if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION {
+                        let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
+                        // 更新内存缓存
+                        dataCache.setObject(
+                            CachedData(data: sovereigntyData, timestamp: modificationDate),
+                            forKey: cacheKey
+                        )
+                        Logger.info("Using file cached sovereignty data")
+                        return sovereigntyData
+                    }
+                } catch {
+                    Logger.error("Error reading sovereignty data cache file: \(error)")
+                }
             }
         }
         
-        let urlString = "https://esi.evetech.net/latest/sovereignty/map/"
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for sovereignty data")
             throw NetworkError.invalidURL
@@ -308,62 +476,183 @@ class NetworkManager {
         let data = try await fetchData(from: url)
         let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
         
-        // 更新缓存
-        sovereigntyCache.setObject(
+        // 更新内存缓存
+        dataCache.setObject(
             CachedData(data: sovereigntyData, timestamp: Date()),
             forKey: cacheKey
         )
+        
+        // 更新文件缓存
+        let fileName = "SovereigntyData.json"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved sovereignty data to file")
+        } catch {
+            Logger.error("Error saving sovereignty data to file: \(error)")
+        }
         
         Logger.info("Successfully fetched sovereignty data")
         return sovereigntyData
     }
     
-    // 获取缓存的主权数据
-    func getCachedSovereigntyData() -> [SovereigntyData]? {
-        let cacheKey = "sovereigntyData" as NSString
-        guard let cachedData = sovereigntyCache.object(forKey: cacheKey),
-              Date().timeIntervalSince(cachedData.timestamp) < 24 * 60 * 60 else {
-            return nil
-        }
-        return cachedData.data as? [SovereigntyData]
-    }
-    
-    // 获取联盟图标
-    /// - Parameter allianceId: 联盟ID
-    /// - Returns: 联盟图标
-    func fetchAllianceLogo(allianceId: Int) async throws -> UIImage {
-        // 1. 先尝试从静态资源目录获取
-        if let cachedData = StaticResourceManager.shared.getAllianceIcon(allianceId: allianceId),
-           let cachedImage = UIImage(data: cachedData) {
-            Logger.debug("Got alliance logo from cache: \(allianceId)")
-            return cachedImage
+    // 获取主权战役数据
+    func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
+        let cacheKey = "sovereigntyCampaigns" as NSString
+        
+        // 如果不是强制刷新，检查内存缓存
+        if !forceRefresh,
+           let cached = dataCache.object(forKey: cacheKey) as? CachedData<[SovereigntyCampaign]>,
+           Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
+            Logger.info("Using memory cached sovereignty campaigns")
+            return cached.data
         }
         
-        // 2. 从网络获取
-        let urlString = "https://images.evetech.net/alliances/\(allianceId)/logo?size=128"
+        // 如果不是强制刷新，检查本地文件缓存
+        if !forceRefresh {
+            let fileName = "SovereigntyCampaigns.json"
+            let fileManager = FileManager.default
+            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let fileURL = cacheDirectory.appendingPathComponent(fileName)
+            
+            if fileManager.fileExists(atPath: fileURL.path) {
+                do {
+                    let data = try Data(contentsOf: fileURL)
+                    let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                    let modificationDate = attributes[.modificationDate] as! Date
+                    
+                    if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
+                        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+                        // 更新内存缓存
+                        dataCache.setObject(
+                            CachedData(data: campaigns, timestamp: modificationDate),
+                            forKey: cacheKey
+                        )
+                        Logger.info("Using file cached sovereignty campaigns")
+                        return campaigns
+                    }
+                } catch {
+                    Logger.error("Error reading sovereignty campaigns cache file: \(error)")
+                }
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for sovereignty campaigns")
             throw NetworkError.invalidURL
         }
         
-        let (data, response) = try await URLSession.shared.data(from: url)
+        // 如果强制刷新，清除 URLCache 中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
+        }
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        let data = try await fetchData(from: url)
+        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+        
+        // 更新内存缓存
+        dataCache.setObject(
+            CachedData(data: campaigns, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        // 更新文件缓存
+        let fileName = "SovereigntyCampaigns.json"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved sovereignty campaigns to file")
+        } catch {
+            Logger.error("Error saving sovereignty campaigns to file: \(error)")
+        }
+        
+        Logger.info("Successfully fetched sovereignty campaigns")
+        return campaigns
+    }
+    
+    // 获取联盟图标
+    func fetchAllianceLogo(allianceID: Int) async throws -> UIImage {
+        let cacheKey = "alliance_\(allianceID)" as NSString
+        
+        // 检查内存缓存
+        if let cached = imageCache.object(forKey: cacheKey),
+           Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION {
+            Logger.info("Using memory cached alliance logo for ID: \(allianceID)")
+            return cached.data
+        }
+        
+        // 检查本地文件缓存
+        let fileName = "alliance_\(allianceID).png"
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let fileURL = cacheDirectory.appendingPathComponent(fileName)
+        
+        if fileManager.fileExists(atPath: fileURL.path) {
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                let modificationDate = attributes[.modificationDate] as! Date
+                
+                if Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION,
+                   let image = UIImage(data: data) {
+                    // 更新内存缓存
+                    imageCache.setObject(
+                        CachedData(data: image, timestamp: modificationDate),
+                        forKey: cacheKey
+                    )
+                    Logger.info("Using file cached alliance logo for ID: \(allianceID)")
+                    return image
+                }
+            } catch {
+                Logger.error("Error reading alliance logo cache file: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://images.evetech.net/alliances/\(allianceID)/logo?size=128"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for alliance logo")
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        guard let image = UIImage(data: data) else {
             throw NetworkError.invalidResponse
         }
         
-        guard let image = UIImage(data: data) else {
-            throw NetworkError.invalidData
+        // 更新内存缓存
+        imageCache.setObject(
+            CachedData(data: image, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        // 更新文件缓存
+        do {
+            try data.write(to: fileURL)
+            Logger.info("Successfully saved alliance logo to file for ID: \(allianceID)")
+        } catch {
+            Logger.error("Error saving alliance logo to file: \(error)")
         }
         
-        // 3. 保存到静态资源目录
-        try StaticResourceManager.shared.saveAllianceIcon(data, allianceId: allianceId)
-        Logger.debug("Got alliance logo from url: \(url) and save to cache.")
+        Logger.info("Successfully fetched alliance logo for ID: \(allianceID)")
         return image
     }
     
     // 获取服务器状态
     func fetchServerStatus() async throws -> ServerStatus {
+        // 检查内存缓存
+        if let cached = serverStatusCache?.data {
+            return cached
+        }
+        
         let urlString = "https://esi.evetech.net/latest/status/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for server status")
@@ -372,84 +661,12 @@ class NetworkManager {
         
         let data = try await fetchData(from: url)
         let status = try JSONDecoder().decode(ServerStatus.self, from: data)
-        Logger.info("Successfully fetched server status")
-        
-        return status
-    }
-    
-    // 添加主权争夺缓存相关方法
-    func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        let cacheKey = "sovereignty_campaigns" as NSString
-        
-        // 检查缓存
-        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
-            // 检查缓存是否过期（2小时有效期）
-            if Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
-                Logger.info("使用缓存的主权争夺数据")
-                if let campaigns = cached.data as? [SovereigntyCampaign] {
-                    return campaigns
-                }
-            }
-        }
-        
-        // 如果没有强制刷新，尝试从本地文件加载
-        if !forceRefresh {
-            let filePath = StaticResourceManager.shared.getStaticDataSetPath()
-                .appendingPathComponent(StaticResourceManager.ResourceType.sovereigntyCampaigns.filename)
-            
-            if FileManager.default.fileExists(atPath: filePath.path) {
-                do {
-                    let data = try Data(contentsOf: filePath)
-                    let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
-                    
-                    // 检查文件是否过期
-                    if let attributes = try? FileManager.default.attributesOfItem(atPath: filePath.path),
-                       let modificationDate = attributes[.modificationDate] as? Date,
-                       Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
-                        
-                        // 更新内存缓存
-                        sovereigntyCache.setObject(
-                            CachedData(data: campaigns, timestamp: modificationDate),
-                            forKey: cacheKey
-                        )
-                        
-                        Logger.info("从本地文件加载主权争夺数据")
-                        return campaigns
-                    }
-                } catch {
-                    Logger.error("从本地文件加载主权争夺数据失败: \(error)")
-                }
-            }
-        }
-        
-        let urlString = "https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            Logger.error("主权争夺数据URL无效")
-            throw NetworkError.invalidURL
-        }
-        
-        // 如果强制刷新，清除URLCache中的缓存
-        if forceRefresh {
-            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
-        }
-        
-        let data = try await fetchData(from: url)
-        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
         
         // 更新缓存
-        sovereigntyCache.setObject(
-            CachedData(data: campaigns, timestamp: Date()),
-            forKey: cacheKey
-        )
+        serverStatusCache = CachedData(data: status, timestamp: Date())
         
-        // 保存到本地文件
-        try StaticResourceManager.shared.saveToFile(
-            data,
-            filename: StaticResourceManager.ResourceType.sovereigntyCampaigns.filename
-        )
-        
-        Logger.info("成功获取主权争夺数据")
-        return campaigns
+        Logger.info("Successfully fetched server status")
+        return status
     }
 }
 
