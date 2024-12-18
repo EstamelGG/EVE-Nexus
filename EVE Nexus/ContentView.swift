@@ -265,26 +265,36 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !isLoggedIn {
-                    Section {
-                        HStack {
-                            Image(systemName: "person.crop.circle.fill")
-                                .resizable()
-                                .frame(width: 40, height: 40)
-                                .foregroundColor(.gray)
-                            
-                            VStack(alignment: .leading) {
+                Section {
+                    HStack(spacing: 15) {
+                        Image(systemName: "person.crop.circle.fill")
+                            .resizable()
+                            .frame(width: 50, height: 50)
+                            .foregroundColor(.gray)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            if isLoggedIn {
+                                // 登录后显示联盟和军团信息
+                                Text("联盟名称") // 这里替换为实际的联盟名称
+                                    .font(.headline)
+                                Text("军团名称") // 这里替换为实际的军团名称
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            } else {
+                                // 未登录时显示登录提示
                                 Text("Tap to Login")
                                     .font(.headline)
-                                Text(serverStatusText)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .padding(.bottom, 4) // 增加一点底部间距
                             }
-                            Spacer()
+                            // 服务器状态始终显示在第三行
+                            Text(serverStatusText)
+                                .font(.caption)
+                                .foregroundColor(.gray)
                         }
-                        .onTapGesture {
-                            // 处理登录点击事件
-                        }
+                        Spacer()
+                    }
+                    .onTapGesture {
+                        // 处理登录点击事件
                     }
                 }
                 

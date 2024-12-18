@@ -554,8 +554,8 @@ struct MarketItemDetailView: View {
     // 并发加载所有市场数据
     private func loadAllMarketData(forceRefresh: Bool = false) async {
         // 并发执行两个加载任务
-        async let marketDataTask = loadMarketData(forceRefresh: forceRefresh)
-        async let historyDataTask = loadHistoryData(forceRefresh: forceRefresh)
+        async let marketDataTask: () = loadMarketData(forceRefresh: forceRefresh)
+        async let historyDataTask: () = loadHistoryData(forceRefresh: forceRefresh)
         
         // 等待两个任务都完成
         await (_, _) = (marketDataTask, historyDataTask)
