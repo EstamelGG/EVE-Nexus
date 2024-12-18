@@ -411,31 +411,30 @@ class StaticResourceManager {
     
     /// 获取联盟图标缓存统计
     func getAllianceIconsStats() -> ResourceInfo {
-        let fileManager = FileManager.default
-        let cacheDirectory = try? fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let exists = cacheDirectory != nil
+        let iconPath = getAllianceIconPath()
+        let exists = fileManager.fileExists(atPath: iconPath.path)
         var totalSize: Int64 = 0
         var lastModified: Date? = nil
         var iconCount: Int = 0
         
-        if let cacheDirectory = cacheDirectory {
-            if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: nil) {
-                for case let fileURL as URL in enumerator {
-                    if fileURL.lastPathComponent.hasPrefix("alliance_") && fileURL.pathExtension == "png" {
-                        iconCount += 1
-                        do {
-                            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                            totalSize += attributes[.size] as? Int64 ?? 0
-                            
-                            // 使用最新的修改时间
-                            if let fileModified = attributes[.modificationDate] as? Date {
-                                if lastModified == nil || fileModified > lastModified! {
-                                    lastModified = fileModified
-                                }
-                            }
-                        } catch {
-                            Logger.error("Error getting alliance icon attributes: \(error)")
+        if exists,
+           let enumerator = fileManager.enumerator(at: iconPath, 
+                                                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) {
+            for case let fileURL as URL in enumerator {
+                if fileURL.pathExtension == "png" {
+                    do {
+                        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                        if let fileSize = attributes[.size] as? Int64 {
+                            totalSize += fileSize
+                            iconCount += 1
                         }
+                        if let modificationDate = attributes[.modificationDate] as? Date {
+                            if lastModified == nil || modificationDate > lastModified! {
+                                lastModified = modificationDate
+                            }
+                        }
+                    } catch {
+                        Logger.error("Error getting alliance icon attributes: \(error)")
                     }
                 }
             }
