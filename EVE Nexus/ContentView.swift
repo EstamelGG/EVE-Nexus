@@ -43,6 +43,7 @@ struct TableNode: Identifiable, Equatable {
 struct ContentView: View {
     @ObservedObject var databaseManager: DatabaseManager // 通过外部传递数据库管理器
     @State private var tables: [TableNode] = [] // 初始化为空，稍后填充
+    @State private var isLoggedIn = false // 添加登录状态
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
@@ -227,6 +228,31 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
+                // 登录状态视图作为第一个Section
+                if !isLoggedIn {
+                    Section {
+                        HStack {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 40, height: 40)
+                                .foregroundColor(.gray)
+                            
+                            VStack(alignment: .leading) {
+                                Text("Tap to Login")
+                                    .font(.headline)
+                                Text("Tranquility - Online (21 176 players)")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                        }
+                        .onTapGesture {
+                            // 处理登录点击事件
+                        }
+                    }
+                }
+                
+                // 原有的表格内容
                 ForEach(tables) { table in
                     Section(header: Text(table.title)
                         .fontWeight(.bold)
@@ -246,7 +272,6 @@ struct ContentView: View {
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            // 重新初始化所有表格数据
             initializeTables()
         }
     }
