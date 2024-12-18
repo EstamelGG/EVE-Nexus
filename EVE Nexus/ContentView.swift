@@ -227,16 +227,25 @@ struct ContentView: View {
         .frame(height: 36)
     }
     
-    var serverStatusText: String {
+    var serverStatusText: AttributedString {
         guard let status = serverStatus else {
-            return "Tranquility - Checking Status..."
+            return AttributedString("Tranquility - Checking Status...")
         }
         
+        var attributed = AttributedString("Tranquility - ")
         if status.isOnline {
-            return "Tranquility - Online (\(status.players) players)"
+            var onlineText = AttributedString("Online")
+            onlineText.font = .caption.bold()
+            onlineText.foregroundColor = Color(red: 0, green: 0.5, blue: 0)
+            attributed.append(onlineText)
+            attributed.append(AttributedString(" (\(status.players) players)"))
         } else {
-            return "Tranquility - Offline"
+            var offlineText = AttributedString("Offline")
+            offlineText.font = .caption.bold()
+            offlineText.foregroundColor = .red
+            attributed.append(offlineText)
         }
+        return attributed
     }
     
     var body: some View {
