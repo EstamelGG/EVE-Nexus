@@ -46,6 +46,7 @@ struct ContentView: View {
     @State private var isLoggedIn = false
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
+    @State private var currentTime = Date() // 添加当前时间状态
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
@@ -228,17 +229,30 @@ struct ContentView: View {
     }
     
     var serverStatusText: AttributedString {
+        // 使用currentTime而不是Date()
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        let utcTime = formatter.string(from: currentTime)
+        
         guard let status = serverStatus else {
-            return AttributedString("Tranquility - Checking Status...")
+            return AttributedString("\(utcTime) - Checking Status...")
         }
         
-        var attributed = AttributedString("Tranquility - ")
+        // 格式化玩家数，添加千分位
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        numberFormatter.groupingSeparator = ","
+        let formattedPlayers = numberFormatter.string(from: NSNumber(value: status.players)) ?? "\(status.players)"
+        
+        var attributed = AttributedString("\(utcTime) - ")
         if status.isOnline {
             var onlineText = AttributedString("Online")
             onlineText.font = .caption.bold()
             onlineText.foregroundColor = Color(red: 0, green: 0.5, blue: 0)
             attributed.append(onlineText)
-            attributed.append(AttributedString(" (\(status.players) players)"))
+            attributed.append(AttributedString(" (\(formattedPlayers) players)"))
         } else {
             var offlineText = AttributedString("Offline")
             offlineText.font = .caption.bold()
@@ -290,11 +304,22 @@ struct ContentView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .refreshable {
+                // 强制刷新服务器状态
+                do {
+                    serverStatus = try await NetworkManager.shared.fetchServerStatus()
+                } catch {
+                    Logger.error("Failed to refresh server status: \(error)")
+                }
+            }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
             initializeTables()
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            currentTime = Date()
         }
         .task {
             await updateServerStatus()
@@ -309,8 +334,8 @@ struct ContentView: View {
         }
         isLoadingStatus = false
         
-        // 每30秒更新一次服务器状态
-        try? await Task.sleep(nanoseconds: 30 * 1_000_000_000)
+        // 每60秒更新一次服务器状态
+        try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
         if !Task.isCancelled {
             await updateServerStatus()
         }
