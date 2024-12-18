@@ -1,7 +1,4 @@
 {
-    "scopes_public": [
-        "publicData"
-    ],
     "scopes_character": [
         "esi-characters.read_loyalty.v1",
         "esi-characters.read_medals.v1",

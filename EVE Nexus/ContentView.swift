@@ -179,10 +179,19 @@ struct AccountsView: View {
                 
                 Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
                 
-                // 保存认证信息
+                // 先保存认证信息
                 EVELogin.shared.saveAuthInfo(token: token, character: character)
                 
-                // 更新UI
+                // 然后再获取钱包余额, 验证esi状态
+//                do {
+//                    let balance = try await ESIDataManager.shared.getWalletBalance(characterId: character.CharacterID)
+//                    let formattedBalance = ESIDataManager.shared.formatISK(balance)
+//                    Logger.info("获取到钱包余额: \(formattedBalance) ISK")
+//                } catch {
+//                    Logger.error("获取钱包余额失败: \(error)")
+//                }
+                
+                // 更新UI状态
                 await MainActor.run {
                     self.characterInfo = character
                     self.isLoggedIn = true

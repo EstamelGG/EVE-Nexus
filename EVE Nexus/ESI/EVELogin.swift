@@ -61,7 +61,7 @@ class EVELogin {
                     scopesSet.formUnion(scopeArray)
                 }
                 allScopes = Array(scopesSet)
-                Logger.info("EVELogin: 成功加载 \(allScopes.count) 个权限")
+                Logger.info("EVELogin: 成功加载权限: \(allScopes)")
             } catch {
                 Logger.error("EVELogin: 加载权限配置失败: \(error)")
                 return
@@ -185,67 +185,6 @@ class EVELogin {
         defaults.removeObject(forKey: "EVECharacterInfo")
         defaults.removeObject(forKey: "TokenExpirationDate")
         Logger.info("EVELogin: 认证信息已清除")
-    }
-    
-    // 添加一个新的方法来处理整个认证流程
-    func handleAuthenticationCallback(url: URL, completion: @escaping (Result<EVECharacterInfo, Error>) -> Void) {
-        Task {
-            do {
-                // 1. 处理授权回调，获取token
-                let token = try await handleAuthCallback(url: url)
-                
-                // 2. 获取角色信息
-                let character = try await getCharacterInfo(token: token.access_token)
-                Logger.info("EVELogin: 获取到角色信息: CharacterID=\(character.CharacterID), CharacterName=\(character.CharacterName)")
-                
-                // 3. 保存认证信息
-                saveAuthInfo(token: token, character: character)
-                
-                // 4. 返回成功结果
-                await MainActor.run {
-                    completion(.success(character))
-                }
-                
-            } catch {
-                Logger.error("EVELogin: 认证过程出错: \(error)")
-                await MainActor.run {
-                    completion(.failure(error))
-                }
-            }
-        }
-    }
-    
-    // 获取钱包余额
-    func getWalletBalance(characterId: Int) async throws -> Double {
-        // 获取当前的访问令牌
-        guard let token = loadAuthInfo().token?.access_token else {
-            Logger.error("EVELogin: 无法获取访问令牌")
-            throw NetworkError.invalidData
-        }
-        
-        // 构建请求URL
-        guard let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/?datasource=tranquility") else {
-            Logger.error("EVELogin: 无法构建钱包API URL")
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await session.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
-        }
-        
-        if httpResponse.statusCode != 200 {
-            Logger.error("EVELogin: 获取钱包余额失败，状态码: \(httpResponse.statusCode)")
-            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-        }
-        
-        let balance = try JSONDecoder().decode(Double.self, from: data)
-        Logger.info("EVELogin: 成功获取钱包余额: \(balance) ISK")
-        return balance
     }
 }
 
