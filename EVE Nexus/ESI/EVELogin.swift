@@ -48,24 +48,27 @@ class EVELogin {
     }
     
     private func loadConfig() {
-        // 1. 加载 scopes
+        // 从 scopes.json 加载所有权限
         var allScopes: [String] = []
         if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json") {
             do {
                 let scopesData = try Data(contentsOf: scopesURL)
                 let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
+                
+                // 合并所有权限
                 var scopesSet = Set<String>()
                 for scopeArray in scopesDict.values {
                     scopesSet.formUnion(scopeArray)
                 }
                 allScopes = Array(scopesSet)
+                Logger.info("EVELogin: 成功加载 \(allScopes.count) 个权限")
             } catch {
                 Logger.error("EVELogin: 加载权限配置失败: \(error)")
                 return
             }
         }
         
-        // 2. 使用默认配置并添加权限
+        // 使用默认配置并设置所有权限
         var configWithScopes = EVELogin.defaultConfig
         configWithScopes.scopes = allScopes
         self.config = configWithScopes
@@ -210,6 +213,39 @@ class EVELogin {
                 }
             }
         }
+    }
+    
+    // 获取钱包余额
+    func getWalletBalance(characterId: Int) async throws -> Double {
+        // 获取当前的访问令牌
+        guard let token = loadAuthInfo().token?.access_token else {
+            Logger.error("EVELogin: 无法获取访问令牌")
+            throw NetworkError.invalidData
+        }
+        
+        // 构建请求URL
+        guard let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/?datasource=tranquility") else {
+            Logger.error("EVELogin: 无法构建钱包API URL")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        if httpResponse.statusCode != 200 {
+            Logger.error("EVELogin: 获取钱包余额失败，状态码: \(httpResponse.statusCode)")
+            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+        }
+        
+        let balance = try JSONDecoder().decode(Double.self, from: data)
+        Logger.info("EVELogin: 成功获取钱包余额: \(balance) ISK")
+        return balance
     }
 }
 

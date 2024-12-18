@@ -43,10 +43,37 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 presentedVC.rootView.isLoggedIn = true
                 presentedVC.rootView.showingWebView = false
                 
+                // 检查钱包余额
+                checkWalletBalance()
+                
             case .failure(let error):
                 presentedVC.rootView.errorMessage = error.localizedDescription
                 presentedVC.rootView.showingError = true
                 presentedVC.rootView.showingWebView = false
+            }
+        }
+    }
+    
+    // 在 SceneDelegate 类中添加新方法
+    private func checkWalletBalance() {
+        Task {
+            do {
+                // 获取当前角色信息
+                guard let character = EVELogin.shared.loadAuthInfo().character else {
+                    Logger.error("SceneDelegate: 无法获取角色信息")
+                    return
+                }
+                
+                // 检查是否需要获取新的钱包权限token
+                // TODO: 这里需要实现获取新token的UI交互流程
+                
+                // 获取钱包余额
+                let balance = try await EVELogin.shared.getWalletBalance(characterId: character.CharacterID)
+                let formattedBalance = String(format: "%.2f", balance)
+                Logger.info("SceneDelegate: 角色 \(character.CharacterName) 的钱包余额: \(formattedBalance) ISK")
+                
+            } catch {
+                Logger.error("SceneDelegate: 获取钱包余额失败: \(error)")
             }
         }
     }
