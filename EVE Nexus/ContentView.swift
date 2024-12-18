@@ -44,14 +44,15 @@ struct TableNode: Identifiable, Equatable {
 struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isLoggedIn: Bool
+    @State private var showingWebView = false
     
     var body: some View {
         NavigationView {
             List {
                 Section {
                     Button(action: {
-                        if let url = EVELogin.shared.getAuthorizationURL() {
-                            UIApplication.shared.open(url)
+                        if let _ = EVELogin.shared.getAuthorizationURL() {
+                            showingWebView = true
                         }
                     }) {
                         Text("Log In with EVE Online")
@@ -83,6 +84,11 @@ struct AccountsView: View {
                     Button("编辑") {
                         // TODO: 实现编辑功能
                     }
+                }
+            }
+            .sheet(isPresented: $showingWebView) {
+                if let url = EVELogin.shared.getAuthorizationURL() {
+                    SafariView(url: url)
                 }
             }
         }
