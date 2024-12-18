@@ -445,17 +445,17 @@ struct SettingView: View {
                     Logger.info("Refreshing sovereignty data")
                     let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
-                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                 case .incursions:
                     Logger.info("Refreshing incursions data")
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
-                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                 case .sovereigntyCampaigns:
                     Logger.info("Refreshing Sovereignty Campaigns data")
                     let sovCamp = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovCamp)
-                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                 case .allianceIcons, .netRenders, .marketData:
                     Logger.info("Alliance icons and net renders are refreshed on-demand")
                     break

@@ -40,7 +40,9 @@ class StaticResourceManager {
                 var name = NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: "")
                 if stats.exists {
                     let count = StaticResourceManager.shared.getAllianceIconCount()
-                    name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                    if count > 0 {
+                        name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                    }
                 }
                 return name
             case .netRenders:
@@ -85,9 +87,9 @@ class StaticResourceManager {
     public let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
     public let RENDER_CACHE_DURATION: TimeInterval = 7 * 24 * 3600      // 7天
     public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
+    public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
     public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
     public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 24 * 3600 // 1天
-    public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
     
     private init() {}
     
@@ -104,8 +106,15 @@ class StaticResourceManager {
     
     /// 获取静态资源目录路径
     func getStaticDataSetPath() -> URL {
-        return fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let path = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("StaticDataSet")
+        
+        // 确保目录存在
+        if !fileManager.fileExists(atPath: path.path) {
+            try? fileManager.createDirectory(at: path, withIntermediateDirectories: true)
+        }
+        
+        return path
     }
     
     /// 获取所有静态资源的状态
@@ -170,29 +179,27 @@ class StaticResourceManager {
         }
     }
     
-    /// 保存数据到文件
+    /// 保存数据到文件并更新内存缓存
     /// - Parameters:
     ///   - data: 要保存的数据
     ///   - filename: 文件名（包含扩展名）
-    func saveToFile(_ data: Data, filename: String) throws {
+    ///   - cacheKey: 缓存键
+    func saveToFileAndCache(_ data: Data, filename: String, cacheKey: String) throws {
         let staticDataSetPath = getStaticDataSetPath()
-        
-        // 确保目录存在
-        if !fileManager.fileExists(atPath: staticDataSetPath.path) {
-            try fileManager.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
-        }
-        
         let fileURL = staticDataSetPath.appendingPathComponent(filename)
+        
+        // 保存到文件
         try data.write(to: fileURL)
+        
+        // 更新内存缓存
+        cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey as NSString)
         
         // 保存下载时间
         if let resourceType = ResourceType.allCases.first(where: { $0.filename == filename }) {
             defaults.set(Date(), forKey: resourceType.downloadTimeKey)
-            // 同时更新内存缓存
-            cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: resourceType.rawValue as NSString)
         }
         
-        Logger.info("Saved static resource to file: \(filename)")
+        Logger.info("Saved static resource to file and cache: \(filename)")
     }
     
     /// 从文件加载数据并更新内存缓存
@@ -219,10 +226,7 @@ class StaticResourceManager {
             let jsonData = try JSONEncoder().encode(sovereigntyData)
             
             // 保存到文件
-            try saveToFile(jsonData, filename: type.filename)
-            
-            // 更新缓存
-            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            try saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
             
             Logger.info("Successfully refreshed sovereignty data")
             
@@ -233,10 +237,7 @@ class StaticResourceManager {
             let jsonData = try JSONEncoder().encode(incursionsData)
             
             // 保存到文件
-            try saveToFile(jsonData, filename: type.filename)
-            
-            // 更新缓存
-            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            try saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
             
             Logger.info("Successfully refreshed incursions data")
             
@@ -247,10 +248,7 @@ class StaticResourceManager {
             let jsonData = try JSONEncoder().encode(campaignsData)
             
             // 保存到文件
-            try saveToFile(jsonData, filename: type.filename)
-            
-            // 更新缓存
-            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            try saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
             
             Logger.info("Successfully refreshed sovereignty campaigns data")
             
@@ -336,7 +334,7 @@ class StaticResourceManager {
         let jsonData = try JSONEncoder().encode(sovereigntyData)
         
         // 保存到文件（同时会更新内存缓存）
-        try saveToFile(jsonData, filename: filename)
+        try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereignty.rawValue)
         
         return sovereigntyData
     }
@@ -742,7 +740,7 @@ class StaticResourceManager {
         let jsonData = try JSONEncoder().encode(incursionsData)
         
         // 保存到文件（同时会更新内存缓存）
-        try saveToFile(jsonData, filename: filename)
+        try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.incursions.rawValue)
         
         return incursionsData
     }
@@ -800,7 +798,7 @@ class StaticResourceManager {
             let jsonData = try JSONEncoder().encode(campaignsData)
             
             // 保存到文件（同时会更新内存缓存）
-            try saveToFile(jsonData, filename: filename)
+            try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereigntyCampaigns.rawValue)
             
             return campaignsData
         }
@@ -834,7 +832,7 @@ class StaticResourceManager {
         let jsonData = try JSONEncoder().encode(campaignsData)
         
         // 保存到文件（同时会更新内存缓存）
-        try saveToFile(jsonData, filename: filename)
+        try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereigntyCampaigns.rawValue)
         
         return campaignsData
     }
