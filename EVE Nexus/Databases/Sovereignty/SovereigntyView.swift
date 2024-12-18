@@ -216,15 +216,32 @@ struct SovereigntyCell: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            if sovereignty.isLoadingIcon {
-                ProgressView()
-                    .frame(width: 48, height: 48)
-            } else if let icon = sovereignty.icon {
-                icon
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 48, height: 48)
+            ZStack(alignment: .center) {
+                // 背景圆环
+                Circle()
+                    .stroke(Color.cyan.opacity(0.3), lineWidth: 4)
+                    .frame(width: 56, height: 56)
+                
+                // 进度圆环
+                Circle()
+                    .trim(from: 0, to: sovereignty.campaign.attackersScore)
+                    .stroke(Color.red, lineWidth: 4)
+                    .frame(width: 56, height: 56)
+                    .rotationEffect(.degrees(-90))
+                
+                // 联盟图标
+                if sovereignty.isLoadingIcon {
+                    ProgressView()
+                        .frame(width: 48, height: 48)
+                } else if let icon = sovereignty.icon {
+                    icon
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 48, height: 48)
+                }
             }
+            .frame(width: 56, height: 56)
+            
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(getEventTypeText(sovereignty.campaign.eventType))
