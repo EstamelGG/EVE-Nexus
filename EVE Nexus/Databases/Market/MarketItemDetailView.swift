@@ -320,7 +320,7 @@ struct MarketItemDetailView: View {
                             Text(NSLocalizedString("Main_Market_Current_Price", comment: ""))
                             Button(action: {
                                 Task {
-                                    await loadAllMarketData(forceRefresh: true)
+                                    await loadMarketData(forceRefresh: true)
                                 }
                             }) {
                                 Image(systemName: "arrow.clockwise")
@@ -384,7 +384,7 @@ struct MarketItemDetailView: View {
                         if !isLoadingHistory {
                             Button(action: {
                                 Task {
-                                    await loadAllMarketData(forceRefresh: true)
+                                    await loadHistoryData(forceRefresh: true)
                                 }
                             }) {
                                 Image(systemName: "arrow.clockwise")
