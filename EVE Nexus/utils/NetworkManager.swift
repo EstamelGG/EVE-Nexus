@@ -976,9 +976,27 @@ extension NetworkManager {
     
     // 格式化缓存大小
     static func formatFileSize(_ size: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: size)
+        let units = ["bytes", "KB", "MB", "GB"]
+        var size = Double(size)
+        var unitIndex = 0
+        
+        while size >= 1024 && unitIndex < units.count - 1 {
+            size /= 1024
+            unitIndex += 1
+        }
+        
+        // 根据大小使用不同的小数位数
+        let formattedSize: String
+        if unitIndex == 0 {
+            formattedSize = String(format: "%.0f", size) // 字节不显示小数
+        } else if size >= 100 {
+            formattedSize = String(format: "%.0f", size) // 大于100时不显示小数
+        } else if size >= 10 {
+            formattedSize = String(format: "%.1f", size) // 大于10时显示1位小数
+        } else {
+            formattedSize = String(format: "%.2f", size) // 其他情况显示2位小数
+        }
+        
+        return "\(formattedSize) \(units[unitIndex])"
     }
 }
