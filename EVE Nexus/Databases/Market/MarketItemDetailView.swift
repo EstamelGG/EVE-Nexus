@@ -320,7 +320,7 @@ struct MarketItemDetailView: View {
                             Text(NSLocalizedString("Main_Market_Current_Price", comment: ""))
                             Button(action: {
                                 Task {
-                                    await loadMarketData(forceRefresh: true)
+                                    await loadAllMarketData(forceRefresh: true)
                                 }
                             }) {
                                 Image(systemName: "arrow.clockwise")
@@ -384,7 +384,7 @@ struct MarketItemDetailView: View {
                         if !isLoadingHistory {
                             Button(action: {
                                 Task {
-                                    await loadHistoryData(forceRefresh: true)
+                                    await loadAllMarketData(forceRefresh: true)
                                 }
                             }) {
                                 Image(systemName: "arrow.clockwise")
@@ -429,8 +429,7 @@ struct MarketItemDetailView: View {
                 UserDefaultsManager.shared.selectedRegionID = region.id
                 // 重新加载数据
                 Task {
-                    await loadMarketData(forceRefresh: true)
-                    await loadHistoryData(forceRefresh: true)
+                    await loadAllMarketData(forceRefresh: true)
                 }
             }
         }
@@ -447,8 +446,7 @@ struct MarketItemDetailView: View {
             
             if isFromParent {
                 Task {
-                    await loadMarketData()
-                    await loadHistoryData()
+                    await loadAllMarketData()
                 }
                 isFromParent = false
             }
@@ -551,6 +549,16 @@ struct MarketItemDetailView: View {
             }
             calculateGroupedRegions()
         }
+    }
+    
+    // 并发加载所有市场数据
+    private func loadAllMarketData(forceRefresh: Bool = false) async {
+        // 并发执行两个加载任务
+        async let marketDataTask = loadMarketData(forceRefresh: forceRefresh)
+        async let historyDataTask = loadHistoryData(forceRefresh: forceRefresh)
+        
+        // 等待两个任务都完成
+        await (_, _) = (marketDataTask, historyDataTask)
     }
 }
 
