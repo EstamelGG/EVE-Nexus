@@ -379,8 +379,77 @@ class NetworkManager {
     
     // 添加主权争夺缓存相关方法
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        // 使用 StaticResourceManager 获取数据
-        return try await StaticResourceManager.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
+        let cacheKey = "sovereignty_campaigns" as NSString
+        
+        // 检查缓存
+        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
+            // 检查缓存是否过期（2小时有效期）
+            if Date().timeIntervalSince(cached.timestamp) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
+                Logger.info("使用缓存的主权争夺数据")
+                if let campaigns = cached.data as? [SovereigntyCampaign] {
+                    return campaigns
+                }
+            }
+        }
+        
+        // 如果没有强制刷新，尝试从本地文件加载
+        if !forceRefresh {
+            let filePath = StaticResourceManager.shared.getStaticDataSetPath()
+                .appendingPathComponent(StaticResourceManager.ResourceType.sovereigntyCampaigns.filename)
+            
+            if FileManager.default.fileExists(atPath: filePath.path) {
+                do {
+                    let data = try Data(contentsOf: filePath)
+                    let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+                    
+                    // 检查文件是否过期
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: filePath.path),
+                       let modificationDate = attributes[.modificationDate] as? Date,
+                       Date().timeIntervalSince(modificationDate) < StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
+                        
+                        // 更新内存缓存
+                        sovereigntyCache.setObject(
+                            CachedData(data: campaigns, timestamp: modificationDate),
+                            forKey: cacheKey
+                        )
+                        
+                        Logger.info("从本地文件加载主权争夺数据")
+                        return campaigns
+                    }
+                } catch {
+                    Logger.error("从本地文件加载主权争夺数据失败: \(error)")
+                }
+            }
+        }
+        
+        let urlString = "https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            Logger.error("主权争夺数据URL无效")
+            throw NetworkError.invalidURL
+        }
+        
+        // 如果强制刷新，清除URLCache中的缓存
+        if forceRefresh {
+            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
+        }
+        
+        let data = try await fetchData(from: url)
+        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+        
+        // 更新缓存
+        sovereigntyCache.setObject(
+            CachedData(data: campaigns, timestamp: Date()),
+            forKey: cacheKey
+        )
+        
+        // 保存到本地文件
+        try StaticResourceManager.shared.saveToFile(
+            data,
+            filename: StaticResourceManager.ResourceType.sovereigntyCampaigns.filename
+        )
+        
+        Logger.info("成功获取主权争夺数据")
+        return campaigns
     }
 }
 

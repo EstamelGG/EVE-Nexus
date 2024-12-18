@@ -789,18 +789,19 @@ class StaticResourceManager {
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
         // 确定是否需要刷新
-        var shouldRefresh = forceRefresh
+        let shouldRefresh = forceRefresh || (fileManager.fileExists(atPath: filePath.path) && 
+           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration))
         
-        // 检查文件是否过期
-        if fileManager.fileExists(atPath: filePath.path) && 
-           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration) {
-            shouldRefresh = true
-        }
-        
-        // 如果需要强制刷新，先执行刷新操作
+        // 如果需要强制刷新或缓存过期，直接从网络获取
         if shouldRefresh {
-            try await self.forceRefresh(.sovereigntyCampaigns)
-            return try await fetchSovereigntyCampaigns(forceRefresh: false)
+            Logger.info("Fetching sovereignty campaigns data from network (force refresh)")
+            let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+            let jsonData = try JSONEncoder().encode(campaignsData)
+            
+            // 保存到文件（同时会更新内存缓存）
+            try saveToFile(jsonData, filename: filename)
+            
+            return campaignsData
         }
         
         // 1. 尝试从内存缓存获取
@@ -826,8 +827,8 @@ class StaticResourceManager {
             }
         }
         
-        // 3. 从网络获取
-        Logger.info("Fetching sovereignty campaigns data from network")
+        // 3. 从网络获取（首次获取）
+        Logger.info("Fetching sovereignty campaigns data from network (first time)")
         let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns()
         let jsonData = try JSONEncoder().encode(campaignsData)
         
