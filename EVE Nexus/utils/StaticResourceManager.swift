@@ -408,20 +408,20 @@ class StaticResourceManager {
     
     /// 获取联盟图标缓存统计
     func getAllianceIconsStats() -> ResourceInfo {
-        let iconPath = getAllianceIconPath()
-        let exists = fileManager.fileExists(atPath: iconPath.path)
+        let fileManager = FileManager.default
+        let cacheDirectory = try? fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let exists = cacheDirectory != nil
         var totalSize: Int64 = 0
         var lastModified: Date? = nil
         var iconCount: Int = 0
         
-        if exists {
-            if let enumerator = fileManager.enumerator(atPath: iconPath.path) {
-                for case let fileName as String in enumerator {
-                    if fileName.hasSuffix(".png") {
+        if let cacheDirectory = cacheDirectory {
+            if let enumerator = fileManager.enumerator(at: cacheDirectory, includingPropertiesForKeys: nil) {
+                for case let fileURL as URL in enumerator {
+                    if fileURL.lastPathComponent.hasPrefix("alliance_") && fileURL.pathExtension == "png" {
                         iconCount += 1
-                        let filePath = (iconPath.path as NSString).appendingPathComponent(fileName)
                         do {
-                            let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
                             totalSize += attributes[.size] as? Int64 ?? 0
                             
                             // 使用最新的修改时间
@@ -445,7 +445,7 @@ class StaticResourceManager {
         
         return ResourceInfo(
             name: name,
-            exists: exists,
+            exists: exists && iconCount > 0,
             lastModified: lastModified,
             fileSize: totalSize,
             downloadTime: nil

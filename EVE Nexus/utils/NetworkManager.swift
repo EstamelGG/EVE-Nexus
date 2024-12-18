@@ -188,7 +188,7 @@ class NetworkManager {
         }
         
         // 从网络获取数据
-        let urlString = "https://images.evetech.net/types/\(typeID)/render?size=128"
+        let urlString = "https://images.evetech.net/types/\(typeID)/render?size=512"
         guard let url = URL(string: urlString) else {
             Logger.error("Invalid URL for item render")
             throw NetworkError.invalidURL
