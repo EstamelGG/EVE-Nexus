@@ -158,7 +158,9 @@
 "Main_Setting_Cache_Cleared_Message" = "Cleared %@ cache";
 "Main_Setting_Cache_Expiration_Days" = "%d days remaining";
 "Main_Setting_Cache_Expiration_Hours" = "%d hours remaining";
-"Main_Setting_Cache_Expiration_Days_Hours" = "%d days %d hours remaining";
+"Main_Setting_Cache_Expiration_Days_Hours" = "%dd %dh remaining";
+"Main_Setting_Cache_Expiration_Hours_Minutes" = "%dh %dm remaining";
+"Main_Setting_Cache_Expiration_Minutes" = "%dm remaining";
 "Main_Setting_Static_Resource_Expired" = "Expired";
 
 // Static Resources

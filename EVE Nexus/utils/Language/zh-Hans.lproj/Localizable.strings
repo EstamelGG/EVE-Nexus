@@ -102,6 +102,8 @@
 "Main_Setting_Cache_Expiration_Days" = "剩余%d天";
 "Main_Setting_Cache_Expiration_Hours" = "剩余%d小时";
 "Main_Setting_Cache_Expiration_Days_Hours" = "剩余%d天%d小时";
+"Main_Setting_Cache_Expiration_Hours_Minutes" = "剩余%d小时%d分钟";
+"Main_Setting_Cache_Expiration_Minutes" = "剩余%d分钟";
 "Main_Setting_Cache_Expired" = "已过期";
 
 "Main_About" = "关于";

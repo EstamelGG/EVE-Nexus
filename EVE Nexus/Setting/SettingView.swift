@@ -751,6 +751,23 @@ struct SettingView: View {
     }
     
     // MARK: - 资源信息格式化
+    private func formatRemainingTime(_ remaining: TimeInterval) -> String {
+        let days = Int(remaining / (24 * 3600))
+        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
+        let minutes = Int((remaining.truncatingRemainder(dividingBy: 3600)) / 60)
+        
+        if days > 0 {
+            // 如果有天数，显示天和小时
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours)
+        } else if hours > 0 {
+            // 如果有小时，显示小时和分钟
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours_Minutes", comment: ""), hours, minutes)
+        } else {
+            // 只剩分钟
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Minutes", comment: ""), minutes)
+        }
+    }
+    
     private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
         if resource.exists {
             var info = ""
@@ -768,13 +785,7 @@ struct SettingView: View {
                     let remaining = duration - elapsed
                     
                     if remaining > 0 {
-                        let days = Int(remaining / (24 * 3600))
-                        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
-                        if days > 0 {
-                            info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours) + ")"
-                        } else {
-                            info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), hours) + ")"
-                        }
+                        info += " (" + formatRemainingTime(remaining) + ")"
                     } else {
                         info += " (" + NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: "") + ")"
                     }
