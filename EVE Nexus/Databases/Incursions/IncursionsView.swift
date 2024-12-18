@@ -286,7 +286,6 @@ struct IncursionsView: View {
         .task {
             if viewModel.preparedIncursions.isEmpty {
                 await viewModel.fetchIncursions()
-                await viewModel.fetchIncursions(forceRefresh: true, silent: true)
             }
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
