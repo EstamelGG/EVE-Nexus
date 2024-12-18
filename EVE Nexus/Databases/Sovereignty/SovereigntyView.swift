@@ -216,6 +216,15 @@ struct SovereigntyCell: View {
     
     var body: some View {
         HStack(spacing: 12) {
+            if sovereignty.isLoadingIcon {
+                ProgressView()
+                    .frame(width: 48, height: 48)
+            } else if let icon = sovereignty.icon {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
                     Text(getEventTypeText(sovereignty.campaign.eventType))
@@ -236,16 +245,6 @@ struct SovereigntyCell: View {
                         .foregroundColor(.secondary)
                 }
                 .font(.subheadline)
-            }
-            Spacer()
-            if sovereignty.isLoadingIcon {
-                ProgressView()
-                    .frame(width: 48, height: 48)
-            } else if let icon = sovereignty.icon {
-                icon
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 48, height: 48)
             }
         }
         .padding(.vertical, 8)
@@ -298,13 +297,6 @@ struct SovereigntyView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.fetchSovereignty(forceRefresh: true)
-        }
-        .overlay {
-            if viewModel.isRefreshing {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: 60)
-                    .background(Color(.systemBackground).opacity(0.8))
-            }
         }
         .task {
             if viewModel.preparedCampaigns.isEmpty {
