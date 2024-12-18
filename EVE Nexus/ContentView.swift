@@ -40,6 +40,52 @@ struct TableNode: Identifiable, Equatable {
     }
 }
 
+struct AccountsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var isLoggedIn: Bool
+    
+    var body: some View {
+        NavigationView {
+            List {
+                Section {
+                    Button(action: {
+                        // TODO: 实现EVE Online登录
+                    }) {
+                        Text("Log In with EVE Online")
+                            .foregroundColor(.blue)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                
+                if isLoggedIn {
+                    Section {
+                        // 这里后续会添加已登录角色的信息
+                    }
+                }
+            }
+            .navigationTitle("Accounts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .foregroundColor(.blue)
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("编辑") {
+                        // TODO: 实现编辑功能
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var tables: [TableNode] = []
@@ -47,6 +93,7 @@ struct ContentView: View {
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
     @State private var currentTime = Date() // 添加当前时间状态
+    @State private var showingAccountSheet = false // 添加sheet控制状态
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
@@ -294,7 +341,7 @@ struct ContentView: View {
                         Spacer()
                     }
                     .onTapGesture {
-                        // 处理登录点击事件
+                        showingAccountSheet = true
                     }
                 }
                 
@@ -323,6 +370,9 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
+            .sheet(isPresented: $showingAccountSheet) {
+                AccountsView(isLoggedIn: $isLoggedIn)
+            }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
