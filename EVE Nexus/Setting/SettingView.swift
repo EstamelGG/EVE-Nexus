@@ -652,47 +652,83 @@ struct SettingView: View {
             // 等待一小段时间，确保之前的文件操作都完成
             try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
             
-            // 1. 执行网络缓存清理
+            // 1. 清理网络缓存
             await CacheManager.shared.clearAllCaches()
             
-            // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
+            // 2. 清理 NetworkManager 的所有缓存
+            NetworkManager.shared.clearAllCaches()
             
-            // 2. 清理联盟图标缓存
+            // 3. 清理 StaticResourceManager 的内存缓存
+            StaticResourceManager.shared.clearMemoryCache()
+            
+            // 4. 清理所有静态资源数据（包括文件和内存缓存）
+            do {
+                try StaticResourceManager.shared.clearAllStaticData()
+            } catch {
+                Logger.error("Failed to clear static data: \(error)")
+            }
+            
+            // 5. 清理联盟图标缓存
             do {
                 try StaticResourceManager.shared.clearAllianceIcons()
             } catch {
                 Logger.error("Failed to clear alliance icons: \(error)")
             }
             
-            // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
-            
-            // 3. 清理市场数据缓存
+            // 6. 清理市场数据缓存
             do {
                 try StaticResourceManager.shared.clearMarketData()
             } catch {
                 Logger.error("Failed to clear market data: \(error)")
             }
             
-            // 等待文件系统操作完成
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
-            
-            // 4. 清理渲染图缓存
+            // 7. 清理渲染图缓存
             do {
                 try StaticResourceManager.shared.clearNetRenders()
             } catch {
                 Logger.error("Failed to clear net renders: \(error)")
             }
             
-            // 等待文件系统操作完成
+            // 8. 清理 UserDefaults 中的缓存相关数据
+            let defaults = UserDefaults.standard
+            for type in StaticResourceManager.ResourceType.allCases {
+                defaults.removeObject(forKey: type.downloadTimeKey)
+            }
+            defaults.removeObject(forKey: "incursions_cache")
+            
+            // 9. 清理临时文件目录
+            let fileManager = FileManager.default
+            if let tmpDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                do {
+                    let tmpContents = try fileManager.contentsOfDirectory(at: tmpDirectory, includingPropertiesForKeys: nil)
+                    for url in tmpContents {
+                        try? fileManager.removeItem(at: url)
+                    }
+                } catch {
+                    Logger.error("Failed to clear temporary directory: \(error)")
+                }
+            }
+            
+            // 10. 清理 URLCache
+            URLCache.shared.removeAllCachedResponses()
+            
+            // 11. 清理 Cookies
+            if let cookies = HTTPCookieStorage.shared.cookies {
+                for cookie in cookies {
+                    HTTPCookieStorage.shared.deleteCookie(cookie)
+                }
+            }
+            
+            // 等待所有清理操作完成
             try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
             
-            // 5. 所有清理完成后，更新数据
+            // 更新界面
             await MainActor.run {
                 updateAllData()
                 isCleaningCache = false
             }
+            
+            Logger.info("Cache cleaning completed")
         }
     }
     
