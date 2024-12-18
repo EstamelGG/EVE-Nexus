@@ -23,12 +23,20 @@ struct ESIConfig: Codable {
     let clientSecret: String
     let callbackUrl: String
     let urls: ESIUrls
-    let scopes: [String]
+    var scopes: [String]
     
     struct ESIUrls: Codable {
         let authorize: String
         let token: String
         let verify: String
+    }
+    
+    init(clientId: String, clientSecret: String, callbackUrl: String, urls: ESIUrls, scopes: [String]) {
+        self.clientId = clientId
+        self.clientSecret = clientSecret
+        self.callbackUrl = callbackUrl
+        self.urls = urls
+        self.scopes = scopes
     }
 }
 
@@ -43,18 +51,77 @@ class EVELogin {
     private var session: URLSession!
     
     private init() {
-        loadConfig()
         session = URLSession.shared
+        loadConfig()
+        Logger.info("EVELogin: 初始化完成，配置状态: \(config != nil ? "已加载" : "未加载")")
     }
     
     private func loadConfig() {
-        if let configURL = Bundle.main.url(forResource: "ESI_config", withExtension: "json"),
-           let configData = try? Data(contentsOf: configURL) {
+        Logger.info("EVELogin: 开始加载配置...")
+        
+        // 1. 首先加载 scopes
+        var allScopes: [String] = []
+        if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json") {
             do {
-                config = try JSONDecoder().decode(ESIConfig.self, from: configData)
+                let scopesData = try Data(contentsOf: scopesURL)
+                let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
+                
+                // 合并所有 scopes
+                var scopesSet = Set<String>()
+                for scopeArray in scopesDict.values {
+                    scopesSet.formUnion(scopeArray)
+                }
+                allScopes = Array(scopesSet)
+                Logger.info("EVELogin: 成功加载 \(allScopes.count) 个权限")
             } catch {
-                print("Error loading ESI config: \(error)")
+                Logger.error("EVELogin: 加载权限配置失败: \(error)")
+                return
             }
+        }
+        
+        // 2. 加载主配置
+        guard let configURL = Bundle.main.url(forResource: "esi_config", withExtension: "json") else {
+            Logger.error("EVELogin: 找不到 esi_config.json 文件")
+            return
+        }
+        
+        Logger.info("EVELogin: 找到配置文件: \(configURL.path)")
+        
+        do {
+            let configData = try Data(contentsOf: configURL)
+            
+            // 3. 先解析为原始字典
+            guard let jsonDict = try JSONSerialization.jsonObject(with: configData) as? [String: Any],
+                  let clientId = jsonDict["clientId"] as? String,
+                  let clientSecret = jsonDict["clientSecret"] as? String,
+                  let callbackUrl = jsonDict["callbackUrl"] as? String,
+                  let urlsDict = jsonDict["urls"] as? [String: String],
+                  let authorizeUrl = urlsDict["authorize"],
+                  let tokenUrl = urlsDict["token"],
+                  let verifyUrl = urlsDict["verify"] else {
+                Logger.error("EVELogin: 配置文件格式错误")
+                return
+            }
+            
+            // 4. 创建配置对象
+            let urls = ESIConfig.ESIUrls(
+                authorize: authorizeUrl,
+                token: tokenUrl,
+                verify: verifyUrl
+            )
+            
+            config = ESIConfig(
+                clientId: clientId,
+                clientSecret: clientSecret,
+                callbackUrl: callbackUrl,
+                urls: urls,
+                scopes: allScopes
+            )
+            
+            Logger.info("EVELogin: 配置加载成功")
+            
+        } catch {
+            Logger.error("EVELogin: 加载配置失败: \(error)")
         }
     }
     
@@ -251,5 +318,53 @@ class EVELogin {
         defaults.removeObject(forKey: "EVEAuthToken")
         defaults.removeObject(forKey: "EVECharacterInfo")
         defaults.removeObject(forKey: "TokenExpirationDate")
+    }
+    
+    // 获取钱包余额
+    func getWalletBalance() async throws -> Double {
+        guard let characterId = self.loadAuthInfo().character?.CharacterID else {
+            Logger.error("EVELogin: 无法获取角色ID")
+            throw NetworkError.invalidData
+        }
+        
+        guard let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/?datasource=tranquility") else {
+            Logger.error("EVELogin: 无法构建钱包API URL")
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        
+        // 获取当前的访问令牌
+        guard let accessToken = self.loadAuthInfo().token?.access_token else {
+            Logger.error("EVELogin: 无法获取访问令牌")
+            throw NetworkError.invalidData
+        }
+        
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Logger.error("EVELogin: 无效的响应类型")
+                throw NetworkError.invalidResponse
+            }
+            
+            if httpResponse.statusCode != 200 {
+                Logger.error("EVELogin: 获取钱包余额失败，状态码: \(httpResponse.statusCode)")
+                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            }
+            
+            let balance = try JSONDecoder().decode(Double.self, from: data)
+            Logger.info("EVELogin: 成功获取钱包余额: \(balance) ISK")
+            return balance
+            
+        } catch let error as NetworkError {
+            Logger.error("EVELogin: 获取钱包余额时发生网络错误: \(error)")
+            throw error
+        } catch {
+            Logger.error("EVELogin: 获取钱包余额时发生错误: \(error)")
+            throw NetworkError.invalidData
+        }
     }
 } 

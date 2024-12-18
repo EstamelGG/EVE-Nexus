@@ -52,6 +52,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
                 Logger.info("AppDelegate: 获取到角色信息: CharacterID=\(character.CharacterID), CharacterName=\(character.CharacterName)")
                 
+                // 在成功获取角色信息后添加
+                Logger.info("AppDelegate: 开始获取钱包余额...")
+                do {
+                    let balance = try await EVELogin.shared.getWalletBalance()
+                    Logger.info("AppDelegate: 钱包余额: \(balance) ISK")
+                } catch {
+                    Logger.error("AppDelegate: 获取钱包余额失败: \(error)")
+                }
+                
                 // 保存认证信息
                 Logger.info("AppDelegate: 开始保存认证信息...")
                 EVELogin.shared.saveAuthInfo(token: token, character: character)
