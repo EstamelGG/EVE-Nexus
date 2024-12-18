@@ -133,6 +133,11 @@ class StaticResourceManager {
                         let attributes = try fileManager.attributesOfItem(atPath: filePath.path)
                         lastModified = attributes[.modificationDate] as? Date
                         fileSize = attributes[.size] as? Int64
+                        
+                        // 如果文件存在但没有记录下载时间，使用文件修改时间作为下载时间
+                        if downloadTime == nil {
+                            defaults.set(lastModified, forKey: type.downloadTimeKey)
+                        }
                     } catch {
                         Logger.error("Error getting attributes for \(type.filename): \(error)")
                     }
@@ -143,7 +148,7 @@ class StaticResourceManager {
                     exists: exists,
                     lastModified: lastModified,
                     fileSize: fileSize,
-                    downloadTime: downloadTime
+                    downloadTime: downloadTime ?? lastModified  // 如果没有下载时间，使用最后修改时间
                 )
                 
             case .allianceIcons:

@@ -383,7 +383,17 @@ class NetworkManager {
                 throw NetworkError.invalidURL
             }
             let data = try await fetchData(from: url)
-            return try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+            
+            // 保存到 StaticResourceManager 的目录
+            let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+            let jsonData = try JSONEncoder().encode(campaigns)
+            try StaticResourceManager.shared.saveToFileAndCache(
+                jsonData,
+                filename: StaticResourceManager.ResourceType.sovereigntyCampaigns.filename,
+                cacheKey: StaticResourceManager.ResourceType.sovereigntyCampaigns.rawValue
+            )
+            
+            return campaigns
         }
     }
     
