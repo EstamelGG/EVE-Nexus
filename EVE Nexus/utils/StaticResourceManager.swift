@@ -20,10 +20,10 @@ class StaticResourceManager {
     enum ResourceType: String, CaseIterable {
         case sovereignty = "sovereignty"
         case incursions = "incursions"
+        case sovereigntyCampaigns = "sovereigntyCampaigns"
         case allianceIcons = "allianceIcons"
         case netRenders = "netRenders"
         case marketData = "marketData"
-        case sovereigntyCampaigns = "sovereigntyCampaigns"
         
         var filename: String {
             return "\(self.rawValue).json"
