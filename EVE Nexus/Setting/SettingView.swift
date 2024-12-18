@@ -297,7 +297,7 @@ struct SettingView: View {
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
                     try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
-                case .allianceIcons, .netRenders:
+                case .allianceIcons, .netRenders, .marketData:
                     Logger.info("Alliance icons and net renders are refreshed on-demand")
                     break
                 }
@@ -383,11 +383,11 @@ struct SettingView: View {
                                  (resource.exists ? .green : .blue),
                         action: { refreshResource(resource) }
                     )
-                case .allianceIcons, .netRenders:
+                case .allianceIcons, .netRenders, .marketData:
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
-                        icon: "",  // 移除图标
+                        icon: "",
                         action: { }
                     )
                 }
@@ -401,16 +401,7 @@ struct SettingView: View {
             )
         }
         
-        // 添加市场数据统计，不显示图标
-        let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
-        let marketItem = SettingItem(
-            title: marketDataStats.name,
-            detail: formatResourceInfo(marketDataStats),
-            icon: "",  // 移除图标
-            action: { }
-        )
-        
-        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items + [marketItem])
+        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
     }
     
     private var settingGroups: [SettingGroup] {
@@ -801,7 +792,7 @@ struct SettingView: View {
                 switch type {
                 case .sovereignty, .incursions:
                     return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
-                case .allianceIcons, .netRenders:
+                case .allianceIcons, .netRenders, .marketData:
                     return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
                 }
             }

@@ -22,6 +22,7 @@ class StaticResourceManager {
         case incursions = "incursions"
         case allianceIcons = "allianceIcons"
         case netRenders = "netRenders"
+        case marketData = "marketData"
         
         var filename: String {
             return "\(self.rawValue).json"
@@ -49,6 +50,9 @@ class StaticResourceManager {
                     name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
                 }
                 return name
+            case .marketData:
+                let stats = StaticResourceManager.shared.getMarketDataStats()
+                return stats.name
             }
         }
         
@@ -66,6 +70,8 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
             case .netRenders:
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
+            case .marketData:
+                return StaticResourceManager.shared.MARKET_DATA_CACHE_DURATION
             }
         }
     }
@@ -75,6 +81,7 @@ class StaticResourceManager {
     public let RENDER_CACHE_DURATION: TimeInterval = 60 * 24 * 3600      // 30天
     public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
     public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
+    public let MARKET_DATA_CACHE_DURATION: TimeInterval = 60 * 24 * 3600  // 30天
     
     private init() {}
     
@@ -136,6 +143,16 @@ class StaticResourceManager {
                 
             case .netRenders:
                 let stats = getNetRendersStats()
+                return ResourceInfo(
+                    name: type.displayName,
+                    exists: stats.exists,
+                    lastModified: stats.lastModified,
+                    fileSize: stats.fileSize,
+                    downloadTime: nil
+                )
+                
+            case .marketData:
+                let stats = getMarketDataStats()
                 return ResourceInfo(
                     name: type.displayName,
                     exists: stats.exists,
@@ -220,6 +237,10 @@ class StaticResourceManager {
         case .allianceIcons, .netRenders:
             // 这两种类型的资源是按需获取的，不支持批量刷新
             Logger.info("Alliance icons and net renders are refreshed on-demand")
+            break
+        case .marketData:
+            // 市场数据不支持批量刷新
+            Logger.info("Market data is refreshed on-demand")
             break
         }
     }
