@@ -121,13 +121,26 @@ struct ResourceRequest<T: Codable> {
 }
 
 // 具体的资源类型实现
-enum EVEResource: NetworkResource {
+enum EVEResource: CaseIterable, NetworkResource {
     case sovereignty
     case incursions
     case sovereigntyCampaigns
     case marketOrders(regionId: Int, typeId: Int)
     case marketHistory(regionId: Int, typeId: Int)
     case serverStatus
+    
+    // 由于有关联值，我们需要手动实现 allCases
+    static var allCases: [EVEResource] {
+        return [
+            .sovereignty,
+            .incursions,
+            .sovereigntyCampaigns,
+            .serverStatus,
+            // 为市场订单和历史数据使用默认值
+            .marketOrders(regionId: 10000002, typeId: 0),
+            .marketHistory(regionId: 10000002, typeId: 0)
+        ]
+    }
     
     var baseURL: String {
         switch self {
@@ -166,17 +179,17 @@ enum EVEResource: NetworkResource {
     var fileName: String {
         switch self {
         case .sovereignty:
-            return "SovereigntyData.json"
+            return "sovereignty.json"
         case .incursions:
-            return "Incursions.json"
+            return "incursions.json"
         case .sovereigntyCampaigns:
-            return "SovereigntyCampaigns.json"
+            return "sovereigntyCampaigns.json"
         case .marketOrders(let regionId, let typeId):
             return "Market_\(typeId)/orders_\(regionId).json"
         case .marketHistory(let regionId, let typeId):
             return "Market_\(typeId)/history_\(regionId).json"
         case .serverStatus:
-            return "ServerStatus.json"
+            return "serverStatus.json"
         }
     }
     
@@ -505,12 +518,30 @@ class NetworkManager: NSObject {
     
     // 清除所有缓存
     func clearAllCaches() {
+        // 清理内存缓存
         clearMarketOrdersCache()
         dataCache.removeAllObjects()
         imageCache.removeAllObjects()
         dataCacheKeys.removeAll()
         imageCacheKeys.removeAll()
         serverStatusCache = nil
+        
+        let fileManager = FileManager.default
+        
+        // 1. 清理系统缓存目录
+        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                   in: .userDomainMask, 
+                                                   appropriateFor: nil, 
+                                                   create: false) {
+            try? fileManager.removeItem(at: cacheDirectory)
+            try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        }
+        
+        // 2. 清理StaticDataSet目录
+        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+        try? fileManager.removeItem(at: staticDataSetPath)
+        try? fileManager.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
+        
         Logger.info("Cleared all NetworkManager caches")
     }
     
@@ -737,41 +768,66 @@ extension NetworkManager {
         var totalSize: Int64 = 0
         var count = 0
         var lastModified: Date? = nil
-        
         let fileManager = FileManager.default
-        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                      in: .userDomainMask, 
-                                                      appropriateFor: nil, 
-                                                      create: false) else {
-            return CacheInfo(size: 0, count: 0, lastModified: nil)
-        }
         
-        guard let enumerator = fileManager.enumerator(at: cacheDirectory, 
-                                                    includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) else {
-            return CacheInfo(size: 0, count: 0, lastModified: nil)
-        }
-        
-        for case let fileURL as URL in enumerator {
-            do {
-                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                if let fileSize = attributes[.size] as? Int64 {
-                    totalSize += fileSize
-                    count += 1
+        // 1. 检查 StaticDataSet 目录
+        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+        if let enumerator = fileManager.enumerator(at: staticDataSetPath, 
+                                                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+                                                 options: [.skipsHiddenFiles]) {
+            for case let fileURL as URL in enumerator {
+                do {
+                    let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                    if let fileSize = attributes[.size] as? Int64 {
+                        totalSize += fileSize
+                        count += 1
+                    }
+                    if let modificationDate = attributes[.modificationDate] as? Date {
+                        if lastModified == nil || modificationDate > lastModified! {
+                            lastModified = modificationDate
+                        }
+                    }
+                } catch {
+                    Logger.error("Error getting file attributes for \(fileURL.path): \(error)")
                 }
-                if let modificationDate = attributes[.modificationDate] as? Date {
-                    if lastModified == nil || modificationDate > lastModified! {
-                        lastModified = modificationDate
+            }
+        }
+        
+        // 2. 检查系统缓存目录中的其他资源
+        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                   in: .userDomainMask, 
+                                                   appropriateFor: nil, 
+                                                   create: false) {
+            for resource in EVEResource.allCases {
+                switch resource {
+                case .sovereignty, .incursions, .sovereigntyCampaigns:
+                    continue // 这些已经在StaticDataSet目录中检查过了
+                default:
+                    let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
+                    if fileManager.fileExists(atPath: fileURL.path) {
+                        do {
+                            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                            if let fileSize = attributes[.size] as? Int64 {
+                                totalSize += fileSize
+                                count += 1
+                            }
+                            if let modificationDate = attributes[.modificationDate] as? Date {
+                                if lastModified == nil || modificationDate > lastModified! {
+                                    lastModified = modificationDate
+                                }
+                            }
+                        } catch {
+                            Logger.error("Error getting file attributes: \(error)")
+                        }
                     }
                 }
-            } catch {
-                Logger.error("Error getting file attributes: \(error)")
             }
         }
         
         return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
     }
     
-    // 清理特定资源的缓存时也清除键
+    // 清理特定资源的缓存
     func clearCache(for resource: EVEResource) {
         // 清理内存缓存
         let cacheKey = resource.cacheKey
@@ -780,16 +836,24 @@ extension NetworkManager {
         
         // 清理文件缓存
         let fileManager = FileManager.default
-        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                      in: .userDomainMask, 
-                                                      appropriateFor: nil, 
-                                                      create: false) else {
-            return
+        let fileURL: URL
+        
+        switch resource {
+        case .sovereignty, .incursions, .sovereigntyCampaigns:
+            // 这些资源存储在 StaticDataSet 目录
+            fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
+        default:
+            // 其他资源存储在系统缓存目录
+            guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                          in: .userDomainMask, 
+                                                          appropriateFor: nil, 
+                                                          create: false) else {
+                return
+            }
+            fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
         }
         
-        let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
         try? fileManager.removeItem(at: fileURL)
-        
         Logger.info("Cleared cache for resource: \(resource)")
     }
     
