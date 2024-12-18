@@ -250,6 +250,8 @@ class NetworkManager: NSObject {
     // 通用的数据获取函数
     func fetchData(from url: URL) async throws -> Data {
         Logger.info("Fetching data from URL: \(url.absoluteString)")
+        
+        // 使用共享的 URLSession，让系统管理缓存
         let (data, response) = try await URLSession.shared.data(from: url)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -435,8 +437,7 @@ class NetworkManager: NSObject {
         // 如果不是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
-            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            let fileURL = cacheDirectory.appendingPathComponent(filename)
+            let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
             
             if fileManager.fileExists(atPath: fileURL.path) {
                 do {
@@ -473,11 +474,12 @@ class NetworkManager: NSObject {
         // 更新文件缓存
         do {
             let fileManager = FileManager.default
-            let cacheDirectory = try fileManager.url(for: .cachesDirectory, 
-                                                       in: .userDomainMask, 
-                                                       appropriateFor: nil, 
-                                                       create: true)
-            let fileURL = cacheDirectory.appendingPathComponent(filename)
+            let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
+            
+            // 确保目录存在
+            try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), 
+                                         withIntermediateDirectories: true)
+                                         
             let encodedData = try JSONEncoder().encode(data)
             try encodedData.write(to: fileURL)
             Logger.info("Successfully saved data to file for: \(cacheKey)")
@@ -552,7 +554,7 @@ class NetworkManager: NSObject {
             Logger.error("Error clearing StaticDataSet directory: \(error)")
         }
         
-        Logger.info("Cleared all NetworkManager caches")
+        Logger.info("Cleared all local caches")
     }
     
     // 获取联盟图标
@@ -787,7 +789,7 @@ extension NetworkManager {
         var lastModified: Date? = nil
         let fileManager = FileManager.default
         
-        // 1. 检查 StaticDataSet 目录
+        // 只检查 StaticDataSet 目录
         let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
         if let enumerator = fileManager.enumerator(at: staticDataSetPath, 
                                                  includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
@@ -810,37 +812,6 @@ extension NetworkManager {
             }
         }
         
-        // 2. 检查系统缓存目录中的其他资源
-        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                   in: .userDomainMask, 
-                                                   appropriateFor: nil, 
-                                                   create: false) {
-            for resource in EVEResource.allCases {
-                switch resource {
-                case .sovereignty, .incursions, .sovereigntyCampaigns:
-                    continue // 这些已经在StaticDataSet目录中检查过了
-                default:
-                    let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
-                    if fileManager.fileExists(atPath: fileURL.path) {
-                        do {
-                            let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                            if let fileSize = attributes[.size] as? Int64 {
-                                totalSize += fileSize
-                                count += 1
-                            }
-                            if let modificationDate = attributes[.modificationDate] as? Date {
-                                if lastModified == nil || modificationDate > lastModified! {
-                                    lastModified = modificationDate
-                                }
-                            }
-                        } catch {
-                            Logger.error("Error getting file attributes: \(error)")
-                        }
-                    }
-                }
-            }
-        }
-        
         return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
     }
     
@@ -851,27 +822,12 @@ extension NetworkManager {
         dataCache.removeObject(forKey: cacheKey as NSString)
         dataCacheKeys.remove(cacheKey)
         
-        // 清理文件缓存
+        // 清理文件缓存（只清理 StaticDataSet 目录中的文件）
         let fileManager = FileManager.default
-        let fileURL: URL
-        
-        switch resource {
-        case .sovereignty, .incursions, .sovereigntyCampaigns:
-            // 这些资源存储在 StaticDataSet 目录
-            fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
-        default:
-            // 其他资源存储在系统缓存目录
-            guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                          in: .userDomainMask, 
-                                                          appropriateFor: nil, 
-                                                          create: false) else {
-                return
-            }
-            fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
-        }
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
         
         try? fileManager.removeItem(at: fileURL)
-        Logger.info("Cleared cache for resource: \(resource)")
+        Logger.info("Cleared local cache for resource: \(resource)")
     }
     
     // 重新加载特定资源
@@ -898,21 +854,17 @@ extension NetworkManager {
             age = Date().timeIntervalSince(cached.timestamp)
         }
         
-        // 检查文件缓存
+        // 检查文件缓存（只检查 StaticDataSet 目录）
         let fileManager = FileManager.default
-        if let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
-                                                   in: .userDomainMask, 
-                                                   appropriateFor: nil, 
-                                                   create: false) {
-            let fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
-            if fileManager.fileExists(atPath: fileURL.path) {
-                inFile = true
-                if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
-                   let modificationDate = attributes[.modificationDate] as? Date {
-                    // 如果没有内存缓存的年龄，使用文件缓存的年龄
-                    if age == nil {
-                        age = Date().timeIntervalSince(modificationDate)
-                    }
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
+        
+        if fileManager.fileExists(atPath: fileURL.path) {
+            inFile = true
+            if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
+               let modificationDate = attributes[.modificationDate] as? Date {
+                // 如果没有内存缓存的年龄，使用文件缓存的年龄
+                if age == nil {
+                    age = Date().timeIntervalSince(modificationDate)
                 }
             }
         }
