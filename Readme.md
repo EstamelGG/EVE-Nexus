@@ -26,6 +26,7 @@
 
 - https://developers.eveonline.com/resource
 - https://any-api.com/evetech_net/evetech_net/console
+- https://images.evetech.net/alliances/xxxxxx/logo?size=128
 
 示例:
 
