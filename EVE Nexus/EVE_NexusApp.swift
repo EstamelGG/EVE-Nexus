@@ -10,6 +10,7 @@ struct EVE_NexusApp: App {
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
     @State private var needsUnzip = false
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     init() {
         configureLanguage()

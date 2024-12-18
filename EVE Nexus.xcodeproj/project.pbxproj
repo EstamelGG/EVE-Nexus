@@ -33,9 +33,22 @@
 		C6417FDE2CF80C4F0032F75C /* EVE NexusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "EVE NexusUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C61469072D12933200ADB16A /* Exceptions for "EVE Nexus" folder in "EVE Nexus" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C6417FC02CF80C4D0032F75C /* EVE Nexus */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C6417FC32CF80C4D0032F75C /* EVE Nexus */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C61469072D12933200ADB16A /* Exceptions for "EVE Nexus" folder in "EVE Nexus" target */,
+			);
 			path = "EVE Nexus";
 			sourceTree = "<group>";
 		};
@@ -177,7 +190,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1610;
-				LastUpgradeCheck = 1610;
+				LastUpgradeCheck = 1620;
 				TargetAttributes = {
 					C6417FC02CF80C4D0032F75C = {
 						CreatedOnToolsVersion = 16.1;
@@ -411,6 +424,7 @@
 				DEVELOPMENT_TEAM = PWM6W3HMW9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "EVE Nexus";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -454,6 +468,7 @@
 				DEVELOPMENT_TEAM = PWM6W3HMW9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "EVE Nexus";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

@@ -44,27 +44,34 @@ struct TableNode: Identifiable, Equatable {
 struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isLoggedIn: Bool
-    @State private var showingWebView = false
+    @State var showingWebView = false
+    @State var characterInfo: EVECharacterInfo?
+    @State var showingError = false
+    @State var errorMessage = ""
     
     var body: some View {
         NavigationView {
             List {
                 Section {
-                    Button(action: {
-                        if let _ = EVELogin.shared.getAuthorizationURL() {
-                            showingWebView = true
+                    if let character = characterInfo {
+                        VStack(alignment: .leading) {
+                            Text(character.CharacterName)
+                                .font(.headline)
+                            Text("Character ID: \(character.CharacterID)")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                         }
-                    }) {
-                        Text("Log In with EVE Online")
-                            .foregroundColor(.blue)
-                            .frame(maxWidth: .infinity)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                
-                if isLoggedIn {
-                    Section {
-                        // 这里后续会添加已登录角色的信息
+                    } else {
+                        Button(action: {
+                            if let _ = EVELogin.shared.getAuthorizationURL() {
+                                showingWebView = true
+                            }
+                        }) {
+                            Text("Log In with EVE Online")
+                                .foregroundColor(.blue)
+                                .frame(maxWidth: .infinity)
+                                .multilineTextAlignment(.center)
+                        }
                     }
                 }
             }
@@ -80,9 +87,11 @@ struct AccountsView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("编辑") {
-                        // TODO: 实现编辑功能
+                if characterInfo != nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("登出") {
+                            logout()
+                        }
                     }
                 }
             }
@@ -91,7 +100,29 @@ struct AccountsView: View {
                     SafariView(url: url)
                 }
             }
+            .alert("登录错误", isPresented: $showingError) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
+            .onAppear {
+                checkExistingAuth()
+            }
         }
+    }
+    
+    private func checkExistingAuth() {
+        let authInfo = EVELogin.shared.loadAuthInfo()
+        if let character = authInfo.character {
+            characterInfo = character
+            isLoggedIn = true
+        }
+    }
+    
+    private func logout() {
+        EVELogin.shared.clearAuthInfo()
+        characterInfo = nil
+        isLoggedIn = false
     }
 }
 
