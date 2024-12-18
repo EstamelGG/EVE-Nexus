@@ -317,11 +317,25 @@ struct SettingView: View {
         SettingGroup(header: NSLocalizedString("Main_Setting_Appearance", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_ColorMode", comment: ""),
-                detail: getAppearanceDetail(),
+                detail: getAppearanceDetail(),  // 将当前主题状态作为详情文本
                 icon: getThemeIcon(),
+                iconColor: .blue,
                 action: toggleAppearance
             )
         ])
+    }
+    
+    private func toggleAppearance() {
+        switch selectedTheme {
+        case "light":
+            selectedTheme = "dark"
+        case "dark":
+            selectedTheme = "system"
+        case "system":
+            selectedTheme = "light"
+        default:
+            break
+        }
     }
     
     private func createOthersGroup() -> SettingGroup {
@@ -419,7 +433,7 @@ struct SettingView: View {
             }
             
             do {
-                // 找到对应的资源类型
+                // 找到的资源类型
                 guard let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) else {
                     Logger.error("Unknown resource type: \(resource.name)")
                     return
@@ -472,81 +486,57 @@ struct SettingView: View {
     
     // MARK: - 视图主体
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(settingGroups) { group in
-                    Section(
-                        header: Text(group.header)
-                            .fontWeight(.bold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(nil)
-                    ) {
-                        ForEach(group.items) { item in
-                            Button(action: item.action) {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(item.title)
-                                            .font(.system(size: 16))
-                                            .foregroundColor(.primary)
-                                        if let detail = item.detail {
-                                            Text(detail)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.gray)
-                                        }
-                                    }
-                                    Spacer()
-                                    if let icon = item.icon {
-                                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
-                                            ProgressView()
-                                                .frame(width: 36, height: 36)
-                                        } else if isResourceRefreshing(item.title) {
-                                            ProgressView()
-                                                .frame(width: 36, height: 36)
-                                        } else {
-                                            Image(systemName: icon)
-                                                .font(.system(size: 20))
-                                                .frame(width: 36, height: 36)
-                                                .foregroundColor(item.iconColor)
-                                        }
-                                    }
-                                }
-                                .frame(height: 36)
-                            }
-                            .disabled(isCleaningCache || showingLoadingView)
-                        }
+        List {
+            ForEach(settingGroups) { group in
+                Section {
+                    ForEach(group.items) { item in
+                        SettingItemView(
+                            item: item,
+                            isCleaningCache: isCleaningCache,
+                            showingLoadingView: showingLoadingView,
+                            isResourceRefreshing: isResourceRefreshing(item.title)
+                        )
                     }
+                } header: {
+                    Text(group.header)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(nil)
                 }
-            }
-            .listStyle(.insetGrouped)
-            .navigationDestination(isPresented: $showingLanguageView) {
-                SelectLanguageView(databaseManager: databaseManager)
-            }
-            .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
-                Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
-                Button(NSLocalizedString("Main_Setting_Clean", comment: ""), role: .destructive) {
-                    cleanCache()
-                }
-            } message: {
-                Text(NSLocalizedString("Main_Setting_Clean_Cache_Message", comment: ""))
-            }
-            .alert(NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""), isPresented: $showingDeleteIconsAlert) {
-                Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
-                Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
-                    deleteIconsAndRestart()
-                }
-            } message: {
-                Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
-            }
-            .onAppear {
-                updateAllData() // 首次加载时更新
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                updateAllData() // 从后台返回时更新
             }
         }
+        .listStyle(.insetGrouped)
+        .navigationDestination(isPresented: $showingLanguageView) {
+            SelectLanguageView(databaseManager: databaseManager)
+        }
+        .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Main_Setting_Clean", comment: ""), role: .destructive) {
+                cleanCache()
+            }
+        } message: {
+            Text(NSLocalizedString("Main_Setting_Clean_Cache_Message", comment: ""))
+        }
+        .alert(NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""), isPresented: $showingDeleteIconsAlert) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
+                deleteIconsAndRestart()
+            }
+        } message: {
+            Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
+        }
+        .onAppear {
+            updateAllData() // 首次加载时更新
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            updateAllData() // 从后台返回时更新
+        }
+        .onChange(of: selectedTheme) { _, _ in
+            updateSettingGroups() // 主题改变时更新
+        }
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
-        .fullScreenCover(isPresented: $showingLoadingView, content: {
+        .fullScreenCover(isPresented: $showingLoadingView) {
             FullScreenCover(
                 progress: unzipProgress,
                 loadingState: $loadingState,
@@ -555,7 +545,7 @@ struct SettingView: View {
                     updateAllData() // 重置图标完成后更新
                 }
             )
-        })
+        }
     }
     
     // MARK: - 主题管理
@@ -564,19 +554,6 @@ struct SettingView: View {
         case "light": return "sun.max.fill"
         case "dark": return "moon.fill"
         default: return "circle.lefthalf.fill"
-        }
-    }
-    
-    private func toggleAppearance() {
-        switch selectedTheme {
-        case "light":
-            selectedTheme = "dark"
-        case "dark":
-            selectedTheme = "system"
-        case "system":
-            selectedTheme = "light"
-        default:
-            break
         }
     }
     
@@ -827,6 +804,48 @@ struct SettingView: View {
                 }
             }
             return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
+        }
+    }
+    
+    // 添加一个新的视图组件来优化列表项渲染
+    private struct SettingItemView: View {
+        let item: SettingItem
+        let isCleaningCache: Bool
+        let showingLoadingView: Bool
+        let isResourceRefreshing: Bool
+        
+        var body: some View {
+            Button(action: item.action) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(item.title)
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        if let detail = item.detail {
+                            Text(detail)
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    Spacer()
+                    if let icon = item.icon {
+                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                            ProgressView()
+                                .frame(width: 36, height: 36)
+                        } else if isResourceRefreshing {
+                            ProgressView()
+                                .frame(width: 36, height: 36)
+                        } else {
+                            Image(systemName: icon)
+                                .font(.system(size: 20))
+                                .frame(width: 36, height: 36)
+                                .foregroundColor(item.iconColor)
+                        }
+                    }
+                }
+                .frame(height: 36)
+            }
+            .disabled(isCleaningCache || showingLoadingView)
         }
     }
 }
