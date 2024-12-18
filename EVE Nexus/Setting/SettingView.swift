@@ -412,8 +412,10 @@ struct SettingView: View {
         
         Task {
             // 标记资源开始刷新
-            _ = await MainActor.run {
+            await MainActor.run {
                 refreshingResources.insert(resource.name)
+                // 立即更新UI以显示加载状态
+                updateSettingGroups()
             }
             
             do {
@@ -442,15 +444,19 @@ struct SettingView: View {
                 
                 // 刷新完成后更新UI
                 await MainActor.run {
+                    refreshingResources.remove(resource.name)
+                    // 立即更新UI以停止加载动画
+                    updateSettingGroups()
                     updateAllData()
                 }
             } catch {
                 Logger.error("Failed to refresh resource: \(error)")
-            }
-            
-            // 标记资源刷新完成
-            _ = await MainActor.run {
-                refreshingResources.remove(resource.name)
+                // 发生错误时也要更新UI
+                await MainActor.run {
+                    refreshingResources.remove(resource.name)
+                    // 立即更新UI以停止加载动画
+                    updateSettingGroups()
+                }
             }
         }
     }
@@ -502,14 +508,6 @@ struct SettingView: View {
                                                 .font(.system(size: 20))
                                                 .frame(width: 36, height: 36)
                                                 .foregroundColor(item.iconColor)
-                                                .rotationEffect(.degrees(
-                                                    isResourceRefreshing(item.title) ? 360 : 0
-                                                ))
-                                                .animation(
-                                                    isResourceRefreshing(item.title) ?
-                                                        Animation.linear(duration: 1).repeatForever(autoreverses: false) : .default,
-                                                    value: isResourceRefreshing(item.title)
-                                                )
                                         }
                                     }
                                 }
