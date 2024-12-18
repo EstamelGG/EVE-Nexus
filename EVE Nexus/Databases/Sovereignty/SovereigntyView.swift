@@ -25,10 +25,19 @@ struct SovereigntyCampaign: Codable {
     }
 }
 
-struct PreparedSovereignty: Identifiable {
+class PreparedSovereignty: NSObject, Identifiable, @unchecked Sendable, ObservableObject {
     let id: Int
     let campaign: SovereigntyCampaign
     let location: LocationInfo
+    @Published var icon: Image?
+    @Published var isLoadingIcon = false
+    
+    init(campaign: SovereigntyCampaign, location: LocationInfo) {
+        self.id = campaign.campaignId
+        self.campaign = campaign
+        self.location = location
+        super.init()
+    }
     
     struct LocationInfo: Codable {
         let systemName: String
@@ -45,11 +54,16 @@ final class SovereigntyViewModel: ObservableObject {
     @Published private(set) var preparedCampaigns: [PreparedSovereignty] = []
     @Published var isLoading = false
     @Published var isRefreshing = false
+    private var loadingTasks: [Int: Task<Void, Never>] = [:]
     
     let databaseManager: DatabaseManager
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+    }
+    
+    deinit {
+        loadingTasks.values.forEach { $0.cancel() }
     }
     
     func fetchSovereignty(forceRefresh: Bool = false, silent: Bool = false) async {
@@ -85,6 +99,10 @@ final class SovereigntyViewModel: ObservableObject {
     }
     
     private func processCampaigns(_ campaigns: [SovereigntyCampaign]) async {
+        // 取消所有现有的加载任务
+        loadingTasks.values.forEach { $0.cancel() }
+        loadingTasks.removeAll()
+        
         let prepared = await withTaskGroup(of: PreparedSovereignty?.self) { group in
             for campaign in campaigns {
                 group.addTask {
@@ -93,7 +111,6 @@ final class SovereigntyViewModel: ObservableObject {
                     }
                     
                     return PreparedSovereignty(
-                        id: campaign.campaignId,
                         campaign: campaign,
                         location: location
                     )
@@ -115,8 +132,50 @@ final class SovereigntyViewModel: ObservableObject {
         if !prepared.isEmpty {
             Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
             preparedCampaigns = prepared
+            // 加载所有联盟图标
+            loadAllIcons()
         } else {
             Logger.error("ViewModel: 没有可显示的完整数据")
+        }
+    }
+    
+    private func loadAllIcons() {
+        // 按联盟ID分组
+        let allianceGroups = Dictionary(grouping: preparedCampaigns) { $0.campaign.defenderId }
+        
+        // 加载联盟图标
+        for (allianceId, campaigns) in allianceGroups {
+            let task = Task {
+                if campaigns.first != nil {
+                    do {
+                        Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(campaigns.count) 个战役")
+                        let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceId: allianceId)
+                        if !Task.isCancelled {
+                            let icon = Image(uiImage: uiImage)
+                            // 更新所有使用这个联盟图标的战役
+                            for campaign in campaigns {
+                                campaign.icon = icon
+                            }
+                            Logger.debug("联盟图标加载成功: \(allianceId)")
+                        }
+                    } catch {
+                        if (error as NSError).code == NSURLErrorCancelled {
+                            Logger.debug("联盟图标加载已取消: \(allianceId)")
+                        } else {
+                            Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                        }
+                    }
+                    // 更新所有相关战役的加载状态
+                    for campaign in campaigns {
+                        campaign.isLoadingIcon = false
+                    }
+                }
+            }
+            loadingTasks[allianceId] = task
+            // 设置所有相关战役的加载状态
+            for campaign in campaigns {
+                campaign.isLoadingIcon = true
+            }
         }
     }
     
@@ -149,37 +208,17 @@ final class SovereigntyViewModel: ObservableObject {
             regionId: regionId
         )
     }
-    
-    func getEventTypeText(_ type: String) -> String {
-        switch type {
-        case "tcu_defense": return "TCU"
-        case "ihub_defense": return "IHub"
-        case "station_defense": return "Station"
-        case "station_freeport": return "Freeport"
-        default: return type
-        }
-    }
 }
 
 // MARK: - Views
 struct SovereigntyCell: View {
-    let sovereignty: PreparedSovereignty
+    @ObservedObject var sovereignty: PreparedSovereignty
     
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: URL(string: "https://images.evetech.net/alliances/\(sovereignty.campaign.defenderId)/logo?size=64")) { image in
-                image
-                    .resizable()
-                    .frame(width: 48, height: 48)
-                    .cornerRadius(6)
-            } placeholder: {
-                ProgressView()
-                    .frame(width: 48, height: 48)
-            }
-            
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(sovereignty.campaign.eventType)
+                    Text(getEventTypeText(sovereignty.campaign.eventType))
                     Text("[\(String(format: "%.1f", sovereignty.campaign.attackersScore * 100))%]")
                         .foregroundColor(.secondary)
                 }
@@ -198,8 +237,28 @@ struct SovereigntyCell: View {
                 }
                 .font(.subheadline)
             }
+            Spacer()
+            if sovereignty.isLoadingIcon {
+                ProgressView()
+                    .frame(width: 48, height: 48)
+            } else if let icon = sovereignty.icon {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
+            }
         }
         .padding(.vertical, 8)
+    }
+    
+    private func getEventTypeText(_ type: String) -> String {
+        switch type {
+        case "tcu_defense": return "TCU"
+        case "ihub_defense": return "IHub"
+        case "station_defense": return "Station"
+        case "station_freeport": return "Freeport"
+        default: return type
+        }
     }
 }
 
