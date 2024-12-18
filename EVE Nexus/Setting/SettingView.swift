@@ -379,7 +379,7 @@ struct SettingView: View {
             
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
-                case .sovereignty, .incursions:
+                case .sovereignty, .incursions, .sovereigntyCampaigns:
                     let isRefreshingThis = refreshingResources.contains(resource.name)
                     
                     let isExpired = resource.exists && resource.lastModified != nil && 
@@ -450,6 +450,11 @@ struct SettingView: View {
                     Logger.info("Refreshing incursions data")
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
+                    try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
+                case .sovereigntyCampaigns:
+                    Logger.info("Refreshing Sovereignty Campaigns data")
+                    let sovCamp = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+                    let jsonData = try JSONEncoder().encode(sovCamp)
                     try StaticResourceManager.shared.saveToFile(jsonData, filename: type.filename)
                 case .allianceIcons, .netRenders, .marketData:
                     Logger.info("Alliance icons and net renders are refreshed on-demand")
@@ -797,7 +802,7 @@ struct SettingView: View {
             // 根据资源类型返回不同的提示文本
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
-                case .sovereignty, .incursions:
+                case .sovereignty, .incursions, .sovereigntyCampaigns:
                     return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
                 case .allianceIcons, .netRenders, .marketData:
                     return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")

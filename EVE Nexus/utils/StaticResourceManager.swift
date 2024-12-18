@@ -23,6 +23,7 @@ class StaticResourceManager {
         case allianceIcons = "allianceIcons"
         case netRenders = "netRenders"
         case marketData = "marketData"
+        case sovereigntyCampaigns = "sovereigntyCampaigns"
         
         var filename: String {
             return "\(self.rawValue).json"
@@ -53,6 +54,8 @@ class StaticResourceManager {
             case .marketData:
                 let stats = StaticResourceManager.shared.getMarketDataStats()
                 return stats.name
+            case .sovereigntyCampaigns:
+                return NSLocalizedString("Main_Sovereignty_Title", comment: "")
             }
         }
         
@@ -70,6 +73,8 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
             case .netRenders:
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
+            case .sovereigntyCampaigns:
+                return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
             default:
                 return 24 * 3600
             }
@@ -81,6 +86,7 @@ class StaticResourceManager {
     public let RENDER_CACHE_DURATION: TimeInterval = 60 * 24 * 3600      // 30天
     public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
     public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
+    public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 2 * 3600 // 2小时
     
     private init() {}
     
@@ -105,7 +111,7 @@ class StaticResourceManager {
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
             switch type {
-            case .sovereignty, .incursions:
+            case .sovereignty, .incursions, .sovereigntyCampaigns:
                 let filePath = getStaticDataSetPath().appendingPathComponent(type.filename)
                 let exists = fileManager.fileExists(atPath: filePath.path)
                 var lastModified: Date? = nil
@@ -232,6 +238,20 @@ class StaticResourceManager {
             cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
             
             Logger.info("Successfully refreshed incursions data")
+            
+        case .sovereigntyCampaigns:
+            Logger.info("Force refreshing sovereignty campaigns data")
+            // 从网络获取新数据
+            let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+            let jsonData = try JSONEncoder().encode(campaignsData)
+            
+            // 保存到文件
+            try saveToFile(jsonData, filename: type.filename)
+            
+            // 更新缓存
+            cache.setObject(CachedResource(data: jsonData, timestamp: Date()), forKey: type.rawValue as NSString)
+            
+            Logger.info("Successfully refreshed sovereignty campaigns data")
             
         case .allianceIcons, .netRenders:
             // 这两种类型的资源是按需获取的，不支持批量刷新
@@ -758,5 +778,62 @@ class StaticResourceManager {
         }
         
         return count
+    }
+    
+    /// 获取主权战役数据
+    /// - Parameter forceRefresh: 是否强制刷新
+    /// - Returns: 主权战役数据数组
+    func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
+        let cacheKey = ResourceType.sovereigntyCampaigns.rawValue as NSString
+        let filename = ResourceType.sovereigntyCampaigns.filename
+        let filePath = getStaticDataSetPath().appendingPathComponent(filename)
+        
+        // 确定是否需要刷新
+        var shouldRefresh = forceRefresh
+        
+        // 检查文件是否过期
+        if fileManager.fileExists(atPath: filePath.path) && 
+           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration) {
+            shouldRefresh = true
+        }
+        
+        // 如果需要强制刷新，先执行刷新操作
+        if shouldRefresh {
+            try await self.forceRefresh(.sovereigntyCampaigns)
+            return try await fetchSovereigntyCampaigns(forceRefresh: false)
+        }
+        
+        // 1. 尝试从内存缓存获取
+        if let cached = cache.object(forKey: cacheKey) {
+            do {
+                let data = try JSONDecoder().decode([SovereigntyCampaign].self, from: cached.data)
+                Logger.info("Got sovereignty campaigns data from memory cache")
+                return data
+            } catch {
+                Logger.error("Failed to decode cached sovereignty campaigns data: \(error)")
+            }
+        }
+        
+        // 2. 尝试从文件读取
+        if fileManager.fileExists(atPath: filePath.path) {
+            do {
+                let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
+                let campaignsData = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
+                Logger.info("Got sovereignty campaigns data from file")
+                return campaignsData
+            } catch {
+                Logger.error("Failed to load sovereignty campaigns data from file: \(error)")
+            }
+        }
+        
+        // 3. 从网络获取
+        Logger.info("Fetching sovereignty campaigns data from network")
+        let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns()
+        let jsonData = try JSONEncoder().encode(campaignsData)
+        
+        // 保存到文件（同时会更新内存缓存）
+        try saveToFile(jsonData, filename: filename)
+        
+        return campaignsData
     }
 } 

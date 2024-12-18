@@ -379,41 +379,8 @@ class NetworkManager {
     
     // 添加主权争夺缓存相关方法
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        let cacheKey = "sovereignty_campaigns" as NSString
-        
-        // 检查缓存
-        if !forceRefresh, let cached = sovereigntyCache.object(forKey: cacheKey) {
-            // 检查缓存是否过期（5分钟有效期）
-            if Date().timeIntervalSince(cached.timestamp) < 300 {
-                Logger.info("使用缓存的主权争夺数据")
-                if let campaigns = cached.data as? [SovereigntyCampaign] {
-                    return campaigns
-                }
-            }
-        }
-        
-        let urlString = "https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            Logger.error("主权争夺数据URL无效")
-            throw NetworkError.invalidURL
-        }
-        
-        // 如果强制刷新，清除URLCache中的缓存
-        if forceRefresh {
-            URLCache.shared.removeCachedResponse(for: URLRequest(url: url))
-        }
-        
-        let data = try await fetchData(from: url)
-        let campaigns = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
-        
-        // 更新缓存
-        sovereigntyCache.setObject(
-            CachedData(data: campaigns, timestamp: Date()),
-            forKey: cacheKey
-        )
-        
-        Logger.info("成功获取主权争夺数据")
-        return campaigns
+        // 使用 StaticResourceManager 获取数据
+        return try await StaticResourceManager.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
     }
 }
 
