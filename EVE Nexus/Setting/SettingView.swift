@@ -150,10 +150,8 @@ class CacheManager {
     
     // 清理所有缓存
     func clearAllCaches() async {
-        // 1. 清理 URLCache
-        await MainActor.run {
-            URLCache.shared.removeAllCachedResponses()
-        }
+        // 1. 清理 NetworkManager 缓存
+        NetworkManager.shared.clearAllCaches()
         
         // 2. 清理临时文件
         let tempPath = NSTemporaryDirectory()
@@ -171,28 +169,27 @@ class CacheManager {
             Logger.error("Error clearing temp files: \(error)")
         }
         
-        // 3. 清理 NetworkManager 缓存
-        NetworkManager.shared.clearAllCaches()
-        
-        // 4. 清理 URL Session 缓存
-        await clearURLSessionCacheAsync()
-        
-        // 5. 清理入侵相关缓存
+        // 3. 清理入侵相关缓存
         await MainActor.run {
             UserDefaults.standard.removeObject(forKey: "incursions_cache")
             InfestedSystemsViewModel.clearCache()
         }
         
-        // 6. 清理数据库浏览器缓存
+        // 4. 清理数据库浏览器缓存
         await MainActor.run {
             DatabaseBrowserView.clearCache()
         }
         
-        // 7. 清理静态资源
+        // 5. 清理静态资源
         do {
             try StaticResourceManager.shared.clearAllStaticData()
         } catch {
             Logger.error("Error clearing static data: \(error)")
+        }
+        
+        // 6. 清理 URLCache（最后执行）
+        await MainActor.run {
+            URLCache.shared.removeAllCachedResponses()
         }
         
         Logger.info("所有缓存清理完成")
@@ -201,31 +198,11 @@ class CacheManager {
     // 异步清理URL Session缓存
     private func clearURLSessionCacheAsync() async {
         await MainActor.run {
-            // 清理默认session的缓存
-            URLCache.shared.removeAllCachedResponses()
-            
             // 清理cookies
             if let cookies = HTTPCookieStorage.shared.cookies {
                 for cookie in cookies {
                     HTTPCookieStorage.shared.deleteCookie(cookie)
                 }
-            }
-        }
-        
-        // 清理磁盘缓存
-        if let cachesPath = NSSearchPathForDirectoriesInDomains(.cachesDirectory, .userDomainMask, true).first {
-            do {
-                let files = try await MainActor.run {
-                    try self.fileManager.contentsOfDirectory(atPath: cachesPath)
-                }
-                for file in files where file.contains("com.apple.nsurlsessiond") {
-                    let filePath = (cachesPath as NSString).appendingPathComponent(file)
-                    try? await MainActor.run {
-                        try self.fileManager.removeItem(atPath: filePath)
-                    }
-                }
-            } catch {
-                Logger.error("Error clearing URL session cache: \(error)")
             }
         }
     }
