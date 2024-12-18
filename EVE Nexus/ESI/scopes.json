@@ -1,0 +1,52 @@
+{
+    "scopes_public": [
+        "publicData"
+    ],
+    "scopes_character": [
+        "esi-characters.read_loyalty.v1",
+        "esi-characters.read_medals.v1",
+        "esi-characterstats.read.v1",
+        "esi-location.read_location.v1",
+        "esi-location.read_ship_type.v1",
+        "esi-location.read_online.v1",
+        "esi-calendar.read_calendar_events.v1",
+        "esi-clones.read_clones.v1",
+        "esi-search.search_structures.v1",
+        "esi-universe.read_structures.v1",
+        "esi-clones.read_implants.v1"
+    ],
+    "scope_assets": [
+        "esi-assets.read_assets.v1"
+    ],
+    "scope_industry": [
+        "esi-assets.read_blueprints.v1",
+        "esi-industry.read_character_jobs.v1",
+        "esi-industry.read_character_mining.v1"
+    ],
+    "scope_mail": [
+        "esi-mail.organize_mail.v1",
+        "esi-mail.read_mail.v1",
+        "esi-mail.send_mail.v1"
+    ],
+    "scope_skills": [
+        "esi-skills.read_skills.v1",
+        "esi-skills.read_skillqueue.v1"
+    ],
+    "scope_wallet": [
+        "esi-wallet.read_character_wallet.v1"
+    ],
+    "scope_kill": [
+        "esi-killmails.read_killmails.v1"
+    ],
+    "scope_planets": [
+        "esi-planets.manage_planets.v1",
+        "esi-planets.read_customs_offices.v1"
+    ],
+    "scope_fittings": [
+        "esi-fittings.read_fittings.v1",
+        "esi-fittings.write_fittings.v1"
+    ],
+    "scope_market": [
+        "esi-markets.structure_markets.v1",
+        "esi-markets.read_character_orders.v1"
+    ]
