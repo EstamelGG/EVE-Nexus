@@ -42,8 +42,8 @@ struct TableNode: Identifiable, Equatable {
     }
 }
 
-// 用于显示EVE Online登录页面的WebView
-struct EVEWebView: UIViewRepresentable {
+// 用于显示EVE Online登录页面的Safari视图
+struct SafariView: UIViewControllerRepresentable {
     let url: URL
     @Environment(\.presentationMode) var presentationMode
     @Binding var characterInfo: EVECharacterInfo?
@@ -51,110 +51,38 @@ struct EVEWebView: UIViewRepresentable {
     @Binding var showingError: Bool
     @Binding var errorMessage: String
     
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        Logger.info("SafariView: 创建 SFSafariViewController")
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        let controller = SFSafariViewController(url: url, configuration: config)
+        controller.delegate = context.coordinator
+        controller.dismissButtonStyle = .close
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // 不需要更新
+    }
+    
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
     
-    func makeUIView(context: Context) -> WKWebView {
-        Logger.info("EVEWebView: 创建 WKWebView")
+    class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        let parent: SafariView
         
-        // 创建WKWebView配置
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .nonPersistent()
-        
-        // 创建WKWebView
-        let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
-        
-        // 加载URL
-        let request = URLRequest(url: url)
-        webView.load(request)
-        
-        return webView
-    }
-    
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        // 不需要更新
-    }
-    
-    class Coordinator: NSObject, WKNavigationDelegate {
-        let parent: EVEWebView
-        
-        init(_ parent: EVEWebView) {
+        init(_ parent: SafariView) {
             self.parent = parent
         }
         
-        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            if let url = navigationAction.request.url {
-                Logger.info("EVEWebView: 请求URL: \(url.absoluteString)")
-                Logger.info("EVEWebView: 请求方法: \(navigationAction.request.httpMethod ?? "unknown")")
-                
-                if let headers = navigationAction.request.allHTTPHeaderFields {
-                    Logger.info("EVEWebView: 请求头: \(headers)")
-                }
-                
-                // 检查是否是回调URL
-                if let config = EVELogin.shared.config,
-                   let callbackURL = URL(string: config.callbackUrl),
-                   url.scheme == callbackURL.scheme {
-                    Logger.info("EVEWebView: 检测到回调URL")
-                    
-                    // 检查是否包含授权码
-                    if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                       let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
-                        Logger.info("EVEWebView: 检测到授权码: \(code)")
-                        
-                        // 关闭WebView
-                        DispatchQueue.main.async {
-                            self.parent.presentationMode.wrappedValue.dismiss()
-                            
-                            // 处理授权回调
-                            Task {
-                                do {
-                                    let token = try await EVELogin.shared.handleAuthCallback(url: url)
-                                    Logger.info("EVEWebView: 获取到访问令牌")
-                                    
-                                    let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
-                                    Logger.info("EVEWebView: 获取到角色信息: \(character.CharacterName)")
-                                    
-                                    // 保存认证信息
-                                    EVELogin.shared.saveAuthInfo(token: token, character: character)
-                                    
-                                    // 更新UI
-                                    await MainActor.run {
-                                        self.parent.characterInfo = character
-                                        self.parent.isLoggedIn = true
-                                    }
-                                } catch {
-                                    Logger.error("EVEWebView: 处理授权失败: \(error)")
-                                    await MainActor.run {
-                                        self.parent.errorMessage = error.localizedDescription
-                                        self.parent.showingError = true
-                                    }
-                                }
-                            }
-                        }
-                        
-                        decisionHandler(.cancel)
-                        return
-                    }
-                }
-            }
-            
-            decisionHandler(.allow)
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            Logger.info("SafariView: 用户关闭了登录页面")
+            parent.presentationMode.wrappedValue.dismiss()
         }
         
-        func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-            // 接受所有证书
-            completionHandler(.useCredential, URLCredential(trust: challenge.protectionSpace.serverTrust!))
-        }
-        
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            Logger.error("EVEWebView: 导航失败: \(error)")
-        }
-        
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            Logger.error("EVEWebView: 预加载失败: \(error)")
+        func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
+            Logger.info("SafariView: 初始加载完成，成功: \(didLoadSuccessfully)")
         }
     }
 }
@@ -221,7 +149,7 @@ struct AccountsView: View {
                 Logger.info("WebView dismissed")
             } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
-                    EVEWebView(
+                    SafariView(
                         url: url,
                         characterInfo: $characterInfo,
                         isLoggedIn: $isLoggedIn,
@@ -240,6 +168,39 @@ struct AccountsView: View {
             .onAppear {
                 Logger.info("AccountsView appeared")
                 checkExistingAuth()
+            }
+            .onOpenURL { url in
+                Logger.info("AccountsView: 收到URL回调: \(url)")
+                handleCallback(url: url)
+            }
+        }
+    }
+    
+    private func handleCallback(url: URL) {
+        Task {
+            do {
+                let token = try await EVELogin.shared.handleAuthCallback(url: url)
+                Logger.info("AccountsView: 获取到访问令牌")
+                
+                let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
+                Logger.info("AccountsView: 获取到角色信息: \(character.CharacterName)")
+                
+                // 保存认证信息
+                EVELogin.shared.saveAuthInfo(token: token, character: character)
+                
+                // 更新UI
+                await MainActor.run {
+                    self.characterInfo = character
+                    self.isLoggedIn = true
+                    self.showingWebView = false
+                }
+            } catch {
+                Logger.error("AccountsView: 处理授权失败: \(error)")
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.showingError = true
+                    self.showingWebView = false
+                }
             }
         }
     }
