@@ -589,11 +589,33 @@ class NetworkManager: NSObject {
             // 2. 检查文件缓存
             if request.cacheStrategy == .fileOnly || request.cacheStrategy == .both {
                 let fileManager = FileManager.default
-                let cacheDirectory = try fileManager.url(for: .cachesDirectory, 
-                                                       in: .userDomainMask, 
-                                                       appropriateFor: nil, 
-                                                       create: true)
-                let fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
+                let fileURL: URL
+                
+                // 根据资源类型选择存储位置
+                if let resource = request.resource as? EVEResource {
+                    switch resource {
+                    case .sovereignty, .incursions, .sovereigntyCampaigns:
+                        // 这些资源存储在 StaticDataSet 目录
+                        fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
+                    default:
+                        // 其他资源存储在系统缓存目录
+                        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                                      in: .userDomainMask, 
+                                                                      appropriateFor: nil, 
+                                                                      create: true) else {
+                            throw NetworkError.invalidData
+                        }
+                        fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
+                    }
+                } else {
+                    guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                                  in: .userDomainMask, 
+                                                                  appropriateFor: nil, 
+                                                                  create: true) else {
+                        throw NetworkError.invalidData
+                    }
+                    fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
+                }
                 
                 if fileManager.fileExists(atPath: fileURL.path) {
                     do {
@@ -647,14 +669,51 @@ class NetworkManager: NSObject {
         if request.cacheStrategy == .fileOnly || request.cacheStrategy == .both {
             do {
                 let fileManager = FileManager.default
-                let cacheDirectory = try fileManager.url(for: .cachesDirectory, 
-                                                       in: .userDomainMask, 
-                                                       appropriateFor: nil, 
-                                                       create: true)
-                let fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
+                let fileURL: URL
+                
+                // 根据资源类型选择存储位置
+                if let resource = request.resource as? EVEResource {
+                    switch resource {
+                    case .sovereignty, .incursions, .sovereigntyCampaigns:
+                        // 这些资源存储在 StaticDataSet 目录
+                        fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
+                    default:
+                        // 其他资源存储在系统缓存目录
+                        guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                                      in: .userDomainMask, 
+                                                                      appropriateFor: nil, 
+                                                                      create: true) else {
+                            throw NetworkError.invalidData
+                        }
+                        fileURL = cacheDirectory.appendingPathComponent(resource.fileName)
+                    }
+                } else {
+                    guard let cacheDirectory = try? fileManager.url(for: .cachesDirectory, 
+                                                                  in: .userDomainMask, 
+                                                                  appropriateFor: nil, 
+                                                                  create: true) else {
+                        throw NetworkError.invalidData
+                    }
+                    fileURL = cacheDirectory.appendingPathComponent(request.resource.fileName)
+                }
+                
+                // 确保目录存在
+                try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), 
+                                             withIntermediateDirectories: true)
+                
                 let encodedData = try JSONEncoder().encode(decodedData)
                 try encodedData.write(to: fileURL)
                 Logger.info("Successfully saved data to file for: \(cacheKey)")
+                
+                // 如果是静态资源，更新下载时间
+                if let resource = request.resource as? EVEResource {
+                    switch resource {
+                    case .sovereignty, .incursions, .sovereigntyCampaigns:
+                        UserDefaults.standard.set(Date(), forKey: "StaticResource_\(resource.cacheKey)_DownloadTime")
+                    default:
+                        break
+                    }
+                }
             } catch {
                 Logger.error("Error saving data to file for \(cacheKey): \(error)")
             }
