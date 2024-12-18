@@ -34,3 +34,4 @@
 - https://whtype.info/
 - https://esi.evetech.net/latest/incursions/?datasource=tranquility
 - https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility
+- https://esi.evetech.net/latest/status/?datasource=tranquility
