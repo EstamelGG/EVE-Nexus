@@ -9,6 +9,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
         Logger.info("收到授权回调 URL: \(url.absoluteString)")
         
+        // 检查是否是我们的回调 URL
+        guard let config = EVELogin.shared.config else {
+            Logger.error("AppDelegate: 无法获取配置信息")
+            return false
+        }
+        
+        guard url.scheme == config.callbackScheme else {
+            Logger.error("AppDelegate: 收到未知的 URL scheme: \(url.scheme ?? "nil")，期望的 scheme: \(config.callbackScheme)")
+            return false
+        }
+        
         Task {
             do {
                 Logger.info("开始处理授权回调...")
@@ -27,24 +38,34 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 // 更新UI状态
                 Logger.info("开始更新UI状态...")
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let accountsView = windowScene.windows.first?.rootViewController?.presentedViewController as? UIHostingController<AccountsView> {
-                    Logger.info("找到 AccountsView，准备更新...")
-                    await MainActor.run {
-                        accountsView.rootView.characterInfo = character
-                        accountsView.rootView.isLoggedIn = true
-                        Logger.info("UI状态更新完成")
+                   let window = windowScene.windows.first,
+                   let rootViewController = window.rootViewController {
+                    // 查找 AccountsView
+                    if let presentedVC = rootViewController.presentedViewController as? UIHostingController<AccountsView> {
+                        Logger.info("找到 AccountsView，准备更新...")
+                        await MainActor.run {
+                            presentedVC.rootView.characterInfo = character
+                            presentedVC.rootView.isLoggedIn = true
+                            presentedVC.rootView.showingWebView = false
+                            Logger.info("UI状态更新完成")
+                        }
+                    } else {
+                        Logger.error("未找到 AccountsView 视图")
                     }
                 } else {
-                    Logger.error("未找到 AccountsView 视图")
+                    Logger.error("未找到主窗口或根视图控制器")
                 }
             } catch {
                 Logger.error("认证过程出错: \(error)")
                 // 显示错误信息
                 if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let accountsView = windowScene.windows.first?.rootViewController?.presentedViewController as? UIHostingController<AccountsView> {
+                   let window = windowScene.windows.first,
+                   let rootViewController = window.rootViewController,
+                   let presentedVC = rootViewController.presentedViewController as? UIHostingController<AccountsView> {
                     await MainActor.run {
-                        accountsView.rootView.errorMessage = error.localizedDescription
-                        accountsView.rootView.showingError = true
+                        presentedVC.rootView.errorMessage = error.localizedDescription
+                        presentedVC.rootView.showingError = true
+                        presentedVC.rootView.showingWebView = false
                     }
                 } else {
                     Logger.error("未找到 AccountsView 视图，无法显示错误")

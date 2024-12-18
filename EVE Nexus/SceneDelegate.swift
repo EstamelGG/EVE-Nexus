@@ -43,8 +43,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         Logger.info("SceneDelegate: 收到 URL: \(url.absoluteString)")
         
         // 确保是我们的认证回调
-        guard url.scheme == "eveauth-evepanel" else {
-            Logger.error("SceneDelegate: 收到未知的 URL scheme: \(url.scheme ?? "nil")")
+        guard let config = EVELogin.shared.config else {
+            Logger.error("SceneDelegate: 无法获取配置信息")
+            return
+        }
+        
+        guard url.scheme == config.callbackScheme else {
+            Logger.error("SceneDelegate: 收到未知的 URL scheme: \(url.scheme ?? "nil")，期望的 scheme: \(config.callbackScheme)")
+            return
+        }
+        
+        guard url.host == config.callbackHost else {
+            Logger.error("SceneDelegate: 收到未知的 URL host: \(url.host ?? "nil")，期望的 host: \(config.callbackHost)")
             return
         }
         

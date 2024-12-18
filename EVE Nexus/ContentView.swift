@@ -101,7 +101,6 @@ struct AccountsView: View {
             }
             .sheet(isPresented: $showingWebView) {
                 Logger.info("WebView dismissed")
-                checkExistingAuth()
             } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
                     SafariView(url: url)
@@ -183,18 +182,38 @@ struct SafariView: UIViewControllerRepresentable {
         
         func safariViewController(_ controller: SFSafariViewController, initialLoadDidRedirectTo URL: URL) {
             Logger.info("SafariView: 页面重定向到: \(URL.absoluteString)")
+            Logger.info("SafariView: URL scheme: \(URL.scheme ?? "nil")")
+            Logger.info("SafariView: URL host: \(URL.host ?? "nil")")
+            Logger.info("SafariView: URL path: \(URL.path)")
+            Logger.info("SafariView: URL query: \(URL.query ?? "nil")")
             
             // 检查是否是我们的回调 URL
-            if URL.scheme == "eveauth-evepanel" {
-                Logger.info("SafariView: 检测到授权回调，准备关闭登录页面")
+            guard let config = EVELogin.shared.config else {
+                Logger.error("SafariView: 无法获取配置信息")
+                return
+            }
+            
+            if URL.scheme == config.callbackScheme && URL.host == config.callbackHost {
+                Logger.info("SafariView: 检测到授权回调，准备处理")
                 
-                // 在主线程中执行关闭操作
+                // 先关闭 Safari 视图，再处理 URL
                 DispatchQueue.main.async {
                     self.parent.presentationMode.wrappedValue.dismiss()
                     
-                    // 通知系统处理这个 URL
-                    UIApplication.shared.open(URL, options: [:]) { success in
-                        Logger.info("SafariView: URL 处理结果: \(success)")
+                    // 延迟一小段时间后处理 URL，确保视图已经完全关闭
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        let shared = UIApplication.shared
+                        if shared.canOpenURL(URL) {
+                            Logger.info("SafariView: 开始打开回调 URL")
+                            shared.open(URL, options: [:]) { success in
+                                Logger.info("SafariView: URL 处理结果: \(success)")
+                                if !success {
+                                    Logger.error("SafariView: 处理回调 URL 失败")
+                                }
+                            }
+                        } else {
+                            Logger.error("SafariView: 无法打开回调 URL")
+                        }
                     }
                 }
             }
@@ -369,7 +388,7 @@ struct ContentView: View {
     @ViewBuilder
     private func rowContent(_ row: TableRowNode) -> some View {
         HStack {
-            // 使用缓存的图标
+            // 用缓存的图标
             (cachedIcons[row.iconName] ?? Image(row.iconName))
                 .resizable()
                 .frame(width: 36, height: 36)
