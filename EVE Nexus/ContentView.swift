@@ -63,8 +63,12 @@ struct AccountsView: View {
                         }
                     } else {
                         Button(action: {
-                            if let _ = EVELogin.shared.getAuthorizationURL() {
+                            Logger.info("点击登录按钮")
+                            if let authURL = EVELogin.shared.getAuthorizationURL() {
+                                Logger.info("获取到授权URL: \(authURL)")
                                 showingWebView = true
+                            } else {
+                                Logger.error("获取授权URL失败")
                             }
                         }) {
                             Text("Log In with EVE Online")
@@ -96,8 +100,13 @@ struct AccountsView: View {
                 }
             }
             .sheet(isPresented: $showingWebView) {
+                Logger.info("WebView dismissed")
+                checkExistingAuth()
+            } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
                     SafariView(url: url)
+                } else {
+                    Text("无法获取授权URL")
                 }
             }
             .alert("登录错误", isPresented: $showingError) {
@@ -106,38 +115,90 @@ struct AccountsView: View {
                 Text(errorMessage)
             }
             .onAppear {
+                Logger.info("AccountsView appeared")
                 checkExistingAuth()
             }
         }
     }
     
     private func checkExistingAuth() {
+        Logger.info("检查现有认证信息")
         let authInfo = EVELogin.shared.loadAuthInfo()
         if let character = authInfo.character {
+            Logger.info("找到现有角色信息: \(character.CharacterName)")
             characterInfo = character
             isLoggedIn = true
+        } else {
+            Logger.info("未找到现有认证信息")
         }
     }
     
     private func logout() {
+        Logger.info("执行登出操作")
         EVELogin.shared.clearAuthInfo()
         characterInfo = nil
         isLoggedIn = false
+        Logger.info("登出完成")
     }
 }
 
 // 用于显示EVE Online登录页面的Safari视图
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
+    @Environment(\.presentationMode) var presentationMode
     
     func makeUIViewController(context: Context) -> SFSafariViewController {
+        Logger.info("SafariView: 创建 SFSafariViewController")
         let config = SFSafariViewController.Configuration()
         config.entersReaderIfAvailable = false
-        return SFSafariViewController(url: url, configuration: config)
+        let controller = SFSafariViewController(url: url, configuration: config)
+        controller.delegate = context.coordinator
+        controller.dismissButtonStyle = .close
+        return controller
     }
     
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
         // 不需要更新
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        let parent: SafariView
+        
+        init(_ parent: SafariView) {
+            self.parent = parent
+        }
+        
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            Logger.info("SafariView: 用户关闭了登录页面")
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+        
+        func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
+            Logger.info("SafariView: 初始加载完成，成功: \(didLoadSuccessfully)")
+        }
+        
+        func safariViewController(_ controller: SFSafariViewController, initialLoadDidRedirectTo URL: URL) {
+            Logger.info("SafariView: 页面重定向到: \(URL.absoluteString)")
+            
+            // 检查是否是我们的回调 URL
+            if URL.scheme == "eveauth-evepanel" {
+                Logger.info("SafariView: 检测到授权回调，准备关闭登录页面")
+                
+                // 在主线程中执行关闭操作
+                DispatchQueue.main.async {
+                    self.parent.presentationMode.wrappedValue.dismiss()
+                    
+                    // 通知系统处理这个 URL
+                    UIApplication.shared.open(URL, options: [:]) { success in
+                        Logger.info("SafariView: URL 处理结果: \(success)")
+                    }
+                }
+            }
+        }
     }
 }
 

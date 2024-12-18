@@ -33,6 +33,18 @@
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
         <false/>
+        <key>UISceneConfigurations</key>
+        <dict>
+            <key>UIWindowSceneSessionRoleApplication</key>
+            <array>
+                <dict>
+                    <key>UISceneConfigurationName</key>
+                    <string>Default Configuration</string>
+                    <key>UISceneDelegateClassName</key>
+                    <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+                </dict>
+            </array>
+        </dict>
     </dict>
     <key>UILaunchScreen</key>
     <dict/>
@@ -58,7 +70,7 @@
         <dict>
             <key>CFBundleURLSchemes</key>
             <array>
-                <string>eveauth-app</string>
+                <string>eveauth-evepanel</string>
             </array>
             <key>CFBundleURLName</key>
             <string>com.eve.nexus</string>
