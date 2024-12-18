@@ -1,4 +1,5 @@
 import SwiftUI
+import SafariServices
 
 // 优化数据模型为值类型
 struct TableRowNode: Identifiable, Equatable {
@@ -49,7 +50,9 @@ struct AccountsView: View {
             List {
                 Section {
                     Button(action: {
-                        // TODO: 实现EVE Online登录
+                        if let url = EVELogin.shared.getAuthorizationURL() {
+                            UIApplication.shared.open(url)
+                        }
                     }) {
                         Text("Log In with EVE Online")
                             .foregroundColor(.blue)
@@ -83,6 +86,21 @@ struct AccountsView: View {
                 }
             }
         }
+    }
+}
+
+// 用于显示EVE Online登录页面的Safari视图
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        return SFSafariViewController(url: url, configuration: config)
+    }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
+        // 不需要更新
     }
 }
 
