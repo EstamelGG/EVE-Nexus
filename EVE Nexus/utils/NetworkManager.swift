@@ -358,7 +358,7 @@ class NetworkManager {
         
         // 3. 保存到静态资源目录
         try StaticResourceManager.shared.saveAllianceIcon(data, allianceId: allianceId)
-        
+        Logger.debug("Got alliance logo from url: \(url) and save to cache.")
         return image
     }
     

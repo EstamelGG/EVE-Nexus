@@ -304,6 +304,11 @@ struct ContentView: View {
                         title: NSLocalizedString("Main_Incursions", comment: ""),
                         iconName: "incursions",
                         destination: AnyView(IncursionsView(databaseManager: databaseManager))
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Sovereignty", comment: ""),
+                        iconName: "sovereignty",
+                        destination: AnyView(SovereigntyView(databaseManager: databaseManager))
                     )
                 ]
             ),
@@ -371,6 +376,7 @@ struct ContentView: View {
         "criminal": Image("criminal"),
         "terminate": Image("terminate"),
         "incursions": Image("incursions"),
+        "sovereignty": Image("sovereignty"),
         "assets": Image("assets"),
         "marketdeliveries": Image("marketdeliveries"),
         "contracts": Image("contracts"),
@@ -624,6 +630,11 @@ struct ContentView: View {
                         title: NSLocalizedString("Main_Incursions", comment: ""),
                         iconName: "incursions",
                         destination: AnyView(IncursionsView(databaseManager: databaseManager))
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Sovereignty", comment: ""),
+                        iconName: "sovereignty",
+                        destination: AnyView(SovereigntyView(databaseManager: databaseManager))
                     )
                 ]
             ),

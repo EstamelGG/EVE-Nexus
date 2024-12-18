@@ -36,3 +36,4 @@
 - https://esi.evetech.net/latest/incursions/?datasource=tranquility
 - https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility
 - https://esi.evetech.net/latest/status/?datasource=tranquility
+- https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility

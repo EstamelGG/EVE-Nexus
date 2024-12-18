@@ -176,9 +176,3 @@ struct InfoRow: View {
         }
     }
 }
-
-#Preview {
-    NavigationView {
-        WormholeView(databaseManager: DatabaseManager())
-    }
-} 
