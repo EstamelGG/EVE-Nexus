@@ -778,7 +778,7 @@ struct SettingView: View {
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }),
                let lastModified = resource.lastModified {
                 switch type {
-                case .sovereignty, .incursions:
+                case .sovereignty, .incursions, .sovereigntyCampaigns:
                     let duration = type.cacheDuration
                     let elapsed = Date().timeIntervalSince(lastModified)
                     let remaining = duration - elapsed
