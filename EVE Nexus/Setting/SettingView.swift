@@ -211,6 +211,8 @@ class CacheManager {
 // MARK: - 设置视图
 struct SettingView: View {
     // MARK: - 界面组件
+    private let fileManager = FileManager.default
+    
     private struct FullScreenCover: View {
         let progress: Double
         @Binding var loadingState: LoadingState
@@ -666,30 +668,41 @@ struct SettingView: View {
                 Logger.error("Failed to clear net renders: \(error)")
             }
             
-            // 8. 清理 UserDefaults 中的缓存相关数据
-            let defaults = UserDefaults.standard
-            for type in StaticResourceManager.ResourceType.allCases {
-                defaults.removeObject(forKey: type.downloadTimeKey)
-            }
-            defaults.removeObject(forKey: "incursions_cache")
-            
-            // 9. 清理临时文件目录
-            let fileManager = FileManager.default
-            if let tmpDirectory = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            // 8. 清理临时文件目录
+            if let tmpDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
                 do {
-                    let tmpContents = try fileManager.contentsOfDirectory(at: tmpDirectory, includingPropertiesForKeys: nil)
+                    let tmpContents = try FileManager.default.contentsOfDirectory(at: tmpDirectory, includingPropertiesForKeys: nil)
                     for url in tmpContents {
-                        try? fileManager.removeItem(at: url)
+                        try? FileManager.default.removeItem(at: url)
                     }
                 } catch {
                     Logger.error("Failed to clear temporary directory: \(error)")
                 }
             }
             
-            // 10. 清理 URLCache
-            URLCache.shared.removeAllCachedResponses()
+            // 9. 清理 URLCache 并重建
+            await MainActor.run {
+                // 先移除现有的 URLCache
+                URLCache.shared.removeAllCachedResponses()
+                
+                // 获取缓存目录
+                let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+                
+                // 创建新的 URLCache 配置
+                let diskPath = cacheDirectory.appendingPathComponent("Cache.db").path
+                let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
+                let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
+                
+                // 创建并设置新的 URLCache
+                let cache = URLCache(memoryCapacity: memoryCapacity,
+                                  diskCapacity: diskCapacity,
+                                  diskPath: diskPath)
+                URLCache.shared = cache
+                
+                Logger.info("URLCache has been rebuilt with path: \(diskPath)")
+            }
             
-            // 11. 清理 Cookies
+            // 10. 清理 Cookies
             if let cookies = HTTPCookieStorage.shared.cookies {
                 for cookie in cookies {
                     HTTPCookieStorage.shared.deleteCookie(cookie)
@@ -705,7 +718,7 @@ struct SettingView: View {
                 isCleaningCache = false
             }
             
-            Logger.info("Cache cleaning completed")
+            Logger.info("Cache cleaning and rebuilding completed")
         }
     }
     

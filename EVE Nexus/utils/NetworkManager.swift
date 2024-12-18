@@ -234,8 +234,23 @@ class NetworkManager: NSObject {
         dataCache.delegate = self
         imageCache.delegate = self
         
-        // 让系统自动管理 URLCache，不需要我们手动配置
-        // URLCache 会在需要时自动创建和初始化缓存文件
+        // 初始化时检查并确保 URLCache 配置正确
+        ensureURLCacheExists()
+    }
+    
+    // 检查并确保 URLCache 配置正确
+    private func ensureURLCacheExists() {
+        // 配置新的 URLCache
+        let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
+        let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
+        
+        // 使用默认的缓存目录
+        let cache = URLCache(memoryCapacity: memoryCapacity,
+                           diskCapacity: diskCapacity,
+                           directory: nil)  // 让系统自动管理缓存目录
+        URLCache.shared = cache
+        
+        Logger.info("URLCache has been configured with memory: \(NetworkManager.formatFileSize(Int64(memoryCapacity))), disk: \(NetworkManager.formatFileSize(Int64(diskCapacity)))")
     }
     
     func setRegionID(_ id: Int) {
@@ -561,7 +576,7 @@ class NetworkManager: NSObject {
             for url in contents {
                 let filename = url.lastPathComponent
                 // 跳过系统缓存文件和隐藏文件
-                if filename.starts(with: "Cache.db") || filename.starts(with: ".") {
+                if filename.starts(with: ".") {
                     Logger.info("Skipping file: \(filename)")
                     continue
                 }
@@ -580,6 +595,10 @@ class NetworkManager: NSObject {
             try? FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
             Logger.error("Error accessing StaticDataSet directory: \(error)")
         }
+        
+        // 清理 URLCache
+        URLCache.shared.removeAllCachedResponses()
+        Logger.info("Cleared URLCache")
         
         Logger.info("Completed clearing all local caches")
     }
@@ -953,7 +972,7 @@ extension NetworkManager {
         } else if size >= 10 {
             formattedSize = String(format: "%.1f", size) // 大于10时显示1位小数
         } else {
-            formattedSize = String(format: "%.2f", size) // 其他情况显示2位小数
+            formattedSize = String(format: "%.2f", size) // 其他��况显示2位小数
         }
         
         return "\(formattedSize) \(units[unitIndex])"
