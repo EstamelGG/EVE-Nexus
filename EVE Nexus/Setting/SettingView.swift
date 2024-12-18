@@ -369,7 +369,7 @@ struct SettingView: View {
                 title += " (" + getRelativeTimeString(from: downloadTime) + ")"
             }
             
-            // 根据资源类型决定是否可刷新
+            // 根据资源类型决定显示方式
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
                 case .sovereignty, .incursions:
@@ -387,31 +387,27 @@ struct SettingView: View {
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
-                        icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                        iconColor: resource.exists ? .green : .red,
-                        action: { }  // 空操作
+                        icon: "",  // 移除图标
+                        action: { }
                     )
                 }
             }
             
-            // 默认情况（不应该发生）
             return SettingItem(
                 title: title,
                 detail: formatResourceInfo(resource),
-                icon: resource.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-                iconColor: resource.exists ? .green : .red,
+                icon: "",
                 action: { }
             )
         }
         
-        // 添加市场数据统计
+        // 添加市场数据统计，不显示图标
         let marketDataStats = StaticResourceManager.shared.getMarketDataStats()
         let marketItem = SettingItem(
             title: marketDataStats.name,
             detail: formatResourceInfo(marketDataStats),
-            icon: marketDataStats.exists ? "checkmark.circle.fill" : "xmark.circle.fill",
-            iconColor: marketDataStats.exists ? .green : .red,
-            action: { }  // 市场数据不支持手动刷新
+            icon: "",  // 移除图标
+            action: { }
         )
         
         return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items + [marketItem])
@@ -769,29 +765,33 @@ struct SettingView: View {
                 info += formatFileSize(fileSize)
             }
             
-            // 获取缓存有效期和剩余时间
+            // 只为主权数据和入侵数据显示缓存有效期
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }),
                let lastModified = resource.lastModified {
-                let duration = type.cacheDuration
-                let elapsed = Date().timeIntervalSince(lastModified)
-                let remaining = duration - elapsed
-                
-                if remaining > 0 {
-                    let days = Int(remaining / (24 * 3600))
-                    let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
-                    if days > 0 {
-                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours) + ")"
+                switch type {
+                case .sovereignty, .incursions:
+                    let duration = type.cacheDuration
+                    let elapsed = Date().timeIntervalSince(lastModified)
+                    let remaining = duration - elapsed
+                    
+                    if remaining > 0 {
+                        let days = Int(remaining / (24 * 3600))
+                        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
+                        if days > 0 {
+                            info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours) + ")"
+                        } else {
+                            info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), hours) + ")"
+                        }
                     } else {
-                        info += " (" + String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours", comment: ""), hours) + ")"
+                        info += " (" + NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: "") + ")"
                     }
-                } else {
-                    info += " (" + NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: "") + ")"
+                    
+                    info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
+                        getRelativeTimeString(from: lastModified))
+                default:
+                    // 对于其他类型，只显示文件大小
+                    break
                 }
-            }
-            
-            if let lastModified = resource.lastModified {
-                info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
-                    getRelativeTimeString(from: lastModified))
             }
             
             return info
