@@ -70,8 +70,8 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
             case .netRenders:
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
-            case .marketData:
-                return StaticResourceManager.shared.MARKET_DATA_CACHE_DURATION
+            default:
+                return 24 * 3600
             }
         }
     }
@@ -81,7 +81,6 @@ class StaticResourceManager {
     public let RENDER_CACHE_DURATION: TimeInterval = 60 * 24 * 3600      // 30天
     public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 3600 // 30天
     public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
-    public let MARKET_DATA_CACHE_DURATION: TimeInterval = 60 * 24 * 3600  // 30天
     
     private init() {}
     

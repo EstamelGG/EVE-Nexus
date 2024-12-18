@@ -97,7 +97,7 @@ class NetworkManager {
     // 市场订单缓存
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
-    private let cacheValidDuration: TimeInterval = 300 // 缓存有效期5分钟
+    private let cacheValidDuration: TimeInterval = 300 // 市场缓存有效期5分钟
     
     // 市场历史数据缓存
     private var marketHistoryCache: [Int: [MarketHistory]] = [:]
