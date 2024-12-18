@@ -21,8 +21,7 @@ struct EVECharacterInfo: Codable {
 struct ESIConfig: Codable {
     let clientId: String
     let clientSecret: String
-    let callbackScheme: String
-    let callbackHost: String
+    let callbackUrl: String
     let urls: ESIUrls
     let scopes: [String]
     
@@ -63,25 +62,23 @@ class EVELogin {
         
         var components = URLComponents(string: config.urls.authorize)
         
-        // 构建回调 URL
-        var callbackComponents = URLComponents()
-        callbackComponents.scheme = config.callbackScheme
-        callbackComponents.host = config.callbackHost
-        callbackComponents.path = "/"
-        
-        guard let callbackURL = callbackComponents.url else {
-            Logger.error("EVELogin: 无法构建回调 URL")
-            return nil
-        }
+        Logger.info("EVELogin: 使用回调 URL: \(config.callbackUrl)")
         
         components?.queryItems = [
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "redirect_uri", value: callbackURL.absoluteString),
+            URLQueryItem(name: "redirect_uri", value: config.callbackUrl),
             URLQueryItem(name: "client_id", value: config.clientId),
             URLQueryItem(name: "scope", value: config.scopes.joined(separator: " ")),
             URLQueryItem(name: "state", value: UUID().uuidString)
         ]
-        return components?.url
+        
+        guard let finalURL = components?.url else {
+            Logger.error("EVELogin: 无法构建授权 URL")
+            return nil
+        }
+        
+        Logger.info("EVELogin: 完整的授权 URL: \(finalURL.absoluteString)")
+        return finalURL
     }
     
     // 处理授权回调
@@ -124,25 +121,14 @@ class EVELogin {
         let authData = authString.data(using: .utf8)!.base64EncodedString()
         request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
         
-        // 构建回调 URL
-        var callbackComponents = URLComponents()
-        callbackComponents.scheme = config.callbackScheme
-        callbackComponents.host = config.callbackHost
-        callbackComponents.path = "/"
-        
-        guard let callbackURL = callbackComponents.url else {
-            Logger.error("EVELogin: 无法构建回调 URL")
-            throw NetworkError.invalidURL
-        }
-        
         // 设置请求体
         let bodyParams = [
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": callbackURL.absoluteString
+            "redirect_uri": config.callbackUrl
         ]
         
-        Logger.info("EVELogin: 使用回调 URL: \(callbackURL.absoluteString)")
+        Logger.info("EVELogin: 使用回调 URL: \(config.callbackUrl)")
         
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         let bodyString = bodyParams.map { key, value in

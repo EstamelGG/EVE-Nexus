@@ -180,20 +180,24 @@ struct SafariView: UIViewControllerRepresentable {
             Logger.info("SafariView: 初始加载完成，成功: \(didLoadSuccessfully)")
         }
         
-        func safariViewController(_ controller: SFSafariViewController, initialLoadDidRedirectTo URL: URL) {
-            Logger.info("SafariView: 页面重定向到: \(URL.absoluteString)")
-            Logger.info("SafariView: URL scheme: \(URL.scheme ?? "nil")")
-            Logger.info("SafariView: URL host: \(URL.host ?? "nil")")
-            Logger.info("SafariView: URL path: \(URL.path)")
-            Logger.info("SafariView: URL query: \(URL.query ?? "nil")")
+        func safariViewController(_ controller: SFSafariViewController, initialLoadDidRedirectTo url: URL) {
+            Logger.info("SafariView: 页面重定向到: \(url.absoluteString)")
+            Logger.info("SafariView: URL scheme: \(url.scheme ?? "nil")")
+            Logger.info("SafariView: URL host: \(url.host ?? "nil")")
+            Logger.info("SafariView: URL path: \(url.path)")
+            Logger.info("SafariView: URL query: \(url.query ?? "nil")")
             
-            // 检查是否是我们的回调 URL
-            guard let config = EVELogin.shared.config else {
-                Logger.error("SafariView: 无法获取配置信息")
+            // 检查是否已配置URL Scheme
+            guard let config = EVELogin.shared.config,
+                  let callbackURL = URL(string: config.callbackUrl) else {
+                Logger.error("SafariView: 无法获取配置信息或解析回调URL")
                 return
             }
             
-            if URL.scheme == config.callbackScheme && URL.host == config.callbackHost {
+            Logger.info("SafariView: 检查URL配置: 期望的回调URL=\(config.callbackUrl)")
+            
+            // 检查是否是我们的回调 URL
+            if url.scheme == callbackURL.scheme && url.host == callbackURL.host {
                 Logger.info("SafariView: 检测到授权回调，准备处理")
                 
                 // 先关闭 Safari 视图，再处理 URL
@@ -203,9 +207,9 @@ struct SafariView: UIViewControllerRepresentable {
                     // 延迟一小段时间后处理 URL，确保视图已经完全关闭
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         let shared = UIApplication.shared
-                        if shared.canOpenURL(URL) {
+                        if shared.canOpenURL(url) {
                             Logger.info("SafariView: 开始打开回调 URL")
-                            shared.open(URL, options: [:]) { success in
+                            shared.open(url, options: [:]) { success in
                                 Logger.info("SafariView: URL 处理结果: \(success)")
                                 if !success {
                                     Logger.error("SafariView: 处理回调 URL 失败")

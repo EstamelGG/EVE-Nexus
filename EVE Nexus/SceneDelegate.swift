@@ -41,6 +41,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     
     private func handleURL(_ url: URL) {
         Logger.info("SceneDelegate: 收到 URL: \(url.absoluteString)")
+        Logger.info("SceneDelegate: URL scheme: \(url.scheme ?? "nil")")
+        Logger.info("SceneDelegate: URL host: \(url.host ?? "nil")")
+        Logger.info("SceneDelegate: URL path: \(url.path)")
+        Logger.info("SceneDelegate: URL query: \(url.query ?? "nil")")
         
         // 确保是我们的认证回调
         guard let config = EVELogin.shared.config else {
@@ -48,18 +52,32 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             return
         }
         
-        guard url.scheme == config.callbackScheme else {
-            Logger.error("SceneDelegate: 收到未知的 URL scheme: \(url.scheme ?? "nil")，期望的 scheme: \(config.callbackScheme)")
+        // 解析配置的回调URL
+        guard let configCallbackURL = URL(string: config.callbackUrl) else {
+            Logger.error("SceneDelegate: 无法解析配置的回调 URL")
             return
         }
         
-        guard url.host == config.callbackHost else {
-            Logger.error("SceneDelegate: 收到未知的 URL host: \(url.host ?? "nil")，期望的 host: \(config.callbackHost)")
+        Logger.info("SceneDelegate: 配置的回调URL = \(configCallbackURL)")
+        
+        // 验证URL的scheme和host是否匹配
+        guard url.scheme == configCallbackURL.scheme else {
+            Logger.error("SceneDelegate: 收到未知的 URL scheme: \(url.scheme ?? "nil")，期望的 scheme: \(configCallbackURL.scheme ?? "nil")")
+            return
+        }
+        
+        guard url.host == configCallbackURL.host else {
+            Logger.error("SceneDelegate: 收到未知的 URL host: \(url.host ?? "nil")，期望的 host: \(configCallbackURL.host ?? "nil")")
+            return
+        }
+        
+        guard url.path == configCallbackURL.path else {
+            Logger.error("SceneDelegate: 收到未知的 URL path: \(url.path)，期望的 path: \(configCallbackURL.path)")
             return
         }
         
         // 将 URL 传递给 AppDelegate 处理
-        Logger.info("SceneDelegate: 将 URL 传递给 AppDelegate")
+        Logger.info("SceneDelegate: 验证通过，将 URL 传递给 AppDelegate")
         let appDelegate = UIApplication.shared.delegate as? AppDelegate
         _ = appDelegate?.application(UIApplication.shared, open: url, options: [:])
     }
