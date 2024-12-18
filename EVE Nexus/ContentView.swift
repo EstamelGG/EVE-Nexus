@@ -41,9 +41,11 @@ struct TableNode: Identifiable, Equatable {
 }
 
 struct ContentView: View {
-    @ObservedObject var databaseManager: DatabaseManager // 通过外部传递数据库管理器
-    @State private var tables: [TableNode] = [] // 初始化为空，稍后填充
-    @State private var isLoggedIn = false // 添加登录状态
+    @ObservedObject var databaseManager: DatabaseManager
+    @State private var tables: [TableNode] = []
+    @State private var isLoggedIn = false
+    @State private var serverStatus: ServerStatus?
+    @State private var isLoadingStatus = true
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
@@ -225,10 +227,21 @@ struct ContentView: View {
         .frame(height: 36)
     }
     
+    var serverStatusText: String {
+        guard let status = serverStatus else {
+            return "Tranquility - Checking Status..."
+        }
+        
+        if status.isOnline {
+            return "Tranquility - Online (\(status.players) players)"
+        } else {
+            return "Tranquility - Offline"
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             List {
-                // 登录状态视图作为第一个Section
                 if !isLoggedIn {
                     Section {
                         HStack {
@@ -240,7 +253,7 @@ struct ContentView: View {
                             VStack(alignment: .leading) {
                                 Text("Tap to Login")
                                     .font(.headline)
-                                Text("Tranquility - Online (21 176 players)")
+                                Text(serverStatusText)
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
@@ -273,6 +286,24 @@ struct ContentView: View {
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
             initializeTables()
+        }
+        .task {
+            await updateServerStatus()
+        }
+    }
+    
+    private func updateServerStatus() async {
+        do {
+            serverStatus = try await NetworkManager.shared.fetchServerStatus()
+        } catch {
+            Logger.error("Failed to fetch server status: \(error)")
+        }
+        isLoadingStatus = false
+        
+        // 每30秒更新一次服务器状态
+        try? await Task.sleep(nanoseconds: 30 * 1_000_000_000)
+        if !Task.isCancelled {
+            await updateServerStatus()
         }
     }
     

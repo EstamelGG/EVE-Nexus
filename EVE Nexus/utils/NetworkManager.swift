@@ -54,6 +54,27 @@ struct SovereigntyData: Codable {
     }
 }
 
+// 服务器状态数据模型
+struct ServerStatus: Codable {
+    let players: Int
+    let serverVersion: String
+    let startTime: String
+    let error: String?
+    let timeout: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case players
+        case serverVersion = "server_version"
+        case startTime = "start_time"
+        case error
+        case timeout
+    }
+    
+    var isOnline: Bool {
+        return error == nil
+    }
+}
+
 class NetworkManager {
     static let shared = NetworkManager()
     private var regionID: Int = 10000002 // 默认为 The Forge
@@ -339,6 +360,21 @@ class NetworkManager {
         try StaticResourceManager.shared.saveAllianceIcon(data, allianceId: allianceId)
         
         return image
+    }
+    
+    // 获取服务器状态
+    func fetchServerStatus() async throws -> ServerStatus {
+        let urlString = "https://esi.evetech.net/latest/status/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            Logger.error("Invalid URL for server status")
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        let status = try JSONDecoder().decode(ServerStatus.self, from: data)
+        Logger.info("Successfully fetched server status")
+        
+        return status
     }
 }
 
