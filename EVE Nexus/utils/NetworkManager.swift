@@ -294,8 +294,20 @@ class NetworkManager: NSObject {
         
         // 检查本地文件缓存
         let fileManager = FileManager.default
-        let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-        let fileURL = cacheDirectory.appendingPathComponent(filename)
+        let fileURL: URL
+        
+        // 根据缓存键类型选择存储位置
+        if cacheKey.starts(with: "alliance_") {
+            // 联盟图标存储在 StaticDataSet/AllianceIcons 目录
+            fileURL = StaticResourceManager.shared.getAllianceIconPath().appendingPathComponent(filename)
+        } else {
+            // 其他图片存储在系统缓存目录
+            let cacheDirectory = try fileManager.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            fileURL = cacheDirectory.appendingPathComponent(filename)
+        }
+        
+        // 确保目录存在
+        try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         
         if fileManager.fileExists(atPath: fileURL.path) {
             do {
@@ -334,7 +346,7 @@ class NetworkManager: NSObject {
         // 更新文件缓存
         do {
             try data.write(to: fileURL)
-            Logger.info("Successfully saved image to file for: \(cacheKey)")
+            Logger.info("Successfully saved image to file for: \(cacheKey) to \(fileURL)")
         } catch {
             Logger.error("Error saving image to file for \(cacheKey): \(error)")
         }
