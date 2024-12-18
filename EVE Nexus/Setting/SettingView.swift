@@ -374,13 +374,22 @@ struct SettingView: View {
                 switch type {
                 case .sovereignty, .incursions:
                     let isRefreshingThis = refreshingResources.contains(resource.name)
+                    
+                    // 检查资源是否过期
+                    let isExpired = resource.exists && resource.lastModified != nil && 
+                        Date().timeIntervalSince(resource.lastModified!) > type.cacheDuration
+                    
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
                         icon: isRefreshingThis ? "arrow.triangle.2.circlepath" : 
-                              (resource.exists ? "checkmark.circle.fill" : "arrow.triangle.2.circlepath"),
+                              (resource.exists ? 
+                                (isExpired ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") : 
+                                "arrow.triangle.2.circlepath"),
                         iconColor: isRefreshingThis ? .blue :
-                                 (resource.exists ? .green : .blue),
+                                 (resource.exists ? 
+                                    (isExpired ? .yellow : .green) : 
+                                    .blue),
                         action: { refreshResource(resource) }
                     )
                 case .allianceIcons, .netRenders, .marketData:
@@ -395,8 +404,6 @@ struct SettingView: View {
             return SettingItem(
                 title: title,
                 detail: formatResourceInfo(resource),
-                icon: "doc",  // 使用一个通用的文档图标
-                iconColor: .gray,  // 使用灰色
                 action: { }
             )
         }
