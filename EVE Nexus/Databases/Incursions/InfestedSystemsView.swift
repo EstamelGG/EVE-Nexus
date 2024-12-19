@@ -59,8 +59,10 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
 class InfestedSystemsViewModel: ObservableObject {
     @Published var systems: [SystemInfo] = []
     @Published var isLoading: Bool = false
+    @Published var isRefreshing: Bool = false
     let databaseManager: DatabaseManager
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
+    private var systemIds: [Int] = []  // 保存系统ID列表
     
     // 存储联盟ID到系统的映射
     private var allianceToSystems: [Int: [SystemInfo]] = [:]
@@ -76,6 +78,7 @@ class InfestedSystemsViewModel: ObservableObject {
     
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
+        self.systemIds = systemIds  // 保存系统ID列表
         
         // 先尝试从缓存加载
         if let cachedSystems = Self.systemsCache[systemIds.hashValue] {
@@ -86,82 +89,94 @@ class InfestedSystemsViewModel: ObservableObject {
         }
     }
     
+    // 修改刷新方法
+    func refresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        
+        // 清除缓存
+        Self.systemsCache.removeValue(forKey: systemIds.hashValue)
+        
+        var tempSystems: [SystemInfo] = []
+        
+        // 取消所有现有的加载任务
+        loadingTasks.values.forEach { $0.cancel() }
+        loadingTasks.removeAll()
+        
+        // 清除现有映射
+        allianceToSystems.removeAll()
+        factionToSystems.removeAll()
+        
+        // 获取主权数据
+        var sovereigntyData: [SovereigntyData]?
+        do {
+            sovereigntyData = try await StaticResourceManager.shared.fetchSovereigntyData()
+        } catch {
+            Logger.error("无法获取主权数据: \(error)")
+        }
+        
+        for systemId in systemIds {
+            // 从 universe 表获取安全等级
+            let universeQuery = """
+                SELECT system_security
+                FROM universe
+                WHERE solarsystem_id = ?
+            """
+            
+            guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [systemId]),
+                  let universeRow = universeRows.first,
+                  let security = universeRow["system_security"] as? Double else {
+                continue
+            }
+            
+            // 获取星系名称
+            let systemQuery = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
+            guard case .success(let systemRows) = databaseManager.executeQuery(systemQuery, parameters: [systemId]),
+                  let systemRow = systemRows.first,
+                  let systemName = systemRow["solarSystemName"] as? String else {
+                continue
+            }
+            
+            let systemInfo = SystemInfo(systemName: systemName, security: security, systemId: systemId)
+            
+            // 设置主权信息并建立映射关系
+            if let sovereigntyData = sovereigntyData,
+               let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
+                systemInfo.allianceId = systemData.allianceId
+                systemInfo.factionId = systemData.factionId
+                
+                // 建立联盟到系统的映射
+                if let allianceId = systemData.allianceId {
+                    allianceToSystems[allianceId, default: []].append(systemInfo)
+                }
+                // 建立派系到系统的映射
+                if let factionId = systemData.factionId {
+                    factionToSystems[factionId, default: []].append(systemInfo)
+                }
+            } else {
+                Logger.warning("无法获取星系 \(systemId) 的主权信息")
+            }
+            
+            tempSystems.append(systemInfo)
+        }
+        
+        // 按星系名称字母顺序排序
+        tempSystems.sort { $0.systemName < $1.systemName }
+        systems = tempSystems
+        
+        // 开始加载图标
+        loadAllIcons()
+        
+        // 更新缓存
+        Self.systemsCache[systemIds.hashValue] = tempSystems
+        
+        isRefreshing = false
+    }
+    
     private func loadSystems(systemIds: [Int]) {
         Task {
             isLoading = true
-            var tempSystems: [SystemInfo] = []
-            
-            // 取消所有现有的加载任务
-            loadingTasks.values.forEach { $0.cancel() }
-            loadingTasks.removeAll()
-            
-            // 清除现有映射
-            allianceToSystems.removeAll()
-            factionToSystems.removeAll()
-            
-            // 获取主权数据
-            var sovereigntyData: [SovereigntyData]?
-            do {
-                sovereigntyData = try await StaticResourceManager.shared.fetchSovereigntyData()
-            } catch {
-                Logger.error("无法获取主权数据: \(error)")
-            }
-            
-            for systemId in systemIds {
-                // 从 universe 表获取安全等级
-                let universeQuery = """
-                    SELECT system_security
-                    FROM universe
-                    WHERE solarsystem_id = ?
-                """
-                
-                guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [systemId]),
-                      let universeRow = universeRows.first,
-                      let security = universeRow["system_security"] as? Double else {
-                    continue
-                }
-                
-                // 获取星系名称
-                let systemQuery = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
-                guard case .success(let systemRows) = databaseManager.executeQuery(systemQuery, parameters: [systemId]),
-                      let systemRow = systemRows.first,
-                      let systemName = systemRow["solarSystemName"] as? String else {
-                    continue
-                }
-                
-                let systemInfo = SystemInfo(systemName: systemName, security: security, systemId: systemId)
-                
-                // 设置主权信息并建立映射关系
-                if let sovereigntyData = sovereigntyData,
-                   let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
-                    systemInfo.allianceId = systemData.allianceId
-                    systemInfo.factionId = systemData.factionId
-                    
-                    // 建立联盟到系统的映射
-                    if let allianceId = systemData.allianceId {
-                        allianceToSystems[allianceId, default: []].append(systemInfo)
-                    }
-                    // 建立派系到系统的映射
-                    if let factionId = systemData.factionId {
-                        factionToSystems[factionId, default: []].append(systemInfo)
-                    }
-                } else {
-                    Logger.warning("无法获取星系 \(systemId) 的主权信息")
-                }
-                
-                tempSystems.append(systemInfo)
-            }
-            
-            // 按星系名称字母顺序排序
-            tempSystems.sort { $0.systemName < $1.systemName }
-            systems = tempSystems
-            
-            // 开始加载图标
-            loadAllIcons()
-            
-            // 更新缓存
-            Self.systemsCache[systemIds.hashValue] = tempSystems
-            
+            await refresh()
             isLoading = false
         }
     }
@@ -251,6 +266,10 @@ struct InfestedSystemsView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .refreshable {
+                    Logger.info("用户触发下拉刷新")
+                    await viewModel.refresh()
+                }
             }
         }
         .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
