@@ -310,6 +310,50 @@ struct ServerStatusView: View {
     }
 }
 
+// 添加登录按钮组件
+struct LoginButtonView: View {
+    let isLoggedIn: Bool
+    let serverStatus: ServerStatus?
+    let action: () -> Void
+    @State private var forceUpdate: Bool = false
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            Image(systemName: "person.crop.circle.fill")
+                .resizable()
+                .frame(width: 50, height: 50)
+                .foregroundColor(.gray)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                if isLoggedIn {
+                    Text("联盟名称")
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text("军团名称")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                } else {
+                    Text(NSLocalizedString("Account_Add_Character", comment: ""))
+                        .font(.headline)
+                        .padding(.bottom, 4)
+                }
+                ServerStatusView(status: serverStatus)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray)
+                .font(.system(size: 14))
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
+        .id(forceUpdate) // 强制视图刷新
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
+            forceUpdate.toggle()
+        }
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var tables: [TableNode] = []
@@ -317,6 +361,7 @@ struct ContentView: View {
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
     @State private var showingAccountSheet = false
+    @State private var forceViewUpdate: Bool = false // 添加强制更新标志
     
     // 添加预加载状态
     @State private var isDatabasePreloaded = false
@@ -392,37 +437,11 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    HStack(spacing: 15) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .resizable()
-                            .frame(width: 50, height: 50)
-                            .foregroundColor(.gray)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            if isLoggedIn {
-                                Text("联盟名称")
-                                    .font(.headline)
-                                    .lineLimit(1)
-                                Text("军团名称")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                    .lineLimit(1)
-                            } else {
-                                Text("Account_Add_Character")
-                                    .font(.headline)
-                                    .padding(.bottom, 4)
-                            }
-                            ServerStatusView(status: serverStatus)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                            .font(.system(size: 14))
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showingAccountSheet = true
-                    }
+                    LoginButtonView(
+                        isLoggedIn: isLoggedIn,
+                        serverStatus: serverStatus,
+                        action: { showingAccountSheet = true }
+                    )
                 }
                 
                 // 原有的表格内容
@@ -454,7 +473,10 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
+        .id(forceViewUpdate) // 添加id以强制视图刷新
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
+            // 强制整个视图重新加载
+            forceViewUpdate.toggle()
             initializeTables()
         }
         .task {
