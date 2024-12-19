@@ -45,6 +45,62 @@ struct CharacterAuth: Codable {
     let addedDate: Date
 }
 
+// 添加用户管理的 ViewModel
+class EVELoginViewModel: ObservableObject {
+    @Published var characterInfo: EVECharacterInfo?
+    @Published var isLoggedIn: Bool = false
+    @Published var showingError: Bool = false
+    @Published var errorMessage: String = ""
+    @Published var characters: [EVECharacterInfo] = []
+    
+    func handleLoginSuccess(character: EVECharacterInfo) {
+        DispatchQueue.main.async {
+            self.characterInfo = character
+            self.isLoggedIn = true
+            self.loadCharacters()
+        }
+    }
+    
+    func handleLoginError(_ error: Error) {
+        DispatchQueue.main.async {
+            self.errorMessage = error.localizedDescription
+            self.showingError = true
+        }
+    }
+    
+    func loadCharacters() {
+        characters = EVELogin.shared.getAllCharacters()
+        isLoggedIn = !characters.isEmpty
+    }
+    
+    func removeCharacter(_ character: EVECharacterInfo) {
+        EVELogin.shared.removeCharacter(characterId: character.CharacterID)
+        loadCharacters()
+    }
+    
+    func handleCallback(url: URL) async {
+        do {
+            let token = try await EVELogin.shared.handleAuthCallback(url: url)
+            let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
+            
+            Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
+            
+            // 保存认证信息
+            EVELogin.shared.saveAuthInfo(token: token, character: character)
+            
+            // 更新UI状态
+            await MainActor.run {
+                self.handleLoginSuccess(character: character)
+            }
+        } catch {
+            Logger.error("处理授权失败: \(error)")
+            await MainActor.run {
+                self.handleLoginError(error)
+            }
+        }
+    }
+}
+
 class EVELogin {
     static let shared = EVELogin()
     internal var config: ESIConfig?

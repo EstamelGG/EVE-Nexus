@@ -44,12 +44,10 @@ struct TableNode: Identifiable, Equatable {
 
 struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = SafariViewModel()
-    @Binding var isLoggedIn: Bool
+    @StateObject private var viewModel = EVELoginViewModel()
     @State private var showingWebView = false
-    @State private var characters: [EVECharacterInfo] = []
     @State private var isEditing = false
-    @State private var characterToRemove: EVECharacterInfo? = nil // 添加待删除角色状态
+    @State private var characterToRemove: EVECharacterInfo? = nil
     
     var body: some View {
         NavigationView {
@@ -74,9 +72,9 @@ struct AccountsView: View {
                 }
                 
                 // 已登录角色列表
-                if !characters.isEmpty {
+                if !viewModel.characters.isEmpty {
                     Section(header: Text("Account_Logged_Characters")) {
-                        ForEach(characters, id: \.CharacterID) { character in
+                        ForEach(viewModel.characters, id: \.CharacterID) { character in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(character.CharacterName)
@@ -111,7 +109,7 @@ struct AccountsView: View {
                     }
                 }
                 
-                if !characters.isEmpty {
+                if !viewModel.characters.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             isEditing.toggle()
@@ -145,7 +143,7 @@ struct AccountsView: View {
                 }
                 Button("Account_Remove_Confirm_Remove", role: .destructive) {
                     if let character = characterToRemove {
-                        removeCharacter(character)
+                        viewModel.removeCharacter(character)
                         characterToRemove = nil
                     }
                 }
@@ -155,45 +153,11 @@ struct AccountsView: View {
                 }
             }
             .onAppear {
-                loadCharacters()
+                viewModel.loadCharacters()
             }
             .onOpenURL { url in
-                handleCallback(url: url)
-            }
-        }
-    }
-    
-    private func loadCharacters() {
-        characters = EVELogin.shared.getAllCharacters()
-        isLoggedIn = !characters.isEmpty
-    }
-    
-    private func removeCharacter(_ character: EVECharacterInfo) {
-        EVELogin.shared.removeCharacter(characterId: character.CharacterID)
-        loadCharacters()
-    }
-    
-    private func handleCallback(url: URL) {
-        Task {
-            do {
-                let token = try await EVELogin.shared.handleAuthCallback(url: url)
-                let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
-                
-                Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
-                
-                // 保存认证信息
-                EVELogin.shared.saveAuthInfo(token: token, character: character)
-                
-                // 更新UI状态
-                await MainActor.run {
-                    viewModel.handleLoginSuccess(character: character)
-                    loadCharacters() // 重新加载角色列表
-                    showingWebView = false
-                }
-            } catch {
-                Logger.error("处理授权失败: \(error)")
-                await MainActor.run {
-                    viewModel.handleLoginError(error)
+                Task {
+                    await viewModel.handleCallback(url: url)
                     showingWebView = false
                 }
             }
@@ -468,7 +432,7 @@ struct ContentView: View {
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .sheet(isPresented: $showingAccountSheet) {
-                AccountsView(isLoggedIn: $isLoggedIn)
+                AccountsView()
             }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
