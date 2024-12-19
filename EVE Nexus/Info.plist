@@ -36,5 +36,14 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.evenexus.tokenrefresh</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

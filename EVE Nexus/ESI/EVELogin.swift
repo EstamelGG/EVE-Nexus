@@ -1,4 +1,5 @@
 import Foundation
+import BackgroundTasks
 
 // OAuth认证相关的数据模型
 struct EVEAuthToken: Codable {
@@ -42,9 +43,71 @@ class EVELogin {
     internal var config: ESIConfig?
     private var session: URLSession!
     
+    // 后台任务标识符
+    private let backgroundTaskIdentifier = "com.evenexus.tokenrefresh"
+    
     private init() {
         session = URLSession.shared
         loadConfig()
+        registerBackgroundTask()
+    }
+    
+    // 注册后台任务
+    private func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundTaskIdentifier, using: nil) { task in
+            self.handleBackgroundRefresh(task: task as! BGAppRefreshTask)
+        }
+        scheduleBackgroundRefresh()
+        
+        Logger.info("EVELogin: 已注册后台刷新任务")
+    }
+    
+    // 处理后台刷新
+    private func handleBackgroundRefresh(task: BGAppRefreshTask) {
+        Logger.info("EVELogin: 开始后台刷新任务")
+        
+        // 在任务结束前安排下一次刷新
+        scheduleBackgroundRefresh()
+        
+        // 创建一个异步任务来刷新令牌
+        Task {
+            do {
+                if let token = loadAuthInfo().token {
+                    let newToken = try await refreshToken(refreshToken: token.refresh_token)
+                    if let character = loadAuthInfo().character {
+                        saveAuthInfo(token: newToken, character: character)
+                        Logger.info("EVELogin: 后台刷新令牌成功")
+                        task.setTaskCompleted(success: true)
+                    }
+                } else {
+                    Logger.info("EVELogin: 无需刷新令牌")
+                    task.setTaskCompleted(success: true)
+                }
+            } catch {
+                Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
+                task.setTaskCompleted(success: false)
+            }
+        }
+        
+        // 设置超时处理
+        task.expirationHandler = {
+            Logger.error("EVELogin: 后台刷新任务超时")
+            task.setTaskCompleted(success: false)
+        }
+    }
+    
+    // 安排下一次后台刷新
+    private func scheduleBackgroundRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
+        // 设置最早在20天后执行
+        request.earliestBeginDate = Calendar.current.date(byAdding: .day, value: 20, to: Date())
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            Logger.info("EVELogin: 已安排下一次后台刷新任务")
+        } catch {
+            Logger.error("EVELogin: 安排后台刷新任务失败: \(error)")
+        }
     }
     
     private func loadConfig() {
@@ -185,6 +248,75 @@ class EVELogin {
         defaults.removeObject(forKey: "EVECharacterInfo")
         defaults.removeObject(forKey: "TokenExpirationDate")
         Logger.info("EVELogin: 认证信息已清除")
+    }
+    
+    // 添加令牌刷新功能
+    // 检查令牌是否有效
+    func isTokenValid() -> Bool {
+        guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
+            return false
+        }
+        // 提前5分钟认为令牌过期，以防止边界情况
+        return expirationDate.timeIntervalSinceNow > 300
+    }
+    
+    // 刷新令牌
+    func refreshToken(refreshToken: String) async throws -> EVEAuthToken {
+        guard let config = config else {
+            throw NetworkError.invalidData
+        }
+        
+        var request = URLRequest(url: URL(string: config.urls.token)!)
+        request.httpMethod = "POST"
+        
+        let authString = "\(config.clientId):\(config.clientSecret)"
+        let authData = authString.data(using: .utf8)!.base64EncodedString()
+        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
+        
+        let bodyParams = [
+            "grant_type": "refresh_token",
+            "refresh_token": refreshToken
+        ]
+        
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyParams
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
+        
+        let (data, _) = try await session.data(for: request)
+        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+    }
+    
+    // 获取有效的访问令牌
+    func getValidToken() async throws -> String {
+        let authInfo = loadAuthInfo()
+        
+        if !isTokenValid(), let token = authInfo.token {
+            Logger.info("EVELogin: 令牌已过期，尝试刷新")
+            do {
+                // 令牌过期，尝试刷新
+                let newToken = try await refreshToken(refreshToken: token.refresh_token)
+                if let character = authInfo.character {
+                    saveAuthInfo(token: newToken, character: character)
+                    Logger.info("EVELogin: 令牌刷新成功")
+                }
+                return newToken.access_token
+            } catch {
+                // 如果刷新失败，可能是刷新令牌已过期
+                Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
+                // 清除过期的认证信息
+                clearAuthInfo()
+                throw NetworkError.tokenExpired
+            }
+        } else if let token = authInfo.token {
+            Logger.info("EVELogin: 使用现有有效令牌")
+            // 令牌有效，直接返回
+            return token.access_token
+        }
+        
+        Logger.error("EVELogin: 无法获取有效令牌")
+        throw NetworkError.invalidData
     }
 }
 

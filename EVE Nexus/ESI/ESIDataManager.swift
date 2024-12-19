@@ -13,12 +13,9 @@ class ESIDataManager {
     func getWalletBalance(characterId: Int) async throws -> Double {
         Logger.info("ESIDataManager: 开始获取钱包余额，角色ID: \(characterId)")
         
-        // 获取当前的访问令牌
-        guard let token = EVELogin.shared.loadAuthInfo().token?.access_token else {
-            Logger.error("ESIDataManager: 无法获取访问令牌")
-            throw NetworkError.invalidData
-        }
-        Logger.info("ESIDataManager: 成功获取访问令牌")
+        // 获取有效的访问令牌
+        let token = try await EVELogin.shared.getValidToken()
+        Logger.info("ESIDataManager: 成功获取有效访问令牌")
         
         // 构建请求URL
         let urlString = "\(baseURL)/characters/\(characterId)/wallet/?datasource=tranquility"
