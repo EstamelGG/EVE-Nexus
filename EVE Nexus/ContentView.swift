@@ -303,131 +303,11 @@ struct ContentView: View {
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
-        _tables = State(initialValue: [
-            TableNode(
-                title: NSLocalizedString("Main_Character", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Character_Sheet", comment: ""),
-                        iconName: "charactersheet",
-                        note: NSLocalizedString("Main_Skills Ponits", comment: "")
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Jump_Clones", comment: ""),
-                        iconName: "jumpclones",
-                        note: NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Skills", comment: ""),
-                        iconName: "skills",
-                        note: NSLocalizedString("Main_Skills Queue", comment: "")
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_EVE Mail", comment: ""),
-                        iconName: "evemail"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Calendar", comment: ""),
-                        iconName: "calendar"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Wealth", comment: ""),
-                        iconName: "Folder",
-                        note: NSLocalizedString("Main_Wealth ISK", comment: "")
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Loyalty Points", comment: ""),
-                        iconName: "lpstore"
-                    )
-                ]
-            ),
-            TableNode(
-                title: NSLocalizedString("Main_Databases", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Database", comment: ""),
-                        iconName: "items",
-                        destination: AnyView(DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .categories
-                        ))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market", comment: ""),
-                        iconName: "market",
-                        destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: "NPC",
-                        iconName: "criminal",
-                        destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_WH", comment: ""),
-                        iconName: "terminate",
-                        destination: AnyView(WormholeView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Incursions", comment: ""),
-                        iconName: "incursions",
-                        destination: AnyView(IncursionsView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Sovereignty", comment: ""),
-                        iconName: "sovereignty",
-                        destination: AnyView(SovereigntyView(databaseManager: databaseManager))
-                    )
-                ]
-            ),
-            TableNode(
-                title: NSLocalizedString("Main_Business", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Assets", comment: ""),
-                        iconName: "assets"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market Orders", comment: ""),
-                        iconName: "marketdeliveries"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Contracts", comment: ""),
-                        iconName: "contracts"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market Transactions", comment: ""),
-                        iconName: "journal"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Wallet Journal", comment: ""),
-                        iconName: "wallet"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Industry Jobs", comment: ""),
-                        iconName: "industry"
-                    )
-                ]
-            ),
-            TableNode(
-                title: NSLocalizedString("Main_Other", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Setting", comment: ""),
-                        iconName: "Settings",
-                        destination: AnyView(SettingView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_About", comment: ""),
-                        iconName: "info",
-                        destination: AnyView(AboutView())
-                    )
-                ]
-            )
-        ])
+        _tables = State(initialValue: generateTables())
     }
     
     // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为���统模式
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -607,7 +487,12 @@ struct ContentView: View {
     
     // 添加初始化表格数据的方法
     private func initializeTables() {
-        tables = [
+        tables = generateTables()
+    }
+    
+    // 创建生成表格数据的私有方法
+    private func generateTables() -> [TableNode] {
+        return [
             TableNode(
                 title: NSLocalizedString("Main_Character", comment: ""),
                 rows: [
