@@ -700,8 +700,20 @@ class StaticResourceManager {
         let filename = ResourceType.incursions.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
+        // 如果强制刷新，直接从网络获取
+        if forceRefresh {
+            Logger.info("Force refreshing incursions data from network")
+            let incursionsData = try await NetworkManager.shared.fetchIncursions()
+            let jsonData = try JSONEncoder().encode(incursionsData)
+            
+            // 保存到文件和缓存
+            try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.incursions.rawValue)
+            
+            return incursionsData
+        }
+        
         // 确定是否需要刷新
-        var shouldRefresh = forceRefresh
+        var shouldRefresh = false
         
         // 检查文件是否过期
         if fileManager.fileExists(atPath: filePath.path) && 
@@ -709,25 +721,22 @@ class StaticResourceManager {
             shouldRefresh = true
         }
         
-        // 如果需要强制刷新，先执行刷新操作
-        if shouldRefresh {
-            try await self.forceRefresh(.incursions)
-            return try await fetchIncursionsData(forceRefresh: false)
-        }
-        
         // 1. 尝试从内存缓存获取
-        if let cached = cache.object(forKey: cacheKey) {
-            do {
-                let data = try JSONDecoder().decode([Incursion].self, from: cached.data)
-                Logger.info("Got incursions data from memory cache")
-                return data
-            } catch {
-                Logger.error("Failed to decode cached incursions data: \(error)")
+        if !shouldRefresh {
+            if let cached = cache.object(forKey: cacheKey) {
+                do {
+                    let data = try JSONDecoder().decode([Incursion].self, from: cached.data)
+                    Logger.info("Got incursions data from memory cache")
+                    return data
+                } catch {
+                    Logger.error("Failed to decode cached incursions data: \(error)")
+                    shouldRefresh = true
+                }
             }
         }
         
         // 2. 尝试从文件读取
-        if fileManager.fileExists(atPath: filePath.path) {
+        if !shouldRefresh && fileManager.fileExists(atPath: filePath.path) {
             do {
                 let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
                 let incursionsData = try JSONDecoder().decode([Incursion].self, from: data)
@@ -735,6 +744,7 @@ class StaticResourceManager {
                 return incursionsData
             } catch {
                 Logger.error("Failed to load incursions data from file: \(error)")
+                shouldRefresh = true
             }
         }
         
