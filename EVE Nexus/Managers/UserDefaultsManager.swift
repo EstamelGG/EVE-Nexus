@@ -4,6 +4,10 @@ class UserDefaultsManager {
     static let shared = UserDefaultsManager()
     private let defaults = UserDefaults.standard
     
+    // The Forge 的 regionID 是 10000002
+    private let defaultRegionID = 10000002
+    let defaultRegionName = "The Forge"
+    
     // 键名常量
     private struct Keys {
         static let selectedRegionID = "selectedRegionID"
@@ -20,7 +24,7 @@ class UserDefaultsManager {
     // 选中的星域ID
     var selectedRegionID: Int {
         get {
-            defaults.integer(forKey: Keys.selectedRegionID)
+            defaults.integer(forKey: Keys.selectedRegionID) == 0 ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
         }
         set {
             defaults.set(newValue, forKey: Keys.selectedRegionID)
@@ -30,7 +34,11 @@ class UserDefaultsManager {
     // 置顶的星域ID列表
     var pinnedRegionIDs: [Int] {
         get {
-            defaults.array(forKey: Keys.pinnedRegionIDs) as? [Int] ?? []
+            // 如果是首次使用（没有保存过置顶列表），返回默认的 The Forge
+            if defaults.object(forKey: Keys.pinnedRegionIDs) == nil {
+                return [defaultRegionID]
+            }
+            return defaults.array(forKey: Keys.pinnedRegionIDs) as? [Int] ?? []
         }
         set {
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)

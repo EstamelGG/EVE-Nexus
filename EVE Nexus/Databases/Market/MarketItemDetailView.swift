@@ -105,6 +105,7 @@ struct MarketHistoryChartView: View {
                 if let price = value.as(Double.self) {
                     AxisValueLabel {
                         Text(formatPriceSimple(price))
+                            .font(.system(size: 10))
                     }
                     AxisGridLine()
                 }
@@ -117,6 +118,7 @@ struct MarketHistoryChartView: View {
                     let volume = Int(price * maxVolume / (priceValues.max() ?? 1))
                     AxisValueLabel {
                         Text("\(volume)")
+                            .font(.system(size: 10))
                             .foregroundColor(.gray)
                     }
                 }
@@ -133,7 +135,7 @@ struct MarketHistoryChartView: View {
                    dates.firstIndex(of: dateStr).map({ $0 % (dates.count / 12 + 1) == 0 }) ?? false {
                     AxisValueLabel(anchor: .top) {
                         Text(formatMonth(dateStr))
-                            .font(.caption)
+                            .font(.system(size: 10))
                             .foregroundColor(.secondary)
                     }
                     AxisGridLine()
@@ -411,9 +413,20 @@ struct MarketItemDetailView: View {
     }()
     @State private var regions: [Region] = []
     @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
-    @State private var selectedRegionName: String = "The Forge"
+    @State private var selectedRegionName: String = UserDefaultsManager.shared.defaultRegionName
     @State private var searchText = ""
     @State private var isSearching = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var chartHeight: CGFloat {
+        // 根据设备类型和方向调整高度
+        if horizontalSizeClass == .regular {
+            // iPad 或大屏设备
+            return 300
+        } else {
+            // iPhone 或小屏设备
+            return UIScreen.main.bounds.height * 0.25  // 使用屏幕高度的 25%
+        }
+    }
     
     // 计算分组的星域列表
     private func calculateGroupedRegions() {
@@ -550,17 +563,22 @@ struct MarketItemDetailView: View {
                             }
                         }
                     }
-                    if isLoadingHistory {
-                        ProgressView()
-                    } else if let history = marketHistory, !history.isEmpty {
-                        CachedMarketHistoryChartView(
-                            history: history,
-                            orders: marketOrders ?? []
-                        )
-                    } else {
-                        Text("Null")
-                            .foregroundColor(.secondary)
+                    
+                    // 使用 ZStack 来保持固定高度
+                    ZStack {
+                        if isLoadingHistory {
+                            ProgressView()
+                        } else if let history = marketHistory, !history.isEmpty {
+                            CachedMarketHistoryChartView(
+                                history: history,
+                                orders: marketOrders ?? []
+                            )
+                        } else {
+                            Text("-")
+                                .foregroundColor(.secondary)
+                        }
                     }
+                    .frame(height: chartHeight)  // 使用动态高度
                 }
             }
         }
