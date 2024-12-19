@@ -63,18 +63,28 @@ struct MissileDamageView: View {
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
     let damageMultiplier: Double
     
-    private var missileInfo: MissileInfo {
-        MissileInfo(ammoID: 0, damages: damages, multiplier: damageMultiplier)
+    // 缓存计算结果
+    private let missileInfo: MissileInfo
+    private let percentages: (em: Int, therm: Int, kin: Int, exp: Int)
+    private let actualDamages: (em: Double, therm: Double, kin: Double, exp: Double)
+    
+    init(damages: (em: Double, therm: Double, kin: Double, exp: Double), damageMultiplier: Double) {
+        self.damages = damages
+        self.damageMultiplier = damageMultiplier
+        
+        // 在初始化时计算所有值
+        self.missileInfo = MissileInfo(ammoID: 0, damages: damages, multiplier: damageMultiplier)
+        self.percentages = missileInfo.getDamagePercentages()
+        self.actualDamages = missileInfo.actualDamages
     }
     
     var body: some View {
-        let percentages = missileInfo.getDamagePercentages()
         HStack(spacing: 8) {
             // 电磁伤害
             DamageTypeView(
                 iconName: "items_22_32_12.png",
                 percentage: percentages.em,
-                value: missileInfo.actualDamages.em,
+                value: actualDamages.em,
                 color: Color(red: 74/255, green: 128/255, blue: 192/255)
             )
             
@@ -82,7 +92,7 @@ struct MissileDamageView: View {
             DamageTypeView(
                 iconName: "items_22_32_10.png",
                 percentage: percentages.therm,
-                value: missileInfo.actualDamages.therm,
+                value: actualDamages.therm,
                 color: Color(red: 176/255, green: 53/255, blue: 50/255)
             )
             
@@ -90,7 +100,7 @@ struct MissileDamageView: View {
             DamageTypeView(
                 iconName: "items_22_32_9.png",
                 percentage: percentages.kin,
-                value: missileInfo.actualDamages.kin,
+                value: actualDamages.kin,
                 color: Color(red: 155/255, green: 155/255, blue: 155/255)
             )
             
@@ -98,16 +108,17 @@ struct MissileDamageView: View {
             DamageTypeView(
                 iconName: "items_22_32_11.png",
                 percentage: percentages.exp,
-                value: missileInfo.actualDamages.exp,
+                value: actualDamages.exp,
                 color: Color(red: 185/255, green: 138/255, blue: 62/255)
             )
         }
         .padding(.vertical, 4)
         .frame(minHeight: 44)
+        .drawingGroup() // 使用 Metal 渲染
     }
 }
 
-// 单个伤害类型显示组件
+// 优化单个伤害类型显示组件
 private struct DamageTypeView: View {
     let iconName: String
     let percentage: Int
@@ -205,19 +216,29 @@ struct WeaponDamageView: View {
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
     let damageMultiplier: Double
     
-    private var weaponInfo: WeaponInfo {
-        WeaponInfo(damages: damages, multiplier: damageMultiplier)
+    // 缓存计算结果
+    private let weaponInfo: WeaponInfo
+    private let percentages: (em: Int, therm: Int, kin: Int, exp: Int)
+    private let actualDamages: (em: Double, therm: Double, kin: Double, exp: Double)
+    
+    init(damages: (em: Double, therm: Double, kin: Double, exp: Double), damageMultiplier: Double) {
+        self.damages = damages
+        self.damageMultiplier = damageMultiplier
+        
+        // 在初始化时计算所有值
+        self.weaponInfo = WeaponInfo(damages: damages, multiplier: damageMultiplier)
+        self.percentages = weaponInfo.getDamagePercentages()
+        self.actualDamages = weaponInfo.actualDamages
     }
     
     var body: some View {
-        let percentages = weaponInfo.getDamagePercentages()
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 // 电磁伤害
                 DamageTypeView(
                     iconName: "items_22_32_12.png",
                     percentage: percentages.em,
-                    value: weaponInfo.actualDamages.em,
+                    value: actualDamages.em,
                     color: Color(red: 74/255, green: 128/255, blue: 192/255)
                 )
                 
@@ -225,7 +246,7 @@ struct WeaponDamageView: View {
                 DamageTypeView(
                     iconName: "items_22_32_10.png",
                     percentage: percentages.therm,
-                    value: weaponInfo.actualDamages.therm,
+                    value: actualDamages.therm,
                     color: Color(red: 176/255, green: 53/255, blue: 50/255)
                 )
                 
@@ -233,7 +254,7 @@ struct WeaponDamageView: View {
                 DamageTypeView(
                     iconName: "items_22_32_9.png",
                     percentage: percentages.kin,
-                    value: weaponInfo.actualDamages.kin,
+                    value: actualDamages.kin,
                     color: Color(red: 155/255, green: 155/255, blue: 155/255)
                 )
                 
@@ -241,13 +262,14 @@ struct WeaponDamageView: View {
                 DamageTypeView(
                     iconName: "items_22_32_11.png",
                     percentage: percentages.exp,
-                    value: weaponInfo.actualDamages.exp,
+                    value: actualDamages.exp,
                     color: Color(red: 185/255, green: 138/255, blue: 62/255)
                 )
             }
         }
         .padding(.vertical, 4)
         .frame(minHeight: 44)
+        .drawingGroup() // 使用 Metal 渲染
     }
 }
 
