@@ -215,4 +215,10 @@
 
 "Common_OK" = "OK";
 
+// Language Settings
+"Main_Setting_Language_Switch_Title" = "Switch Language";
+"Main_Setting_Language_Switch_Message" = "The app needs to reload to apply the language change. Do you want to continue?";
+"Main_Setting_Language_Switch_Cancel" = "Cancel";
+"Main_Setting_Language_Switch_Confirm" = "Switch";
+
 

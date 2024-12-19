@@ -210,3 +210,9 @@
 "Account_Remove_Confirm_Cancel" = "取消";
 "Account_Remove_Confirm_Remove" = "移除";
 "Account_Character_ID" = "角色ID";
+
+// Language Settings
+"Main_Setting_Language_Switch_Title" = "切换语言";
+"Main_Setting_Language_Switch_Message" = "需要重新加载应用以应用语言更改，是否继续？";
+"Main_Setting_Language_Switch_Cancel" = "取消";
+"Main_Setting_Language_Switch_Confirm" = "切换";

@@ -57,18 +57,25 @@ struct SelectLanguageView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
-        .alert(NSLocalizedString("Main_Setting_SwitchLanguageConfirmation", comment: ""), isPresented: $showingConfirmation) {
-            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) {
-                pendingLanguage = nil
-            }
-            Button(NSLocalizedString("Common_OK", comment: "")) {
-                if let language = pendingLanguage {
-                    selectedLanguage = language
-                    applyLanguageChange()
+        .alert(
+            NSLocalizedString("Main_Setting_Language_Switch_Title", comment: ""),
+            isPresented: $showingConfirmation,
+            actions: {
+                Button(NSLocalizedString("Main_Setting_Language_Switch_Cancel", comment: ""), role: .cancel) {
+                    pendingLanguage = nil
                 }
-                pendingLanguage = nil
+                Button(NSLocalizedString("Main_Setting_Language_Switch_Confirm", comment: ""), role: .destructive) {
+                    if let language = pendingLanguage {
+                        selectedLanguage = language
+                        applyLanguageChange()
+                    }
+                    pendingLanguage = nil
+                }
+            },
+            message: {
+                Text(NSLocalizedString("Main_Setting_Language_Switch_Message", comment: ""))
             }
-        }
+        )
     }
     
     private func setupInitialLanguage() {
