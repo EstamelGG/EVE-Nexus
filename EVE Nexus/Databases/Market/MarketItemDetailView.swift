@@ -167,72 +167,199 @@ struct CachedMarketHistoryChartView: View {
     }
 }
 
+// 简单的选项模型
+struct Option: Identifiable, Equatable {
+    let id: Int
+    let name: String
+}
+
 // 星域选择器视图
 struct RegionPickerView: View {
     @Environment(\.dismiss) private var dismiss
-    let regions: [(key: String, regions: [Region])]
-    let selectedRegionID: Int
-    let onRegionSelect: (Region) -> Void
+    @Binding var selectedRegionID: Int
+    @Binding var selectedRegionName: String
+    let databaseManager: DatabaseManager
     
-    // 常用星域列表
-    private let frequentRegions = [
-        Region(id: 10000002, name: "The Forge (Jita)"),
-        Region(id: 10000043, name: "Domain (Amarr)"),
-        Region(id: 10000032, name: "Sinq Laison (Dodixie)"),
-        Region(id: 10000030, name: "Heimatar (Rens)")
-    ]
+    @State private var isEditMode = false
+    @State private var allRegions: [Region] = []
+    @State private var pinnedRegions: [Region] = []
+    
+    private var unpinnedRegions: [Region] {
+        allRegions.filter { region in
+            !pinnedRegions.contains { $0.id == region.id }
+        }
+    }
+    
+    // 加载星域数据
+    private func loadRegions() {
+        let query = """
+            SELECT r.regionID, r.regionName
+            FROM regions r
+            WHERE r.regionID < 11000000
+            ORDER BY r.regionName
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            allRegions = rows.compactMap { row in
+                guard let id = row["regionID"] as? Int,
+                      let name = row["regionName"] as? String else {
+                    return nil
+                }
+                return Region(id: id, name: name)
+            }
+            
+            // 从 UserDefaults 加载置顶的星域，保持用户设置的顺序
+            let pinnedRegionIDs = UserDefaultsManager.shared.pinnedRegionIDs
+            // 按照 pinnedRegionIDs 的顺序加载星域
+            pinnedRegions = pinnedRegionIDs.compactMap { id in
+                allRegions.first { $0.id == id }
+            }
+            
+            // 如果当前选中的星域存在，确保它显示在正确的位置
+            if let currentRegion = allRegions.first(where: { $0.id == selectedRegionID }) {
+                if pinnedRegionIDs.contains(currentRegion.id) {
+                    // 如果是置顶星域，确保它在置顶列表中
+                    if !pinnedRegions.contains(where: { $0.id == currentRegion.id }) {
+                        pinnedRegions.append(currentRegion)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func savePinnedRegions() {
+        let pinnedIDs = pinnedRegions.map { $0.id }
+        UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
+    }
     
     var body: some View {
         NavigationView {
             List {
-                // 常用星域分组
-                Section(header: Text("#")) {
-                    ForEach(frequentRegions) { region in
-                        Button(action: {
-                            onRegionSelect(region)
-                            dismiss()
-                        }) {
-                            HStack {
-                                Text(region.name)
-                                Spacer()
-                                if region.id == selectedRegionID {
-                                    Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
+                if !pinnedRegions.isEmpty {
+                    Section(header: Text("常用星域")) {
+                        ForEach(pinnedRegions) { region in
+                            RegionRow(
+                                region: region,
+                                isSelected: region.id == selectedRegionID,
+                                isEditMode: isEditMode,
+                                onSelect: {
+                                    selectedRegionID = region.id
+                                    selectedRegionName = region.name
+                                    let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                    defaults.selectedRegionID = region.id
+                                    if !isEditMode {
+                                        dismiss()
+                                    }
+                                },
+                                onUnpin: {
+                                    withAnimation {
+                                        pinnedRegions.removeAll { $0.id == region.id }
+                                        savePinnedRegions()
+                                    }
                                 }
-                            }
+                            )
                         }
-                        .foregroundColor(.primary)
+                        .onMove { from, to in
+                            pinnedRegions.move(fromOffsets: from, toOffset: to)
+                            savePinnedRegions()
+                        }
                     }
                 }
                 
-                // 其他星域分组
-                ForEach(regions, id: \.key) { group in
-                    Section(header: Text(group.key)) {
-                        ForEach(group.regions) { region in
-                            Button(action: {
-                                onRegionSelect(region)
-                                dismiss()
-                            }) {
-                                HStack {
-                                    Text(region.name)
-                                    Spacer()
-                                    if region.id == selectedRegionID {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.blue)
-                                    }
+                Section(header: Text(isEditMode ? "可选星域" : "所有星域")) {
+                    ForEach(unpinnedRegions) { region in
+                        RegionRow(
+                            region: region,
+                            isSelected: region.id == selectedRegionID,
+                            isEditMode: isEditMode,
+                            onSelect: {
+                                selectedRegionID = region.id
+                                selectedRegionName = region.name
+                                let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                defaults.selectedRegionID = region.id
+                                if !isEditMode {
+                                    dismiss()
+                                }
+                            },
+                            onPin: {
+                                withAnimation {
+                                    pinnedRegions.append(region)
+                                    savePinnedRegions()
                                 }
                             }
-                            .foregroundColor(.primary)
-                        }
+                        )
                     }
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle(NSLocalizedString("Main_Market_Choose_Region", comment: ""))
-            .navigationBarItems(trailing: Button("Close") {
-                dismiss()
-            })
+            .navigationTitle("选择星域")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(isEditMode ? "完成" : "编辑") {
+                        withAnimation {
+                            isEditMode.toggle()
+                        }
+                    }
+                }
+            }
+            .environment(\.editMode, .constant(isEditMode ? .active : .inactive))
         }
+        .onAppear {
+            loadRegions()
+        }
+    }
+}
+
+// 星域行视图
+struct RegionRow: View {
+    let region: Region
+    let isSelected: Bool
+    let isEditMode: Bool
+    let onSelect: () -> Void
+    var onPin: (() -> Void)?
+    var onUnpin: (() -> Void)?
+    
+    var body: some View {
+        HStack {
+            Text(region.name)
+                .foregroundColor(isSelected ? .blue : .primary)
+            
+            Spacer()
+            
+            if isEditMode {
+                if onUnpin != nil {
+                    Button(role: .destructive, action: { onUnpin?() }) {
+                        Image(systemName: "minus.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                } else if onPin != nil {
+                    Button(action: { onPin?() }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.green)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            } else {
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.blue)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if !isEditMode {
+                onSelect()
+            }
+        }
+    }
+}
+
+extension Collection {
+    /// 安全的下标访问
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }
 
@@ -248,10 +375,15 @@ struct MarketItemDetailView: View {
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
-    @State private var selectedRegionID: Int = UserDefaultsManager.shared.selectedRegionID
+    @State private var selectedRegionID: Int = {
+        let defaults: UserDefaultsManager = UserDefaultsManager.shared
+        return defaults.selectedRegionID
+    }()
     @State private var regions: [Region] = []
     @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
     @State private var selectedRegionName: String = "The Forge"
+    @State private var searchText = ""
+    @State private var isSearching = false
     
     // 计算分组的星域列表
     private func calculateGroupedRegions() {
@@ -420,17 +552,11 @@ struct MarketItemDetailView: View {
             }
         }
         .sheet(isPresented: $showRegionPicker) {
-            RegionPickerView(
-                regions: groupedRegionsCache,
-                selectedRegionID: selectedRegionID
-            ) { region in
-                selectedRegionID = region.id
-                selectedRegionName = region.name
-                UserDefaultsManager.shared.selectedRegionID = region.id
-                // 重新加载数据
-                Task {
-                    await loadAllMarketData(forceRefresh: true)
-                }
+            RegionPickerView(selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName, databaseManager: databaseManager)
+        }
+        .onChange(of: selectedRegionID) { _, newValue in
+            Task {
+                await loadAllMarketData(forceRefresh: true)
             }
         }
         .onAppear {
@@ -438,7 +564,8 @@ struct MarketItemDetailView: View {
             loadRegions()
             
             // 加载保存的星域ID和名称
-            selectedRegionID = UserDefaultsManager.shared.selectedRegionID
+            let defaults: UserDefaultsManager = UserDefaultsManager.shared
+            selectedRegionID = defaults.selectedRegionID
             // 根据ID查找对应的星域名称
             if let region = regions.first(where: { $0.id == selectedRegionID }) {
                 selectedRegionName = region.name
@@ -534,9 +661,10 @@ struct MarketItemDetailView: View {
     
     private func loadRegions() {
         let query = """
-            SELECT regionID, regionName, UPPER(SUBSTR(regionName, 1, 1)) as initial
-            FROM regions
-            ORDER BY initial, regionName
+            SELECT r.regionID, r.regionName
+            FROM regions r
+            WHERE r.regionID < 11000000
+            ORDER BY r.regionName
         """
         
         if case .success(let rows) = databaseManager.executeQuery(query) {
@@ -565,3 +693,4 @@ struct MarketItemDetailView: View {
 #Preview {
     MarketItemDetailView(databaseManager: DatabaseManager(), itemID: 34)
 } 
+
