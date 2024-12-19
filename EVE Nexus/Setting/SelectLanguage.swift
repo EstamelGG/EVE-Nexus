@@ -58,13 +58,25 @@ struct SelectLanguageView: View {
     }
     
     private func setupInitialLanguage() {
+        // 首先检查是否有存储的语言设置
         if let storedLang = storedLanguage,
            let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key {
             selectedLanguage = defaultLanguage
         } else {
+            // 获取系统语言代码
             let systemLanguage = Locale.preferredLanguages.first ?? "en"
-            if let defaultLanguage = languages.first(where: { $0.value == systemLanguage })?.key {
+            // 提取基础语言代码（例如从 "zh-Hans-CN" 提取 "zh-Hans"）
+            let baseLanguage = systemLanguage.components(separatedBy: "-").prefix(2).joined(separator: "-")
+            
+            // 查找匹配的语言
+            if let defaultLanguage = languages.first(where: { $0.value == baseLanguage })?.key {
                 selectedLanguage = defaultLanguage
+                // 自动保存检测到的语言设置
+                storedLanguage = languages[defaultLanguage]
+            } else {
+                // 如果没有匹配的语言，默认使用英语
+                selectedLanguage = "English"
+                storedLanguage = "en"
             }
         }
     }
