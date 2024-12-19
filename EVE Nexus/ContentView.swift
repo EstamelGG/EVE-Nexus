@@ -175,6 +175,10 @@ struct AccountsView: View {
                     showingWebView = false
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
+                // 强制视图刷新
+                viewModel.objectWillChange.send()
+            }
         }
     }
 }
@@ -404,7 +408,7 @@ struct ContentView: View {
                                     .foregroundColor(.gray)
                                     .lineLimit(1)
                             } else {
-                                Text("Tap to Login")
+                                Text("Account_Add_Character")
                                     .font(.headline)
                                     .padding(.bottom, 4)
                             }
