@@ -91,7 +91,7 @@ struct AccountsView: View {
                                 VStack(alignment: .leading) {
                                     Text(character.CharacterName)
                                         .font(.headline)
-                                    Text("Character ID: \(character.CharacterID)")
+                                    Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }

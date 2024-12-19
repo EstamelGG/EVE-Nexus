@@ -201,14 +201,12 @@
 "Main_Market_Add_Region" = "管理常用星域";
 
 // Account Management
-"Account_Management" = "账号管理";
+"Account_Management" = "角色管理";
+"Account_Add_Character" = "添加角色";
 "Account_Logged_Characters" = "已登录角色";
-"Account_Add_Character" = "添加新角色";
-"Account_Remove_Character" = "移除角色";
+"Account_Cannot_Get_Auth_URL" = "无法获取授权链接";
 "Account_Login_Failed" = "登录失败";
-"Account_Cannot_Get_Auth_URL" = "无法获取授权URL";
-"Common_OK" = "确定";
 "Account_Remove_Confirm_Title" = "移除角色";
-"Account_Remove_Confirm_Message" = "确定要移除这个角色吗？";
 "Account_Remove_Confirm_Cancel" = "取消";
 "Account_Remove_Confirm_Remove" = "移除";
+"Account_Character_ID" = "角色ID";
