@@ -233,16 +233,6 @@ class NetworkManager: NSObject {
         // 设置缓存删除时的回调
         dataCache.delegate = self
         imageCache.delegate = self
-        
-        // 配置 URLCache
-        DispatchQueue.main.async { [weak self] in
-            let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
-            let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
-            URLCache.shared = URLCache(memoryCapacity: memoryCapacity,
-                                    diskCapacity: diskCapacity,
-                                    directory: nil)
-            Logger.info("URLCache configured with memory: \(NetworkManager.formatFileSize(Int64(memoryCapacity))), disk: \(NetworkManager.formatFileSize(Int64(diskCapacity)))")
-        }
     }
     
     func setRegionID(_ id: Int) {
