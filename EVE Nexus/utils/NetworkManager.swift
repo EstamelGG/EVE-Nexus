@@ -264,6 +264,14 @@ class NetworkManager: NSObject {
             throw NetworkError.httpError(statusCode: httpResponse.statusCode)
         }
         
+        // 检查响应是否来自缓存
+        if let cachedResponse = URLCache.shared.cachedResponse(for: URLRequest(url: url)) {
+            if cachedResponse.data == data {
+                Logger.info("Response for \(url.absoluteString) was served from URLCache")
+                return data
+            }
+        }
+        
         Logger.info("Successfully fetched data from: \(url.absoluteString)")
         return data
     }
