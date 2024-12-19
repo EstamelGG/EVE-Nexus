@@ -711,6 +711,21 @@ class NetworkManager: NSObject {
         
         return decodedData
     }
+    
+    // 获取角色头像
+    func fetchCharacterPortrait(characterId: Int, size: Int = 64) async throws -> UIImage {
+        let urlString = "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        return try await fetchCachedImage(
+            cacheKey: "character_portrait_\(characterId)_\(size)",
+            filename: "character_portrait_\(characterId)_\(size).png",
+            cacheDuration: StaticResourceManager.shared.RENDER_CACHE_DURATION,
+            imageURL: url
+        )
+    }
 }
 
 // 网络错误枚举

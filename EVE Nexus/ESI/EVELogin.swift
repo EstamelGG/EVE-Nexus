@@ -1,5 +1,6 @@
 import Foundation
 import BackgroundTasks
+import SwiftUI
 
 // OAuth认证相关的数据模型
 struct EVEAuthToken: Codable {
@@ -52,6 +53,30 @@ class EVELoginViewModel: ObservableObject {
     @Published var showingError: Bool = false
     @Published var errorMessage: String = ""
     @Published var characters: [EVECharacterInfo] = []
+    @Published var characterPortraits: [Int: UIImage] = [:] // 添加头像存储
+    
+    func loadCharacterPortrait(characterId: Int) async {
+        do {
+            let portrait = try await NetworkManager.shared.fetchCharacterPortrait(characterId: characterId)
+            await MainActor.run {
+                characterPortraits[characterId] = portrait
+            }
+        } catch {
+            Logger.error("加载角色头像失败: \(error)")
+        }
+    }
+    
+    func loadCharacters() {
+        characters = EVELogin.shared.getAllCharacters()
+        isLoggedIn = !characters.isEmpty
+        
+        // 加载所有角色的头像
+        Task {
+            for character in characters {
+                await loadCharacterPortrait(characterId: character.CharacterID)
+            }
+        }
+    }
     
     func handleLoginSuccess(character: EVECharacterInfo) {
         DispatchQueue.main.async {
@@ -68,13 +93,9 @@ class EVELoginViewModel: ObservableObject {
         }
     }
     
-    func loadCharacters() {
-        characters = EVELogin.shared.getAllCharacters()
-        isLoggedIn = !characters.isEmpty
-    }
-    
     func removeCharacter(_ character: EVECharacterInfo) {
         EVELogin.shared.removeCharacter(characterId: character.CharacterID)
+        characterPortraits.removeValue(forKey: character.CharacterID) // 移除头像缓存
         loadCharacters()
     }
     

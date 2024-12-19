@@ -76,6 +76,18 @@ struct AccountsView: View {
                     Section(header: Text("Account_Logged_Characters")) {
                         ForEach(viewModel.characters, id: \.CharacterID) { character in
                             HStack {
+                                if let portrait = viewModel.characterPortraits[character.CharacterID] {
+                                    Image(uiImage: portrait)
+                                        .resizable()
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 40, height: 40)
+                                        .foregroundColor(.gray)
+                                }
+                                
                                 VStack(alignment: .leading) {
                                     Text(character.CharacterName)
                                         .font(.headline)
@@ -83,6 +95,7 @@ struct AccountsView: View {
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
+                                
                                 if isEditing {
                                     Spacer()
                                     Button(action: {
@@ -93,6 +106,7 @@ struct AccountsView: View {
                                     }
                                 }
                             }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
