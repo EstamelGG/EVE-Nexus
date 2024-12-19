@@ -214,7 +214,7 @@ enum EVEResource: CaseIterable, NetworkResource {
 // 修改类定义，继承自NSObject
 class NetworkManager: NSObject {
     static let shared = NetworkManager()
-    private var regionID: Int = 10000002 // 默认为 The Forge
+    var regionID: Int = 10000002 // 默认为 The Forge
     
     // 通用缓存（用于JSON数据）
     private let dataCache = NSCache<NSString, CachedData<Any>>()

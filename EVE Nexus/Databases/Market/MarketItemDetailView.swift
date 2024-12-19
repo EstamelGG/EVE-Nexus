@@ -470,12 +470,8 @@ struct MarketItemDetailView: View {
                                 Text(formatPrice(price))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                            } else if marketOrders?.isEmpty ?? true {
-                                Text("Null")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
                             } else {
-                                Text("Loading...")
+                                Text("-")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -588,70 +584,84 @@ struct MarketItemDetailView: View {
     private func loadMarketData(forceRefresh: Bool = false) async {
         guard !isLoadingPrice else { return }
         
-        // 1. 尝试从缓存获取
-        var shouldRefresh = forceRefresh
-        if !shouldRefresh {
-            if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
-                marketOrders = orders
-                let sellOrders = orders.filter { !$0.isBuyOrder }
-                lowestPrice = sellOrders.map { $0.price }.min()
-                return
-            } else {
-                // 如果缓存不存在或已过期，强制刷新
-                shouldRefresh = true
-            }
-        }
-        
+        // 开始加载前清除旧数据
+        marketOrders = nil
+        lowestPrice = nil
         isLoadingPrice = true
+        
         defer { isLoadingPrice = false }
         
         do {
+            // 1. 如果不是强制刷新，先尝试从缓存获取
+            if !forceRefresh {
+                if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
+                    marketOrders = orders
+                    let sellOrders = orders.filter { !$0.isBuyOrder }
+                    lowestPrice = sellOrders.map { $0.price }.min()
+                    return
+                }
+            }
+            
+            // 2. 从网络加载数据
             NetworkManager.shared.setRegionID(selectedRegionID)
             let orders = try await NetworkManager.shared.fetchMarketOrders(
                 typeID: itemID,
-                forceRefresh: shouldRefresh
+                forceRefresh: true
             )
             
-            // 2. 保存到缓存
+            // 3. 确保在数据加载完成后，选中的星域ID没有改变
+            guard selectedRegionID == NetworkManager.shared.regionID else {
+                return
+            }
+            
+            // 4. 保存到缓存
             try StaticResourceManager.shared.saveMarketOrders(orders, itemId: itemID, regionId: selectedRegionID)
             
+            // 5. 更新UI
             marketOrders = orders
             let sellOrders = orders.filter { !$0.isBuyOrder }
             lowestPrice = sellOrders.map { $0.price }.min()
         } catch {
             Logger.error("加载市场订单失败: \(error)")
             marketOrders = []
+            lowestPrice = nil
         }
     }
     
     private func loadHistoryData(forceRefresh: Bool = false) async {
         guard !isLoadingHistory else { return }
         
-        // 1. 尝试从缓存获取
-        var shouldRefresh = forceRefresh
-        if !shouldRefresh {
-            if let history = StaticResourceManager.shared.getMarketHistory(itemId: itemID, regionId: selectedRegionID) {
-                marketHistory = history
-                return
-            } else {
-                // 如果缓存不存在或已过期，强制刷新
-                shouldRefresh = true
-            }
-        }
-        
+        // 开始加载前清除旧数据
+        marketHistory = nil
         isLoadingHistory = true
+        
         defer { isLoadingHistory = false }
         
         do {
+            // 1. 如果不是强制刷新，先尝试从缓存获取
+            if !forceRefresh {
+                if let history = StaticResourceManager.shared.getMarketHistory(itemId: itemID, regionId: selectedRegionID) {
+                    marketHistory = history
+                    return
+                }
+            }
+            
+            // 2. 从网络加载数据
             NetworkManager.shared.setRegionID(selectedRegionID)
             let history = try await NetworkManager.shared.fetchMarketHistory(
                 typeID: itemID,
-                forceRefresh: shouldRefresh
+                forceRefresh: true
             )
             
-            // 2. 保存到缓存
+            // 3. 确保在数据加载完成后，选中的星域ID没有改变
+            guard selectedRegionID == NetworkManager.shared.regionID else {
+                return
+            }
+            
+            // 4. 保存到缓存
             try StaticResourceManager.shared.saveMarketHistory(history, itemId: itemID, regionId: selectedRegionID)
             
+            // 5. 更新UI
             marketHistory = history
         } catch {
             Logger.error("加载市场历史数据失败: \(error)")
@@ -689,8 +699,3 @@ struct MarketItemDetailView: View {
         await (_, _) = (marketDataTask, historyDataTask)
     }
 }
-
-#Preview {
-    MarketItemDetailView(databaseManager: DatabaseManager(), itemID: 34)
-} 
-
