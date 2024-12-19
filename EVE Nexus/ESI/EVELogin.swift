@@ -43,70 +43,27 @@ class EVELogin {
     internal var config: ESIConfig?
     private var session: URLSession!
     
-    // 后台任务标识符
-    private let backgroundTaskIdentifier = "com.evenexus.tokenrefresh"
-    
     private init() {
         session = URLSession.shared
         loadConfig()
-        registerBackgroundTask()
     }
     
-    // 注册后台任务
-    private func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundTaskIdentifier, using: nil) { task in
-            self.handleBackgroundRefresh(task: task as! BGAppRefreshTask)
+    // 执行后台刷新
+    func performBackgroundRefresh() async throws {
+        guard let token = loadAuthInfo().token else {
+            Logger.info("EVELogin: 无需执行后台刷新，未找到令牌")
+            return
         }
-        scheduleBackgroundRefresh()
-        
-        Logger.info("EVELogin: 已注册后台刷新任务")
-    }
-    
-    // 处理后台刷新
-    private func handleBackgroundRefresh(task: BGAppRefreshTask) {
-        Logger.info("EVELogin: 开始后台刷新任务")
-        
-        // 在任务结束前安排下一次刷新
-        scheduleBackgroundRefresh()
-        
-        // 创建一个异步任务来刷新令牌
-        Task {
-            do {
-                if let token = loadAuthInfo().token {
-                    let newToken = try await refreshToken(refreshToken: token.refresh_token)
-                    if let character = loadAuthInfo().character {
-                        saveAuthInfo(token: newToken, character: character)
-                        Logger.info("EVELogin: 后台刷新令牌成功")
-                        task.setTaskCompleted(success: true)
-                    }
-                } else {
-                    Logger.info("EVELogin: 无需刷新令牌")
-                    task.setTaskCompleted(success: true)
-                }
-            } catch {
-                Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
-                task.setTaskCompleted(success: false)
-            }
-        }
-        
-        // 设置超时处理
-        task.expirationHandler = {
-            Logger.error("EVELogin: 后台刷新任务超时")
-            task.setTaskCompleted(success: false)
-        }
-    }
-    
-    // 安排下一次后台刷新
-    private func scheduleBackgroundRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-        // 设置最早在20天后执行
-        request.earliestBeginDate = Calendar.current.date(byAdding: .day, value: 20, to: Date())
         
         do {
-            try BGTaskScheduler.shared.submit(request)
-            Logger.info("EVELogin: 已安排下一次后台刷新任务")
+            let newToken = try await refreshToken(refreshToken: token.refresh_token)
+            if let character = loadAuthInfo().character {
+                saveAuthInfo(token: newToken, character: character)
+                Logger.info("EVELogin: 后台刷新令牌成功")
+            }
         } catch {
-            Logger.error("EVELogin: 安排后台刷新任务失败: \(error)")
+            Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
+            throw error
         }
     }
     

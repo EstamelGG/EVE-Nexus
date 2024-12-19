@@ -1,9 +1,66 @@
 import SwiftUI
 import SQLite3
 import Zip
+import BackgroundTasks
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        // 注册后台任务
+        registerBackgroundTasks()
+        return true
+    }
+    
+    private func registerBackgroundTasks() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.evenexus.tokenrefresh",
+            using: nil
+        ) { task in
+            self.handleRefreshTask(task: task as! BGAppRefreshTask)
+        }
+        
+        Logger.info("AppDelegate: 后台任务注册成功")
+    }
+    
+    private func handleRefreshTask(task: BGAppRefreshTask) {
+        // 安排下一次刷新任务
+        scheduleNextRefresh()
+        
+        // 设置任务超时处理
+        task.expirationHandler = {
+            task.setTaskCompleted(success: false)
+        }
+        
+        // 执行令牌刷新
+        Task {
+            do {
+                try await EVELogin.shared.performBackgroundRefresh()
+                task.setTaskCompleted(success: true)
+            } catch {
+                Logger.error("AppDelegate: 后台刷新失败: \(error)")
+                task.setTaskCompleted(success: false)
+            }
+        }
+    }
+    
+    private func scheduleNextRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: "com.evenexus.tokenrefresh")
+        // 设置为20天后执行
+        request.earliestBeginDate = Calendar.current.date(byAdding: .day, value: 20, to: Date())
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            Logger.info("AppDelegate: 已安排下一次后台刷新任务")
+        } catch {
+            Logger.error("AppDelegate: 安排后台刷新任务失败: \(error)")
+        }
+    }
+}
 
 @main
 struct EVE_NexusApp: App {
+    // 注册 AppDelegate
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @StateObject private var databaseManager = DatabaseManager()
     @State private var loadingState: LoadingState = .unzipping
