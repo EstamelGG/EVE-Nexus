@@ -173,12 +173,10 @@ class DatabaseManager: ObservableObject {
         var metaGroupNames: [Int: String] = [:]
         
         if case .success(let metaRows) = metaResult {
-            Logger.debug("加载 metaGroups - 获取到 \(metaRows.count) 行数据")
             for row in metaRows {
                 if let id = row["metagroup_id"] as? Int,
                    let name = row["name"] as? String {
                     metaGroupNames[id] = name
-                    Logger.debug("加载 MetaGroup: ID=\(id), Name=\(name)")
                 } else {
                     Logger.warning("MetaGroup 行数据类型不正确: \(row)")
                 }
