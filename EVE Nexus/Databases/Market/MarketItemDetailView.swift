@@ -235,8 +235,9 @@ struct RegionPickerView: View {
     var body: some View {
         NavigationView {
             List {
-                if !pinnedRegions.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {
+                // 置顶星域 Section
+                Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {
+                    if !pinnedRegions.isEmpty {
                         ForEach(pinnedRegions) { region in
                             RegionRow(
                                 region: region,
@@ -263,24 +264,25 @@ struct RegionPickerView: View {
                             pinnedRegions.move(fromOffsets: from, toOffset: to)
                             savePinnedRegions()
                         }
-                        
-                        if !isEditMode {
-                            Button(action: {
-                                withAnimation {
-                                    isEditMode = true
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "plus.circle.fill")
-                                        .foregroundColor(.blue)
-                                    Text(NSLocalizedString("Main_Market_Add_Region", comment: ""))
-                                        .foregroundColor(.blue)
-                                }
+                    }
+                    
+                    if !isEditMode {
+                        Button(action: {
+                            withAnimation {
+                                isEditMode = true
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text(NSLocalizedString("Main_Market_Add_Region", comment: ""))
+                                    .foregroundColor(.blue)
                             }
                         }
                     }
                 }
                 
+                // 所有星域 Section
                 Section(header: Text(isEditMode ? NSLocalizedString("Main_Market_Available_Regions", comment: "") : NSLocalizedString("Main_Market_All_Regions", comment: ""))) {
                     ForEach(unpinnedRegions) { region in
                         RegionRow(
