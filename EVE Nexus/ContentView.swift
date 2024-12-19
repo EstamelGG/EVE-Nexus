@@ -297,6 +297,9 @@ struct ContentView: View {
     @State private var isLoadingStatus = true
     @State private var showingAccountSheet = false
     
+    // 添加预加载状态
+    @State private var isDatabasePreloaded = false
+    
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -424,7 +427,7 @@ struct ContentView: View {
     }
     
     // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为���统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -547,7 +550,10 @@ struct ContentView: View {
             initializeTables()
         }
         .task {
-            await updateServerStatus()
+            // 合并所有异步任务
+            async let statusTask: Void = updateServerStatus()
+            async let preloadTask: Void = preloadDatabaseIfNeeded()
+            _ = await (statusTask, preloadTask)
         }
     }
     
@@ -563,6 +569,36 @@ struct ContentView: View {
         try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
         if !Task.isCancelled {
             await updateServerStatus()
+        }
+    }
+    
+    // 预加载数据库内容
+    private func preloadDatabaseIfNeeded() async {
+        print("=== Debug: Checking preload condition ===")
+        print("isDatabasePreloaded: \(isDatabasePreloaded)")
+        
+        guard !isDatabasePreloaded else {
+            print("=== Debug: Database already preloaded, skipping ===")
+            return
+        }
+        
+        print("=== Debug: Starting database content preload... ===")
+        
+        // 预加载
+        let (published, unpublished) = databaseManager.loadCategories()
+        print("=== Debug: Loaded categories - Published: \(published.count), Unpublished: \(unpublished.count) ===")
+        let res = databaseManager.loadAttributeUnits()
+        print("=== Debug: Loaded \(res.count) AttributeUnits ===")
+        
+        // 预加载分类图标
+        for category in published + unpublished {
+            _ = IconManager.shared.loadUIImage(for: category.iconFileNew)
+        }
+        print("=== Debug: Preloaded \(published.count + unpublished.count) category icons ===")
+        
+        await MainActor.run {
+            isDatabasePreloaded = true
+            print("=== Debug: Database preload completed successfully ===")
         }
     }
     
