@@ -48,32 +48,11 @@ struct AccountsView: View {
     @Binding var isLoggedIn: Bool
     @State private var showingWebView = false
     @State private var characters: [EVECharacterInfo] = []
+    @State private var isEditing = false // 添加编辑模式状态
     
     var body: some View {
         NavigationView {
             List {
-                // 已登录角色列表
-                if !characters.isEmpty {
-                    Section(header: Text("Account_Logged_Characters")) {
-                        ForEach(characters, id: \.CharacterID) { character in
-                            VStack(alignment: .leading) {
-                                Text(character.CharacterName)
-                                    .font(.headline)
-                                Text("Character ID: \(character.CharacterID)")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    removeCharacter(character)
-                                } label: {
-                                    Label("Account_Remove_Character", systemImage: "trash")
-                                }
-                            }
-                        }
-                    }
-                }
-                
                 // 添加新角色按钮
                 Section {
                     Button(action: {
@@ -92,6 +71,32 @@ struct AccountsView: View {
                         }
                     }
                 }
+                
+                // 已登录角色列表
+                if !characters.isEmpty {
+                    Section(header: Text("Account_Logged_Characters")) {
+                        ForEach(characters, id: \.CharacterID) { character in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(character.CharacterName)
+                                        .font(.headline)
+                                    Text("Character ID: \(character.CharacterID)")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                if isEditing {
+                                    Spacer()
+                                    Button(action: {
+                                        removeCharacter(character)
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .foregroundColor(.red)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle("Account_Management")
             .navigationBarTitleDisplayMode(.inline)
@@ -102,6 +107,17 @@ struct AccountsView: View {
                     }) {
                         Image(systemName: "xmark")
                             .foregroundColor(.blue)
+                    }
+                }
+                
+                if !characters.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            isEditing.toggle()
+                        }) {
+                            Text(isEditing ? "Main_Market_Done" : "Main_Market_Edit")
+                                .foregroundColor(.blue)
+                        }
                     }
                 }
             }
