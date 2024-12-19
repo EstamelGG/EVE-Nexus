@@ -227,12 +227,12 @@ struct AttributeGroupView: View {
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
     let isSimplifiedMode: Bool
-    
+    let damageAttributeIDs = [114, 118, 117, 116]
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
             .filter { attribute in
                 // 始终隐藏武器伤害属性
-                let damageAttributeIDs = [114, 116, 117, 118]
+                
                 if damageAttributeIDs.contains(attribute.id) {
                     return false
                 }
@@ -256,7 +256,6 @@ struct AttributeGroupView: View {
     
     // 检查当前组是否包含武器伤害属性
     private var hasWeaponDamageAttributes: Bool {
-        let damageAttributeIDs = [114, 116, 117, 118]
         return group.attributes.contains { damageAttributeIDs.contains($0.id) }
     }
     

@@ -1610,9 +1610,9 @@ class DatabaseManager: ObservableObject {
                    let value = row["value"] as? Double {
                     switch attributeID {
                     case 114: damages.em = value
-                    case 116: damages.therm = value
+                    case 118: damages.therm = value
                     case 117: damages.kin = value
-                    case 118: damages.exp = value
+                    case 116: damages.exp = value
                     default: break
                     }
                     hasData = true

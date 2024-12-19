@@ -274,7 +274,6 @@ extension AttributeGroupView {
     
     // 检查当前组是否包含武器伤害属性
     private var hasWeaponDamageAttributes: Bool {
-        let damageAttributeIDs = [114, 116, 117, 118]
         return group.attributes.contains { damageAttributeIDs.contains($0.id) }
     }
     
