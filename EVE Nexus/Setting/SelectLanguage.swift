@@ -29,6 +29,8 @@ struct SelectLanguageView: View {
     
     @AppStorage("selectedLanguage") var storedLanguage: String?
     @State private var selectedLanguage: String?
+    @State private var showingConfirmation = false
+    @State private var pendingLanguage: String?
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
     
@@ -41,8 +43,8 @@ struct SelectLanguageView: View {
                         isSelected: language == selectedLanguage,
                         onTap: {
                             if language != selectedLanguage {
-                                selectedLanguage = language
-                                applyLanguageChange()
+                                pendingLanguage = language
+                                showingConfirmation = true
                             }
                         }
                     )
@@ -55,6 +57,18 @@ struct SelectLanguageView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
+        .alert(NSLocalizedString("Main_Setting_SwitchLanguageConfirmation", comment: ""), isPresented: $showingConfirmation) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) {
+                pendingLanguage = nil
+            }
+            Button(NSLocalizedString("Common_OK", comment: "")) {
+                if let language = pendingLanguage {
+                    selectedLanguage = language
+                    applyLanguageChange()
+                }
+                pendingLanguage = nil
+            }
+        }
     }
     
     private func setupInitialLanguage() {
@@ -105,9 +119,6 @@ struct SelectLanguageView: View {
         DatabaseBrowserView.clearCache()  // 清除导航缓存
         databaseManager.clearCache()      // 清除 SQL 查询缓存
         databaseManager.loadDatabase()
-        
-        // 6. 关闭当前视图
-        dismiss()
     }
 }
 
