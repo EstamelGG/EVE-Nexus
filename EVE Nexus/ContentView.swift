@@ -310,12 +310,10 @@ struct ServerStatusView: View {
     }
 }
 
-// 添加登录按钮组件
+// 修改LoginButtonView组件
 struct LoginButtonView: View {
     let isLoggedIn: Bool
     let serverStatus: ServerStatus?
-    let action: () -> Void
-    @State private var forceUpdate: Bool = false
     
     var body: some View {
         HStack(spacing: 15) {
@@ -341,16 +339,8 @@ struct LoginButtonView: View {
                 ServerStatusView(status: serverStatus)
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
-                .font(.system(size: 14))
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: action)
-        .id(forceUpdate) // 强制视图刷新
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            forceUpdate.toggle()
-        }
     }
 }
 
@@ -437,11 +427,12 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    LoginButtonView(
-                        isLoggedIn: isLoggedIn,
-                        serverStatus: serverStatus,
-                        action: { showingAccountSheet = true }
-                    )
+                    NavigationLink(destination: AccountsView()) {
+                        LoginButtonView(
+                            isLoggedIn: isLoggedIn,
+                            serverStatus: serverStatus
+                        )
+                    }
                 }
                 
                 // 原有的表格内容
