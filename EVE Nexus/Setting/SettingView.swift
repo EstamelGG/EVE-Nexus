@@ -45,9 +45,6 @@ class CacheManager {
     func getAllCacheStats() async -> [String: CacheStats] {
         var stats: [String: CacheStats] = [:]
         
-        // 1. URLCache统计
-        stats["Network"] = getURLCacheStats()
-        
         // 2. NSCache统计
         stats["Memory"] = getNSCacheStats()
         
@@ -61,15 +58,6 @@ class CacheManager {
         stats["StaticDataSet"] = await getStaticDataStats()
         
         return stats
-    }
-    
-    // 获取URLCache统计
-    private func getURLCacheStats() -> CacheStats {
-        let urlCache = URLCache.shared
-        return CacheStats(
-            size: Int64(urlCache.currentDiskUsage + urlCache.currentMemoryUsage),
-            count: 1  // URLCache不提供缓存项数量的API
-        )
     }
     
     // 获取NSCache统计（如果您的应用使用了自定义的NSCache实例，需要在这里添加）
@@ -187,11 +175,6 @@ class CacheManager {
             Logger.error("Error clearing static data: \(error)")
         }
         
-        // 6. 清理 URLCache（最后执行）
-        await MainActor.run {
-            URLCache.shared.removeAllCachedResponses()
-        }
-        
         Logger.info("所有缓存清理完成")
     }
     
@@ -221,9 +204,6 @@ struct SettingView: View {
         var body: some View {
             GeometryReader { geometry in
                 ZStack {
-                    Color.black
-                        .opacity(0.8)
-                    
                     LoadingView(loadingState: $loadingState,
                               progress: progress,
                               onComplete: onComplete)
