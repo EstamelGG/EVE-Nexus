@@ -8,9 +8,9 @@
 
 "Main_Title" = "EVE Nexus";
 "Main_Character" = "人物";
-"Main_Character Sheet" = "人物表单";
-"Main_Jump Clones" = "克隆体";
-"Main_Jump Clones Available" = "跳跃克隆可用: ";
+"Main_Character_Sheet" = "人物表单";
+"Main_Jump_Clones" = "克隆体";
+"Main_Jump_Clones_Available" = "跳跃克隆可用: ";
 "Main_Skills" = "技能";
 "Main_Skills Ponits" = "$num SP";
 "Main_Skills Queue" = "队列长度：$num ($day天 $hour时 $minutes分)";

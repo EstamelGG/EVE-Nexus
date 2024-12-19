@@ -308,14 +308,14 @@ struct ContentView: View {
                 title: NSLocalizedString("Main_Character", comment: ""),
                 rows: [
                     TableRowNode(
-                        title: NSLocalizedString("Main_Character Sheet", comment: ""),
+                        title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                         iconName: "charactersheet",
                         note: NSLocalizedString("Main_Skills Ponits", comment: "")
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Jump Clones", comment: ""),
+                        title: NSLocalizedString("Main_Jump_Clones", comment: ""),
                         iconName: "jumpclones",
-                        note: NSLocalizedString("Main_Jump Clones Available", comment: "")
+                        note: NSLocalizedString("Main_Jump_Clones_Available", comment: "")
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Skills", comment: ""),
@@ -479,6 +479,7 @@ struct ContentView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                         .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
                 }
             }
             Spacer()
@@ -500,9 +501,11 @@ struct ContentView: View {
                             if isLoggedIn {
                                 Text("联盟名称")
                                     .font(.headline)
+                                    .lineLimit(1)
                                 Text("军团名称")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
+                                    .lineLimit(1)
                             } else {
                                 Text("Tap to Login")
                                     .font(.headline)
@@ -609,14 +612,14 @@ struct ContentView: View {
                 title: NSLocalizedString("Main_Character", comment: ""),
                 rows: [
                     TableRowNode(
-                        title: NSLocalizedString("Main_Character Sheet", comment: ""),
+                        title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                         iconName: "charactersheet",
                         note: NSLocalizedString("Main_Skills Ponits", comment: "")
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Jump Clones", comment: ""),
+                        title: NSLocalizedString("Main_Jump_Clones", comment: ""),
                         iconName: "jumpclones",
-                        note: NSLocalizedString("Main_Jump Clones Available", comment: "")
+                        note: NSLocalizedString("Main_Jump_Clones_Available", comment: "")
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Skills", comment: ""),

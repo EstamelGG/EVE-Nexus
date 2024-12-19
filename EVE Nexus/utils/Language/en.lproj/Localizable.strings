@@ -8,9 +8,9 @@
 
 "Main_Title" = "EVE Nexus";
 "Main_Character" = "Character";
-"Main_Character Sheet" = "Character Sheet";
-"Main_Jump Clones" = "Jump Clones";
-"Main_Jump Clones Available" = "Jump Clones Available: ";
+"Main_Character_Sheet" = "Character Sheet";
+"Main_Jump_Clones" = "Jump Clones";
+"Main_Jump_Clones_Available" = "Jump Clones Available: ";
 "Main_Skills" = "Skills";
 "Main_Skills Ponits" = "$num SP";
 "Main_Skills Queue" = "$num skills in queue ($dayd $hourh $minutesm)";
