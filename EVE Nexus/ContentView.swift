@@ -47,6 +47,7 @@ struct AccountsView: View {
     @State private var showingWebView = false
     @State private var isEditing = false
     @State private var characterToRemove: EVECharacterInfo? = nil
+    @State private var forceUpdate: Bool = false // 添加强制更新标志
     
     var body: some View {
         List {
@@ -62,7 +63,7 @@ struct AccountsView: View {
                     HStack {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.blue)
-                        Text("Account_Add_Character")
+                        Text(NSLocalizedString("Account_Add_Character", comment: ""))
                             .foregroundColor(.blue)
                         Spacer()
                     }
@@ -71,7 +72,7 @@ struct AccountsView: View {
             
             // 已登录角色列表
             if !viewModel.characters.isEmpty {
-                Section(header: Text("Account_Logged_Characters")) {
+                Section(header: Text(NSLocalizedString("Account_Logged_Characters", comment: ""))) {
                     ForEach(viewModel.characters, id: \.CharacterID) { character in
                         HStack {
                             if let portrait = viewModel.characterPortraits[character.CharacterID] {
@@ -109,7 +110,7 @@ struct AccountsView: View {
                 }
             }
         }
-        .navigationTitle("Account_Management")
+        .navigationTitle(NSLocalizedString("Account_Management", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !viewModel.characters.isEmpty {
@@ -117,7 +118,7 @@ struct AccountsView: View {
                     Button(action: {
                         isEditing.toggle()
                     }) {
-                        Text(isEditing ? "Main_Market_Done" : "Main_Market_Edit")
+                        Text(NSLocalizedString(isEditing ? "Main_Market_Done" : "Main_Market_Edit", comment: ""))
                             .foregroundColor(.blue)
                     }
                 }
@@ -129,22 +130,22 @@ struct AccountsView: View {
                 SafariView(url: url)
                     .environmentObject(viewModel)
             } else {
-                Text("Account_Cannot_Get_Auth_URL")
+                Text(NSLocalizedString("Account_Cannot_Get_Auth_URL", comment: ""))
             }
         }
-        .alert("Account_Login_Failed", isPresented: $viewModel.showingError) {
-            Button("Common_OK", role: .cancel) { }
+        .alert(NSLocalizedString("Account_Login_Failed", comment: ""), isPresented: $viewModel.showingError) {
+            Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) { }
         } message: {
             Text(viewModel.errorMessage)
         }
-        .alert("Account_Remove_Confirm_Title", isPresented: .init(
+        .alert(NSLocalizedString("Account_Remove_Confirm_Title", comment: ""), isPresented: .init(
             get: { characterToRemove != nil },
             set: { if !$0 { characterToRemove = nil } }
         )) {
-            Button("Account_Remove_Confirm_Cancel", role: .cancel) {
+            Button(NSLocalizedString("Account_Remove_Confirm_Cancel", comment: ""), role: .cancel) {
                 characterToRemove = nil
             }
-            Button("Account_Remove_Confirm_Remove", role: .destructive) {
+            Button(NSLocalizedString("Account_Remove_Confirm_Remove", comment: ""), role: .destructive) {
                 if let character = characterToRemove {
                     viewModel.removeCharacter(character)
                     characterToRemove = nil
@@ -166,8 +167,9 @@ struct AccountsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
             // 强制视图刷新
-            viewModel.objectWillChange.send()
+            forceUpdate.toggle()
         }
+        .id(forceUpdate) // 添加id以强制视图刷新
     }
 }
 
