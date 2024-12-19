@@ -42,64 +42,17 @@ struct TableNode: Identifiable, Equatable {
     }
 }
 
-// 用于显示EVE Online登录页面的Safari视图
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    @Environment(\.presentationMode) var presentationMode
-    @Binding var characterInfo: EVECharacterInfo?
-    @Binding var isLoggedIn: Bool
-    @Binding var showingError: Bool
-    @Binding var errorMessage: String
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let config = SFSafariViewController.Configuration()
-        config.entersReaderIfAvailable = false
-        let controller = SFSafariViewController(url: url, configuration: config)
-        controller.delegate = context.coordinator
-        controller.dismissButtonStyle = .close
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {
-        // 不需要更新
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, SFSafariViewControllerDelegate {
-        let parent: SafariView
-        
-        init(_ parent: SafariView) {
-            self.parent = parent
-        }
-        
-        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
-            parent.presentationMode.wrappedValue.dismiss()
-        }
-        
-        func safariViewController(_ controller: SFSafariViewController, didCompleteInitialLoad didLoadSuccessfully: Bool) {
-            if !didLoadSuccessfully {
-                Logger.error("SafariView: 加载失败")
-            }
-        }
-    }
-}
-
 struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = SafariViewModel()
     @Binding var isLoggedIn: Bool
-    @State var showingWebView = false
-    @State var characterInfo: EVECharacterInfo?
-    @State var showingError = false
-    @State var errorMessage = ""
+    @State private var showingWebView = false
     
     var body: some View {
         NavigationView {
             List {
                 Section {
-                    if let character = characterInfo {
+                    if let character = viewModel.characterInfo {
                         VStack(alignment: .leading) {
                             Text(character.CharacterName)
                                 .font(.headline)
@@ -135,7 +88,7 @@ struct AccountsView: View {
                     }
                 }
                 
-                if characterInfo != nil {
+                if viewModel.characterInfo != nil {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("登出") {
                             logout()
@@ -146,21 +99,16 @@ struct AccountsView: View {
             .sheet(isPresented: $showingWebView) {
             } content: {
                 if let url = EVELogin.shared.getAuthorizationURL() {
-                    SafariView(
-                        url: url,
-                        characterInfo: $characterInfo,
-                        isLoggedIn: $isLoggedIn,
-                        showingError: $showingError,
-                        errorMessage: $errorMessage
-                    )
+                    SafariView(url: url)
+                        .environmentObject(viewModel)
                 } else {
                     Text("无法获取授权URL")
                 }
             }
-            .alert("登录错误", isPresented: $showingError) {
+            .alert("登录错误", isPresented: $viewModel.showingError) {
                 Button("确定", role: .cancel) { }
             } message: {
-                Text(errorMessage)
+                Text(viewModel.errorMessage)
             }
             .onAppear {
                 checkExistingAuth()
@@ -182,27 +130,17 @@ struct AccountsView: View {
                 // 先保存认证信息
                 EVELogin.shared.saveAuthInfo(token: token, character: character)
                 
-                // 然后再获取钱包余额, 验证esi状态
-//                do {
-//                    let balance = try await ESIDataManager.shared.getWalletBalance(characterId: character.CharacterID)
-//                    let formattedBalance = ESIDataManager.shared.formatISK(balance)
-//                    Logger.info("获取到钱包余额: \(formattedBalance) ISK")
-//                } catch {
-//                    Logger.error("获取钱包余额失败: \(error)")
-//                }
-                
                 // 更新UI状态
                 await MainActor.run {
-                    self.characterInfo = character
-                    self.isLoggedIn = true
-                    self.showingWebView = false
+                    viewModel.handleLoginSuccess(character: character)
+                    isLoggedIn = true
+                    showingWebView = false
                 }
             } catch {
                 Logger.error("处理授权失败: \(error)")
                 await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.showingError = true
-                    self.showingWebView = false
+                    viewModel.handleLoginError(error)
+                    showingWebView = false
                 }
             }
         }
@@ -212,15 +150,69 @@ struct AccountsView: View {
         let authInfo = EVELogin.shared.loadAuthInfo()
         if let character = authInfo.character {
             Logger.info("加载已保存的角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
-            characterInfo = character
+            viewModel.handleLoginSuccess(character: character)
             isLoggedIn = true
         }
     }
     
     private func logout() {
         EVELogin.shared.clearAuthInfo()
-        characterInfo = nil
+        viewModel.characterInfo = nil
         isLoggedIn = false
+    }
+}
+
+// 创建独立的UTC时间显示组件
+struct UTCTimeView: View {
+    @State private var currentTime = Date()
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
+    var body: some View {
+        Text(formattedUTCTime)
+            .font(.monospacedDigit(.caption)())
+            .onReceive(timer) { _ in
+                currentTime = Date()
+            }
+    }
+    
+    private var formattedUTCTime: String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        return formatter.string(from: currentTime)
+    }
+}
+
+struct ServerStatusView: View {
+    let status: ServerStatus?
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            UTCTimeView()
+            Text("-")
+            if let status = status {
+                if status.isOnline {
+                    Text("Online")
+                        .font(.caption.bold())
+                        .foregroundColor(Color(red: 0, green: 0.5, blue: 0))
+                    
+                    let formattedPlayers = NumberFormatter.localizedString(
+                        from: NSNumber(value: status.players),
+                        number: .decimal
+                    )
+                    Text("(\(formattedPlayers) players)")
+                        .font(.caption)
+                } else {
+                    Text("Offline")
+                        .font(.caption.bold())
+                        .foregroundColor(.red)
+                }
+            } else {
+                Text("Checking Status...")
+                    .font(.caption)
+            }
+        }
     }
 }
 
@@ -230,8 +222,7 @@ struct ContentView: View {
     @State private var isLoggedIn = false
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
-    @State private var currentTime = Date() // 添加当前时间状态
-    @State private var showingAccountSheet = false // 添加sheet控制状态
+    @State private var showingAccountSheet = false
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
@@ -419,55 +410,6 @@ struct ContentView: View {
         .frame(height: 36)
     }
     
-    var serverStatusText: AttributedString {
-        // 使用currentTime而不是Date()
-        let formatter = DateFormatter()
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        let utcTime = formatter.string(from: currentTime)
-        
-        guard let status = serverStatus else {
-            var attributed = AttributedString("\(utcTime) - Checking Status...")
-            if let timeRange = attributed.range(of: utcTime) {
-                attributed[timeRange].font = .monospacedDigit(.caption)()
-            }
-            return attributed
-        }
-        
-        // 格式化玩家数，添加千分位
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.groupingSeparator = ","
-        let formattedPlayers = numberFormatter.string(from: NSNumber(value: status.players)) ?? "\(status.players)"
-        
-        var attributed = AttributedString("\(utcTime) - ")
-        // 为时间部分设置等宽字体
-        if let timeRange = attributed.range(of: utcTime) {
-            attributed[timeRange].font = .monospacedDigit(.caption)()
-        }
-        
-        if status.isOnline {
-            var onlineText = AttributedString("Online")
-            onlineText.font = .caption.bold()
-            onlineText.foregroundColor = Color(red: 0, green: 0.5, blue: 0)
-            attributed.append(onlineText)
-            
-            var playersText = AttributedString(" (\(formattedPlayers) players)")
-            // 为玩家数设置等宽字体
-            if let playersRange = playersText.range(of: formattedPlayers) {
-                playersText[playersRange].font = .monospacedDigit(.caption)()
-            }
-            attributed.append(playersText)
-        } else {
-            var offlineText = AttributedString("Offline")
-            offlineText.font = .caption.bold()
-            offlineText.foregroundColor = .red
-            attributed.append(offlineText)
-        }
-        return attributed
-    }
-    
     var body: some View {
         NavigationStack {
             List {
@@ -480,22 +422,17 @@ struct ContentView: View {
                         
                         VStack(alignment: .leading, spacing: 4) {
                             if isLoggedIn {
-                                // 登录后显示联盟和军团信息
-                                Text("联盟名称") // 这里替换为实际的联盟名称
+                                Text("联盟名称")
                                     .font(.headline)
-                                Text("军团名称") // 这里替换为实际的军团名称
+                                Text("军团名称")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             } else {
-                                // 未登录时显示登录提示
                                 Text("Tap to Login")
                                     .font(.headline)
-                                    .padding(.bottom, 4) // 增加一点底部间距
+                                    .padding(.bottom, 4)
                             }
-                            // 服务器状态始终显示在第三行
-                            Text(serverStatusText)
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                            ServerStatusView(status: serverStatus)
                         }
                         Spacer()
                     }
@@ -521,7 +458,6 @@ struct ContentView: View {
             }
             .listStyle(.insetGrouped)
             .refreshable {
-                // 强制刷新服务器状态
                 do {
                     serverStatus = try await NetworkManager.shared.fetchServerStatus()
                 } catch {
@@ -536,9 +472,6 @@ struct ContentView: View {
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
             initializeTables()
-        }
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            currentTime = Date()
         }
         .task {
             await updateServerStatus()
