@@ -263,6 +263,21 @@ struct RegionPickerView: View {
                             pinnedRegions.move(fromOffsets: from, toOffset: to)
                             savePinnedRegions()
                         }
+                        
+                        if !isEditMode {
+                            Button(action: {
+                                withAnimation {
+                                    isEditMode = true
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundColor(.blue)
+                                    Text(NSLocalizedString("Main_Market_Add_Region", comment: ""))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -296,9 +311,11 @@ struct RegionPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(isEditMode ? NSLocalizedString("Main_Market_Done", comment: "") : NSLocalizedString("Main_Market_Edit", comment: "")) {
-                        withAnimation {
-                            isEditMode.toggle()
+                    if isEditMode {
+                        Button(NSLocalizedString("Main_Market_Done", comment: "")) {
+                            withAnimation {
+                                isEditMode = false
+                            }
                         }
                     }
                 }
