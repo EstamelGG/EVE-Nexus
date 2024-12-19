@@ -295,8 +295,20 @@ class StaticResourceManager {
         let filename = ResourceType.sovereignty.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
+        // 如果强制刷新，直接从网络获取
+        if forceRefresh {
+            Logger.info("Force refreshing sovereignty data from network")
+            let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
+            let jsonData = try JSONEncoder().encode(sovereigntyData)
+            
+            // 保存到文件和缓存
+            try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereignty.rawValue)
+            
+            return sovereigntyData
+        }
+        
         // 确定是否需要刷新
-        var shouldRefresh = forceRefresh
+        var shouldRefresh = false
         
         // 检查文件是否过期
         if fileManager.fileExists(atPath: filePath.path) && 
@@ -304,25 +316,22 @@ class StaticResourceManager {
             shouldRefresh = true
         }
         
-        // 如果需要强制刷新，先执行刷新操作
-        if shouldRefresh {
-            try await self.forceRefresh(.sovereignty)
-            return try await fetchSovereigntyData(forceRefresh: false)
-        }
-        
         // 1. 尝试从内存缓存获取
-        if let cached = cache.object(forKey: cacheKey) {
-            do {
-                let data = try JSONDecoder().decode([SovereigntyData].self, from: cached.data)
-                Logger.info("Got sovereignty data from memory cache")
-                return data
-            } catch {
-                Logger.error("Failed to decode cached sovereignty data: \(error)")
+        if !shouldRefresh {
+            if let cached = cache.object(forKey: cacheKey) {
+                do {
+                    let data = try JSONDecoder().decode([SovereigntyData].self, from: cached.data)
+                    Logger.info("Got sovereignty data from memory cache")
+                    return data
+                } catch {
+                    Logger.error("Failed to decode cached sovereignty data: \(error)")
+                    shouldRefresh = true
+                }
             }
         }
         
         // 2. 尝试从文件读取
-        if fileManager.fileExists(atPath: filePath.path) {
+        if !shouldRefresh && fileManager.fileExists(atPath: filePath.path) {
             do {
                 let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
                 let sovereigntyData = try JSONDecoder().decode([SovereigntyData].self, from: data)
@@ -330,6 +339,7 @@ class StaticResourceManager {
                 return sovereigntyData
             } catch {
                 Logger.error("Failed to load sovereignty data from file: \(error)")
+                shouldRefresh = true
             }
         }
         
@@ -801,35 +811,43 @@ class StaticResourceManager {
         let filename = ResourceType.sovereigntyCampaigns.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
-        // 确定是否需要刷新
-        let shouldRefresh = forceRefresh || (fileManager.fileExists(atPath: filePath.path) && 
-           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration))
-        
-        // 如果需要强制刷新或缓存过期，直接从网络获取
-        if shouldRefresh {
-            Logger.info("Fetching sovereignty campaigns data from network (force refresh)")
+        // 如果强制刷新，直接从网络获取
+        if forceRefresh {
+            Logger.info("Force refreshing sovereignty campaigns data from network")
             let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(campaignsData)
             
-            // 保存到文件（同时会更新内存缓存）
+            // 保存到文件和缓存
             try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereigntyCampaigns.rawValue)
             
             return campaignsData
         }
         
+        // 确定是否需要刷新
+        var shouldRefresh = false
+        
+        // 检查文件是否过期
+        if fileManager.fileExists(atPath: filePath.path) && 
+           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration) {
+            shouldRefresh = true
+        }
+        
         // 1. 尝试从内存缓存获取
-        if let cached = cache.object(forKey: cacheKey) {
-            do {
-                let data = try JSONDecoder().decode([SovereigntyCampaign].self, from: cached.data)
-                Logger.info("Got sovereignty campaigns data from memory cache")
-                return data
-            } catch {
-                Logger.error("Failed to decode cached sovereignty campaigns data: \(error)")
+        if !shouldRefresh {
+            if let cached = cache.object(forKey: cacheKey) {
+                do {
+                    let data = try JSONDecoder().decode([SovereigntyCampaign].self, from: cached.data)
+                    Logger.info("Got sovereignty campaigns data from memory cache")
+                    return data
+                } catch {
+                    Logger.error("Failed to decode cached sovereignty campaigns data: \(error)")
+                    shouldRefresh = true
+                }
             }
         }
         
         // 2. 尝试从文件读取
-        if fileManager.fileExists(atPath: filePath.path) {
+        if !shouldRefresh && fileManager.fileExists(atPath: filePath.path) {
             do {
                 let data = try loadFromFileAndCache(filePath: filePath.path, cacheKey: cacheKey)
                 let campaignsData = try JSONDecoder().decode([SovereigntyCampaign].self, from: data)
@@ -837,11 +855,12 @@ class StaticResourceManager {
                 return campaignsData
             } catch {
                 Logger.error("Failed to load sovereignty campaigns data from file: \(error)")
+                shouldRefresh = true
             }
         }
         
-        // 3. 从网络获取（首次获取）
-        Logger.info("Fetching sovereignty campaigns data from network (first time)")
+        // 3. 从网络获取
+        Logger.info("Fetching sovereignty campaigns data from network")
         let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns()
         let jsonData = try JSONEncoder().encode(campaignsData)
         
