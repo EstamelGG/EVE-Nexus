@@ -394,7 +394,11 @@ struct ContentView: View {
                             ServerStatusView(status: serverStatus)
                         }
                         Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 14))
                     }
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         showingAccountSheet = true
                     }
