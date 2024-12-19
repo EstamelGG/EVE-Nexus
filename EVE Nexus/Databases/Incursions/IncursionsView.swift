@@ -276,13 +276,6 @@ struct IncursionsView: View {
         .refreshable {
             await viewModel.fetchIncursions(forceRefresh: true)
         }
-        .overlay {
-            if viewModel.isRefreshing {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: 60)
-                    .background(Color(.systemBackground).opacity(0.8))
-            }
-        }
         .task {
             if viewModel.preparedIncursions.isEmpty {
                 await viewModel.fetchIncursions()

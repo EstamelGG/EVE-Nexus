@@ -248,11 +248,17 @@ class NetworkManager: NSObject {
     private var serverStatusCache: CachedData<ServerStatus>?
     
     // 通用的数据获取函数
-    func fetchData(from url: URL) async throws -> Data {
+    func fetchData(from url: URL, forceRefresh: Bool = false) async throws -> Data {
         Logger.info("Fetching data from URL: \(url.absoluteString)")
         
+        var request = URLRequest(url: url)
+        if forceRefresh {
+            // 强制刷新时禁用缓存
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        }
+        
         // 使用共享的 URLSession，让系统管理缓存
-        let (data, response) = try await URLSession.shared.data(from: url)
+        let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             Logger.error("Invalid response type received")
@@ -265,7 +271,7 @@ class NetworkManager: NSObject {
         }
         
         // 检查响应是否来自缓存
-        if let cachedResponse = URLCache.shared.cachedResponse(for: URLRequest(url: url)) {
+        if let cachedResponse = URLCache.shared.cachedResponse(for: request) {
             if cachedResponse.data == data {
                 Logger.info("Response for \(url.absoluteString) was served from URLCache")
                 return data
@@ -497,7 +503,7 @@ class NetworkManager: NSObject {
         let request = ResourceRequest<[SovereigntyData]>(
             resource: EVEResource.sovereignty,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: .both,
+            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
             forceRefresh: forceRefresh
         )
         
@@ -509,7 +515,7 @@ class NetworkManager: NSObject {
         let request = ResourceRequest<[SovereigntyCampaign]>(
             resource: EVEResource.sovereigntyCampaigns,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: .both,
+            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
             forceRefresh: forceRefresh
         )
         
@@ -521,7 +527,7 @@ class NetworkManager: NSObject {
         let request = ResourceRequest<[Incursion]>(
             resource: EVEResource.incursions,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: .both,
+            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
             forceRefresh: forceRefresh
         )
         
@@ -665,7 +671,7 @@ class NetworkManager: NSObject {
         }
         
         Logger.info("Fetching data from network for: \(cacheKey)")
-        let data = try await fetchData(from: url)
+        let data = try await fetchData(from: url, forceRefresh: request.forceRefresh)
         let decodedData = try JSONDecoder().decode(T.self, from: data)
         
         // 根据缓存策略保存数据

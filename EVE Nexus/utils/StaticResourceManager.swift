@@ -378,7 +378,7 @@ class StaticResourceManager {
     /// 保存联盟图标
     /// - Parameters:
     ///   - data: 图标数据
-    ///   - allianceId: 联盟ID
+    ///   - allianceId: ��盟ID
     func saveAllianceIcon(_ data: Data, allianceId: Int) throws {
         let iconPath = getAllianceIconPath()
         
@@ -713,7 +713,7 @@ class StaticResourceManager {
         // 如果强制刷新，直接从网络获取
         if forceRefresh {
             Logger.info("Force refreshing incursions data from network")
-            let incursionsData = try await NetworkManager.shared.fetchIncursions()
+            let incursionsData = try await NetworkManager.shared.fetchIncursions(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(incursionsData)
             
             // 保存到文件和缓存
@@ -760,7 +760,7 @@ class StaticResourceManager {
         
         // 3. 从网络获取
         Logger.info("Fetching incursions data from network")
-        let incursionsData = try await NetworkManager.shared.fetchIncursions()
+        let incursionsData = try await NetworkManager.shared.fetchIncursions(forceRefresh: shouldRefresh)
         let jsonData = try JSONEncoder().encode(incursionsData)
         
         // 保存到文件（同时会更新内存缓存）
