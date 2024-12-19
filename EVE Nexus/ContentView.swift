@@ -48,7 +48,8 @@ struct AccountsView: View {
     @Binding var isLoggedIn: Bool
     @State private var showingWebView = false
     @State private var characters: [EVECharacterInfo] = []
-    @State private var isEditing = false // 添加编辑模式状态
+    @State private var isEditing = false
+    @State private var characterToRemove: EVECharacterInfo? = nil // 添加待删除角色状态
     
     var body: some View {
         NavigationView {
@@ -87,7 +88,7 @@ struct AccountsView: View {
                                 if isEditing {
                                     Spacer()
                                     Button(action: {
-                                        removeCharacter(character)
+                                        characterToRemove = character
                                     }) {
                                         Image(systemName: "trash")
                                             .foregroundColor(.red)
@@ -134,6 +135,24 @@ struct AccountsView: View {
                 Button("Common_OK", role: .cancel) { }
             } message: {
                 Text(viewModel.errorMessage)
+            }
+            .alert("Account_Remove_Confirm_Title", isPresented: .init(
+                get: { characterToRemove != nil },
+                set: { if !$0 { characterToRemove = nil } }
+            )) {
+                Button("Account_Remove_Confirm_Cancel", role: .cancel) {
+                    characterToRemove = nil
+                }
+                Button("Account_Remove_Confirm_Remove", role: .destructive) {
+                    if let character = characterToRemove {
+                        removeCharacter(character)
+                        characterToRemove = nil
+                    }
+                }
+            } message: {
+                if let character = characterToRemove {
+                    Text(character.CharacterName)
+                }
             }
             .onAppear {
                 loadCharacters()

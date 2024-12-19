@@ -209,6 +209,10 @@
 "Account_Remove_Character" = "Remove Character";
 "Account_Login_Failed" = "Login Failed";
 "Account_Cannot_Get_Auth_URL" = "Cannot get authorization URL";
+"Account_Remove_Confirm_Title" = "Remove Character";
+"Account_Remove_Confirm_Message" = "Are you sure you want to remove this character?";
+"Account_Remove_Confirm_Cancel" = "Cancel";
+"Account_Remove_Confirm_Remove" = "Remove";
 
 "Common_OK" = "OK";
 

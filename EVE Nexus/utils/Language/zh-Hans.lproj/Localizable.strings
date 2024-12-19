@@ -208,3 +208,7 @@
 "Account_Login_Failed" = "登录失败";
 "Account_Cannot_Get_Auth_URL" = "无法获取授权URL";
 "Common_OK" = "确定";
+"Account_Remove_Confirm_Title" = "移除角色";
+"Account_Remove_Confirm_Message" = "确定要移除这个角色吗？";
+"Account_Remove_Confirm_Cancel" = "取消";
+"Account_Remove_Confirm_Remove" = "移除";
