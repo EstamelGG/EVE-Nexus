@@ -259,9 +259,9 @@ extension AttributeGroupView {
         if hasWeaponDamageAttributes {
             let damages = (
                 em: allAttributes[114] ?? 0,
-                therm: allAttributes[116] ?? 0,
+                therm: allAttributes[118] ?? 0,
                 kin: allAttributes[117] ?? 0,
-                exp: allAttributes[118] ?? 0
+                exp: allAttributes[116] ?? 0
             )
             
             // 获取伤害倍增系数
