@@ -202,4 +202,14 @@
 "Main_Market_Done" = "Done";
 "Main_Market_Add_Region" = "Manage Region";
 
+// Account Management
+"Account_Management" = "Account Management";
+"Account_Logged_Characters" = "Logged Characters";
+"Account_Add_Character" = "Add Character";
+"Account_Remove_Character" = "Remove Character";
+"Account_Login_Failed" = "Login Failed";
+"Account_Cannot_Get_Auth_URL" = "Cannot get authorization URL";
+
+"Common_OK" = "OK";
+
 

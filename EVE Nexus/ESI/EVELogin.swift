@@ -38,10 +38,18 @@ extension EVELogin {
     typealias NetworkError = EVE_Nexus.NetworkError
 }
 
+// 添加角色管理相关的数据结构
+struct CharacterAuth: Codable {
+    let character: EVECharacterInfo
+    let token: EVEAuthToken
+    let addedDate: Date
+}
+
 class EVELogin {
     static let shared = EVELogin()
     internal var config: ESIConfig?
     private var session: URLSession!
+    private let charactersKey = "EVECharacters"
     
     private init() {
         session = URLSession.shared
@@ -168,14 +176,28 @@ class EVELogin {
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) {
         let defaults = UserDefaults.standard
+        let characterAuth = CharacterAuth(
+            character: character,
+            token: token,
+            addedDate: Date()
+        )
+        
         do {
-            let tokenData = try JSONEncoder().encode(token)
-            let characterData = try JSONEncoder().encode(character)
-            defaults.set(tokenData, forKey: "EVEAuthToken")
-            defaults.set(characterData, forKey: "EVECharacterInfo")
+            var characters = loadCharacters()
+            // 检查是否已存在该角色
+            if let index = characters.firstIndex(where: { $0.character.CharacterID == character.CharacterID }) {
+                characters[index] = characterAuth
+            } else {
+                characters.append(characterAuth)
+            }
+            
+            let encodedData = try JSONEncoder().encode(characters)
+            defaults.set(encodedData, forKey: charactersKey)
             defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
+            
+            Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName)")
         } catch {
-            Logger.error("EVELogin: 保存认证信息失败: \(error)")
+            Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
         }
     }
     
@@ -201,10 +223,9 @@ class EVELogin {
     // 清除认证信息
     func clearAuthInfo() {
         let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: "EVEAuthToken")
-        defaults.removeObject(forKey: "EVECharacterInfo")
+        defaults.removeObject(forKey: charactersKey)
         defaults.removeObject(forKey: "TokenExpirationDate")
-        Logger.info("EVELogin: 认证信息已清除")
+        Logger.info("EVELogin: 清除所有认证信息")
     }
     
     // 添加令牌刷新功能
@@ -274,6 +295,40 @@ class EVELogin {
         
         Logger.error("EVELogin: 无法获取有效令牌")
         throw NetworkError.invalidData
+    }
+    
+    // 加载所有角色信息
+    private func loadCharacters() -> [CharacterAuth] {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: charactersKey) else {
+            return []
+        }
+        
+        do {
+            return try JSONDecoder().decode([CharacterAuth].self, from: data)
+        } catch {
+            Logger.error("EVELogin: 加载角色信息失败: \(error)")
+            return []
+        }
+    }
+    
+    // 移除指定角色
+    func removeCharacter(characterId: Int) {
+        var characters = loadCharacters()
+        characters.removeAll { $0.character.CharacterID == characterId }
+        
+        do {
+            let encodedData = try JSONEncoder().encode(characters)
+            UserDefaults.standard.set(encodedData, forKey: charactersKey)
+            Logger.info("EVELogin: 移除角色成功 - ID: \(characterId)")
+        } catch {
+            Logger.error("EVELogin: 移除角色失败: \(error)")
+        }
+    }
+    
+    // 获取所有角色信息
+    func getAllCharacters() -> [EVECharacterInfo] {
+        return loadCharacters().map { $0.character }
     }
 }
 
