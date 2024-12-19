@@ -249,7 +249,7 @@ struct SovereigntyView: View {
                         .foregroundColor(.primary)
                         .textCase(.none)
                     ) {
-                        ForEach(groupedCampaigns[regionName] ?? []) { campaign in
+                        ForEach(groupedCampaigns[regionName]?.sorted(by: { $0.location.systemName < $1.location.systemName }) ?? []) { campaign in
                             SovereigntyCell(sovereignty: campaign)
                         }
                     }
