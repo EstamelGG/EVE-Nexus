@@ -581,12 +581,6 @@ class NetworkManager: NSObject {
             try? FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
             Logger.error("Error accessing StaticDataSet directory: \(error)")
         }
-        
-        // 清理 URLCache
-        URLCache.shared.removeAllCachedResponses()
-        Logger.info("Cleared URLCache")
-        
-        Logger.info("Completed clearing all local caches")
     }
     
     // 获取联盟图标

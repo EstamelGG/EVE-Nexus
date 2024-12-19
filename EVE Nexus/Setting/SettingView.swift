@@ -680,28 +680,6 @@ struct SettingView: View {
                 }
             }
             
-            // 9. 清理 URLCache 并重建
-            await MainActor.run {
-                // 先移除现有的 URLCache
-                URLCache.shared.removeAllCachedResponses()
-                
-                // 获取缓存目录
-                let cacheDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-                
-                // 创建新的 URLCache 配置
-                let diskPath = cacheDirectory.appendingPathComponent("Cache.db").path
-                let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
-                let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
-                
-                // 创建并设置新的 URLCache
-                let cache = URLCache(memoryCapacity: memoryCapacity,
-                                  diskCapacity: diskCapacity,
-                                  diskPath: diskPath)
-                URLCache.shared = cache
-                
-                Logger.info("URLCache has been rebuilt with path: \(diskPath)")
-            }
-            
             // 10. 清理 Cookies
             if let cookies = HTTPCookieStorage.shared.cookies {
                 for cookie in cookies {
