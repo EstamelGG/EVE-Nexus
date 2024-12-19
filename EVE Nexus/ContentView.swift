@@ -162,16 +162,42 @@ struct AccountsView: View {
     }
 }
 
-// 创建独立的UTC时间显示组件
+// 优化 UTCTimeView
+class UTCTimeViewModel: ObservableObject {
+    @Published var currentTime = Date()
+    private var timer: Timer?
+    
+    func startTimer() {
+        // 停止现有的计时器（如果存在）
+        stopTimer()
+        
+        // 创建新的计时器
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.currentTime = Date()
+        }
+    }
+    
+    func stopTimer() {
+        timer?.invalidate()
+        timer = nil
+    }
+    
+    deinit {
+        stopTimer()
+    }
+}
+
 struct UTCTimeView: View {
-    @State private var currentTime = Date()
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @StateObject private var viewModel = UTCTimeViewModel()
     
     var body: some View {
         Text(formattedUTCTime)
             .font(.monospacedDigit(.caption)())
-            .onReceive(timer) { _ in
-                currentTime = Date()
+            .onAppear {
+                viewModel.startTimer()
+            }
+            .onDisappear {
+                viewModel.stopTimer()
             }
     }
     
@@ -180,11 +206,52 @@ struct UTCTimeView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateStyle = .none
         formatter.timeStyle = .medium
-        return formatter.string(from: currentTime)
+        return formatter.string(from: viewModel.currentTime)
+    }
+}
+
+// 优化 ServerStatusView
+class ServerStatusViewModel: ObservableObject {
+    @Published var serverStatus: ServerStatus?
+    @Published var isLoadingStatus = true
+    private var updateTask: Task<Void, Never>?
+    
+    func startUpdating() {
+        // 取消之前的任务（如果存在）
+        updateTask?.cancel()
+        
+        // 创建新的更新任务
+        updateTask = Task {
+            while !Task.isCancelled {
+                await updateServerStatus()
+                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000) // 60秒更新一次
+            }
+        }
+    }
+    
+    func stopUpdating() {
+        updateTask?.cancel()
+        updateTask = nil
+    }
+    
+    private func updateServerStatus() async {
+        do {
+            let status = try await NetworkManager.shared.fetchServerStatus()
+            await MainActor.run {
+                self.serverStatus = status
+                self.isLoadingStatus = false
+            }
+        } catch {
+            Logger.error("Failed to fetch server status: \(error)")
+            await MainActor.run {
+                self.isLoadingStatus = false
+            }
+        }
     }
 }
 
 struct ServerStatusView: View {
+    @StateObject private var viewModel = ServerStatusViewModel()
     let status: ServerStatus?
     
     var body: some View {
@@ -212,6 +279,12 @@ struct ServerStatusView: View {
                 Text("Checking Status...")
                     .font(.caption)
             }
+        }
+        .onAppear {
+            viewModel.startUpdating()
+        }
+        .onDisappear {
+            viewModel.stopUpdating()
         }
     }
 }
