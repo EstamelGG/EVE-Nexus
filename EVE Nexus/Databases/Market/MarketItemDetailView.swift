@@ -236,7 +236,7 @@ struct RegionPickerView: View {
         NavigationView {
             List {
                 if !pinnedRegions.isEmpty {
-                    Section(header: Text("常用星域")) {
+                    Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {
                         ForEach(pinnedRegions) { region in
                             RegionRow(
                                 region: region,
@@ -266,7 +266,7 @@ struct RegionPickerView: View {
                     }
                 }
                 
-                Section(header: Text(isEditMode ? "可选星域" : "所有星域")) {
+                Section(header: Text(isEditMode ? NSLocalizedString("Main_Market_Available_Regions", comment: "") : NSLocalizedString("Main_Market_All_Regions", comment: ""))) {
                     ForEach(unpinnedRegions) { region in
                         RegionRow(
                             region: region,
@@ -292,11 +292,11 @@ struct RegionPickerView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("选择星域")
+            .navigationTitle(NSLocalizedString("Main_Market_Select_Region", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(isEditMode ? "完成" : "编辑") {
+                    Button(isEditMode ? NSLocalizedString("Main_Market_Done", comment: "") : NSLocalizedString("Main_Market_Edit", comment: "")) {
                         withAnimation {
                             isEditMode.toggle()
                         }

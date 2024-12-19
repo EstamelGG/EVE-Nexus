@@ -194,4 +194,11 @@
 "Main_Sovereignty" = "Sovereignty";
 "Main_Sovereignty_Title" = "Sovereignty Campaigns";
 
+"Main_Market_Select_Region" = "Select Region";
+"Main_Market_Pinned_Regions" = "Pinned Regions";
+"Main_Market_Available_Regions" = "Available Regions";
+"Main_Market_All_Regions" = "All Regions";
+"Main_Market_Edit" = "Edit";
+"Main_Market_Done" = "Done";
+
 

@@ -191,3 +191,10 @@
 
 "Main_Sovereignty" = "主权争夺";
 "Main_Sovereignty_Title" = "主权战役";
+
+"Main_Market_Select_Region" = "选择星域";
+"Main_Market_Pinned_Regions" = "常用星域";
+"Main_Market_Available_Regions" = "可选星域";
+"Main_Market_All_Regions" = "所有星域";
+"Main_Market_Edit" = "编辑";
+"Main_Market_Done" = "完成";
