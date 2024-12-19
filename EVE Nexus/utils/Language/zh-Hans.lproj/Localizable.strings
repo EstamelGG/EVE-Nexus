@@ -167,11 +167,11 @@
 "Main_Setting_Static_Resource_No_Cache" = "无缓存";
 "Main_Setting_Static_Resource_Expired" = "已过期";
 "Main_Setting_Static_Resource_Last_Updated" = "更新时间：%@";
-"Main_Setting_Static_Resource_Sovereignty" = "主权数据";
+"Main_Setting_Static_Resource_Sovereignty" = "星系主权归属";
 "Main_Setting_Static_Resource_Alliance_Icons" = "联盟图标";
 "Main_Setting_Static_Resource_Icon_Count" = " (%d个)";
 "Main_Setting_Static_Resource_Net_Renders" = "物品渲染图";
-"Main_Setting_Static_Resource_Incursions" = "入侵数据";
+"Main_Setting_Static_Resource_Incursions" = "入侵事件数据";
 
 // 时间显示
 "Time_Days_Ago" = "%d天前";
@@ -190,7 +190,7 @@
 "Main_Setting_Market_Data" = "市场数据 (%d个物品, %d条记录)";
 
 "Main_Sovereignty" = "主权争夺";
-"Main_Sovereignty_Title" = "主权战役";
+"Main_Sovereignty_Title" = "主权战争状态";
 
 "Main_Market_Select_Region" = "选择星域";
 "Main_Market_Pinned_Regions" = "常用星域";
