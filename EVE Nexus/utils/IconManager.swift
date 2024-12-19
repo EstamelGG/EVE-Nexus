@@ -41,6 +41,7 @@ class IconManager {
         // 如果缓存中有，直接返回
         let cacheKey = NSString(string: iconName)
         if let cachedImage = imageCache.object(forKey: cacheKey) {
+            Logger.info("Load image from cache \(cacheKey).")
             return cachedImage
         }
         
@@ -63,6 +64,7 @@ class IconManager {
                let image = UIImage(data: imageData) {
                 // 缓存图片
                 imageCache.setObject(image, forKey: cacheKey)
+                Logger.info("Load image from disk \(cacheKey).")
                 return image
             }
         }

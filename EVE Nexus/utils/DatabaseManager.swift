@@ -271,13 +271,6 @@ class DatabaseManager: ObservableObject {
         case .error(let error):
             Logger.error("加载物品失败: \(error)")
         }
-        
-        // 打印最终的 metaGroupNames 内容
-        Logger.debug("最终的 metaGroupNames 内容:")
-        for (id, name) in metaGroupNames.sorted(by: { $0.key < $1.key }) {
-            Logger.debug("ID: \(id) -> Name: \(name)")
-        }
-        
         return (published, unpublished, metaGroupNames)
     }
     
