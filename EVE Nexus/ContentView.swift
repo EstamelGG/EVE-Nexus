@@ -43,142 +43,130 @@ struct TableNode: Identifiable, Equatable {
 }
 
 struct AccountsView: View {
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = EVELoginViewModel()
     @State private var showingWebView = false
     @State private var isEditing = false
     @State private var characterToRemove: EVECharacterInfo? = nil
     
     var body: some View {
-        NavigationView {
-            List {
-                // 添加新角色按钮
-                Section {
-                    Button(action: {
-                        if EVELogin.shared.getAuthorizationURL() != nil {
-                            showingWebView = true
-                        } else {
-                            Logger.error("获取授权URL失败")
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.blue)
-                            Text("Account_Add_Character")
-                                .foregroundColor(.blue)
-                            Spacer()
-                        }
+        List {
+            // 添加新角色按钮
+            Section {
+                Button(action: {
+                    if EVELogin.shared.getAuthorizationURL() != nil {
+                        showingWebView = true
+                    } else {
+                        Logger.error("获取授权URL失败")
                     }
-                }
-                
-                // 已登录角色列表
-                if !viewModel.characters.isEmpty {
-                    Section(header: Text("Account_Logged_Characters")) {
-                        ForEach(viewModel.characters, id: \.CharacterID) { character in
-                            HStack {
-                                if let portrait = viewModel.characterPortraits[character.CharacterID] {
-                                    Image(uiImage: portrait)
-                                        .resizable()
-                                        .frame(width: 40, height: 40)
-                                        .clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.crop.circle.fill")
-                                        .resizable()
-                                        .frame(width: 40, height: 40)
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                VStack(alignment: .leading) {
-                                    Text(character.CharacterName)
-                                        .font(.headline)
-                                    Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
-                                
-                                if isEditing {
-                                    Spacer()
-                                    Button(action: {
-                                        characterToRemove = character
-                                    }) {
-                                        Image(systemName: "trash")
-                                            .foregroundColor(.red)
-                                    }
-                                }
-                            }
-                            .padding(.vertical, 4)
-                        }
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                        Text("Account_Add_Character")
+                            .foregroundColor(.blue)
+                        Spacer()
                     }
                 }
             }
-            .navigationTitle("Account_Management")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+            
+            // 已登录角色列表
+            if !viewModel.characters.isEmpty {
+                Section(header: Text("Account_Logged_Characters")) {
+                    ForEach(viewModel.characters, id: \.CharacterID) { character in
+                        HStack {
+                            if let portrait = viewModel.characterPortraits[character.CharacterID] {
+                                Image(uiImage: portrait)
+                                    .resizable()
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .resizable()
+                                    .frame(width: 40, height: 40)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(alignment: .leading) {
+                                Text(character.CharacterName)
+                                    .font(.headline)
+                                Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            if isEditing {
+                                Spacer()
+                                Button(action: {
+                                    characterToRemove = character
+                                }) {
+                                    Image(systemName: "trash")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Account_Management")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !viewModel.characters.isEmpty {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        dismiss()
+                        isEditing.toggle()
                     }) {
-                        Image(systemName: "xmark")
+                        Text(isEditing ? "Main_Market_Done" : "Main_Market_Edit")
                             .foregroundColor(.blue)
                     }
                 }
-                
-                if !viewModel.characters.isEmpty {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            isEditing.toggle()
-                        }) {
-                            Text(isEditing ? "Main_Market_Done" : "Main_Market_Edit")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                }
             }
-            .sheet(isPresented: $showingWebView) {
-            } content: {
-                if let url = EVELogin.shared.getAuthorizationURL() {
-                    SafariView(url: url)
-                        .environmentObject(viewModel)
-                } else {
-                    Text("Account_Cannot_Get_Auth_URL")
-                }
+        }
+        .sheet(isPresented: $showingWebView) {
+        } content: {
+            if let url = EVELogin.shared.getAuthorizationURL() {
+                SafariView(url: url)
+                    .environmentObject(viewModel)
+            } else {
+                Text("Account_Cannot_Get_Auth_URL")
             }
-            .alert("Account_Login_Failed", isPresented: $viewModel.showingError) {
-                Button("Common_OK", role: .cancel) { }
-            } message: {
-                Text(viewModel.errorMessage)
+        }
+        .alert("Account_Login_Failed", isPresented: $viewModel.showingError) {
+            Button("Common_OK", role: .cancel) { }
+        } message: {
+            Text(viewModel.errorMessage)
+        }
+        .alert("Account_Remove_Confirm_Title", isPresented: .init(
+            get: { characterToRemove != nil },
+            set: { if !$0 { characterToRemove = nil } }
+        )) {
+            Button("Account_Remove_Confirm_Cancel", role: .cancel) {
+                characterToRemove = nil
             }
-            .alert("Account_Remove_Confirm_Title", isPresented: .init(
-                get: { characterToRemove != nil },
-                set: { if !$0 { characterToRemove = nil } }
-            )) {
-                Button("Account_Remove_Confirm_Cancel", role: .cancel) {
+            Button("Account_Remove_Confirm_Remove", role: .destructive) {
+                if let character = characterToRemove {
+                    viewModel.removeCharacter(character)
                     characterToRemove = nil
                 }
-                Button("Account_Remove_Confirm_Remove", role: .destructive) {
-                    if let character = characterToRemove {
-                        viewModel.removeCharacter(character)
-                        characterToRemove = nil
-                    }
-                }
-            } message: {
-                if let character = characterToRemove {
-                    Text(character.CharacterName)
-                }
             }
-            .onAppear {
-                viewModel.loadCharacters()
+        } message: {
+            if let character = characterToRemove {
+                Text(character.CharacterName)
             }
-            .onOpenURL { url in
-                Task {
-                    await viewModel.handleCallback(url: url)
-                    showingWebView = false
-                }
+        }
+        .onAppear {
+            viewModel.loadCharacters()
+        }
+        .onOpenURL { url in
+            Task {
+                await viewModel.handleCallback(url: url)
+                showingWebView = false
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-                // 强制视图刷新
-                viewModel.objectWillChange.send()
-            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
+            // 强制视图刷新
+            viewModel.objectWillChange.send()
         }
     }
 }
