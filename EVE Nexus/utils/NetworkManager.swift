@@ -234,23 +234,15 @@ class NetworkManager: NSObject {
         dataCache.delegate = self
         imageCache.delegate = self
         
-        // 初始化时检查并确保 URLCache 配置正确
-        ensureURLCacheExists()
-    }
-    
-    // 检查并确保 URLCache 配置正确
-    private func ensureURLCacheExists() {
-        // 配置新的 URLCache
-        let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
-        let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
-        
-        // 使用默认的缓存目录
-        let cache = URLCache(memoryCapacity: memoryCapacity,
-                           diskCapacity: diskCapacity,
-                           directory: nil)  // 让系统自动管理缓存目录
-        URLCache.shared = cache
-        
-        Logger.info("URLCache has been configured with memory: \(NetworkManager.formatFileSize(Int64(memoryCapacity))), disk: \(NetworkManager.formatFileSize(Int64(diskCapacity)))")
+        // 配置 URLCache
+        DispatchQueue.main.async { [weak self] in
+            let memoryCapacity = 20 * 1024 * 1024  // 20MB 内存缓存
+            let diskCapacity = 100 * 1024 * 1024   // 100MB 磁盘缓存
+            URLCache.shared = URLCache(memoryCapacity: memoryCapacity,
+                                    diskCapacity: diskCapacity,
+                                    directory: nil)
+            Logger.info("URLCache configured with memory: \(NetworkManager.formatFileSize(Int64(memoryCapacity))), disk: \(NetworkManager.formatFileSize(Int64(diskCapacity)))")
+        }
     }
     
     func setRegionID(_ id: Int) {
@@ -288,14 +280,16 @@ class NetworkManager: NSObject {
     
     // 专门用于获取图片的函数
     func fetchImage(from url: URL) async throws -> UIImage {
-        let data = try await fetchData(from: url)
-        
-        guard let image = UIImage(data: data) else {
-            Logger.error("Invalid image data received")
+        do {
+            let data = try await fetchData(from: url)
+            if let image = UIImage(data: data) {
+                return image
+            }
             throw NetworkError.invalidImageData
+        } catch {
+            Logger.error("Error fetching image from \(url.absoluteString): \(error)")
+            throw error
         }
-        
-        return image
     }
     
     // 通用的图片缓存处理方法
@@ -305,39 +299,35 @@ class NetworkManager: NSObject {
         cacheDuration: TimeInterval,
         imageURL: URL
     ) async throws -> UIImage {
-        // 检查内存缓存
-        if let cached = imageCache.object(forKey: cacheKey as NSString),
-           Date().timeIntervalSince(cached.timestamp) < cacheDuration {
-            Logger.info("Using memory cached image for: \(cacheKey)")
-            return cached.data
-        }
-        
-        // 检查本地文件缓存
-        let fileManager = FileManager.default
-        let fileURL: URL
-        
-        // 根据缓存键类型选择存储位置
-        if cacheKey.starts(with: "alliance_") {
-            // 联盟图标存储在 StaticDataSet/AllianceIcons 目录
-            fileURL = StaticResourceManager.shared.getAllianceIconPath().appendingPathComponent(filename)
-        } else if cacheKey.starts(with: "item_") {
-            // 物品渲染图存储在 StaticDataSet/NetRenders 目录
-            fileURL = StaticResourceManager.shared.getNetRendersPath().appendingPathComponent(filename)
-        } else {
-            // 其他图片存储在 StaticDataSet/Images 目录
-            fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Images").appendingPathComponent(filename)
-        }
-        
-        // 确保目录存在
-        try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        
-        if fileManager.fileExists(atPath: fileURL.path) {
-            do {
-                let data = try Data(contentsOf: fileURL)
-                let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                let modificationDate = attributes[.modificationDate] as! Date
-                
-                if Date().timeIntervalSince(modificationDate) < cacheDuration,
+        do {
+            // 检查内存缓存
+            if let cached = imageCache.object(forKey: cacheKey as NSString),
+               Date().timeIntervalSince(cached.timestamp) < cacheDuration {
+                Logger.info("Using memory cached image for: \(cacheKey)")
+                return cached.data
+            }
+            
+            // 检查本地文件缓存
+            let fileManager = FileManager.default
+            let fileURL: URL
+            
+            // 根据缓存键类型选择存储位置
+            if cacheKey.starts(with: "alliance_") {
+                fileURL = StaticResourceManager.shared.getAllianceIconPath().appendingPathComponent(filename)
+            } else if cacheKey.starts(with: "item_") {
+                fileURL = StaticResourceManager.shared.getNetRendersPath().appendingPathComponent(filename)
+            } else {
+                fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Images").appendingPathComponent(filename)
+            }
+            
+            // 确保目录存在
+            try? fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            
+            if fileManager.fileExists(atPath: fileURL.path) {
+                if let data = try? Data(contentsOf: fileURL),
+                   let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
+                   let modificationDate = attributes[.modificationDate] as? Date,
+                   Date().timeIntervalSince(modificationDate) < cacheDuration,
                    let image = UIImage(data: data) {
                     // 更新内存缓存
                     imageCache.setObject(
@@ -347,33 +337,29 @@ class NetworkManager: NSObject {
                     Logger.info("Using file cached image for: \(cacheKey)")
                     return image
                 }
-            } catch {
-                Logger.error("Error reading image cache file for \(cacheKey): \(error)")
             }
-        }
-        
-        // 从网络获取数据
-        Logger.info("Fetching image from network for: \(cacheKey)")
-        let data = try await fetchData(from: imageURL)
-        guard let image = UIImage(data: data) else {
-            throw NetworkError.invalidImageData
-        }
-        
-        // 更新内存缓存
-        imageCache.setObject(
-            CachedData(data: image, timestamp: Date()),
-            forKey: cacheKey as NSString
-        )
-        
-        // 更新文件缓存
-        do {
-            try data.write(to: fileURL)
-            Logger.info("Successfully saved image to file for: \(cacheKey) to \(fileURL)")
+            
+            // 从网络获取数据
+            Logger.info("Fetching image from network for: \(cacheKey)")
+            let image = try await fetchImage(from: imageURL)
+            
+            // 更新内存缓存
+            imageCache.setObject(
+                CachedData(data: image, timestamp: Date()),
+                forKey: cacheKey as NSString
+            )
+            
+            // 更新文件缓存
+            if let data = image.pngData() {
+                try? data.write(to: fileURL)
+                Logger.info("Successfully saved image to file for: \(cacheKey)")
+            }
+            
+            return image
         } catch {
-            Logger.error("Error saving image to file for \(cacheKey): \(error)")
+            Logger.error("Error in fetchCachedImage for \(cacheKey): \(error)")
+            throw error
         }
-        
-        return image
     }
     
     // 获取EVE物品渲染图
@@ -572,10 +558,10 @@ class NetworkManager: NSObject {
             
             Logger.info("Found \(contents.count) items in StaticDataSet directory")
             
-            // 逐个删除文件，跳过系统缓存文件
+            // 逐个删除文件，跳过隐藏文件
             for url in contents {
                 let filename = url.lastPathComponent
-                // 跳过系统缓存文件和隐藏文件
+                // 跳过隐藏文件
                 if filename.starts(with: ".") {
                     Logger.info("Skipping file: \(filename)")
                     continue
@@ -972,7 +958,7 @@ extension NetworkManager {
         } else if size >= 10 {
             formattedSize = String(format: "%.1f", size) // 大于10时显示1位小数
         } else {
-            formattedSize = String(format: "%.2f", size) // 其他��况显示2位小数
+            formattedSize = String(format: "%.2f", size) // 其他情况显示2位小数
         }
         
         return "\(formattedSize) \(units[unitIndex])"
