@@ -476,7 +476,6 @@ struct MarketItemDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.blue)
                             }
-                            .disabled(isLoadingPrice)
                             Spacer()
                         }
                         HStack {
