@@ -632,10 +632,43 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         var request = URLRequest(url: url)
         request.addValue("tranquility", forHTTPHeaderField: "datasource")
+        // 设置不使用缓存
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        // 添加随机参数以避免任何可能的缓存
+        request.url = URL(string: urlString + "?t=\(Date().timeIntervalSince1970)")
         
-        // 直接从网络获取最新状态
-        let data = try await fetchData(from: url, request: request)
-        return try JSONDecoder().decode(ServerStatus.self, from: data)
+        do {
+            // 直接从网络获取最新状态
+            let data = try await fetchData(from: url, request: request, forceRefresh: true)
+            let status = try JSONDecoder().decode(ServerStatus.self, from: data)
+            
+            // 如果响应中包含 error 字段，返回离线状态
+            if status.error != nil {
+                return ServerStatus(
+                    players: 0,
+                    serverVersion: "",
+                    startTime: "",
+                    error: "Server is offline",
+                    timeout: nil
+                )
+            }
+            
+            return status
+        } catch NetworkError.httpError(let statusCode) {
+            // 对于 502、504 错误，返回离线状态
+            if statusCode == 502 || statusCode == 504 {
+                return ServerStatus(
+                    players: 0,
+                    serverVersion: "",
+                    startTime: "",
+                    error: "Server is offline (HTTP \(statusCode))",
+                    timeout: nil
+                )
+            }
+            throw NetworkError.httpError(statusCode: statusCode)
+        } catch {
+            throw error
+        }
     }
     
     // 通用数据获取方法
