@@ -651,14 +651,14 @@ struct MarketItemDetailView: View {
             }
             
             // 2. 从网络加载数据
-            NetworkManager.shared.setRegionID(selectedRegionID)
+            await NetworkManager.shared.setRegionID(selectedRegionID)
             let orders = try await NetworkManager.shared.fetchMarketOrders(
                 typeID: itemID,
                 forceRefresh: true
             )
             
             // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard selectedRegionID == NetworkManager.shared.regionID else {
+            guard await selectedRegionID == NetworkManager.shared.regionID else {
                 return
             }
             
@@ -695,14 +695,14 @@ struct MarketItemDetailView: View {
             }
             
             // 2. 从网络加载数据
-            NetworkManager.shared.setRegionID(selectedRegionID)
+            await NetworkManager.shared.setRegionID(selectedRegionID)
             let history = try await NetworkManager.shared.fetchMarketHistory(
                 typeID: itemID,
                 forceRefresh: true
             )
             
             // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard selectedRegionID == NetworkManager.shared.regionID else {
+            guard await selectedRegionID == NetworkManager.shared.regionID else {
                 return
             }
             
