@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // 果不是强制刷新，检查本地文���缓存
+        // 如果不是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
