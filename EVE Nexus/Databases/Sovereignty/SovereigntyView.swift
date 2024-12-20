@@ -181,8 +181,14 @@ struct SovereigntyCell: View {
                 } else if let icon = sovereignty.icon {
                     icon
                         .resizable()
-                        .scaledToFit()
+                        .aspectRatio(contentMode: .fill)
                         .frame(width: 48, height: 48)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(.white, lineWidth: 2)
+                        )
+                        .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
                 }
             }
             .frame(width: 56, height: 56)
