@@ -270,7 +270,9 @@ struct ContentView: View {
             .listStyle(.insetGrouped)
             .refreshable {
                 do {
+                    // 直接从网络获取最新状态
                     serverStatus = try await NetworkManager.shared.fetchServerStatus()
+                    lastStatusUpdateTime = Date()
                 } catch {
                     Logger.error("Failed to refresh server status: \(error)")
                 }

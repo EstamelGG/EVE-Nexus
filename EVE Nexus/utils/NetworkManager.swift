@@ -768,6 +768,24 @@ class NetworkManager: NSObject {
     
     // 获取角色技能信息
     func fetchCharacterSkills(characterId: Int, token: String) async throws -> CharacterSkillsResponse {
+        // 检查 UserDefaults 缓存
+        let skillsCacheKey = "character_\(characterId)_skills"
+        let skillsUpdateTimeKey = "character_\(characterId)_skills_update_time"
+        
+        // 如果缓存存在且未过期（5分钟），直接返回缓存数据
+        if let cachedData = UserDefaults.standard.data(forKey: skillsCacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: skillsUpdateTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 300 { // 5分钟缓存
+            do {
+                let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: cachedData)
+                Logger.info("Using cached skills data for character \(characterId)")
+                return skills
+            } catch {
+                Logger.error("Failed to decode cached skills data: \(error)")
+            }
+        }
+        
+        // 如果没有缓存或缓存已过期，从网络获取
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
@@ -777,7 +795,13 @@ class NetworkManager: NSObject {
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let data = try await fetchData(from: url, request: request)
-        return try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+        let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: skillsCacheKey)
+        UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
+        
+        return skills
     }
     
     // 角色位置信息模型
