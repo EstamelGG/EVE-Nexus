@@ -212,6 +212,8 @@
 "Account_Remove_Confirm_Cancel" = "Cancel";
 "Account_Remove_Confirm_Remove" = "Remove";
 "Account_Character_ID" = "Character ID";
+"Account_Total_SP" = "Total SP";
+"Account_Unallocated_SP" = "Unallocated SP";
 
 "Common_OK" = "OK";
 

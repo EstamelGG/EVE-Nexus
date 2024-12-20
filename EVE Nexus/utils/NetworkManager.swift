@@ -762,6 +762,61 @@ class NetworkManager: NSObject {
         
         return image
     }
+    
+    // 获取角色技能信息
+    func fetchCharacterSkills(characterId: Int, token: String) async throws -> CharacterSkillsResponse {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let data = try await fetchData(from: url, request: request)
+        let skillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+        
+        // 保存到StaticDataSet目录
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+            .appendingPathComponent("Characters")
+            .appendingPathComponent("\(characterId)")
+            .appendingPathComponent("skills.json")
+        
+        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), 
+                                               withIntermediateDirectories: true)
+        
+        let encodedData = try JSONEncoder().encode(skillsResponse)
+        try encodedData.write(to: fileURL)
+        
+        return skillsResponse
+    }
+    
+    // 添加一个新的fetchData重载，支持自定义请求
+    func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
+        Logger.info("Fetching data from URL: \(url.absoluteString)")
+        
+        var request = customRequest ?? URLRequest(url: url)
+        if forceRefresh {
+            // 强制刷新时禁用缓存
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        }
+        
+        // 使用共享的 URLSession，让系统管理缓存
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            Logger.error("Invalid response type received")
+            throw NetworkError.invalidResponse
+        }
+        
+        guard httpResponse.statusCode == 200 else {
+            Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
+            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+        }
+        
+        Logger.info("Successfully fetched data from: \(url.absoluteString)")
+        return data
+    }
 }
 
 // 网络错误枚举
@@ -1015,4 +1070,18 @@ extension NetworkManager {
         
         return "\(formattedSize) \(units[unitIndex])"
     }
+}
+
+// 技能数据模型
+struct CharacterSkill: Codable {
+    let active_skill_level: Int
+    let skill_id: Int
+    let skillpoints_in_skill: Int
+    let trained_skill_level: Int
+}
+
+struct CharacterSkillsResponse: Codable {
+    let skills: [CharacterSkill]
+    let total_sp: Int
+    let unallocated_sp: Int
 }

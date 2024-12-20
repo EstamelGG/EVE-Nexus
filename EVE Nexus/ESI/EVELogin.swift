@@ -17,6 +17,8 @@ struct EVECharacterInfo: Codable {
     let Scopes: String
     let TokenType: String
     let CharacterOwnerHash: String
+    var totalSkillPoints: Int?
+    var unallocatedSkillPoints: Int?
 }
 
 // ESI配置模型
@@ -78,10 +80,44 @@ class EVELoginViewModel: ObservableObject {
         characters = EVELogin.shared.getAllCharacters()
         isLoggedIn = !characters.isEmpty
         
-        // 异步加载所有角色的头像，但不强制刷新
+        // 分别启动两个独立的任务
+        // 1. 加载头像
         Task {
             for character in characters {
                 await loadCharacterPortrait(characterId: character.CharacterID)
+            }
+        }
+        
+        // 2. 加载技能点信息
+        Task {
+            for character in characters {
+                do {
+                    if let characterAuth = EVELogin.shared.loadCharacters().first(where: { $0.character.CharacterID == character.CharacterID }) {
+                        // 获取有效的访问令牌
+                        let token = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                        
+                        // 获取技能点信息
+                        let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
+                            characterId: character.CharacterID,
+                            token: token.access_token
+                        )
+                        
+                        // 更新角色信息
+                        var updatedCharacter = character
+                        updatedCharacter.totalSkillPoints = skillsInfo.total_sp
+                        updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        
+                        // 保存更新后的信息
+                        EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
+                        
+                        // 更新视图模型中的角色列表
+                        if let index = self.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                            self.characters[index] = updatedCharacter
+                        }
+                    }
+                } catch {
+                    Logger.error("加载角色技能点信息失败 - \(character.CharacterName): \(error)")
+                }
             }
         }
     }

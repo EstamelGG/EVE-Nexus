@@ -58,6 +58,16 @@ struct AccountsView: View {
                                 Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
                                     .font(.caption)
                                     .foregroundColor(.gray)
+                                if let totalSP = character.totalSkillPoints {
+                                    Text("\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP))")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
+                                    Text("\(NSLocalizedString("Account_Unallocated_SP", comment: "")): \(formatSkillPoints(unallocatedSP))")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                }
                             }
                             .padding(.leading, 8)
                             
@@ -170,8 +180,19 @@ struct AccountsView: View {
                         // 使用新的访问令牌获取最新的角色信息
                         let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
                         
+                        // 获取角色技能信息
+                        let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
+                            characterId: characterAuth.character.CharacterID,
+                            token: newToken.access_token
+                        )
+                        
+                        // 更新角色的技能点信息
+                        var characterWithSkills = updatedCharacter
+                        characterWithSkills.totalSkillPoints = skillsInfo.total_sp
+                        characterWithSkills.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        
                         // 保存更新后的认证信息
-                        EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
+                        EVELogin.shared.saveAuthInfo(token: newToken, character: characterWithSkills)
                         
                         // 强制从网络重新加载头像
                         if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
@@ -208,5 +229,15 @@ struct AccountsView: View {
     @MainActor
     private func updatePortrait(characterId: Int, portrait: UIImage) {
         viewModel.characterPortraits[characterId] = portrait
+    }
+    
+    // 格式化技能点显示
+    private func formatSkillPoints(_ sp: Int) -> String {
+        if sp >= 1_000_000 {
+            return String(format: "%.1fM", Double(sp) / 1_000_000.0)
+        } else if sp >= 1_000 {
+            return String(format: "%.1fK", Double(sp) / 1_000.0)
+        }
+        return "\(sp)"
     }
 } 
