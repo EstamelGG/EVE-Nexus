@@ -866,6 +866,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     // 获取角色技能信息
     func fetchCharacterSkills(characterId: Int) async throws -> CharacterSkillsResponse {
         // 检查 UserDefaults 缓存
+        Logger.debug("Fetching Skills...")
         let skillsCacheKey = "character_\(characterId)_skills"
         let skillsUpdateTimeKey = "character_\(characterId)_skills_update_time"
         

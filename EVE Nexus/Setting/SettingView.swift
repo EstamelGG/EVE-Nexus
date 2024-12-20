@@ -405,16 +405,22 @@ struct SettingView: View {
                     let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
+                    // 更新下载时间
+                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                 case .incursions:
                     Logger.info("Refreshing incursions data")
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
+                    // 更新下载时间
+                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                 case .sovereigntyCampaigns:
                     Logger.info("Refreshing Sovereignty Campaigns data")
                     let sovCamp = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovCamp)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
+                    // 更新下载时间
+                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                 case .allianceIcons, .netRenders, .marketData:
                     Logger.info("Alliance icons and net renders are refreshed on-demand")
                     break
@@ -423,9 +429,10 @@ struct SettingView: View {
                 // 刷新完成后更新UI
                 await MainActor.run {
                     refreshingResources.remove(resource.name)
-                    // 立即更新UI以停止加载动画
-                    updateSettingGroups()
-                    updateAllData()
+                    // 强制重新创建静态资源组以更新时间显示
+                    if let index = settingGroups.firstIndex(where: { $0.header == NSLocalizedString("Main_Setting_Static_Resources", comment: "") }) {
+                        settingGroups[index] = createStaticResourceGroup()
+                    }
                 }
             } catch {
                 Logger.error("Failed to refresh resource: \(error)")
@@ -512,7 +519,7 @@ struct SettingView: View {
         }
     }
     
-    // MARK: - 主题管���
+    // MARK: - 主题管理
     private func getThemeIcon() -> String {
         switch selectedTheme {
         case "light": return "sun.max.fill"
