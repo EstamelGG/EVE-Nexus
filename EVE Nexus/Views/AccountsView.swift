@@ -102,7 +102,10 @@ struct AccountsView: View {
                 Text(NSLocalizedString("Account_Cannot_Get_Auth_URL", comment: ""))
             }
         }
-        .alert(NSLocalizedString("Account_Login_Failed", comment: ""), isPresented: $viewModel.showingError) {
+        .alert(NSLocalizedString("Account_Login_Failed", comment: ""), isPresented: Binding(
+            get: { viewModel.showingError },
+            set: { viewModel.showingError = $0 }
+        )) {
             Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) { }
         } message: {
             Text(viewModel.errorMessage)
@@ -141,6 +144,7 @@ struct AccountsView: View {
         .id(forceUpdate) // 添加id以强制视图刷新
     }
     
+    @MainActor
     private func refreshAllCharacters() async {
         isRefreshing = true
         defer { isRefreshing = false }
@@ -149,41 +153,55 @@ struct AccountsView: View {
         let characterAuths = EVELogin.shared.loadCharacters()
         
         // 清除所有头像并添加所有角色到刷新集合
-        await MainActor.run {
-            viewModel.characterPortraits.removeAll()
-            refreshingCharacters = Set(characterAuths.map { $0.character.CharacterID })
-        }
+        viewModel.characterPortraits.removeAll()
+        refreshingCharacters = Set(characterAuths.map { $0.character.CharacterID })
         
-        for characterAuth in characterAuths {
-            do {
-                // 使用刷新令牌获取新的访问令牌
-                let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
-                
-                // 使用新的访问令牌获取最新的角色信息
-                let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
-                
-                // 保存更新后的认证信息
-                EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
-                
-                // 重新加载头像
-                await viewModel.loadCharacterPortrait(characterId: characterAuth.character.CharacterID)
-                
-                // 从刷新集合中移除已完成的角色
-                await MainActor.run {
-                    refreshingCharacters.remove(characterAuth.character.CharacterID)
-                }
-                
-                Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
-            } catch {
-                Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
-                // 如果刷新失败，也要从刷新集合中移除
-                await MainActor.run {
-                    refreshingCharacters.remove(characterAuth.character.CharacterID)
+        // 创建所有刷新任务
+        await withTaskGroup(of: Void.self) { group in
+            for characterAuth in characterAuths {
+                group.addTask {
+                    do {
+                        // 使用刷新令牌获取新的访问令牌
+                        let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                        
+                        // 使用新的访问令牌获取最新的角色信息
+                        let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
+                        
+                        // 保存更新后的认证信息
+                        EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
+                        
+                        // 强制从网络重新加载头像
+                        if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                            characterId: characterAuth.character.CharacterID
+                        ) {
+                            // 更新头像
+                            await updatePortrait(characterId: characterAuth.character.CharacterID, portrait: portrait)
+                        }
+                        
+                        // 从刷新集合中移除已完成的角色
+                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
+                        
+                        Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
+                    } catch {
+                        Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
+                        // 如果刷新失败，也要从刷新集合中移除
+                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
+                    }
                 }
             }
         }
         
         // 重新加载所有角色信息
         viewModel.loadCharacters()
+    }
+    
+    @MainActor
+    private func updateRefreshingStatus(for characterId: Int) {
+        refreshingCharacters.remove(characterId)
+    }
+    
+    @MainActor
+    private func updatePortrait(characterId: Int, portrait: UIImage) {
+        viewModel.characterPortraits[characterId] = portrait
     }
 } 

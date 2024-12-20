@@ -47,6 +47,7 @@ struct CharacterAuth: Codable {
 }
 
 // 添加用户管理的 ViewModel
+@MainActor
 class EVELoginViewModel: ObservableObject {
     @Published var characterInfo: EVECharacterInfo?
     @Published var isLoggedIn: Bool = false
@@ -57,10 +58,11 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int) async {
         do {
+            // 清除缓存的头像
+            characterPortraits.removeValue(forKey: characterId)
+            
             let portrait = try await NetworkManager.shared.fetchCharacterPortrait(characterId: characterId)
-            await MainActor.run {
-                characterPortraits[characterId] = portrait
-            }
+            characterPortraits[characterId] = portrait
         } catch {
             Logger.error("加载角色头像失败: \(error)")
         }
@@ -79,18 +81,14 @@ class EVELoginViewModel: ObservableObject {
     }
     
     func handleLoginSuccess(character: EVECharacterInfo) {
-        DispatchQueue.main.async {
-            self.characterInfo = character
-            self.isLoggedIn = true
-            self.loadCharacters()
-        }
+        characterInfo = character
+        isLoggedIn = true
+        loadCharacters()
     }
     
     func handleLoginError(_ error: Error) {
-        DispatchQueue.main.async {
-            self.errorMessage = error.localizedDescription
-            self.showingError = true
-        }
+        errorMessage = error.localizedDescription
+        showingError = true
     }
     
     func removeCharacter(_ character: EVECharacterInfo) {
@@ -110,14 +108,10 @@ class EVELoginViewModel: ObservableObject {
             EVELogin.shared.saveAuthInfo(token: token, character: character)
             
             // 更新UI状态
-            await MainActor.run {
-                self.handleLoginSuccess(character: character)
-            }
+            handleLoginSuccess(character: character)
         } catch {
             Logger.error("处理授权失败: \(error)")
-            await MainActor.run {
-                self.handleLoginError(error)
-            }
+            handleLoginError(error)
         }
     }
 }
