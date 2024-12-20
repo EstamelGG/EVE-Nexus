@@ -17,7 +17,7 @@ class ESIDataManager {
         request.addValue("tranquility", forHTTPHeaderField: "datasource")
         request.timeoutInterval = 30 // 设置30秒超时
         request.cachePolicy = .reloadIgnoringLocalCacheData // 忽略缓存，直接从服务器获取数据
-        
+        Logger.debug("Fetch data with token \(token)")
         let data = try await NetworkManager.shared.fetchData(from: url, request: request)
         guard let stringValue = String(data: data, encoding: .utf8),
               let balance = Double(stringValue) else {
