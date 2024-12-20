@@ -11,15 +11,44 @@ class StaticResourceManager {
     private let fileQueue = DispatchQueue(label: "com.eve.nexus.static.file")
     private let cacheLock = NSLock()
     
-    // 缓存时间常量
-    public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 7 * 24 * 60 * 60  // 7天
-    public let ITEM_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 60 * 60     // 30天
-    public let STATIC_DATA_CACHE_DURATION: TimeInterval = 24 * 60 * 60        // 1天
-    public let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
-    public let RENDER_CACHE_DURATION: TimeInterval = 7 * 24 * 3600      // 7天
-    public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
-    public let INCURSIONS_CACHE_DURATION: TimeInterval = 1 * 3600        // 1小时
-    public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 24 * 3600 // 1天
+    // MARK: - 缓存时间常量
+    
+    /// 缓存时间枚举
+    enum CacheDuration {
+        /// 市场订单缓存时间（5分钟）
+        static let marketOrders: TimeInterval = 5 * 60
+        
+        /// 市场历史缓存时间（1小时）
+        static let marketHistory: TimeInterval = 60 * 60
+        
+        /// 星系主权归属数据缓存时间（1小时）
+        static let sovereignty: TimeInterval = 60 * 60
+        
+        /// 入侵数据缓存时间（5分钟）
+        static let incursions: TimeInterval = 5 * 60
+        
+        /// 主权战争数据缓存时间（5分钟）
+        static let sovereigntyCampaigns: TimeInterval = 5 * 60
+        
+        /// 联盟图标缓存时间（1周）
+        static let allianceIcon: TimeInterval = 7 * 24 * 60 * 60
+        
+        /// 物品渲染图缓存时间（1周）
+        static let itemRender: TimeInterval = 7 * 24 * 60 * 60
+        
+        /// 角色头像缓存时间（1天）
+        static let characterPortrait: TimeInterval = 24 * 60 * 60
+        
+        /// 角色技能缓存时间（1小时）
+        static let characterSkills: TimeInterval = 60 * 60
+    }
+    
+    // 修改原有的缓存时间常量，使用新的枚举
+    var SOVEREIGNTY_CACHE_DURATION: TimeInterval { CacheDuration.sovereignty }
+    var INCURSIONS_CACHE_DURATION: TimeInterval { CacheDuration.incursions }
+    var SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval { CacheDuration.sovereigntyCampaigns }
+    var ALLIANCE_ICON_CACHE_DURATION: TimeInterval { CacheDuration.allianceIcon }
+    var RENDER_CACHE_DURATION: TimeInterval { CacheDuration.itemRender }
     
     // 静态资源信息结构
     struct ResourceInfo {
@@ -525,7 +554,7 @@ class StaticResourceManager {
         let orderFile = getMarketDataPath().appendingPathComponent("order_\(itemId)_\(regionId).json")
         guard let data = try? Data(contentsOf: orderFile),
               let container = try? JSONDecoder().decode(MarketDataContainer<[MarketOrder]>.self, from: data),
-              Date().timeIntervalSince(container.timestamp) < 300 // 5分钟有效期
+              Date().timeIntervalSince(container.timestamp) < CacheDuration.marketOrders
         else {
             return nil
         }
@@ -541,7 +570,7 @@ class StaticResourceManager {
         let historyFile = getMarketDataPath().appendingPathComponent("history_\(itemId)_\(regionId).json")
         guard let data = try? Data(contentsOf: historyFile),
               let container = try? JSONDecoder().decode(MarketDataContainer<[MarketHistory]>.self, from: data),
-              Date().timeIntervalSince(container.timestamp) < 3600 // 1小时有效期
+              Date().timeIntervalSince(container.timestamp) < CacheDuration.marketHistory
         else {
             return nil
         }
