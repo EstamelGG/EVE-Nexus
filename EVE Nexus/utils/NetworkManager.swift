@@ -885,6 +885,7 @@ enum NetworkError: LocalizedError {
     case noValidPrice
     case invalidData
     case tokenExpired
+    case unauthed
     
     var errorDescription: String? {
         switch self {
@@ -902,6 +903,8 @@ enum NetworkError: LocalizedError {
             return NSLocalizedString("Network_Error_Invalid_Data", comment: "")
         case .tokenExpired:
             return NSLocalizedString("Network_Error_Token_Expired", comment: "")
+        case .unauthed:
+            return NSLocalizedString("Network_Error_Unauthed", comment: "")
         }
     }
 }
