@@ -185,9 +185,9 @@ enum EVEResource: CaseIterable, NetworkResource {
         case .sovereigntyCampaigns:
             return "sovereigntyCampaigns.json"
         case .marketOrders(let regionId, let typeId):
-            return "Market_\(typeId)/orders_\(regionId).json"
+            return "Market/order_\(typeId)_\(regionId).json"
         case .marketHistory(let regionId, let typeId):
-            return "Market_\(typeId)/history_\(regionId).json"
+            return "Market/history_\(typeId)_\(regionId).json"
         case .serverStatus:
             return "serverStatus.json"
         }
