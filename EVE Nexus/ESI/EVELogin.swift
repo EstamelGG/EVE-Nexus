@@ -709,7 +709,7 @@ class EVELogin {
             cacheDuration: 300, // 钱包数据缓存5分钟
             forceRefresh: forceRefresh
         ) { token in
-            try await ESIDataManager.shared.getWalletBalance(
+            try await NetworkManager.shared.fetchCharacterWallet(
                 characterId: characterId,
                 token: token
             )
@@ -746,6 +746,12 @@ class EVELogin {
                 token: token
             )
         }
+    }
+    
+    // 根据ID获取角色信息
+    func getCharacterByID(_ characterId: Int) -> CharacterAuth? {
+        let characters = loadCharacters()
+        return characters.first { $0.character.CharacterID == characterId }
     }
 }
 

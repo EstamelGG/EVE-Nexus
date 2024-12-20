@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // 如果不是强制刷新，检查本地文件缓存
+        // 如果是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
@@ -786,20 +786,17 @@ class NetworkManager: NSObject {
         }
         
         // 如果没有缓存或缓存已过期，从网络获取
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let data = try await fetchData(from: url, request: request)
-        let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+        let skills: CharacterSkillsResponse = try await fetchDataWithToken(
+            characterId: characterId,
+            token: token,
+            endpoint: "/characters/\(characterId)/skills/"
+        )
         
         // 更新缓存
-        UserDefaults.standard.set(data, forKey: skillsCacheKey)
-        UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
+        if let encodedData = try? JSONEncoder().encode(skills) {
+            UserDefaults.standard.set(encodedData, forKey: skillsCacheKey)
+            UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
+        }
         
         return skills
     }
@@ -840,17 +837,11 @@ class NetworkManager: NSObject {
     
     // 获取角色位置信息
     func fetchCharacterLocation(characterId: Int, token: String) async throws -> CharacterLocation {
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue("tranquility", forHTTPHeaderField: "datasource")
-        
-        let data = try await fetchData(from: url, request: request)
-        return try JSONDecoder().decode(CharacterLocation.self, from: data)
+        return try await fetchDataWithToken(
+            characterId: characterId,
+            token: token,
+            endpoint: "/characters/\(characterId)/location/"
+        )
     }
     
     // 获取星系位置信息
@@ -886,6 +877,49 @@ class NetworkManager: NSObject {
     func fetchCharacterLocationInfo(characterId: Int, token: String, databaseManager: DatabaseManager) async throws -> SolarSystemInfo? {
         let location = try await fetchCharacterLocation(characterId: characterId, token: token)
         return await getLocationInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
+    }
+    
+    // 专门用于需要访问令牌的请求
+    func fetchDataWithToken<T: Codable>(characterId: Int, token: String, endpoint: String) async throws -> T {
+        let urlString = "https://esi.evetech.net/latest\(endpoint)"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("tranquility", forHTTPHeaderField: "datasource")
+        
+        do {
+            let data = try await fetchData(from: url, request: request)
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch NetworkError.httpError(let statusCode) {
+            if statusCode == 403 {
+                // 令牌过期，尝试刷新
+                Logger.info("Token expired, attempting to refresh...")
+                if let character = EVELogin.shared.getCharacterByID(characterId),
+                   let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
+                    // 使用新令牌重试
+                    request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
+                    let data = try await fetchData(from: url, request: request)
+                    Logger.info("Token refreshed.")
+                    return try JSONDecoder().decode(T.self, from: data)
+                } else {
+                    Logger.info("New Token also failed ?...")
+                    throw NetworkError.tokenExpired
+                }
+            }
+            throw NetworkError.httpError(statusCode: statusCode)
+        }
+    }
+    
+    // 获取钱包余额
+    func fetchCharacterWallet(characterId: Int, token: String) async throws -> Double {
+        return try await fetchDataWithToken(
+            characterId: characterId,
+            token: token,
+            endpoint: "/characters/\(characterId)/wallet/"
+        )
     }
 }
 

@@ -293,6 +293,7 @@ struct AccountsView: View {
                         
                         // 保存更新后的认证信息
                         EVELogin.shared.saveAuthInfo(token: newToken, character: characterWithInfo)
+                        Logger.info("Refreshed token: \(newToken)")
                         
                         // 强制从网络重新加载头像
                         if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
