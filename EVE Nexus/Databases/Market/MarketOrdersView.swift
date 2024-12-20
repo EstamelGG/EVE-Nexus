@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MarketOrdersView: View {
     let itemID: Int
+    let itemName: String
     let orders: [MarketOrder]
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showBuyOrders = false
@@ -84,6 +85,7 @@ struct MarketOrdersView: View {
                 }
             }
         }
+        .navigationTitle(itemName)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

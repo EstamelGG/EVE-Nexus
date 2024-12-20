@@ -525,9 +525,10 @@ struct MarketItemDetailView: View {
                 
                 // 市场订单按钮
                 NavigationLink {
-                    if let orders = marketOrders {
+                    if let orders = marketOrders, let details = itemDetails {
                         MarketOrdersView(
                             itemID: itemID,
+                            itemName: details.name,
                             orders: orders,
                             databaseManager: databaseManager
                         )
