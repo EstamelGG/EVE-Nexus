@@ -162,6 +162,7 @@
 "Main_Setting_Cache_Expiration_Hours_Minutes" = "%dh %dm remaining";
 "Main_Setting_Cache_Expiration_Minutes" = "%dm remaining";
 "Main_Setting_Static_Resource_Expired" = "Expired";
+"Main_Setting_Cache" = "Cache";
 
 // Static Resources
 "Main_Setting_Static_Resources" = "Static Resources";

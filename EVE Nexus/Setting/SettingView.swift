@@ -257,27 +257,38 @@ struct SettingView: View {
             // 统计 StaticDataSet 目录大小
             let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
             var totalSize: Int64 = 0
-            Logger.debug("Calc cache dir.")
-            if FileManager.default.fileExists(atPath: staticDataSetPath.path),
-               let enumerator = FileManager.default.enumerator(at: staticDataSetPath, 
-                                                             includingPropertiesForKeys: [.fileSizeKey],
-                                                             options: [.skipsHiddenFiles]) {
-                for case let fileURL as URL in enumerator {
-                    do {
-                        let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-                        if let fileSize = attributes[.size] as? Int64 {
-                            totalSize += fileSize
+            Logger.debug("Begin calculating cache size at path: \(staticDataSetPath.path)")
+            
+            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
+                Logger.debug("StaticDataSet directory exists")
+                if let enumerator = FileManager.default.enumerator(at: staticDataSetPath, 
+                                                                includingPropertiesForKeys: [.fileSizeKey],
+                                                                options: [.skipsHiddenFiles]) {
+                    for case let fileURL as URL in enumerator {
+                        do {
+                            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+                            if let fileSize = attributes[.size] as? Int64 {
+                                totalSize += fileSize
+                                Logger.debug("Found file: \(fileURL.lastPathComponent), size: \(formatFileSize(fileSize))")
+                            }
+                        } catch {
+                            Logger.error("Error calculating file size for \(fileURL.path): \(error)")
                         }
-                    } catch {
-                        Logger.error("Error calculating file size: \(error)")
                     }
+                    Logger.debug("Finished calculation. Total size: \(formatFileSize(totalSize))")
+                } else {
+                    Logger.error("Failed to create directory enumerator")
                 }
+            } else {
+                Logger.debug("StaticDataSet directory does not exist")
             }
             
             // 更新界面
             await MainActor.run {
-                cacheSize = formatFileSize(totalSize)
-                updateSettingGroups()
+                let formattedSize = formatFileSize(totalSize)
+                Logger.debug("Updating UI with cache size: \(formattedSize)")
+                self.cacheSize = formattedSize
+                self.updateSettingGroups() // 确保在更新缓存大小后更新设置组
             }
         }
     }
@@ -329,10 +340,10 @@ struct SettingView: View {
     }
     
     private func createCacheGroup() -> SettingGroup {
-        SettingGroup(header: "Cache", items: [
+        SettingGroup(header: NSLocalizedString("Main_Setting_Cache", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
-                detail: formatCacheDetails(),
+                detail: cacheSize,
                 icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
                 iconColor: .red,
                 action: { showingCleanCacheAlert = true }
