@@ -561,38 +561,77 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 获取主权数据
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
+        // 如果不是强制刷新，尝试从本地获取
+        if !forceRefresh {
+            if let sovereignty = StaticResourceManager.shared.getSovereignty() {
+                return sovereignty
+            }
+        }
+        
+        // 从网络获取数据
         let request = ResourceRequest<[SovereigntyData]>(
             resource: EVEResource.sovereignty,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
-            forceRefresh: forceRefresh
+            cacheStrategy: .memoryOnly,  // 只使用内存缓存
+            forceRefresh: true
         )
         
-        return try await fetchResource(request)
+        let sovereignty = try await fetchResource(request)
+        
+        // 保存到本地
+        try StaticResourceManager.shared.saveSovereignty(sovereignty)
+        
+        return sovereignty
     }
     
-    // 获取主权战役数据（使用内存和文件缓存）
+    // 获取主权战役数据
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
+        // 如果不是强制刷新，尝试从本地获取
+        if !forceRefresh {
+            if let campaigns = StaticResourceManager.shared.getSovereigntyCampaigns() {
+                return campaigns
+            }
+        }
+        
+        // 从网络获取数据
         let request = ResourceRequest<[SovereigntyCampaign]>(
             resource: EVEResource.sovereigntyCampaigns,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
-            forceRefresh: forceRefresh
+            cacheStrategy: .memoryOnly,  // 只使用内存缓存
+            forceRefresh: true
         )
         
-        return try await fetchResource(request)
+        let campaigns = try await fetchResource(request)
+        
+        // 保存到本地
+        try StaticResourceManager.shared.saveSovereigntyCampaigns(campaigns)
+        
+        return campaigns
     }
     
-    // 获取入侵数据（使用内存和文件缓存）
+    // 获取入侵数据
     func fetchIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
+        // 如果不是强制刷新，尝试从本地获取
+        if !forceRefresh {
+            if let incursions = StaticResourceManager.shared.getIncursions() {
+                return incursions
+            }
+        }
+        
+        // 从网络获取数据
         let request = ResourceRequest<[Incursion]>(
             resource: EVEResource.incursions,
             parameters: ["datasource": "tranquility"],
-            cacheStrategy: forceRefresh ? .none : .both,  // 如果强制刷新，不使用任何缓存
-            forceRefresh: forceRefresh
+            cacheStrategy: .memoryOnly,  // 只使用内存缓存
+            forceRefresh: true
         )
         
-        return try await fetchResource(request)
+        let incursions = try await fetchResource(request)
+        
+        // 保存到本地
+        try StaticResourceManager.shared.saveIncursions(incursions)
+        
+        return incursions
     }
     
     // 清除市场订单缓存

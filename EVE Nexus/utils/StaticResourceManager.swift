@@ -881,4 +881,145 @@ class StaticResourceManager {
         
         return campaignsData
     }
+    
+    /// 数据容器
+    private struct DataContainer<T: Codable>: Codable {
+        let data: T
+        let timestamp: Date
+    }
+    
+    // MARK: - 入侵数据管理
+    
+    /// 从本地获取入侵数据
+    /// - Returns: 入侵数据（如果存在且未过期）
+    func getIncursions() -> [Incursion]? {
+        // 1. 尝试从 UserDefaults 获取
+        let key = "incursions_data"
+        if let data = UserDefaults.standard.data(forKey: key),
+           let container = try? JSONDecoder().decode(DataContainer<[Incursion]>.self, from: data),
+           Date().timeIntervalSince(container.timestamp) < INCURSIONS_CACHE_DURATION {
+            Logger.info("Using UserDefaults cached incursions data")
+            return container.data
+        }
+        
+        // 2. 尝试从文件获取
+        let fileURL = getStaticDataSetPath().appendingPathComponent("incursions.json")
+        guard let data = try? Data(contentsOf: fileURL),
+              let container = try? JSONDecoder().decode(DataContainer<[Incursion]>.self, from: data),
+              Date().timeIntervalSince(container.timestamp) < INCURSIONS_CACHE_DURATION
+        else {
+            return nil
+        }
+        
+        // 找到有效的文件缓存，更新到 UserDefaults
+        let encodedData = try? JSONEncoder().encode(container)
+        UserDefaults.standard.set(encodedData, forKey: key)
+        Logger.info("Using file cached incursions data")
+        return container.data
+    }
+    
+    /// 保存入侵数据
+    /// - Parameter incursions: 入侵数据
+    func saveIncursions(_ incursions: [Incursion]) throws {
+        let container = DataContainer(data: incursions, timestamp: Date())
+        
+        // 1. 保存到文件
+        let fileURL = getStaticDataSetPath().appendingPathComponent("incursions.json")
+        let encodedData = try JSONEncoder().encode(container)
+        try encodedData.write(to: fileURL)
+        
+        // 2. 保存到 UserDefaults
+        UserDefaults.standard.set(encodedData, forKey: "incursions_data")
+        Logger.info("Saved incursions data")
+    }
+    
+    // MARK: - 主权归属数据管理
+    
+    /// 从本地获取主权归属数据
+    /// - Returns: 主权归属数据（如果存在且未过期）
+    func getSovereignty() -> [SovereigntyData]? {
+        // 1. 尝试从 UserDefaults 获取
+        let key = "sovereignty_data"
+        if let data = UserDefaults.standard.data(forKey: key),
+           let container = try? JSONDecoder().decode(DataContainer<[SovereigntyData]>.self, from: data),
+           Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CACHE_DURATION {
+            Logger.info("Using UserDefaults cached sovereignty data")
+            return container.data
+        }
+        
+        // 2. 尝试从文件获取
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereignty.json")
+        guard let data = try? Data(contentsOf: fileURL),
+              let container = try? JSONDecoder().decode(DataContainer<[SovereigntyData]>.self, from: data),
+              Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CACHE_DURATION
+        else {
+            return nil
+        }
+        
+        // 找到有效的文件缓存，更新到 UserDefaults
+        let encodedData = try? JSONEncoder().encode(container)
+        UserDefaults.standard.set(encodedData, forKey: key)
+        Logger.info("Using file cached sovereignty data")
+        return container.data
+    }
+    
+    /// 保存主权归属数据
+    /// - Parameter sovereignty: 主权归属数据
+    func saveSovereignty(_ sovereignty: [SovereigntyData]) throws {
+        let container = DataContainer(data: sovereignty, timestamp: Date())
+        
+        // 1. 保存到文件
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereignty.json")
+        let encodedData = try JSONEncoder().encode(container)
+        try encodedData.write(to: fileURL)
+        
+        // 2. 保存到 UserDefaults
+        UserDefaults.standard.set(encodedData, forKey: "sovereignty_data")
+        Logger.info("Saved sovereignty data")
+    }
+    
+    // MARK: - 主权战争数据管理
+    
+    /// 从本地获取主权战争数据
+    /// - Returns: 主权战争数据（如果存在且未过期）
+    func getSovereigntyCampaigns() -> [SovereigntyCampaign]? {
+        // 1. 尝试从 UserDefaults 获取
+        let key = "sovereignty_campaigns_data"
+        if let data = UserDefaults.standard.data(forKey: key),
+           let container = try? JSONDecoder().decode(DataContainer<[SovereigntyCampaign]>.self, from: data),
+           Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
+            Logger.info("Using UserDefaults cached sovereignty campaigns data")
+            return container.data
+        }
+        
+        // 2. 尝试从文件获取
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
+        guard let data = try? Data(contentsOf: fileURL),
+              let container = try? JSONDecoder().decode(DataContainer<[SovereigntyCampaign]>.self, from: data),
+              Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
+        else {
+            return nil
+        }
+        
+        // 找到有效的文件缓存，更新到 UserDefaults
+        let encodedData = try? JSONEncoder().encode(container)
+        UserDefaults.standard.set(encodedData, forKey: key)
+        Logger.info("Using file cached sovereignty campaigns data")
+        return container.data
+    }
+    
+    /// 保存主权战争数据
+    /// - Parameter campaigns: 主权战争数据
+    func saveSovereigntyCampaigns(_ campaigns: [SovereigntyCampaign]) throws {
+        let container = DataContainer(data: campaigns, timestamp: Date())
+        
+        // 1. 保存到文件
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
+        let encodedData = try JSONEncoder().encode(container)
+        try encodedData.write(to: fileURL)
+        
+        // 2. 保存到 UserDefaults
+        UserDefaults.standard.set(encodedData, forKey: "sovereignty_campaigns_data")
+        Logger.info("Saved sovereignty campaigns data")
+    }
 } 
