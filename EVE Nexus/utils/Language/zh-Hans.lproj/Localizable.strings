@@ -191,6 +191,10 @@
 
 "Main_Sovereignty" = "主权争夺";
 "Main_Sovereignty_Title" = "主权战争状态";
+"Main_Sovereignty_Started" = "已开始";
+"Main_Sovereignty_Time_Days" = "%d天%d时后";
+"Main_Sovereignty_Time_Hours" = "%d时%d分后";
+"Main_Sovereignty_Time_Minutes" = "%d分后";
 
 "Main_Market_Select_Region" = "选择星域";
 "Main_Market_Pinned_Regions" = "常用星域";

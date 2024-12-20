@@ -192,8 +192,11 @@ struct SovereigntyCell: View {
                     Text(getEventTypeText(sovereignty.campaign.eventType))
                     Text("[\(String(format: "%.1f", sovereignty.campaign.attackersScore * 100))%]")
                         .foregroundColor(.secondary)
+                    Text("[\(sovereignty.remainingTimeText)]")
+                        .foregroundColor(.secondary)
                 }
                 .font(.headline)
+                .lineLimit(1)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {

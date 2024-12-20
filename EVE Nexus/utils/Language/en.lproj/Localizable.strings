@@ -193,6 +193,10 @@
 
 "Main_Sovereignty" = "Sovereignty";
 "Main_Sovereignty_Title" = "Sovereignty Campaigns";
+"Main_Sovereignty_Started" = "Started";
+"Main_Sovereignty_Time_Days" = "%dd %dh";
+"Main_Sovereignty_Time_Hours" = "%dh %dmin";
+"Main_Sovereignty_Time_Minutes" = "%dmin";
 
 "Main_Market_Select_Region" = "Select Region";
 "Main_Market_Pinned_Regions" = "Pinned Regions";
