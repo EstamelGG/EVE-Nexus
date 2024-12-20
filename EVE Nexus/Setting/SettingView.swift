@@ -362,7 +362,8 @@ struct SettingView: View {
     private func createStaticResourceGroup() -> SettingGroup {
         let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
             var title = resource.name
-            if let downloadTime = resource.downloadTime {
+            // 只在文件存在时才显示下载时间
+            if resource.exists, let downloadTime = resource.downloadTime {
                 title += " (" + getRelativeTimeString(from: downloadTime) + ")"
             }
             
