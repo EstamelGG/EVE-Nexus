@@ -355,12 +355,12 @@ class EVELogin {
     // 处理授权回调
     func handleAuthCallback(url: URL) async throws -> EVEAuthToken {
         guard let config = config else {
-            throw EVE_Nexus.NetworkError.invalidData
+            throw NetworkError.invalidData
         }
         
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
-            throw EVE_Nexus.NetworkError.invalidURL
+            throw NetworkError.invalidURL
         }
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
@@ -390,7 +390,7 @@ class EVELogin {
     func getCharacterInfo(token: String) async throws -> EVECharacterInfo {
         guard let config = config,
               let verifyURL = URL(string: config.urls.verify) else {
-            throw EVE_Nexus.NetworkError.invalidURL
+            throw NetworkError.invalidURL
         }
         
         var request = URLRequest(url: verifyURL)
@@ -540,7 +540,7 @@ class EVELogin {
         
         // 执行令牌刷新
         guard let config = config else {
-            throw EVE_Nexus.NetworkError.invalidData
+            throw NetworkError.invalidData
         }
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
@@ -584,7 +584,7 @@ class EVELogin {
                 Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
                 // 清除过期的认证信息
                 clearAuthInfo()
-                throw EVE_Nexus.NetworkError.tokenExpired
+                throw NetworkError.tokenExpired
             }
         } else if let token = authInfo.token {
             Logger.info("EVELogin: 使用现有有效令牌")
@@ -593,7 +593,7 @@ class EVELogin {
         }
         
         Logger.error("EVELogin: 无法获取有效令牌")
-        throw EVE_Nexus.NetworkError.invalidData
+        throw NetworkError.invalidData
     }
     
     // 加载所有角色信息
