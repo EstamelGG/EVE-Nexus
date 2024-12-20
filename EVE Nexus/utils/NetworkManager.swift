@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // ��果不是强制刷新，检查本地文件缓存
+        // 如果不是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
@@ -774,21 +774,7 @@ class NetworkManager: NSObject {
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let data = try await fetchData(from: url, request: request)
-        let skillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
-        
-        // 保存到StaticDataSet目录
-        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Characters")
-            .appendingPathComponent("\(characterId)")
-            .appendingPathComponent("skills.json")
-        
-        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), 
-                                               withIntermediateDirectories: true)
-        
-        let encodedData = try JSONEncoder().encode(skillsResponse)
-        try encodedData.write(to: fileURL)
-        
-        return skillsResponse
+        return try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
     }
     
     // 角色位置信息模型
