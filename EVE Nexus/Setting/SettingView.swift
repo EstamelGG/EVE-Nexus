@@ -752,7 +752,7 @@ struct SettingView: View {
     }
     
     private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
-        if resource.exists {
+        if resource.exists && resource.fileSize != nil && resource.fileSize! > 0 {
             var info = ""
             if let fileSize = resource.fileSize {
                 info += formatFileSize(fileSize)
@@ -786,16 +786,8 @@ struct SettingView: View {
             
             return info
         } else {
-            // 根据资源类型返回不同的提示文本
-            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
-                switch type {
-                case .sovereignty, .incursions, .sovereigntyCampaigns:
-                    return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
-                default:
-                    return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
-                }
-            }
-            return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
+            // 统一使用"无缓存"作为默认显示
+            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
         }
     }
     
