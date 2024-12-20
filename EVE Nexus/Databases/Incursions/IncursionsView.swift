@@ -209,15 +209,8 @@ struct IncursionCell: View {
             HStack(spacing: 12) {
                 IconManager.shared.loadImage(for: incursion.faction.iconName)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
                     .frame(width: 48, height: 48)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(.white, lineWidth: 2)
-                    )
-                    .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
-                    .padding(2)
+                    .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
