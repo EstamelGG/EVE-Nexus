@@ -494,9 +494,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 异步安全的缓存访问方法
     private func getCachedData(forKey key: String) async -> Any? {
-        await withCheckedContinuation { continuation in
-            cacheQueue.async {
-                if let cached = self.dataCache.object(forKey: key as NSString) {
+        return await withCheckedContinuation { continuation in
+            Task { @NetworkManagerActor in
+                if let cached = dataCache.object(forKey: key as NSString) {
                     continuation.resume(returning: cached)
                 } else {
                     continuation.resume(returning: nil)
@@ -507,10 +507,54 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     private func setCachedData<T>(_ data: T, forKey key: String) async {
         await withCheckedContinuation { continuation in
-            cacheQueue.async(flags: .barrier) {
-                self.dataCache.setObject(CachedData(data: data, timestamp: Date()), forKey: key as NSString)
-                self.dataCacheKeys.insert(key)
+            Task { @NetworkManagerActor in
+                dataCache.setObject(CachedData(data: data, timestamp: Date()), forKey: key as NSString)
+                dataCacheKeys.insert(key)
                 continuation.resume()
+            }
+        }
+    }
+    
+    // 在设置缓存时添加键
+    private func setDataCache<T: Encodable>(_ data: T, forKey key: String) async {
+        await setCachedData(data, forKey: key)
+    }
+    
+    // 获取内存缓存信息
+    func getMemoryCacheInfo() async -> CacheInfo {
+        return await withCheckedContinuation { continuation in
+            Task { @NetworkManagerActor in
+                var totalSize: Int64 = 0
+                var count = 0
+                var lastModified: Date? = nil
+                
+                // 遍历数据缓存
+                for key in dataCacheKeys {
+                    if let cached = dataCache.object(forKey: key as NSString) {
+                        count += 1
+                        totalSize += 1024  // 假设每个缓存项平均1KB
+                        if lastModified == nil || cached.timestamp > lastModified! {
+                            lastModified = cached.timestamp
+                        }
+                    }
+                }
+                
+                // 遍历图片缓存
+                for key in imageCacheKeys {
+                    if let cached = imageCache.object(forKey: key as NSString) {
+                        count += 1
+                        if let imageData = cached.data.pngData() {
+                            totalSize += Int64(imageData.count)
+                        } else {
+                            totalSize += 100 * 1024  // 假设每张图片平均100KB
+                        }
+                        if lastModified == nil || cached.timestamp > lastModified! {
+                            lastModified = cached.timestamp
+                        }
+                    }
+                }
+                
+                continuation.resume(returning: CacheInfo(size: totalSize, count: count, lastModified: lastModified))
             }
         }
     }
@@ -552,39 +596,38 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 清除市场订单缓存
-    func clearMarketOrdersCache() {
-        marketQueue.async(flags: .barrier) {
-            self.marketOrdersCache.removeAll()
-            self.marketOrdersTimestamp.removeAll()
+    func clearMarketOrdersCache() async {
+        await withCheckedContinuation { continuation in
+            Task { @NetworkManagerActor in
+                marketOrdersCache.removeAll()
+                marketOrdersTimestamp.removeAll()
+                continuation.resume()
+            }
         }
     }
     
     // 清除所有缓存
-    func clearAllCaches() {
-        // 清除内存缓存
-        cacheQueue.async(flags: .barrier) {
-            self.dataCache.removeAllObjects()
-            self.dataCacheKeys.removeAll()
-        }
-        
-        imageQueue.async(flags: .barrier) {
-            self.imageCache.removeAllObjects()
-            self.imageCacheKeys.removeAll()
-        }
-        
-        marketQueue.async(flags: .barrier) {
-            self.marketOrdersCache.removeAll()
-            self.marketOrdersTimestamp.removeAll()
-        }
-        
-        serverStatusQueue.async(flags: .barrier) {
-            self.serverStatusCache = nil
+    func clearAllCaches() async {
+        await withCheckedContinuation { continuation in
+            Task { @NetworkManagerActor in
+                // 清除内存缓存
+                dataCache.removeAllObjects()
+                dataCacheKeys.removeAll()
+                
+                imageCache.removeAllObjects()
+                imageCacheKeys.removeAll()
+                
+                marketOrdersCache.removeAll()
+                marketOrdersTimestamp.removeAll()
+                
+                serverStatusCache = nil
+                
+                continuation.resume()
+            }
         }
         
         // 清除文件缓存
-        Task {
-            await clearFileCaches()
-        }
+        await clearFileCaches()
     }
     
     private func clearFileCaches() async {
@@ -798,7 +841,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
         }
         
-        // 如果强制刷新或没有缓存，从网络获取
+        // 如果强制刷新��没有缓存，从网络获取
         let data = try await fetchData(from: url, forceRefresh: forceRefresh)
         guard let image = UIImage(data: data) else {
             throw NetworkError.invalidImageData
@@ -1008,15 +1051,17 @@ enum NetworkError: LocalizedError {
 }
 
 extension NetworkManager: NSCacheDelegate {
-    func cache(_ cache: NSCache<AnyObject, AnyObject>, willEvictObject obj: Any) {
+    nonisolated func cache(_ cache: NSCache<AnyObject, AnyObject>, willEvictObject obj: Any) {
         // 当缓存项被移除时，从对应的键集合中移除键
-        if cache === dataCache {
-            if let key = obj as? NSString {
-                dataCacheKeys.remove(key as String)
-            }
-        } else if cache === imageCache {
-            if let key = obj as? NSString {
-                imageCacheKeys.remove(key as String)
+        Task { @NetworkManagerActor in
+            if cache === self.dataCache {
+                if let key = obj as? NSString {
+                    self.dataCacheKeys.remove(key as String)
+                }
+            } else if cache === self.imageCache {
+                if let key = obj as? NSString {
+                    self.imageCacheKeys.remove(key as String)
+                }
             }
         }
     }
@@ -1028,55 +1073,6 @@ extension NetworkManager {
         let size: Int64
         let count: Int
         let lastModified: Date?
-    }
-    
-    // 在设置缓存时添加键
-    private func setDataCache<T: Encodable>(_ data: T, forKey key: String) {
-        dataCache.setObject(CachedData(data: data, timestamp: Date()), forKey: key as NSString)
-        dataCacheKeys.insert(key)
-    }
-    
-    private func setImageCache(_ image: UIImage, forKey key: String) {
-        imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
-        imageCacheKeys.insert(key)
-    }
-    
-    // 获取内存缓存信息
-    func getMemoryCacheInfo() -> CacheInfo {
-        var totalSize: Int64 = 0
-        var count = 0
-        var lastModified: Date? = nil
-        
-        // 遍历数据缓存
-        for key in dataCacheKeys {
-            if let cached = dataCache.object(forKey: key as NSString) {
-                count += 1
-                // 由于无法准确计算内存中对象的大小，我们使用估算值
-                totalSize += 1024  // 假设每个缓存项平均1KB
-                // 更新最后修改时间
-                if lastModified == nil || cached.timestamp > lastModified! {
-                    lastModified = cached.timestamp
-                }
-            }
-        }
-        
-        // 遍历图片缓存
-        for key in imageCacheKeys {
-            if let cached = imageCache.object(forKey: key as NSString) {
-                count += 1
-                if let imageData = cached.data.pngData() {
-                    totalSize += Int64(imageData.count)
-                } else {
-                    // 如果无法获取图片数据，使用估算值
-                    totalSize += 100 * 1024  // 假设每张图片平均100KB
-                }
-                if lastModified == nil || cached.timestamp > lastModified! {
-                    lastModified = cached.timestamp
-                }
-            }
-        }
-        
-        return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
     }
     
     // 获取文件缓存信息
