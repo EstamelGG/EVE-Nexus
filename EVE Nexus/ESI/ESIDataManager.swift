@@ -34,7 +34,35 @@ class ESIDataManager {
             throw NetworkError.invalidData
         }
         
+        // 保存到本地文件
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+            .appendingPathComponent("Characters")
+            .appendingPathComponent("\(characterId)")
+            .appendingPathComponent("wallet.json")
+        
+        let walletData = ["balance": balance, "timestamp": Date().timeIntervalSince1970]
+        let encodedData = try JSONEncoder().encode(walletData)
+        
+        try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), 
+                                               withIntermediateDirectories: true)
+        try encodedData.write(to: fileURL)
+        
         return balance
+    }
+    
+    // 从本地文件加载钱包余额
+    func loadWalletBalance(characterId: Int) -> Double? {
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+            .appendingPathComponent("Characters")
+            .appendingPathComponent("\(characterId)")
+            .appendingPathComponent("wallet.json")
+            
+        guard let data = try? Data(contentsOf: fileURL),
+              let walletData = try? JSONDecoder().decode([String: Double].self, from: data) else {
+            return nil
+        }
+        
+        return walletData["balance"]
     }
     
     // 格式化 ISK 金额

@@ -55,23 +55,20 @@ struct AccountsView: View {
                             VStack(alignment: .leading) {
                                 Text(character.CharacterName)
                                     .font(.headline)
-                                Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
                                 if let balance = character.walletBalance {
-                                    Text("\(ESIDataManager.shared.formatISK(balance)) ISK")
+                                    Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(ESIDataManager.shared.formatISK(balance)) ISK")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
                                 if let totalSP = character.totalSkillPoints {
-                                    Text("\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP))")
+                                    let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
+                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) (Free: \(formatSkillPoints(unallocatedSP)))"
+                                    } else {
+                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP))"
+                                    }
+                                    Text(spText)
                                         .font(.caption)
                                         .foregroundColor(.gray)
-                                }
-                                if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
-                                    Text("\(NSLocalizedString("Account_Unallocated_SP", comment: "")): \(formatSkillPoints(unallocatedSP))")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
                                 }
                             }
                             .padding(.leading, 8)

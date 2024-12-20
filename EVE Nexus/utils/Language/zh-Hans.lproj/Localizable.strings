@@ -215,7 +215,7 @@
 "Account_Remove_Confirm_Remove" = "移除";
 "Account_Character_ID" = "角色ID";
 "Account_Total_SP" = "总技能点";
-"Account_Unallocated_SP" = "未分配技能点";
+"Account_Wallet_value" = "钱包";
 
 // Language Settings
 "Main_Setting_Language_Switch_Title" = "切换语言";

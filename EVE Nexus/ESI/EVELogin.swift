@@ -89,7 +89,7 @@ class EVELoginViewModel: ObservableObject {
             }
         }
         
-        // 2. 加载技能点信息
+        // 2. 加载技能点和钱包信息
         Task {
             for character in characters {
                 do {
@@ -107,6 +107,11 @@ class EVELoginViewModel: ObservableObject {
                         var updatedCharacter = character
                         updatedCharacter.totalSkillPoints = skillsInfo.total_sp
                         updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        
+                        // 加载本地缓存的钱包余额
+                        if let cachedBalance = ESIDataManager.shared.loadWalletBalance(characterId: character.CharacterID) {
+                            updatedCharacter.walletBalance = cachedBalance
+                        }
                         
                         // 保存更新后的信息
                         EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
@@ -309,7 +314,7 @@ class EVELogin {
             defaults.set(encodedData, forKey: charactersKey)
             defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
             
-            Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName)")
+            Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName) - \(character.CharacterID)")
         } catch {
             Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
         }
