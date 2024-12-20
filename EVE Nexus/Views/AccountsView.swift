@@ -158,7 +158,7 @@ struct AccountsView: View {
     @MainActor
     private func refreshAllCharacters() async {
         // 先让刷新指示器完成动画
-        await Task.sleep(500_000_000) // 0.5秒
+        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
         
         isRefreshing = true
         defer { isRefreshing = false }
@@ -171,8 +171,8 @@ struct AccountsView: View {
             for characterAuth in characterAuths {
                 group.addTask {
                     // 添加角色到刷新集合
-                    await MainActor.run {
-                        refreshingCharacters.insert(characterAuth.character.CharacterID)
+                    let _ = await MainActor.run {
+                        self.refreshingCharacters.insert(characterAuth.character.CharacterID)
                     }
                     
                     do {
@@ -205,7 +205,9 @@ struct AccountsView: View {
                             forceRefresh: true
                         ) {
                             // 更新头像
-                            await updatePortrait(characterId: characterAuth.character.CharacterID, portrait: portrait)
+                            let _ = await MainActor.run {
+                                self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
+                            }
                         }
                         
                         Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
@@ -214,18 +216,16 @@ struct AccountsView: View {
                     }
                     
                     // 从刷新集合中移除已完成的角色
-                    await MainActor.run {
-                        refreshingCharacters.remove(characterAuth.character.CharacterID)
+                    let _ = await MainActor.run {
+                        self.refreshingCharacters.remove(characterAuth.character.CharacterID)
                     }
                 }
             }
         }
         
         // 更新角色列表
-        await MainActor.run {
-            viewModel.characters = EVELogin.shared.getAllCharacters()
-            viewModel.isLoggedIn = !viewModel.characters.isEmpty
-        }
+        viewModel.characters = EVELogin.shared.getAllCharacters()
+        viewModel.isLoggedIn = !viewModel.characters.isEmpty
     }
     
     @MainActor
