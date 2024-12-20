@@ -157,19 +157,24 @@ struct AccountsView: View {
     
     @MainActor
     private func refreshAllCharacters() async {
+        // 先让刷新指示器完成动画
+        await Task.sleep(500_000_000) // 0.5秒
+        
         isRefreshing = true
         defer { isRefreshing = false }
         
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
         
-        // 添加所有角色到刷新集合
-        refreshingCharacters = Set(characterAuths.map { $0.character.CharacterID })
-        
         // 创建所有刷新任务
         await withTaskGroup(of: Void.self) { group in
             for characterAuth in characterAuths {
                 group.addTask {
+                    // 添加角色到刷新集合
+                    await MainActor.run {
+                        refreshingCharacters.insert(characterAuth.character.CharacterID)
+                    }
+                    
                     do {
                         // 使用刷新令牌获取新的访问令牌
                         let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
@@ -203,22 +208,24 @@ struct AccountsView: View {
                             await updatePortrait(characterId: characterAuth.character.CharacterID, portrait: portrait)
                         }
                         
-                        // 从刷新集合中移除已完成的角色
-                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
-                        
                         Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
                     } catch {
                         Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
-                        // 如果刷新失败，也要从刷新集合中移除
-                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
+                    }
+                    
+                    // 从刷新集合中移除已完成的角色
+                    await MainActor.run {
+                        refreshingCharacters.remove(characterAuth.character.CharacterID)
                     }
                 }
             }
         }
         
         // 更新角色列表
-        viewModel.characters = EVELogin.shared.getAllCharacters()
-        viewModel.isLoggedIn = !viewModel.characters.isEmpty
+        await MainActor.run {
+            viewModel.characters = EVELogin.shared.getAllCharacters()
+            viewModel.isLoggedIn = !viewModel.characters.isEmpty
+        }
     }
     
     @MainActor
