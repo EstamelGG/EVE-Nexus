@@ -11,6 +11,30 @@ struct AccountsView: View {
     @State private var isRefreshing = false
     @State private var refreshingCharacters: Set<Int> = []
     
+    // 格式化 ISK 显示
+    private func formatISK(_ value: Double) -> String {
+        let trillion = 1_000_000_000_000.0
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
+        let thousand = 1_000.0
+        
+        if value >= trillion {
+            let formatted = value / trillion
+            return String(format: "%.2fT", formatted)
+        } else if value >= billion {
+            let formatted = value / billion
+            return String(format: "%.2fB", formatted)
+        } else if value >= million {
+            let formatted = value / million
+            return String(format: "%.2fM", formatted)
+        } else if value >= thousand {
+            let formatted = value / thousand
+            return String(format: "%.2fK", formatted)
+        } else {
+            return String(format: "%.2f", value)
+        }
+    }
+    
     var body: some View {
         List {
             // 添加新角色按钮
@@ -56,15 +80,15 @@ struct AccountsView: View {
                                 Text(character.CharacterName)
                                     .font(.headline)
                                 if let balance = character.walletBalance {
-                                    Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(ESIDataManager.shared.formatISK(balance)) ISK")
+                                    Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
                                         .font(.caption)
                                         .foregroundColor(.gray)
                                 }
                                 if let totalSP = character.totalSkillPoints {
                                     let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
-                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) (Free: \(formatSkillPoints(unallocatedSP)))"
+                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
                                     } else {
-                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP))"
+                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
                                     }
                                     Text(spText)
                                         .font(.caption)
