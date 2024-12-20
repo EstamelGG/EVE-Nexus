@@ -19,6 +19,7 @@ struct EVECharacterInfo: Codable {
     let CharacterOwnerHash: String
     var totalSkillPoints: Int?
     var unallocatedSkillPoints: Int?
+    var walletBalance: Double?
 }
 
 // ESI配置模型

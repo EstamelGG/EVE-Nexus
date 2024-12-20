@@ -58,6 +58,11 @@ struct AccountsView: View {
                                 Text("\(NSLocalizedString("Account_Character_ID", comment: "")): \(character.CharacterID)")
                                     .font(.caption)
                                     .foregroundColor(.gray)
+                                if let balance = character.walletBalance {
+                                    Text("\(ESIDataManager.shared.formatISK(balance)) ISK")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                                 if let totalSP = character.totalSkillPoints {
                                     Text("\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP))")
                                         .font(.caption)
@@ -191,10 +196,17 @@ struct AccountsView: View {
                             token: newToken.access_token
                         )
                         
-                        // 更新角色的技能点信息
+                        // 获取钱包余额
+                        let balance = try await ESIDataManager.shared.getWalletBalance(
+                            characterId: characterAuth.character.CharacterID,
+                            token: newToken.access_token
+                        )
+                        
+                        // 更新角色信息
                         var characterWithSkills = updatedCharacter
                         characterWithSkills.totalSkillPoints = skillsInfo.total_sp
                         characterWithSkills.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        characterWithSkills.walletBalance = balance
                         
                         // 保存更新后的认证信息
                         EVELogin.shared.saveAuthInfo(token: newToken, character: characterWithSkills)
