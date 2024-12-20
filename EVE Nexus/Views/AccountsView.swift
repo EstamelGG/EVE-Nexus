@@ -79,20 +79,26 @@ struct AccountsView: View {
                             VStack(alignment: .leading) {
                                 Text(character.CharacterName)
                                     .font(.headline)
-                                if let balance = character.walletBalance {
-                                    Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
-                                if let totalSP = character.totalSkillPoints {
-                                    let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
-                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
-                                    } else {
-                                        "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                                if refreshingCharacters.contains(character.CharacterID) {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                        .frame(height: 15)
+                                } else {
+                                    if let balance = character.walletBalance {
+                                        Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
                                     }
-                                    Text(spText)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+                                    if let totalSP = character.totalSkillPoints {
+                                        let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
+                                            "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
+                                        } else {
+                                            "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                                        }
+                                        Text(spText)
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
                                 }
                             }
                             .padding(.leading, 8)

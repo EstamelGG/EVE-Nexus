@@ -47,6 +47,12 @@ struct CharacterAuth: Codable {
     let character: EVECharacterInfo
     let token: EVEAuthToken
     let addedDate: Date
+    let lastTokenUpdateTime: Date  // 添加最后更新令牌的时间
+    
+    // 检查是否需要更新令牌
+    func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {  // 默认5分钟
+        return Date().timeIntervalSince(lastTokenUpdateTime) >= minimumInterval
+    }
 }
 
 // 添加用户管理的 ViewModel
@@ -94,31 +100,34 @@ class EVELoginViewModel: ObservableObject {
             for character in characters {
                 do {
                     if let characterAuth = EVELogin.shared.loadCharacters().first(where: { $0.character.CharacterID == character.CharacterID }) {
-                        // 获取有效的访问令牌
-                        let token = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
-                        
-                        // 获取技能点信息
-                        let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
-                            characterId: character.CharacterID,
-                            token: token.access_token
-                        )
-                        
-                        // 更新角色信息
-                        var updatedCharacter = character
-                        updatedCharacter.totalSkillPoints = skillsInfo.total_sp
-                        updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
-                        
-                        // 加载本地缓存的钱包余额
-                        if let cachedBalance = ESIDataManager.shared.loadWalletBalance(characterId: character.CharacterID) {
-                            updatedCharacter.walletBalance = cachedBalance
-                        }
-                        
-                        // 保存更新后的信息
-                        EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
-                        
-                        // 更新视图模型中的角色列表
-                        if let index = self.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
-                            self.characters[index] = updatedCharacter
+                        // 检查是否需要更新令牌
+                        if characterAuth.shouldUpdateToken() {
+                            // 获取有效的访问令牌
+                            let token = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                            
+                            // 获取技能点信息
+                            let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
+                                characterId: character.CharacterID,
+                                token: token.access_token
+                            )
+                            
+                            // 更新角色信息
+                            var updatedCharacter = character
+                            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
+                            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                            
+                            // 加载本地缓存的钱包余额
+                            if let cachedBalance = ESIDataManager.shared.loadWalletBalance(characterId: character.CharacterID) {
+                                updatedCharacter.walletBalance = cachedBalance
+                            }
+                            
+                            // 保存更新后的信息
+                            EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
+                            
+                            // 更新视图模型中的角色列表
+                            if let index = self.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                                self.characters[index] = updatedCharacter
+                            }
                         }
                     }
                 } catch {
@@ -152,11 +161,29 @@ class EVELoginViewModel: ObservableObject {
             
             Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
             
+            // 获取技能点信息
+            let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
+                characterId: character.CharacterID,
+                token: token.access_token
+            )
+            
+            // 获取钱包余额
+            let balance = try await ESIDataManager.shared.getWalletBalance(
+                characterId: character.CharacterID,
+                token: token.access_token
+            )
+            
+            // 更新角色信息
+            var updatedCharacter = character
+            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
+            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
+            updatedCharacter.walletBalance = balance
+            
             // 保存认证信息
-            EVELogin.shared.saveAuthInfo(token: token, character: character)
+            EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
             
             // 更新UI状态
-            handleLoginSuccess(character: character)
+            handleLoginSuccess(character: updatedCharacter)
         } catch {
             Logger.error("处理授权失败: \(error)")
             handleLoginError(error)
@@ -298,14 +325,22 @@ class EVELogin {
         let characterAuth = CharacterAuth(
             character: character,
             token: token,
-            addedDate: Date()
+            addedDate: Date(),
+            lastTokenUpdateTime: Date()  // 记录更新时间
         )
         
         do {
             var characters = loadCharacters()
             // 检查是否已存在该角色
             if let index = characters.firstIndex(where: { $0.character.CharacterID == character.CharacterID }) {
-                characters[index] = characterAuth
+                // 保持原有的 addedDate
+                let originalAddedDate = characters[index].addedDate
+                characters[index] = CharacterAuth(
+                    character: character,
+                    token: token,
+                    addedDate: originalAddedDate,
+                    lastTokenUpdateTime: Date()
+                )
             } else {
                 characters.append(characterAuth)
             }
@@ -358,7 +393,19 @@ class EVELogin {
     }
     
     // 刷新令牌
-    func refreshToken(refreshToken: String) async throws -> EVEAuthToken {
+    func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
+        // 如果不是强制刷新，检查上次更新时间
+        if !force {
+            if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
+               let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
+               !character.shouldUpdateToken() {
+                // 如果距离上次更新时间不足5分钟，直接返回当前令牌
+                Logger.info("EVELogin: 跳过令牌刷新，距离上次更新时间不足5分钟")
+                return character.token
+            }
+        }
+        
+        // 执行令牌刷新
         guard let config = config else {
             throw NetworkError.invalidData
         }
