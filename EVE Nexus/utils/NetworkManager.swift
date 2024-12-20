@@ -604,14 +604,17 @@ class NetworkManager: NSObject {
     
     // 获取服务器状态（不使用任何缓存）
     func fetchServerStatus() async throws -> ServerStatus {
-        let request = ResourceRequest<ServerStatus>(
-            resource: EVEResource.serverStatus,
-            parameters: ["datasource": "tranquility"],
-            cacheStrategy: .none,  // 不使用缓存
-            forceRefresh: true     // 总是从网络获取
-        )
+        let urlString = "https://esi.evetech.net/latest/status/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
         
-        return try await fetchResource(request)
+        var request = URLRequest(url: url)
+        request.addValue("tranquility", forHTTPHeaderField: "datasource")
+        
+        // 直接从网络获取最新状态
+        let data = try await fetchData(from: url, request: request)
+        return try JSONDecoder().decode(ServerStatus.self, from: data)
     }
     
     // 通用数据获取方法

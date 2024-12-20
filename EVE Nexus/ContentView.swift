@@ -91,47 +91,7 @@ struct UTCTimeView: View {
 }
 
 // 优化 ServerStatusView
-class ServerStatusViewModel: ObservableObject {
-    @Published var serverStatus: ServerStatus?
-    @Published var isLoadingStatus = true
-    private var updateTask: Task<Void, Never>?
-    
-    func startUpdating() {
-        // 取消之前的任务（如果存在）
-        updateTask?.cancel()
-        
-        // 创建新的更新任务
-        updateTask = Task {
-            while !Task.isCancelled {
-                await updateServerStatus()
-                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000) // 60秒更新一次
-            }
-        }
-    }
-    
-    func stopUpdating() {
-        updateTask?.cancel()
-        updateTask = nil
-    }
-    
-    private func updateServerStatus() async {
-        do {
-            let status = try await NetworkManager.shared.fetchServerStatus()
-            await MainActor.run {
-                self.serverStatus = status
-                self.isLoadingStatus = false
-            }
-        } catch {
-            Logger.error("Failed to fetch server status: \(error)")
-            await MainActor.run {
-                self.isLoadingStatus = false
-            }
-        }
-    }
-}
-
 struct ServerStatusView: View {
-    @StateObject private var viewModel = ServerStatusViewModel()
     let status: ServerStatus?
     
     var body: some View {
@@ -159,12 +119,6 @@ struct ServerStatusView: View {
                 Text("Checking Status...")
                     .font(.caption)
             }
-        }
-        .onAppear {
-            viewModel.startUpdating()
-        }
-        .onDisappear {
-            viewModel.stopUpdating()
         }
     }
 }
@@ -211,6 +165,10 @@ struct ContentView: View {
     @State private var isLoadingStatus = true
     @State private var showingAccountSheet = false
     @State private var forceViewUpdate: Bool = false // 添加强制更新标志
+    @State private var lastStatusUpdateTime: Date? // 添加上次更新时间状态
+    
+    // 添加更新间隔常量
+    private let statusUpdateInterval: TimeInterval = 300 // 5分钟 = 300秒
     
     // 添加预加载状态
     @State private var isDatabasePreloaded = false
@@ -338,15 +296,26 @@ struct ContentView: View {
     }
     
     private func updateServerStatus() async {
+        // 检查是否需要更新
+        if let lastUpdate = lastStatusUpdateTime,
+           Date().timeIntervalSince(lastUpdate) < statusUpdateInterval {
+            Logger.info("Server status was updated less than 5 minutes ago, skipping update")
+            isLoadingStatus = false
+            return
+        }
+        
         do {
             serverStatus = try await NetworkManager.shared.fetchServerStatus()
+            await MainActor.run {
+                lastStatusUpdateTime = Date()
+            }
         } catch {
             Logger.error("Failed to fetch server status: \(error)")
         }
         isLoadingStatus = false
         
-        // 每60秒更新一次服务器状态
-        try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+        // 等待5分钟后再次更新
+        try? await Task.sleep(nanoseconds: UInt64(statusUpdateInterval) * 1_000_000_000)
         if !Task.isCancelled {
             await updateServerStatus()
         }
