@@ -164,6 +164,9 @@ struct AccountsView: View {
                         // 使用刷新令牌获取新的访问令牌
                         let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
                         
+                        // 打印完整的访问令牌
+                        Logger.info("角色 \(characterAuth.character.CharacterName) 的访问令牌: \(newToken.access_token)")
+                        
                         // 使用新的访问令牌获取最新的角色信息
                         let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
                         

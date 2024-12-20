@@ -37,3 +37,4 @@
 - https://esi.evetech.net/latest/sovereignty/map/?datasource=tranquility
 - https://esi.evetech.net/latest/status/?datasource=tranquility
 - https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility
+- https://esi.evetech.net/latest/characters/xxxxxxxxx/skills/
