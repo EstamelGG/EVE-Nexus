@@ -141,24 +141,26 @@ struct AccountsView: View {
         isRefreshing = true
         defer { isRefreshing = false }
         
-        for character in viewModel.characters {
+        // 获取所有保存的角色认证信息
+        let characterAuths = EVELogin.shared.loadCharacters()
+        
+        for characterAuth in characterAuths {
             do {
-                // 获取新的访问令牌
-                let token = try await EVELogin.shared.getValidToken()
-                // 获取最新的角色信息
-                let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: token)
-                // 更新角色信息
-                EVELogin.shared.saveAuthInfo(token: EVEAuthToken(
-                    access_token: token,
-                    expires_in: 1200, // 20分钟
-                    token_type: "Bearer",
-                    refresh_token: token
-                ), character: updatedCharacter)
+                // 使用刷新令牌获取新的访问令牌
+                let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                
+                // 使用新的访问令牌获取最新的角色信息
+                let updatedCharacter = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
+                
+                // 保存更新后的认证信息
+                EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
                 
                 // 重新加载头像
-                await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
+                await viewModel.loadCharacterPortrait(characterId: characterAuth.character.CharacterID)
+                
+                Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
             } catch {
-                Logger.error("刷新角色信息失败 - \(character.CharacterName): \(error)")
+                Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
             }
         }
         

@@ -375,7 +375,7 @@ class EVELogin {
     }
     
     // 加载所有角色信息
-    private func loadCharacters() -> [CharacterAuth] {
+    func loadCharacters() -> [CharacterAuth] {
         let defaults = UserDefaults.standard
         guard let data = defaults.data(forKey: charactersKey) else {
             return []
