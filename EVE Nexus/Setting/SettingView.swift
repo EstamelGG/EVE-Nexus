@@ -254,9 +254,29 @@ struct SettingView: View {
     // MARK: - 数据更新函数
     private func updateAllData() {
         Task {
-            let stats = await CacheManager.shared.getAllCacheStats()
+            // 统计 StaticDataSet 目录大小
+            let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+            var totalSize: Int64 = 0
+            
+            if FileManager.default.fileExists(atPath: staticDataSetPath.path),
+               let enumerator = FileManager.default.enumerator(at: staticDataSetPath, 
+                                                             includingPropertiesForKeys: [.fileSizeKey],
+                                                             options: [.skipsHiddenFiles]) {
+                for case let fileURL as URL in enumerator {
+                    do {
+                        let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+                        if let fileSize = attributes[.size] as? Int64 {
+                            totalSize += fileSize
+                        }
+                    } catch {
+                        Logger.error("Error calculating file size: \(error)")
+                    }
+                }
+            }
+            
+            // 更新界面
             await MainActor.run {
-                self.cacheDetails = stats
+                cacheSize = formatFileSize(totalSize)
                 updateSettingGroups()
             }
         }
@@ -611,54 +631,17 @@ struct SettingView: View {
         showingCleanCacheAlert = false
         isCleaningCache = true
         
-        // 清空当前缓存显示
-        cacheDetails = [:]
-        
         Task {
-            // 等待一小段时间，确保之前的文件操作都完成
-            try? await Task.sleep(nanoseconds: 200_000_000)  // 0.2秒
-            
-            // 1. 清理网络缓存
-            await CacheManager.shared.clearAllCaches()
-            
-            // 2. 清理 NetworkManager 的所有缓存
-            await NetworkManager.shared.clearAllCaches()
-            
-            // 3. 清理 StaticResourceManager 的内存缓存和所有静态资源数据
-            StaticResourceManager.shared.clearMemoryCache()
-            do {
-                try StaticResourceManager.shared.clearAllStaticData()
-            } catch {
-                Logger.error("Failed to clear static data: \(error)")
-            }
-            
-            // 4. 清理临时文件目录
-            if let tmpDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            // 清理 StaticDataSet 目录
+            let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
                 do {
-                    let tmpContents = try FileManager.default.contentsOfDirectory(at: tmpDirectory, includingPropertiesForKeys: nil)
-                    for url in tmpContents {
-                        try? FileManager.default.removeItem(at: url)
-                    }
+                    try FileManager.default.removeItem(at: staticDataSetPath)
+                    Logger.info("Successfully deleted StaticDataSet directory")
                 } catch {
-                    Logger.error("Failed to clear temporary directory: \(error)")
+                    Logger.error("Failed to clear StaticDataSet directory: \(error)")
                 }
             }
-            
-            // 5. 清理 Cookies
-            if let cookies = HTTPCookieStorage.shared.cookies {
-                for cookie in cookies {
-                    HTTPCookieStorage.shared.deleteCookie(cookie)
-                }
-            }
-            
-            // 6. 重建必要的目录结构
-            _ = StaticResourceManager.shared.getStaticDataSetPath()
-            _ = StaticResourceManager.shared.getAllianceIconPath()
-            _ = StaticResourceManager.shared.getMarketDataPath()
-            _ = StaticResourceManager.shared.getNetRendersPath()
-            
-            // 等待所有清理操作完成
-            try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
             
             // 更新界面
             await MainActor.run {
@@ -666,7 +649,7 @@ struct SettingView: View {
                 isCleaningCache = false
             }
             
-            Logger.info("Cache cleaning and rebuilding completed")
+            Logger.info("Cache cleaning completed")
         }
     }
     

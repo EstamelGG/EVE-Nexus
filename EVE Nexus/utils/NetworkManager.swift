@@ -543,32 +543,28 @@ class NetworkManager: NSObject, @unchecked Sendable {
     func getMemoryCacheInfo() async -> CacheInfo {
         return await withCheckedContinuation { continuation in
             Task { @NetworkManagerActor in
+                let fileManager = FileManager.default
+                let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
                 var totalSize: Int64 = 0
                 var count = 0
                 var lastModified: Date? = nil
                 
-                // 遍历数据缓存
-                for key in dataCacheKeys {
-                    if let cached = dataCache.object(forKey: key as NSString) {
-                        count += 1
-                        totalSize += 1024  // 假设每个缓存项平均1KB
-                        if lastModified == nil || cached.timestamp > lastModified! {
-                            lastModified = cached.timestamp
-                        }
-                    }
-                }
-                
-                // 遍历图片缓存
-                for key in imageCacheKeys {
-                    if let cached = imageCache.object(forKey: key as NSString) {
-                        count += 1
-                        if let imageData = cached.data.pngData() {
-                            totalSize += Int64(imageData.count)
-                        } else {
-                            totalSize += 100 * 1024  // 假设每张图片平均100KB
-                        }
-                        if lastModified == nil || cached.timestamp > lastModified! {
-                            lastModified = cached.timestamp
+                if fileManager.fileExists(atPath: staticDataSetPath.path) {
+                    if let enumerator = fileManager.enumerator(at: staticDataSetPath, 
+                                                             includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
+                                                             options: [.skipsHiddenFiles]) {
+                        for case let fileURL as URL in enumerator {
+                            if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path) {
+                                if let fileSize = attributes[.size] as? Int64 {
+                                    totalSize += fileSize
+                                    count += 1
+                                }
+                                if let modificationDate = attributes[.modificationDate] as? Date {
+                                    if lastModified == nil || modificationDate > lastModified! {
+                                        lastModified = modificationDate
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1278,7 +1274,7 @@ extension NetworkManager {
             inFile = true
             if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
                let modificationDate = attributes[.modificationDate] as? Date {
-                // 如果没有内存���存的年龄，使用文件缓存的年龄
+                // 如果没有内存缓存的年龄，使用文件缓存的年龄
                 if age == nil {
                     age = Date().timeIntervalSince(modificationDate)
                 }
