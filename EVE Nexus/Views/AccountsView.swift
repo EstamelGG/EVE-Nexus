@@ -39,16 +39,16 @@ struct AccountsView: View {
                         HStack {
                             if refreshingCharacters.contains(character.CharacterID) {
                                 ProgressView()
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 64, height: 64)
                             } else if let portrait = viewModel.characterPortraits[character.CharacterID] {
                                 Image(uiImage: portrait)
                                     .resizable()
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 64, height: 64)
                                     .clipShape(Circle())
                             } else {
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
-                                    .frame(width: 40, height: 40)
+                                    .frame(width: 64, height: 64)
                                     .foregroundColor(.gray)
                             }
                             
@@ -59,6 +59,7 @@ struct AccountsView: View {
                                     .font(.caption)
                                     .foregroundColor(.gray)
                             }
+                            .padding(.leading, 8)
                             
                             if isEditing {
                                 Spacer()
@@ -70,7 +71,7 @@ struct AccountsView: View {
                                 }
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 8)
                     }
                 }
             }

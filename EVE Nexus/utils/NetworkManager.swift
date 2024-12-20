@@ -713,7 +713,7 @@ class NetworkManager: NSObject {
     }
     
     // 获取角色头像
-    func fetchCharacterPortrait(characterId: Int, size: Int = 64, forceRefresh: Bool = false) async throws -> UIImage {
+    func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
         let urlString = "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
