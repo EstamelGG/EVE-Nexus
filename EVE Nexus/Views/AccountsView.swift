@@ -76,10 +76,14 @@ struct AccountsView: View {
                                     .clipShape(Circle())
                                     .overlay(
                                         Circle()
-                                            .stroke(.white, lineWidth: 2)
+                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
                                     )
-                                    .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
-                                    .padding(2)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.primary.opacity(0.05))
+                                    )
+                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                                    .padding(4)
                             } else {
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
@@ -87,10 +91,14 @@ struct AccountsView: View {
                                     .foregroundColor(.gray)
                                     .overlay(
                                         Circle()
-                                            .stroke(.white, lineWidth: 2)
+                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
                                     )
-                                    .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
-                                    .padding(2)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.primary.opacity(0.05))
+                                    )
+                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                                    .padding(4)
                             }
                             
                             VStack(alignment: .leading) {
