@@ -88,11 +88,26 @@ struct CharacterAuth: Codable {
     let character: EVECharacterInfo
     let token: EVEAuthToken
     let addedDate: Date
-    let lastTokenUpdateTime: Date  // 添加最后更新令牌的时间
+    let lastTokenUpdateTime: Date
     
     // 检查是否需要更新令牌
-    func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {  // 默认5分钟
+    func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {
         return Date().timeIntervalSince(lastTokenUpdateTime) >= minimumInterval
+    }
+    
+    // 自定义初始化方法
+    init(character: EVECharacterInfo, token: EVEAuthToken, addedDate: Date, lastTokenUpdateTime: Date) {
+        self.character = character
+        self.token = token
+        self.addedDate = addedDate
+        self.lastTokenUpdateTime = lastTokenUpdateTime
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case character
+        case token
+        case addedDate
+        case lastTokenUpdateTime
     }
 }
 
@@ -355,12 +370,12 @@ class EVELogin {
     // 处理授权回调
     func handleAuthCallback(url: URL) async throws -> EVEAuthToken {
         guard let config = config else {
-            throw NetworkError.invalidData
+            throw EVE_Nexus.NetworkError.invalidData
         }
         
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
-            throw NetworkError.invalidURL
+            throw EVE_Nexus.NetworkError.invalidURL
         }
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
@@ -390,7 +405,7 @@ class EVELogin {
     func getCharacterInfo(token: String) async throws -> EVECharacterInfo {
         guard let config = config,
               let verifyURL = URL(string: config.urls.verify) else {
-            throw NetworkError.invalidURL
+            throw EVE_Nexus.NetworkError.invalidURL
         }
         
         var request = URLRequest(url: verifyURL)
@@ -540,7 +555,7 @@ class EVELogin {
         
         // 执行令牌刷新
         guard let config = config else {
-            throw NetworkError.invalidData
+            throw EVE_Nexus.NetworkError.invalidData
         }
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
@@ -584,7 +599,7 @@ class EVELogin {
                 Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
                 // 清除过期的认证信息
                 clearAuthInfo()
-                throw NetworkError.tokenExpired
+                throw EVE_Nexus.NetworkError.tokenExpired
             }
         } else if let token = authInfo.token {
             Logger.info("EVELogin: 使用现有有效令牌")
@@ -593,7 +608,7 @@ class EVELogin {
         }
         
         Logger.error("EVELogin: 无法获取有效令牌")
-        throw NetworkError.invalidData
+        throw EVE_Nexus.NetworkError.invalidData
     }
     
     // 加载所有角色信息
@@ -613,14 +628,39 @@ class EVELogin {
     
     // 移除指定角色
     func removeCharacter(characterId: Int) {
+        let defaults = UserDefaults.standard
+        
         // 1. 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
         do {
             let encodedData = try JSONEncoder().encode(characters)
-            UserDefaults.standard.set(encodedData, forKey: charactersKey)
+            defaults.set(encodedData, forKey: charactersKey)
             Logger.info("EVELogin: 已从 UserDefaults 中移除角色 \(characterId)")
+            
+            // 移除该角色的所有缓存数据
+            let keysToRemove = [
+                "wallet_\(characterId)",      // 钱包缓存
+                "skills_\(characterId)",      // 技能缓存
+                "location_\(characterId)",    // 位置缓存
+                // 可以根据需要添加更多缓存键
+            ]
+            
+            for key in keysToRemove {
+                defaults.removeObject(forKey: key)
+                Logger.info("EVELogin: 已移除缓存数据: \(key)")
+            }
+            
+            // 如果没有其他角色了，清除通用的认证信息
+            if characters.isEmpty {
+                defaults.removeObject(forKey: "TokenExpirationDate")
+                Logger.info("EVELogin: 已清除令牌过期时间")
+            }
+            
+            // 同步 UserDefaults 确保数据立即保存
+            defaults.synchronize()
+            
         } catch {
             Logger.error("EVELogin: 移除角色信息失败: \(error)")
         }
