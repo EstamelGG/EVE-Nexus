@@ -257,20 +257,17 @@ struct AccountsView: View {
                         
                         // 获取角色技能信息
                         let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
-                            characterId: characterAuth.character.CharacterID,
-                            token: newToken.access_token
+                            characterId: characterAuth.character.CharacterID
                         )
                         
                         // 获取钱包余额
                         let balance = try await ESIDataManager.shared.getWalletBalance(
-                            characterId: characterAuth.character.CharacterID,
-                            token: newToken.access_token
+                            characterId: characterAuth.character.CharacterID
                         )
                         
                         // 获取位置信息
                         let location = try await NetworkManager.shared.fetchCharacterLocation(
-                            characterId: characterAuth.character.CharacterID,
-                            token: newToken.access_token
+                            characterId: characterAuth.character.CharacterID
                         )
                         
                         // 获取位置详细信息

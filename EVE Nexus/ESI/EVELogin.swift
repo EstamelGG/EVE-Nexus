@@ -166,8 +166,7 @@ class EVELoginViewModel: ObservableObject {
                         let locationInfo = await withCheckedContinuation { continuation in
                             Task {
                                 if let location = try? await NetworkManager.shared.fetchCharacterLocation(
-                                    characterId: character.CharacterID,
-                                    token: characterAuth.token.access_token
+                                    characterId: character.CharacterID
                                 ) {
                                     let info = await NetworkManager.shared.getLocationInfo(
                                         solarSystemId: location.solar_system_id,
@@ -184,21 +183,14 @@ class EVELoginViewModel: ObservableObject {
                         var updatedCharacter = character
                         
                         // 获取技能点信息
-                        if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
-                            characterId: character.CharacterID,
-                            token: characterAuth.token.access_token
-                        ) {
-                            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
-                            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
-                        }
+                        let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
+                            characterId: character.CharacterID
+                        )
                         
                         // 获取钱包余额
-                        if let balance = try? await ESIDataManager.shared.getWalletBalance(
-                            characterId: character.CharacterID,
-                            token: characterAuth.token.access_token
-                        ) {
-                            updatedCharacter.walletBalance = balance
-                        }
+                        let balance = try await ESIDataManager.shared.getWalletBalance(
+                            characterId: character.CharacterID
+                        )
                         
                         // 更新位置信息
                         if let locationInfo = locationInfo {
@@ -239,20 +231,17 @@ class EVELoginViewModel: ObservableObject {
             
             // 获取技能点信息
             let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
-                characterId: character.CharacterID,
-                token: token.access_token
+                characterId: character.CharacterID
             )
             
             // 获取钱包余额
             let balance = try await ESIDataManager.shared.getWalletBalance(
-                characterId: character.CharacterID,
-                token: token.access_token
+                characterId: character.CharacterID
             )
             
             // 获取位置信息
             let location = try await NetworkManager.shared.fetchCharacterLocation(
-                characterId: character.CharacterID,
-                token: token.access_token
+                characterId: character.CharacterID
             )
             
             // 获取位置详细信息
@@ -446,7 +435,7 @@ class EVELogin {
             
             Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName) - \(character.CharacterID)")
         } catch {
-            Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
+            Logger.error("EVELogin: 保存角色认证信息失��: \(error)")
         }
     }
     
@@ -637,7 +626,7 @@ class EVELogin {
                 throw NetworkError.tokenExpired
             }
         } else if let token = authInfo.token {
-            Logger.info("EVELogin: 使用现有有效令牌")
+            Logger.info("EVELogin: 使��现有有效令牌")
             // 令牌有效，直接返回
             return token.access_token
         }
@@ -708,10 +697,9 @@ class EVELogin {
             cacheKey: "wallet_\(characterId)",
             cacheDuration: 300, // 钱包数据缓存5分钟
             forceRefresh: forceRefresh
-        ) { token in
+        ) { _ in
             try await ESIDataManager.shared.getWalletBalance(
-                characterId: characterId,
-                token: token
+                characterId: characterId
             )
         }
     }
@@ -724,10 +712,9 @@ class EVELogin {
             cacheKey: "skills_\(characterId)",
             cacheDuration: 3600, // 技能数据缓存1小时
             forceRefresh: forceRefresh
-        ) { token in
+        ) { _ in
             try await NetworkManager.shared.fetchCharacterSkills(
-                characterId: characterId,
-                token: token
+                characterId: characterId
             )
         }
     }
@@ -740,10 +727,9 @@ class EVELogin {
             cacheKey: "location_\(characterId)",
             cacheDuration: 60, // 位置数据缓存1分钟
             forceRefresh: forceRefresh
-        ) { token in
+        ) { _ in
             try await NetworkManager.shared.fetchCharacterLocation(
-                characterId: characterId,
-                token: token
+                characterId: characterId
             )
         }
     }

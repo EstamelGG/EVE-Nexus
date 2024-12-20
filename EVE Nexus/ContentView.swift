@@ -1,6 +1,7 @@
 import SwiftUI
 import SafariServices
 import WebKit
+import Foundation
 
 // 优化数据模型为值类型
 struct TableRowNode: Identifiable, Equatable {
@@ -279,7 +280,7 @@ struct ContentView: View {
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .sheet(isPresented: $showingAccountSheet) {
-                AccountsView()
+                AccountsView(databaseManager: databaseManager)
             }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))

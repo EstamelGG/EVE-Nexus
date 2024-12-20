@@ -139,7 +139,7 @@ class CacheManager {
     // 清理所有缓存
     func clearAllCaches() async {
         // 1. 清理 NetworkManager 缓存
-        NetworkManager.shared.clearAllCaches()
+        await NetworkManager.shared.clearAllCaches()
         
         // 2. 清理临时文件
         let tempPath = NSTemporaryDirectory()
@@ -512,7 +512,7 @@ struct SettingView: View {
         }
     }
     
-    // MARK: - 主题管理
+    // MARK: - 主题管���
     private func getThemeIcon() -> String {
         switch selectedTheme {
         case "light": return "sun.max.fill"
@@ -615,7 +615,7 @@ struct SettingView: View {
             await CacheManager.shared.clearAllCaches()
             
             // 2. 清理 NetworkManager 的所有缓存
-            NetworkManager.shared.clearAllCaches()
+            await NetworkManager.shared.clearAllCaches()
             
             // 3. 清理 StaticResourceManager 的内存缓存
             StaticResourceManager.shared.clearMemoryCache()

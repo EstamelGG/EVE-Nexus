@@ -212,7 +212,12 @@ enum EVEResource: CaseIterable, NetworkResource {
 }
 
 // 修改类定义，继承自NSObject
-class NetworkManager: NSObject {
+@globalActor actor NetworkManagerActor {
+    static let shared = NetworkManagerActor()
+}
+
+@NetworkManagerActor
+class NetworkManager: NSObject, @unchecked Sendable {
     static let shared = NetworkManager()
     var regionID: Int = 10000002 // 默认为 The Forge
     
@@ -233,7 +238,7 @@ class NetworkManager: NSObject {
     // 市场订单缓存
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
-    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存有效期5分钟
+    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存效期5分钟
     
     // 服务器状态缓存
     private var serverStatusCache: CachedData<ServerStatus>?
@@ -783,7 +788,7 @@ class NetworkManager: NSObject {
     }
     
     // 获取角色技能信息
-    func fetchCharacterSkills(characterId: Int, token: String) async throws -> CharacterSkillsResponse {
+    func fetchCharacterSkills(characterId: Int) async throws -> CharacterSkillsResponse {
         // 检查 UserDefaults 缓存
         let skillsCacheKey = "character_\(characterId)_skills"
         let skillsUpdateTimeKey = "character_\(characterId)_skills_update_time"
@@ -804,7 +809,6 @@ class NetworkManager: NSObject {
         // 如果没有缓存或缓存已过期，从网络获取
         let skills: CharacterSkillsResponse = try await fetchDataWithToken(
             characterId: characterId,
-            token: token,
             endpoint: "/characters/\(characterId)/skills/"
         )
         
@@ -852,10 +856,9 @@ class NetworkManager: NSObject {
     }
     
     // 获取角色位置信息
-    func fetchCharacterLocation(characterId: Int, token: String) async throws -> CharacterLocation {
+    func fetchCharacterLocation(characterId: Int) async throws -> CharacterLocation {
         return try await fetchDataWithToken(
             characterId: characterId,
-            token: token,
             endpoint: "/characters/\(characterId)/location/"
         )
     }
@@ -890,17 +893,24 @@ class NetworkManager: NSObject {
     }
     
     // 获取角色完整位置信息（包含星系名称等）
-    func fetchCharacterLocationInfo(characterId: Int, token: String, databaseManager: DatabaseManager) async throws -> SolarSystemInfo? {
-        let location = try await fetchCharacterLocation(characterId: characterId, token: token)
+    func fetchCharacterLocationInfo(characterId: Int, databaseManager: DatabaseManager) async throws -> SolarSystemInfo? {
+        let location = try await fetchCharacterLocation(characterId: characterId)
         return await getLocationInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
     }
     
     // 专门用于需要访问令牌的请求
-    func fetchDataWithToken<T: Codable>(characterId: Int, token: String, endpoint: String) async throws -> T {
+    func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
+        
+        // 从EVELogin获取角色的token
+        guard let character = EVELogin.shared.getCharacterByID(characterId) else {
+            throw NetworkError.unauthed
+        }
+        
+        let token = character.token.access_token
         
         var request = URLRequest(url: url)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -913,8 +923,9 @@ class NetworkManager: NSObject {
             if statusCode == 403 {
                 // 令牌过期，尝试刷新
                 Logger.info("Token expired, attempting to refresh...")
-                if let character = EVELogin.shared.getCharacterByID(characterId),
-                   let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
+                if let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
+                    // 保存新token
+                    EVELogin.shared.saveAuthInfo(token: newToken, character: character.character)
                     // 使用新令牌重试
                     request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
                     let data = try await fetchData(from: url, request: request)
