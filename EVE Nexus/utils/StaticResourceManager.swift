@@ -88,7 +88,7 @@ class StaticResourceManager {
     public let RENDER_CACHE_DURATION: TimeInterval = 7 * 24 * 3600      // 7天
     public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
     public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
-    public let INCURSIONS_CACHE_DURATION: TimeInterval = 4 * 3600        // 4小时
+    public let INCURSIONS_CACHE_DURATION: TimeInterval = 1 * 3600        // 1小时
     public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 24 * 3600 // 1天
     
     private init() {}
