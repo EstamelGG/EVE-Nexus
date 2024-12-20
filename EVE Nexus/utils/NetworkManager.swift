@@ -373,12 +373,31 @@ class NetworkManager: NSObject, @unchecked Sendable {
             throw NetworkError.invalidURL
         }
         
-        return try await fetchCachedImage(
-            cacheKey: "item_\(typeID)",
-            filename: "item_\(typeID).png",
-            cacheDuration: StaticResourceManager.shared.RENDER_CACHE_DURATION,
-            imageURL: url
-        )
+        // 1. 检查内存缓存
+        let cacheKey = "item_\(typeID)"
+        if let cached = await getCachedImage(forKey: cacheKey) {
+            return cached
+        }
+        
+        // 2. 检查文件缓存
+        if let data = StaticResourceManager.shared.getNetRender(typeId: typeID),
+           let image = UIImage(data: data) {
+            // 更新内存缓存
+            await setCachedImage(image, forKey: cacheKey)
+            return image
+        }
+        
+        // 3. 从网络获取
+        let data = try await fetchData(from: url)
+        guard let image = UIImage(data: data) else {
+            throw NetworkError.invalidImageData
+        }
+        
+        // 4. 更新缓存
+        await setCachedImage(image, forKey: cacheKey)
+        try? StaticResourceManager.shared.saveNetRender(data, typeId: typeID)
+        
+        return image
     }
     
     // 获取市场订单（仅使用内存缓存）
@@ -1259,7 +1278,7 @@ extension NetworkManager {
             inFile = true
             if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
                let modificationDate = attributes[.modificationDate] as? Date {
-                // 如果没有内存缓存的年龄，使用文件缓存的年龄
+                // 如果没有内存���存的年龄，使用文件缓存的年龄
                 if age == nil {
                     age = Date().timeIntervalSince(modificationDate)
                 }
