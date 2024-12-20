@@ -774,7 +774,7 @@ struct SettingView: View {
                     }
                     
                     // 只有当文件存在且有lastModified时才显示最后更新时间
-                    if resource.exists && lastModified != nil {
+                    if resource.exists {
                         info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
                             getRelativeTimeString(from: lastModified))
                     }
