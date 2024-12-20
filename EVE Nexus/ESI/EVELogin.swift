@@ -566,15 +566,30 @@ class EVELogin {
     
     // 移除指定角色
     func removeCharacter(characterId: Int) {
+        // 1. 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
         do {
             let encodedData = try JSONEncoder().encode(characters)
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
-            Logger.info("EVELogin: 移除角色成功 - ID: \(characterId)")
+            Logger.info("EVELogin: 已从 UserDefaults 中移除角色 \(characterId)")
         } catch {
-            Logger.error("EVELogin: 移除角色失败: \(error)")
+            Logger.error("EVELogin: 移除角色信息失败: \(error)")
+        }
+        
+        // 2. 删除角色的本地文件
+        let characterPath = StaticResourceManager.shared.getStaticDataSetPath()
+            .appendingPathComponent("Characters")
+            .appendingPathComponent("\(characterId)")
+        
+        do {
+            if FileManager.default.fileExists(atPath: characterPath.path) {
+                try FileManager.default.removeItem(at: characterPath)
+                Logger.info("EVELogin: 已删除角色 \(characterId) 的本地文件")
+            }
+        } catch {
+            Logger.error("EVELogin: 删除角色本地文件失败: \(error)")
         }
     }
     
