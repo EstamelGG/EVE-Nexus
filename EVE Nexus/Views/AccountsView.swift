@@ -114,6 +114,10 @@ struct AccountsView: View {
                                             Text(formatSecurity(location.security))
                                                 .foregroundColor(getSecurityColor(location.security))
                                             Text("\(location.systemName) / \(location.regionName)")
+                                            if let locationStatus = character.locationStatus?.description {
+                                                Text(locationStatus)
+                                                    .foregroundColor(.secondary)
+                                            }
                                         }
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -280,6 +284,7 @@ struct AccountsView: View {
                         characterWithInfo.totalSkillPoints = skillsInfo.total_sp
                         characterWithInfo.unallocatedSkillPoints = skillsInfo.unallocated_sp
                         characterWithInfo.walletBalance = balance
+                        characterWithInfo.locationStatus = location.locationStatus
                         
                         // 更新位置信息
                         if let locationInfo = locationInfo {

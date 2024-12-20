@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // 如果不是强制刷新，检查本地文件缓存
+        // ��果不是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
@@ -795,6 +795,34 @@ class NetworkManager: NSObject {
     struct CharacterLocation: Codable {
         let solar_system_id: Int
         let structure_id: Int?
+        let station_id: Int?
+        
+        var locationStatus: LocationStatus {
+            if station_id != nil {
+                return .inStation
+            } else if structure_id != nil {
+                return .inStructure
+            } else {
+                return .inSpace
+            }
+        }
+        
+        enum LocationStatus: String, Codable {
+            case inStation
+            case inStructure
+            case inSpace
+            
+            var description: String {
+                switch self {
+                case .inStation:
+                    return "(in station)"
+                case .inStructure:
+                    return "(in structure)"
+                case .inSpace:
+                    return "(in space)"
+                }
+            }
+        }
     }
     
     // 获取角色位置信息

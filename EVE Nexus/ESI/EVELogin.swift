@@ -21,6 +21,51 @@ struct EVECharacterInfo: Codable {
     var unallocatedSkillPoints: Int?
     var walletBalance: Double?
     var location: SolarSystemInfo?
+    var locationStatus: NetworkManager.CharacterLocation.LocationStatus?
+    
+    enum CodingKeys: String, CodingKey {
+        case CharacterID
+        case CharacterName
+        case ExpiresOn
+        case Scopes
+        case TokenType
+        case CharacterOwnerHash
+        case totalSkillPoints
+        case unallocatedSkillPoints
+        case walletBalance
+        case location
+        case locationStatus
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        CharacterID = try container.decode(Int.self, forKey: .CharacterID)
+        CharacterName = try container.decode(String.self, forKey: .CharacterName)
+        ExpiresOn = try container.decode(String.self, forKey: .ExpiresOn)
+        Scopes = try container.decode(String.self, forKey: .Scopes)
+        TokenType = try container.decode(String.self, forKey: .TokenType)
+        CharacterOwnerHash = try container.decode(String.self, forKey: .CharacterOwnerHash)
+        totalSkillPoints = try container.decodeIfPresent(Int.self, forKey: .totalSkillPoints)
+        unallocatedSkillPoints = try container.decodeIfPresent(Int.self, forKey: .unallocatedSkillPoints)
+        walletBalance = try container.decodeIfPresent(Double.self, forKey: .walletBalance)
+        location = try container.decodeIfPresent(SolarSystemInfo.self, forKey: .location)
+        locationStatus = try container.decodeIfPresent(NetworkManager.CharacterLocation.LocationStatus.self, forKey: .locationStatus)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(CharacterID, forKey: .CharacterID)
+        try container.encode(CharacterName, forKey: .CharacterName)
+        try container.encode(ExpiresOn, forKey: .ExpiresOn)
+        try container.encode(Scopes, forKey: .Scopes)
+        try container.encode(TokenType, forKey: .TokenType)
+        try container.encode(CharacterOwnerHash, forKey: .CharacterOwnerHash)
+        try container.encodeIfPresent(totalSkillPoints, forKey: .totalSkillPoints)
+        try container.encodeIfPresent(unallocatedSkillPoints, forKey: .unallocatedSkillPoints)
+        try container.encodeIfPresent(walletBalance, forKey: .walletBalance)
+        try container.encodeIfPresent(location, forKey: .location)
+        try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
+    }
 }
 
 // ESI配置模型
@@ -422,7 +467,7 @@ class EVELogin {
         Logger.info("EVELogin: 清除所有认证信息")
     }
     
-    // 添加令牌刷新功能
+    // 添加令牌刷��功能
     // 检查令牌是否有效
     func isTokenValid() -> Bool {
         guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
