@@ -9,6 +9,7 @@ struct AccountsView: View {
     @State private var characterToRemove: EVECharacterInfo? = nil
     @State private var forceUpdate: Bool = false
     @State private var isRefreshing = false
+    @State private var refreshingCharacters: Set<Int> = []
     
     var body: some View {
         List {
@@ -36,7 +37,10 @@ struct AccountsView: View {
                 Section(header: Text(NSLocalizedString("Account_Logged_Characters", comment: ""))) {
                     ForEach(viewModel.characters, id: \.CharacterID) { character in
                         HStack {
-                            if let portrait = viewModel.characterPortraits[character.CharacterID] {
+                            if refreshingCharacters.contains(character.CharacterID) {
+                                ProgressView()
+                                    .frame(width: 40, height: 40)
+                            } else if let portrait = viewModel.characterPortraits[character.CharacterID] {
                                 Image(uiImage: portrait)
                                     .resizable()
                                     .frame(width: 40, height: 40)
@@ -144,6 +148,12 @@ struct AccountsView: View {
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
         
+        // 清除所有头像并添加所有角色到刷新集合
+        await MainActor.run {
+            viewModel.characterPortraits.removeAll()
+            refreshingCharacters = Set(characterAuths.map { $0.character.CharacterID })
+        }
+        
         for characterAuth in characterAuths {
             do {
                 // 使用刷新令牌获取新的访问令牌
@@ -158,9 +168,18 @@ struct AccountsView: View {
                 // 重新加载头像
                 await viewModel.loadCharacterPortrait(characterId: characterAuth.character.CharacterID)
                 
+                // 从刷新集合中移除已完成的角色
+                await MainActor.run {
+                    refreshingCharacters.remove(characterAuth.character.CharacterID)
+                }
+                
                 Logger.info("成功刷新角色信息 - \(updatedCharacter.CharacterName)")
             } catch {
                 Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
+                // 如果刷新失败，也要从刷新集合中移除
+                await MainActor.run {
+                    refreshingCharacters.remove(characterAuth.character.CharacterID)
+                }
             }
         }
         
