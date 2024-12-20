@@ -183,12 +183,12 @@ class EVELoginViewModel: ObservableObject {
                         var updatedCharacter = character
                         
                         // 获取技能点信息
-                        let _ = try await NetworkManager.shared.fetchCharacterSkills(
+                        let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
                             characterId: character.CharacterID
                         )
                         
                         // 获取钱包余额
-                        let _ = try await ESIDataManager.shared.getWalletBalance(
+                        let balance = try await ESIDataManager.shared.getWalletBalance(
                             characterId: character.CharacterID
                         )
                         
