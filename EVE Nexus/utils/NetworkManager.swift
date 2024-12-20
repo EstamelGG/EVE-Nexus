@@ -841,7 +841,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
         }
         
-        // 如果强制刷新��没有缓存，从网络获取
+        // 如果强制刷新没有缓存，从网络获取
         let data = try await fetchData(from: url, forceRefresh: forceRefresh)
         guard let image = UIImage(data: data) else {
             throw NetworkError.invalidImageData
@@ -977,42 +977,73 @@ class NetworkManager: NSObject, @unchecked Sendable {
     // 专门用于需要访问令牌的请求
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
+        Logger.info("NetworkManager: 准备请求数据，endpoint: \(endpoint)")
+        
         guard let url = URL(string: urlString) else {
+            Logger.error("NetworkManager: 无效的URL: \(urlString)")
             throw NetworkError.invalidURL
         }
         
         // 从EVELogin获取角色的token
         guard let character = EVELogin.shared.getCharacterByID(characterId) else {
+            Logger.error("NetworkManager: 未找到角色ID \(characterId) 的认证信息")
             throw NetworkError.unauthed
         }
         
         let token = character.token.access_token
+        Logger.info("NetworkManager: 使用token访问API，token长度: \(token.count)")
         
         var request = URLRequest(url: url)
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("tranquility", forHTTPHeaderField: "datasource")
         
         do {
-            let data = try await fetchData(from: url, request: request)
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch NetworkError.httpError(let statusCode) {
-            if statusCode == 403 {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                Logger.error("NetworkManager: 无效的响应类型")
+                throw NetworkError.invalidResponse
+            }
+            
+            Logger.info("NetworkManager: API响应状态码: \(httpResponse.statusCode)")
+            
+            if httpResponse.statusCode == 403 {
+                Logger.info("NetworkManager: Token已过期，尝试刷新...")
                 // 令牌过期，尝试刷新
-                Logger.info("Token expired, attempting to refresh...")
                 if let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
                     // 保存新token
                     EVELogin.shared.saveAuthInfo(token: newToken, character: character.character)
                     // 使用新令牌重试
                     request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
-                    let data = try await fetchData(from: url, request: request)
-                    Logger.info("Token refreshed.")
-                    return try JSONDecoder().decode(T.self, from: data)
-                } else {
-                    Logger.info("New Token also failed ?...")
-                    throw NetworkError.tokenExpired
+                    let (newData, newResponse) = try await URLSession.shared.data(for: request)
+                    
+                    guard let newHttpResponse = newResponse as? HTTPURLResponse else {
+                        Logger.error("NetworkManager: 使用新token后获得无效响应")
+                        throw NetworkError.invalidResponse
+                    }
+                    
+                    Logger.info("NetworkManager: 使用新token的响应状态码: \(newHttpResponse.statusCode)")
+                    
+                    if newHttpResponse.statusCode == 200 {
+                        Logger.info("NetworkManager: Token刷新成功")
+                        return try JSONDecoder().decode(T.self, from: newData)
+                    }
                 }
+                Logger.error("NetworkManager: Token刷新失败")
+                throw NetworkError.tokenExpired
             }
-            throw NetworkError.httpError(statusCode: statusCode)
+            
+            if httpResponse.statusCode != 200 {
+                if let errorString = String(data: data, encoding: .utf8) {
+                    Logger.error("NetworkManager: API请求失败，错误信息: \(errorString)")
+                }
+                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            }
+            
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            Logger.error("NetworkManager: 请求失败: \(error)")
+            throw error
         }
     }
 }

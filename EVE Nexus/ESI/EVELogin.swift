@@ -156,52 +156,14 @@ class EVELoginViewModel: ObservableObject {
                 await loadCharacterPortrait(characterId: character.CharacterID)
             }
         }
-        
-        // 2. 加载技能点、钱包和位置信息
-        Task {
-            for character in characters {
-                do {
-                    if let characterAuth = EVELogin.shared.loadCharacters().first(where: { $0.character.CharacterID == character.CharacterID }) {
-                        // 使用串行队列执行数据库操作
-                        let locationInfo = await withCheckedContinuation { continuation in
-                            Task {
-                                if let location = try? await NetworkManager.shared.fetchCharacterLocation(
-                                    characterId: character.CharacterID
-                                ) {
-                                    let info = await NetworkManager.shared.getLocationInfo(
-                                        solarSystemId: location.solar_system_id,
-                                        databaseManager: self.databaseManager
-                                    )
-                                    continuation.resume(returning: info)
-                                } else {
-                                    continuation.resume(returning: nil)
-                                }
-                            }
-                        }
-                        
-                        // 更新角色信息
-                        var updatedCharacter = character
-                        
-                        // 获取技能点信息
-                        let _ = try await NetworkManager.shared.fetchCharacterSkills(
-                            characterId: character.CharacterID
-                        )
-                        
-                        // 获取钱包余额
-                        let _ = try await ESIDataManager.shared.getWalletBalance(
-                            characterId: character.CharacterID
-                        )
-                        
-                        // 更新位置信息
-                        if let locationInfo = locationInfo {
-                            updatedCharacter.location = locationInfo
-                        }
-                        
-                        // 保存更新后的信息
-                        EVELogin.shared.saveAuthInfo(token: characterAuth.token, character: updatedCharacter)
-                    }
-                }
-            }
+    }
+    
+    func handleCallback(url: URL) async {
+        do {
+            let character = try await EVELogin.shared.processLogin(url: url)
+            handleLoginSuccess(character: character)
+        } catch {
+            handleLoginError(error)
         }
     }
     
@@ -221,57 +183,6 @@ class EVELoginViewModel: ObservableObject {
         characterPortraits.removeValue(forKey: character.CharacterID) // 移除头像缓存
         loadCharacters()
     }
-    
-    func handleCallback(url: URL) async {
-        do {
-            let token = try await EVELogin.shared.handleAuthCallback(url: url)
-            let character = try await EVELogin.shared.getCharacterInfo(token: token.access_token)
-            
-            Logger.info("成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
-            
-            // 获取技能点信息
-            let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
-                characterId: character.CharacterID
-            )
-            
-            // 获取钱包余额
-            let balance = try await ESIDataManager.shared.getWalletBalance(
-                characterId: character.CharacterID
-            )
-            
-            // 获取位置信息
-            let location = try await NetworkManager.shared.fetchCharacterLocation(
-                characterId: character.CharacterID
-            )
-            
-            // 获取位置详细信息
-            let locationInfo = await NetworkManager.shared.getLocationInfo(
-                solarSystemId: location.solar_system_id,
-                databaseManager: databaseManager
-            )
-            
-            // 更新角色信息
-            var updatedCharacter = character
-            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
-            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
-            updatedCharacter.walletBalance = balance
-            updatedCharacter.locationStatus = location.locationStatus
-            
-            // 更新位置信息
-            if let locationInfo = locationInfo {
-                updatedCharacter.location = locationInfo
-            }
-            
-            // 保存认证信息
-            EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
-            
-            // 更新UI状态
-            handleLoginSuccess(character: updatedCharacter)
-        } catch {
-            Logger.error("处理授权失败: \(error)")
-            handleLoginError(error)
-        }
-    }
 }
 
 class EVELogin {
@@ -279,10 +190,132 @@ class EVELogin {
     internal var config: ESIConfig?
     private var session: URLSession!
     private let charactersKey = "EVECharacters"
+    private let databaseManager: DatabaseManager
     
     private init() {
         session = URLSession.shared
+        databaseManager = DatabaseManager()
         loadConfig()
+    }
+    
+    // 步骤1：处理授权回调，获取token
+    private func processAuthCallback(url: URL) async throws -> (token: EVEAuthToken, character: EVECharacterInfo) {
+        Logger.info("EVELogin: 开始处理授权回调...")
+        let token = try await handleAuthCallback(url: url)
+        Logger.info("EVELogin: 成功获取token")
+        
+        let character = try await getCharacterInfo(token: token.access_token)
+        Logger.info("EVELogin: 成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
+        
+        return (token, character)
+    }
+    
+    // 步骤2：保存基本认证信息
+    private func saveInitialAuth(token: EVEAuthToken, character: EVECharacterInfo) {
+        Logger.info("EVELogin: 开始保存初始认证信息...")
+        saveAuthInfo(token: token, character: character)
+        UserDefaults.standard.synchronize()
+        Logger.info("EVELogin: 初始认证信息保存完成")
+    }
+    
+    // 步骤3：获取角色详细信息
+    private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: NetworkManager.CharacterLocation) {
+        Logger.info("EVELogin: 开始获取角色详细信息...")
+        
+        let skills = try await NetworkManager.shared.fetchCharacterSkills(
+            characterId: characterId
+        )
+        Logger.info("EVELogin: 成功获取技能信息")
+        
+        let balance = try await ESIDataManager.shared.getWalletBalance(
+            characterId: characterId
+        )
+        Logger.info("EVELogin: 成功获取钱包余额")
+        
+        let location = try await NetworkManager.shared.fetchCharacterLocation(
+            characterId: characterId
+        )
+        Logger.info("EVELogin: 成功获取位置信息")
+        
+        return (skills, balance, location)
+    }
+    
+    // 步骤4：更新角色信息
+    private func updateCharacterInfo(
+        character: EVECharacterInfo,
+        skills: CharacterSkillsResponse,
+        balance: Double,
+        location: NetworkManager.CharacterLocation,
+        locationInfo: SolarSystemInfo?
+    ) -> EVECharacterInfo {
+        Logger.info("EVELogin: 开始更新角色信息...")
+        var updatedCharacter = character
+        updatedCharacter.totalSkillPoints = skills.total_sp
+        updatedCharacter.unallocatedSkillPoints = skills.unallocated_sp
+        updatedCharacter.walletBalance = balance
+        updatedCharacter.locationStatus = location.locationStatus
+        
+        if let locationInfo = locationInfo {
+            updatedCharacter.location = locationInfo
+        }
+        
+        Logger.info("EVELogin: 角色信息更新完成")
+        return updatedCharacter
+    }
+    
+    // 主处理函数
+    func processLogin(url: URL) async throws -> EVECharacterInfo {
+        do {
+            // 步骤1：处理授权回调，获取token和基本角色信息
+            let (token, character) = try await processAuthCallback(url: url)
+            
+            // 步骤2：保存初始认证信息
+            saveInitialAuth(token: token, character: character)
+            
+            // 验证保存是否成功
+            guard let savedAuth = getCharacterByID(character.CharacterID) else {
+                Logger.error("EVELogin: 初始认证信息保存失败")
+                throw NetworkError.invalidData
+            }
+            Logger.info("EVELogin: 验证初始认证信息保存成功")
+            
+            // 步骤3：获取角色详细信息
+            let (skills, balance, location) = try await fetchCharacterDetails(characterId: character.CharacterID)
+            
+            // 获取位置详细信息
+            let locationInfo = await NetworkManager.shared.getLocationInfo(
+                solarSystemId: location.solar_system_id,
+                databaseManager: databaseManager
+            )
+            
+            // 步骤4：更新角色信息
+            let updatedCharacter = updateCharacterInfo(
+                character: character,
+                skills: skills,
+                balance: balance,
+                location: location,
+                locationInfo: locationInfo
+            )
+            
+            // 步骤5：保存更新后的信息
+            Logger.info("EVELogin: 保存更新后的角色信息...")
+            saveAuthInfo(token: token, character: updatedCharacter)
+            UserDefaults.standard.synchronize()
+            
+            // 步骤6：验证最终保存
+            guard let finalAuth = getCharacterByID(character.CharacterID) else {
+                Logger.error("EVELogin: 最终角色信息保存失败")
+                throw NetworkError.invalidData
+            }
+            Logger.info("EVELogin: 最终角色信息保存成功")
+            
+            Logger.info("EVELogin: 登录流程完成")
+            return updatedCharacter
+            
+        } catch {
+            Logger.error("EVELogin: 处理授权失败: \(error)")
+            throw error
+        }
     }
     
     // 执行后台刷新
@@ -357,13 +390,17 @@ class EVELogin {
     // 处理授权回调
     func handleAuthCallback(url: URL) async throws -> EVEAuthToken {
         guard let config = config else {
+            Logger.error("EVELogin: 配置为空，无法处理授权回调")
             throw EVE_Nexus.NetworkError.invalidData
         }
         
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true),
               let code = components.queryItems?.first(where: { $0.name == "code" })?.value else {
+            Logger.error("EVELogin: 无法从URL获取授权码")
             throw EVE_Nexus.NetworkError.invalidURL
         }
+        
+        Logger.info("EVELogin: 成功获取授权码: \(String(code.prefix(10)))...")
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
         request.httpMethod = "POST"
@@ -378,14 +415,34 @@ class EVELogin {
             "redirect_uri": config.callbackUrl
         ]
         
+        Logger.info("EVELogin: 准备发送token请求，redirect_uri: \(config.callbackUrl)")
+        
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = bodyParams
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: "&")
             .data(using: .utf8)
         
-        let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                Logger.info("EVELogin: Token请求响应状态码: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        Logger.error("EVELogin: Token请求失败，错误信息: \(errorString)")
+                    }
+                }
+            }
+            
+            let token = try JSONDecoder().decode(EVEAuthToken.self, from: data)
+            Logger.info("EVELogin: 成功获取token，access_token长度: \(token.access_token.count)")
+            return token
+        } catch {
+            Logger.error("EVELogin: Token请求失败: \(error)")
+            throw error
+        }
     }
     
     // 获取角色信息
@@ -433,9 +490,12 @@ class EVELogin {
             defaults.set(encodedData, forKey: charactersKey)
             defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
             
+            // 强制同步到磁盘
+            defaults.synchronize()
+            
             Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName) - \(character.CharacterID)")
         } catch {
-            Logger.error("EVELogin: 保存角色认证信息失��: \(error)")
+            Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
         }
     }
     
@@ -626,7 +686,7 @@ class EVELogin {
                 throw NetworkError.tokenExpired
             }
         } else if let token = authInfo.token {
-            Logger.info("EVELogin: 使��现有有效令牌")
+            Logger.info("EVELogin: 使用现有有效令牌")
             // 令牌有效，直接返回
             return token.access_token
         }
