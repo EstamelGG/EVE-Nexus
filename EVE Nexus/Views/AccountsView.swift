@@ -243,13 +243,13 @@ struct AccountsView: View {
                         )
                         
                         // 获取位置信息
-                        let location = try await LocationManager.shared.getCharacterLocation(
+                        let location = try await NetworkManager.shared.fetchCharacterLocation(
                             characterId: characterAuth.character.CharacterID,
                             token: newToken.access_token
                         )
                         
                         // 获取位置详细信息
-                        let locationInfo = getLocationInfo(
+                        let locationInfo = await NetworkManager.shared.getLocationInfo(
                             solarSystemId: location.solar_system_id,
                             databaseManager: viewModel.databaseManager
                         )

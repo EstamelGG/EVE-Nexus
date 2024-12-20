@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // 果不是强制刷新，检查本地文件缓存
+        // 果不是强制刷新，检查本地文���缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
@@ -789,6 +789,62 @@ class NetworkManager: NSObject {
         try encodedData.write(to: fileURL)
         
         return skillsResponse
+    }
+    
+    // 角色位置信息模型
+    struct CharacterLocation: Codable {
+        let solar_system_id: Int
+        let structure_id: Int?
+    }
+    
+    // 获取角色位置信息
+    func fetchCharacterLocation(characterId: Int, token: String) async throws -> CharacterLocation {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("tranquility", forHTTPHeaderField: "datasource")
+        
+        let data = try await fetchData(from: url, request: request)
+        return try JSONDecoder().decode(CharacterLocation.self, from: data)
+    }
+    
+    // 获取星系位置信息
+    func getLocationInfo(solarSystemId: Int, databaseManager: DatabaseManager) async -> SolarSystemInfo? {
+        let universeQuery = """
+            SELECT u.region_id, u.constellation_id, u.system_security,
+                   s.solarSystemName, c.constellationName, r.regionName
+            FROM universe u
+            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+            JOIN constellations c ON c.constellationID = u.constellation_id
+            JOIN regions r ON r.regionID = u.region_id
+            WHERE u.solarsystem_id = ?
+        """
+        
+        guard case .success(let rows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
+              let row = rows.first,
+              let security = row["system_security"] as? Double,
+              let systemName = row["solarSystemName"] as? String,
+              let constellationName = row["constellationName"] as? String,
+              let regionName = row["regionName"] as? String else {
+            return nil
+        }
+        
+        return SolarSystemInfo(
+            systemName: systemName,
+            security: security,
+            constellationName: constellationName,
+            regionName: regionName
+        )
+    }
+    
+    // 获取角色完整位置信息（包含星系名称等）
+    func fetchCharacterLocationInfo(characterId: Int, token: String, databaseManager: DatabaseManager) async throws -> SolarSystemInfo? {
+        let location = try await fetchCharacterLocation(characterId: characterId, token: token)
+        return await getLocationInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
     }
 }
 
