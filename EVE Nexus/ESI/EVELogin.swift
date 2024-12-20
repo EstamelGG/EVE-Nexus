@@ -125,6 +125,30 @@ class EVELoginViewModel: ObservableObject {
     
     init(databaseManager: DatabaseManager = DatabaseManager()) {
         self.databaseManager = databaseManager
+        // 添加通知观察者
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCharacterDetailsUpdate(_:)),
+            name: Notification.Name("CharacterDetailsUpdated"),
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleCharacterDetailsUpdate(_ notification: Notification) {
+        if let updatedCharacter = notification.userInfo?["character"] as? EVECharacterInfo {
+            // 更新角色列表
+            if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
+                characters[index] = updatedCharacter
+            }
+            // 如果是当前选中的角色，也更新characterInfo
+            if characterInfo?.CharacterID == updatedCharacter.CharacterID {
+                characterInfo = updatedCharacter
+            }
+        }
     }
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
@@ -263,7 +287,7 @@ class EVELogin {
         return updatedCharacter
     }
     
-    // 主处理函数
+    // 主处理函数 - 第一阶段：基本认证
     func processLogin(url: URL) async throws -> EVECharacterInfo {
         do {
             // 步骤1：处理授权回调，获取token和基本角色信息
@@ -279,43 +303,63 @@ class EVELogin {
             }
             Logger.info("EVELogin: 验证初始认证信息保存成功")
             
-            // 步骤3：获取角色详细信息
-            let (skills, balance, location) = try await fetchCharacterDetails(characterId: character.CharacterID)
-            
-            // 获取位置详细信息
-            let locationInfo = await NetworkManager.shared.getLocationInfo(
-                solarSystemId: location.solar_system_id,
-                databaseManager: databaseManager
-            )
-            
-            // 步骤4：更新角色信息
-            let updatedCharacter = updateCharacterInfo(
-                character: character,
-                skills: skills,
-                balance: balance,
-                location: location,
-                locationInfo: locationInfo
-            )
-            
-            // 步骤5：保存更新后的信息
-            Logger.info("EVELogin: 保存更新后的角色信息...")
-            saveAuthInfo(token: token, character: updatedCharacter)
-            UserDefaults.standard.synchronize()
-            
-            // 步骤6：验证最终保存
-            guard let finalAuth = getCharacterByID(character.CharacterID) else {
-                Logger.error("EVELogin: 最终角色信息保存失败")
-                throw NetworkError.invalidData
+            // 启动后台任务加载详细信息
+            Task {
+                do {
+                    let updatedCharacter = try await loadDetailedInfo(token: token, character: character)
+                    NotificationCenter.default.post(
+                        name: Notification.Name("CharacterDetailsUpdated"),
+                        object: nil,
+                        userInfo: ["character": updatedCharacter]
+                    )
+                } catch {
+                    Logger.error("EVELogin: 加载详细信息失败: \(error)")
+                }
             }
-            Logger.info("EVELogin: 最终角色信息保存成功")
             
-            Logger.info("EVELogin: 登录流程完成")
-            return updatedCharacter
+            // 立即返回基本角色信息，让浏览器可以关闭
+            return character
             
         } catch {
             Logger.error("EVELogin: 处理授权失败: \(error)")
             throw error
         }
+    }
+    
+    // 第二阶段：加载详细信息
+    private func loadDetailedInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws -> EVECharacterInfo {
+        // 步骤3：获取角色详细信息
+        let (skills, balance, location) = try await fetchCharacterDetails(characterId: character.CharacterID)
+        
+        // 获取位置详细信息
+        let locationInfo = await NetworkManager.shared.getLocationInfo(
+            solarSystemId: location.solar_system_id,
+            databaseManager: databaseManager
+        )
+        
+        // 步骤4：更新角色信息
+        let updatedCharacter = updateCharacterInfo(
+            character: character,
+            skills: skills,
+            balance: balance,
+            location: location,
+            locationInfo: locationInfo
+        )
+        
+        // 步骤5：保存更新后的信息
+        Logger.info("EVELogin: 保存更新后的角色信息...")
+        saveAuthInfo(token: token, character: updatedCharacter)
+        UserDefaults.standard.synchronize()
+        
+        // 步骤6：验证最终保存
+        guard let finalAuth = getCharacterByID(character.CharacterID) else {
+            Logger.error("EVELogin: 最终角色信息保存失败")
+            throw NetworkError.invalidData
+        }
+        Logger.info("EVELogin: 最终角色信息保存成功")
+        
+        Logger.info("EVELogin: 详细信息加载完成")
+        return updatedCharacter
     }
     
     // 执行后台刷新
