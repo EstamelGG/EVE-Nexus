@@ -257,7 +257,7 @@ struct SettingView: View {
             // 统计 StaticDataSet 目录大小
             let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
             var totalSize: Int64 = 0
-            
+            Logger.debug("Calc cache dir.")
             if FileManager.default.fileExists(atPath: staticDataSetPath.path),
                let enumerator = FileManager.default.enumerator(at: staticDataSetPath, 
                                                              includingPropertiesForKeys: [.fileSizeKey],
@@ -427,6 +427,7 @@ struct SettingView: View {
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
+                    updateAllData()
                 case .incursions:
                     Logger.info("Refreshing incursions data")
                     let incursionsData = try await NetworkManager.shared.fetchIncursions()
@@ -434,6 +435,7 @@ struct SettingView: View {
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
+                    updateAllData()
                 case .sovereigntyCampaigns:
                     Logger.info("Refreshing Sovereignty Campaigns data")
                     let sovCamp = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
@@ -441,6 +443,7 @@ struct SettingView: View {
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
+                    updateAllData()
                 case .allianceIcons, .netRenders, .marketData:
                     Logger.info("Alliance icons and net renders are refreshed on-demand")
                     break
@@ -518,7 +521,7 @@ struct SettingView: View {
             Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
         }
         .onAppear {
-            updateAllData() // 首次加载时更新
+            updateAllData() // 首次加载时异步计算并更新缓存大小
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             updateAllData() // 从后台返回时更新
