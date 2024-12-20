@@ -444,37 +444,9 @@ class EVELogin {
             defaults.set(encodedData, forKey: charactersKey)
             defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
             
-            // 保存角色信息到JSON文件
-            saveCharacterInfoToJSON(character)
-            
             Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName) - \(character.CharacterID)")
         } catch {
             Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
-        }
-    }
-    
-    // 保存角色信息到JSON文件
-    private func saveCharacterInfoToJSON(_ character: EVECharacterInfo) {
-        let characterPath = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Characters")
-            .appendingPathComponent("\(character.CharacterID)")
-        
-        let characterInfoPath = characterPath.appendingPathComponent("info.json")
-        
-        do {
-            // 创建角色目录
-            try FileManager.default.createDirectory(at: characterPath, 
-                                                 withIntermediateDirectories: true)
-            
-            // 编码并保存角色信息
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .prettyPrinted
-            let data = try encoder.encode(character)
-            try data.write(to: characterInfoPath)
-            
-            Logger.info("EVELogin: 保存角色信息到JSON成功 - \(character.CharacterName)")
-        } catch {
-            Logger.error("EVELogin: 保存角色信息到JSON失败: \(error)")
         }
     }
     
@@ -489,126 +461,9 @@ class EVELogin {
         if let lastCharacter = characters.last {
             token = lastCharacter.token
             character = lastCharacter.character
-            
-            // 如果 UserDefaults 中的数据不完整，尝试从 JSON 文件加载
-            if character?.totalSkillPoints == nil || 
-               character?.walletBalance == nil || 
-               character?.location == nil {
-                // 安全地加载JSON文件
-                if let jsonCharacter = loadCharacterInfoFromJSON(characterId: lastCharacter.character.CharacterID) {
-                    character = jsonCharacter
-                }
-            }
         }
         
         return (token: token, character: character)
-    }
-    
-    // 从JSON文件加载角色信息
-    private func loadCharacterInfoFromJSON(characterId: Int) -> EVECharacterInfo? {
-        let characterInfoPath = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Characters")
-            .appendingPathComponent("\(characterId)")
-            .appendingPathComponent("info.json")
-        
-        do {
-            let data = try Data(contentsOf: characterInfoPath)
-            return try JSONDecoder().decode(EVECharacterInfo.self, from: data)
-        } catch {
-            Logger.error("EVELogin: 从JSON加载角色信息失败: \(error)")
-            // 如果JSON文件损坏，尝试删除它
-            try? FileManager.default.removeItem(atPath: characterInfoPath.path)
-            return nil
-        }
-    }
-    
-    // 清除认证信息
-    func clearAuthInfo() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: charactersKey)
-        defaults.removeObject(forKey: "TokenExpirationDate")
-        Logger.info("EVELogin: 清除所有认证信息")
-    }
-    
-    // 添加令牌刷新功能
-    // 检查令牌是否有效
-    func isTokenValid() -> Bool {
-        guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
-            return false
-        }
-        // 提前5分钟认为令牌过期，以防止边界情况
-        return expirationDate.timeIntervalSinceNow > 300
-    }
-    
-    // 刷新令牌
-    func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
-        // 如果不是强制刷新，检查上次更新时间
-        if !force {
-            if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
-               let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
-               !character.shouldUpdateToken() {
-                // 如果距离上次更新时间不足5分钟，直接返回当前令牌
-                Logger.info("EVELogin: 跳过\(character.character.CharacterName) 令牌刷新，距离上次更新时间不足5分钟")
-                return character.token
-            }
-        }
-        
-        // 执行令牌刷新
-        guard let config = config else {
-            throw EVE_Nexus.NetworkError.invalidData
-        }
-        
-        var request = URLRequest(url: URL(string: config.urls.token)!)
-        request.httpMethod = "POST"
-        
-        let authString = "\(config.clientId):\(config.clientSecret)"
-        let authData = authString.data(using: .utf8)!.base64EncodedString()
-        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
-        
-        let bodyParams = [
-            "grant_type": "refresh_token",
-            "refresh_token": refreshToken
-        ]
-        
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyParams
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-        
-        let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
-    }
-    
-    // 获取有效的访问令牌
-    func getValidToken() async throws -> String {
-        let authInfo = loadAuthInfo()
-        
-        if !isTokenValid(), let token = authInfo.token {
-            Logger.info("EVELogin: 令牌已过期，尝试刷新")
-            do {
-                // 令牌过期，尝试刷新
-                let newToken = try await refreshToken(refreshToken: token.refresh_token)
-                if let character = authInfo.character {
-                    saveAuthInfo(token: newToken, character: character)
-                    Logger.info("EVELogin: 令牌刷新成功")
-                }
-                return newToken.access_token
-            } catch {
-                // 如果刷新失败，可能是刷新令牌已过期
-                Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
-                // 清除过期的认证信息
-                clearAuthInfo()
-                throw EVE_Nexus.NetworkError.tokenExpired
-            }
-        } else if let token = authInfo.token {
-            Logger.info("EVELogin: 使用现有有效令牌")
-            // 令牌有效，直接返回
-            return token.access_token
-        }
-        
-        Logger.error("EVELogin: 无法获取有效令牌")
-        throw EVE_Nexus.NetworkError.invalidData
     }
     
     // 加载所有角色信息
@@ -661,7 +516,7 @@ class EVELogin {
     func removeCharacter(characterId: Int) {
         let defaults = UserDefaults.standard
         
-        // 1. 从 UserDefaults 中移除角色信息
+        // 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
@@ -695,70 +550,106 @@ class EVELogin {
         } catch {
             Logger.error("EVELogin: 移除角色信息失败: \(error)")
         }
-        
-        // 2. 删除角色的本地文件
-        let characterPath = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Characters")
-            .appendingPathComponent("\(characterId)")
-        
-        do {
-            if FileManager.default.fileExists(atPath: characterPath.path) {
-                try FileManager.default.removeItem(at: characterPath)
-                Logger.info("EVELogin: 已删除角色 \(characterId) 的本地文件")
-            }
-        } catch {
-            Logger.error("EVELogin: 删除角色本地文件失败: \(error)")
-        }
     }
     
     // 获取所有角色信息
     func getAllCharacters() -> [EVECharacterInfo] {
         let characters = loadCharacters()
-        return characters.map { auth in
-            var character = auth.character
-            
-            // 如果 UserDefaults 中的数据不完整，尝试从 JSON 文件加载
-            if character.totalSkillPoints == nil || 
-               character.walletBalance == nil || 
-               character.location == nil {
-                if let jsonCharacter = loadCharacterInfoFromJSON(characterId: auth.character.CharacterID) {
-                    character = jsonCharacter
-                }
-            }
-            
-            return character
+        return characters.map { $0.character }
+    }
+    
+    // 清除认证信息
+    func clearAuthInfo() {
+        let defaults = UserDefaults.standard
+        defaults.removeObject(forKey: charactersKey)
+        defaults.removeObject(forKey: "TokenExpirationDate")
+        Logger.info("EVELogin: 清除所有认证信息")
+    }
+    
+    // 检查令牌是否有效
+    func isTokenValid() -> Bool {
+        guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
+            return false
         }
+        // 提前5分钟认为令牌过期，以防止边界情况
+        return expirationDate.timeIntervalSinceNow > 300
+    }
+    
+    // 刷新令牌
+    func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
+        // 如果不是强制刷新，检查上次更新时间
+        if !force {
+            if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
+               let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
+               !character.shouldUpdateToken() {
+                // 如果距离上次更新时间不足5分钟，直接返回当前令牌
+                Logger.info("EVELogin: 跳过\(character.character.CharacterName) 令牌刷新，距离上次更新时间不足5分钟")
+                return character.token
+            }
+        }
+        
+        // 执行令牌刷新
+        guard let config = config else {
+            throw NetworkError.invalidData
+        }
+        
+        var request = URLRequest(url: URL(string: config.urls.token)!)
+        request.httpMethod = "POST"
+        
+        let authString = "\(config.clientId):\(config.clientSecret)"
+        let authData = authString.data(using: .utf8)!.base64EncodedString()
+        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
+        
+        let bodyParams = [
+            "grant_type": "refresh_token",
+            "refresh_token": refreshToken
+        ]
+        
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyParams
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
+        
+        let (data, _) = try await session.data(for: request)
+        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+    }
+    
+    // 获取有效的访问令牌
+    func getValidToken() async throws -> String {
+        let authInfo = loadAuthInfo()
+        
+        if !isTokenValid(), let token = authInfo.token {
+            Logger.info("EVELogin: 令牌已过期，尝试刷新")
+            do {
+                // 令牌过期，尝试刷新
+                let newToken = try await refreshToken(refreshToken: token.refresh_token)
+                if let character = authInfo.character {
+                    saveAuthInfo(token: newToken, character: character)
+                    Logger.info("EVELogin: 令牌刷新成功")
+                }
+                return newToken.access_token
+            } catch {
+                // 如果刷新失败，可能是刷新令牌已过期
+                Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
+                // 清除过期的认证信息
+                clearAuthInfo()
+                throw NetworkError.tokenExpired
+            }
+        } else if let token = authInfo.token {
+            Logger.info("EVELogin: 使用现有有效令牌")
+            // 令牌有效，直接返回
+            return token.access_token
+        }
+        
+        Logger.error("EVELogin: 无法获取有效令牌")
+        throw NetworkError.invalidData
     }
     
     // ESI数据缓存结构
     struct ESICachedData<T: Codable>: Codable {
         let data: T
         let timestamp: Date
-        
-        // 自定义编码
-        func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-            try container.encode(data, forKey: .data)
-            try container.encode(timestamp, forKey: .timestamp)
-        }
-        
-        // 自定义解码
-        init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            data = try container.decode(T.self, forKey: .data)
-            timestamp = try container.decode(Date.self, forKey: .timestamp)
-        }
-        
-        // 自定义初始化方法
-        init(data: T, timestamp: Date) {
-            self.data = data
-            self.timestamp = timestamp
-        }
-        
-        enum CodingKeys: String, CodingKey {
-            case data
-            case timestamp
-        }
     }
     
     // 通用的ESI数据获取和缓存方法
@@ -787,61 +678,29 @@ class EVELogin {
             }
         }
         
-        // 2. 安全地尝试从JSON文件获取数据
-        let characterPath = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Characters")
-            .appendingPathComponent("\(characterId)")
-        let jsonPath = characterPath.appendingPathComponent("\(dataType).json")
-        
-        if !forceRefresh {
-            do {
-                if let jsonData = try? Data(contentsOf: jsonPath) {
-                    let cached = try JSONDecoder().decode(ESICachedData<T>.self, from: jsonData)
-                    if cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
-                        // 如果从JSON文件获取到数据，同时更新UserDefaults缓存
-                        defaults.set(jsonData, forKey: cacheKey)
-                        Logger.info("EVELogin: 从JSON文件获取\(dataType)数据 - 角色ID: \(characterId)")
-                        return cached.data
-                    }
-                }
-            } catch {
-                Logger.error("EVELogin: JSON文件中的\(dataType)数据损坏，将被删除: \(error)")
-                try? FileManager.default.removeItem(at: jsonPath)
-            }
-        }
-        
-        // 3. 从ESI接口获取新数据
+        // 2. 从ESI接口获取新数据
         guard let token = loadAuthInfo().token else {
             throw NetworkError.unauthed
         }
         
         let data = try await fetchData(token.access_token)
         
-        // 4. 安全地保存数据到缓存和文件
+        // 3. 安全地保存数据到缓存
         let cachedData = ESICachedData(data: data, timestamp: Date())
         let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
         
         do {
             let encodedData = try encoder.encode(cachedData)
-            
-            // 保存到UserDefaults
             defaults.set(encodedData, forKey: cacheKey)
-            
-            // 保存到JSON文件
-            try FileManager.default.createDirectory(at: characterPath, withIntermediateDirectories: true)
-            try encodedData.write(to: jsonPath)
-            
             Logger.info("EVELogin: 已更新\(dataType)数据缓存 - 角色ID: \(characterId)")
         } catch {
             Logger.error("EVELogin: 保存\(dataType)数据缓存失败: \(error)")
-            // 即使保存失败，也返回获取到的数据
         }
         
         return data
     }
     
-    // 示例：获取钱包余额的包装方法
+    // 获取钱包余额的包装方法
     func getCharacterWallet(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
         return try await fetchAndCacheESIData(
             characterId: characterId,
@@ -857,7 +716,7 @@ class EVELogin {
         }
     }
     
-    // 示例：获取技能信息的包装方法
+    // 获取技能信息的包装方法
     func getCharacterSkills(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterSkillsResponse {
         return try await fetchAndCacheESIData(
             characterId: characterId,
@@ -873,7 +732,7 @@ class EVELogin {
         }
     }
     
-    // 示例：获取位置信息的包装方法
+    // 获取位置信息的包装方法
     func getCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws -> NetworkManager.CharacterLocation {
         return try await fetchAndCacheESIData(
             characterId: characterId,
