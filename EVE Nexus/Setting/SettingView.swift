@@ -257,10 +257,8 @@ struct SettingView: View {
             // 统计 StaticDataSet 目录大小
             let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
             var totalSize: Int64 = 0
-            Logger.debug("Begin calculating cache size at path: \(staticDataSetPath.path)")
             
             if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
-                Logger.debug("StaticDataSet directory exists")
                 if let enumerator = FileManager.default.enumerator(at: staticDataSetPath, 
                                                                 includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
                                                                 options: [.skipsHiddenFiles]) {
@@ -275,26 +273,21 @@ struct SettingView: View {
                             let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
                             if let fileSize = attributes[.size] as? Int64 {
                                 totalSize += fileSize
-                                Logger.debug("Found file: \(fileURL.lastPathComponent), size: \(formatFileSize(fileSize))")
                             }
                         } catch {
                             Logger.error("Error calculating file size for \(fileURL.path): \(error)")
                         }
                     }
-                    Logger.debug("Finished calculation. Total size: \(formatFileSize(totalSize))")
                 } else {
                     Logger.error("Failed to create directory enumerator")
                 }
-            } else {
-                Logger.debug("StaticDataSet directory does not exist")
             }
             
             // 更新界面
             await MainActor.run {
                 let formattedSize = formatFileSize(totalSize)
-                // Logger.debug("Updating UI with cache size: \(formattedSize)")
                 self.cacheSize = formattedSize
-                self.updateSettingGroups() // 确保在更新缓存大小后更新设置组
+                self.updateSettingGroups()
             }
         }
     }
