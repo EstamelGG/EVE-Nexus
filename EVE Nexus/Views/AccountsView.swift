@@ -88,6 +88,15 @@ struct AccountsView: View {
                                         .scaleEffect(0.7)
                                         .frame(height: 15)
                                 } else {
+                                    if let location = character.location {
+                                        HStack(spacing: 4) {
+                                            Text(formatSecurity(location.security))
+                                                .foregroundColor(getSecurityColor(location.security))
+                                            Text("\(location.systemName) / \(location.regionName)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    }
                                     if let balance = character.walletBalance {
                                         Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
                                             .font(.caption)
@@ -102,15 +111,6 @@ struct AccountsView: View {
                                         Text(spText)
                                             .font(.caption)
                                             .foregroundColor(.gray)
-                                    }
-                                    if let location = character.location {
-                                        HStack(spacing: 4) {
-                                            Text(formatSecurity(location.security))
-                                                .foregroundColor(getSecurityColor(location.security))
-                                            Text("\(location.systemName) / \(location.regionName)")
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
                                     }
                                 }
                             }
