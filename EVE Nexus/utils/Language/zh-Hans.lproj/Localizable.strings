@@ -222,3 +222,8 @@
 "Main_Setting_Language_Switch_Message" = "需要重新加载应用以应用语言更改，是否继续？";
 "Main_Setting_Language_Switch_Cancel" = "取消";
 "Main_Setting_Language_Switch_Confirm" = "切换";
+
+
+"Character_in_station" = "空间站中";
+"Character_in_structure" = "建筑物中";
+"Character_in_space" = "在太空中";

@@ -228,3 +228,6 @@
 "Main_Setting_Language_Switch_Confirm" = "Switch";
 
 
+"Character_in_station" = "in Station";
+"Character_in_structure" = "in Structure";
+"Character_in_space" = "in Space";

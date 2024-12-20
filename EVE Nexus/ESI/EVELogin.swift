@@ -258,6 +258,7 @@ class EVELoginViewModel: ObservableObject {
             updatedCharacter.totalSkillPoints = skillsInfo.total_sp
             updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
             updatedCharacter.walletBalance = balance
+            updatedCharacter.locationStatus = location.locationStatus
             
             // 更新位置信息
             if let locationInfo = locationInfo {
@@ -467,7 +468,7 @@ class EVELogin {
         Logger.info("EVELogin: 清除所有认证信息")
     }
     
-    // 添加令牌刷��功能
+    // 添加令牌刷新功能
     // 检查令牌是否有效
     func isTokenValid() -> Bool {
         guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {

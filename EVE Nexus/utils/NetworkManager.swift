@@ -815,11 +815,11 @@ class NetworkManager: NSObject {
             var description: String {
                 switch self {
                 case .inStation:
-                    return "(in station)"
+                    return "(\(NSLocalizedString("Character_in_station", comment: "")))"
                 case .inStructure:
-                    return "(in structure)"
+                    return "(\(NSLocalizedString("Character_in_structure", comment: "")))"
                 case .inSpace:
-                    return "(in space)"
+                    return "(\(NSLocalizedString("Character_in_space", comment: "")))"
                 }
             }
         }
