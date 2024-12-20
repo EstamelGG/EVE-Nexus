@@ -3,13 +3,17 @@ import SafariServices
 import WebKit
 
 struct AccountsView: View {
-    @StateObject private var viewModel = EVELoginViewModel()
+    @StateObject private var viewModel: EVELoginViewModel
     @State private var showingWebView = false
     @State private var isEditing = false
     @State private var characterToRemove: EVECharacterInfo? = nil
     @State private var forceUpdate: Bool = false
     @State private var isRefreshing = false
     @State private var refreshingCharacters: Set<Int> = []
+    
+    init(databaseManager: DatabaseManager = DatabaseManager()) {
+        _viewModel = StateObject(wrappedValue: EVELoginViewModel(databaseManager: databaseManager))
+    }
     
     // 格式化 ISK 显示
     private func formatISK(_ value: Double) -> String {
@@ -98,6 +102,15 @@ struct AccountsView: View {
                                         Text(spText)
                                             .font(.caption)
                                             .foregroundColor(.gray)
+                                    }
+                                    if let location = character.location {
+                                        HStack(spacing: 4) {
+                                            Text(formatSecurity(location.security))
+                                                .foregroundColor(getSecurityColor(location.security))
+                                            Text("\(location.systemName) / \(location.regionName)")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
                                     }
                                 }
                             }
@@ -229,14 +242,31 @@ struct AccountsView: View {
                             token: newToken.access_token
                         )
                         
+                        // 获取位置信息
+                        let location = try await LocationManager.shared.getCharacterLocation(
+                            characterId: characterAuth.character.CharacterID,
+                            token: newToken.access_token
+                        )
+                        
+                        // 获取位置详细信息
+                        let locationInfo = getLocationInfo(
+                            solarSystemId: location.solar_system_id,
+                            databaseManager: viewModel.databaseManager
+                        )
+                        
                         // 更新角色信息
-                        var characterWithSkills = updatedCharacter
-                        characterWithSkills.totalSkillPoints = skillsInfo.total_sp
-                        characterWithSkills.unallocatedSkillPoints = skillsInfo.unallocated_sp
-                        characterWithSkills.walletBalance = balance
+                        var characterWithInfo = updatedCharacter
+                        characterWithInfo.totalSkillPoints = skillsInfo.total_sp
+                        characterWithInfo.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        characterWithInfo.walletBalance = balance
+                        
+                        // 更新位置信息
+                        if let locationInfo = locationInfo {
+                            characterWithInfo.location = locationInfo
+                        }
                         
                         // 保存更新后的认证信息
-                        EVELogin.shared.saveAuthInfo(token: newToken, character: characterWithSkills)
+                        EVELogin.shared.saveAuthInfo(token: newToken, character: characterWithInfo)
                         
                         // 强制从网络重新加载头像
                         if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(

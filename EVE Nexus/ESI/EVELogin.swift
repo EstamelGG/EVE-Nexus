@@ -20,6 +20,7 @@ struct EVECharacterInfo: Codable {
     var totalSkillPoints: Int?
     var unallocatedSkillPoints: Int?
     var walletBalance: Double?
+    var location: SolarSystemInfo?
 }
 
 // ESI配置模型
@@ -64,6 +65,11 @@ class EVELoginViewModel: ObservableObject {
     @Published var errorMessage: String = ""
     @Published var characters: [EVECharacterInfo] = []
     @Published var characterPortraits: [Int: UIImage] = [:] // 添加头像存储
+    let databaseManager: DatabaseManager
+    
+    init(databaseManager: DatabaseManager = DatabaseManager()) {
+        self.databaseManager = databaseManager
+    }
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
@@ -87,7 +93,7 @@ class EVELoginViewModel: ObservableObject {
         characters = EVELogin.shared.getAllCharacters()
         isLoggedIn = !characters.isEmpty
         
-        // 分别启动两个独立的任务
+        // 分别启动三个独立的任务
         // 1. 加载头像
         Task {
             for character in characters {
@@ -95,7 +101,7 @@ class EVELoginViewModel: ObservableObject {
             }
         }
         
-        // 2. 加载技能点和钱包信息
+        // 2. 加载技能点、钱包和位置信息
         Task {
             for character in characters {
                 do {
@@ -111,6 +117,18 @@ class EVELoginViewModel: ObservableObject {
                                 token: token.access_token
                             )
                             
+                            // 获取位置信息
+                            let location = try await LocationManager.shared.getCharacterLocation(
+                                characterId: character.CharacterID,
+                                token: token.access_token
+                            )
+                            
+                            // 获取位置详细信息
+                            let locationInfo = getLocationInfo(
+                                solarSystemId: location.solar_system_id,
+                                databaseManager: databaseManager
+                            )
+                            
                             // 更新角色信息
                             var updatedCharacter = character
                             updatedCharacter.totalSkillPoints = skillsInfo.total_sp
@@ -119,6 +137,11 @@ class EVELoginViewModel: ObservableObject {
                             // 加载本地缓存的钱包余额
                             if let cachedBalance = ESIDataManager.shared.loadWalletBalance(characterId: character.CharacterID) {
                                 updatedCharacter.walletBalance = cachedBalance
+                            }
+                            
+                            // 更新位置信息
+                            if let locationInfo = locationInfo {
+                                updatedCharacter.location = locationInfo
                             }
                             
                             // 保存更新后的信息
@@ -131,7 +154,7 @@ class EVELoginViewModel: ObservableObject {
                         }
                     }
                 } catch {
-                    Logger.error("加载角色技能点信息失败 - \(character.CharacterName): \(error)")
+                    Logger.error("加载角色信息失败 - \(character.CharacterName): \(error)")
                 }
             }
         }
@@ -173,11 +196,28 @@ class EVELoginViewModel: ObservableObject {
                 token: token.access_token
             )
             
+            // 获取位置信息
+            let location = try await LocationManager.shared.getCharacterLocation(
+                characterId: character.CharacterID,
+                token: token.access_token
+            )
+            
+            // 获取位置详细信息
+            let locationInfo = getLocationInfo(
+                solarSystemId: location.solar_system_id,
+                databaseManager: databaseManager
+            )
+            
             // 更新角色信息
             var updatedCharacter = character
             updatedCharacter.totalSkillPoints = skillsInfo.total_sp
             updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
             updatedCharacter.walletBalance = balance
+            
+            // 更新位置信息
+            if let locationInfo = locationInfo {
+                updatedCharacter.location = locationInfo
+            }
             
             // 保存认证信息
             EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)

@@ -286,7 +286,7 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    NavigationLink(destination: AccountsView()) {
+                    NavigationLink(destination: AccountsView(databaseManager: databaseManager)) {
                         LoginButtonView(
                             isLoggedIn: isLoggedIn,
                             serverStatus: serverStatus

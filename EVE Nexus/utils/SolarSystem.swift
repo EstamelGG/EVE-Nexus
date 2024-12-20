@@ -7,6 +7,50 @@
 
 import SwiftUI
 
+// 位置信息数据结构
+public struct SolarSystemInfo: Codable {
+    public let systemName: String
+    public let security: Double
+    public let constellationName: String
+    public let regionName: String
+    
+    public init(systemName: String, security: Double, constellationName: String, regionName: String) {
+        self.systemName = systemName
+        self.security = security
+        self.constellationName = constellationName
+        self.regionName = regionName
+    }
+}
+
+// 获取星系位置信息
+func getLocationInfo(solarSystemId: Int, databaseManager: DatabaseManager) -> SolarSystemInfo? {
+    let universeQuery = """
+        SELECT u.region_id, u.constellation_id, u.system_security,
+               s.solarSystemName, c.constellationName, r.regionName
+        FROM universe u
+        JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+        JOIN constellations c ON c.constellationID = u.constellation_id
+        JOIN regions r ON r.regionID = u.region_id
+        WHERE u.solarsystem_id = ?
+    """
+    
+    guard case .success(let rows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
+          let row = rows.first,
+          let security = row["system_security"] as? Double,
+          let systemName = row["solarSystemName"] as? String,
+          let constellationName = row["constellationName"] as? String,
+          let regionName = row["regionName"] as? String else {
+        return nil
+    }
+    
+    return SolarSystemInfo(
+        systemName: systemName,
+        security: security,
+        constellationName: constellationName,
+        regionName: regionName
+    )
+}
+
 // 向下取整安全等级
 func truncateSecurity(_ security: Double) -> Double {
     return floor(security * 10) / 10
