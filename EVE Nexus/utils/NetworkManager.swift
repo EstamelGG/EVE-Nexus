@@ -224,6 +224,21 @@ class NetworkManager: NSObject {
     private let imageCache = NSCache<NSString, CachedData<UIImage>>()
     private var imageCacheKeys = Set<String>()  // 跟踪图片缓存的键
     
+    // 同步队列和锁
+    private let cacheQueue = DispatchQueue(label: "com.eve.nexus.network.cache")
+    private let cacheLock = NSLock()
+    private let imageCacheKeysLock = NSLock()
+    
+    // 市场订单缓存
+    private let marketOrdersLock = NSLock()
+    private var marketOrdersCache: [Int: [MarketOrder]] = [:]
+    private var marketOrdersTimestamp: [Int: Date] = [:]
+    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存有效期5分钟
+    
+    // 服务器状态缓存
+    private let serverStatusLock = NSLock()
+    private var serverStatusCache: CachedData<ServerStatus>?
+    
     private override init() {
         super.init()
         // 设置缓存限制
@@ -239,25 +254,15 @@ class NetworkManager: NSObject {
         regionID = id
     }
     
-    // 市场订单缓存（仅内存）
-    private var marketOrdersCache: [Int: [MarketOrder]] = [:]
-    private var marketOrdersTimestamp: [Int: Date] = [:]
-    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存有效期5分钟
-    
-    // 服务器状态缓存（仅内存）
-    private var serverStatusCache: CachedData<ServerStatus>?
-    
     // 通用的数据获取函数
     func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
         Logger.info("Fetching data from URL: \(url.absoluteString)")
         
         var request = customRequest ?? URLRequest(url: url)
         if forceRefresh {
-            // 强制刷新时禁用缓存
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         }
         
-        // 使用共享的 URLSession，让系统管理缓存
         let (data, response) = try await URLSession.shared.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -270,15 +275,6 @@ class NetworkManager: NSObject {
             throw NetworkError.httpError(statusCode: httpResponse.statusCode)
         }
         
-        // 检查响应是否来自缓存
-        if let cachedResponse = URLCache.shared.cachedResponse(for: request) {
-            if cachedResponse.data == data {
-                Logger.info("Response for \(url.absoluteString) was served from URLCache")
-                return data
-            }
-        }
-        
-        Logger.info("Successfully fetched data from: \(url.absoluteString)")
         return data
     }
     
@@ -303,67 +299,50 @@ class NetworkManager: NSObject {
         cacheDuration: TimeInterval,
         imageURL: URL
     ) async throws -> UIImage {
-        do {
-            // 检查内存缓存
-            if let cached = imageCache.object(forKey: cacheKey as NSString),
-               Date().timeIntervalSince(cached.timestamp) < cacheDuration {
-                Logger.info("Using memory cached image for: \(cacheKey)")
-                return cached.data
-            }
-            
-            // 检查本地文件缓存
-            let fileManager = FileManager.default
-            let fileURL: URL
-            
-            // 根据缓存键类型选择存储位置
-            if cacheKey.starts(with: "alliance_") {
-                fileURL = StaticResourceManager.shared.getAllianceIconPath().appendingPathComponent(filename)
-            } else if cacheKey.starts(with: "item_") {
-                fileURL = StaticResourceManager.shared.getNetRendersPath().appendingPathComponent(filename)
-            } else {
-                fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Images").appendingPathComponent(filename)
-            }
-            
-            // 确保目录存在
-            try? fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            
-            if fileManager.fileExists(atPath: fileURL.path) {
-                if let data = try? Data(contentsOf: fileURL),
-                   let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
-                   let modificationDate = attributes[.modificationDate] as? Date,
-                   Date().timeIntervalSince(modificationDate) < cacheDuration,
-                   let image = UIImage(data: data) {
-                    // 更新内存缓存
-                    imageCache.setObject(
-                        CachedData(data: image, timestamp: modificationDate),
-                        forKey: cacheKey as NSString
-                    )
-                    Logger.info("Using file cached image for: \(cacheKey)")
-                    return image
-                }
-            }
-            
-            // 从网络获取数据
-            Logger.info("Fetching image from network for: \(cacheKey)")
-            let image = try await fetchImage(from: imageURL)
-            
-            // 更新内存缓存
-            imageCache.setObject(
-                CachedData(data: image, timestamp: Date()),
-                forKey: cacheKey as NSString
-            )
-            
-            // 更新文件缓存
-            if let data = image.pngData() {
-                try? data.write(to: fileURL)
-                Logger.info("Successfully saved image to file for: \(cacheKey)")
-            }
-            
-            return image
-        } catch {
-            Logger.error("Error in fetchCachedImage for \(cacheKey): \(error)")
-            throw error
+        // 检查内存缓存
+        if let cached = imageCache.object(forKey: cacheKey as NSString)?.data {
+            return cached
         }
+        
+        // 检查文件缓存
+        let fileManager = FileManager.default
+        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+            .appendingPathComponent("Images")
+            .appendingPathComponent(filename)
+        
+        if fileManager.fileExists(atPath: fileURL.path) {
+            if let data = try? Data(contentsOf: fileURL),
+               let image = UIImage(data: data) {
+                // 更新内存缓存
+                imageCacheKeysLock.lock()
+                imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
+                imageCacheKeys.insert(cacheKey)
+                imageCacheKeysLock.unlock()
+                return image
+            }
+        }
+        
+        // 从网络获取
+        let image = try await fetchImage(from: imageURL)
+        
+        // 更新缓存
+        imageCacheKeysLock.lock()
+        imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
+        imageCacheKeys.insert(cacheKey)
+        imageCacheKeysLock.unlock()
+        
+        // 异步保存到文件
+        Task {
+            if let pngData = image.pngData() {
+                try? FileManager.default.createDirectory(
+                    at: fileURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try? pngData.write(to: fileURL)
+            }
+        }
+        
+        return image
     }
     
     // 获取EVE物品渲染图
@@ -432,18 +411,18 @@ class NetworkManager: NSObject {
         forceRefresh: Bool = false,
         networkFetch: () async throws -> T
     ) async throws -> T {
-        let dataCache = self.dataCache
-        
         // 如果不是强制刷新，检查内存缓存
-        if !forceRefresh,
-           let cached = dataCache.object(forKey: cacheKey as NSString) as? CachedData<T>,
-           Date().timeIntervalSince(cached.timestamp) < cacheDuration {
-            Logger.info("Using memory cached data for: \(cacheKey)")
-            return cached.data
-        }
-        
-        // 如果是强制刷新，检查本地文件缓存
         if !forceRefresh {
+            cacheLock.lock()
+            if let cached = dataCache.object(forKey: cacheKey as NSString) as? CachedData<T>,
+               Date().timeIntervalSince(cached.timestamp) < cacheDuration {
+                cacheLock.unlock()
+                Logger.info("Using memory cached data for: \(cacheKey)")
+                return cached.data
+            }
+            cacheLock.unlock()
+            
+            // 检查文件缓存
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
             
@@ -456,10 +435,12 @@ class NetworkManager: NSObject {
                     if Date().timeIntervalSince(modificationDate) < cacheDuration {
                         let decodedData = try JSONDecoder().decode(T.self, from: data)
                         // 更新内存缓存
+                        cacheLock.lock()
                         dataCache.setObject(
                             CachedData(data: decodedData, timestamp: modificationDate),
                             forKey: cacheKey as NSString
                         )
+                        cacheLock.unlock()
                         Logger.info("Using file cached data for: \(cacheKey)")
                         return decodedData
                     }
@@ -474,25 +455,30 @@ class NetworkManager: NSObject {
         let data = try await networkFetch()
         
         // 更新内存缓存
+        cacheLock.lock()
         dataCache.setObject(
             CachedData(data: data, timestamp: Date()),
             forKey: cacheKey as NSString
         )
+        cacheLock.unlock()
         
-        // 更新文件缓存
-        do {
-            let fileManager = FileManager.default
-            let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
-            
-            // 确保目录存在
-            try fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), 
-                                         withIntermediateDirectories: true)
-                                         
-            let encodedData = try JSONEncoder().encode(data)
-            try encodedData.write(to: fileURL)
-            Logger.info("Successfully saved data to file for: \(cacheKey)")
-        } catch {
-            Logger.error("Error saving data to file for \(cacheKey): \(error)")
+        // 异步更新文件缓存
+        Task {
+            do {
+                let fileManager = FileManager.default
+                let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
+                
+                try fileManager.createDirectory(
+                    at: fileURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                
+                let encodedData = try JSONEncoder().encode(data)
+                try encodedData.write(to: fileURL)
+                Logger.info("Successfully saved data to file for: \(cacheKey)")
+            } catch {
+                Logger.error("Error saving data to file for \(cacheKey): \(error)")
+            }
         }
         
         return data
@@ -534,54 +520,55 @@ class NetworkManager: NSObject {
         return try await fetchResource(request)
     }
     
-    // 清除缓存
+    // 清除市场订单缓存
     func clearMarketOrdersCache() {
+        marketOrdersLock.lock()
         marketOrdersCache.removeAll()
         marketOrdersTimestamp.removeAll()
+        marketOrdersLock.unlock()
     }
     
     // 清除所有缓存
     func clearAllCaches() {
-        // 清理内存缓存
-        clearMarketOrdersCache()
+        // 清除内存缓存
         dataCache.removeAllObjects()
         imageCache.removeAllObjects()
-        dataCacheKeys.removeAll()
-        imageCacheKeys.removeAll()
-        serverStatusCache = nil
-        Logger.info("Cleared memory caches")
         
-        // 清理 StaticDataSet 目录
+        imageCacheKeysLock.lock()
+        imageCacheKeys.removeAll()
+        imageCacheKeysLock.unlock()
+        
+        marketOrdersLock.lock()
+        marketOrdersCache.removeAll()
+        marketOrdersTimestamp.removeAll()
+        marketOrdersLock.unlock()
+        
+        serverStatusLock.lock()
+        serverStatusCache = nil
+        serverStatusLock.unlock()
+        
+        // 清除文件缓存
+        Task {
+            await clearFileCaches()
+        }
+    }
+    
+    private func clearFileCaches() async {
         let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
         do {
-            let contents = try FileManager.default.contentsOfDirectory(
-                at: staticDataSetPath,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
+            let fileManager = FileManager.default
+            let contents = try fileManager.contentsOfDirectory(at: staticDataSetPath, includingPropertiesForKeys: nil)
             
-            Logger.info("Found \(contents.count) items in StaticDataSet directory")
-            
-            // 逐个删除文件，跳过隐藏文件
             for url in contents {
-                let filename = url.lastPathComponent
-                // 跳过隐藏文件
-                if filename.starts(with: ".") {
-                    Logger.info("Skipping file: \(filename)")
-                    continue
-                }
-                
-                // 获取文件大小
                 if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
                    let fileSize = attributes[.size] as? Int64 {
-                    Logger.info("Deleting file: \(filename) (Size: \(NetworkManager.formatFileSize(fileSize)))")
+                    Logger.info("Deleting file: \(url.lastPathComponent) (Size: \(NetworkManager.formatFileSize(fileSize)))")
                     try? FileManager.default.removeItem(at: url)
                 }
             }
             
             Logger.info("Finished clearing StaticDataSet directory")
         } catch {
-            // 如果目录不存在，创建它
             try? FileManager.default.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
             Logger.error("Error accessing StaticDataSet directory: \(error)")
         }

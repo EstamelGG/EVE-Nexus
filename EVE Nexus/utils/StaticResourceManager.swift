@@ -4,8 +4,22 @@ import Foundation
 class StaticResourceManager {
     static let shared = StaticResourceManager()
     private let fileManager = FileManager.default
-    private let cache = NSCache<NSString, CachedResource>()
+    private let cache = NSCache<NSString, CacheData>()
     private let defaults = UserDefaults.standard
+    
+    // 同步队列和锁
+    private let fileQueue = DispatchQueue(label: "com.eve.nexus.static.file")
+    private let cacheLock = NSLock()
+    
+    // 缓存时间常量
+    public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 7 * 24 * 60 * 60  // 7天
+    public let ITEM_ICON_CACHE_DURATION: TimeInterval = 30 * 24 * 60 * 60     // 30天
+    public let STATIC_DATA_CACHE_DURATION: TimeInterval = 24 * 60 * 60        // 1天
+    public let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
+    public let RENDER_CACHE_DURATION: TimeInterval = 7 * 24 * 3600      // 7天
+    public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
+    public let INCURSIONS_CACHE_DURATION: TimeInterval = 1 * 3600        // 1小时
+    public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 24 * 3600 // 1天
     
     // 静态资源信息结构
     struct ResourceInfo {
@@ -83,18 +97,10 @@ class StaticResourceManager {
         }
     }
     
-    // 缓存有效期常量
-    public let SOVEREIGNTY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600  // 7天
-    public let RENDER_CACHE_DURATION: TimeInterval = 7 * 24 * 3600      // 7天
-    public let ALLIANCE_ICON_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
-    public let MARKET_HISTORY_CACHE_DURATION: TimeInterval = 7 * 24 * 3600 // 7天
-    public let INCURSIONS_CACHE_DURATION: TimeInterval = 1 * 3600        // 1小时
-    public let SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval = 24 * 3600 // 1天
-    
     private init() {}
     
     // 缓存包装类
-    class CachedResource {
+    class CacheData {
         let data: Data
         let timestamp: Date
         
@@ -104,17 +110,24 @@ class StaticResourceManager {
         }
     }
     
+    /// 从文件加载数据并更新内存缓存
+    /// - Parameters:
+    ///   - filePath: 文件路径
+    ///   - cacheKey: 缓存键
+    /// - Returns: 文件数据
+    private func loadFromFileAndCache(filePath: String, cacheKey: NSString) throws -> Data {
+        let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
+        // 更新内存缓存
+        cache.setObject(CacheData(data: data, timestamp: Date()), forKey: cacheKey)
+        return data
+    }
+    
     /// 获取静态资源目录路径
     func getStaticDataSetPath() -> URL {
-        let path = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("StaticDataSet")
-        
-        // 确保目录存在
-        if !fileManager.fileExists(atPath: path.path) {
-            try? fileManager.createDirectory(at: path, withIntermediateDirectories: true)
+        return fileQueue.sync {
+            let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+            return paths[0].appendingPathComponent("StaticDataSet")
         }
-        
-        return path
     }
     
     /// 获取所有静态资源的状态
@@ -190,33 +203,25 @@ class StaticResourceManager {
     ///   - filename: 文件名（包含扩展名）
     ///   - cacheKey: 缓存键
     func saveToFileAndCache(_ data: Data, filename: String, cacheKey: String) throws {
-        let staticDataSetPath = getStaticDataSetPath()
-        let fileURL = staticDataSetPath.appendingPathComponent(filename)
-        
-        // 保存到文件
-        try data.write(to: fileURL)
-        
-        // 更新内存缓存
-        cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey as NSString)
-        
-        // 保存下载时间
-        if let resourceType = ResourceType.allCases.first(where: { $0.filename == filename }) {
-            defaults.set(Date(), forKey: resourceType.downloadTimeKey)
+        // 异步保存到文件
+        fileQueue.async {
+            do {
+                let fileURL = self.getStaticDataSetPath().appendingPathComponent(filename)
+                try FileManager.default.createDirectory(
+                    at: fileURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try data.write(to: fileURL)
+                Logger.info("Successfully saved data to file: \(filename)")
+            } catch {
+                Logger.error("Error saving data to file \(filename): \(error)")
+            }
         }
         
-        Logger.info("Saved static resource to file and cache: \(filename)")
-    }
-    
-    /// 从文件加载数据并更新内存缓存
-    /// - Parameters:
-    ///   - filePath: 文件路径
-    ///   - cacheKey: 缓存键
-    /// - Returns: 文件数据
-    private func loadFromFileAndCache(filePath: String, cacheKey: NSString) throws -> Data {
-        let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
         // 更新内存缓存
-        cache.setObject(CachedResource(data: data, timestamp: Date()), forKey: cacheKey)
-        return data
+        cacheLock.lock()
+        cache.setObject(CacheData(data: data, timestamp: Date()), forKey: cacheKey as NSString)
+        cacheLock.unlock()
     }
     
     /// 强制刷新指定资源
@@ -372,13 +377,15 @@ class StaticResourceManager {
     
     /// 获取联盟图标目录路径
     func getAllianceIconPath() -> URL {
-        return getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        return fileQueue.sync {
+            return getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        }
     }
     
     /// 保存联盟图标
     /// - Parameters:
     ///   - data: 图标数据
-    ///   - allianceId: ��盟ID
+    ///   - allianceId: 联盟ID
     func saveAllianceIcon(_ data: Data, allianceId: Int) throws {
         let iconPath = getAllianceIconPath()
         
@@ -609,7 +616,9 @@ class StaticResourceManager {
     
     /// 获取渲染图目录路径
     func getNetRendersPath() -> URL {
-        return getStaticDataSetPath().appendingPathComponent("NetRenders")
+        return fileQueue.sync {
+            return getStaticDataSetPath().appendingPathComponent("NetRenders")
+        }
     }
     
     /// 保存渲染图
