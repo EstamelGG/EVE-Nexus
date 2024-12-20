@@ -224,19 +224,18 @@ class NetworkManager: NSObject {
     private let imageCache = NSCache<NSString, CachedData<UIImage>>()
     private var imageCacheKeys = Set<String>()  // 跟踪图片缓存的键
     
-    // 同步队列和锁
-    private let cacheQueue = DispatchQueue(label: "com.eve.nexus.network.cache")
-    private let cacheLock = NSLock()
-    private let imageCacheKeysLock = NSLock()
+    // 同步队列
+    private let cacheQueue = DispatchQueue(label: "com.eve.nexus.network.cache", attributes: .concurrent)
+    private let imageQueue = DispatchQueue(label: "com.eve.nexus.network.image", attributes: .concurrent)
+    private let marketQueue = DispatchQueue(label: "com.eve.nexus.network.market", attributes: .concurrent)
+    private let serverStatusQueue = DispatchQueue(label: "com.eve.nexus.network.server", attributes: .concurrent)
     
     // 市场订单缓存
-    private let marketOrdersLock = NSLock()
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
     private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存有效期5分钟
     
     // 服务器状态缓存
-    private let serverStatusLock = NSLock()
     private var serverStatusCache: CachedData<ServerStatus>?
     
     private override init() {
@@ -300,7 +299,7 @@ class NetworkManager: NSObject {
         imageURL: URL
     ) async throws -> UIImage {
         // 检查内存缓存
-        if let cached = imageCache.object(forKey: cacheKey as NSString)?.data {
+        if let cached = await getCachedImage(forKey: cacheKey) {
             return cached
         }
         
@@ -314,10 +313,7 @@ class NetworkManager: NSObject {
             if let data = try? Data(contentsOf: fileURL),
                let image = UIImage(data: data) {
                 // 更新内存缓存
-                imageCacheKeysLock.lock()
-                imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
-                imageCacheKeys.insert(cacheKey)
-                imageCacheKeysLock.unlock()
+                await setCachedImage(image, forKey: cacheKey)
                 return image
             }
         }
@@ -326,10 +322,7 @@ class NetworkManager: NSObject {
         let image = try await fetchImage(from: imageURL)
         
         // 更新缓存
-        imageCacheKeysLock.lock()
-        imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
-        imageCacheKeys.insert(cacheKey)
-        imageCacheKeysLock.unlock()
+        await setCachedImage(image, forKey: cacheKey)
         
         // 异步保存到文件
         Task {
@@ -343,6 +336,29 @@ class NetworkManager: NSObject {
         }
         
         return image
+    }
+    
+    // 异步安全的缓存访问方法
+    private func getCachedImage(forKey key: String) async -> UIImage? {
+        await withCheckedContinuation { continuation in
+            imageQueue.async {
+                if let cached = self.imageCache.object(forKey: key as NSString)?.data {
+                    continuation.resume(returning: cached)
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+    
+    private func setCachedImage(_ image: UIImage, forKey key: String) async {
+        await withCheckedContinuation { continuation in
+            imageQueue.async(flags: .barrier) {
+                self.imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
+                self.imageCacheKeys.insert(key)
+                continuation.resume()
+            }
+        }
     }
     
     // 获取EVE物品渲染图
@@ -413,14 +429,11 @@ class NetworkManager: NSObject {
     ) async throws -> T {
         // 如果不是强制刷新，检查内存缓存
         if !forceRefresh {
-            cacheLock.lock()
-            if let cached = dataCache.object(forKey: cacheKey as NSString) as? CachedData<T>,
+            if let cached = await getCachedData(forKey: cacheKey) as? CachedData<T>,
                Date().timeIntervalSince(cached.timestamp) < cacheDuration {
-                cacheLock.unlock()
                 Logger.info("Using memory cached data for: \(cacheKey)")
                 return cached.data
             }
-            cacheLock.unlock()
             
             // 检查文件缓存
             let fileManager = FileManager.default
@@ -435,12 +448,7 @@ class NetworkManager: NSObject {
                     if Date().timeIntervalSince(modificationDate) < cacheDuration {
                         let decodedData = try JSONDecoder().decode(T.self, from: data)
                         // 更新内存缓存
-                        cacheLock.lock()
-                        dataCache.setObject(
-                            CachedData(data: decodedData, timestamp: modificationDate),
-                            forKey: cacheKey as NSString
-                        )
-                        cacheLock.unlock()
+                        await setCachedData(decodedData, forKey: cacheKey)
                         Logger.info("Using file cached data for: \(cacheKey)")
                         return decodedData
                     }
@@ -455,12 +463,7 @@ class NetworkManager: NSObject {
         let data = try await networkFetch()
         
         // 更新内存缓存
-        cacheLock.lock()
-        dataCache.setObject(
-            CachedData(data: data, timestamp: Date()),
-            forKey: cacheKey as NSString
-        )
-        cacheLock.unlock()
+        await setCachedData(data, forKey: cacheKey)
         
         // 异步更新文件缓存
         Task {
@@ -482,6 +485,29 @@ class NetworkManager: NSObject {
         }
         
         return data
+    }
+    
+    // 异步安全的缓存访问方法
+    private func getCachedData(forKey key: String) async -> Any? {
+        await withCheckedContinuation { continuation in
+            cacheQueue.async {
+                if let cached = self.dataCache.object(forKey: key as NSString) {
+                    continuation.resume(returning: cached)
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+    
+    private func setCachedData<T>(_ data: T, forKey key: String) async {
+        await withCheckedContinuation { continuation in
+            cacheQueue.async(flags: .barrier) {
+                self.dataCache.setObject(CachedData(data: data, timestamp: Date()), forKey: key as NSString)
+                self.dataCacheKeys.insert(key)
+                continuation.resume()
+            }
+        }
     }
     
     // 获取主权数据
@@ -522,30 +548,33 @@ class NetworkManager: NSObject {
     
     // 清除市场订单缓存
     func clearMarketOrdersCache() {
-        marketOrdersLock.lock()
-        marketOrdersCache.removeAll()
-        marketOrdersTimestamp.removeAll()
-        marketOrdersLock.unlock()
+        marketQueue.async(flags: .barrier) {
+            self.marketOrdersCache.removeAll()
+            self.marketOrdersTimestamp.removeAll()
+        }
     }
     
     // 清除所有缓存
     func clearAllCaches() {
         // 清除内存缓存
-        dataCache.removeAllObjects()
-        imageCache.removeAllObjects()
+        cacheQueue.async(flags: .barrier) {
+            self.dataCache.removeAllObjects()
+            self.dataCacheKeys.removeAll()
+        }
         
-        imageCacheKeysLock.lock()
-        imageCacheKeys.removeAll()
-        imageCacheKeysLock.unlock()
+        imageQueue.async(flags: .barrier) {
+            self.imageCache.removeAllObjects()
+            self.imageCacheKeys.removeAll()
+        }
         
-        marketOrdersLock.lock()
-        marketOrdersCache.removeAll()
-        marketOrdersTimestamp.removeAll()
-        marketOrdersLock.unlock()
+        marketQueue.async(flags: .barrier) {
+            self.marketOrdersCache.removeAll()
+            self.marketOrdersTimestamp.removeAll()
+        }
         
-        serverStatusLock.lock()
-        serverStatusCache = nil
-        serverStatusLock.unlock()
+        serverStatusQueue.async(flags: .barrier) {
+            self.serverStatusCache = nil
+        }
         
         // 清除文件缓存
         Task {

@@ -124,10 +124,16 @@ class StaticResourceManager {
     
     /// 获取静态资源目录路径
     func getStaticDataSetPath() -> URL {
-        return fileQueue.sync {
-            let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-            return paths[0].appendingPathComponent("StaticDataSet")
+        // 直接返回路径，不使用同步队列
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let staticPath = paths[0].appendingPathComponent("StaticDataSet")
+        
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: staticPath.path) {
+            try? FileManager.default.createDirectory(at: staticPath, withIntermediateDirectories: true)
         }
+        
+        return staticPath
     }
     
     /// 获取所有静态资源的状态
@@ -377,9 +383,12 @@ class StaticResourceManager {
     
     /// 获取联盟图标目录路径
     func getAllianceIconPath() -> URL {
-        return fileQueue.sync {
-            return getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        let iconPath = getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: iconPath.path) {
+            try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)
         }
+        return iconPath
     }
     
     /// 保存联盟图标
@@ -473,7 +482,12 @@ class StaticResourceManager {
     
     /// 获取市场数据目录路径
     func getMarketDataPath() -> URL {
-        return getStaticDataSetPath().appendingPathComponent("Market")
+        let marketPath = getStaticDataSetPath().appendingPathComponent("Market")
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: marketPath.path) {
+            try? FileManager.default.createDirectory(at: marketPath, withIntermediateDirectories: true)
+        }
+        return marketPath
     }
     
     /// 获取指定物品的市场数据目录
@@ -616,9 +630,12 @@ class StaticResourceManager {
     
     /// 获取渲染图目录路径
     func getNetRendersPath() -> URL {
-        return fileQueue.sync {
-            return getStaticDataSetPath().appendingPathComponent("NetRenders")
+        let renderPath = getStaticDataSetPath().appendingPathComponent("NetRenders")
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: renderPath.path) {
+            try? FileManager.default.createDirectory(at: renderPath, withIntermediateDirectories: true)
         }
+        return renderPath
     }
     
     /// 保存渲染图

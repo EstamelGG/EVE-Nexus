@@ -85,7 +85,7 @@ struct MarketOrdersView: View {
                 }
             }
         }
-        .navigationTitle(itemName)
+        .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
     }
 }
