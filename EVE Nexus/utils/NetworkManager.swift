@@ -713,18 +713,54 @@ class NetworkManager: NSObject {
     }
     
     // 获取角色头像
-    func fetchCharacterPortrait(characterId: Int, size: Int = 64) async throws -> UIImage {
+    func fetchCharacterPortrait(characterId: Int, size: Int = 64, forceRefresh: Bool = false) async throws -> UIImage {
         let urlString = "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
-        return try await fetchCachedImage(
-            cacheKey: "character_portrait_\(characterId)_\(size)",
-            filename: "character_portrait_\(characterId)_\(size).png",
-            cacheDuration: StaticResourceManager.shared.RENDER_CACHE_DURATION,
-            imageURL: url
-        )
+        let cacheKey = "character_portrait_\(characterId)_\(size)"
+        
+        // 如果不是强制刷新，先检查内存缓存
+        if !forceRefresh {
+            if let cached = imageCache.object(forKey: cacheKey as NSString) {
+                return cached.data
+            }
+            
+            // 检查文件缓存
+            let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+                .appendingPathComponent("Images")
+                .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
+            
+            if let data = try? Data(contentsOf: fileURL),
+               let image = UIImage(data: data) {
+                // 更新内存缓存
+                imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
+                imageCacheKeys.insert(cacheKey)
+                return image
+            }
+        }
+        
+        // 如果强制刷新或没有缓存，从网络获取
+        let data = try await fetchData(from: url, forceRefresh: forceRefresh)
+        guard let image = UIImage(data: data) else {
+            throw NetworkError.invalidImageData
+        }
+        
+        // 更新缓存
+        imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: cacheKey as NSString)
+        imageCacheKeys.insert(cacheKey)
+        
+        // 保存到文件
+        if let pngData = image.pngData() {
+            let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
+                .appendingPathComponent("Images")
+                .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
+            try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? pngData.write(to: fileURL)
+        }
+        
+        return image
     }
 }
 

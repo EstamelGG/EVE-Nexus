@@ -152,8 +152,7 @@ struct AccountsView: View {
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
         
-        // 清除所有头像并添加所有角色到刷新集合
-        viewModel.characterPortraits.removeAll()
+        // 添加所有角色到刷新集合
         refreshingCharacters = Set(characterAuths.map { $0.character.CharacterID })
         
         // 创建所有刷新任务
@@ -172,7 +171,8 @@ struct AccountsView: View {
                         
                         // 强制从网络重新加载头像
                         if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
-                            characterId: characterAuth.character.CharacterID
+                            characterId: characterAuth.character.CharacterID,
+                            forceRefresh: true
                         ) {
                             // 更新头像
                             await updatePortrait(characterId: characterAuth.character.CharacterID, portrait: portrait)
@@ -191,8 +191,9 @@ struct AccountsView: View {
             }
         }
         
-        // 重新加载所有角色信息
-        viewModel.loadCharacters()
+        // 更新角色列表
+        viewModel.characters = EVELogin.shared.getAllCharacters()
+        viewModel.isLoggedIn = !viewModel.characters.isEmpty
     }
     
     @MainActor

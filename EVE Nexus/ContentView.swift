@@ -142,7 +142,7 @@ struct ServerStatusView: View {
                 if status.isOnline {
                     Text("Online")
                         .font(.caption.bold())
-                        .foregroundColor(Color(red: 0, green: 0.5, blue: 0))
+                        .foregroundColor(Color(UIColor.systemGreen))
                     
                     let formattedPlayers = NumberFormatter.localizedString(
                         from: NSNumber(value: status.players),

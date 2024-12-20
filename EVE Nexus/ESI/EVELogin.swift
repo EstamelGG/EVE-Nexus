@@ -56,12 +56,18 @@ class EVELoginViewModel: ObservableObject {
     @Published var characters: [EVECharacterInfo] = []
     @Published var characterPortraits: [Int: UIImage] = [:] // 添加头像存储
     
-    func loadCharacterPortrait(characterId: Int) async {
+    func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 清除缓存的头像
-            characterPortraits.removeValue(forKey: characterId)
+            // 如果不是强制刷新且已有缓存的头像，直接返回
+            if !forceRefresh && characterPortraits[characterId] != nil {
+                return
+            }
             
-            let portrait = try await NetworkManager.shared.fetchCharacterPortrait(characterId: characterId)
+            // 从网络加载新的头像
+            let portrait = try await NetworkManager.shared.fetchCharacterPortrait(
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            )
             characterPortraits[characterId] = portrait
         } catch {
             Logger.error("加载角色头像失败: \(error)")
@@ -72,7 +78,7 @@ class EVELoginViewModel: ObservableObject {
         characters = EVELogin.shared.getAllCharacters()
         isLoggedIn = !characters.isEmpty
         
-        // 加载所有角色的头像
+        // 异步加载所有角色的头像，但不强制刷新
         Task {
             for character in characters {
                 await loadCharacterPortrait(characterId: character.CharacterID)
