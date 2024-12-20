@@ -882,8 +882,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
             
             // 检查文件缓存
-            let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-                .appendingPathComponent("AllianceIcons")
+            let fileURL = StaticResourceManager.shared.getCharacterPortraitsPath()
                 .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
             
             if let data = try? Data(contentsOf: fileURL),
@@ -895,7 +894,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
         }
         
-        // 如果强制刷新没有缓存，从网络获取
+        // 如果强制刷新或没有缓存，从网络获取
         let data = try await fetchData(from: url, forceRefresh: forceRefresh)
         guard let image = UIImage(data: data) else {
             throw NetworkError.invalidImageData
@@ -907,8 +906,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         // 保存到文件
         if let pngData = image.pngData() {
-            let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-                .appendingPathComponent("AllianceIcons")
+            let fileURL = StaticResourceManager.shared.getCharacterPortraitsPath()
                 .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
             try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? pngData.write(to: fileURL)

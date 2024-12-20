@@ -191,6 +191,7 @@
 "Network_Error_Unauthed" = "未授权";
 
 "Main_Setting_Market_Data" = "市场数据 (%d个物品, %d条记录)";
+"Main_Setting_Market_Data_0" = "市场数据";
 
 "Main_Sovereignty" = "主权争夺";
 "Main_Sovereignty_Title" = "主权战争状态";

@@ -21,14 +21,14 @@ class StaticResourceManager {
         /// 市场历史缓存时间（1小时）
         static let marketHistory: TimeInterval = 60 * 60
         
-        /// 星系主权归属数据缓存时间（1小时）
-        static let sovereignty: TimeInterval = 60 * 60
+        /// 星系主权归属数据缓存时间（8小时）
+        static let sovereignty: TimeInterval = 8 * 60 * 60
         
-        /// 入侵数据缓存时间（5分钟）
-        static let incursions: TimeInterval = 5 * 60
+        /// 入侵数据缓存时间（60分钟）
+        static let incursions: TimeInterval = 60 * 60
         
-        /// 主权战争数据缓存时间（5分钟）
-        static let sovereigntyCampaigns: TimeInterval = 5 * 60
+        /// 主权战争数据缓存时间（8小时）
+        static let sovereigntyCampaigns: TimeInterval = 8 * 60 * 60
         
         /// 联盟图标缓存时间（1周）
         static let allianceIcon: TimeInterval = 7 * 24 * 60 * 60
@@ -678,9 +678,12 @@ class StaticResourceManager {
                 }
             }
         }
-        
-        let name = String(format: NSLocalizedString("Main_Setting_Market_Data", comment: ""), itemCount.count, dataCount)
-        
+        var name = String()
+        if itemCount.count > 0 {
+            name = String(format: NSLocalizedString("Main_Setting_Market_Data", comment: ""), itemCount.count, dataCount)
+        } else {
+            name = String(format: NSLocalizedString("Main_Setting_Market_Data_0", comment: ""))
+        }
         return ResourceInfo(
             name: name,
             exists: exists,
