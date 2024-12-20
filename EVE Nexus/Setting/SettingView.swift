@@ -624,38 +624,15 @@ struct SettingView: View {
             // 2. 清理 NetworkManager 的所有缓存
             await NetworkManager.shared.clearAllCaches()
             
-            // 3. 清理 StaticResourceManager 的内存缓存
+            // 3. 清理 StaticResourceManager 的内存缓存和所有静态资源数据
             StaticResourceManager.shared.clearMemoryCache()
-            
-            // 4. 清理所有静态资源数据（包括文件和内存缓存）
             do {
                 try StaticResourceManager.shared.clearAllStaticData()
             } catch {
                 Logger.error("Failed to clear static data: \(error)")
             }
             
-            // 5. 清理联盟图标缓存
-            do {
-                try StaticResourceManager.shared.clearAllianceIcons()
-            } catch {
-                Logger.error("Failed to clear alliance icons: \(error)")
-            }
-            
-            // 6. 清理市场数据缓存
-            do {
-                try StaticResourceManager.shared.clearMarketData()
-            } catch {
-                Logger.error("Failed to clear market data: \(error)")
-            }
-            
-            // 7. 清理渲染图缓存
-            do {
-                try StaticResourceManager.shared.clearNetRenders()
-            } catch {
-                Logger.error("Failed to clear net renders: \(error)")
-            }
-            
-            // 8. 清理临时文件目录
+            // 4. 清理临时文件目录
             if let tmpDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
                 do {
                     let tmpContents = try FileManager.default.contentsOfDirectory(at: tmpDirectory, includingPropertiesForKeys: nil)
@@ -667,12 +644,18 @@ struct SettingView: View {
                 }
             }
             
-            // 10. 清理 Cookies
+            // 5. 清理 Cookies
             if let cookies = HTTPCookieStorage.shared.cookies {
                 for cookie in cookies {
                     HTTPCookieStorage.shared.deleteCookie(cookie)
                 }
             }
+            
+            // 6. 重建必要的目录结构
+            _ = StaticResourceManager.shared.getStaticDataSetPath()
+            _ = StaticResourceManager.shared.getAllianceIconPath()
+            _ = StaticResourceManager.shared.getMarketDataPath()
+            _ = StaticResourceManager.shared.getNetRendersPath()
             
             // 等待所有清理操作完成
             try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
