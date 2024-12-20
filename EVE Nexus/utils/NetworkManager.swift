@@ -248,10 +248,10 @@ class NetworkManager: NSObject {
     private var serverStatusCache: CachedData<ServerStatus>?
     
     // 通用的数据获取函数
-    func fetchData(from url: URL, forceRefresh: Bool = false) async throws -> Data {
+    func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
         Logger.info("Fetching data from URL: \(url.absoluteString)")
         
-        var request = URLRequest(url: url)
+        var request = customRequest ?? URLRequest(url: url)
         if forceRefresh {
             // 强制刷新时禁用缓存
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
@@ -442,7 +442,7 @@ class NetworkManager: NSObject {
             return cached.data
         }
         
-        // 如果不是强制刷新，检查本地文件缓存
+        // 果不是强制刷新，检查本地文件缓存
         if !forceRefresh {
             let fileManager = FileManager.default
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(filename)
@@ -789,33 +789,6 @@ class NetworkManager: NSObject {
         try encodedData.write(to: fileURL)
         
         return skillsResponse
-    }
-    
-    // 添加一个新的fetchData重载，支持自定义请求
-    func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
-        Logger.info("Fetching data from URL: \(url.absoluteString)")
-        
-        var request = customRequest ?? URLRequest(url: url)
-        if forceRefresh {
-            // 强制刷新时禁用缓存
-            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        }
-        
-        // 使用共享的 URLSession，让系统管理缓存
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            Logger.error("Invalid response type received")
-            throw NetworkError.invalidResponse
-        }
-        
-        guard httpResponse.statusCode == 200 else {
-            Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
-            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-        }
-        
-        Logger.info("Successfully fetched data from: \(url.absoluteString)")
-        return data
     }
 }
 
