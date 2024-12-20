@@ -343,11 +343,11 @@ class NetworkManager: NSObject, @unchecked Sendable {
         return image
     }
     
-    // 异步安全的缓存访问方法
+    // 修改图片缓存相关的方法
     private func getCachedImage(forKey key: String) async -> UIImage? {
-        await withCheckedContinuation { continuation in
-            imageQueue.async {
-                if let cached = self.imageCache.object(forKey: key as NSString)?.data {
+        return await withCheckedContinuation { continuation in
+            Task { @NetworkManagerActor in
+                if let cached = imageCache.object(forKey: key as NSString)?.data {
                     continuation.resume(returning: cached)
                 } else {
                     continuation.resume(returning: nil)
@@ -358,9 +358,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     private func setCachedImage(_ image: UIImage, forKey key: String) async {
         await withCheckedContinuation { continuation in
-            imageQueue.async(flags: .barrier) {
-                self.imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
-                self.imageCacheKeys.insert(key)
+            Task { @NetworkManagerActor in
+                imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
+                imageCacheKeys.insert(key)
                 continuation.resume()
             }
         }
