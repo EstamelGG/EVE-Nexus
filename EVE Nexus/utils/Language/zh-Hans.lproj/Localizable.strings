@@ -178,7 +178,7 @@
 "Time_Hours_Ago" = "%d小时前";
 "Time_Minutes_Ago" = "%d分钟前";
 "Time_Just_Now" = "刚刚";
-
+"Common_OK" = "OK";
 // 网络错误
 "Network_Error_Invalid_URL" = "无效的URL";
 "Network_Error_Invalid_Response" = "无效的响应";
