@@ -71,13 +71,26 @@ struct AccountsView: View {
                             } else if let portrait = viewModel.characterPortraits[character.CharacterID] {
                                 Image(uiImage: portrait)
                                     .resizable()
+                                    .aspectRatio(contentMode: .fill)
                                     .frame(width: 64, height: 64)
                                     .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(.white, lineWidth: 2)
+                                    )
+                                    .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
+                                    .padding(2)
                             } else {
                                 Image(systemName: "person.crop.circle.fill")
                                     .resizable()
                                     .frame(width: 64, height: 64)
                                     .foregroundColor(.gray)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(.white, lineWidth: 2)
+                                    )
+                                    .shadow(color: Color.gray.opacity(0.5), radius: 4, x: 0, y: 2)
+                                    .padding(2)
                             }
                             
                             VStack(alignment: .leading) {
