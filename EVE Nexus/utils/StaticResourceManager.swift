@@ -383,7 +383,7 @@ class StaticResourceManager {
     
     /// 获取联盟图标目录路径
     func getAllianceIconPath() -> URL {
-        let iconPath = getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        let iconPath = getStaticDataSetPath().appendingPathComponent("allianceIcons")
         // 确保目录存在
         if !FileManager.default.fileExists(atPath: iconPath.path) {
             try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)

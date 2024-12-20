@@ -311,7 +311,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 检查文件缓存
         let fileManager = FileManager.default
         let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Images")
+            .appendingPathComponent("allianceIcons")
             .appendingPathComponent(filename)
         
         if fileManager.fileExists(atPath: fileURL.path) {
@@ -786,7 +786,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             
             // 检查文件缓存
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-                .appendingPathComponent("Images")
+                .appendingPathComponent("allianceIcons")
                 .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
             
             if let data = try? Data(contentsOf: fileURL),
@@ -811,7 +811,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 保存到文件
         if let pngData = image.pngData() {
             let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-                .appendingPathComponent("Images")
+                .appendingPathComponent("allianceIcons")
                 .appendingPathComponent("character_portrait_\(characterId)_\(size).png")
             try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? pngData.write(to: fileURL)
