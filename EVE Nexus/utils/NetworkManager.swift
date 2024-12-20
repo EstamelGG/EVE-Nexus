@@ -912,15 +912,6 @@ class NetworkManager: NSObject {
             throw NetworkError.httpError(statusCode: statusCode)
         }
     }
-    
-    // 获取钱包余额
-    func fetchCharacterWallet(characterId: Int, token: String) async throws -> Double {
-        return try await fetchDataWithToken(
-            characterId: characterId,
-            token: token,
-            endpoint: "/characters/\(characterId)/wallet/"
-        )
-    }
 }
 
 // 网络错误枚举

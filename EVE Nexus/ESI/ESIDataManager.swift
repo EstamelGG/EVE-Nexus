@@ -17,6 +17,10 @@ class ESIDataManager {
         request.addValue("tranquility", forHTTPHeaderField: "datasource")
         
         let data = try await NetworkManager.shared.fetchData(from: url, request: request)
-        return try JSONDecoder().decode(Double.self, from: data)
+        guard let stringValue = String(data: data, encoding: .utf8),
+              let balance = Double(stringValue) else {
+            throw NetworkError.invalidResponse
+        }
+        return balance
     }
 } 

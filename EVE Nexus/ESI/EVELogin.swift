@@ -709,7 +709,7 @@ class EVELogin {
             cacheDuration: 300, // 钱包数据缓存5分钟
             forceRefresh: forceRefresh
         ) { token in
-            try await NetworkManager.shared.fetchCharacterWallet(
+            try await ESIDataManager.shared.getWalletBalance(
                 characterId: characterId,
                 token: token
             )
