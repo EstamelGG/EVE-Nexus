@@ -139,14 +139,16 @@ class EVELoginViewModel: ObservableObject {
     }
     
     @objc private func handleCharacterDetailsUpdate(_ notification: Notification) {
-        if let updatedCharacter = notification.userInfo?["character"] as? EVECharacterInfo {
-            // 更新角色列表
-            if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
-                characters[index] = updatedCharacter
-            }
-            // 如果是当前选中的角色，也更新characterInfo
-            if characterInfo?.CharacterID == updatedCharacter.CharacterID {
-                characterInfo = updatedCharacter
+        Task { @MainActor in
+            if let updatedCharacter = notification.userInfo?["character"] as? EVECharacterInfo {
+                // 更新角色列表
+                if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
+                    characters[index] = updatedCharacter
+                }
+                // 如果是当前选中的角色，也更新characterInfo
+                if characterInfo?.CharacterID == updatedCharacter.CharacterID {
+                    characterInfo = updatedCharacter
+                }
             }
         }
     }
@@ -163,21 +165,26 @@ class EVELoginViewModel: ObservableObject {
                 characterId: characterId,
                 forceRefresh: forceRefresh
             )
-            characterPortraits[characterId] = portrait
+            
+            await MainActor.run {
+                characterPortraits[characterId] = portrait
+            }
         } catch {
             Logger.error("加载角色头像失败: \(error)")
         }
     }
     
     func loadCharacters() {
-        characters = EVELogin.shared.getAllCharacters()
-        isLoggedIn = !characters.isEmpty
-        
-        // 分别启动三个独立的任务
-        // 1. 加载头像
-        Task {
-            for character in characters {
-                await loadCharacterPortrait(characterId: character.CharacterID)
+        Task { @MainActor in
+            characters = EVELogin.shared.getAllCharacters()
+            isLoggedIn = !characters.isEmpty
+            
+            // 分别启动三个独立的任务
+            // 1. 加载头像
+            Task {
+                for character in characters {
+                    await loadCharacterPortrait(characterId: character.CharacterID)
+                }
             }
         }
     }
@@ -297,7 +304,7 @@ class EVELogin {
             saveInitialAuth(token: token, character: character)
             
             // 验证保存是否成功
-            guard let savedAuth = getCharacterByID(character.CharacterID) else {
+            guard getCharacterByID(character.CharacterID) != nil else {
                 Logger.error("EVELogin: 初始认证信息保存失败")
                 throw NetworkError.invalidData
             }
@@ -352,7 +359,7 @@ class EVELogin {
         UserDefaults.standard.synchronize()
         
         // 步骤6：验证最终保存
-        guard let finalAuth = getCharacterByID(character.CharacterID) else {
+        guard getCharacterByID(character.CharacterID) != nil else {
             Logger.error("EVELogin: 最终角色信息保存失败")
             throw NetworkError.invalidData
         }
