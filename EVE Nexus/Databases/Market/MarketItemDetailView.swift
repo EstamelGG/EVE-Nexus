@@ -639,33 +639,31 @@ struct MarketItemDetailView: View {
         
         defer { isLoadingPrice = false }
         
-        do {
-            // 1. 如果不是强制刷新，先尝试从缓存获取
-            if !forceRefresh {
-                if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
-                    marketOrders = orders
-                    let sellOrders = orders.filter { !$0.isBuyOrder }
-                    lowestPrice = sellOrders.map { $0.price }.min()
-                    return
-                }
+        // 1. 如果不是强制刷新，先尝试从缓存获取
+        if !forceRefresh {
+            if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
+                marketOrders = orders
+                let sellOrders = orders.filter { !$0.isBuyOrder }
+                lowestPrice = sellOrders.map { $0.price }.min()
+                return
             }
-            
+        }
+        
+        do {
             // 2. 从网络加载数据
-            NetworkManager.shared.setRegionID(selectedRegionID)
+            await NetworkManager.shared.setRegionID(selectedRegionID)
             let orders = try await NetworkManager.shared.fetchMarketOrders(
                 typeID: itemID,
                 forceRefresh: true
             )
             
             // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard selectedRegionID == NetworkManager.shared.regionID else {
+            guard await selectedRegionID == NetworkManager.shared.regionID else {
                 return
             }
             
-            // 4. 保存到缓存
+            // 4. 保存到缓存并更新UI
             try StaticResourceManager.shared.saveMarketOrders(orders, itemId: itemID, regionId: selectedRegionID)
-            
-            // 5. 更新UI
             marketOrders = orders
             let sellOrders = orders.filter { !$0.isBuyOrder }
             lowestPrice = sellOrders.map { $0.price }.min()
@@ -695,14 +693,14 @@ struct MarketItemDetailView: View {
             }
             
             // 2. 从网络加载数据
-            NetworkManager.shared.setRegionID(selectedRegionID)
+            await NetworkManager.shared.setRegionID(selectedRegionID)
             let history = try await NetworkManager.shared.fetchMarketHistory(
                 typeID: itemID,
                 forceRefresh: true
             )
             
             // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard selectedRegionID == NetworkManager.shared.regionID else {
+            guard await selectedRegionID == NetworkManager.shared.regionID else {
                 return
             }
             
