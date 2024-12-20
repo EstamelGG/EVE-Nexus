@@ -67,9 +67,19 @@ class StaticResourceManager {
         case allianceIcons = "allianceIcons"
         case netRenders = "netRenders"
         case marketData = "marketData"
+        case characterPortraits = "characterPortraits"
         
         var filename: String {
-            return "\(self.rawValue).json"
+            switch self {
+            case .sovereignty:
+                return "sovereignty.json"
+            case .incursions:
+                return "incursions.json"
+            case .sovereigntyCampaigns:
+                return "sovereignty_campaigns.json"
+            case .allianceIcons, .netRenders, .marketData, .characterPortraits:
+                return ""  // 这些类型使用目录而不是单个文件
+            }
         }
         
         var displayName: String {
@@ -93,7 +103,9 @@ class StaticResourceManager {
                 var name = NSLocalizedString("Main_Setting_Static_Resource_Net_Renders", comment: "")
                 if stats.exists {
                     let count = StaticResourceManager.shared.getNetRenderCount()
-                    name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                    if count > 0 {
+                        name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                    }
                 }
                 return name
             case .marketData:
@@ -101,6 +113,16 @@ class StaticResourceManager {
                 return stats.name
             case .sovereigntyCampaigns:
                 return NSLocalizedString("Main_Sovereignty_Title", comment: "")
+            case .characterPortraits:
+                let stats = StaticResourceManager.shared.getCharacterPortraitsStats()
+                var name = NSLocalizedString("Main_Setting_Static_Resource_Character_Portraits", comment: "")
+                if stats.exists {
+                    let count = StaticResourceManager.shared.getCharacterPortraitCount()
+                    if count > 0 {
+                        name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
+                    }
+                }
+                return name
             }
         }
         
@@ -120,8 +142,10 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
             case .sovereigntyCampaigns:
                 return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
-            default:
-                return 24 * 3600
+            case .characterPortraits:
+                return CacheDuration.characterPortrait
+            case .marketData:
+                return CacheDuration.marketHistory
             }
         }
     }
@@ -228,6 +252,16 @@ class StaticResourceManager {
                     fileSize: stats.fileSize,
                     downloadTime: nil
                 )
+                
+            case .characterPortraits:
+                let stats = getCharacterPortraitsStats()
+                return ResourceInfo(
+                    name: type.displayName,
+                    exists: stats.exists,
+                    lastModified: stats.lastModified,
+                    fileSize: stats.fileSize,
+                    downloadTime: nil
+                )
             }
         }
     }
@@ -301,9 +335,15 @@ class StaticResourceManager {
             // 这两种类型的资源是按需获取的，不支持批量刷新
             Logger.info("Alliance icons and net renders are refreshed on-demand")
             break
+            
         case .marketData:
             // 市场数据不支持批量刷新
             Logger.info("Market data is refreshed on-demand")
+            break
+            
+        case .characterPortraits:
+            // 角色头像是按需获取的，不支持批量刷新
+            Logger.info("Character portraits are refreshed on-demand")
             break
         }
     }
@@ -401,13 +441,20 @@ class StaticResourceManager {
             try fileManager.removeItem(at: staticDataSetPath)
             Logger.info("Cleared all static data")
             
-            // 清理下载时间记录
-            for type in ResourceType.allCases {
-                defaults.removeObject(forKey: type.downloadTimeKey)
-            }
+            // 重新创建必要的目录
+            try fileManager.createDirectory(at: staticDataSetPath, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: getCharacterPortraitsPath(), withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: getNetRendersPath(), withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: getMarketDataPath(), withIntermediateDirectories: true)
         }
+        
         // 清理内存缓存
         cache.removeAllObjects()
+        
+        // 清理下载时间记录
+        for type in ResourceType.allCases {
+            UserDefaults.standard.removeObject(forKey: type.downloadTimeKey)
+        }
     }
     
     /// 获取联盟图标目录路径
@@ -1047,8 +1094,89 @@ class StaticResourceManager {
         let encodedData = try JSONEncoder().encode(container)
         try encodedData.write(to: fileURL)
         
-        // 2. 保存到 UserDefaults
+        // 2. ��存到 UserDefaults
         UserDefaults.standard.set(encodedData, forKey: "sovereignty_campaigns_data")
         Logger.info("Saved sovereignty campaigns data")
+    }
+    
+    // 添加角色头像相关的函数
+    /// 获取角色头像目录路径
+    func getCharacterPortraitsPath() -> URL {
+        let portraitsPath = getStaticDataSetPath().appendingPathComponent("CharacterPortraits")
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: portraitsPath.path) {
+            try? FileManager.default.createDirectory(at: portraitsPath, withIntermediateDirectories: true)
+        }
+        return portraitsPath
+    }
+    
+    /// 获取角色头像数量
+    func getCharacterPortraitCount() -> Int {
+        let portraitsPath = getCharacterPortraitsPath()
+        var count = 0
+        
+        if let enumerator = fileManager.enumerator(atPath: portraitsPath.path) {
+            for case let fileName as String in enumerator {
+                if fileName.hasSuffix(".png") {
+                    count += 1
+                }
+            }
+        }
+        
+        return count
+    }
+    
+    /// 获取角色头像统计信息
+    func getCharacterPortraitsStats() -> ResourceInfo {
+        let portraitsPath = getCharacterPortraitsPath()
+        let exists = fileManager.fileExists(atPath: portraitsPath.path)
+        var totalSize: Int64 = 0
+        var lastModified: Date? = nil
+        var portraitCount: Int = 0
+        
+        if exists {
+            if let enumerator = fileManager.enumerator(atPath: portraitsPath.path) {
+                for case let fileName as String in enumerator {
+                    if fileName.hasSuffix(".png") {
+                        portraitCount += 1
+                        let filePath = (portraitsPath.path as NSString).appendingPathComponent(fileName)
+                        do {
+                            let attributes = try fileManager.attributesOfItem(atPath: filePath)
+                            totalSize += attributes[.size] as? Int64 ?? 0
+                            
+                            if let fileModified = attributes[.modificationDate] as? Date {
+                                if lastModified == nil || fileModified > lastModified! {
+                                    lastModified = fileModified
+                                }
+                            }
+                        } catch {
+                            Logger.error("Error getting character portrait attributes: \(error)")
+                        }
+                    }
+                }
+            }
+        }
+        
+        var name = NSLocalizedString("Main_Setting_Static_Resource_Character_Portraits", comment: "")
+        if portraitCount > 0 {
+            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), portraitCount)
+        }
+        
+        return ResourceInfo(
+            name: name,
+            exists: exists,
+            lastModified: lastModified,
+            fileSize: totalSize,
+            downloadTime: nil
+        )
+    }
+    
+    /// 清理角色头像缓存
+    func clearCharacterPortraits() throws {
+        let portraitsPath = getCharacterPortraitsPath()
+        if fileManager.fileExists(atPath: portraitsPath.path) {
+            try fileManager.removeItem(at: portraitsPath)
+            Logger.info("Cleared character portraits cache")
+        }
     }
 } 

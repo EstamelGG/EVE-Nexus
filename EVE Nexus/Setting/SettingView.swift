@@ -387,7 +387,7 @@ struct SettingView: View {
                                     .blue),
                         action: { refreshResource(resource) }
                     )
-                case .allianceIcons, .netRenders, .marketData:
+                case .allianceIcons, .netRenders, .marketData, .characterPortraits:
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
@@ -454,8 +454,8 @@ struct SettingView: View {
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                     updateAllData()
-                case .allianceIcons, .netRenders, .marketData:
-                    Logger.info("Alliance icons and net renders are refreshed on-demand")
+                case .allianceIcons, .netRenders, .marketData, .characterPortraits:
+                    Logger.info("Alliance icons, net renders, market data and character portraits are refreshed on-demand")
                     break
                 }
                 
@@ -555,9 +555,14 @@ struct SettingView: View {
     // MARK: - 主题管理
     private func getThemeIcon() -> String {
         switch selectedTheme {
-        case "light": return "sun.max.fill"
-        case "dark": return "moon.fill"
-        default: return "circle.lefthalf.fill"
+        case "light":
+            return "sun.max.fill"
+        case "dark":
+            return "moon.fill"
+        case "system":
+            return "circle.lefthalf.fill"
+        default:
+            return "circle.lefthalf.fill"
         }
     }
     
@@ -618,6 +623,14 @@ struct SettingView: View {
             return NSLocalizedString("Main_Setting_Cache_Type_Database", comment: "")
         case "StaticDataSet":
             return NSLocalizedString("Main_Setting_Cache_Type_StaticDataSet", comment: "")
+        case "CharacterPortraits":
+            return NSLocalizedString("Main_Setting_Cache_Type_Character_Portraits", comment: "")
+        case "AllianceIcons":
+            return NSLocalizedString("Main_Setting_Cache_Type_Alliance_Icons", comment: "")
+        case "NetRenders":
+            return NSLocalizedString("Main_Setting_Cache_Type_Net_Renders", comment: "")
+        case "MarketData":
+            return NSLocalizedString("Main_Setting_Cache_Type_Market_Data", comment: "")
         default:
             return type
         }
@@ -774,7 +787,7 @@ struct SettingView: View {
                 switch type {
                 case .sovereignty, .incursions, .sovereigntyCampaigns:
                     return NSLocalizedString("Main_Setting_Static_Resource_Not_Downloaded", comment: "")
-                case .allianceIcons, .netRenders, .marketData:
+                default:
                     return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
                 }
             }

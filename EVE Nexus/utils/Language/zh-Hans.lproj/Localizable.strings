@@ -173,6 +173,7 @@
 "Main_Setting_Static_Resource_Net_Renders" = "物品渲染图";
 "Main_Setting_Static_Resource_Incursions" = "入侵事件数据";
 "Main_Setting_Cache" = "缓存";
+"Main_Setting_Static_Resource_Character_Portraits" = "人物头像";
 
 // 时间显示
 "Time_Days_Ago" = "%d天前";
