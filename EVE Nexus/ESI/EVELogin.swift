@@ -121,6 +121,7 @@ class EVELoginViewModel: ObservableObject {
     @Published var characters: [EVECharacterInfo] = []
     @Published var characterPortraits: [Int: UIImage] = [:] // 添加头像存储
     let databaseManager: DatabaseManager
+    private let databaseQueue = DispatchQueue(label: "com.eve.nexus.database", qos: .userInitiated)
     
     init(databaseManager: DatabaseManager = DatabaseManager()) {
         self.databaseManager = databaseManager
@@ -161,55 +162,52 @@ class EVELoginViewModel: ObservableObject {
             for character in characters {
                 do {
                     if let characterAuth = EVELogin.shared.loadCharacters().first(where: { $0.character.CharacterID == character.CharacterID }) {
-                        // 检查是否需要更新令牌
-                        if characterAuth.shouldUpdateToken() {
-                            // 获取有效的访问令牌
-                            let token = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
-                            
-                            // 获取技能点信息
-                            let skillsInfo = try await NetworkManager.shared.fetchCharacterSkills(
-                                characterId: character.CharacterID,
-                                token: token.access_token
-                            )
-                            
-                            // 获取位置信息
-                            let location = try await NetworkManager.shared.fetchCharacterLocation(
-                                characterId: character.CharacterID,
-                                token: token.access_token
-                            )
-                            
-                            // 获取位置详细信息
-                            let locationInfo = await NetworkManager.shared.getLocationInfo(
-                                solarSystemId: location.solar_system_id,
-                                databaseManager: databaseManager
-                            )
-                            
-                            // 更新角色信息
-                            var updatedCharacter = character
-                            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
-                            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
-                            
-                            // 加载本地缓存的钱包余额
-                            if let cachedBalance = ESIDataManager.shared.loadWalletBalance(characterId: character.CharacterID) {
-                                updatedCharacter.walletBalance = cachedBalance
-                            }
-                            
-                            // 更新位置信息
-                            if let locationInfo = locationInfo {
-                                updatedCharacter.location = locationInfo
-                            }
-                            
-                            // 保存更新后的信息
-                            EVELogin.shared.saveAuthInfo(token: token, character: updatedCharacter)
-                            
-                            // 更新视图模型中的角色列表
-                            if let index = self.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
-                                self.characters[index] = updatedCharacter
+                        // 使用串行队列执行数据库操作
+                        let locationInfo = await withCheckedContinuation { continuation in
+                            Task {
+                                if let location = try? await NetworkManager.shared.fetchCharacterLocation(
+                                    characterId: character.CharacterID,
+                                    token: characterAuth.token.access_token
+                                ) {
+                                    let info = await NetworkManager.shared.getLocationInfo(
+                                        solarSystemId: location.solar_system_id,
+                                        databaseManager: self.databaseManager
+                                    )
+                                    continuation.resume(returning: info)
+                                } else {
+                                    continuation.resume(returning: nil)
+                                }
                             }
                         }
+                        
+                        // 更新角色信息
+                        var updatedCharacter = character
+                        
+                        // 获取技能点信息
+                        if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
+                            characterId: character.CharacterID,
+                            token: characterAuth.token.access_token
+                        ) {
+                            updatedCharacter.totalSkillPoints = skillsInfo.total_sp
+                            updatedCharacter.unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        }
+                        
+                        // 获取钱包余额
+                        if let balance = try? await ESIDataManager.shared.getWalletBalance(
+                            characterId: character.CharacterID,
+                            token: characterAuth.token.access_token
+                        ) {
+                            updatedCharacter.walletBalance = balance
+                        }
+                        
+                        // 更新位置信息
+                        if let locationInfo = locationInfo {
+                            updatedCharacter.location = locationInfo
+                        }
+                        
+                        // 保存更新后的信息
+                        EVELogin.shared.saveAuthInfo(token: characterAuth.token, character: updatedCharacter)
                     }
-                } catch {
-                    Logger.error("加载角色信息失败 - \(character.CharacterName): \(error)")
                 }
             }
         }
@@ -482,13 +480,13 @@ class EVELogin {
     
     // 加载保存的认证信息
     func loadAuthInfo() -> (token: EVEAuthToken?, character: EVECharacterInfo?) {
-        let defaults = UserDefaults.standard
+        let _ = UserDefaults.standard
         var token: EVEAuthToken?
         var character: EVECharacterInfo?
         
-        if let data = defaults.data(forKey: charactersKey),
-           let characters = try? JSONDecoder().decode([CharacterAuth].self, from: data),
-           let lastCharacter = characters.last {
+        // 安全地加载角色数据
+        let characters = loadCharacters()
+        if let lastCharacter = characters.last {
             token = lastCharacter.token
             character = lastCharacter.character
             
@@ -496,6 +494,7 @@ class EVELogin {
             if character?.totalSkillPoints == nil || 
                character?.walletBalance == nil || 
                character?.location == nil {
+                // 安全地加载JSON文件
                 if let jsonCharacter = loadCharacterInfoFromJSON(characterId: lastCharacter.character.CharacterID) {
                     character = jsonCharacter
                 }
@@ -514,10 +513,11 @@ class EVELogin {
         
         do {
             let data = try Data(contentsOf: characterInfoPath)
-            let character = try JSONDecoder().decode(EVECharacterInfo.self, from: data)
-            return character
+            return try JSONDecoder().decode(EVECharacterInfo.self, from: data)
         } catch {
             Logger.error("EVELogin: 从JSON加载角色信息失败: \(error)")
+            // 如果JSON文件损坏，尝试删除它
+            try? FileManager.default.removeItem(atPath: characterInfoPath.path)
             return nil
         }
     }
@@ -621,7 +621,38 @@ class EVELogin {
         do {
             return try JSONDecoder().decode([CharacterAuth].self, from: data)
         } catch {
-            Logger.error("EVELogin: 加载角色信息失败: \(error)")
+            Logger.error("EVELogin: 加载角色信息失败，正在尝试恢复: \(error)")
+            // 尝试逐个解码角色信息
+            if let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                var validCharacters: [CharacterAuth] = []
+                
+                for characterData in array {
+                    do {
+                        let jsonData = try JSONSerialization.data(withJSONObject: characterData)
+                        let character = try JSONDecoder().decode(CharacterAuth.self, from: jsonData)
+                        validCharacters.append(character)
+                    } catch {
+                        Logger.error("EVELogin: 跳过损坏的角色数据: \(error)")
+                        continue
+                    }
+                }
+                
+                // 保存有效的角色数据
+                if !validCharacters.isEmpty {
+                    do {
+                        let encodedData = try JSONEncoder().encode(validCharacters)
+                        defaults.set(encodedData, forKey: charactersKey)
+                        Logger.info("EVELogin: 成功恢复 \(validCharacters.count) 个角色数据")
+                        return validCharacters
+                    } catch {
+                        Logger.error("EVELogin: 保存恢复的角色数据失败: \(error)")
+                    }
+                }
+            }
+            
+            // 如果恢复失败，清除损坏的数据
+            Logger.info("EVELogin: 清除损坏的角色数据")
+            defaults.removeObject(forKey: charactersKey)
             return []
         }
     }
@@ -735,35 +766,48 @@ class EVELogin {
         characterId: Int,
         dataType: String,
         cacheKey: String,
-        cacheDuration: TimeInterval = 3600, // 默认缓存1小时
+        cacheDuration: TimeInterval = 3600,
         forceRefresh: Bool = false,
         fetchData: @escaping (String) async throws -> T
     ) async throws -> T {
         let defaults = UserDefaults.standard
         
-        // 1. 尝试从UserDefaults获取缓存数据
+        // 1. 安全地尝试从UserDefaults获取缓存数据
         if !forceRefresh,
-           let cachedData = defaults.data(forKey: cacheKey),
-           let cached = try? JSONDecoder().decode(ESICachedData<T>.self, from: cachedData),
-           cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
-            Logger.info("EVELogin: 从UserDefaults获取\(dataType)缓存数据 - 角色ID: \(characterId)")
-            return cached.data
+           let cachedData = defaults.data(forKey: cacheKey) {
+            do {
+                let cached = try JSONDecoder().decode(ESICachedData<T>.self, from: cachedData)
+                if cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
+                    Logger.info("EVELogin: 从UserDefaults获取\(dataType)缓存数据 - 角色ID: \(characterId)")
+                    return cached.data
+                }
+            } catch {
+                Logger.error("EVELogin: UserDefaults中的\(dataType)缓存数据损坏，将被删除: \(error)")
+                defaults.removeObject(forKey: cacheKey)
+            }
         }
         
-        // 2. 尝试从JSON文件获取数据
+        // 2. 安全地尝试从JSON文件获取数据
         let characterPath = StaticResourceManager.shared.getStaticDataSetPath()
             .appendingPathComponent("Characters")
             .appendingPathComponent("\(characterId)")
         let jsonPath = characterPath.appendingPathComponent("\(dataType).json")
         
-        if !forceRefresh,
-           let jsonData = try? Data(contentsOf: jsonPath),
-           let cached = try? JSONDecoder().decode(ESICachedData<T>.self, from: jsonData),
-           cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
-            // 如果从JSON文件获取到数据，同时更新UserDefaults缓存
-            defaults.set(jsonData, forKey: cacheKey)
-            Logger.info("EVELogin: 从JSON文件获取\(dataType)数据 - 角色ID: \(characterId)")
-            return cached.data
+        if !forceRefresh {
+            do {
+                if let jsonData = try? Data(contentsOf: jsonPath) {
+                    let cached = try JSONDecoder().decode(ESICachedData<T>.self, from: jsonData)
+                    if cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
+                        // 如果从JSON文件获取到数据，同时更新UserDefaults缓存
+                        defaults.set(jsonData, forKey: cacheKey)
+                        Logger.info("EVELogin: 从JSON文件获取\(dataType)数据 - 角色ID: \(characterId)")
+                        return cached.data
+                    }
+                }
+            } catch {
+                Logger.error("EVELogin: JSON文件中的\(dataType)数据损坏，将被删除: \(error)")
+                try? FileManager.default.removeItem(at: jsonPath)
+            }
         }
         
         // 3. 从ESI接口获取新数据
@@ -773,7 +817,7 @@ class EVELogin {
         
         let data = try await fetchData(token.access_token)
         
-        // 4. 保存数据到缓存和文件
+        // 4. 安全地保存数据到缓存和文件
         let cachedData = ESICachedData(data: data, timestamp: Date())
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -791,6 +835,7 @@ class EVELogin {
             Logger.info("EVELogin: 已更新\(dataType)数据缓存 - 角色ID: \(characterId)")
         } catch {
             Logger.error("EVELogin: 保存\(dataType)数据缓存失败: \(error)")
+            // 即使保存失败，也返回获取到的数据
         }
         
         return data
