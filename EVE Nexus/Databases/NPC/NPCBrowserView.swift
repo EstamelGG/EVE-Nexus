@@ -248,28 +248,28 @@ struct NPCBrowserView: View {
             searchQuery: { _ in
                 switch level {
                 case .scene:
-                    return "t.npc_ship_scene IS NOT NULL AND t.npc_ship_scene IN (SELECT DISTINCT npc_ship_scene FROM types WHERE npc_ship_scene IS NOT NULL) AND t.name LIKE ?"
+                    return "t.npc_ship_scene IS NOT NULL AND t.npc_ship_scene IN (SELECT DISTINCT npc_ship_scene FROM types WHERE npc_ship_scene IS NOT NULL) AND (t.name LIKE ? OR t.type_id = ?)"
                 case .faction:
-                    return "t.npc_ship_scene = ? AND t.npc_ship_faction IN (SELECT DISTINCT npc_ship_faction FROM types WHERE npc_ship_scene = ?) AND t.name LIKE ?"
+                    return "t.npc_ship_scene = ? AND t.npc_ship_faction IN (SELECT DISTINCT npc_ship_faction FROM types WHERE npc_ship_scene = ?) AND (t.name LIKE ? OR t.type_id = ?)"
                 case .type:
-                    return "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type IN (SELECT DISTINCT npc_ship_type FROM types WHERE npc_ship_scene = ? AND npc_ship_faction = ?) AND t.name LIKE ?"
+                    return "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type IN (SELECT DISTINCT npc_ship_type FROM types WHERE npc_ship_scene = ? AND npc_ship_faction = ?) AND (t.name LIKE ? OR t.type_id = ?)"
                 case .items:
-                    return "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type = ? AND t.name LIKE ?"
+                    return "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type = ? AND (t.name LIKE ? OR t.type_id = ?)"
                 }
             },
             searchParameters: { text in
                 switch level {
                 case .scene:
-                    return ["%\(text)%"]
+                    return ["%\(text)%", "\(text)"]
                 case .faction:
                     guard let scene = scene else { return [] }
-                    return [scene, scene, "%\(text)%"]
+                    return [scene, scene, "%\(text)%", "\(text)"]
                 case .type:
                     guard let scene = scene, let faction = faction else { return [] }
-                    return [scene, faction, scene, faction, "%\(text)%"]
+                    return [scene, faction, scene, faction, "%\(text)%", "\(text)"]
                 case .items:
                     guard let scene = scene, let faction = faction, let type = type else { return [] }
-                    return [scene, faction, type, "%\(text)%"]
+                    return [scene, faction, type, "%\(text)%", "\(text)"]
                 }
             }
         )

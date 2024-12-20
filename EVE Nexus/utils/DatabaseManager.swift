@@ -350,10 +350,10 @@ class DatabaseManager: ObservableObject {
                    g.name as group_name
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
-            WHERE t.name LIKE ?
+            WHERE t.name LIKE ? or t.type_id = ?
         """
         
-        var parameters: [Any] = ["%\(searchText)%"]
+        var parameters: [Any] = ["%\(searchText)%", "\(searchText)"]
         
         if let categoryID = categoryID {
             query += " AND t.categoryID = ?"
@@ -1626,8 +1626,9 @@ extension DatabaseManager {
         var parameters: [Any] = []
         
         // 基础搜索条件
-        whereConditions.append("t.name LIKE ?")
+        whereConditions.append("t.name LIKE ? OR t.type_id = ?")
         parameters.append("%\(searchText)%")
+        parameters.append("\(searchText)")
         
         // 添加场景条件
         if let scene = scene {

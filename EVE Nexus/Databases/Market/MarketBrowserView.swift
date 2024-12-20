@@ -169,10 +169,10 @@ struct MarketBrowserView: View {
                     }
                 },
                 searchQuery: { _ in
-                    "t.marketGroupID IS NOT NULL AND t.name LIKE ?"
+                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.type_id = ?)"
                 },
                 searchParameters: { text in
-                    ["%\(text)%"]
+                    ["%\(text)%", "\(text)"]
                 }
             )
             .onAppear {
