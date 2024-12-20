@@ -533,7 +533,7 @@ class EVELogin {
                let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
                !character.shouldUpdateToken() {
                 // 如果距离上次更新时间不足5分钟，直接返回当前令牌
-                Logger.info("EVELogin: 跳过令牌刷新，距离上次更新时间不足5分钟")
+                Logger.info("EVELogin: 跳过\(character.character.CharacterName) 令牌刷新，距离上次更新时间不足5分钟")
                 return character.token
             }
         }
