@@ -65,40 +65,59 @@ struct AccountsView: View {
                 Section(header: Text(NSLocalizedString("Account_Logged_Characters", comment: ""))) {
                     ForEach(viewModel.characters, id: \.CharacterID) { character in
                         HStack {
-                            if refreshingCharacters.contains(character.CharacterID) {
-                                ProgressView()
-                                    .frame(width: 64, height: 64)
-                            } else if let portrait = viewModel.characterPortraits[character.CharacterID] {
-                                Image(uiImage: portrait)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(Circle())
-                                    .overlay(
+                            if let portrait = viewModel.characterPortraits[character.CharacterID] {
+                                ZStack {
+                                    Image(uiImage: portrait)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(Circle())
+                                    
+                                    if refreshingCharacters.contains(character.CharacterID) {
                                         Circle()
-                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                                    )
-                                    .background(
-                                        Circle()
-                                            .fill(Color.primary.opacity(0.05))
-                                    )
-                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                                    .padding(4)
+                                            .fill(Color.black.opacity(0.4))
+                                            .frame(width: 64, height: 64)
+                                        
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    }
+                                }
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                                )
+                                .background(
+                                    Circle()
+                                        .fill(Color.primary.opacity(0.05))
+                                )
+                                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                                .padding(4)
                             } else {
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 64, height: 64)
-                                    .foregroundColor(.gray)
-                                    .overlay(
+                                ZStack {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .frame(width: 64, height: 64)
+                                        .foregroundColor(.gray)
+                                    
+                                    if refreshingCharacters.contains(character.CharacterID) {
                                         Circle()
-                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                                    )
-                                    .background(
-                                        Circle()
-                                            .fill(Color.primary.opacity(0.05))
-                                    )
-                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                                    .padding(4)
+                                            .fill(Color.black.opacity(0.4))
+                                            .frame(width: 64, height: 64)
+                                        
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    }
+                                }
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                                )
+                                .background(
+                                    Circle()
+                                        .fill(Color.primary.opacity(0.05))
+                                )
+                                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                                .padding(4)
                             }
                             
                             VStack(alignment: .leading) {
