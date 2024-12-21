@@ -10,9 +10,14 @@ struct AccountsView: View {
     @State private var forceUpdate: Bool = false
     @State private var isRefreshing = false
     @State private var refreshingCharacters: Set<Int> = []
+    @Environment(\.dismiss) private var dismiss
     
-    init(databaseManager: DatabaseManager = DatabaseManager()) {
+    // 添加角色选择回调
+    var onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)?
+    
+    init(databaseManager: DatabaseManager = DatabaseManager(), onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)? = nil) {
         _viewModel = StateObject(wrappedValue: EVELoginViewModel(databaseManager: databaseManager))
+        self.onCharacterSelect = onCharacterSelect
     }
     
     // 格式化 ISK 显示
@@ -278,7 +283,13 @@ struct AccountsView: View {
                             }
                         }
                         .padding(.vertical, 4)
-                        //.frame(height: 64)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if !isEditing {
+                                onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
+                                dismiss()
+                            }
+                        }
                     }
                 }
             }

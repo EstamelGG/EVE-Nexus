@@ -128,22 +128,33 @@ struct ServerStatusView: View {
 struct LoginButtonView: View {
     let isLoggedIn: Bool
     let serverStatus: ServerStatus?
+    let selectedCharacter: EVECharacterInfo?
+    let characterPortrait: UIImage?
     
     var body: some View {
         HStack(spacing: 15) {
-            Image(systemName: "person.crop.circle.fill")
-                .resizable()
-                .frame(width: 50, height: 50)
-                .foregroundColor(.gray)
+            if let portrait = characterPortrait {
+                Image(uiImage: portrait)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 50, height: 50)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 2))
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .frame(width: 50, height: 50)
+                    .foregroundColor(.gray)
+            }
             
             VStack(alignment: .leading, spacing: 4) {
-                if isLoggedIn {
-                    Text("联盟名称")
+                if let character = selectedCharacter {
+                    Text(character.CharacterName)
                         .font(.headline)
                         .lineLimit(1)
-                    Text("军团名称")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                } else if isLoggedIn {
+                    Text(NSLocalizedString("Account_Management", comment: ""))
+                        .font(.headline)
                         .lineLimit(1)
                 } else {
                     Text(NSLocalizedString("Account_Add_Character", comment: ""))
@@ -165,8 +176,10 @@ struct ContentView: View {
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
     @State private var showingAccountSheet = false
-    @State private var forceViewUpdate: Bool = false // 添加强制更新标志
-    @State private var lastStatusUpdateTime: Date? // 添加上次更新时间状态
+    @State private var forceViewUpdate: Bool = false
+    @State private var lastStatusUpdateTime: Date?
+    @State private var selectedCharacter: EVECharacterInfo?
+    @State private var selectedCharacterPortrait: UIImage?
     
     // 添加更新间隔常量
     private let statusUpdateInterval: TimeInterval = 300 // 5分钟 = 300秒
@@ -245,10 +258,15 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section {
-                    NavigationLink(destination: AccountsView(databaseManager: databaseManager)) {
+                    NavigationLink(destination: AccountsView(databaseManager: databaseManager) { character, portrait in
+                        selectedCharacter = character
+                        selectedCharacterPortrait = portrait
+                    }) {
                         LoginButtonView(
                             isLoggedIn: isLoggedIn,
-                            serverStatus: serverStatus
+                            serverStatus: serverStatus,
+                            selectedCharacter: selectedCharacter,
+                            characterPortrait: selectedCharacterPortrait
                         )
                     }
                 }
@@ -280,7 +298,10 @@ struct ContentView: View {
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .sheet(isPresented: $showingAccountSheet) {
-                AccountsView(databaseManager: databaseManager)
+                AccountsView(databaseManager: databaseManager) { character, portrait in
+                    selectedCharacter = character
+                    selectedCharacterPortrait = portrait
+                }
             }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
