@@ -152,15 +152,26 @@ class Logger {
             }
     }
     
-    // 读取指定日志文件的内容
-    static func readLogFile(_ url: URL) -> String {
-        (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    // 读取日志文件内容
+    static func readLogFile(_ file: URL) -> String {
+        do {
+            return try String(contentsOf: file, encoding: .utf8)
+        } catch {
+            os_log("Failed to read log file: %{public}@", type: .error, error.localizedDescription)
+            return "Failed to read log file: \(error.localizedDescription)"
+        }
     }
     
-    // 清理所有日志
+    // 清除所有日志文件
     static func clearAllLogs() {
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Logs")
-        try? FileManager.default.removeItem(at: logPath)
-        shared.setupLogDirectory()
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: logPath, includingPropertiesForKeys: nil)
+            for file in files where file.pathExtension == "log" {
+                try? FileManager.default.removeItem(at: file)
+            }
+        } catch {
+            os_log("Failed to clear log files: %{public}@", type: .error, error.localizedDescription)
+        }
     }
 } 

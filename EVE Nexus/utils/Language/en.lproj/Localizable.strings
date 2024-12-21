@@ -74,7 +74,7 @@
 "Main_Setting_Dark" = "Dark";
 "Main_Setting_Light" = "Light";
 "Main_Setting_Auto" = "Auto";
-"Main_Setting_Select Language" = "Select Language";
+"Main_Setting_Select_Language" = "Select Language";
 "Main_Setting_SwitchLanguageConfirmation" = "Require reload to switch language.";
 "Main_Setting_Clean_Cache" = "Clean Cache";
 "Main_Setting_Clean_Cache_detail" = "Clean icons cache and restart app";

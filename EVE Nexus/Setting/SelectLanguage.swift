@@ -55,7 +55,7 @@ struct SelectLanguageView: View {
                     .foregroundColor(.primary)
             }
         }
-        .navigationTitle(NSLocalizedString("Main_Setting_Select Language", comment: ""))
+        .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
         .alert(
             NSLocalizedString("Main_Setting_Language_Switch_Title", comment: ""),
