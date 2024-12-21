@@ -64,7 +64,7 @@ class StaticResourceManager {
         case sovereignty = "sovereignty"
         case incursions = "incursions"
         case sovereigntyCampaigns = "sovereigntyCampaigns"
-        case allianceIcons = "allianceIcons"
+        case factionIcons = "factionIcons"
         case netRenders = "netRenders"
         case marketData = "marketData"
         case characterPortraits = "characterPortraits"
@@ -77,7 +77,7 @@ class StaticResourceManager {
                 return "incursions.json"
             case .sovereigntyCampaigns:
                 return "sovereignty_campaigns.json"
-            case .allianceIcons, .netRenders, .marketData, .characterPortraits:
+            case .factionIcons, .netRenders, .marketData, .characterPortraits:
                 return ""  // 这些类型使用目录而不是单个文件
             }
         }
@@ -88,11 +88,11 @@ class StaticResourceManager {
                 return NSLocalizedString("Main_Setting_Static_Resource_Sovereignty", comment: "")
             case .incursions:
                 return NSLocalizedString("Main_Setting_Static_Resource_Incursions", comment: "")
-            case .allianceIcons:
-                let stats = StaticResourceManager.shared.getAllianceIconsStats()
-                var name = NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: "")
+            case .factionIcons:
+                let stats = StaticResourceManager.shared.getFactionIconsStats()
+                var name = NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: "")
                 if stats.exists {
-                    let count = StaticResourceManager.shared.getAllianceIconCount()
+                    let count = StaticResourceManager.shared.getFactionIconCount()
                     if count > 0 {
                         name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), count)
                     }
@@ -136,7 +136,7 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION
             case .incursions:
                 return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
-            case .allianceIcons:
+            case .factionIcons:
                 return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
             case .netRenders:
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
@@ -223,8 +223,8 @@ class StaticResourceManager {
                     downloadTime: downloadTime ?? lastModified  // 如果没有下载时间，使用最后修改时间
                 )
                 
-            case .allianceIcons:
-                let stats = getAllianceIconsStats()
+            case .factionIcons:
+                let stats = getFactionIconsStats()
                 return ResourceInfo(
                     name: type.displayName,
                     exists: stats.exists,
@@ -331,9 +331,9 @@ class StaticResourceManager {
             
             Logger.info("Successfully refreshed sovereignty campaigns data")
             
-        case .allianceIcons, .netRenders:
+        case .factionIcons, .netRenders:
             // 这两种类型的资源是按需获取的，不支持批量刷新
-            Logger.info("Alliance icons and net renders are refreshed on-demand")
+            Logger.info("Faction icons and net renders are refreshed on-demand")
             break
             
         case .marketData:
@@ -459,7 +459,7 @@ class StaticResourceManager {
     
     /// 获取联盟图标目录路径
     func getAllianceIconPath() -> URL {
-        let iconPath = getStaticDataSetPath().appendingPathComponent("AllianceIcons")
+        let iconPath = getStaticDataSetPath().appendingPathComponent("FactionIcons")
         // 确保目录存在
         if !FileManager.default.fileExists(atPath: iconPath.path) {
             try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)
@@ -479,7 +479,7 @@ class StaticResourceManager {
             try fileManager.createDirectory(at: iconPath, withIntermediateDirectories: true)
         }
         
-        let iconFile = iconPath.appendingPathComponent("\(allianceId).png")
+        let iconFile = iconPath.appendingPathComponent("alliance_\(allianceId).png")
         try data.write(to: iconFile)
         Logger.info("Saved alliance icon: \(allianceId)")
     }
@@ -488,7 +488,7 @@ class StaticResourceManager {
     /// - Parameter allianceId: 联盟ID
     /// - Returns: 图标数据
     func getAllianceIcon(allianceId: Int) -> Data? {
-        let iconFile = getAllianceIconPath().appendingPathComponent("\(allianceId).png")
+        let iconFile = getAllianceIconPath().appendingPathComponent("alliance_\(allianceId).png")
         
         // 检查文件是否存在且未过期
         if fileManager.fileExists(atPath: iconFile.path) {
@@ -501,60 +501,7 @@ class StaticResourceManager {
         }
         return nil
     }
-    
-    /// 清理联盟图标缓存
-    func clearAllianceIcons() throws {
-        let iconPath = getAllianceIconPath()
-        if fileManager.fileExists(atPath: iconPath.path) {
-            try fileManager.removeItem(at: iconPath)
-            Logger.info("Cleared alliance icons cache")
-        }
-    }
-    
-    /// 获取联盟图标缓存统计
-    func getAllianceIconsStats() -> ResourceInfo {
-        let iconPath = getAllianceIconPath()
-        let exists = fileManager.fileExists(atPath: iconPath.path)
-        var totalSize: Int64 = 0
-        var lastModified: Date? = nil
-        var iconCount: Int = 0
-        
-        if exists,
-           let enumerator = fileManager.enumerator(at: iconPath, 
-                                                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) {
-            for case let fileURL as URL in enumerator {
-                if fileURL.pathExtension == "png" {
-                    do {
-                        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                        if let fileSize = attributes[.size] as? Int64 {
-                            totalSize += fileSize
-                            iconCount += 1
-                        }
-                        if let modificationDate = attributes[.modificationDate] as? Date {
-                            if lastModified == nil || modificationDate > lastModified! {
-                                lastModified = modificationDate
-                            }
-                        }
-                    } catch {
-                        Logger.error("Error getting alliance icon attributes: \(error)")
-                    }
-                }
-            }
-        }
-        
-        var name = NSLocalizedString("Main_Setting_Static_Resource_Alliance_Icons", comment: "")
-        if iconCount > 0 {
-            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), iconCount)
-        }
-        
-        return ResourceInfo(
-            name: name,
-            exists: exists && iconCount > 0,
-            lastModified: lastModified,
-            fileSize: totalSize,
-            downloadTime: nil
-        )
-    }
+
     
     /// 获取市场数据目录路径
     func getMarketDataPath() -> URL {
@@ -868,7 +815,7 @@ class StaticResourceManager {
         if fileManager.fileExists(atPath: iconPath.path),
            let enumerator = fileManager.enumerator(atPath: iconPath.path) {
             for case let fileName as String in enumerator {
-                if fileName.hasSuffix(".png") {
+                if fileName.starts(with: "alliance_") && fileName.hasSuffix(".png") {
                     count += 1
                 }
             }
@@ -1097,7 +1044,7 @@ class StaticResourceManager {
         let encodedData = try JSONEncoder().encode(container)
         try encodedData.write(to: fileURL)
         
-        // 2. ��存到 UserDefaults
+        // 2. 保存到 UserDefaults
         UserDefaults.standard.set(encodedData, forKey: "sovereignty_campaigns_data")
         Logger.info("Saved sovereignty campaigns data")
     }
@@ -1181,5 +1128,77 @@ class StaticResourceManager {
             try fileManager.removeItem(at: portraitsPath)
             Logger.info("Cleared character portraits cache")
         }
+    }
+    
+    /// 获取势力图标目录路径
+    func getFactionIconPath() -> URL {
+        let iconPath = getStaticDataSetPath().appendingPathComponent("FactionIcons")
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: iconPath.path) {
+            try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)
+        }
+        return iconPath
+    }
+    
+    /// 获取势力图标缓存统计
+    func getFactionIconsStats() -> ResourceInfo {
+        let iconPath = getFactionIconPath()
+        let exists = fileManager.fileExists(atPath: iconPath.path)
+        var totalSize: Int64 = 0
+        var lastModified: Date? = nil
+        var iconCount: Int = 0
+        
+        if exists,
+           let enumerator = fileManager.enumerator(at: iconPath, 
+                                                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]) {
+            for case let fileURL as URL in enumerator {
+                if fileURL.pathExtension == "png" {
+                    do {
+                        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                        if let fileSize = attributes[.size] as? Int64 {
+                            totalSize += fileSize
+                            iconCount += 1
+                        }
+                        if let modificationDate = attributes[.modificationDate] as? Date {
+                            if lastModified == nil || modificationDate > lastModified! {
+                                lastModified = modificationDate
+                            }
+                        }
+                    } catch {
+                        Logger.error("Error getting faction icon attributes: \(error)")
+                    }
+                }
+            }
+        }
+        
+        var name = NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: "")
+        if iconCount > 0 {
+            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), iconCount)
+        }
+        
+        return ResourceInfo(
+            name: name,
+            exists: exists && iconCount > 0,
+            lastModified: lastModified,
+            fileSize: totalSize,
+            downloadTime: nil
+        )
+    }
+    
+    /// 获取势力图标数量
+    func getFactionIconCount() -> Int {
+        let iconPath = getFactionIconPath()
+        var count = 0
+        
+        if fileManager.fileExists(atPath: iconPath.path),
+           let enumerator = fileManager.enumerator(atPath: iconPath.path) {
+            for case let fileName as String in enumerator {
+                if fileName.hasSuffix(".png") {
+                    count += 1
+                }
+            }
+        }
+        
+        return count
     }
 } 

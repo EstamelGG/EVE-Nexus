@@ -388,7 +388,7 @@ struct SettingView: View {
                                     .blue),
                         action: { refreshResource(resource) }
                     )
-                case .allianceIcons, .netRenders, .marketData, .characterPortraits:
+                case .factionIcons, .netRenders, .marketData, .characterPortraits:
                     return SettingItem(
                         title: title,
                         detail: formatResourceInfo(resource),
@@ -455,7 +455,7 @@ struct SettingView: View {
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                     updateAllData()
-                case .allianceIcons, .netRenders, .marketData, .characterPortraits:
+                case .factionIcons, .netRenders, .marketData, .characterPortraits:
                     Logger.info("Alliance icons, net renders, market data and character portraits are refreshed on-demand")
                     break
                 }
@@ -626,8 +626,8 @@ struct SettingView: View {
             return NSLocalizedString("Main_Setting_Cache_Type_StaticDataSet", comment: "")
         case "CharacterPortraits":
             return NSLocalizedString("Main_Setting_Cache_Type_Character_Portraits", comment: "")
-        case "AllianceIcons":
-            return NSLocalizedString("Main_Setting_Cache_Type_Alliance_Icons", comment: "")
+        case "FactionIcons":
+            return NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: "")
         case "NetRenders":
             return NSLocalizedString("Main_Setting_Cache_Type_Net_Renders", comment: "")
         case "MarketData":
@@ -775,7 +775,7 @@ struct SettingView: View {
                     
                     // 只有当文件存在且有lastModified时才显示最后更新时间
                     if resource.exists {
-                        info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""), 
+                        info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""),
                             getRelativeTimeString(from: lastModified))
                     }
                 default:

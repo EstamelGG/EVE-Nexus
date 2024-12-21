@@ -176,6 +176,7 @@
 "Main_Setting_Static_Resource_Icon_Count" = " (%d)";
 "Main_Setting_Static_Resource_Net_Renders" = "Item Renders";
 "Main_Setting_Static_Resource_Incursions" = "Incursions Data";
+"Main_Setting_Static_Resource_Faction_Icons" = "Faction Icons";
 
 // Time Display
 "Time_Days_Ago" = "%d days ago";

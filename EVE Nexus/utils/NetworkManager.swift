@@ -401,7 +401,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 检查文件缓存
         let fileManager = FileManager.default
         let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("AllianceIcons")
+            .appendingPathComponent("FactionIcons")
             .appendingPathComponent(filename)
         
         if fileManager.fileExists(atPath: fileURL.path) {
@@ -797,7 +797,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 获取联盟图标
     func fetchAllianceLogo(allianceID: Int) async throws -> UIImage {
-        let urlString = "https://images.evetech.net/alliances/\(allianceID)/logo?size=128"
+        let urlString = "https://images.evetech.net/alliances/\(allianceID)/logo?size=64"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
