@@ -26,6 +26,7 @@ struct EVECharacterInfo: Codable {
     var location: SolarSystemInfo?
     var locationStatus: NetworkManager.CharacterLocation.LocationStatus?
     var currentSkill: CurrentSkillInfo?
+    var tokenExpired: Bool = false
     
     struct CurrentSkillInfo: Codable {
         let skillId: Int
@@ -48,6 +49,7 @@ struct EVECharacterInfo: Codable {
         case location
         case locationStatus
         case currentSkill
+        case tokenExpired
     }
     
     init(from decoder: Decoder) throws {
@@ -64,6 +66,7 @@ struct EVECharacterInfo: Codable {
         location = try container.decodeIfPresent(SolarSystemInfo.self, forKey: .location)
         locationStatus = try container.decodeIfPresent(NetworkManager.CharacterLocation.LocationStatus.self, forKey: .locationStatus)
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
+        tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
     }
     
     func encode(to encoder: Encoder) throws {
@@ -80,6 +83,7 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
         try container.encodeIfPresent(currentSkill, forKey: .currentSkill)
+        try container.encode(tokenExpired, forKey: .tokenExpired)
     }
 }
 
@@ -191,7 +195,8 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacters() {
         Task { @MainActor in
-            characters = EVELogin.shared.getAllCharacters()
+            let allCharacters = EVELogin.shared.loadCharacters()
+            characters = allCharacters.map { $0.character }
             isLoggedIn = !characters.isEmpty
             
             // 分别启动三个独立的任务
@@ -949,6 +954,53 @@ class EVELogin {
     func getCharacterByID(_ characterId: Int) -> CharacterAuth? {
         let characters = loadCharacters()
         return characters.first { $0.character.CharacterID == characterId }
+    }
+    
+    // 在 EVELogin 类中添加更新 token 状态的方法
+    func markTokenExpired(characterId: Int) {
+        var characters = loadCharacters()
+        if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
+            var updatedCharacter = characters[index].character
+            updatedCharacter.tokenExpired = true
+            characters[index] = CharacterAuth(
+                character: updatedCharacter,
+                token: characters[index].token,
+                addedDate: characters[index].addedDate,
+                lastTokenUpdateTime: characters[index].lastTokenUpdateTime
+            )
+            
+            do {
+                let encodedData = try JSONEncoder().encode(characters)
+                UserDefaults.standard.set(encodedData, forKey: charactersKey)
+                UserDefaults.standard.synchronize()
+                Logger.info("已将角色 \(characterId) 标记为 token 过期")
+            } catch {
+                Logger.error("保存角色 token 状态失败: \(error)")
+            }
+        }
+    }
+    
+    func resetTokenExpired(characterId: Int) {
+        var characters = loadCharacters()
+        if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
+            var updatedCharacter = characters[index].character
+            updatedCharacter.tokenExpired = false
+            characters[index] = CharacterAuth(
+                character: updatedCharacter,
+                token: characters[index].token,
+                addedDate: characters[index].addedDate,
+                lastTokenUpdateTime: characters[index].lastTokenUpdateTime
+            )
+            
+            do {
+                let encodedData = try JSONEncoder().encode(characters)
+                UserDefaults.standard.set(encodedData, forKey: charactersKey)
+                UserDefaults.standard.synchronize()
+                Logger.info("已重置角色 \(characterId) 的 token 状态")
+            } catch {
+                Logger.error("重置角色 token 状态失败: \(error)")
+            }
+        }
     }
 }
 

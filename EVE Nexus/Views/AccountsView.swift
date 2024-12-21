@@ -167,6 +167,13 @@ struct AccountsView: View {
         }
         .onAppear {
             viewModel.loadCharacters()
+            // 初始化过期token状态
+            let characterAuths = EVELogin.shared.loadCharacters()
+            for auth in characterAuths {
+                if auth.character.tokenExpired {
+                    expiredTokenCharacters.insert(auth.character.CharacterID)
+                }
+            }
         }
         .onOpenURL { url in
             Task {
@@ -195,6 +202,13 @@ struct AccountsView: View {
         
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
+        
+        // 初始化过期状态
+        for auth in characterAuths {
+            if auth.character.tokenExpired {
+                expiredTokenCharacters.insert(auth.character.CharacterID)
+            }
+        }
         
         // 添加一个帮助函数来处理 MainActor.run 的返回值
         @discardableResult
@@ -363,9 +377,17 @@ struct AccountsView: View {
                                 // Token刷新失败，标记该角色token已过期
                                 await updateUI {
                                     expiredTokenCharacters.insert(characterAuth.character.CharacterID)
+                                    // 保存token过期状态
+                                    EVELogin.shared.markTokenExpired(characterId: characterAuth.character.CharacterID)
                                 }
                                 if let error = lastError {
                                     Logger.error("刷新角色Token失败（已重试3次） - \(characterAuth.character.CharacterName): \(error)")
+                                }
+                            } else {
+                                // Token刷新成功，重置过期状态
+                                await updateUI {
+                                    expiredTokenCharacters.remove(characterAuth.character.CharacterID)
+                                    EVELogin.shared.resetTokenExpired(characterId: characterAuth.character.CharacterID)
                                 }
                             }
                         }
