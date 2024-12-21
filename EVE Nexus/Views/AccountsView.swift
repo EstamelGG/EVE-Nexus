@@ -148,6 +148,12 @@ struct AccountsView: View {
             Button(NSLocalizedString("Account_Remove_Confirm_Remove", comment: ""), role: .destructive) {
                 if let character = characterToRemove {
                     viewModel.removeCharacter(character)
+                    // 发送通知，通知其他视图角色已被删除
+                    NotificationCenter.default.post(
+                        name: Notification.Name("CharacterRemoved"),
+                        object: nil,
+                        userInfo: ["characterId": character.CharacterID]
+                    )
                     characterToRemove = nil
                 }
             }
@@ -484,7 +490,7 @@ struct CharacterRowView: View {
                         }
                         .font(.caption)
                         
-                        // 钱包信息占���
+                        // 钱包信息占位
                         Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): 0.00 ISK")
                             .font(.caption)
                             .foregroundColor(.gray)

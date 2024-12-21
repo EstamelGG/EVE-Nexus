@@ -255,13 +255,16 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationView {
             List {
+                // 登录按钮
                 Section {
-                    NavigationLink(destination: AccountsView(databaseManager: databaseManager) { character, portrait in
-                        selectedCharacter = character
-                        selectedCharacterPortrait = portrait
-                    }) {
+                    NavigationLink {
+                        AccountsView(databaseManager: databaseManager) { character, portrait in
+                            selectedCharacter = character
+                            selectedCharacterPortrait = portrait
+                        }
+                    } label: {
                         LoginButtonView(
                             isLoggedIn: isLoggedIn,
                             serverStatus: serverStatus,
@@ -309,10 +312,21 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAccountSheet) {
-                AccountsView(databaseManager: databaseManager) { character, portrait in
-                    selectedCharacter = character
-                    selectedCharacterPortrait = portrait
+            .onAppear {
+                // 检查选中的角色是否还存在
+                if let selectedCharacter = selectedCharacter {
+                    let characters = EVELogin.shared.loadCharacters()
+                    if !characters.contains(where: { $0.character.CharacterID == selectedCharacter.CharacterID }) {
+                        self.selectedCharacter = nil
+                        self.selectedCharacterPortrait = nil
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CharacterRemoved"))) { notification in
+                if let removedCharacterId = notification.userInfo?["characterId"] as? Int,
+                   selectedCharacter?.CharacterID == removedCharacterId {
+                    selectedCharacter = nil
+                    selectedCharacterPortrait = nil
                 }
             }
         }
