@@ -120,43 +120,83 @@ struct AccountsView: View {
                                 .padding(4)
                             }
                             
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(character.CharacterName)
                                     .font(.headline)
-                                if refreshingCharacters.contains(character.CharacterID) {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                        .frame(height: 15)
-                                } else {
-                                    if let location = character.location {
+                                    .frame(height: 20)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if refreshingCharacters.contains(character.CharacterID) {
+                                        // 位置信息占位
                                         HStack(spacing: 4) {
-                                            Text(formatSecurity(location.security))
-                                                .foregroundColor(getSecurityColor(location.security))
-                                            Text("\(location.systemName) / \(location.regionName)")
-                                            if let locationStatus = character.locationStatus?.description {
-                                                Text(locationStatus)
-                                                    .foregroundColor(.secondary)
-                                            }
+                                            Text("0.0")
+                                                .foregroundColor(.gray)
+                                                .redacted(reason: .placeholder)
+                                            Text("Loading...")
+                                                .foregroundColor(.gray)
+                                                .redacted(reason: .placeholder)
                                         }
                                         .font(.caption)
-                                        .foregroundColor(.gray)
-                                    }
-                                    if let balance = character.walletBalance {
-                                        Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
+                                        
+                                        // 钱包信息占位
+                                        Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): 0.00 ISK")
                                             .font(.caption)
                                             .foregroundColor(.gray)
-                                    }
-                                    if let totalSP = character.totalSkillPoints {
-                                        let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
-                                            "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
+                                            .redacted(reason: .placeholder)
+                                        
+                                        // 技能点信息占位
+                                        Text("\(NSLocalizedString("Account_Total_SP", comment: "")): 0.0M SP")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .redacted(reason: .placeholder)
+                                    } else {
+                                        // 位置信息
+                                        if let location = character.location {
+                                            HStack(spacing: 4) {
+                                                Text(formatSecurity(location.security))
+                                                    .foregroundColor(getSecurityColor(location.security))
+                                                Text("\(location.systemName) / \(location.regionName)")
+                                                if let locationStatus = character.locationStatus?.description {
+                                                    Text(locationStatus)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                            .font(.caption)
                                         } else {
-                                            "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                                            Text("Unknown Location")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
                                         }
-                                        Text(spText)
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
+                                        
+                                        // 钱包信息
+                                        if let balance = character.walletBalance {
+                                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        } else {
+                                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): -- ISK")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                        
+                                        // 技能点信息
+                                        if let totalSP = character.totalSkillPoints {
+                                            let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
+                                                "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
+                                            } else {
+                                                "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                                            }
+                                            Text(spText)
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        } else {
+                                            Text("\(NSLocalizedString("Account_Total_SP", comment: "")): -- SP")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
                                     }
                                 }
+                                .frame(height: 54) // 3行文本的固定高度 (18 * 3)
                             }
                             .padding(.leading, 4)
                             
