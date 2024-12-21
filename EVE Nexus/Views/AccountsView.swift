@@ -368,7 +368,6 @@ struct AccountsView: View {
                                     Logger.error("刷新角色Token失败（已重试3次） - \(characterAuth.character.CharacterName): \(error)")
                                 }
                             }
-                            
                         }
                         // 从刷新集合中移除角色
                         await updateRefreshingStatus(for: characterAuth.character.CharacterID)
@@ -450,12 +449,13 @@ struct CharacterRowView: View {
                     if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
-                            .fill(Color.gray.opacity(0.6))
+                            .fill(Color.black.opacity(0.4))
                             .frame(width: 64, height: 64)
                         
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundColor(.red)
-                            .font(.system(size: 24))
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 32))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.red, .clear)
                     } else if isRefreshing {
                         Circle()
                             .fill(Color.black.opacity(0.6))
@@ -485,12 +485,13 @@ struct CharacterRowView: View {
                     if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
-                            .fill(Color.gray.opacity(0.6))
+                            .fill(Color.black.opacity(0.4))
                             .frame(width: 64, height: 64)
                         
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundColor(.red)
-                            .font(.system(size: 24))
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 32))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.red, .clear)
                     } else if isRefreshing {
                         Circle()
                             .fill(Color.black.opacity(0.4))
