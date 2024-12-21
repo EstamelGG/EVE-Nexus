@@ -312,7 +312,7 @@ class EVELogin {
         
         // 更新当前技能信息
         if let currentSkill = skillQueue.first(where: { $0.queue_position == 0 }) {
-            if let skillName = NetworkManager.shared.getSkillName(
+            if let skillName = await NetworkManager.getSkillName(
                 skillId: currentSkill.skill_id,
                 databaseManager: databaseManager
             ) {

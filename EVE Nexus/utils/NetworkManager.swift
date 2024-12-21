@@ -1020,7 +1020,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 获取技能名称
-    nonisolated func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String? {
+    nonisolated static func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String? {
         let skillQuery = "SELECT name FROM types WHERE type_id = ?"
         guard case .success(let rows) = databaseManager.executeQuery(skillQuery, parameters: [skillId]),
               let row = rows.first,

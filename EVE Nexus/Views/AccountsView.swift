@@ -250,7 +250,7 @@ struct AccountsView: View {
                                         }
                                     }
                                 }
-                                .frame(height: 75) // 5行文本的固定高度 (18 * n)
+                                .frame(height: 72) // 5行文本的固定高度 (18 * n)
                             }
                             .padding(.leading, 4)
                             
@@ -351,6 +351,7 @@ struct AccountsView: View {
         
         // 添加一个帮助函数来处理 MainActor.run 的返回值
         @discardableResult
+        @Sendable
         func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
             await MainActor.run { operation() }
         }
@@ -442,7 +443,7 @@ struct AccountsView: View {
                                     )
                                     
                                     if let currentSkill = queue.first(where: { $0.queue_position == 0 }) {
-                                        if let skillName = NetworkManager.shared.getSkillName(
+                                        if let skillName = await NetworkManager.getSkillName(
                                             skillId: currentSkill.skill_id,
                                             databaseManager: self.viewModel.databaseManager
                                         ) {
@@ -464,7 +465,7 @@ struct AccountsView: View {
                             }()
                             
                             // 等待所有任务完成
-                            _ = await (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
+                            await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
                             
                             // 保存最新的角色信息到数据库
                             await updateUI {
