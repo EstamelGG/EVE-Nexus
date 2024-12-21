@@ -143,13 +143,13 @@ struct LoginButtonView: View {
                 Image(uiImage: portrait)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 64, height: 64)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 2))
             } else {
                 Image(systemName: "person.crop.circle.fill")
                     .resizable()
-                    .frame(width: 50, height: 50)
+                    .frame(width: 64, height: 64)
                     .foregroundColor(.gray)
             }
             
@@ -209,10 +209,12 @@ struct LoginButtonView: View {
                 } else {
                     Text(NSLocalizedString("Account_Add_Character", comment: ""))
                         .font(.headline)
+                        .lineLimit(1)
                         .padding(.bottom, 4)
                 }
                 ServerStatusView(status: serverStatus)
             }
+            .frame(height: 72)
             Spacer()
         }
         .contentShape(Rectangle())
