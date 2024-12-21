@@ -155,10 +155,11 @@ struct AccountsView: View {
                                             HStack(spacing: 4) {
                                                 Text(formatSecurity(location.security))
                                                     .foregroundColor(getSecurityColor(location.security))
-                                                Text("\(location.systemName) / \(location.regionName)")
+                                                Text("\(location.systemName) / \(location.regionName)").lineLimit(1)
                                                 if let locationStatus = character.locationStatus?.description {
                                                     Text(locationStatus)
                                                         .foregroundColor(.secondary)
+                                                        .lineLimit(1)
                                                 }
                                             }
                                             .font(.caption)
@@ -166,6 +167,7 @@ struct AccountsView: View {
                                             Text("Unknown Location")
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .lineLimit(1)
                                         }
                                         
                                         // 钱包信息
@@ -173,10 +175,12 @@ struct AccountsView: View {
                                             Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .lineLimit(1)
                                         } else {
                                             Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): -- ISK")
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .lineLimit(1)
                                         }
                                         
                                         // 技能点信息
@@ -189,10 +193,12 @@ struct AccountsView: View {
                                             Text(spText)
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .lineLimit(1)
                                         } else {
                                             Text("\(NSLocalizedString("Account_Total_SP", comment: "")): -- SP")
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
+                                                .lineLimit(1)
                                         }
                                         
                                         // 技能队列信息
@@ -208,7 +214,7 @@ struct AccountsView: View {
                                                         
                                                         // 进度
                                                         RoundedRectangle(cornerRadius: 2)
-                                                            .fill(Color.green)
+                                                            .fill(currentSkill.remainingTime != nil ? Color.green : Color.gray)
                                                             .frame(width: geometry.size.width * currentSkill.progress, height: 4)
                                                     }
                                                 }
@@ -216,9 +222,14 @@ struct AccountsView: View {
                                                 
                                                 // 技能信息
                                                 HStack {
-                                                    Text("\(currentSkill.name) \(currentSkill.level)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.gray)
+                                                    HStack(spacing: 4) {
+                                                        Image(systemName: currentSkill.remainingTime != nil ? "play.fill" : "pause.fill")
+                                                            .font(.caption)
+                                                            .foregroundColor(currentSkill.remainingTime != nil ? .green : .gray)
+                                                        Text("\(currentSkill.name) \(currentSkill.level)")
+                                                    }
+                                                    .font(.caption)
+                                                    .foregroundColor(.gray)
                                                     
                                                     Spacer()
                                                     
@@ -226,10 +237,12 @@ struct AccountsView: View {
                                                         Text(formatRemainingTime(remainingTime))
                                                             .font(.caption)
                                                             .foregroundColor(.gray)
+                                                            .lineLimit(1)
                                                     } else {
                                                         Text("Pause")
                                                             .font(.caption)
                                                             .foregroundColor(.gray)
+                                                            .lineLimit(1)
                                                     }
                                                 }
                                             }
