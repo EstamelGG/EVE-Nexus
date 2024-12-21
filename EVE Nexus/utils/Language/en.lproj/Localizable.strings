@@ -209,7 +209,7 @@
 "Main_Market_Edit" = "Edit";
 "Main_Market_Done" = "Done";
 "Main_Market_Add_Region" = "Manage Region";
-
+"Account_Logout" = "Logout";
 // Account Management
 "Account_Management" = "Character Management";
 "Account_Add_Character" = "Add Character";
