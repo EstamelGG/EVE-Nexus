@@ -1075,23 +1075,10 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 获取技能名称
     nonisolated static func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String? {
-        let currentLanguage = UserDefaults.standard.string(forKey: "AppLanguage") ?? "zh"
-        let languageColumn = currentLanguage == "en" ? "name" : "name_\(currentLanguage)"
-        
-        let skillQuery = "SELECT \(languageColumn) as name FROM types WHERE type_id = ?"
+        let skillQuery = "SELECT name FROM types WHERE type_id = ?"
         guard case .success(let rows) = databaseManager.executeQuery(skillQuery, parameters: [skillId]),
               let row = rows.first,
               let skillName = row["name"] as? String else {
-            // 如果获取本地化名称失败，尝试获取英文名称作为后备
-            if currentLanguage != "en" {
-                let fallbackQuery = "SELECT name FROM types WHERE type_id = ?"
-                guard case .success(let fallbackRows) = databaseManager.executeQuery(fallbackQuery, parameters: [skillId]),
-                      let fallbackRow = fallbackRows.first,
-                      let fallbackName = fallbackRow["name"] as? String else {
-                    return nil
-                }
-                return fallbackName
-            }
             return nil
         }
         return skillName
@@ -1465,7 +1452,7 @@ extension NetworkManager {
             unitIndex += 1
         }
         
-        // 根据大小���用不同的小数位数
+        // 根据大小使用不同的小数位数
         let formattedSize: String
         if unitIndex == 0 {
             formattedSize = String(format: "%.0f", size) // 字节不显示小数
