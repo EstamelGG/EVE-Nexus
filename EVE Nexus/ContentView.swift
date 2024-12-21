@@ -136,6 +136,7 @@ struct LoginButtonView: View {
     @State private var corporationInfo: NetworkManager.CorporationInfo?
     @State private var allianceLogo: UIImage?
     @State private var corporationLogo: UIImage?
+    @State private var tokenExpired: Bool = false // 新增状态
     
     var body: some View {
         HStack(spacing: 15) {
@@ -147,6 +148,25 @@ struct LoginButtonView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 2))
+                    
+                    if tokenExpired {
+                        // Token过期的灰色蒙版和感叹号
+                        Circle()
+                            .fill(Color.black.opacity(0.4))
+                            .frame(width: 64, height: 64)
+                        
+                        ZStack {
+                            // 红色边框三角形
+                            Image(systemName: "triangle")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                            
+                            // 红色感叹号
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
                 .overlay(
                     Circle()
@@ -164,6 +184,25 @@ struct LoginButtonView: View {
                         .resizable()
                         .frame(width: 64, height: 64)
                         .foregroundColor(.gray)
+                        
+                    if tokenExpired {
+                        // Token过期的灰色蒙版和感叹号
+                        Circle()
+                            .fill(Color.black.opacity(0.4))
+                            .frame(width: 64, height: 64)
+                        
+                        ZStack {
+                            // 红色边框三角形
+                            Image(systemName: "triangle")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                            
+                            // 红色感叹号
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.red)
+                        }
+                    }
                 }
                 .overlay(
                     Circle()
@@ -246,6 +285,12 @@ struct LoginButtonView: View {
         .padding(.vertical, 8)
         .task {
             await loadCharacterInfo()
+            // 检查token状态
+            if let character = selectedCharacter {
+                if let auth = EVELogin.shared.getCharacterByID(character.CharacterID) {
+                    tokenExpired = auth.character.tokenExpired
+                }
+            }
         }
     }
     
@@ -266,13 +311,16 @@ struct LoginButtonView: View {
                     await MainActor.run {
                         self.allianceInfo = info
                         self.allianceLogo = logo
+                        // 成功获取信息，重置token状态
+                        self.tokenExpired = false
                     }
                 } catch {
                     Logger.error("加载联盟信息失败: \(error)")
-                    // 如果加载失败，清除联盟信息
-                    await MainActor.run {
-                        self.allianceInfo = nil
-                        self.allianceLogo = nil
+                    // 如果是token相关错误，标记token过期
+                    if case NetworkError.tokenExpired = error {
+                        await MainActor.run {
+                            self.tokenExpired = true
+                        }
                     }
                 }
             } else {
@@ -296,21 +344,21 @@ struct LoginButtonView: View {
                 }
             } catch {
                 Logger.error("加载军团信息失败: \(error)")
-                // 如果加载失败，清除军团信息
-                await MainActor.run {
-                    self.corporationInfo = nil
-                    self.corporationLogo = nil
+                // 如果是token相关错误，标记token过期
+                if case NetworkError.tokenExpired = error {
+                    await MainActor.run {
+                        self.tokenExpired = true
+                    }
                 }
             }
             
         } catch {
             Logger.error("加载角色公开信息失败: \(error)")
-            // 如果加载失败，清除所有信息
-            await MainActor.run {
-                self.allianceInfo = nil
-                self.allianceLogo = nil
-                self.corporationInfo = nil
-                self.corporationLogo = nil
+            // 如果是token相关错误，标记token过期
+            if case NetworkError.tokenExpired = error {
+                await MainActor.run {
+                    self.tokenExpired = true
+                }
             }
         }
     }
@@ -621,6 +669,16 @@ struct ContentView: View {
                             currentCharacterId = 0
                         }
                     }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CharacterTokenStatusChanged"))) { notification in
+                if let characterId = notification.userInfo?["characterId"] as? Int,
+                   let tokenExpired = notification.userInfo?["tokenExpired"] as? Bool,
+                   characterId == selectedCharacter?.CharacterID {
+                    // 如果是当前选中的角色，更新其状态
+                    var updatedCharacter = selectedCharacter
+                    updatedCharacter?.tokenExpired = tokenExpired
+                    selectedCharacter = updatedCharacter
                 }
             }
         }

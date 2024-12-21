@@ -974,6 +974,16 @@ class EVELogin {
                 UserDefaults.standard.set(encodedData, forKey: charactersKey)
                 UserDefaults.standard.synchronize()
                 Logger.info("已将角色 \(characterId) 标记为 token 过期")
+                
+                // 发送通知
+                NotificationCenter.default.post(
+                    name: Notification.Name("CharacterTokenStatusChanged"),
+                    object: nil,
+                    userInfo: [
+                        "characterId": characterId,
+                        "tokenExpired": true
+                    ]
+                )
             } catch {
                 Logger.error("保存角色 token 状态失败: \(error)")
             }
@@ -997,6 +1007,16 @@ class EVELogin {
                 UserDefaults.standard.set(encodedData, forKey: charactersKey)
                 UserDefaults.standard.synchronize()
                 Logger.info("已重置角色 \(characterId) 的 token 状态")
+                
+                // 发送通知
+                NotificationCenter.default.post(
+                    name: Notification.Name("CharacterTokenStatusChanged"),
+                    object: nil,
+                    userInfo: [
+                        "characterId": characterId,
+                        "tokenExpired": false
+                    ]
+                )
             } catch {
                 Logger.error("重置角色 token 状态失败: \(error)")
             }
