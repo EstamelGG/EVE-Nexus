@@ -241,7 +241,9 @@ struct LoginButtonView: View {
             .frame(height: 72)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
+        .padding(.vertical, 8)
         .task {
             await loadCharacterInfo()
         }
