@@ -313,7 +313,7 @@ struct AccountsView: View {
                         
                         do {
                             // 步骤1: 获取新的访问令牌（串行，必须先执行）
-                            let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                            let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token, force: true)
                             Logger.info("角色 \(characterAuth.character.CharacterName)-\(characterAuth.character.CharacterID) 的访问令牌: \(newToken.access_token)")
                             
                             // 步骤2: 获取基础角色信息（串行，依赖token）
