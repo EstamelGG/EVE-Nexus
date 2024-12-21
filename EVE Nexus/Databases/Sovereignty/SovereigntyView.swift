@@ -5,7 +5,7 @@ import SwiftUI
 final class SovereigntyViewModel: ObservableObject {
     @Published private(set) var preparedCampaigns: [PreparedSovereignty] = []
     @Published var sov_isLoading = false
-    @Published var isRefreshing = false
+    @Published var sov_isRefreshing = false
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
     
     let databaseManager: DatabaseManager
@@ -23,14 +23,14 @@ final class SovereigntyViewModel: ObservableObject {
             if preparedCampaigns.isEmpty {
                 sov_isLoading = true
             } else {
-                isRefreshing = true
+                sov_isRefreshing = true
             }
         }
         
         defer {
             if !silent {
                 sov_isLoading = false
-                isRefreshing = false
+                sov_isRefreshing = false
             }
         }
         
