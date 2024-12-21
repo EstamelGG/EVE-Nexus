@@ -255,7 +255,7 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // 登录按钮
                 Section {
