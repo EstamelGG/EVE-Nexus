@@ -194,9 +194,63 @@ struct AccountsView: View {
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
                                         }
+                                        
+                                        // 技能队列信息
+                                        if let currentSkill = character.currentSkill {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                // 技能进度条
+                                                GeometryReader { geometry in
+                                                    ZStack(alignment: .leading) {
+                                                        // 背景
+                                                        RoundedRectangle(cornerRadius: 2)
+                                                            .fill(Color.gray.opacity(0.3))
+                                                            .frame(height: 4)
+                                                        
+                                                        // 进度
+                                                        RoundedRectangle(cornerRadius: 2)
+                                                            .fill(Color.green)
+                                                            .frame(width: geometry.size.width * currentSkill.progress, height: 4)
+                                                    }
+                                                }
+                                                .frame(height: 4)
+                                                
+                                                // 技能信息
+                                                HStack {
+                                                    Text("\(currentSkill.name) \(currentSkill.level)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.gray)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    if let remainingTime = currentSkill.remainingTime {
+                                                        Text(formatRemainingTime(remainingTime))
+                                                            .font(.caption)
+                                                            .foregroundColor(.gray)
+                                                    } else {
+                                                        Text("Pause")
+                                                            .font(.caption)
+                                                            .foregroundColor(.gray)
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // 没有技能在训练时显示的进度条
+                                            GeometryReader { geometry in
+                                                ZStack(alignment: .leading) {
+                                                    RoundedRectangle(cornerRadius: 2)
+                                                        .fill(Color.gray.opacity(0.3))
+                                                        .frame(height: 4)
+                                                }
+                                            }
+                                            .frame(height: 4)
+                                            
+                                            Text("-")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
                                     }
                                 }
-                                .frame(height: 54) // 3行文本的固定高度 (18 * 3)
+                                .frame(height: 75) // 5行文本的固定高度 (18 * n)
                             }
                             .padding(.leading, 4)
                             
@@ -308,27 +362,19 @@ struct AccountsView: View {
                     group.addTask {
                         // 添加角色到刷新集合
                         await updateUI {
-                            self.refreshingCharacters.insert(characterAuth.character.CharacterID)
+                            refreshingCharacters.insert(characterAuth.character.CharacterID)
                         }
                         
                         do {
                             // 步骤1: 获取新的访问令牌（串行，必须先执行）
-                            let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token, force: true)
-                            Logger.info("角色 \(characterAuth.character.CharacterName)-\(characterAuth.character.CharacterID) 的访问令牌: \(newToken.access_token)")
-                            
-                            // 步骤2: 获取基础角色信息（串行，依赖token）
-                            let characterWithInfo = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
-                            
-                            // 保存基础信息并更新UI
-                            await updateUI {
-                                // 更新基础信息到viewModel中对应的角色
-                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                    self.viewModel.characters[index] = characterWithInfo
-                                }
-                            }
+                            let newToken = try await EVELogin.shared.refreshToken(
+                                refreshToken: characterAuth.token.refresh_token,
+                                force: true
+                            )
+                            Logger.info("角色 \(characterAuth.character.CharacterName)-\(characterAuth.character.CharacterID) 的访问令牌已更新")
                             
                             // 并行执行所有更新任务
-                            let portraitTask = Task<Void, Never> {
+                            async let portraitTask: Void = {
                                 if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
                                     characterId: characterAuth.character.CharacterID,
                                     forceRefresh: true
@@ -337,9 +383,9 @@ struct AccountsView: View {
                                         self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
                                 }
-                            }
+                            }()
                             
-                            let walletTask = Task<Void, Never> {
+                            async let walletTask: Void = {
                                 if let balance = try? await ESIDataManager.shared.getWalletBalance(
                                     characterId: characterAuth.character.CharacterID
                                 ) {
@@ -349,9 +395,9 @@ struct AccountsView: View {
                                         }
                                     }
                                 }
-                            }
+                            }()
                             
-                            let skillsTask = Task<Void, Never> {
+                            async let skillsTask: Void = {
                                 if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
                                     characterId: characterAuth.character.CharacterID
                                 ) {
@@ -362,9 +408,9 @@ struct AccountsView: View {
                                         }
                                     }
                                 }
-                            }
+                            }()
                             
-                            let locationTask = Task<Void, Never> {
+                            async let locationTask: Void = {
                                 do {
                                     let location = try await NetworkManager.shared.fetchCharacterLocation(
                                         characterId: characterAuth.character.CharacterID
@@ -387,16 +433,38 @@ struct AccountsView: View {
                                 } catch {
                                     Logger.error("获取位置信息失败: \(error)")
                                 }
-                            }
+                            }()
+                            
+                            async let skillQueueTask: Void = {
+                                do {
+                                    let queue = try await NetworkManager.shared.fetchSkillQueue(
+                                        characterId: characterAuth.character.CharacterID
+                                    )
+                                    
+                                    if let currentSkill = queue.first(where: { $0.queue_position == 0 }) {
+                                        if let skillName = NetworkManager.shared.getSkillName(
+                                            skillId: currentSkill.skill_id,
+                                            databaseManager: self.viewModel.databaseManager
+                                        ) {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        name: skillName,
+                                                        level: currentSkill.skillLevel,
+                                                        progress: currentSkill.progress,
+                                                        remainingTime: currentSkill.remainingTime
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    Logger.error("获取技能队列失败: \(error)")
+                                }
+                            }()
                             
                             // 等待所有任务完成
-                            try? await withThrowingTaskGroup(of: Void.self) { group in
-                                group.addTask { await portraitTask.value }
-                                group.addTask { await walletTask.value }
-                                group.addTask { await skillsTask.value }
-                                group.addTask { await locationTask.value }
-                                try await group.waitForAll()
-                            }
+                            _ = await (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
                             
                             // 保存最新的角色信息到数据库
                             await updateUI {
@@ -405,15 +473,13 @@ struct AccountsView: View {
                                 }
                             }
                             
-                            Logger.info("成功刷新角色信息 - \(characterWithInfo.CharacterName)")
+                            Logger.info("成功刷新角色信息 - \(characterAuth.character.CharacterName)")
                         } catch {
                             Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
                         }
                         
-                        // 从刷新集合中移除已完成的角色
-                        await updateUI {
-                            self.refreshingCharacters.remove(characterAuth.character.CharacterID)
-                        }
+                        // 从刷新集合中移除角色
+                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
                     }
                 }
                 
@@ -450,5 +516,20 @@ struct AccountsView: View {
             return String(format: "%.1fK", Double(sp) / 1_000.0)
         }
         return "\(sp)"
+    }
+    
+    // 格式化剩余时间
+    private func formatRemainingTime(_ timeInterval: TimeInterval) -> String {
+        let days = Int(timeInterval) / 86400
+        let hours = Int(timeInterval) / 3600 % 24
+        let minutes = Int(timeInterval) / 60 % 60
+        
+        if days > 0 {
+            return String(format: "%dd %dh", days, hours)
+        } else if hours > 0 {
+            return String(format: "%dh %dm", hours, minutes)
+        } else {
+            return String(format: "%dm", minutes)
+        }
     }
 } 

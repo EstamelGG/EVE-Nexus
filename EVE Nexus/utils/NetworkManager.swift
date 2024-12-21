@@ -221,6 +221,42 @@ class NetworkManager: NSObject, @unchecked Sendable {
     static let shared = NetworkManager()
     var regionID: Int = 10000002 // 默认为 The Forge
     
+    // 技能队列数据模型
+    struct SkillQueueItem: Codable {
+        let finish_date: String?
+        let finished_level: Int
+        let level_end_sp: Int
+        let level_start_sp: Int
+        let queue_position: Int
+        let skill_id: Int
+        let training_start_sp: Int
+        
+        var isPaused: Bool {
+            return finish_date == nil
+        }
+        
+        var progress: Double {
+            let totalSP = level_end_sp - level_start_sp
+            let trainedSP = training_start_sp - level_start_sp
+            guard totalSP > 0 else { return 0 }
+            return Double(trainedSP) / Double(totalSP)
+        }
+        
+        var remainingTime: TimeInterval? {
+            guard let finishDateString = finish_date else { return nil }
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            
+            guard let finishDate = dateFormatter.date(from: finishDateString) else { return nil }
+            return finishDate.timeIntervalSince(Date())
+        }
+        
+        var skillLevel: String {
+            let romanNumerals = ["I", "II", "III", "IV", "V"]
+            return romanNumerals[finished_level - 1]
+        }
+    }
+    
     // 通用缓存（用于JSON数据）
     private let dataCache = NSCache<NSString, CachedData<Any>>()
     private var dataCacheKeys = Set<String>()  // 跟踪数据缓存的键
@@ -947,6 +983,51 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
         
         return skills
+    }
+    
+    // 获取技能队列信息
+    func fetchSkillQueue(characterId: Int) async throws -> [SkillQueueItem] {
+        // 检查 UserDefaults 缓存
+        let queueCacheKey = "character_\(characterId)_skillqueue"
+        let queueUpdateTimeKey = "character_\(characterId)_skillqueue_update_time"
+        
+        // 如果缓存存在且未过期（1分钟），直接返回缓存数据
+        if let cachedData = UserDefaults.standard.data(forKey: queueCacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: queueUpdateTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 60 { // 1分钟缓存
+            do {
+                let queue = try JSONDecoder().decode([SkillQueueItem].self, from: cachedData)
+                Logger.info("使用缓存的技能队列数据 - 角色ID: \(characterId)")
+                return queue
+            } catch {
+                Logger.error("解码缓存的技能队列数据失败: \(error)")
+            }
+        }
+        
+        // 如果没有缓存或缓存已过期，从网络获取
+        let queue: [SkillQueueItem] = try await fetchDataWithToken(
+            characterId: characterId,
+            endpoint: "/characters/\(characterId)/skillqueue/"
+        )
+        
+        // 更新缓存
+        if let encodedData = try? JSONEncoder().encode(queue) {
+            UserDefaults.standard.set(encodedData, forKey: queueCacheKey)
+            UserDefaults.standard.set(Date(), forKey: queueUpdateTimeKey)
+        }
+        
+        return queue
+    }
+    
+    // 获取技能名称
+    nonisolated func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String? {
+        let skillQuery = "SELECT name FROM types WHERE type_id = ?"
+        guard case .success(let rows) = databaseManager.executeQuery(skillQuery, parameters: [skillId]),
+              let row = rows.first,
+              let skillName = row["name"] as? String else {
+            return nil
+        }
+        return skillName
     }
     
     // 角色位置信息模型

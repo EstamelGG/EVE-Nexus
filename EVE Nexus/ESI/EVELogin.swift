@@ -2,6 +2,9 @@ import Foundation
 import BackgroundTasks
 import SwiftUI
 
+// 导入技能队列数据模型
+typealias SkillQueueItem = NetworkManager.SkillQueueItem
+
 // OAuth认证相关的数据模型
 struct EVEAuthToken: Codable {
     let access_token: String
@@ -22,6 +25,14 @@ struct EVECharacterInfo: Codable {
     var walletBalance: Double?
     var location: SolarSystemInfo?
     var locationStatus: NetworkManager.CharacterLocation.LocationStatus?
+    var currentSkill: CurrentSkillInfo?
+    
+    struct CurrentSkillInfo: Codable {
+        let name: String
+        let level: String
+        let progress: Double
+        let remainingTime: TimeInterval?
+    }
     
     enum CodingKeys: String, CodingKey {
         case CharacterID
@@ -35,6 +46,7 @@ struct EVECharacterInfo: Codable {
         case walletBalance
         case location
         case locationStatus
+        case currentSkill
     }
     
     init(from decoder: Decoder) throws {
@@ -50,6 +62,7 @@ struct EVECharacterInfo: Codable {
         walletBalance = try container.decodeIfPresent(Double.self, forKey: .walletBalance)
         location = try container.decodeIfPresent(SolarSystemInfo.self, forKey: .location)
         locationStatus = try container.decodeIfPresent(NetworkManager.CharacterLocation.LocationStatus.self, forKey: .locationStatus)
+        currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -65,6 +78,7 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(walletBalance, forKey: .walletBalance)
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
+        try container.encodeIfPresent(currentSkill, forKey: .currentSkill)
     }
 }
 
@@ -250,7 +264,7 @@ class EVELogin {
     }
     
     // 步骤3：获取角色详细信息
-    private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: NetworkManager.CharacterLocation) {
+    private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: NetworkManager.CharacterLocation, skillQueue: [SkillQueueItem]) {
         Logger.info("EVELogin: 开始获取角色详细信息...")
         
         let skills = try await NetworkManager.shared.fetchCharacterSkills(
@@ -268,7 +282,12 @@ class EVELogin {
         )
         Logger.info("EVELogin: 成功获取位置信息")
         
-        return (skills, balance, location)
+        let skillQueue = try await NetworkManager.shared.fetchSkillQueue(
+            characterId: characterId
+        )
+        Logger.info("EVELogin: 成功获取技能队列信息")
+        
+        return (skills, balance, location, skillQueue)
     }
     
     // 步骤4：更新角色信息
@@ -277,7 +296,8 @@ class EVELogin {
         skills: CharacterSkillsResponse,
         balance: Double,
         location: NetworkManager.CharacterLocation,
-        locationInfo: SolarSystemInfo?
+        locationInfo: SolarSystemInfo?,
+        skillQueue: [SkillQueueItem]
     ) -> EVECharacterInfo {
         Logger.info("EVELogin: 开始更新角色信息...")
         var updatedCharacter = character
@@ -288,6 +308,21 @@ class EVELogin {
         
         if let locationInfo = locationInfo {
             updatedCharacter.location = locationInfo
+        }
+        
+        // 更新当前技能信息
+        if let currentSkill = skillQueue.first(where: { $0.queue_position == 0 }) {
+            if let skillName = NetworkManager.shared.getSkillName(
+                skillId: currentSkill.skill_id,
+                databaseManager: databaseManager
+            ) {
+                updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                    name: skillName,
+                    level: currentSkill.skillLevel,
+                    progress: currentSkill.progress,
+                    remainingTime: currentSkill.remainingTime
+                )
+            }
         }
         
         Logger.info("EVELogin: 角色信息更新完成")
@@ -336,7 +371,7 @@ class EVELogin {
     // 第二阶段：加载详细信息
     private func loadDetailedInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws -> EVECharacterInfo {
         // 步骤3：获取角色详细信息
-        let (skills, balance, location) = try await fetchCharacterDetails(characterId: character.CharacterID)
+        let (skills, balance, location, skillQueue) = try await fetchCharacterDetails(characterId: character.CharacterID)
         
         // 获取位置详细信息
         let locationInfo = await NetworkManager.shared.getLocationInfo(
@@ -350,7 +385,8 @@ class EVELogin {
             skills: skills,
             balance: balance,
             location: location,
-            locationInfo: locationInfo
+            locationInfo: locationInfo,
+            skillQueue: skillQueue
         )
         
         // 步骤5：保存更新后的信息
