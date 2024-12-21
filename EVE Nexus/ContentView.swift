@@ -160,31 +160,45 @@ struct LoginButtonView: View {
                         .lineLimit(1)
                     
                     // 显示联盟信息
-                    if let alliance = allianceInfo {
-                        HStack(spacing: 4) {
-                            if let logo = allianceLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(Circle())
-                            }
+                    HStack(spacing: 4) {
+                        if let alliance = allianceInfo, let logo = allianceLogo {
+                            Image(uiImage: logo)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(Circle())
                             Text("[\(alliance.ticker)] \(alliance.name)")
                                 .font(.caption)
+                                .lineLimit(1)
+                        } else {
+                            Image(systemName: "square.dashed")
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .foregroundColor(.gray)
+                            Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                                 .lineLimit(1)
                         }
                     }
                     
                     // 显示军团信息
-                    if let corporation = corporationInfo {
-                        HStack(spacing: 4) {
-                            if let logo = corporationLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(Circle())
-                            }
+                    HStack(spacing: 4) {
+                        if let corporation = corporationInfo, let logo = corporationLogo {
+                            Image(uiImage: logo)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(Circle())
                             Text("[\(corporation.ticker)] \(corporation.name)")
                                 .font(.caption)
+                                .lineLimit(1)
+                        } else {
+                            Image(systemName: "square.dashed")
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .foregroundColor(.gray)
+                            Text("[-] \(NSLocalizedString("No Corporation", comment: ""))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                                 .lineLimit(1)
                         }
                     }
