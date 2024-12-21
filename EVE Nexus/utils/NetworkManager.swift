@@ -220,6 +220,9 @@ enum EVEResource: CaseIterable, NetworkResource {
 class NetworkManager: NSObject, @unchecked Sendable {
     static let shared = NetworkManager()
     var regionID: Int = 10000002 // 默认为 The Forge
+    private let retrier: RequestRetrier
+    private let rateLimiter: RateLimiter
+    private let session: URLSession
     
     // 技能队列数据模型
     struct SkillQueueItem: Codable {
@@ -334,7 +337,11 @@ class NetworkManager: NSObject, @unchecked Sendable {
     private var serverStatusCache: CachedData<ServerStatus>?
     
     private override init() {
+        self.retrier = RequestRetrier()
+        self.rateLimiter = RateLimiter()
+        self.session = URLSession.shared
         super.init()
+        
         // 设置缓存限制
         dataCache.countLimit = 100
         imageCache.countLimit = 200
@@ -350,26 +357,27 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 通用的数据获取函数
     func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
-        Logger.info("Fetching data from URL: \(url.absoluteString)")
+        try await rateLimiter.waitForPermission()
         
         var request = customRequest ?? URLRequest(url: url)
         if forceRefresh {
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         }
         
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            Logger.error("Invalid response type received")
-            throw NetworkError.invalidResponse
+        return try await retrier.execute {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
+                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            }
+            
+            return data
         }
-        
-        guard httpResponse.statusCode == 200 else {
-            Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
-            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-        }
-        
-        return data
     }
     
     // 专门用于获取图片的函数
@@ -1163,99 +1171,51 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 专门用于需要访问令牌的请求
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
+        try await rateLimiter.waitForPermission()
+        
+        let token = try await TokenManager.shared.getToken(for: characterId)
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
-        Logger.info("NetworkManager: 准备请求数据，endpoint: \(endpoint)")
         
         guard let url = URL(string: urlString) else {
-            Logger.error("NetworkManager: 无效的URL: \(urlString)")
             throw NetworkError.invalidURL
         }
         
-        // 从EVELogin获取角色的token
-        guard let character = EVELogin.shared.getCharacterByID(characterId) else {
-            Logger.error("NetworkManager: 未找到角色ID \(characterId) 的认证信息")
-            throw NetworkError.unauthed
-        }
-        
-        let token = character.token.access_token
-        Logger.info("NetworkManager: 使用token访问API，token长度: \(token.count)")
-        
         var request = URLRequest(url: url)
-        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.addValue("tranquility", forHTTPHeaderField: "datasource")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("tranquility", forHTTPHeaderField: "datasource")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        // 定义重试次数
-        let maxRetries = 1
-        var currentRetry = 0
-        
-        while currentRetry <= maxRetries {
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    Logger.error("NetworkManager: 无效的响应类型")
-                    throw NetworkError.invalidResponse
-                }
-                
-                Logger.info("NetworkManager: API响应状态码: \(httpResponse.statusCode)")
-                
-                if httpResponse.statusCode == 403 {
-                    Logger.info("NetworkManager: Token已过期，尝试刷新...")
-                    // 令牌过期，尝试刷新
-                    if let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
-                        // 保存新token
-                        EVELogin.shared.saveAuthInfo(token: newToken, character: character.character)
-                        // 使用新令牌重试
-                        request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
-                        let (newData, newResponse) = try await URLSession.shared.data(for: request)
-                        
-                        guard let newHttpResponse = newResponse as? HTTPURLResponse else {
-                            Logger.error("NetworkManager: 使用新token后获得无效响应")
-                            throw NetworkError.invalidResponse
-                        }
-                        
-                        Logger.info("NetworkManager: 使用新token的响应状态码: \(newHttpResponse.statusCode)")
-                        
-                        if newHttpResponse.statusCode == 200 {
-                            Logger.info("NetworkManager: Token刷新成功")
-                            return try JSONDecoder().decode(T.self, from: newData)
-                        }
-                    }
-                    Logger.error("NetworkManager: Token刷新失败")
-                    throw NetworkError.tokenExpired
-                }
-                
-                // 处理 504 错误
+        return try await retrier.execute {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+            
+            if httpResponse.statusCode == 403 {
+                // Token 过期,清除缓存
+                await TokenManager.shared.clearToken(for: characterId)
+                throw NetworkError.tokenExpired
+            }
+            
+            guard httpResponse.statusCode == 200 else {
                 if httpResponse.statusCode == 504 {
-                    if currentRetry < maxRetries {
-                        Logger.info("NetworkManager: 收到504响应，等待1秒后重试...")
-                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 等待1秒
-                        currentRetry += 1
-                        continue
-                    }
-                }
-                
-                if httpResponse.statusCode != 200 {
-                    if let errorString = String(data: data, encoding: .utf8) {
-                        Logger.error("NetworkManager: API请求失败，错误信息: \(errorString)")
-                    }
                     throw NetworkError.httpError(statusCode: httpResponse.statusCode)
                 }
                 
+                if let errorString = String(data: data, encoding: .utf8) {
+                    Logger.error("API请求失败，错误信息: \(errorString)")
+                }
+                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            }
+            
+            do {
                 return try JSONDecoder().decode(T.self, from: data)
             } catch {
-                if currentRetry < maxRetries {
-                    Logger.error("NetworkManager: 请求失败，准备重试: \(error)")
-                    currentRetry += 1
-                    continue
-                }
-                Logger.error("NetworkManager: 请求失败: \(error)")
-                throw error
+                Logger.error("解码响应数据失败: \(error)")
+                throw NetworkError.invalidData
             }
         }
-        
-        // 如果所有重试都失败了
-        throw NetworkError.invalidResponse
     }
     
     // 角色公开信息数据模型
@@ -1430,6 +1390,8 @@ enum NetworkError: LocalizedError {
     case invalidData
     case tokenExpired
     case unauthed
+    case invalidToken(String)
+    case maxRetriesExceeded
     
     var errorDescription: String? {
         switch self {
@@ -1449,6 +1411,10 @@ enum NetworkError: LocalizedError {
             return NSLocalizedString("Network_Error_Token_Expired", comment: "")
         case .unauthed:
             return NSLocalizedString("Network_Error_Unauthed", comment: "")
+        case .invalidToken(let reason):
+            return "Token无效: \(reason)"
+        case .maxRetriesExceeded:
+            return "已达到最大重试次数"
         }
     }
 }
@@ -1641,4 +1607,80 @@ struct CharacterSkillsResponse: Codable {
     let skills: [CharacterSkill]
     let total_sp: Int
     let unallocated_sp: Int
+}
+
+// 添加 RequestRetrier 类
+class RequestRetrier {
+    private let maxAttempts: Int
+    private let retryDelay: TimeInterval
+    
+    init(maxAttempts: Int = 3, retryDelay: TimeInterval = 1.0) {
+        self.maxAttempts = maxAttempts
+        self.retryDelay = retryDelay
+    }
+    
+    func execute<T>(_ operation: () async throws -> T) async throws -> T {
+        var attempts = 0
+        var lastError: Error?
+        
+        while attempts < maxAttempts {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                
+                // 判断是否应该重试
+                guard shouldRetry(error) else { throw error }
+                
+                attempts += 1
+                if attempts < maxAttempts {
+                    // 使用指数退避策略计算延迟时间
+                    let delay = UInt64(retryDelay * pow(2.0, Double(attempts))) * 1_000_000_000
+                    try await Task.sleep(nanoseconds: delay)
+                }
+            }
+        }
+        
+        throw lastError ?? NetworkError.maxRetriesExceeded
+    }
+    
+    private func shouldRetry(_ error: Error) -> Bool {
+        if case NetworkError.httpError(let statusCode) = error {
+            // 对于特定状态码进行重试
+            return [500, 502, 503, 504].contains(statusCode)
+        }
+        return false
+    }
+}
+
+// 添加 RateLimiter 类
+actor RateLimiter {
+    private var tokens: Int
+    private let maxTokens: Int
+    private var lastRefill: Date
+    private let refillRate: Double // tokens per second
+    
+    init(maxTokens: Int = 150, refillRate: Double = 50) {
+        self.maxTokens = maxTokens
+        self.tokens = maxTokens
+        self.lastRefill = Date()
+        self.refillRate = refillRate
+    }
+    
+    private func refillTokens() {
+        let now = Date()
+        let timePassed = now.timeIntervalSince(lastRefill)
+        let tokensToAdd = Int(timePassed * refillRate)
+        
+        tokens = min(maxTokens, tokens + tokensToAdd)
+        lastRefill = now
+    }
+    
+    func waitForPermission() async throws {
+        while tokens <= 0 {
+            refillTokens()
+            try await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        }
+        tokens -= 1
+    }
 }

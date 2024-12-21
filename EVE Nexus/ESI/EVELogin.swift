@@ -1,6 +1,203 @@
 import Foundation
 import BackgroundTasks
 import SwiftUI
+import Security
+
+// 添加 SecureStorage 类
+class SecureStorage {
+    static let shared = SecureStorage()
+    
+    private init() {}
+    
+    func saveToken(_ token: String, for characterId: Int) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "token_\(characterId)",
+            kSecValueData as String: token.data(using: .utf8)!,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+        ]
+        
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            // 如果已存在，则更新
+            let updateQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrAccount as String: "token_\(characterId)"
+            ]
+            let updateAttributes: [String: Any] = [
+                kSecValueData as String: token.data(using: .utf8)!
+            ]
+            SecItemUpdate(updateQuery as CFDictionary, updateAttributes as CFDictionary)
+        } else if status != errSecSuccess {
+            throw KeychainError.unhandledError(status: status)
+        }
+    }
+    
+    func loadToken(for characterId: Int) throws -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "token_\(characterId)",
+            kSecReturnData as String: true
+        ]
+        
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        if status == errSecItemNotFound {
+            return nil
+        } else if status != errSecSuccess {
+            throw KeychainError.unhandledError(status: status)
+        }
+        
+        guard let data = result as? Data,
+              let token = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        
+        return token
+    }
+    
+    func deleteToken(for characterId: Int) throws {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "token_\(characterId)"
+        ]
+        
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            throw KeychainError.unhandledError(status: status)
+        }
+    }
+}
+
+enum KeychainError: Error {
+    case unhandledError(status: OSStatus)
+}
+
+// 修改 TokenManager
+actor TokenManager {
+    static let shared = TokenManager()
+    private var tokenCache: [Int: TokenCache] = [:]
+    private let secureStorage = SecureStorage.shared
+    
+    struct TokenCache {
+        let accessToken: String
+        let refreshToken: String
+        let expiresAt: Date
+        let scopes: [String]
+        
+        var isExpired: Bool {
+            // 提前5分钟认为过期
+            return Date().addingTimeInterval(300) > expiresAt
+        }
+    }
+    
+    func getToken(for characterId: Int) async throws -> String {
+        if let cached = tokenCache[characterId], !cached.isExpired {
+            return cached.accessToken
+        }
+        return try await refreshTokenIfNeeded(characterId: characterId)
+    }
+    
+    private func refreshTokenIfNeeded(characterId: Int) async throws -> String {
+        guard let character = EVELogin.shared.getCharacterByID(characterId) else {
+            throw NetworkError.unauthed
+        }
+        
+        let newToken = try await EVELogin.shared.refreshToken(
+            refreshToken: character.token.refresh_token,
+            force: true
+        )
+        
+        // 更新缓存
+        let expiresAt = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
+        let cache = TokenCache(
+            accessToken: newToken.access_token,
+            refreshToken: newToken.refresh_token,
+            expiresAt: expiresAt,
+            scopes: character.character.Scopes.components(separatedBy: " ")
+        )
+        
+        tokenCache[characterId] = cache
+        
+        // 保存到 Keychain
+        try secureStorage.saveToken(newToken.refresh_token, for: characterId)
+        
+        return newToken.access_token
+    }
+    
+    func clearToken(for characterId: Int) {
+        tokenCache.removeValue(forKey: characterId)
+        try? secureStorage.deleteToken(for: characterId)
+    }
+}
+
+// 添加 JWT 相关结构
+struct EVEJWTPayload: Codable {
+    let scp: [String]
+    let jti: String
+    let kid: String
+    let sub: String
+    let azp: String
+    let tenant: String
+    let tier: String
+    let region: String
+    let aud: [String]
+    let name: String
+    let owner: String
+    let exp: Int
+    let iat: Int
+    let iss: String
+}
+
+// 添加 String 扩展用于处理 base64url 解码
+extension String {
+    func base64URLDecoded() -> Data? {
+        // 将 base64url 转换为标准 base64
+        let base64 = self
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        
+        // 计算需要添加的填充数量
+        let paddingLength = base64.count % 4
+        let padding = paddingLength > 0 ? String(repeating: "=", count: 4 - paddingLength) : ""
+        
+        // 使用原生方法进行 base64 解码
+        return Data(base64Encoded: base64 + padding, options: .ignoreUnknownCharacters)
+    }
+}
+
+struct JWTValidator {
+    static func validate(_ token: String, config: ESIConfig) async throws -> Bool {
+        // 解码 JWT
+        let segments = token.components(separatedBy: ".")
+        guard segments.count == 3,
+              let payloadData = segments[1].base64URLDecoded(),
+              let payload = try? JSONDecoder().decode(EVEJWTPayload.self, from: payloadData) else {
+            throw NetworkError.invalidToken("Invalid JWT format")
+        }
+        
+        // 验证 issuer
+        guard payload.iss == "login.eveonline.com" || 
+              payload.iss == "https://login.eveonline.com" else {
+            throw NetworkError.invalidToken("Invalid issuer")
+        }
+        
+        // 验证过期时间
+        let currentTimestamp = Int(Date().timeIntervalSince1970)
+        guard payload.exp > currentTimestamp else {
+            throw NetworkError.tokenExpired
+        }
+        
+        // 验证 audience
+        guard payload.aud.contains(config.clientId) && 
+              payload.aud.contains("EVE Online") else {
+            throw NetworkError.invalidToken("Invalid audience")
+        }
+        
+        return true
+    }
+}
 
 // 导入技能队列数据模型
 typealias SkillQueueItem = NetworkManager.SkillQueueItem
