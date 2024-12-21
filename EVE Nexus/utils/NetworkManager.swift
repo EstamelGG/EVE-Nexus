@@ -224,6 +224,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     // 技能队列数据模型
     struct SkillQueueItem: Codable {
         let finish_date: String?
+        let start_date: String?
         let finished_level: Int
         let level_end_sp: Int
         let level_start_sp: Int
@@ -231,15 +232,68 @@ class NetworkManager: NSObject, @unchecked Sendable {
         let skill_id: Int
         let training_start_sp: Int
         
-        var isPaused: Bool {
-            return finish_date == nil
+        // 判断当前时间点是否在训练这个技能
+        var isCurrentlyTraining: Bool {
+            guard let finishDateString = finish_date,
+                  let startDateString = start_date else {
+                return false
+            }
+            
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            
+            guard let finishDate = dateFormatter.date(from: finishDateString),
+                  let startDate = dateFormatter.date(from: startDateString) else {
+                return false
+            }
+            
+            let now = Date()
+            return now >= startDate && now <= finishDate
         }
         
+        // 计算训练进度
         var progress: Double {
-            let totalSP = level_end_sp - level_start_sp
-            let trainedSP = training_start_sp - level_start_sp
-            guard totalSP > 0 else { return 0 }
-            return Double(trainedSP) / Double(totalSP)
+            guard let finishDateString = finish_date,
+                  let startDateString = start_date else {
+                return 0
+            }
+            
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            
+            guard let finishDate = dateFormatter.date(from: finishDateString),
+                  let startDate = dateFormatter.date(from: startDateString) else {
+                return 0
+            }
+            
+            let now = Date()
+            
+            // 如果还没开始训练，进度为0
+            if now < startDate {
+                return 0
+            }
+            
+            // 如果已经完成训练，进度为1
+            if now > finishDate {
+                return 1
+            }
+            
+            // 计算时间进度比例
+            let totalTrainingTime = finishDate.timeIntervalSince(startDate) // A
+            let trainedTime = now.timeIntervalSince(startDate) // B
+            let timeProgress = trainedTime / totalTrainingTime
+            
+            // 计算剩余需要训练的技能点
+            let remainingSP = level_end_sp - training_start_sp // C
+            
+            // 计算当前已训练的技能点
+            let trainedSP = Double(remainingSP) * timeProgress
+            
+            // 计算总进度
+            let totalLevelSP = level_end_sp - level_start_sp
+            let currentTotalTrainedSP = Double(training_start_sp - level_start_sp) + trainedSP
+            
+            return currentTotalTrainedSP / Double(totalLevelSP)
         }
         
         var remainingTime: TimeInterval? {

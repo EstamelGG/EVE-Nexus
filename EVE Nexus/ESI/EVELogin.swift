@@ -311,7 +311,7 @@ class EVELogin {
         }
         
         // 更新当前技能信息
-        if let currentSkill = skillQueue.first(where: { $0.queue_position == 0 }) {
+        if let currentSkill = skillQueue.first(where: { $0.isCurrentlyTraining }) {
             if let skillName = NetworkManager.getSkillName(
                 skillId: currentSkill.skill_id,
                 databaseManager: databaseManager
@@ -321,6 +321,19 @@ class EVELogin {
                     level: currentSkill.skillLevel,
                     progress: currentSkill.progress,
                     remainingTime: currentSkill.remainingTime
+                )
+            }
+        } else if let firstSkill = skillQueue.first {
+            // 如果没有正在训练的技能，但队列中有技能，说明是暂停状态
+            if let skillName = NetworkManager.getSkillName(
+                skillId: firstSkill.skill_id,
+                databaseManager: databaseManager
+            ) {
+                updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                    name: skillName,
+                    level: firstSkill.skillLevel,
+                    progress: firstSkill.progress,
+                    remainingTime: nil // 暂停状态
                 )
             }
         }

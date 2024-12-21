@@ -461,7 +461,7 @@ struct AccountsView: View {
                                         characterId: characterAuth.character.CharacterID
                                     )
                                     
-                                    if let currentSkill = queue.first(where: { $0.queue_position == 0 }) {
+                                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                                         if let skillName = await NetworkManager.getSkillName(
                                             skillId: currentSkill.skill_id,
                                             databaseManager: self.viewModel.databaseManager
@@ -473,6 +473,23 @@ struct AccountsView: View {
                                                         level: currentSkill.skillLevel,
                                                         progress: currentSkill.progress,
                                                         remainingTime: currentSkill.remainingTime
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else if let firstSkill = queue.first {
+                                        // 如果没有正在训练的技能，但队列中有技能，说明是暂停状态
+                                        if let skillName = await NetworkManager.getSkillName(
+                                            skillId: firstSkill.skill_id,
+                                            databaseManager: self.viewModel.databaseManager
+                                        ) {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        name: skillName,
+                                                        level: firstSkill.skillLevel,
+                                                        progress: firstSkill.progress,
+                                                        remainingTime: nil // 暂停状态
                                                     )
                                                 }
                                             }
