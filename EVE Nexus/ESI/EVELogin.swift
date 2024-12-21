@@ -1035,7 +1035,7 @@ private extension EVELogin {
         urls: ESIConfig.ESIUrls(
             authorize: "https://login.eveonline.com/v2/oauth/authorize/",
             token: "https://login.eveonline.com/v2/oauth/token",
-            verify: "https://login.eveonline.com/oauth/verify"
+            verify: "https://login.eveonline.com/v2/oauth/verify"
         ),
         scopes: []  // 将在 loadConfig 中填充
     )
