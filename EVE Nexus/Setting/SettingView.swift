@@ -233,6 +233,7 @@ struct SettingView: View {
     // 新增状态属性
     @State private var settingGroups: [SettingGroup] = []
     @State private var resourceInfoCache: [String: String] = [:]
+    @State private var showingLogViewer = false
     
     // MARK: - 时间处理工具
     private func getRelativeTimeString(from date: Date) -> String {
@@ -334,6 +335,12 @@ struct SettingView: View {
                 detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
                 icon: "globe",
                 action: { showingLanguageView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Logs", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Logs_Detail", comment: ""),
+                icon: "doc.text.magnifyingglass",
+                action: { showingLogViewer = true }
             )
         ])
     }
@@ -514,6 +521,9 @@ struct SettingView: View {
         .listStyle(.insetGrouped)
         .navigationDestination(isPresented: $showingLanguageView) {
             SelectLanguageView(databaseManager: databaseManager)
+        }
+        .navigationDestination(isPresented: $showingLogViewer) {
+            LogViewer()
         }
         .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
             Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }

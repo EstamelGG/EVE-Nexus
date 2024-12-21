@@ -236,3 +236,17 @@
 "Character_in_station" = "in Station";
 "Character_in_structure" = "in Structure";
 "Character_in_space" = "in Space";
+
+// Logs
+"Main_Setting_Logs" = "App Logs";
+"Main_Setting_Logs_Detail" = "View application logs";
+"Main_Setting_Logs_Title" = "Log Viewer";
+"Main_Setting_Logs_Select_Hint" = "Select a log file to view";
+"Main_Setting_Logs_Delete_Title" = "Clear Logs";
+"Main_Setting_Logs_Delete_Message" = "This will delete all log files. This action cannot be undone.";
+"Main_Setting_Logs_Delete" = "Delete";
+"Main_Setting_Logs_Level_Debug" = "DEBUG";
+"Main_Setting_Logs_Level_Info" = "INFO";
+"Main_Setting_Logs_Level_Warning" = "WARNING";
+"Main_Setting_Logs_Level_Error" = "ERROR";
+"Main_Setting_Logs_Level_Fault" = "FAULT";

@@ -233,3 +233,17 @@
 "Character_in_station" = "空间站中";
 "Character_in_structure" = "建筑物中";
 "Character_in_space" = "在太空中";
+
+// 日志
+"Main_Setting_Logs" = "应用日志";
+"Main_Setting_Logs_Detail" = "查看应用运行日志";
+"Main_Setting_Logs_Title" = "日志查看器";
+"Main_Setting_Logs_Select_Hint" = "选择一个日志文件查看内容";
+"Main_Setting_Logs_Delete_Title" = "清理日志";
+"Main_Setting_Logs_Delete_Message" = "这将删除所有日志文件，此操作无法撤销。";
+"Main_Setting_Logs_Delete" = "删除";
+"Main_Setting_Logs_Level_Debug" = "调试";
+"Main_Setting_Logs_Level_Info" = "信息";
+"Main_Setting_Logs_Level_Warning" = "警告";
+"Main_Setting_Logs_Level_Error" = "错误";
+"Main_Setting_Logs_Level_Fault" = "故障";
