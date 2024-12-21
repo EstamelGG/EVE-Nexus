@@ -64,7 +64,7 @@ class IconManager {
                let image = UIImage(data: imageData) {
                 // 缓存图片
                 imageCache.setObject(image, forKey: cacheKey)
-                Logger.info("Load image from disk \(cacheKey).")
+                // Logger.info("Load image from disk \(cacheKey).")
                 return image
             }
         }

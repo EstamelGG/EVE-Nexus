@@ -74,7 +74,7 @@ class DatabaseManager: ObservableObject {
         switch result {
         case .success(let rows):
             for (index, row) in rows.enumerated() {
-                Logger.debug("处理第 \(index + 1) 行: \(row)")
+                // Logger.debug("处理第 \(index + 1) 行: \(row)")
                 
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
@@ -94,7 +94,7 @@ class DatabaseManager: ObservableObject {
                     iconFileNew: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
                 )
                 
-                Logger.debug("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
+                // Logger.debug("创建分类: id=\(category.id), name=\(category.name), published=\(category.published)")
                 
                 if category.published {
                     published.append(category)
@@ -103,7 +103,7 @@ class DatabaseManager: ObservableObject {
                 }
             }
             
-            Logger.debug("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
+            // Logger.debug("处理完成 - 已发布: \(published.count), 未发布: \(unpublished.count)")
             
         case .error(let error):
             Logger.error("加载分类失败: \(error)")

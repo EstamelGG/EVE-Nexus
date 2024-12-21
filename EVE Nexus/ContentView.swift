@@ -536,11 +536,20 @@ struct ContentView: View {
     
     // 添加加载保存的角色信息的方法
     private func loadSavedCharacter() {
+        Logger.info("正在加载保存的角色信息...")
+        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
+        
         // 如果有保存的角色 ID，尝试加载该角色信息
         if currentCharacterId != 0 {
             let characters = EVELogin.shared.loadCharacters()
             if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
                 selectedCharacter = savedCharacter.character
+                Logger.info("""
+                    成功加载保存的所选角色信息:
+                    - 角色ID: \(savedCharacter.character.CharacterID)
+                    - 角色名称: \(savedCharacter.character.CharacterName)
+                    """)
+                
                 // 异步加载头像
                 Task {
                     if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
@@ -548,13 +557,19 @@ struct ContentView: View {
                     ) {
                         await MainActor.run {
                             selectedCharacterPortrait = portrait
+                            Logger.info("成功加载角色头像")
                         }
+                    } else {
+                        Logger.error("加载角色头像失败")
                     }
                 }
             } else {
                 // 如果找不到保存的角色，清除当前角色 ID
+                Logger.warning("未找到保存的角色（ID: \(currentCharacterId)），清除当前角色ID")
                 currentCharacterId = 0
             }
+        } else {
+            Logger.info("没有保存的角色ID")
         }
     }
 }

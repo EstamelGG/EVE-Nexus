@@ -144,7 +144,7 @@ class SQLiteManager {
                     }
                 }
                 
-                Logger.debug("查询结果行: \(row)")
+                // Logger.debug("查询结果行: \(row)")
                 results.append(row)
             }
             
@@ -153,11 +153,11 @@ class SQLiteManager {
             
             // 缓存结果
             if useCache {
-                Logger.info("记录到缓存中: \(cacheKey)")
+                // Logger.info("记录到缓存中: \(cacheKey)")
                 queryCache.setObject(results as NSArray, forKey: cacheKey)
             }
             
-            Logger.debug("查询总行数: \(results.count)")
+            // Logger.debug("查询总行数: \(results.count)")
             return .success(results)
         }
     }
