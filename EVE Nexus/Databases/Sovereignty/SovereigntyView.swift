@@ -37,6 +37,13 @@ final class SovereigntyViewModel: ObservableObject {
         Logger.info("ViewModel: 开始获取主权争夺数据")
         do {
             let campaigns = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
+            // 保存数据到文件并更新时间戳
+            let jsonData = try JSONEncoder().encode(campaigns)
+            try StaticResourceManager.shared.saveToFileAndCache(
+                jsonData,
+                filename: StaticResourceManager.ResourceType.sovereigntyCampaigns.filename,
+                cacheKey: StaticResourceManager.ResourceType.sovereigntyCampaigns.rawValue
+            )
             await processCampaigns(campaigns)
         } catch {
             Logger.error("ViewModel: 获取主权争夺数据失败: \(error)")

@@ -189,7 +189,7 @@ class StaticResourceManager {
         return staticPath
     }
     
-    /// 获取所有静态资源的状态
+    /// ���取所有静态资源的状态
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
             switch type {
@@ -281,6 +281,12 @@ class StaticResourceManager {
                     withIntermediateDirectories: true
                 )
                 try data.write(to: fileURL)
+                
+                // 更新下载时间
+                if let type = ResourceType.allCases.first(where: { $0.filename == filename }) {
+                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
+                }
+                
                 Logger.info("Successfully saved data to file: \(filename)")
             } catch {
                 Logger.error("Error saving data to file \(filename): \(error)")
@@ -342,7 +348,7 @@ class StaticResourceManager {
             break
             
         case .characterPortraits:
-            // 角色头像是按需获取的，不支持批量刷新
+            // 角色头��是按需获取的，不支持批量刷新
             Logger.info("Character portraits are refreshed on-demand")
             break
         }
@@ -375,7 +381,7 @@ class StaticResourceManager {
         let filename = ResourceType.sovereignty.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
-        // 如果强制刷新，直接从网络获取
+        // ���果强制刷新，直接从网络获取
         if forceRefresh {
             Logger.info("Force refreshing sovereignty data from network")
             let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
@@ -503,7 +509,7 @@ class StaticResourceManager {
     }
 
     
-    /// 获取市场数据目录路径
+    /// 获取市场数据目录��径
     func getMarketDataPath() -> URL {
         let marketPath = getStaticDataSetPath().appendingPathComponent("Market")
         // 确保目录存在
