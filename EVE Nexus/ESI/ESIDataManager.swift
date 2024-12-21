@@ -25,35 +25,34 @@ class ESIDataManager {
     func getWalletBalance(characterId: Int) async throws -> Double {
         // 检查缓存
         if let cachedEntry = walletCache[characterId], isCacheValid(cachedEntry) {
+            Logger.info("使用缓存的钱包余额数据 - 角色ID: \(characterId)")
             return cachedEntry.value
         }
         
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
+        Logger.info("开始获取钱包余额 - 角色ID: \(characterId)")
         
-        // 从EVELogin获取角色的token
-        guard EVELogin.shared.getCharacterByID(characterId) != nil else {
-            throw NetworkError.unauthed
-        }
+        // 使用NetworkManager的fetchDataWithToken方法获取原始数据
+        let data = try await NetworkManager.shared.fetchData(
+            from: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!,
+            request: {
+                var request = URLRequest(url: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!)
+                let token = try await TokenManager.shared.getToken(for: characterId)
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.setValue("tranquility", forHTTPHeaderField: "datasource")
+                return request
+            }()
+        )
         
-        // 获取有效的token（如果过期会自动刷新）
-        let validToken = try await EVELogin.shared.getValidToken()
-        Logger.info("Token refreshed")
-        var request = URLRequest(url: url)
-        request.addValue("Bearer \(validToken)", forHTTPHeaderField: "Authorization")
-        request.addValue("tranquility", forHTTPHeaderField: "datasource")
-        
-        let data = try await NetworkManager.shared.fetchData(from: url, request: request)
-        
+        // 将数据转换为字符串
         guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
               let balance = Double(stringValue) else {
+            Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
         }
         
         // 更新缓存
         walletCache[characterId] = CacheEntry(value: balance, timestamp: Date())
+        Logger.info("成功获取钱包余额: \(balance)")
         
         return balance
     }
