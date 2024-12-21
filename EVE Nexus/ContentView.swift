@@ -414,11 +414,72 @@ struct ContentView: View {
             }
             .listStyle(.insetGrouped)
             .refreshable {
+                // 刷新服务器状态
                 do {
                     serverStatus = try await NetworkManager.shared.fetchServerStatus()
                     lastStatusUpdateTime = Date()
                 } catch {
                     Logger.error("Failed to refresh server status: \(error)")
+                }
+                
+                // 如果有选中的角色，刷新角色信息
+                if let character = selectedCharacter {
+                    do {
+                        // 强制刷新角色公开信息
+                        let publicInfo = try await NetworkManager.shared.fetchCharacterPublicInfo(
+                            characterId: character.CharacterID,
+                            forceRefresh: true
+                        )
+                        
+                        // 强制刷新角色头像
+                        if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                            characterId: character.CharacterID,
+                            forceRefresh: true
+                        ) {
+                            await MainActor.run {
+                                selectedCharacterPortrait = portrait
+                                Logger.info("成功刷新角色头像")
+                            }
+                        }
+                        
+                        // 获取联盟信息
+                        if let allianceId = publicInfo.alliance_id {
+                            async let allianceInfoTask = NetworkManager.shared.fetchAllianceInfo(
+                                allianceId: allianceId,
+                                forceRefresh: true
+                            )
+                            async let allianceLogoTask = NetworkManager.shared.fetchAllianceLogo(
+                                allianceID: allianceId
+                            )
+                            
+                            do {
+                                let (_, _) = try await (allianceInfoTask, allianceLogoTask)
+                                Logger.info("成功刷新联盟信息和图标")
+                            } catch {
+                                Logger.error("刷新联盟信息失败: \(error)")
+                            }
+                        }
+                        
+                        // 获取军团信息
+                        do {
+                            async let corporationInfoTask = NetworkManager.shared.fetchCorporationInfo(
+                                corporationId: publicInfo.corporation_id,
+                                forceRefresh: true
+                            )
+                            async let corporationLogoTask = NetworkManager.shared.fetchCorporationLogo(
+                                corporationId: publicInfo.corporation_id
+                            )
+                            
+                            let (_, _) = try await (corporationInfoTask, corporationLogoTask)
+                            Logger.info("成功刷新军团信息和图标")
+                        } catch {
+                            Logger.error("刷新军团信息失败: \(error)")
+                        }
+                        
+                        Logger.info("成功完成所有信息刷新")
+                    } catch {
+                        Logger.error("刷新角色信息失败: \(error)")
+                    }
                 }
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
