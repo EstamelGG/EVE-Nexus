@@ -1257,6 +1257,167 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 如果所有重试都失败了
         throw NetworkError.invalidResponse
     }
+    
+    // 角色公开信息数据模型
+    struct CharacterPublicInfo: Codable {
+        let alliance_id: Int?
+        let birthday: String
+        let bloodline_id: Int
+        let corporation_id: Int
+        let description: String
+        let gender: String
+        let name: String
+        let race_id: Int
+        let security_status: Double
+        let title: String?
+    }
+    
+    // 联盟信息数据模型
+    struct AllianceInfo: Codable {
+        let name: String
+        let ticker: String
+        let creator_corporation_id: Int
+        let creator_id: Int
+        let date_founded: String
+        let executor_corporation_id: Int
+    }
+    
+    // 军团信息数据模型
+    struct CorporationInfo: Codable {
+        let name: String
+        let ticker: String
+        let member_count: Int
+        let ceo_id: Int
+        let creator_id: Int
+        let date_founded: String?
+        let description: String?
+        let tax_rate: Double
+        let url: String?
+        let alliance_id: Int?
+    }
+    
+    // 获取角色公开信息
+    func fetchCharacterPublicInfo(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterPublicInfo {
+        let cacheKey = "character_public_info_\(characterId)"
+        let cacheTimeKey = "character_public_info_\(characterId)_time"
+        
+        // 检查缓存是否存在且未过期（7天）
+        if !forceRefresh,
+           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
+            do {
+                let info = try JSONDecoder().decode(CharacterPublicInfo.self, from: cachedData)
+                Logger.info("使用缓存的角色公开信息 - 角色ID: \(characterId)")
+                return info
+            } catch {
+                Logger.error("解析缓存的角色公开信息失败: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        let info = try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: cacheKey)
+        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
+        
+        Logger.info("成功获取角色公开信息 - 角色ID: \(characterId)")
+        return info
+    }
+    
+    // 获取联盟信息
+    func fetchAllianceInfo(allianceId: Int, forceRefresh: Bool = false) async throws -> AllianceInfo {
+        let cacheKey = "alliance_info_\(allianceId)"
+        let cacheTimeKey = "alliance_info_\(allianceId)_time"
+        
+        // 检查缓存
+        if !forceRefresh,
+           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
+            do {
+                let info = try JSONDecoder().decode(AllianceInfo.self, from: cachedData)
+                Logger.info("使用缓存的联盟信息 - 联盟ID: \(allianceId)")
+                return info
+            } catch {
+                Logger.error("解析缓存的联盟信息失败: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/alliances/\(allianceId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        let info = try JSONDecoder().decode(AllianceInfo.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: cacheKey)
+        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
+        
+        Logger.info("成功获取联盟信息 - 联盟ID: \(allianceId)")
+        return info
+    }
+    
+    // 获取军团信息
+    func fetchCorporationInfo(corporationId: Int, forceRefresh: Bool = false) async throws -> CorporationInfo {
+        let cacheKey = "corporation_info_\(corporationId)"
+        let cacheTimeKey = "corporation_info_\(corporationId)_time"
+        
+        // 检查缓存
+        if !forceRefresh,
+           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
+            do {
+                let info = try JSONDecoder().decode(CorporationInfo.self, from: cachedData)
+                Logger.info("使用缓存的军团信息 - 军团ID: \(corporationId)")
+                return info
+            } catch {
+                Logger.error("解析缓存的军团信息失败: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchData(from: url)
+        let info = try JSONDecoder().decode(CorporationInfo.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: cacheKey)
+        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
+        
+        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
+        return info
+    }
+    
+    // 获取军团图标
+    func fetchCorporationLogo(corporationId: Int) async throws -> UIImage {
+        let urlString = "https://images.evetech.net/corporations/\(corporationId)/logo?size=64"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        return try await fetchCachedImage(
+            cacheKey: "corporation_\(corporationId)",
+            filename: "corporation_\(corporationId).png",
+            cacheDuration: StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION,
+            imageURL: url
+        )
+    }
 }
 
 // 网络错误枚举

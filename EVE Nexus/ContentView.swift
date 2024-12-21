@@ -131,6 +131,12 @@ struct LoginButtonView: View {
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
     
+    // 添加联盟和军团信息的状态
+    @State private var allianceInfo: NetworkManager.AllianceInfo?
+    @State private var corporationInfo: NetworkManager.CorporationInfo?
+    @State private var allianceLogo: UIImage?
+    @State private var corporationLogo: UIImage?
+    
     var body: some View {
         HStack(spacing: 15) {
             if let portrait = characterPortrait {
@@ -152,6 +158,36 @@ struct LoginButtonView: View {
                     Text(character.CharacterName)
                         .font(.headline)
                         .lineLimit(1)
+                    
+                    // 显示联盟信息
+                    if let alliance = allianceInfo {
+                        HStack(spacing: 4) {
+                            if let logo = allianceLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .clipShape(Circle())
+                            }
+                            Text("[\(alliance.ticker)] \(alliance.name)")
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                    }
+                    
+                    // 显示军团信息
+                    if let corporation = corporationInfo {
+                        HStack(spacing: 4) {
+                            if let logo = corporationLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .clipShape(Circle())
+                            }
+                            Text("[\(corporation.ticker)] \(corporation.name)")
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                    }
                 } else if isLoggedIn {
                     Text(NSLocalizedString("Account_Management", comment: ""))
                         .font(.headline)
@@ -166,6 +202,75 @@ struct LoginButtonView: View {
             Spacer()
         }
         .contentShape(Rectangle())
+        .task {
+            await loadCharacterInfo()
+        }
+    }
+    
+    private func loadCharacterInfo() async {
+        guard let character = selectedCharacter else { return }
+        
+        do {
+            // 获取角色公开信息
+            let publicInfo = try await NetworkManager.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
+            
+            // 获取联盟信息
+            if let allianceId = publicInfo.alliance_id {
+                async let allianceInfoTask = NetworkManager.shared.fetchAllianceInfo(allianceId: allianceId)
+                async let allianceLogoTask = NetworkManager.shared.fetchAllianceLogo(allianceID: allianceId)
+                
+                do {
+                    let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
+                    await MainActor.run {
+                        self.allianceInfo = info
+                        self.allianceLogo = logo
+                    }
+                } catch {
+                    Logger.error("加载联盟信息失败: \(error)")
+                    // 如果加载失败，清除联盟信息
+                    await MainActor.run {
+                        self.allianceInfo = nil
+                        self.allianceLogo = nil
+                    }
+                }
+            } else {
+                // 如果角色没有联盟，清除联盟信息
+                await MainActor.run {
+                    self.allianceInfo = nil
+                    self.allianceLogo = nil
+                }
+                Logger.info("角色没有所属联盟")
+            }
+            
+            // 获取军团信息
+            async let corporationInfoTask = NetworkManager.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+            async let corporationLogoTask = NetworkManager.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+            
+            do {
+                let (info, logo) = try await (corporationInfoTask, corporationLogoTask)
+                await MainActor.run {
+                    self.corporationInfo = info
+                    self.corporationLogo = logo
+                }
+            } catch {
+                Logger.error("加载军团信息失败: \(error)")
+                // 如果加载失败，清除军团信息
+                await MainActor.run {
+                    self.corporationInfo = nil
+                    self.corporationLogo = nil
+                }
+            }
+            
+        } catch {
+            Logger.error("加载角色公开信息失败: \(error)")
+            // 如果加载失败，清除所有信息
+            await MainActor.run {
+                self.allianceInfo = nil
+                self.allianceLogo = nil
+                self.corporationInfo = nil
+                self.corporationLogo = nil
+            }
+        }
     }
 }
 
