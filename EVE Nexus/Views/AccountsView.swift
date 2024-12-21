@@ -179,6 +179,11 @@ struct AccountsView: View {
             Task {
                 await viewModel.handleCallback(url: url)
                 showingWebView = false
+                // 如果登录成功，清除该角色的token过期状态
+                if let character = viewModel.characterInfo {
+                    expiredTokenCharacters.remove(character.CharacterID)
+                    EVELogin.shared.resetTokenExpired(characterId: character.CharacterID)
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
@@ -240,6 +245,12 @@ struct AccountsView: View {
                                         force: true
                                     )
                                     tokenRefreshed = true
+                                    
+                                    // Token刷新成功，立即清除过期状态
+                                    await updateUI {
+                                        expiredTokenCharacters.remove(characterAuth.character.CharacterID)
+                                        EVELogin.shared.resetTokenExpired(characterId: characterAuth.character.CharacterID)
+                                    }
                                     
                                     // 并行执行所有更新任务
                                     async let portraitTask: Void = {
@@ -382,12 +393,6 @@ struct AccountsView: View {
                                 }
                                 if let error = lastError {
                                     Logger.error("刷新角色Token失败（已重试3次） - \(characterAuth.character.CharacterName): \(error)")
-                                }
-                            } else {
-                                // Token刷新成功，重置过期状态
-                                await updateUI {
-                                    expiredTokenCharacters.remove(characterAuth.character.CharacterID)
-                                    EVELogin.shared.resetTokenExpired(characterId: characterAuth.character.CharacterID)
                                 }
                             }
                         }

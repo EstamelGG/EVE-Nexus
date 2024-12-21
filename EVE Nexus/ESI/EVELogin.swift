@@ -221,6 +221,8 @@ class EVELoginViewModel: ObservableObject {
     func handleLoginSuccess(character: EVECharacterInfo) {
         characterInfo = character
         isLoggedIn = true
+        // 重置token状态
+        EVELogin.shared.resetTokenExpired(characterId: character.CharacterID)
         loadCharacters()
     }
     
