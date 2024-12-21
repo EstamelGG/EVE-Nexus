@@ -1184,54 +1184,78 @@ class NetworkManager: NSObject, @unchecked Sendable {
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.addValue("tranquility", forHTTPHeaderField: "datasource")
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                Logger.error("NetworkManager: 无效的响应类型")
-                throw NetworkError.invalidResponse
-            }
-            
-            Logger.info("NetworkManager: API响应状态码: \(httpResponse.statusCode)")
-            
-            if httpResponse.statusCode == 403 {
-                Logger.info("NetworkManager: Token已过期，尝试刷新...")
-                // 令牌过期，尝试刷新
-                if let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
-                    // 保存新token
-                    EVELogin.shared.saveAuthInfo(token: newToken, character: character.character)
-                    // 使用新令牌重试
-                    request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
-                    let (newData, newResponse) = try await URLSession.shared.data(for: request)
-                    
-                    guard let newHttpResponse = newResponse as? HTTPURLResponse else {
-                        Logger.error("NetworkManager: 使用新token后获得无效响应")
-                        throw NetworkError.invalidResponse
+        // 定义重试次数
+        let maxRetries = 1
+        var currentRetry = 0
+        
+        while currentRetry <= maxRetries {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    Logger.error("NetworkManager: 无效的响应类型")
+                    throw NetworkError.invalidResponse
+                }
+                
+                Logger.info("NetworkManager: API响应状态码: \(httpResponse.statusCode)")
+                
+                if httpResponse.statusCode == 403 {
+                    Logger.info("NetworkManager: Token已过期，尝试刷新...")
+                    // 令牌过期，尝试刷新
+                    if let newToken = try? await EVELogin.shared.refreshToken(refreshToken: character.token.refresh_token, force: true) {
+                        // 保存新token
+                        EVELogin.shared.saveAuthInfo(token: newToken, character: character.character)
+                        // 使用新令牌重试
+                        request.setValue("Bearer \(newToken.access_token)", forHTTPHeaderField: "Authorization")
+                        let (newData, newResponse) = try await URLSession.shared.data(for: request)
+                        
+                        guard let newHttpResponse = newResponse as? HTTPURLResponse else {
+                            Logger.error("NetworkManager: 使用新token后获得无效响应")
+                            throw NetworkError.invalidResponse
+                        }
+                        
+                        Logger.info("NetworkManager: 使用新token的响应状态码: \(newHttpResponse.statusCode)")
+                        
+                        if newHttpResponse.statusCode == 200 {
+                            Logger.info("NetworkManager: Token刷新成功")
+                            return try JSONDecoder().decode(T.self, from: newData)
+                        }
                     }
-                    
-                    Logger.info("NetworkManager: 使用新token的响应状态码: \(newHttpResponse.statusCode)")
-                    
-                    if newHttpResponse.statusCode == 200 {
-                        Logger.info("NetworkManager: Token刷新成功")
-                        return try JSONDecoder().decode(T.self, from: newData)
+                    Logger.error("NetworkManager: Token刷新失败")
+                    throw NetworkError.tokenExpired
+                }
+                
+                // 处理 504 错误
+                if httpResponse.statusCode == 504 {
+                    if currentRetry < maxRetries {
+                        Logger.info("NetworkManager: 收到504响应，等待1秒后重试...")
+                        try? await Task.sleep(nanoseconds: 1_000_000_000) // 等待1秒
+                        currentRetry += 1
+                        continue
                     }
                 }
-                Logger.error("NetworkManager: Token刷新失败")
-                throw NetworkError.tokenExpired
-            }
-            
-            if httpResponse.statusCode != 200 {
-                if let errorString = String(data: data, encoding: .utf8) {
-                    Logger.error("NetworkManager: API请求失败，错误信息: \(errorString)")
+                
+                if httpResponse.statusCode != 200 {
+                    if let errorString = String(data: data, encoding: .utf8) {
+                        Logger.error("NetworkManager: API请求失败，错误信息: \(errorString)")
+                    }
+                    throw NetworkError.httpError(statusCode: httpResponse.statusCode)
                 }
-                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+                
+                return try JSONDecoder().decode(T.self, from: data)
+            } catch {
+                if currentRetry < maxRetries {
+                    Logger.error("NetworkManager: 请求失败，准备重试: \(error)")
+                    currentRetry += 1
+                    continue
+                }
+                Logger.error("NetworkManager: 请求失败: \(error)")
+                throw error
             }
-            
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            Logger.error("NetworkManager: 请求失败: \(error)")
-            throw error
         }
+        
+        // 如果所有重试都失败了
+        throw NetworkError.invalidResponse
     }
 }
 
