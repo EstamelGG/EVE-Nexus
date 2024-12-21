@@ -87,8 +87,8 @@ struct Cache<Value: Codable> {
 @MainActor
 final class IncursionsViewModel: ObservableObject {
     @Published private(set) var preparedIncursions: [PreparedIncursion] = []
-    @Published var isLoading = false
-    @Published var isRefreshing = false
+    @Published var incursion_isLoading = false
+    @Published var incursion_isRefreshing = false
     
     let databaseManager: DatabaseManager
     
@@ -99,16 +99,16 @@ final class IncursionsViewModel: ObservableObject {
     func fetchIncursions(forceRefresh: Bool = false, silent: Bool = false) async {
         if !silent {
             if preparedIncursions.isEmpty {
-                isLoading = true
+                incursion_isLoading = true
             } else {
-                isRefreshing = true
+                incursion_isRefreshing = true
             }
         }
         
         defer {
             if !silent {
-                isLoading = false
-                isRefreshing = false
+                incursion_isLoading = false
+                incursion_isRefreshing = false
             }
         }
         
@@ -254,7 +254,7 @@ struct IncursionsView: View {
     var body: some View {
         List {
             Section {
-                if viewModel.isLoading {
+                if viewModel.incursion_isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else if viewModel.preparedIncursions.isEmpty {

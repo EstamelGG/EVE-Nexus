@@ -58,8 +58,8 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
 @MainActor
 class InfestedSystemsViewModel: ObservableObject {
     @Published var systems: [SystemInfo] = []
-    @Published var isLoading: Bool = false
-    @Published var isRefreshing: Bool = false
+    @Published var incursion_isLoading: Bool = false
+    @Published var incursion_isRefreshing: Bool = false
     let databaseManager: DatabaseManager
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
     private var systemIds: [Int] = []  // 保存系统ID列表
@@ -91,8 +91,8 @@ class InfestedSystemsViewModel: ObservableObject {
     
     // 修改刷新方法
     func refresh() async {
-        guard !isRefreshing else { return }
-        isRefreshing = true
+        guard !incursion_isRefreshing else { return }
+        incursion_isRefreshing = true
         
         // 清除缓存
         Self.systemsCache.removeValue(forKey: systemIds.hashValue)
@@ -170,14 +170,14 @@ class InfestedSystemsViewModel: ObservableObject {
         // 更新缓存
         Self.systemsCache[systemIds.hashValue] = tempSystems
         
-        isRefreshing = false
+        incursion_isRefreshing = false
     }
     
     private func loadSystems(systemIds: [Int]) {
         Task {
-            isLoading = true
+            incursion_isLoading = true
             await refresh()
-            isLoading = false
+            incursion_isLoading = false
         }
     }
     
@@ -256,7 +256,7 @@ struct InfestedSystemsView: View {
     
     var body: some View {
         ZStack {
-            if viewModel.isLoading {
+            if viewModel.incursion_isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

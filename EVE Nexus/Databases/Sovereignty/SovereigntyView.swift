@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class SovereigntyViewModel: ObservableObject {
     @Published private(set) var preparedCampaigns: [PreparedSovereignty] = []
-    @Published var isLoading = false
+    @Published var sov_isLoading = false
     @Published var isRefreshing = false
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
     
@@ -21,7 +21,7 @@ final class SovereigntyViewModel: ObservableObject {
     func fetchSovereignty(forceRefresh: Bool = false, silent: Bool = false) async {
         if !silent {
             if preparedCampaigns.isEmpty {
-                isLoading = true
+                sov_isLoading = true
             } else {
                 isRefreshing = true
             }
@@ -29,7 +29,7 @@ final class SovereigntyViewModel: ObservableObject {
         
         defer {
             if !silent {
-                isLoading = false
+                sov_isLoading = false
                 isRefreshing = false
             }
         }
@@ -237,7 +237,7 @@ struct SovereigntyView: View {
         let groupedCampaigns = Dictionary(grouping: viewModel.preparedCampaigns) { $0.location.regionName }
         
         List {
-            if viewModel.isLoading {
+            if viewModel.sov_isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
