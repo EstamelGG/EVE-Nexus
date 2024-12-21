@@ -59,7 +59,7 @@ struct AccountsView: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(.blue)
                         Text(NSLocalizedString("Account_Add_Character", comment: ""))
-                            .foregroundColor(.blue)
+                            .foregroundColor(isEditing ? .primary : .blue)
                         Spacer()
                     }
                 }
@@ -69,226 +69,37 @@ struct AccountsView: View {
             if !viewModel.characters.isEmpty {
                 Section(header: Text(NSLocalizedString("Account_Logged_Characters", comment: ""))) {
                     ForEach(viewModel.characters, id: \.CharacterID) { character in
-                        Button(action: {
-                            if isEditing {
+                        if isEditing {
+                            Button(action: {
                                 characterToRemove = character
-                            } else {
-                                onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
-                                dismiss()
+                            }) {
+                                CharacterRowView(character: character, 
+                                               portrait: viewModel.characterPortraits[character.CharacterID], 
+                                               isRefreshing: refreshingCharacters.contains(character.CharacterID), 
+                                               isEditing: isEditing,
+                                               formatISK: formatISK,
+                                               formatSkillPoints: formatSkillPoints,
+                                               formatRemainingTime: formatRemainingTime)
                             }
-                        }) {
-                            HStack {
-                                if let portrait = viewModel.characterPortraits[character.CharacterID] {
-                                    ZStack {
-                                        Image(uiImage: portrait)
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: 64, height: 64)
-                                            .clipShape(Circle())
-                                        
-                                        if refreshingCharacters.contains(character.CharacterID) {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.6))
-                                                .frame(width: 64, height: 64)
-                                            
-                                            ProgressView()
-                                                .scaleEffect(0.8)
-                                        }
-                                    }
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                                    )
-                                    .background(
-                                        Circle()
-                                            .fill(Color.primary.opacity(0.05))
-                                    )
-                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                                    .padding(4)
-                                } else {
-                                    ZStack {
-                                        Image(systemName: "person.crop.circle.fill")
-                                            .resizable()
-                                            .frame(width: 64, height: 64)
-                                            .foregroundColor(.gray)
-                                        
-                                        if refreshingCharacters.contains(character.CharacterID) {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.4))
-                                                .frame(width: 64, height: 64)
-                                            
-                                            ProgressView()
-                                                .scaleEffect(0.8)
-                                        }
-                                    }
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                                    )
-                                    .background(
-                                        Circle()
-                                            .fill(Color.primary.opacity(0.05))
-                                    )
-                                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                                    .padding(4)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(character.CharacterName)
-                                        .font(.headline)
-                                        .frame(height: 20)
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        if refreshingCharacters.contains(character.CharacterID) {
-                                            // 位置信息占位
-                                            HStack(spacing: 4) {
-                                                Text("0.0")
-                                                    .foregroundColor(.gray)
-                                                    .redacted(reason: .placeholder)
-                                                Text("Loading...")
-                                                    .foregroundColor(.gray)
-                                                    .redacted(reason: .placeholder)
-                                            }
-                                            .font(.caption)
-                                            
-                                            // 钱包信息占位
-                                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): 0.00 ISK")
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                                .redacted(reason: .placeholder)
-                                            
-                                            // 技能点信息占位
-                                            Text("\(NSLocalizedString("Account_Total_SP", comment: "")): 0.0M SP")
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                                .redacted(reason: .placeholder)
-                                        } else {
-                                            // 位置信息
-                                            if let location = character.location {
-                                                HStack(spacing: 4) {
-                                                    Text(formatSecurity(location.security))
-                                                        .foregroundColor(getSecurityColor(location.security))
-                                                    Text("\(location.systemName) / \(location.regionName)").lineLimit(1)
-                                                    if let locationStatus = character.locationStatus?.description {
-                                                        Text(locationStatus)
-                                                            .foregroundColor(.secondary)
-                                                            .lineLimit(1)
-                                                    }
-                                                }
-                                                .font(.caption)
-                                            } else {
-                                                Text("Unknown Location")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            }
-                                            
-                                            // 钱包信息
-                                            if let balance = character.walletBalance {
-                                                Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            } else {
-                                                Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): -- ISK")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            }
-                                            
-                                            // 技能点信息
-                                            if let totalSP = character.totalSkillPoints {
-                                                let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
-                                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
-                                                } else {
-                                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
-                                                }
-                                                Text(spText)
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            } else {
-                                                Text("\(NSLocalizedString("Account_Total_SP", comment: "")): -- SP")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            }
-                                            
-                                            // 技能队列信息
-                                            if let currentSkill = character.currentSkill {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    // 技能进度条
-                                                    GeometryReader { geometry in
-                                                        ZStack(alignment: .leading) {
-                                                            // 背景
-                                                            RoundedRectangle(cornerRadius: 2)
-                                                                .fill(Color.gray.opacity(0.3))
-                                                                .frame(height: 4)
-                                                            
-                                                            // 进度
-                                                            RoundedRectangle(cornerRadius: 2)
-                                                                .fill(currentSkill.remainingTime != nil ? Color.green : Color.gray)
-                                                                .frame(width: geometry.size.width * currentSkill.progress, height: 4)
-                                                        }
-                                                    }
-                                                    .frame(height: 4)
-                                                    
-                                                    // 技能信息
-                                                    HStack {
-                                                        HStack(spacing: 4) {
-                                                            Image(systemName: currentSkill.remainingTime != nil ? "play.fill" : "pause.fill")
-                                                                .font(.caption)
-                                                                .foregroundColor(currentSkill.remainingTime != nil ? .green : .gray)
-                                                            Text("\(currentSkill.name) \(currentSkill.level)")
-                                                        }
-                                                        .font(.caption)
-                                                        .foregroundColor(.gray)
-                                                        
-                                                        Spacer()
-                                                        
-                                                        if let remainingTime = currentSkill.remainingTime {
-                                                            Text(formatRemainingTime(remainingTime))
-                                                                .font(.caption)
-                                                                .foregroundColor(.gray)
-                                                                .lineLimit(1)
-                                                        } else {
-                                                            Text("Pause")
-                                                                .font(.caption)
-                                                                .foregroundColor(.gray)
-                                                                .lineLimit(1)
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                // 没有技能在训练时显示的进度条
-                                                GeometryReader { geometry in
-                                                    ZStack(alignment: .leading) {
-                                                        RoundedRectangle(cornerRadius: 2)
-                                                            .fill(Color.gray.opacity(0.3))
-                                                            .frame(height: 4)
-                                                    }
-                                                }
-                                                .frame(height: 4)
-                                                
-                                                Text("-")
-                                                    .font(.caption)
-                                                    .foregroundColor(.gray)
-                                            }
-                                        }
-                                    }
-                                    .frame(height: 72) // 5行文本的固定高度 (18 * n)
-                                }
-                                .padding(.leading, 4)
-                                
-                                if isEditing {
-                                    Spacer()
-                                    Image(systemName: "trash")
-                                        .foregroundColor(.red)
-                                }
+                            .foregroundColor(.primary)
+                        } else {
+                            NavigationLink(destination: EmptyView(), isActive: Binding(
+                                get: { false },
+                                set: { if $0 {
+                                    onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
+                                    dismiss()
+                                }}
+                            )) {
+                                CharacterRowView(character: character, 
+                                               portrait: viewModel.characterPortraits[character.CharacterID], 
+                                               isRefreshing: refreshingCharacters.contains(character.CharacterID), 
+                                               isEditing: isEditing,
+                                               formatISK: formatISK,
+                                               formatSkillPoints: formatSkillPoints,
+                                               formatRemainingTime: formatRemainingTime)
                             }
-                            .padding(.vertical, 4)
+                            .buttonStyle(PlainButtonStyle())
                         }
-                        .buttonStyle(PlainButtonStyle())
                     }
                 }
             }
@@ -586,5 +397,229 @@ struct AccountsView: View {
         } else {
             return "\(minutes)m"
         }
+    }
+}
+
+// 添加 CharacterRowView 结构体
+struct CharacterRowView: View {
+    let character: EVECharacterInfo
+    let portrait: UIImage?
+    let isRefreshing: Bool
+    let isEditing: Bool
+    let formatISK: (Double) -> String
+    let formatSkillPoints: (Int) -> String
+    let formatRemainingTime: (TimeInterval) -> String
+    
+    var body: some View {
+        HStack {
+            if let portrait = portrait {
+                ZStack {
+                    Image(uiImage: portrait)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 64, height: 64)
+                        .clipShape(Circle())
+                    
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                )
+                .background(
+                    Circle()
+                        .fill(Color.primary.opacity(0.05))
+                )
+                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                .padding(4)
+            } else {
+                ZStack {
+                    Image(systemName: "person.crop.circle.fill")
+                        .resizable()
+                        .frame(width: 64, height: 64)
+                        .foregroundColor(.gray)
+                    
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.4))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    }
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                )
+                .background(
+                    Circle()
+                        .fill(Color.primary.opacity(0.05))
+                )
+                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                .padding(4)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(character.CharacterName)
+                    .font(.headline)
+                    .frame(height: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    if isRefreshing {
+                        // 位置信息占位
+                        HStack(spacing: 4) {
+                            Text("0.0")
+                                .foregroundColor(.gray)
+                                .redacted(reason: .placeholder)
+                            Text("Loading...")
+                                .foregroundColor(.gray)
+                                .redacted(reason: .placeholder)
+                        }
+                        .font(.caption)
+                        
+                        // 钱包信息占位
+                        Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): 0.00 ISK")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .redacted(reason: .placeholder)
+                        
+                        // 技能点信息占位
+                        Text("\(NSLocalizedString("Account_Total_SP", comment: "")): 0.0M SP")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .redacted(reason: .placeholder)
+                    } else {
+                        // 位置信息
+                        if let location = character.location {
+                            HStack(spacing: 4) {
+                                Text(formatSecurity(location.security))
+                                    .foregroundColor(getSecurityColor(location.security))
+                                Text("\(location.systemName) / \(location.regionName)").lineLimit(1)
+                                if let locationStatus = character.locationStatus?.description {
+                                    Text(locationStatus)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .font(.caption)
+                        } else {
+                            Text("Unknown Location")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                        
+                        // 钱包信息
+                        if let balance = character.walletBalance {
+                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        } else {
+                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): -- ISK")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                        
+                        // 技能点信息
+                        if let totalSP = character.totalSkillPoints {
+                            let spText = if let unallocatedSP = character.unallocatedSkillPoints, unallocatedSP > 0 {
+                                "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
+                            } else {
+                                "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                            }
+                            Text(spText)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        } else {
+                            Text("\(NSLocalizedString("Account_Total_SP", comment: "")): -- SP")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                        
+                        // 技能队列信息
+                        if let currentSkill = character.currentSkill {
+                            VStack(alignment: .leading, spacing: 4) {
+                                // 技能进度条
+                                GeometryReader { geometry in
+                                    ZStack(alignment: .leading) {
+                                        // 背景
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill(Color.gray.opacity(0.3))
+                                            .frame(height: 4)
+                                        
+                                        // 进度
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill(currentSkill.remainingTime != nil ? Color.green : Color.gray)
+                                            .frame(width: geometry.size.width * currentSkill.progress, height: 4)
+                                    }
+                                }
+                                .frame(height: 4)
+                                
+                                // 技能信息
+                                HStack {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: currentSkill.remainingTime != nil ? "play.fill" : "pause.fill")
+                                            .font(.caption)
+                                            .foregroundColor(currentSkill.remainingTime != nil ? .green : .gray)
+                                        Text("\(currentSkill.name) \(currentSkill.level)")
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    
+                                    Spacer()
+                                    
+                                    if let remainingTime = currentSkill.remainingTime {
+                                        Text(formatRemainingTime(remainingTime))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(1)
+                                    } else {
+                                        Text("Pause")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                        } else {
+                            // 没有技能在训练时显示的进度条
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(height: 4)
+                                }
+                            }
+                            .frame(height: 4)
+                            
+                            Text("-")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .frame(height: 72) // 5行文本的固定高度 (18 * n)
+            }
+            .padding(.leading, 4)
+            
+            if isEditing {
+                Spacer()
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+        }
+        .padding(.vertical, 4)
     }
 } 
