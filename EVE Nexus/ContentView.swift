@@ -624,7 +624,7 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                         iconName: "charactersheet",
-                        note: NSLocalizedString("Main_Skills Ponits", comment: "")
+                        note: NSLocalizedString("Main_Skills_Ponits", comment: "")
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Jump_Clones", comment: ""),
@@ -634,10 +634,10 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Skills", comment: ""),
                         iconName: "skills",
-                        note: NSLocalizedString("Main_Skills Queue", comment: "")
+                        note: NSLocalizedString("Main_Skills_Queue", comment: "")
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_EVE Mail", comment: ""),
+                        title: NSLocalizedString("Main_EVE_Mail", comment: ""),
                         iconName: "evemail"
                     ),
                     TableRowNode(
@@ -647,10 +647,10 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Wealth", comment: ""),
                         iconName: "Folder",
-                        note: NSLocalizedString("Main_Wealth ISK", comment: "")
+                        note: NSLocalizedString("Main_Wealth_ISK", comment: "")
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Loyalty Points", comment: ""),
+                        title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
                         iconName: "lpstore"
                     )
                 ]
