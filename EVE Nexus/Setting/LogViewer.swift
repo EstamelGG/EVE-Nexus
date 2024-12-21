@@ -107,7 +107,7 @@ struct LogContentView: View {
                     .padding()
             } else {
                 Text(logContent)
-                    .font(.system(.body, design: .monospaced))
+                    .font(.system(size: 12, design: .monospaced))
                     .padding()
                     .textSelection(.enabled)
             }
