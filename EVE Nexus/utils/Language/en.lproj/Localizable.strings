@@ -251,3 +251,5 @@
 "Main_Setting_Logs_Level_Warning" = "WARNING";
 "Main_Setting_Logs_Level_Error" = "ERROR";
 "Main_Setting_Logs_Level_Fault" = "FAULT";
+"Main_Setting_Logs_Search_Placeholder" = "Search in log...";
+"Main_Setting_Logs_Search_No_Results" = "No results found";

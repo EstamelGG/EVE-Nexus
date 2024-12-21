@@ -100,37 +100,124 @@ struct LogContentView: View {
     @State private var logLines: [String] = []
     @State private var isLoading = true
     @State private var currentPage = 0
+    @State private var searchText = ""
+    @State private var isSearching = false
+    @State private var searchResults: [(lineNumber: Int, line: String)] = []
+    @State private var selectedSearchResult: Int?
     private let linesPerPage = 1000
     
+    var filteredLines: [String] {
+        if searchText.isEmpty {
+            return logLines
+        }
+        return logLines.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
+    
     var body: some View {
-        ScrollView {
-            if isLoading && logLines.isEmpty {
-                ProgressView()
-                    .padding()
-            } else {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(logLines.enumerated()), id: \.offset) { index, line in
-                        Text(line)
-                            .font(.system(size: 12, design: .monospaced))
-                            .textSelection(.enabled)
-                            .onAppear {
-                                if index == logLines.count - 100 {
-                                    loadMoreContent()
-                                }
-                            }
+        VStack(spacing: 0) {
+            // 搜索栏
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                TextField(NSLocalizedString("Main_Setting_Logs_Search_Placeholder", comment: ""), text: $searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onChange(of: searchText) { oldValue, newValue in
+                        searchInContent()
                     }
-                    if isLoading {
-                        ProgressView()
-                            .padding()
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        searchResults = []
+                        selectedSearchResult = nil
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
                     }
                 }
-                .padding(.horizontal)
+                if !searchResults.isEmpty {
+                    Text("\(selectedSearchResult.map { $0 + 1 } ?? 0)/\(searchResults.count)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    HStack(spacing: 4) {
+                        Button(action: { selectPreviousResult() }) {
+                            Image(systemName: "chevron.up")
+                        }
+                        .disabled(selectedSearchResult == nil || selectedSearchResult == 0)
+                        
+                        Button(action: { selectNextResult() }) {
+                            Image(systemName: "chevron.down")
+                        }
+                        .disabled(selectedSearchResult == nil || selectedSearchResult == searchResults.count - 1)
+                    }
+                }
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            
+            // 日志内容
+            ScrollView {
+                if isLoading && logLines.isEmpty {
+                    ProgressView()
+                        .padding()
+                } else {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(filteredLines.enumerated()), id: \.offset) { index, line in
+                            Text(line)
+                                .font(.system(size: 12, design: .monospaced))
+                                .textSelection(.enabled)
+                                .foregroundColor(isLineHighlighted(index: index) ? .white : .primary)
+                                .background(isLineHighlighted(index: index) ? Color.blue : Color.clear)
+                                .onAppear {
+                                    if index == logLines.count - 100 {
+                                        loadMoreContent()
+                                    }
+                                }
+                        }
+                        if isLoading {
+                            ProgressView()
+                                .padding()
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
         }
         .navigationTitle(logFile.lastPathComponent)
         .onAppear {
             loadInitialContent()
         }
+    }
+    
+    private func isLineHighlighted(index: Int) -> Bool {
+        guard let selectedIndex = selectedSearchResult,
+              let _ = searchResults[safe: selectedIndex] else {
+            return false
+        }
+        return filteredLines[index].contains(searchResults[selectedIndex].line)
+    }
+    
+    private func searchInContent() {
+        guard !searchText.isEmpty else {
+            searchResults = []
+            selectedSearchResult = nil
+            return
+        }
+        
+        searchResults = logLines.enumerated()
+            .filter { $0.element.localizedCaseInsensitiveContains(searchText) }
+            .map { (lineNumber: $0.offset, line: $0.element) }
+        
+        selectedSearchResult = searchResults.isEmpty ? nil : 0
+    }
+    
+    private func selectNextResult() {
+        guard let current = selectedSearchResult, current < searchResults.count - 1 else { return }
+        selectedSearchResult = current + 1
+    }
+    
+    private func selectPreviousResult() {
+        guard let current = selectedSearchResult, current > 0 else { return }
+        selectedSearchResult = current - 1
     }
     
     private func loadInitialContent() {
