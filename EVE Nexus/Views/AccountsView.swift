@@ -291,136 +291,139 @@ struct AccountsView: View {
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
         
         isRefreshing = true
-        defer { isRefreshing = false }
         
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
         
-        // 创建所有刷新任务
-        await withTaskGroup(of: Void.self) { group in
-            for characterAuth in characterAuths {
-                group.addTask {
-                    // 添加角色到刷新集合
-                    @discardableResult
-                    func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
-                        await MainActor.run { operation() }
-                    }
-                    
-                    await updateUI {
-                        self.refreshingCharacters.insert(characterAuth.character.CharacterID)
-                    }
-                    
-                    do {
-                        // 步骤1: 获取新的访问令牌（串行，必须先执行）
-                        let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
-                        Logger.info("角色 \(characterAuth.character.CharacterName) 的访问令牌: \(newToken.access_token)")
-                        
-                        // 步骤2: 获取基础角色信息（串行，依赖token）
-                        let characterWithInfo = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
-                        
-                        // 保存基础信息并更新UI
-                        await updateUI {
-                            // 更新基础信息到viewModel中对应的角色
-                            if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                self.viewModel.characters[index] = characterWithInfo
-                            }
+        // 启动后台任务处理数据刷新
+        Task {
+            await withTaskGroup(of: Void.self) { group in
+                for characterAuth in characterAuths {
+                    group.addTask {
+                        // 添加角色到刷新集合
+                        await MainActor.run {
+                            self.refreshingCharacters.insert(characterAuth.character.CharacterID)
                         }
                         
-                        // 并行执行所有更新任务
-                        let portraitTask = Task<Void, Never> {
-                            if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
-                                characterId: characterAuth.character.CharacterID,
-                                forceRefresh: true
-                            ) {
-                                await updateUI {
-                                    self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
+                        do {
+                            // 步骤1: 获取新的访问令牌（串行，必须先执行）
+                            let newToken = try await EVELogin.shared.refreshToken(refreshToken: characterAuth.token.refresh_token)
+                            Logger.info("角色 \(characterAuth.character.CharacterName) 的访问令牌: \(newToken.access_token)")
+                            
+                            // 步骤2: 获取基础角色信息（串行，依赖token）
+                            let characterWithInfo = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
+                            
+                            // 保存基础信息并更新UI
+                            await MainActor.run {
+                                // 更新基础信息到viewModel中对应的角色
+                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                    self.viewModel.characters[index] = characterWithInfo
                                 }
                             }
-                        }
-                        
-                        let walletTask = Task<Void, Never> {
-                            if let balance = try? await ESIDataManager.shared.getWalletBalance(
-                                characterId: characterAuth.character.CharacterID
-                            ) {
-                                await updateUI {
-                                    if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                        self.viewModel.characters[index].walletBalance = balance
+                            
+                            // 并行执行所有更新任务
+                            let portraitTask = Task<Void, Never> {
+                                if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                                    characterId: characterAuth.character.CharacterID,
+                                    forceRefresh: true
+                                ) {
+                                    await MainActor.run {
+                                        self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
                                 }
                             }
-                        }
-                        
-                        let skillsTask = Task<Void, Never> {
-                            if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
-                                characterId: characterAuth.character.CharacterID
-                            ) {
-                                await updateUI {
-                                    if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                        self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
-                                        self.viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
-                                    }
-                                }
-                            }
-                        }
-                        
-                        let locationTask = Task<Void, Never> {
-                            do {
-                                let location = try await NetworkManager.shared.fetchCharacterLocation(
+                            
+                            let walletTask = Task<Void, Never> {
+                                if let balance = try? await ESIDataManager.shared.getWalletBalance(
                                     characterId: characterAuth.character.CharacterID
-                                )
-                                
-                                // 获取位置详细信息
-                                let locationInfo = await NetworkManager.shared.getLocationInfo(
-                                    solarSystemId: location.solar_system_id,
-                                    databaseManager: self.viewModel.databaseManager
-                                )
-                                
-                                await updateUI {
-                                    if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                        self.viewModel.characters[index].locationStatus = location.locationStatus
-                                        if let locationInfo = locationInfo {
-                                            self.viewModel.characters[index].location = locationInfo
+                                ) {
+                                    await MainActor.run {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].walletBalance = balance
                                         }
                                     }
                                 }
-                            } catch {
-                                Logger.error("获取位置信息失败: \(error)")
                             }
-                        }
-                        
-                        // 等待所有任务完成
-                        try? await withThrowingTaskGroup(of: Void.self) { group in
-                            group.addTask { await portraitTask.value }
-                            group.addTask { await walletTask.value }
-                            group.addTask { await skillsTask.value }
-                            group.addTask { await locationTask.value }
-                            try await group.waitForAll()
-                        }
-                        
-                        // 保存最新的角色信息到数据库
-                        await updateUI {
-                            if let updatedCharacter = self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
+                            
+                            let skillsTask = Task<Void, Never> {
+                                if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
+                                    characterId: characterAuth.character.CharacterID
+                                ) {
+                                    await MainActor.run {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
+                                            self.viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
+                                        }
+                                    }
+                                }
                             }
+                            
+                            let locationTask = Task<Void, Never> {
+                                do {
+                                    let location = try await NetworkManager.shared.fetchCharacterLocation(
+                                        characterId: characterAuth.character.CharacterID
+                                    )
+                                    
+                                    // 获取位置详细信息
+                                    let locationInfo = await NetworkManager.shared.getLocationInfo(
+                                        solarSystemId: location.solar_system_id,
+                                        databaseManager: self.viewModel.databaseManager
+                                    )
+                                    
+                                    await MainActor.run {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].locationStatus = location.locationStatus
+                                            if let locationInfo = locationInfo {
+                                                self.viewModel.characters[index].location = locationInfo
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    Logger.error("获取位置信息失败: \(error)")
+                                }
+                            }
+                            
+                            // 等待所有任务完成
+                            try? await withThrowingTaskGroup(of: Void.self) { group in
+                                group.addTask { await portraitTask.value }
+                                group.addTask { await walletTask.value }
+                                group.addTask { await skillsTask.value }
+                                group.addTask { await locationTask.value }
+                                try await group.waitForAll()
+                            }
+                            
+                            // 保存最新的角色信息到数据库
+                            await MainActor.run {
+                                if let updatedCharacter = self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                    EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
+                                }
+                            }
+                            
+                            Logger.info("成功刷新角色信息 - \(characterWithInfo.CharacterName)")
+                        } catch {
+                            Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
                         }
                         
-                        Logger.info("成功刷新角色信息 - \(characterWithInfo.CharacterName)")
-                    } catch {
-                        Logger.error("刷新角色信息失败 - \(characterAuth.character.CharacterName): \(error)")
-                    }
-                    
-                    // 从刷新集合中移除已完成的角色
-                    await updateUI {
-                        self.refreshingCharacters.remove(characterAuth.character.CharacterID)
+                        // 从刷新集合中移除已完成的角色
+                        await MainActor.run {
+                            self.refreshingCharacters.remove(characterAuth.character.CharacterID)
+                        }
                     }
                 }
+                
+                // 等待所有角色的刷新任务完成
+                await group.waitForAll()
             }
             
-            // 等待所有角色的刷新任务完成
-            await group.waitForAll()
+            // 所有刷新完成后更新登录状态
+            await MainActor.run {
+                self.isRefreshing = false
+                self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
+            }
         }
         
-        viewModel.isLoggedIn = !viewModel.characters.isEmpty
+        // 快速结束下拉刷新状态
+        isRefreshing = false
     }
     
     @MainActor
