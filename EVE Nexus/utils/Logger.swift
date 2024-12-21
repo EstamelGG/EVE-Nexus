@@ -1,35 +1,54 @@
 import Foundation
 import OSLog
+import UIKit
 
 class Logger {
     static let shared = Logger()
     private let fileManager = FileManager.default
-    private let dateFormatter: DateFormatter
+    private let dateFormatter = DateFormatter()
     private let logQueue = DispatchQueue(label: "com.eve.nexus.logger")
     private var currentLogFile: URL?
     private let maxLogFiles = 7 // 保留最近7天的日志
     
     private init() {
-        dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
-        setupLogDirectory()
-        rotateLogFiles()
+        
+        // 确保在访问 StaticResourceManager 之前完成基本初始化
+        DispatchQueue.main.async { [weak self] in
+            self?.setupLogDirectory()
+            self?.rotateLogFiles()
+            self?.createNewLogFile()
+        }
     }
     
     private func setupLogDirectory() {
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Logs")
         try? fileManager.createDirectory(at: logPath, withIntermediateDirectories: true)
-        
-        // 设置当前日志文件
-        let today = Date()
+    }
+    
+    private func createNewLogFile() {
+        let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Logs")
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let fileName = "\(formatter.string(from: today)).log"
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let fileName = "EVE_Nexus_\(formatter.string(from: Date())).log"
         currentLogFile = logPath.appendingPathComponent(fileName)
+        
+        // 写入日志文件头部信息
+        let header = """
+        =====================================
+        EVE Nexus Log File
+        Created at: \(dateFormatter.string(from: Date()))
+        Device: \(UIDevice.current.model)
+        System: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)
+        =====================================\n\n
+        """
+        try? header.write(to: currentLogFile!, atomically: true, encoding: .utf8)
+        
+        Logger.info("Log session started")
     }
     
     private func rotateLogFiles() {
-        guard let logPath = currentLogFile?.deletingLastPathComponent() else { return }
+        let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Logs")
         
         do {
             let files = try fileManager.contentsOfDirectory(at: logPath, includingPropertiesForKeys: [.creationDateKey])

@@ -146,6 +146,7 @@
 "Main_Setting_Cancel" = "Cancel";
 "Main_Setting_Clean" = "Clean";
 "Main_Setting_Reset" = "Reset";
+"Main_Setting_Delete" = "Delete";
 "Main_Setting_Cache_Total_Count" = "\nTotal Count: %d items";
 "Main_Setting_Cache_Details" = "Details:";
 "Main_Setting_Cache_Item_Format" = "%@: %@ (%d items)";

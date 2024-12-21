@@ -247,3 +247,4 @@
 "Main_Setting_Logs_Level_Warning" = "警告";
 "Main_Setting_Logs_Level_Error" = "错误";
 "Main_Setting_Logs_Level_Fault" = "故障";
+"Main_Setting_Delete" = "删除";
