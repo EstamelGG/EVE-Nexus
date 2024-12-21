@@ -93,7 +93,7 @@ class SQLiteManager {
             
             // 如果启用缓存且缓存中存在结果，直接返回
             if useCache, let cachedResult = queryCache.object(forKey: cacheKey) as? [[String: Any]] {
-                Logger.debug("从缓存中获取结果: \(cacheKey)")
+                // Logger.debug("从缓存中获取结果: \(cacheKey)")
                 return .success(cachedResult)
             }
             

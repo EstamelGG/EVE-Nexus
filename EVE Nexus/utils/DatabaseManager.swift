@@ -58,7 +58,7 @@ class DatabaseManager: ObservableObject {
         }
         
         // 记录执行时间和结果行数
-        Logger.debug("SQL执行耗时: \(String(format: "%.2f", executionTime))ms - 结果行数: \(rowCount) - Query: \(query)")
+        // Logger.debug("SQL执行耗时: \(String(format: "%.2f", executionTime))ms - 结果行数: \(rowCount) - Query: \(query)")
         
         return result
     }
