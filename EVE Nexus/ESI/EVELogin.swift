@@ -28,6 +28,7 @@ struct EVECharacterInfo: Codable {
     var currentSkill: CurrentSkillInfo?
     
     struct CurrentSkillInfo: Codable {
+        let skillId: Int
         let name: String
         let level: String
         let progress: Double
@@ -99,7 +100,7 @@ struct ESIConfig: Codable {
 
 // 添加角色管理相关的数据结构
 struct CharacterAuth: Codable {
-    let character: EVECharacterInfo
+    var character: EVECharacterInfo
     let token: EVEAuthToken
     let addedDate: Date
     let lastTokenUpdateTime: Date
@@ -317,6 +318,7 @@ class EVELogin {
                 databaseManager: databaseManager
             ) {
                 updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                    skillId: currentSkill.skill_id,
                     name: skillName,
                     level: currentSkill.skillLevel,
                     progress: currentSkill.progress,
@@ -330,6 +332,7 @@ class EVELogin {
                 databaseManager: databaseManager
             ) {
                 updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                    skillId: firstSkill.skill_id,
                     name: skillName,
                     level: firstSkill.skillLevel,
                     progress: firstSkill.progress,
@@ -623,7 +626,24 @@ class EVELogin {
         }
         
         do {
-            return try JSONDecoder().decode([CharacterAuth].self, from: data)
+            var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
+            
+            // 重新从当前语言的数据库中获取技能名称
+            for i in 0..<characters.count {
+                if let currentSkill = characters[i].character.currentSkill,
+                   let skillName = NetworkManager.getSkillName(skillId: currentSkill.skillId, databaseManager: databaseManager) {
+                    // 更新技能名称，保持其他信息不变
+                    characters[i].character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                        skillId: currentSkill.skillId,
+                        name: skillName,
+                        level: currentSkill.level,
+                        progress: currentSkill.progress,
+                        remainingTime: currentSkill.remainingTime
+                    )
+                }
+            }
+            
+            return characters
         } catch {
             Logger.error("EVELogin: 加载角色信息失败，正在尝试恢复: \(error)")
             // 尝试逐个解码角色信息

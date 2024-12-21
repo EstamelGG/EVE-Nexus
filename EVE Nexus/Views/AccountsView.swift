@@ -474,6 +474,7 @@ struct AccountsView: View {
                                             await updateUI {
                                                 if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                                     self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        skillId: currentSkill.skill_id,
                                                         name: skillName,
                                                         level: currentSkill.skillLevel,
                                                         progress: currentSkill.progress,
@@ -492,6 +493,7 @@ struct AccountsView: View {
                                             await updateUI {
                                                 if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                                     self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        skillId: firstSkill.skill_id,
                                                         name: skillName,
                                                         level: firstSkill.skillLevel,
                                                         progress: firstSkill.progress,
