@@ -83,13 +83,10 @@ struct AccountsView: View {
                             }
                             .foregroundColor(.primary)
                         } else {
-                            NavigationLink(destination: EmptyView(), isActive: Binding(
-                                get: { false },
-                                set: { if $0 {
-                                    onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
-                                    dismiss()
-                                }}
-                            )) {
+                            Button {
+                                onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
+                                dismiss()
+                            } label: {
                                 CharacterRowView(character: character, 
                                                portrait: viewModel.characterPortraits[character.CharacterID], 
                                                isRefreshing: refreshingCharacters.contains(character.CharacterID), 
@@ -98,12 +95,14 @@ struct AccountsView: View {
                                                formatSkillPoints: formatSkillPoints,
                                                formatRemainingTime: formatRemainingTime)
                             }
-                            .buttonStyle(PlainButtonStyle())
+                            .buttonStyle(.plain)
                         }
                     }
+                    .contentShape(Rectangle())
                 }
             }
         }
+        .listStyle(InsetGroupedListStyle())
         .refreshable {
             // 刷新所有角色的ESI信息
             await refreshAllCharacters()
@@ -305,7 +304,7 @@ struct AccountsView: View {
                                             }
                                         }
                                     } else if let firstSkill = queue.first {
-                                        // 如果没有正在训练的技能，但队列中有技能，说明是暂停状态
+                                        // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
                                         // 同样每次显示时重新获取技能名称
                                         if let skillName = await NetworkManager.getSkillName(
                                             skillId: firstSkill.skill_id,
@@ -485,7 +484,7 @@ struct CharacterRowView: View {
                         }
                         .font(.caption)
                         
-                        // 钱包信息占位
+                        // 钱包信息占���
                         Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): 0.00 ISK")
                             .font(.caption)
                             .foregroundColor(.gray)
@@ -618,8 +617,12 @@ struct CharacterRowView: View {
                 Spacer()
                 Image(systemName: "trash")
                     .foregroundColor(.red)
+            } else {
+                Spacer(minLength: 0)
             }
         }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .padding(.vertical, 4)
     }
 } 
