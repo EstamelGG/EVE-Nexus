@@ -130,13 +130,14 @@ struct LoginButtonView: View {
     let serverStatus: ServerStatus?
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
+    let isRefreshing: Bool
     
     // 添加联盟和军团信息的状态
     @State private var allianceInfo: NetworkManager.AllianceInfo?
     @State private var corporationInfo: NetworkManager.CorporationInfo?
     @State private var allianceLogo: UIImage?
     @State private var corporationLogo: UIImage?
-    @State private var tokenExpired: Bool = false // 新增状态
+    @State private var tokenExpired: Bool = false
     
     var body: some View {
         HStack(spacing: 15) {
@@ -149,7 +150,14 @@ struct LoginButtonView: View {
                         .clipShape(Circle())
                         .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 2))
                     
-                    if tokenExpired {
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
                             .fill(Color.black.opacity(0.4))
@@ -185,7 +193,14 @@ struct LoginButtonView: View {
                         .frame(width: 64, height: 64)
                         .foregroundColor(.gray)
                         
-                    if tokenExpired {
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
                             .fill(Color.black.opacity(0.4))
@@ -374,6 +389,7 @@ struct ContentView: View {
     @State private var lastStatusUpdateTime: Date?
     @State private var selectedCharacter: EVECharacterInfo?
     @State private var selectedCharacterPortrait: UIImage?
+    @State private var isRefreshing = false
     
     // 添加 UserDefaults 存储的当前角色 ID
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -539,7 +555,8 @@ struct ContentView: View {
                             isLoggedIn: isLoggedIn,
                             serverStatus: serverStatus,
                             selectedCharacter: selectedCharacter,
-                            characterPortrait: selectedCharacterPortrait
+                            characterPortrait: selectedCharacterPortrait,
+                            isRefreshing: isRefreshing
                         )
                     }
                 }
@@ -561,6 +578,7 @@ struct ContentView: View {
             }
             .listStyle(.insetGrouped)
             .refreshable {
+                isRefreshing = true
                 // 刷新服务器状态
                 do {
                     serverStatus = try await NetworkManager.shared.fetchServerStatus()
@@ -628,6 +646,7 @@ struct ContentView: View {
                         Logger.error("刷新角色信息失败: \(error)")
                     }
                 }
+                isRefreshing = false
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .toolbar {
