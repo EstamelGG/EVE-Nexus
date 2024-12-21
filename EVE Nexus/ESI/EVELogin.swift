@@ -711,8 +711,44 @@ class EVELogin {
             .joined(separator: "&")
             .data(using: .utf8)
         
-        let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+        let (data, response) = try await session.data(for: request)
+        
+        // 记录响应状态码和响应体
+        if let httpResponse = response as? HTTPURLResponse {
+            Logger.info("EVELogin: 刷新令牌响应状态码: \(httpResponse.statusCode)")
+            
+            // 尝试解析响应体
+            if let responseString = String(data: data, encoding: .utf8) {
+                Logger.info("EVELogin: 刷新令牌响应体: \(responseString)")
+            }
+            
+            // 如果状态码不是 200，记录详细错误信息
+            if httpResponse.statusCode != 200 {
+                Logger.error("EVELogin: 刷新令牌失败，状态码: \(httpResponse.statusCode)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    Logger.error("EVELogin: 错误响应体: \(responseString)")
+                }
+                // 记录请求头信息（排除敏感信息）
+                if let headers = httpResponse.allHeaderFields as? [String: String] {
+                    let safeHeaders = headers.filter { !$0.key.lowercased().contains("authorization") }
+                    Logger.error("EVELogin: 响应头: \(safeHeaders)")
+                }
+                throw NetworkError.invalidResponse
+            }
+        }
+        
+        do {
+            return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+        } catch {
+            // 如果是解码错误，记录原始数据
+            if let decodingError = error as? DecodingError {
+                Logger.error("EVELogin: 令牌解码失败: \(decodingError)")
+                if let responseString = String(data: data, encoding: .utf8) {
+                    Logger.error("EVELogin: 无法解码的响应数据: \(responseString)")
+                }
+            }
+            throw error
+        }
     }
     
     // 获取有效的访问令牌
