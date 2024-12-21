@@ -348,6 +348,10 @@ struct AccountsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
             // 强制视图刷新
             forceUpdate.toggle()
+            // 重新加载角色列表以更新技能名称
+            Task {
+                await refreshAllCharacters()
+            }
         }
         .id(forceUpdate) // 添加id以强制视图刷新
     }
@@ -462,6 +466,7 @@ struct AccountsView: View {
                                     )
                                     
                                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                                        // 每次显示时重新获取技能名称，确保使用当前语言
                                         if let skillName = await NetworkManager.getSkillName(
                                             skillId: currentSkill.skill_id,
                                             databaseManager: self.viewModel.databaseManager
@@ -479,6 +484,7 @@ struct AccountsView: View {
                                         }
                                     } else if let firstSkill = queue.first {
                                         // 如果没有正在训练的技能，但队列中有技能，说明是暂停状态
+                                        // 同样每次显示时重新获取技能名称
                                         if let skillName = await NetworkManager.getSkillName(
                                             skillId: firstSkill.skill_id,
                                             databaseManager: self.viewModel.databaseManager
