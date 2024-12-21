@@ -953,10 +953,11 @@ class StaticResourceManager {
         let fileURL = getStaticDataSetPath().appendingPathComponent("incursions.json")
         let encodedData = try JSONEncoder().encode(container)
         try encodedData.write(to: fileURL)
+        Logger.info("Saved incursions data to \(fileURL)")
         
         // 2. 保存到 UserDefaults
         UserDefaults.standard.set(encodedData, forKey: "incursions_data")
-        Logger.info("Saved incursions data")
+        Logger.info("Saved incursions data to UserDefaults")
     }
     
     // MARK: - 主权归属数据管理
