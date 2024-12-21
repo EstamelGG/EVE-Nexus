@@ -295,13 +295,19 @@ struct AccountsView: View {
         // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
         
+        // 添加一个帮助函数来处理 MainActor.run 的返回值
+        @discardableResult
+        func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
+            await MainActor.run { operation() }
+        }
+        
         // 启动后台任务处理数据刷新
         Task {
             await withTaskGroup(of: Void.self) { group in
                 for characterAuth in characterAuths {
                     group.addTask {
                         // 添加角色到刷新集合
-                        await MainActor.run {
+                        await updateUI {
                             self.refreshingCharacters.insert(characterAuth.character.CharacterID)
                         }
                         
@@ -314,7 +320,7 @@ struct AccountsView: View {
                             let characterWithInfo = try await EVELogin.shared.getCharacterInfo(token: newToken.access_token)
                             
                             // 保存基础信息并更新UI
-                            await MainActor.run {
+                            await updateUI {
                                 // 更新基础信息到viewModel中对应的角色
                                 if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                     self.viewModel.characters[index] = characterWithInfo
@@ -327,7 +333,7 @@ struct AccountsView: View {
                                     characterId: characterAuth.character.CharacterID,
                                     forceRefresh: true
                                 ) {
-                                    await MainActor.run {
+                                    await updateUI {
                                         self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
                                 }
@@ -337,7 +343,7 @@ struct AccountsView: View {
                                 if let balance = try? await ESIDataManager.shared.getWalletBalance(
                                     characterId: characterAuth.character.CharacterID
                                 ) {
-                                    await MainActor.run {
+                                    await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].walletBalance = balance
                                         }
@@ -349,7 +355,7 @@ struct AccountsView: View {
                                 if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
                                     characterId: characterAuth.character.CharacterID
                                 ) {
-                                    await MainActor.run {
+                                    await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
                                             self.viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
@@ -370,7 +376,7 @@ struct AccountsView: View {
                                         databaseManager: self.viewModel.databaseManager
                                     )
                                     
-                                    await MainActor.run {
+                                    await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].locationStatus = location.locationStatus
                                             if let locationInfo = locationInfo {
@@ -393,7 +399,7 @@ struct AccountsView: View {
                             }
                             
                             // 保存最新的角色信息到数据库
-                            await MainActor.run {
+                            await updateUI {
                                 if let updatedCharacter = self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                     EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
                                 }
@@ -405,7 +411,7 @@ struct AccountsView: View {
                         }
                         
                         // 从刷新集合中移除已完成的角色
-                        await MainActor.run {
+                        await updateUI {
                             self.refreshingCharacters.remove(characterAuth.character.CharacterID)
                         }
                     }
@@ -416,7 +422,7 @@ struct AccountsView: View {
             }
             
             // 所有刷新完成后更新登录状态
-            await MainActor.run {
+            await updateUI {
                 self.isRefreshing = false
                 self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
             }
