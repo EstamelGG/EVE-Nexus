@@ -468,7 +468,14 @@ struct CharacterRowView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
                     
-                    if tokenExpired {
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
                             .fill(Color.black.opacity(0.4))
@@ -485,13 +492,6 @@ struct CharacterRowView: View {
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.red)
                         }
-                    } else if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .frame(width: 64, height: 64)
-                        
-                        ProgressView()
-                            .scaleEffect(0.8)
                     }
                 }
                 .overlay(
@@ -511,7 +511,14 @@ struct CharacterRowView: View {
                         .frame(width: 64, height: 64)
                         .foregroundColor(.gray)
                     
-                    if tokenExpired {
+                    if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if tokenExpired {
                         // Token过期的灰色蒙版和感叹号
                         Circle()
                             .fill(Color.black.opacity(0.4))
@@ -525,16 +532,9 @@ struct CharacterRowView: View {
                             
                             // 红色感叹号
                             Image(systemName: "exclamationmark")
-                                .font(.system(size: 24, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.red)
                         }
-                    } else if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-                        
-                        ProgressView()
-                            .scaleEffect(0.8)
                     }
                 }
                 .overlay(
