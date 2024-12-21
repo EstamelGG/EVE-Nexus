@@ -97,34 +97,129 @@ struct LogFileRow: View {
 
 struct LogContentView: View {
     let logFile: URL
-    @State private var logContent: String = ""
+    @State private var logLines: [String] = []
     @State private var isLoading = true
+    @State private var currentPage = 0
+    private let linesPerPage = 1000
     
     var body: some View {
         ScrollView {
-            if isLoading {
+            if isLoading && logLines.isEmpty {
                 ProgressView()
                     .padding()
             } else {
-                Text(logContent)
-                    .font(.system(size: 12, design: .monospaced))
-                    .padding()
-                    .textSelection(.enabled)
+                LazyVStack(alignment: .leading, spacing: 2) {
+                    ForEach(Array(logLines.enumerated()), id: \.offset) { index, line in
+                        Text(line)
+                            .font(.system(size: 12, design: .monospaced))
+                            .textSelection(.enabled)
+                            .onAppear {
+                                if index == logLines.count - 100 {
+                                    loadMoreContent()
+                                }
+                            }
+                    }
+                    if isLoading {
+                        ProgressView()
+                            .padding()
+                    }
+                }
+                .padding(.horizontal)
             }
         }
         .navigationTitle(logFile.lastPathComponent)
         .onAppear {
-            loadLogContent()
+            loadInitialContent()
         }
     }
     
-    private func loadLogContent() {
+    private func loadInitialContent() {
         DispatchQueue.global(qos: .userInitiated).async {
-            let content = Logger.readLogFile(logFile)
-            DispatchQueue.main.async {
-                logContent = content
-                isLoading = false
+            do {
+                let fileHandle = try FileHandle(forReadingFrom: logFile)
+                defer { try? fileHandle.close() }
+                
+                let lines = try readNextPage(fileHandle: fileHandle)
+                DispatchQueue.main.async {
+                    logLines = lines
+                    isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    logLines = ["Error loading log file: \(error.localizedDescription)"]
+                    isLoading = false
+                }
             }
         }
+    }
+    
+    private func loadMoreContent() {
+        guard !isLoading else { return }
+        isLoading = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let fileHandle = try FileHandle(forReadingFrom: logFile)
+                defer { try? fileHandle.close() }
+                
+                // 跳过已读取的内容
+                let offset = UInt64(logLines.joined(separator: "\n").utf8.count)
+                try fileHandle.seek(toOffset: offset)
+                
+                let newLines = try readNextPage(fileHandle: fileHandle)
+                if !newLines.isEmpty {
+                    DispatchQueue.main.async {
+                        logLines.append(contentsOf: newLines)
+                        currentPage += 1
+                        isLoading = false
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        isLoading = false
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
+    private func readNextPage(fileHandle: FileHandle) throws -> [String] {
+        let chunkSize = 4 * 1024 // 4KB chunks
+        var allLines: [String] = []
+        let targetLines = 1000 // 每页目标行数
+        
+        while allLines.count < targetLines {
+            guard let data = try fileHandle.read(upToCount: chunkSize) else { break }
+            if data.isEmpty { break }
+            
+            var lines = String(data: data, encoding: .utf8)?
+                .components(separatedBy: .newlines) ?? []
+            
+            // 如果最后一行不完整，回退文件指针
+            if !data.isEmpty && !data.last!.isNewline {
+                if let lastLine = lines.last, let lastLineData = lastLine.data(using: .utf8) {
+                    try fileHandle.seek(toOffset: fileHandle.offsetInFile - UInt64(lastLineData.count))
+                    lines.removeLast()
+                }
+            }
+            
+            allLines.append(contentsOf: lines)
+            
+            // 如果没有更多数据可读，退出循环
+            if data.count < chunkSize {
+                break
+            }
+        }
+        
+        return allLines
+    }
+}
+
+private extension UInt8 {
+    var isNewline: Bool {
+        self == 10 // \n
     }
 }
