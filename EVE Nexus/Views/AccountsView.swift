@@ -75,7 +75,7 @@ struct AccountsView: View {
                                     
                                     if refreshingCharacters.contains(character.CharacterID) {
                                         Circle()
-                                            .fill(Color.black.opacity(0.4))
+                                            .fill(Color.black.opacity(0.6))
                                             .frame(width: 64, height: 64)
                                         
                                         ProgressView()

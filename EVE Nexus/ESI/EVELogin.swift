@@ -753,11 +753,6 @@ class EVELogin {
         if let httpResponse = response as? HTTPURLResponse {
             Logger.info("EVELogin: 刷新令牌响应状态码: \(httpResponse.statusCode)")
             
-            // 尝试解析响应体
-            if let responseString = String(data: data, encoding: .utf8) {
-                Logger.info("EVELogin: 刷新令牌响应体: \(responseString)")
-            }
-            
             // 如果状态码不是 200，记录详细错误信息
             if httpResponse.statusCode != 200 {
                 Logger.error("EVELogin: 刷新令牌失败，状态码: \(httpResponse.statusCode)")
