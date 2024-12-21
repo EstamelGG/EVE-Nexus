@@ -139,7 +139,7 @@ struct AccountsView: View {
                                     }
                                 }
                             }
-                            .padding(.leading, 8)
+                            .padding(.leading, 4)
                             
                             if isEditing {
                                 Spacer()
@@ -151,7 +151,8 @@ struct AccountsView: View {
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 4)
+                        //.frame(height: 64)
                     }
                 }
             }
