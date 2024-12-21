@@ -372,7 +372,13 @@ struct AccountsView: View {
                                 refreshToken: characterAuth.token.refresh_token,
                                 force: true
                             )
-                            Logger.info("角色 \(characterAuth.character.CharacterName)-\(characterAuth.character.CharacterID) 的访问令牌已更新")
+                            Logger.info("""
+                                角色Token已更新:
+                                - 角色ID: \(characterAuth.character.CharacterID)
+                                - 角色名: \(characterAuth.character.CharacterName)
+                                - Token: \(newToken.access_token)
+                                - 过期时间: \(newToken.expires_in)秒
+                                """)
                             
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {

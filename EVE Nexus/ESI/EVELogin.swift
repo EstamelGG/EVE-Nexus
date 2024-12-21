@@ -298,7 +298,7 @@ class EVELogin {
         location: NetworkManager.CharacterLocation,
         locationInfo: SolarSystemInfo?,
         skillQueue: [SkillQueueItem]
-    ) -> EVECharacterInfo {
+    ) async -> EVECharacterInfo {
         Logger.info("EVELogin: 开始更新角色信息...")
         var updatedCharacter = character
         updatedCharacter.totalSkillPoints = skills.total_sp
@@ -380,7 +380,7 @@ class EVELogin {
         )
         
         // 步骤4：更新角色信息
-        let updatedCharacter = updateCharacterInfo(
+        let updatedCharacter = await updateCharacterInfo(
             character: character,
             skills: skills,
             balance: balance,
