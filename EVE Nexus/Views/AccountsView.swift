@@ -452,10 +452,17 @@ struct CharacterRowView: View {
                             .fill(Color.black.opacity(0.4))
                             .frame(width: 64, height: 64)
                         
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 32))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.red, .clear)
+                        ZStack {
+                            // 红色边框三角形
+                            Image(systemName: "triangle")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                            
+                            // 红色感叹号
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.red)
+                        }
                     } else if isRefreshing {
                         Circle()
                             .fill(Color.black.opacity(0.6))
@@ -488,10 +495,17 @@ struct CharacterRowView: View {
                             .fill(Color.black.opacity(0.4))
                             .frame(width: 64, height: 64)
                         
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.system(size: 32))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.red, .clear)
+                        ZStack {
+                            // 红色边框三角形
+                            Image(systemName: "triangle")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                            
+                            // 红色感叹号
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.red)
+                        }
                     } else if isRefreshing {
                         Circle()
                             .fill(Color.black.opacity(0.4))
