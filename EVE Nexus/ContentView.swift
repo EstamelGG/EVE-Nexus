@@ -334,6 +334,9 @@ struct ContentView: View {
     // 添加预加载状态
     @State private var isDatabasePreloaded = false
     
+    // 添加自动刷新的时间间隔常量
+    private let characterInfoUpdateInterval: TimeInterval = 300 // 5分钟
+    
     // 自定义初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -399,6 +402,74 @@ struct ContentView: View {
             Spacer()
         }
         .frame(height: 36)
+    }
+    
+    // 添加刷新角色信息的方法
+    private func refreshCharacterInfo() async {
+        guard let character = selectedCharacter else { return }
+        
+        do {
+            // 获取技能信息
+            if let skills = try? await NetworkManager.shared.fetchCharacterSkills(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    selectedCharacter?.totalSkillPoints = skills.total_sp
+                    selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
+                    // 强制更新表格显示
+                    tables = generateTables()
+                }
+            }
+            
+            // 获取钱包余额
+            if let balance = try? await ESIDataManager.shared.getWalletBalance(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    selectedCharacter?.walletBalance = balance
+                    // 强制更新表格显示
+                    tables = generateTables()
+                }
+            }
+            
+            // 获取技能队列
+            if let queue = try? await NetworkManager.shared.fetchSkillQueue(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    // 更新当前技能信息
+                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                        if let skillName = NetworkManager.getSkillName(
+                            skillId: currentSkill.skill_id,
+                            databaseManager: databaseManager
+                        ) {
+                            selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                skillId: currentSkill.skill_id,
+                                name: skillName,
+                                level: currentSkill.skillLevel,
+                                progress: currentSkill.progress,
+                                remainingTime: currentSkill.remainingTime
+                            )
+                        }
+                    } else if let firstSkill = queue.first {
+                        if let skillName = NetworkManager.getSkillName(
+                            skillId: firstSkill.skill_id,
+                            databaseManager: databaseManager
+                        ) {
+                            selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                skillId: firstSkill.skill_id,
+                                name: skillName,
+                                level: firstSkill.skillLevel,
+                                progress: firstSkill.progress,
+                                remainingTime: nil
+                            )
+                        }
+                    }
+                    // 强制更新表格显示
+                    tables = generateTables()
+                }
+            }
+        }
     }
     
     var body: some View {
@@ -527,6 +598,16 @@ struct ContentView: View {
             .onAppear {
                 // 检查选中的角色是否还存在，并加载保存的角色信息
                 loadSavedCharacter()
+                
+                // 如果有选中的角色，开始自动刷新任务
+                if selectedCharacter != nil {
+                    Task {
+                        while !Task.isCancelled {
+                            await refreshCharacterInfo()
+                            try? await Task.sleep(nanoseconds: UInt64(characterInfoUpdateInterval) * 1_000_000_000)
+                        }
+                    }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CharacterRemoved"))) { notification in
                 if let removedCharacterId = notification.userInfo?["characterId"] as? Int {
@@ -617,6 +698,54 @@ struct ContentView: View {
     
     // 创建生成表格数据的私有方法
     private func generateTables() -> [TableNode] {
+        // 格式化技能点显示
+        let spText = if let character = selectedCharacter,
+                       let totalSP = character.totalSkillPoints {
+            NSLocalizedString("Main_Skills_Ponits", comment: "")
+                .replacingOccurrences(of: "$num", with: "\(totalSP)")
+        } else {
+            NSLocalizedString("Main_Skills_Ponits", comment: "")
+                .replacingOccurrences(of: "$num", with: "--")
+        }
+        
+        // 格式化技能队列显示
+        let skillQueueText: String
+        if let character = selectedCharacter,
+           let currentSkill = character.currentSkill {
+            if let remainingTime = currentSkill.remainingTime {
+                let days = Int(remainingTime) / 86400
+                let hours = (Int(remainingTime) % 86400) / 3600
+                let minutes = (Int(remainingTime) % 3600) / 60
+                skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
+                    .replacingOccurrences(of: "$num", with: "1")
+                    .replacingOccurrences(of: "$day", with: "\(days)")
+                    .replacingOccurrences(of: "$hour", with: "\(hours)")
+                    .replacingOccurrences(of: "$minutes", with: "\(minutes)")
+            } else {
+                skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
+                    .replacingOccurrences(of: "$num", with: "1")
+                    .replacingOccurrences(of: "$day", with: "0")
+                    .replacingOccurrences(of: "$hour", with: "0")
+                    .replacingOccurrences(of: "$minutes", with: "0")
+            }
+        } else {
+            skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
+                .replacingOccurrences(of: "$num", with: "0")
+                .replacingOccurrences(of: "$day", with: "0")
+                .replacingOccurrences(of: "$hour", with: "0")
+                .replacingOccurrences(of: "$minutes", with: "0")
+        }
+        
+        // 格式化钱包余额显示
+        let iskText = if let character = selectedCharacter,
+                       let balance = character.walletBalance {
+            NSLocalizedString("Main_Wealth_ISK", comment: "")
+                .replacingOccurrences(of: "$num", with: String(format: "%.0f", balance))
+        } else {
+            NSLocalizedString("Main_Wealth_ISK", comment: "")
+                .replacingOccurrences(of: "$num", with: "--")
+        }
+        
         return [
             TableNode(
                 title: NSLocalizedString("Main_Character", comment: ""),
@@ -624,7 +753,7 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                         iconName: "charactersheet",
-                        note: NSLocalizedString("Main_Skills_Ponits", comment: "")
+                        note: spText
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Jump_Clones", comment: ""),
@@ -634,7 +763,7 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Skills", comment: ""),
                         iconName: "skills",
-                        note: NSLocalizedString("Main_Skills_Queue", comment: "")
+                        note: skillQueueText
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_EVE_Mail", comment: ""),
@@ -647,7 +776,7 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Wealth", comment: ""),
                         iconName: "Folder",
-                        note: NSLocalizedString("Main_Wealth_ISK", comment: "")
+                        note: iskText
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
@@ -738,6 +867,28 @@ struct ContentView: View {
                 ]
             )
         ]
+    }
+    
+    // 添加格式化技能点的辅助方法
+    private func formatSkillPoints(_ sp: Int) -> String {
+        if sp >= 1_000_000 {
+            return String(format: "%.1fM", Double(sp) / 1_000_000.0)
+        } else if sp >= 1_000 {
+            return String(format: "%.1fK", Double(sp) / 1_000.0)
+        }
+        return "\(sp)"
+    }
+    
+    // 添加格式化 ISK 的辅助方法
+    private func formatISK(_ isk: Double) -> String {
+        if isk >= 1_000_000_000 {
+            return String(format: "%.1fB", isk / 1_000_000_000.0)
+        } else if isk >= 1_000_000 {
+            return String(format: "%.1fM", isk / 1_000_000.0)
+        } else if isk >= 1_000 {
+            return String(format: "%.1fK", isk / 1_000.0)
+        }
+        return String(format: "%.0f", isk)
     }
     
     // 添加加载保存的角色信息的方法
