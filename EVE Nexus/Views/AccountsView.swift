@@ -555,18 +555,18 @@ struct AccountsView: View {
         return "\(sp)"
     }
     
-    // 格式化剩余时间
-    private func formatRemainingTime(_ timeInterval: TimeInterval) -> String {
-        let days = Int(timeInterval) / 86400
-        let hours = Int(timeInterval) / 3600 % 24
-        let minutes = Int(timeInterval) / 60 % 60
+    // 格式化剩余时间显示
+    private func formatRemainingTime(_ seconds: TimeInterval) -> String {
+        let days = Int(seconds) / 86400
+        let hours = (Int(seconds) % 86400) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
         
         if days > 0 {
-            return String(format: "%dd %dh", days, hours)
+            return "\(days)d \(hours)h \(minutes)m"
         } else if hours > 0 {
-            return String(format: "%dh %dm", hours, minutes)
+            return "\(hours)h \(minutes)m"
         } else {
-            return String(format: "%dm", minutes)
+            return "\(minutes)m"
         }
     }
 } 
