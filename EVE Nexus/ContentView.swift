@@ -175,11 +175,13 @@ struct ContentView: View {
     @State private var isLoggedIn = false
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
-    @State private var showingAccountSheet = false
     @State private var forceViewUpdate: Bool = false
     @State private var lastStatusUpdateTime: Date?
     @State private var selectedCharacter: EVECharacterInfo?
     @State private var selectedCharacterPortrait: UIImage?
+    
+    // 添加 UserDefaults 存储的当前角色 ID
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     
     // 添加更新间隔常量
     private let statusUpdateInterval: TimeInterval = 300 // 5分钟 = 300秒
@@ -263,6 +265,8 @@ struct ContentView: View {
                         AccountsView(databaseManager: databaseManager) { character, portrait in
                             selectedCharacter = character
                             selectedCharacterPortrait = portrait
+                            // 保存当前选中的角色 ID
+                            currentCharacterId = character.CharacterID
                         }
                     } label: {
                         LoginButtonView(
@@ -305,6 +309,8 @@ struct ContentView: View {
                         Button(action: {
                             selectedCharacter = nil
                             selectedCharacterPortrait = nil
+                            // 清除当前角色 ID
+                            currentCharacterId = 0
                         }) {
                             Text(NSLocalizedString("Account_Logout", comment: ""))
                                 .foregroundColor(.red)
@@ -313,20 +319,19 @@ struct ContentView: View {
                 }
             }
             .onAppear {
-                // 检查选中的角色是否还存在
-                if let selectedCharacter = selectedCharacter {
-                    let characters = EVELogin.shared.loadCharacters()
-                    if !characters.contains(where: { $0.character.CharacterID == selectedCharacter.CharacterID }) {
-                        self.selectedCharacter = nil
-                        self.selectedCharacterPortrait = nil
-                    }
-                }
+                // 检查选中的角色是否还存在，并加载保存的角色信息
+                loadSavedCharacter()
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CharacterRemoved"))) { notification in
-                if let removedCharacterId = notification.userInfo?["characterId"] as? Int,
-                   selectedCharacter?.CharacterID == removedCharacterId {
-                    selectedCharacter = nil
-                    selectedCharacterPortrait = nil
+                if let removedCharacterId = notification.userInfo?["characterId"] as? Int {
+                    if selectedCharacter?.CharacterID == removedCharacterId {
+                        selectedCharacter = nil
+                        selectedCharacterPortrait = nil
+                        // 如果删除的是当前角色，清除当前角色 ID
+                        if currentCharacterId == removedCharacterId {
+                            currentCharacterId = 0
+                        }
+                    }
                 }
             }
         }
@@ -527,6 +532,30 @@ struct ContentView: View {
                 ]
             )
         ]
+    }
+    
+    // 添加加载保存的角色信息的方法
+    private func loadSavedCharacter() {
+        // 如果有保存的角色 ID，尝试加载该角色信息
+        if currentCharacterId != 0 {
+            let characters = EVELogin.shared.loadCharacters()
+            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
+                selectedCharacter = savedCharacter.character
+                // 异步加载头像
+                Task {
+                    if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                        characterId: currentCharacterId
+                    ) {
+                        await MainActor.run {
+                            selectedCharacterPortrait = portrait
+                        }
+                    }
+                }
+            } else {
+                // 如果找不到保存的角色，清除当前角色 ID
+                currentCharacterId = 0
+            }
+        }
     }
 }
 
