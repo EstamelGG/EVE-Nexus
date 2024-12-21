@@ -289,7 +289,6 @@ struct ContentView: View {
             .listStyle(.insetGrouped)
             .refreshable {
                 do {
-                    // 直接从网络获取最新状态
                     serverStatus = try await NetworkManager.shared.fetchServerStatus()
                     lastStatusUpdateTime = Date()
                 } catch {
@@ -297,6 +296,19 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
+            .toolbar {
+                if selectedCharacter != nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            selectedCharacter = nil
+                            selectedCharacterPortrait = nil
+                        }) {
+                            Text(NSLocalizedString("Account_Logout", comment: ""))
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
             .sheet(isPresented: $showingAccountSheet) {
                 AccountsView(databaseManager: databaseManager) { character, portrait in
                     selectedCharacter = character
@@ -305,14 +317,12 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
-        .id(forceViewUpdate) // 添加id以强制视图刷新
+        .id(forceViewUpdate)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            // 强制整个视图重新加载
             forceViewUpdate.toggle()
             initializeTables()
         }
         .task {
-            // 合并所有异步任务
             async let statusTask: Void = updateServerStatus()
             async let preloadTask: Void = preloadDatabaseIfNeeded()
             _ = await (statusTask, preloadTask)
