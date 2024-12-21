@@ -713,7 +713,7 @@ class EVELogin {
     
     // 刷新令牌
     func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
-        // 如果不是强制刷新，检查上次更��时间
+        // 如果不是强制刷新，检查上次更新时间
         if !force {
             if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
                let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
