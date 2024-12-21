@@ -702,7 +702,7 @@ struct ContentView: View {
         let spText = if let character = selectedCharacter,
                        let totalSP = character.totalSkillPoints {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
-                .replacingOccurrences(of: "$num", with: "\(totalSP)")
+                .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(totalSP)))
         } else {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: "--")
@@ -740,7 +740,7 @@ struct ContentView: View {
         let iskText = if let character = selectedCharacter,
                        let balance = character.walletBalance {
             NSLocalizedString("Main_Wealth_ISK", comment: "")
-                .replacingOccurrences(of: "$num", with: String(format: "%.0f", balance))
+                .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(balance)))
         } else {
             NSLocalizedString("Main_Wealth_ISK", comment: "")
                 .replacingOccurrences(of: "$num", with: "--")
