@@ -363,6 +363,25 @@ struct ContentView: View {
     // 自定初始化方法，确保 databaseManager 正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+        
+        // 预加载角色信息
+        let currentCharacterId = UserDefaults.standard.integer(forKey: "currentCharacterId")
+        if currentCharacterId != 0 {
+            let characters = EVELogin.shared.loadCharacters()
+            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
+                _selectedCharacter = State(initialValue: savedCharacter.character)
+                _tokenExpired = State(initialValue: savedCharacter.character.tokenExpired)
+                
+                // 从缓存加载头像
+                if let cachedPortraitData = UserDefaults.standard.data(forKey: "character_portrait_\(currentCharacterId)_128"),
+                   let cachedPortrait = UIImage(data: cachedPortraitData) {
+                    _selectedCharacterPortrait = State(initialValue: cachedPortrait)
+                }
+                
+                _isLoggedIn = State(initialValue: true)
+            }
+        }
+        
         _tables = State(initialValue: generateTables())
     }
     
@@ -650,32 +669,14 @@ struct ContentView: View {
     
     // 加载初始数据
     private func loadInitialData() async {
-        // 如果有保存的角色ID，立即从缓存加载该角色信息
-        if currentCharacterId != 0 {
-            let characters = EVELogin.shared.loadCharacters()
-            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
+        // 如果没有头像，立即从缓存加载
+        if selectedCharacterPortrait == nil, currentCharacterId != 0 {
+            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                characterId: currentCharacterId,
+                forceRefresh: false
+            ) {
                 await MainActor.run {
-                    selectedCharacter = savedCharacter.character
-                    // 检查 token 状态
-                    tokenExpired = savedCharacter.character.tokenExpired
-                    Logger.info("""
-                        成功加载保存的所选角色信息:
-                        - 角色ID: \(savedCharacter.character.CharacterID)
-                        - 角色名称: \(savedCharacter.character.CharacterName)
-                        - Token状态: \(tokenExpired ? "已过期" : "有效")
-                        """)
-                }
-                
-                // 立即从缓存加载头像
-                Task {
-                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: currentCharacterId,
-                        forceRefresh: false  // 优先使用缓存
-                    ) {
-                        await MainActor.run {
-                            selectedCharacterPortrait = portrait
-                        }
-                    }
+                    selectedCharacterPortrait = portrait
                 }
             }
         }
