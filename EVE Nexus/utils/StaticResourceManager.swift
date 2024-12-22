@@ -1015,45 +1015,22 @@ class StaticResourceManager {
     
     /// 从本地获取主权战争数据
     /// - Returns: 主权战争数据（如果存在且未过期）
-    func getSovereigntyCampaigns() -> [SovereigntyCampaign]? {
-        // 1. 尝试从 UserDefaults 获取
-        let key = "sovereignty_campaigns_data"
-        if let data = UserDefaults.standard.data(forKey: key),
-           let container = try? JSONDecoder().decode(DataContainer<[SovereigntyCampaign]>.self, from: data),
-           Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION {
-            Logger.info("Using UserDefaults cached sovereignty campaigns data")
-            return container.data
-        }
-        
-        // 2. 尝试从文件获取
+    func getSovereigntyCampaigns() -> [EVE_Nexus.SovereigntyCampaign]? {
         let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
-        guard let data = try? Data(contentsOf: fileURL),
-              let container = try? JSONDecoder().decode(DataContainer<[SovereigntyCampaign]>.self, from: data),
-              Date().timeIntervalSince(container.timestamp) < SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
-        else {
+        
+        guard let data = try? Data(contentsOf: fileURL) else {
             return nil
         }
         
-        // 找到有效的文件缓存，更新到 UserDefaults
-        let encodedData = try? JSONEncoder().encode(container)
-        UserDefaults.standard.set(encodedData, forKey: key)
-        Logger.info("Using file cached sovereignty campaigns data")
-        return container.data
+        return try? JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
     }
     
     /// 保存主权战争数据
     /// - Parameter campaigns: 主权战争数据
-    func saveSovereigntyCampaigns(_ campaigns: [SovereigntyCampaign]) throws {
-        let container = DataContainer(data: campaigns, timestamp: Date())
-        
-        // 1. 保存到文件
+    func saveSovereigntyCampaigns(_ campaigns: [EVE_Nexus.SovereigntyCampaign]) throws {
         let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
-        let encodedData = try JSONEncoder().encode(container)
-        try encodedData.write(to: fileURL)
-        
-        // 2. 保存到 UserDefaults
-        UserDefaults.standard.set(encodedData, forKey: "sovereignty_campaigns_data")
-        Logger.info("Saved sovereignty campaigns data")
+        let data = try JSONEncoder().encode(campaigns)
+        try data.write(to: fileURL)
     }
     
     // 添加角色头像相关的函数

@@ -36,7 +36,7 @@ final class SovereigntyViewModel: ObservableObject {
         
         Logger.info("ViewModel: 开始获取主权争夺数据")
         do {
-            let campaigns = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
+            let campaigns = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
             // 保存数据到文件并更新时间戳
             let jsonData = try JSONEncoder().encode(campaigns)
             try StaticResourceManager.shared.saveToFileAndCache(
@@ -58,7 +58,7 @@ final class SovereigntyViewModel: ObservableObject {
         let prepared = await withTaskGroup(of: PreparedSovereignty?.self) { group in
             for campaign in campaigns {
                 group.addTask {
-                    guard let location = await self.getLocationInfo(solarSystemId: campaign.solarSystemId) else {
+                    guard let location = await self.getLocationInfo(solarSystemId: campaign.solar_system_id) else {
                         return nil
                     }
                     
@@ -93,7 +93,7 @@ final class SovereigntyViewModel: ObservableObject {
     
     private func loadAllIcons() {
         // 按联盟ID分组
-        let allianceGroups = Dictionary(grouping: preparedCampaigns) { $0.campaign.defenderId }
+        let allianceGroups = Dictionary(grouping: preparedCampaigns) { $0.campaign.defender_id }
         
         // 加载联盟图标
         for (allianceId, campaigns) in allianceGroups {
@@ -176,7 +176,7 @@ struct SovereigntyCell: View {
                 
                 // 进度圆环
                 Circle()
-                    .trim(from: 0, to: sovereignty.campaign.attackersScore)
+                    .trim(from: 0, to: sovereignty.campaign.attackers_score ?? 0)
                     .stroke(Color.red, lineWidth: 4)
                     .frame(width: 56, height: 56)
                     .rotationEffect(.degrees(-90))
@@ -196,8 +196,8 @@ struct SovereigntyCell: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(getEventTypeText(sovereignty.campaign.eventType))
-                    Text("[\(String(format: "%.1f", sovereignty.campaign.attackersScore * 100))%]")
+                    Text(getEventTypeText(sovereignty.campaign.event_type))
+                    Text("[\(String(format: "%.1f", (sovereignty.campaign.attackers_score ?? 0) * 100))%]")
                         .foregroundColor(.secondary)
                     Text("[\(sovereignty.remainingTimeText)]")
                         .foregroundColor(.secondary)
@@ -235,6 +235,7 @@ struct SovereigntyCell: View {
 
 struct SovereigntyView: View {
     @StateObject private var viewModel: SovereigntyViewModel
+    @State private var campaigns: [EVE_Nexus.SovereigntyCampaign] = []
     
     init(databaseManager: DatabaseManager) {
         _viewModel = StateObject(wrappedValue: SovereigntyViewModel(databaseManager: databaseManager))

@@ -1,21 +1,6 @@
 import Foundation
 import SwiftUI
 
-// 主权数据模型
-struct SovereigntyData: Codable {
-    let systemId: Int
-    let allianceId: Int?
-    let corporationId: Int?
-    let factionId: Int?
-    
-    enum CodingKeys: String, CodingKey {
-        case systemId = "system_id"
-        case allianceId = "alliance_id"
-        case corporationId = "corporation_id"
-        case factionId = "faction_id"
-    }
-}
-
 // 服务器状态数据模型
 struct ServerStatus: Codable {
     let players: Int
@@ -86,7 +71,6 @@ struct ResourceRequest<T: Codable> {
 enum EVEResource: CaseIterable, NetworkResource {
     case sovereignty
     case incursions
-    case sovereigntyCampaigns
     case serverStatus
     
     // 由于有关联值，我们需要手动实现 allCases
@@ -94,7 +78,6 @@ enum EVEResource: CaseIterable, NetworkResource {
         return [
             .sovereignty,
             .incursions,
-            .sovereigntyCampaigns,
             .serverStatus
         ]
     }
@@ -105,8 +88,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "https://esi.evetech.net/latest/sovereignty/map/"
         case .incursions:
             return "https://esi.evetech.net/latest/incursions/"
-        case .sovereigntyCampaigns:
-            return "https://esi.evetech.net/latest/sovereignty/campaigns/"
         case .serverStatus:
             return "https://esi.evetech.net/latest/status/"
         }
@@ -118,8 +99,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "sovereignty"
         case .incursions:
             return "incursions"
-        case .sovereigntyCampaigns:
-            return "sovereigntyCampaigns"
         case .serverStatus:
             return "serverStatus"
         }
@@ -131,8 +110,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "sovereignty.json"
         case .incursions:
             return "incursions.json"
-        case .sovereigntyCampaigns:
-            return "sovereigntyCampaigns.json"
         case .serverStatus:
             return "serverStatus.json"
         }
@@ -144,8 +121,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION
         case .incursions:
             return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
-        case .sovereigntyCampaigns:
-            return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
         case .serverStatus:
             return 300 // 5分钟
         }
@@ -590,56 +565,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         return sovereignty
     }
-    
-    // 获取主权战役数据
-    func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        // 如果不是强制刷新，尝试从本地获取
-        if !forceRefresh {
-            if let campaigns = StaticResourceManager.shared.getSovereigntyCampaigns() {
-                return campaigns
-            }
-        }
-        
-        // 从网络获取数据
-        let request = ResourceRequest<[SovereigntyCampaign]>(
-            resource: EVEResource.sovereigntyCampaigns,
-            parameters: ["datasource": "tranquility"],
-            cacheStrategy: .memoryOnly,  // 只使用内存缓存
-            forceRefresh: true
-        )
-        
-        let campaigns = try await fetchResource(request)
-        
-        // 保存到本地
-        try StaticResourceManager.shared.saveSovereigntyCampaigns(campaigns)
-        
-        return campaigns
-    }
-    
-    // 获取入侵数据
-    func fetchIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
-        // 如果不是强制刷新，尝试从本地获取
-        if !forceRefresh {
-            if let incursions = StaticResourceManager.shared.getIncursions() {
-                return incursions
-            }
-        }
-        
-        // 从网络获取数据
-        let request = ResourceRequest<[Incursion]>(
-            resource: EVEResource.incursions,
-            parameters: ["datasource": "tranquility"],
-            cacheStrategy: .memoryOnly,  // 只使用内存缓存
-            forceRefresh: true
-        )
-        
-        let incursions = try await fetchResource(request)
-        
-        // 保存到本地
-        try StaticResourceManager.shared.saveIncursions(incursions)
-        
-        return incursions
-    }
+
     
     // 清除所有缓存
     func clearAllCaches() async {
@@ -830,7 +756,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 // 如果是静态资源，更新下载时间
                 if let resource = request.resource as? EVEResource {
                     switch resource {
-                    case .sovereignty, .incursions, .sovereigntyCampaigns:
+                    case .sovereignty, .incursions:
                         UserDefaults.standard.set(Date(), forKey: "StaticResource_\(resource.cacheKey)_DownloadTime")
                     default:
                         break

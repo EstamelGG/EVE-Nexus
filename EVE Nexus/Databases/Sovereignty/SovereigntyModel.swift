@@ -1,39 +1,16 @@
 import SwiftUI
+import Foundation
 
 // MARK: - Models
-struct SovereigntyCampaign: Codable {
-    let attackersScore: Double
-    let campaignId: Int
-    let constellationId: Int
-    let defenderId: Int
-    let defenderScore: Double
-    let eventType: String
-    let solarSystemId: Int
-    let startTime: String
-    let structureId: Int64
-    
-    enum CodingKeys: String, CodingKey {
-        case attackersScore = "attackers_score"
-        case campaignId = "campaign_id"
-        case constellationId = "constellation_id"
-        case defenderId = "defender_id"
-        case defenderScore = "defender_score"
-        case eventType = "event_type"
-        case solarSystemId = "solar_system_id"
-        case startTime = "start_time"
-        case structureId = "structure_id"
-    }
-}
-
 class PreparedSovereignty: NSObject, Identifiable, @unchecked Sendable, ObservableObject {
     let id: Int
-    let campaign: SovereigntyCampaign
+    let campaign: EVE_Nexus.SovereigntyCampaign
     let location: LocationInfo
     @Published var icon: Image?
     @Published var isLoadingIcon = false
     
-    init(campaign: SovereigntyCampaign, location: LocationInfo) {
-        self.id = campaign.campaignId
+    init(campaign: EVE_Nexus.SovereigntyCampaign, location: LocationInfo) {
+        self.id = campaign.campaign_id
         self.campaign = campaign
         self.location = location
         super.init()
@@ -51,7 +28,7 @@ class PreparedSovereignty: NSObject, Identifiable, @unchecked Sendable, Observab
     var remainingTimeText: String {
         // 解析开始时间
         let dateFormatter = ISO8601DateFormatter()
-        guard let startDate = dateFormatter.date(from: campaign.startTime) else {
+        guard let startDate = dateFormatter.date(from: campaign.start_time) else {
             return ""
         }
         

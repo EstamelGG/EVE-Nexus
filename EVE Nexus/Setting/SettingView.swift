@@ -456,7 +456,7 @@ struct SettingView: View {
                     updateAllData()
                 case .sovereigntyCampaigns:
                     Logger.info("Refreshing Sovereignty Campaigns data")
-                    let sovCamp = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+                    let sovCamp = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovCamp)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间
