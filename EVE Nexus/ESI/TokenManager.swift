@@ -36,19 +36,34 @@ class TokenManager {
                 tokenRefreshTasks[characterId] = nil
             }
             
-            // 从 SecureStorage 获取 refresh token
-            guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
-                throw NetworkError.authenticationError("No refresh token found")
+            do {
+                // 从 SecureStorage 获取 refresh token
+                guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
+                    throw NetworkError.authenticationError("No refresh token found")
+                }
+                
+                // 刷新 token
+                let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
+                
+                // 更新缓存
+                let expirationDate = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
+                tokenCache[characterId] = CachedToken(token: newToken, expirationDate: expirationDate)
+                
+                // 保存新的refresh token
+                try SecureStorage.shared.saveToken(newToken.refresh_token, for: characterId)
+                
+                Logger.info("TokenManager: Token刷新成功 - 角色ID: \(characterId)")
+                return newToken
+            } catch {
+                // 如果刷新失败，清除所有相关缓存
+                Logger.error("TokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")
+                clearToken(for: characterId)
+                
+                // 通知EVELogin token已过期
+                EVELogin.shared.markTokenExpired(characterId: characterId)
+                
+                throw error
             }
-            
-            // 刷新 token
-            let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
-            
-            // 更新缓存
-            let expirationDate = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
-            tokenCache[characterId] = CachedToken(token: newToken, expirationDate: expirationDate)
-            
-            return newToken
         }
         
         tokenRefreshTasks[characterId] = refreshTask
@@ -79,5 +94,13 @@ class TokenManager {
             return false
         }
         return cachedToken.isValid
+    }
+    
+    // 更新token缓存
+    func updateTokenCache(characterId: Int, cachedToken: CachedToken) {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        tokenCache[characterId] = cachedToken
     }
 } 

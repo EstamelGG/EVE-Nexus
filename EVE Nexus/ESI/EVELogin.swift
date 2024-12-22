@@ -616,7 +616,7 @@ class EVELogin {
     // 获取授权URL
     func getAuthorizationURL() -> URL? {
         guard let config = config else { 
-            Logger.error("EVELogin: 配置为空，无法获取授权URL")
+            Logger.error("EVELogin: 配置为空，无法获��授权URL")
             return nil 
         }
         
@@ -737,7 +737,18 @@ class EVELogin {
             // 保存到 UserDefaults
             let encodedData = try JSONEncoder().encode(characters)
             defaults.set(encodedData, forKey: charactersKey)
-            defaults.set(Date().addingTimeInterval(TimeInterval(token.expires_in)), forKey: "TokenExpirationDate")
+            
+            // 保存refresh token到SecureStorage
+            try SecureStorage.shared.saveToken(token.refresh_token, for: character.CharacterID)
+            
+            // 更新TokenManager的缓存
+            Task {
+                let tokenCache = TokenManager.CachedToken(
+                    token: token,
+                    expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in))
+                )
+                await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
+            }
             
             // 强制同步到磁盘
             defaults.synchronize()
@@ -964,32 +975,22 @@ class EVELogin {
     // 获取有效的访问令牌
     func getValidToken() async throws -> String {
         let authInfo = loadAuthInfo()
-        
-        if !isTokenValid(), let token = authInfo.token {
-            Logger.info("EVELogin: 令牌已过期，尝试刷新")
-            do {
-                // 令牌过期，尝试刷新
-                let newToken = try await refreshToken(refreshToken: token.refresh_token)
-                if let character = authInfo.character {
-                    saveAuthInfo(token: newToken, character: character)
-                    Logger.info("EVELogin: 令牌刷新成功")
-                }
-                return newToken.access_token
-            } catch {
-                // 如果刷新失败，可能是刷新令牌已过期
-                Logger.error("EVELogin: 刷新令牌失败，可能已过期: \(error)")
-                // 清除过期的认证信息
-                clearAuthInfo()
-                throw NetworkError.tokenExpired
-            }
-        } else if let token = authInfo.token {
-            Logger.info("EVELogin: 使用现有有效令牌")
-            // 令牌有效，直接返回
-            return token.access_token
+        guard let character = authInfo.character else {
+            throw NetworkError.unauthed
         }
         
-        Logger.error("EVELogin: 无法获取有效令牌")
-        throw NetworkError.invalidData
+        do {
+            // 使用TokenManager获取有效的token
+            let token = try await TokenManager.shared.getToken(for: character.CharacterID)
+            return token.access_token
+        } catch {
+            Logger.error("EVELogin: 获取有效token失败: \(error)")
+            if case NetworkError.tokenExpired = error {
+                // 标记token已过期
+                markTokenExpired(characterId: character.CharacterID)
+            }
+            throw error
+        }
     }
     
     // ESI数据缓存结构
@@ -1025,25 +1026,26 @@ class EVELogin {
         }
         
         // 2. 从ESI接口获取新数据
-        guard let token = loadAuthInfo().token else {
-            throw NetworkError.unauthed
-        }
-        
-        let data = try await fetchData(token.access_token)
-        
-        // 3. 安全地保存数据到缓存
-        let cachedData = ESICachedData(data: data, timestamp: Date())
-        let encoder = JSONEncoder()
-        
         do {
-            let encodedData = try encoder.encode(cachedData)
-            defaults.set(encodedData, forKey: cacheKey)
-            Logger.info("EVELogin: 已更新\(dataType)数据缓存 - 角色ID: \(characterId)")
+            // 使用TokenManager获取有效的token
+            let token = try await TokenManager.shared.getToken(for: characterId)
+            let data = try await fetchData(token.access_token)
+            
+            // 3. 安全地保存数据到缓存
+            let cachedData = ESICachedData(data: data, timestamp: Date())
+            if let encodedData = try? JSONEncoder().encode(cachedData) {
+                defaults.set(encodedData, forKey: cacheKey)
+                Logger.info("EVELogin: 已更新\(dataType)数据缓存 - 角色ID: \(characterId)")
+            }
+            
+            return data
         } catch {
-            Logger.error("EVELogin: 保存\(dataType)数据缓存失败: \(error)")
+            Logger.error("EVELogin: 获取\(dataType)数据失败 - 角色ID: \(characterId), 错误: \(error)")
+            if case NetworkError.tokenExpired = error {
+                markTokenExpired(characterId: characterId)
+            }
+            throw error
         }
-        
-        return data
     }
     
     // 获取钱包余额的包装方法
