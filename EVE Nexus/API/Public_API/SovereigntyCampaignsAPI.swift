@@ -38,6 +38,15 @@ class SovereigntyCampaignsAPI {
     static let shared = SovereigntyCampaignsAPI()
     private init() {}
     
+    // 缓存相关常量
+    private let cacheKey = "sovereignty_campaigns_data"
+    private let cacheDuration: TimeInterval = 300 // 5分钟缓存
+    
+    struct CachedData: Codable {
+        let data: [SovereigntyCampaign]
+        let timestamp: Date
+    }
+    
     // MARK: - 公共方法
     
     /// 获取主权战役数据
@@ -45,8 +54,10 @@ class SovereigntyCampaignsAPI {
     /// - Returns: 主权战役数据数组
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [EVE_Nexus.SovereigntyCampaign] {
         // 如果不是强制刷新，尝试从缓存获取
-        if !forceRefresh, let cached = StaticResourceManager.shared.getSovereigntyCampaigns() {
-            return cached
+        if !forceRefresh {
+            if let cached = try? loadFromCache() {
+                return cached
+            }
         }
         
         // 构建URL
@@ -64,9 +75,29 @@ class SovereigntyCampaignsAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let campaigns = try JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
         
-        // 保存到本地
-        try StaticResourceManager.shared.saveSovereigntyCampaigns(campaigns)
+        // 保存到缓存
+        try? saveToCache(campaigns)
         
         return campaigns
+    }
+    
+    // MARK: - 私有方法
+    
+    private func loadFromCache() throws -> [SovereigntyCampaign]? {
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: cachedData),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的主权战役数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ campaigns: [SovereigntyCampaign]) throws {
+        let cachedData = CachedData(data: campaigns, timestamp: Date())
+        let encodedData = try JSONEncoder().encode(cachedData)
+        UserDefaults.standard.set(encodedData, forKey: cacheKey)
+        Logger.info("主权战役数据已缓存")
     }
 } 

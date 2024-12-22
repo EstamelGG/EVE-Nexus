@@ -38,6 +38,15 @@ class IncursionsAPI {
     static let shared = IncursionsAPI()
     private init() {}
     
+    // 缓存相关常量
+    private let cacheKey = "incursions_data"
+    private let cacheDuration: TimeInterval = 300 // 5分钟缓存
+    
+    struct CachedData: Codable {
+        let data: [Incursion]
+        let timestamp: Date
+    }
+    
     // MARK: - 公共方法
     
     /// 获取入侵数据
@@ -45,8 +54,10 @@ class IncursionsAPI {
     /// - Returns: 入侵数据数组
     func fetchIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
         // 如果不是强制刷新，尝试从缓存获取
-        if !forceRefresh, let cached = StaticResourceManager.shared.getIncursions() {
-            return cached
+        if !forceRefresh {
+            if let cached = try? loadFromCache() {
+                return cached
+            }
         }
         
         // 构建URL
@@ -64,9 +75,29 @@ class IncursionsAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let incursions = try JSONDecoder().decode([Incursion].self, from: data)
         
-        // 保存到本地
-        try StaticResourceManager.shared.saveIncursions(incursions)
+        // 保存到缓存
+        try? saveToCache(incursions)
         
         return incursions
+    }
+    
+    // MARK: - 私有方法
+    
+    private func loadFromCache() throws -> [Incursion]? {
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: cachedData),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的入侵数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ incursions: [Incursion]) throws {
+        let cachedData = CachedData(data: incursions, timestamp: Date())
+        let encodedData = try JSONEncoder().encode(cachedData)
+        UserDefaults.standard.set(encodedData, forKey: cacheKey)
+        Logger.info("入侵数据已缓存")
     }
 } 

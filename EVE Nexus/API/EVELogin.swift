@@ -805,7 +805,7 @@ class EVELogin {
         do {
             var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
             
-            // 重新从当前语言的数据库中获取技能名称
+            // 新从当前语言的数据库中获取技能名称
             for i in 0..<characters.count {
                 if let currentSkill = characters[i].character.currentSkill,
                    let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skillId) {
@@ -862,7 +862,7 @@ class EVELogin {
     func removeCharacter(characterId: Int) {
         let defaults = UserDefaults.standard
         
-        // 从 UserDefaults 中移除角色信息
+        // 从 UserDefaults 中除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
@@ -1175,6 +1175,21 @@ class EVELogin {
                 Logger.error("重置角色 token 状态失败: \(error)")
             }
         }
+    }
+    
+    // 获取入侵数据的包装方法
+    func getIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
+        return try await IncursionsAPI.shared.fetchIncursions(forceRefresh: forceRefresh)
+    }
+    
+    // 获取主权数据的包装方法
+    func getSovereignty(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
+        return try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: forceRefresh)
+    }
+    
+    // 获取主权战争数据的包装方法
+    func getSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
+        return try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
     }
 }
 

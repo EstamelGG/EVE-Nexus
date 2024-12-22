@@ -38,6 +38,15 @@ class SovereigntyDataAPI {
     
     private init() {}
     
+    // 缓存相关常量
+    private let cacheKey = "sovereignty_data"
+    private let cacheDuration: TimeInterval = 3600 // 1小时缓存
+    
+    struct CachedData: Codable {
+        let data: [SovereigntyData]
+        let timestamp: Date
+    }
+    
     // MARK: - 公共方法
     
     /// 获取主权数据
@@ -46,8 +55,8 @@ class SovereigntyDataAPI {
     func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
         // 如果不是强制刷新，尝试从本地获取
         if !forceRefresh {
-            if let sovereignty = StaticResourceManager.shared.getSovereignty() {
-                return sovereignty
+            if let cached = try? loadFromCache() {
+                return cached
             }
         }
         
@@ -66,9 +75,29 @@ class SovereigntyDataAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let sovereignty = try JSONDecoder().decode([SovereigntyData].self, from: data)
         
-        // 保存到本地
-        try StaticResourceManager.shared.saveSovereignty(sovereignty)
+        // 保存到缓存
+        try? saveToCache(sovereignty)
         
         return sovereignty
+    }
+    
+    // MARK: - 私有方法
+    
+    private func loadFromCache() throws -> [SovereigntyData]? {
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: cachedData),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的主权数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ sovereignty: [SovereigntyData]) throws {
+        let cachedData = CachedData(data: sovereignty, timestamp: Date())
+        let encodedData = try JSONEncoder().encode(cachedData)
+        UserDefaults.standard.set(encodedData, forKey: cacheKey)
+        Logger.info("主权数据已缓存")
     }
 } 
