@@ -1,27 +1,6 @@
 import Foundation
 import SwiftUI
 
-// 服务器状态数据模型
-struct ServerStatus: Codable {
-    let players: Int
-    let serverVersion: String
-    let startTime: String
-    let error: String?
-    let timeout: Int?
-    
-    enum CodingKeys: String, CodingKey {
-        case players
-        case serverVersion = "server_version"
-        case startTime = "start_time"
-        case error
-        case timeout
-    }
-    
-    var isOnline: Bool {
-        return error == nil
-    }
-}
-
 // 修改缓存包装类为泛型
 class CachedData<T> {
     let data: T
@@ -71,14 +50,12 @@ struct ResourceRequest<T: Codable> {
 enum EVEResource: CaseIterable, NetworkResource {
     case sovereignty
     case incursions
-    case serverStatus
     
     // 由于有关联值，我们需要手动实现 allCases
     static var allCases: [EVEResource] {
         return [
             .sovereignty,
-            .incursions,
-            .serverStatus
+            .incursions
         ]
     }
     
@@ -88,8 +65,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "https://esi.evetech.net/latest/sovereignty/map/"
         case .incursions:
             return "https://esi.evetech.net/latest/incursions/"
-        case .serverStatus:
-            return "https://esi.evetech.net/latest/status/"
         }
     }
     
@@ -99,8 +74,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "sovereignty"
         case .incursions:
             return "incursions"
-        case .serverStatus:
-            return "serverStatus"
         }
     }
     
@@ -110,8 +83,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "sovereignty.json"
         case .incursions:
             return "incursions.json"
-        case .serverStatus:
-            return "serverStatus.json"
         }
     }
     
@@ -121,8 +92,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION
         case .incursions:
             return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
-        case .serverStatus:
-            return 300 // 5分钟
         }
     }
 }
@@ -242,10 +211,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
     private let cacheQueue = DispatchQueue(label: "com.eve.nexus.network.cache", attributes: .concurrent)
     private let imageQueue = DispatchQueue(label: "com.eve.nexus.network.image", attributes: .concurrent)
     private let marketQueue = DispatchQueue(label: "com.eve.nexus.network.market", attributes: .concurrent)
-    private let serverStatusQueue = DispatchQueue(label: "com.eve.nexus.network.server", attributes: .concurrent)
-    
-    // 服务器状态缓存
-    private var serverStatusCache: CachedData<ServerStatus>?
     
     private override init() {
         self.retrier = RequestRetrier()
@@ -517,8 +482,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 imageCache.removeAllObjects()
                 imageCacheKeys.removeAll()
                 
-                serverStatusCache = nil
-                
                 continuation.resume()
             }
         }
@@ -561,54 +524,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
             cacheDuration: StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION,
             imageURL: url
         )
-    }
-    
-    // 获取服务器状态（不使用任何缓存）
-    func fetchServerStatus() async throws -> ServerStatus {
-        let urlString = "https://esi.evetech.net/latest/status/"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        var request = URLRequest(url: url)
-        request.addValue("tranquility", forHTTPHeaderField: "datasource")
-        // 设置不使用缓存
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        // 添加随机参数以避免任何可能的缓存
-        request.url = URL(string: urlString + "?t=\(Date().timeIntervalSince1970)")
-        
-        do {
-            // 直接从网络获取最新状态
-            let data = try await fetchData(from: url, request: request, forceRefresh: true)
-            let status = try JSONDecoder().decode(ServerStatus.self, from: data)
-            
-            // 如果响应中包含 error 字段，返回离线状态
-            if status.error != nil {
-                return ServerStatus(
-                    players: 0,
-                    serverVersion: "",
-                    startTime: "",
-                    error: "Server is offline",
-                    timeout: nil
-                )
-            }
-            
-            return status
-        } catch NetworkError.httpError(let statusCode) {
-            // 对于 502、504 错误，返回离线状态
-            if statusCode == 502 || statusCode == 504 {
-                return ServerStatus(
-                    players: 0,
-                    serverVersion: "",
-                    startTime: "",
-                    error: "Server is offline (HTTP \(statusCode))",
-                    timeout: nil
-                )
-            }
-            throw NetworkError.httpError(statusCode: statusCode)
-        } catch {
-            throw error
-        }
     }
     
     // 通用数据获取方法
@@ -697,8 +612,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     switch resource {
                     case .sovereignty, .incursions:
                         UserDefaults.standard.set(Date(), forKey: "StaticResource_\(resource.cacheKey)_DownloadTime")
-                    default:
-                        break
                     }
                 }
             } catch {

@@ -403,14 +403,14 @@ struct ContentView: View {
     // 添加自动刷新的时间间隔常量
     private let characterInfoUpdateInterval: TimeInterval = 300 // 5分钟
     
-    // 自定义初始化方法，确保 databaseManager 被正确传递
+    // 自定���初始化方法，确保 databaseManager 被正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
         _tables = State(initialValue: generateTables())
     }
     
     // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认用系统模式
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认��系统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -587,7 +587,7 @@ struct ContentView: View {
                 isRefreshing = true
                 // 刷新服务器状态
                 do {
-                    serverStatus = try await NetworkManager.shared.fetchServerStatus()
+                    serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
                     lastStatusUpdateTime = Date()
                 } catch {
                     Logger.error("Failed to refresh server status: \(error)")
@@ -611,6 +611,14 @@ struct ContentView: View {
                                 selectedCharacterPortrait = portrait
                                 Logger.info("成功刷新角色头像")
                             }
+                        }
+                        
+                        // 获取服务器状态
+                        do {
+                            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
+                            Logger.info("成功获取服务器状态")
+                        } catch {
+                            Logger.error("获取服务器状态失败: \(error)")
                         }
                         
                         // 获取联盟信息
@@ -730,7 +738,7 @@ struct ContentView: View {
         }
         
         do {
-            serverStatus = try await NetworkManager.shared.fetchServerStatus()
+            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
             await MainActor.run {
                 lastStatusUpdateTime = Date()
             }
