@@ -651,9 +651,9 @@ struct MarketItemDetailView: View {
             }
             
             // 2. 从网络加载数据
-            await NetworkManager.shared.setRegionID(selectedRegionID)
-            let orders = try await NetworkManager.shared.fetchMarketOrders(
+            let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
                 typeID: itemID,
+                regionID: selectedRegionID,
                 forceRefresh: true
             )
             

@@ -1,37 +1,6 @@
 import Foundation
 import SwiftUI
 
-// 市场订单数据模型
-struct MarketOrder: Codable {
-    let duration: Int
-    let isBuyOrder: Bool
-    let issued: String
-    let locationId: Int
-    let minVolume: Int
-    let orderId: Int
-    let price: Double
-    let range: String
-    let systemId: Int
-    let typeId: Int
-    let volumeRemain: Int
-    let volumeTotal: Int
-    
-    enum CodingKeys: String, CodingKey {
-        case duration
-        case isBuyOrder = "is_buy_order"
-        case issued
-        case locationId = "location_id"
-        case minVolume = "min_volume"
-        case orderId = "order_id"
-        case price
-        case range
-        case systemId = "system_id"
-        case typeId = "type_id"
-        case volumeRemain = "volume_remain"
-        case volumeTotal = "volume_total"
-    }
-}
-
 // 市场历史数据模型
 struct MarketHistory: Codable {
     let average: Double
@@ -125,7 +94,6 @@ enum EVEResource: CaseIterable, NetworkResource {
     case sovereignty
     case incursions
     case sovereigntyCampaigns
-    case marketOrders(regionId: Int, typeId: Int)
     case marketHistory(regionId: Int, typeId: Int)
     case serverStatus
     
@@ -137,7 +105,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             .sovereigntyCampaigns,
             .serverStatus,
             // 为市场订单和历史数据使用默认值
-            .marketOrders(regionId: 10000002, typeId: 0),
             .marketHistory(regionId: 10000002, typeId: 0)
         ]
     }
@@ -150,8 +117,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "https://esi.evetech.net/latest/incursions/"
         case .sovereigntyCampaigns:
             return "https://esi.evetech.net/latest/sovereignty/campaigns/"
-        case .marketOrders(let regionId, _):
-            return "https://esi.evetech.net/latest/markets/\(regionId)/orders/"
         case .marketHistory(let regionId, _):
             return "https://esi.evetech.net/latest/markets/\(regionId)/history/"
         case .serverStatus:
@@ -167,8 +132,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "incursions"
         case .sovereigntyCampaigns:
             return "sovereigntyCampaigns"
-        case .marketOrders(let regionId, let typeId):
-            return "marketOrders_\(regionId)_\(typeId)"
         case .marketHistory(let regionId, let typeId):
             return "marketHistory_\(regionId)_\(typeId)"
         case .serverStatus:
@@ -184,8 +147,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "incursions.json"
         case .sovereigntyCampaigns:
             return "sovereigntyCampaigns.json"
-        case .marketOrders(let regionId, let typeId):
-            return "Market/order_\(typeId)_\(regionId).json"
         case .marketHistory(let regionId, let typeId):
             return "Market/history_\(typeId)_\(regionId).json"
         case .serverStatus:
@@ -201,8 +162,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
         case .sovereigntyCampaigns:
             return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
-        case .marketOrders:
-            return 300 // 5分钟
         case .marketHistory:
             return 7 * 24 * 3600 // 1周
         case .serverStatus:
@@ -327,11 +286,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
     private let imageQueue = DispatchQueue(label: "com.eve.nexus.network.image", attributes: .concurrent)
     private let marketQueue = DispatchQueue(label: "com.eve.nexus.network.market", attributes: .concurrent)
     private let serverStatusQueue = DispatchQueue(label: "com.eve.nexus.network.server", attributes: .concurrent)
-    
-    // 市场订单缓存
-    private var marketOrdersCache: [Int: [MarketOrder]] = [:]
-    private var marketOrdersTimestamp: [Int: Date] = [:]
-    private let marketOrdersCacheDuration: TimeInterval = 300 // 市场订单缓存效期5分钟
     
     // 服务器状态缓存
     private var serverStatusCache: CachedData<ServerStatus>?
@@ -497,22 +451,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         return image
     }
-    
-    // 获取市场订单（仅使用内存缓存）
-    func fetchMarketOrders(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketOrder] {
-        let request = ResourceRequest<[MarketOrder]>(
-            resource: EVEResource.marketOrders(regionId: regionID, typeId: typeID),
-            parameters: [
-                "datasource": "tranquility",
-                "type_id": typeID
-            ],
-            cacheStrategy: .memoryOnly,  // 仅使用内存缓存
-            forceRefresh: forceRefresh
-        )
-        
-        return try await fetchResource(request)
-    }
-
     
     // 获取市场历史数据（使用内存和文件缓存）
     func fetchMarketHistory(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
@@ -735,17 +673,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         return incursions
     }
     
-    // 清除市场订单缓存
-    func clearMarketOrdersCache() async {
-        await withCheckedContinuation { continuation in
-            Task { @NetworkManagerActor in
-                marketOrdersCache.removeAll()
-                marketOrdersTimestamp.removeAll()
-                continuation.resume()
-            }
-        }
-    }
-    
     // 清除所有缓存
     func clearAllCaches() async {
         await withCheckedContinuation { continuation in
@@ -756,9 +683,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 
                 imageCache.removeAllObjects()
                 imageCacheKeys.removeAll()
-                
-                marketOrdersCache.removeAll()
-                marketOrdersTimestamp.removeAll()
                 
                 serverStatusCache = nil
                 
@@ -1332,7 +1256,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
         }
         
-        // 从网络获取数据
+        // ��网络获取数据
         let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
