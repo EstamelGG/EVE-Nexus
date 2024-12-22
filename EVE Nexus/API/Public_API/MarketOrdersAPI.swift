@@ -67,24 +67,13 @@ enum MarketAPIError: LocalizedError {
 @MarketOrdersAPIActor
 class MarketOrdersAPI {
     static let shared = MarketOrdersAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
     // 缓存
     private var marketOrdersCache: [Int: [MarketOrder]] = [:]
     private var marketOrdersTimestamp: [Int: Date] = [:]
     private let marketOrdersCacheDuration: TimeInterval = 300 // 5分钟缓存
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -117,7 +106,8 @@ class MarketOrdersAPI {
         }
         
         // 执行请求
-        let orders = try await fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let orders = try JSONDecoder().decode([MarketOrder].self, from: data)
         
         // 更新缓存
         marketOrdersCache[typeID] = orders
@@ -130,30 +120,5 @@ class MarketOrdersAPI {
     func clearCache() {
         marketOrdersCache.removeAll()
         marketOrdersTimestamp.removeAll()
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> [MarketOrder] {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MarketAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw MarketAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            do {
-                return try JSONDecoder().decode([MarketOrder].self, from: data)
-            } catch {
-                throw MarketAPIError.decodingError(error)
-            }
-        }
     }
 } 

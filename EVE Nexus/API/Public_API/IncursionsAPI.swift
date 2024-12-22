@@ -36,24 +36,13 @@ enum IncursionsAPIError: LocalizedError {
 @IncursionsAPIActor
 class IncursionsAPI {
     static let shared = IncursionsAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
     // 缓存
     private var incursionsCache: [Incursion] = []
     private var incursionsTimestamp: Date?
     private let incursionsCacheDuration: TimeInterval = StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -86,7 +75,8 @@ class IncursionsAPI {
         }
         
         // 执行请求
-        let incursions = try await fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let incursions = try JSONDecoder().decode([Incursion].self, from: data)
         
         // 更新缓存
         incursionsCache = incursions
@@ -102,30 +92,5 @@ class IncursionsAPI {
     func clearCache() {
         incursionsCache = []
         incursionsTimestamp = nil
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> [Incursion] {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw IncursionsAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw IncursionsAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            do {
-                return try JSONDecoder().decode([Incursion].self, from: data)
-            } catch {
-                throw IncursionsAPIError.decodingError(error)
-            }
-        }
     }
 } 

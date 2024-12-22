@@ -36,19 +36,8 @@ enum ItemRenderAPIError: LocalizedError {
 @ItemRenderAPIActor
 class ItemRenderAPI {
     static let shared = ItemRenderAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -75,32 +64,11 @@ class ItemRenderAPI {
         }
         
         // 执行请求
-        let imageData = try await fetchData(from: url)
+        let imageData = try await NetworkManager.shared.fetchData(from: url)
         
         // 保存到本地缓存
         try StaticResourceManager.shared.saveNetRender(imageData, typeId: typeId)
         
         return imageData
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> Data {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw ItemRenderAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw ItemRenderAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            return data
-        }
     }
 } 

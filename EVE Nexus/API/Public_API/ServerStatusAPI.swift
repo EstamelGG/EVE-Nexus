@@ -56,19 +56,8 @@ enum ServerStatusAPIError: LocalizedError {
 @ServerStatusAPIActor
 class ServerStatusAPI {
     static let shared = ServerStatusAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -94,7 +83,7 @@ class ServerStatusAPI {
         
         do {
             // 直接从网络获取最新状态
-            let data = try await fetchData(from: url, request: request)
+            let data = try await NetworkManager.shared.fetchData(from: url)
             let status = try JSONDecoder().decode(ServerStatus.self, from: data)
             
             // 如果响应中包含 error 字段，返回离线状态
@@ -109,7 +98,7 @@ class ServerStatusAPI {
             }
             
             return status
-        } catch ServerStatusAPIError.httpError(let statusCode) {
+        } catch NetworkError.httpError(let statusCode) {
             // 对于 502、504 错误，返回离线状态
             if statusCode == 502 || statusCode == 504 {
                 return ServerStatus(
@@ -120,28 +109,7 @@ class ServerStatusAPI {
                     timeout: nil
                 )
             }
-            throw ServerStatusAPIError.httpError(statusCode)
-        }
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL, request: URLRequest? = nil) async throws -> Data {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(for: request ?? URLRequest(url: url))
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw ServerStatusAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw ServerStatusAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            return data
+            throw NetworkError.httpError(statusCode: statusCode)
         }
     }
 } 

@@ -94,15 +94,7 @@ class CorporationAPI {
         
         // 从网络获取
         Logger.info("从网络获取军团图标 - 军团ID: \(corporationId)")
-        let (data, response) = try await URLSession.shared.data(from: url)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
-        }
-        
-        guard httpResponse.statusCode == 200 else {
-            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-        }
+        let data = try await NetworkManager.shared.fetchData(from: url)
         
         guard let image = UIImage(data: data) else {
             throw NetworkError.invalidImageData

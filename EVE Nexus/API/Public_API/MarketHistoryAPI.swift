@@ -43,24 +43,13 @@ enum MarketHistoryAPIError: LocalizedError {
 @MarketHistoryAPIActor
 class MarketHistoryAPI {
     static let shared = MarketHistoryAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
     // 缓存
     private var marketHistoryCache: [Int: [MarketHistory]] = [:]
     private var marketHistoryTimestamp: [Int: Date] = [:]
     private let marketHistoryCacheDuration: TimeInterval = 7 * 24 * 3600 // 1周缓存
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -93,7 +82,8 @@ class MarketHistoryAPI {
         }
         
         // 执行请求
-        let history = try await fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let history = try JSONDecoder().decode([MarketHistory].self, from: data)
         
         // 更新缓存
         marketHistoryCache[typeID] = history
@@ -112,29 +102,6 @@ class MarketHistoryAPI {
     }
     
     // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> [MarketHistory] {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw MarketHistoryAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw MarketHistoryAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            do {
-                return try JSONDecoder().decode([MarketHistory].self, from: data)
-            } catch {
-                throw MarketHistoryAPIError.decodingError(error)
-            }
-        }
-    }
     
     private func saveToFile(_ history: [MarketHistory], typeID: Int, regionID: Int) async throws {
         let fileManager = FileManager.default

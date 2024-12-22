@@ -36,24 +36,13 @@ enum SovereigntyCampaignsAPIError: LocalizedError {
 @SovereigntyCampaignsAPIActor
 class SovereigntyCampaignsAPI {
     static let shared = SovereigntyCampaignsAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
     // 缓存
     private var campaignsCache: [EVE_Nexus.SovereigntyCampaign] = []
     private var campaignsTimestamp: Date?
     private let campaignsCacheDuration: TimeInterval = StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -86,7 +75,8 @@ class SovereigntyCampaignsAPI {
         }
         
         // 执行请求
-        let campaigns = try await fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let campaigns = try JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
         
         // 更新缓存
         campaignsCache = campaigns
@@ -102,30 +92,5 @@ class SovereigntyCampaignsAPI {
     func clearCache() {
         campaignsCache = []
         campaignsTimestamp = nil
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> [EVE_Nexus.SovereigntyCampaign] {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw SovereigntyCampaignsAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw SovereigntyCampaignsAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            do {
-                return try JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
-            } catch {
-                throw SovereigntyCampaignsAPIError.decodingError(error)
-            }
-        }
     }
 } 

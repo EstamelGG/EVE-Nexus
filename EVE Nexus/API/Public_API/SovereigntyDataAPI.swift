@@ -35,19 +35,8 @@ enum SovereigntyDataAPIError: LocalizedError {
 @SovereigntyDataAPIActor
 class SovereigntyDataAPI {
     static let shared = SovereigntyDataAPI()
-    private let session: URLSession
-    private let rateLimiter: RateLimiter
-    private let retrier: RequestRetrier
     
-    private init() {
-        let config = URLSessionConfiguration.default
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 300
-        self.session = URLSession(configuration: config)
-        self.rateLimiter = RateLimiter()
-        self.retrier = RequestRetrier()
-    }
+    private init() {}
     
     // MARK: - 公共方法
     
@@ -74,33 +63,12 @@ class SovereigntyDataAPI {
         }
         
         // 执行请求
-        let data = try await fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(from: url)
         let sovereignty = try JSONDecoder().decode([SovereigntyData].self, from: data)
         
         // 保存到本地
         try StaticResourceManager.shared.saveSovereignty(sovereignty)
         
         return sovereignty
-    }
-    
-    // MARK: - 私有方法
-    
-    private func fetchData(from url: URL) async throws -> Data {
-        // 等待速率限制
-        try await rateLimiter.waitForPermission()
-        
-        return try await retrier.execute {
-            let (data, response) = try await session.data(from: url)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw SovereigntyDataAPIError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                throw SovereigntyDataAPIError.httpError(httpResponse.statusCode)
-            }
-            
-            return data
-        }
     }
 } 
