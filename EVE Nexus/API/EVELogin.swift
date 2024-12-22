@@ -897,15 +897,6 @@ class EVELogin {
         Logger.info("EVELogin: 清除所有认证信息")
     }
     
-    // 检查令牌是否有效
-    func isTokenValid() -> Bool {
-        guard let expirationDate = UserDefaults.standard.object(forKey: "TokenExpirationDate") as? Date else {
-            return false
-        }
-        // 提前5分钟认为令牌过期，以防止边界情况
-        return expirationDate.timeIntervalSinceNow > 300
-    }
-    
     // 刷新令牌
     func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
         // 如果不是强制刷新，检查上次更新时间

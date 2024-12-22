@@ -163,11 +163,6 @@ class TokenManager {
         }
     }
     
-    // 清除所有缓存
-    func clearCache(for characterId: Int) {
-        clearToken(for: characterId)
-    }
-    
     // 检查token是否有效
     func isTokenValid(for characterId: Int) -> Bool {
         guard let cachedToken = tokenCache[characterId] else {
