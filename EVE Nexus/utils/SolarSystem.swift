@@ -9,15 +9,21 @@ import SwiftUI
 
 // 位置信息数据结构
 public struct SolarSystemInfo: Codable {
+    public let systemId: Int
     public let systemName: String
     public let security: Double
+    public let constellationId: Int
     public let constellationName: String
+    public let regionId: Int
     public let regionName: String
     
-    public init(systemName: String, security: Double, constellationName: String, regionName: String) {
+    public init(systemId: Int, systemName: String, security: Double, constellationId: Int, constellationName: String, regionId: Int, regionName: String) {
+        self.systemId = systemId
         self.systemName = systemName
         self.security = security
+        self.constellationId = constellationId
         self.constellationName = constellationName
+        self.regionId = regionId
         self.regionName = regionName
     }
 }
@@ -69,15 +75,20 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
           let row = rows.first,
           let security = row["system_security"] as? Double,
           let systemName = row["solarSystemName"] as? String,
+          let constellationId = row["constellation_id"] as? Int,
           let constellationName = row["constellationName"] as? String,
+          let regionId = row["region_id"] as? Int,
           let regionName = row["regionName"] as? String else {
         return nil
     }
     
     return SolarSystemInfo(
+        systemId: solarSystemId,
         systemName: systemName,
         security: security,
+        constellationId: constellationId,
         constellationName: constellationName,
+        regionId: regionId,
         regionName: regionName
     )
 }

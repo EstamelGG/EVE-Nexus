@@ -132,33 +132,16 @@ final class SovereigntyViewModel: ObservableObject {
     }
     
     func getLocationInfo(solarSystemId: Int) async -> PreparedSovereignty.LocationInfo? {
-        let universeQuery = """
-            SELECT u.region_id, u.constellation_id, u.system_security,
-                   s.solarSystemName, c.constellationName, r.regionName
-            FROM universe u
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            JOIN constellations c ON c.constellationID = u.constellation_id
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE u.solarsystem_id = ?
-        """
-        
-        guard case .success(let rows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
-              let row = rows.first,
-              let security = row["system_security"] as? Double,
-              let systemName = row["solarSystemName"] as? String,
-              let constellationName = row["constellationName"] as? String,
-              let regionName = row["regionName"] as? String,
-              let regionId = row["region_id"] as? Int else {
-            return nil
+        if let info = await getSolarSystemInfo(solarSystemId: solarSystemId, databaseManager: databaseManager) {
+            return PreparedSovereignty.LocationInfo(
+                systemName: info.systemName,
+                security: info.security,
+                constellationName: info.constellationName,
+                regionName: info.regionName,
+                regionId: info.regionId
+            )
         }
-        
-        return PreparedSovereignty.LocationInfo(
-            systemName: systemName,
-            security: security,
-            constellationName: constellationName,
-            regionName: regionName,
-            regionId: regionId
-        )
+        return nil
     }
 } 
 
@@ -278,4 +261,14 @@ struct SovereigntyView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Sovereignty", comment: ""))
     }
+} 
+
+struct LocationInfo: Codable {
+    let systemId: Int
+    let systemName: String
+    let security: Double
+    let constellationId: Int
+    let constellationName: String
+    let regionId: Int
+    let regionName: String
 } 

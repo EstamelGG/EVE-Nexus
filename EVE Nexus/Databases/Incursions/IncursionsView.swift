@@ -20,9 +20,12 @@ struct PreparedIncursion: Identifiable, Codable {
     }
     
     struct LocationInfo: Codable {
+        let systemId: Int
         let systemName: String
         let security: Double
+        let constellationId: Int
         let constellationName: String
+        let regionId: Int
         let regionName: String
     }
     
@@ -134,9 +137,12 @@ final class IncursionsViewModel: ObservableObject {
                         incursion: incursion,
                         faction: .init(iconName: faction.iconName, name: faction.name),
                         location: .init(
+                            systemId: location.systemId,
                             systemName: location.systemName,
                             security: location.security,
+                            constellationId: location.constellationId,
                             constellationName: location.constellationName,
+                            regionId: location.regionId,
                             regionName: location.regionName
                         )
                     )
@@ -175,27 +181,19 @@ final class IncursionsViewModel: ObservableObject {
         return (iconName, name)
     }
     
-    func getLocationInfo(solarSystemId: Int) async -> (systemName: String, security: Double, constellationName: String, regionName: String)? {
-        let universeQuery = """
-            SELECT u.region_id, u.constellation_id, u.system_security,
-                   s.solarSystemName, c.constellationName, r.regionName
-            FROM universe u
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            JOIN constellations c ON c.constellationID = u.constellation_id
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE u.solarsystem_id = ?
-        """
-        
-        guard case .success(let rows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
-              let row = rows.first,
-              let security = row["system_security"] as? Double,
-              let systemName = row["solarSystemName"] as? String,
-              let constellationName = row["constellationName"] as? String,
-              let regionName = row["regionName"] as? String else {
-            return nil
+    func getLocationInfo(solarSystemId: Int) async -> (systemId: Int, systemName: String, security: Double, constellationId: Int, constellationName: String, regionId: Int, regionName: String)? {
+        if let info = await getSolarSystemInfo(solarSystemId: solarSystemId, databaseManager: databaseManager) {
+            return (
+                systemId: info.systemId,
+                systemName: info.systemName,
+                security: info.security,
+                constellationId: info.constellationId,
+                constellationName: info.constellationName,
+                regionId: info.regionId,
+                regionName: info.regionName
+            )
         }
-        
-        return (systemName, security, constellationName, regionName)
+        return nil
     }
 }
 
