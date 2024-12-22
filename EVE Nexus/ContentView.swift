@@ -133,8 +133,8 @@ struct LoginButtonView: View {
     let isRefreshing: Bool
     
     // 添加联盟和军团信息的状态
-    @State private var allianceInfo: NetworkManager.AllianceInfo?
-    @State private var corporationInfo: NetworkManager.CorporationInfo?
+    @State private var allianceInfo: AllianceInfo?
+    @State private var corporationInfo: CorporationInfo?
     @State private var allianceLogo: UIImage?
     @State private var corporationLogo: UIImage?
     @State private var tokenExpired: Bool = false
@@ -314,7 +314,7 @@ struct LoginButtonView: View {
         
         do {
             // 获取角色公开信息
-            let publicInfo = try await NetworkManager.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
+            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
             
             // 获取联盟信息
             if let allianceId = publicInfo.alliance_id {
@@ -348,8 +348,8 @@ struct LoginButtonView: View {
             }
             
             // 获取军团信息
-            async let corporationInfoTask = NetworkManager.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-            async let corporationLogoTask = NetworkManager.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+            async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+            async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
             
             do {
                 let (info, logo) = try await (corporationInfoTask, corporationLogoTask)
@@ -597,13 +597,13 @@ struct ContentView: View {
                 if let character = selectedCharacter {
                     do {
                         // 强制刷新角色公开信息
-                        let publicInfo = try await NetworkManager.shared.fetchCharacterPublicInfo(
+                        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
                             characterId: character.CharacterID,
                             forceRefresh: true
                         )
                         
-                        // 强制刷新角色头像
-                        if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                        // 获取角色头像
+                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
                             characterId: character.CharacterID,
                             forceRefresh: true
                         ) {
@@ -641,11 +641,11 @@ struct ContentView: View {
                         
                         // 获取军团信息
                         do {
-                            async let corporationInfoTask = NetworkManager.shared.fetchCorporationInfo(
+                            async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
                                 corporationId: publicInfo.corporation_id,
                                 forceRefresh: true
                             )
-                            async let corporationLogoTask = NetworkManager.shared.fetchCorporationLogo(
+                            async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(
                                 corporationId: publicInfo.corporation_id
                             )
                             

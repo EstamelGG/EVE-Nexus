@@ -1,30 +1,35 @@
 import Foundation
 import SwiftUI
 
-// 联盟信息数据模型
-struct AllianceInfo: Codable {
+// 军团信息数据模型
+struct CorporationInfo: Codable {
     let name: String
     let ticker: String
-    let creator_corporation_id: Int
+    let member_count: Int
+    let ceo_id: Int
     let creator_id: Int
-    let date_founded: String
-    let executor_corporation_id: Int
+    let date_founded: String?
+    let description: String
+    let home_station_id: Int?
+    let shares: Int?
+    let tax_rate: Double
+    let url: String?
 }
 
-@globalActor actor AllianceAPIActor {
-    static let shared = AllianceAPIActor()
+@globalActor actor CorporationAPIActor {
+    static let shared = CorporationAPIActor()
 }
 
-@AllianceAPIActor
-class AllianceAPI {
-    static let shared = AllianceAPI()
+@CorporationAPIActor
+class CorporationAPI {
+    static let shared = CorporationAPI()
     
     private init() {}
     
-    // 获取联盟信息
-    func fetchAllianceInfo(allianceId: Int, forceRefresh: Bool = false) async throws -> AllianceInfo {
-        let cacheKey = "alliance_info_\(allianceId)"
-        let cacheTimeKey = "alliance_info_\(allianceId)_time"
+    // 获取军团信息
+    func fetchCorporationInfo(corporationId: Int, forceRefresh: Bool = false) async throws -> CorporationInfo {
+        let cacheKey = "corporation_info_\(corporationId)"
+        let cacheTimeKey = "corporation_info_\(corporationId)_time"
         
         // 检查缓存
         if !forceRefresh,
@@ -32,63 +37,63 @@ class AllianceAPI {
            let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
            Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
             do {
-                let info = try JSONDecoder().decode(AllianceInfo.self, from: cachedData)
-                Logger.info("使用缓存的联盟信息 - 联盟ID: \(allianceId)")
+                let info = try JSONDecoder().decode(CorporationInfo.self, from: cachedData)
+                Logger.info("使用缓存的军团信息 - 军团ID: \(corporationId)")
                 return info
             } catch {
-                Logger.error("解析缓存的联盟信息失败: \(error)")
+                Logger.error("解析缓存的军团信息失败: \(error)")
             }
         }
         
         // 从网络获取数据
-        let urlString = "https://esi.evetech.net/latest/alliances/\(allianceId)/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
         let data = try await NetworkManager.shared.fetchData(from: url)
-        let info = try JSONDecoder().decode(AllianceInfo.self, from: data)
+        let info = try JSONDecoder().decode(CorporationInfo.self, from: data)
         
         // 更新缓存
         UserDefaults.standard.set(data, forKey: cacheKey)
         UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         
-        Logger.info("成功获取联盟信息 - 联盟ID: \(allianceId)")
+        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
         return info
     }
     
-    // 获取联盟图标
-    func fetchAllianceLogo(allianceID: Int) async throws -> UIImage {
-        let urlString = "https://images.evetech.net/alliances/\(allianceID)/logo?size=64"
+    // 获取军团图标
+    func fetchCorporationLogo(corporationId: Int) async throws -> UIImage {
+        let urlString = "https://images.evetech.net/corporations/\(corporationId)/logo?size=64"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
-        let cacheKey = "alliance_\(allianceID)"
-        let filename = "alliance_\(allianceID).png"
+        let cacheKey = "corporation_\(corporationId)"
+        let filename = "corporation_\(corporationId).png"
         
         // 检查内存缓存
         if let cached = UserDefaults.standard.data(forKey: cacheKey),
            let image = UIImage(data: cached) {
-            Logger.info("使用内存缓存的联盟图标 - 联盟ID: \(allianceID)")
+            Logger.info("使用内存缓存的军团图标 - 军团ID: \(corporationId)")
             return image
         }
         
         // 检查文件缓存
         let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("AllianceIcons")
+            .appendingPathComponent("CorporationIcons")
             .appendingPathComponent(filename)
         
         if let data = try? Data(contentsOf: fileURL),
            let image = UIImage(data: data) {
             // 更新内存缓存
             UserDefaults.standard.set(data, forKey: cacheKey)
-            Logger.info("使用文件缓存的联盟图标 - 联盟ID: \(allianceID)")
+            Logger.info("使用文件缓存的军团图标 - 军团ID: \(corporationId)")
             return image
         }
         
         // 从网络获取
-        Logger.info("从网络获取联盟图标 - 联盟ID: \(allianceID)")
+        Logger.info("从网络获取军团图标 - 军团ID: \(corporationId)")
         let (data, response) = try await URLSession.shared.data(from: url)
         
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -114,9 +119,9 @@ class AllianceAPI {
                     withIntermediateDirectories: true
                 )
                 try data.write(to: fileURL)
-                Logger.info("联盟图标已保存到文件 - 联盟ID: \(allianceID)")
+                Logger.info("军团图标已保存到文件 - 军团ID: \(corporationId)")
             } catch {
-                Logger.error("保存联盟图标到文件失败 - 联盟ID: \(allianceID), error: \(error)")
+                Logger.error("保存军团图标到文件失败 - 军团ID: \(corporationId), error: \(error)")
             }
         }
         
