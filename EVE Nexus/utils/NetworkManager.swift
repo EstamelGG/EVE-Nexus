@@ -182,12 +182,22 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 通用的数据获取函数
-    func fetchData(from url: URL, request customRequest: URLRequest? = nil, forceRefresh: Bool = false) async throws -> Data {
+    func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false) async throws -> Data {
         try await rateLimiter.waitForPermission()
         
-        var request = customRequest ?? URLRequest(url: url)
+        // 创建请求
+        var request = URLRequest(url: url)
         if forceRefresh {
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        }
+        
+        // 添加基本请求头
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("tranquility", forHTTPHeaderField: "datasource")
+        
+        // 添加自定义请求头
+        headers?.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
         }
         
         return try await retrier.execute {
@@ -205,7 +215,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体: \(responseBody)")
                 } else {
-                    Logger.error("HTTP���求失败 - URL: \(url.absoluteString)")
+                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体无法解析")
                 }
@@ -288,18 +298,31 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
 
         // 如果没有缓存或缓存已过期，从网络获取
-        let skills: CharacterSkillsResponse = try await fetchDataWithToken(
-            characterId: characterId,
-            endpoint: "/characters/\(characterId)/skills/"
-        )
-        
-        // 更新缓存
-        if let encodedData = try? JSONEncoder().encode(skills) {
-            UserDefaults.standard.set(encodedData, forKey: skillsCacheKey)
-            UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
         }
         
-        return skills
+        let data = try await fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        // 解码数据
+        do {
+            let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+            
+            // 更新缓存
+            if let encodedData = try? JSONEncoder().encode(skills) {
+                UserDefaults.standard.set(encodedData, forKey: skillsCacheKey)
+                UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
+            }
+            
+            return skills
+        } catch {
+            Logger.error("解析技能数据失败: \(error)")
+            throw NetworkError.decodingError(error)
+        }
     }
     
     // 获取技能队列信息
@@ -323,18 +346,31 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         // 如果没有缓存或缓存已过期，从网络获取
         Logger.info("在线获取技能队列数据 - 角色ID: \(characterId)")
-        let queue: [SkillQueueItem] = try await fetchDataWithToken(
-            characterId: characterId,
-            endpoint: "/characters/\(characterId)/skillqueue/"
-        )
-        
-        // 更新缓存
-        if let encodedData = try? JSONEncoder().encode(queue) {
-            UserDefaults.standard.set(encodedData, forKey: queueCacheKey)
-            UserDefaults.standard.set(Date(), forKey: queueUpdateTimeKey)
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skillqueue/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
         }
         
-        return queue
+        let data = try await fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        // 解码数据
+        do {
+            let queue = try JSONDecoder().decode([SkillQueueItem].self, from: data)
+            
+            // 更新缓存
+            if let encodedData = try? JSONEncoder().encode(queue) {
+                UserDefaults.standard.set(encodedData, forKey: queueCacheKey)
+                UserDefaults.standard.set(Date(), forKey: queueUpdateTimeKey)
+            }
+            
+            return queue
+        } catch {
+            Logger.error("解析技能队列数据失败: \(error)")
+            throw NetworkError.decodingError(error)
+        }
     }
     
     // 获取技能名称
@@ -384,10 +420,22 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 获取角色位置信息
     func fetchCharacterLocation(characterId: Int) async throws -> CharacterLocation {
-        return try await fetchDataWithToken(
-            characterId: characterId,
-            endpoint: "/characters/\(characterId)/location/"
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await fetchDataWithToken(
+            from: url,
+            characterId: characterId
         )
+        
+        do {
+            return try JSONDecoder().decode(CharacterLocation.self, from: data)
+        } catch {
+            Logger.error("解析角色位置信息失败: \(error)")
+            throw NetworkError.decodingError(error)
+        }
     }
     
     
@@ -398,34 +446,24 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 专门用于需访问令牌的请求
-    func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
-        let urlString = "https://esi.evetech.net/latest\(endpoint)"
-        Logger.info("ESI请求: GET \(urlString)")
-        
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
+    func fetchDataWithToken(from url: URL, characterId: Int, headers: [String: String]? = nil) async throws -> Data {
         // 获取角色的token
         let token = try await TokenManager.shared.getToken(for: characterId)
         
-        // 创建请求
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token.access_token)", forHTTPHeaderField: "Authorization")
-        request.setValue("tranquility", forHTTPHeaderField: "datasource")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // 创建基本请求头
+        var allHeaders: [String: String] = [
+            "Authorization": "Bearer \(token.access_token)",
+            "datasource": "tranquility",
+            "Accept": "application/json"
+        ]
+        
+        // 添加自定义请求头
+        headers?.forEach { key, value in
+            allHeaders[key] = value
+        }
         
         // 使用基础的 fetchData 方法获取数据
-        let data = try await fetchData(from: url, request: request)
-        
-        // 解码数据
-        do {
-            let decodedData = try JSONDecoder().decode(T.self, from: data)
-            return decodedData
-        } catch {
-            Logger.error("ESI响应解析失败: \(error)")
-            throw NetworkError.decodingError(error)
-        }
+        return try await fetchData(from: url, headers: allHeaders)
     }
 }
 

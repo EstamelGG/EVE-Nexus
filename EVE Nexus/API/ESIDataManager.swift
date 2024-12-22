@@ -30,19 +30,14 @@ class ESIDataManager {
         }
         
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/"
-        Logger.info("ESI请求: GET \(urlString)")
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
         
-        // 使用NetworkManager的fetchDataWithToken方法获取原始数据
-        let data = try await NetworkManager.shared.fetchData(
-            from: URL(string: urlString)!,
-            request: {
-                var request = URLRequest(url: URL(string: urlString)!)
-                let token = try await TokenManager.shared.getToken(for: characterId)
-                request.setValue("Bearer \(token.access_token.prefix(32))...", forHTTPHeaderField: "Authorization")
-                request.setValue("tranquility", forHTTPHeaderField: "datasource")
-                Logger.info("ESI请求头: Authorization: Bearer \(token.access_token.prefix(32))...")
-                return request
-            }()
+        // 使用NetworkManager的fetchDataWithToken方法获取数据
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
         )
         
         // 将数据转换为字符串
