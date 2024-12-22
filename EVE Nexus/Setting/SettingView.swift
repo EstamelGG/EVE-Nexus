@@ -448,7 +448,7 @@ struct SettingView: View {
                     updateAllData()
                 case .incursions:
                     Logger.info("Refreshing incursions data")
-                    let incursionsData = try await NetworkManager.shared.fetchIncursions()
+                    let incursionsData = try await IncursionsAPI.shared.fetchIncursions()
                     let jsonData = try JSONEncoder().encode(incursionsData)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间

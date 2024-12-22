@@ -318,7 +318,7 @@ class StaticResourceManager {
         case .incursions:
             Logger.info("Force refreshing incursions data")
             // 从网络获取新数据
-            let incursionsData = try await NetworkManager.shared.fetchIncursions()
+            let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(incursionsData)
             
             // 保存到文件
@@ -757,7 +757,7 @@ class StaticResourceManager {
         // 如果强制刷新，直接从网络获取
         if forceRefresh {
             Logger.info("Force refreshing incursions data from network")
-            let incursionsData = try await NetworkManager.shared.fetchIncursions(forceRefresh: true)
+            let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(incursionsData)
             
             // 保存到文件和缓存
@@ -804,7 +804,7 @@ class StaticResourceManager {
         
         // 3. 从网络获取
         Logger.info("Fetching incursions data from network")
-        let incursionsData = try await NetworkManager.shared.fetchIncursions(forceRefresh: shouldRefresh)
+        let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: shouldRefresh)
         let jsonData = try JSONEncoder().encode(incursionsData)
         
         // 保存到文件（同时会更新内存缓存）

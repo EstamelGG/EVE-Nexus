@@ -176,7 +176,7 @@ struct SovereigntyCell: View {
                 
                 // 进度圆环
                 Circle()
-                    .trim(from: 0, to: sovereignty.campaign.attackers_score ?? 0)
+                    .trim(from: 0, to: CGFloat(sovereignty.campaign.attackers_score ?? 0))
                     .stroke(Color.red, lineWidth: 4)
                     .frame(width: 56, height: 56)
                     .rotationEffect(.degrees(-90))
