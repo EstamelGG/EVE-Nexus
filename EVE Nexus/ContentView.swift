@@ -131,16 +131,14 @@ struct LoginButtonView: View {
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
     let isRefreshing: Bool
-    
-    // 添加联盟和军团信息的状态
-    @State private var allianceInfo: AllianceInfo?
     @State private var corporationInfo: CorporationInfo?
-    @State private var allianceLogo: UIImage?
     @State private var corporationLogo: UIImage?
-    @State private var tokenExpired: Bool = false
+    @State private var allianceInfo: AllianceInfo?
+    @State private var allianceLogo: UIImage?
+    @State private var tokenExpired = false
     
     var body: some View {
-        HStack(spacing: 15) {
+        HStack {
             if let portrait = characterPortrait {
                 ZStack {
                     Image(uiImage: portrait)
@@ -148,59 +146,29 @@ struct LoginButtonView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
-                    
+                        .overlay(
+                            tokenExpired ? Circle()
+                                .stroke(Color.red, lineWidth: 3) : nil
+                        )
                     if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .frame(width: 64, height: 64)
-                        
                         ProgressView()
-                            .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-                        
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-                            
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        }
+                            .progressViewStyle(CircularProgressViewStyle())
                     }
                 }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
+                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
+                .background(Circle().fill(Color.primary.opacity(0.05)))
                 .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
                 .padding(4)
             } else {
-                ZStack{
+                ZStack {
                     Image(systemName: "person.crop.circle")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
                 }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
+                .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
+                .background(Circle().fill(Color.primary.opacity(0.05)))
                 .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
                 .padding(4)
             }
@@ -210,7 +178,50 @@ struct LoginButtonView: View {
                     Text(character.CharacterName)
                         .font(.headline)
                         .lineLimit(1)
-                        .padding(.bottom, 4)
+                    
+                    // 显示联盟信息
+                    HStack(spacing: 4) {
+                        if let alliance = allianceInfo, let logo = allianceLogo {
+                            Image(uiImage: logo)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(Circle())
+                            Text("[\(alliance.ticker)] \(alliance.name)")
+                                .font(.caption)
+                                .lineLimit(1)
+                        } else {
+                            Image(systemName: "square.dashed")
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .foregroundColor(.gray)
+                            Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                    }
+                    
+                    // 显示军团信息
+                    HStack(spacing: 4) {
+                        if let corporation = corporationInfo, let logo = corporationLogo {
+                            Image(uiImage: logo)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(Circle())
+                            Text("[\(corporation.ticker)] \(corporation.name)")
+                                .font(.caption)
+                                .lineLimit(1)
+                        } else {
+                            Image(systemName: "square.dashed")
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .foregroundColor(.gray)
+                            Text("[-] \(NSLocalizedString("No Corporation", comment: ""))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                    }
                 } else if isLoggedIn {
                     Text(NSLocalizedString("Account_Management", comment: ""))
                         .font(.headline)
