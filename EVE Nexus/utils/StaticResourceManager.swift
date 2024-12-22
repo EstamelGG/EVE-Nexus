@@ -329,7 +329,7 @@ class StaticResourceManager {
         case .sovereigntyCampaigns:
             Logger.info("Force refreshing sovereignty campaigns data")
             // 从网络获取新数据
-            let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+            let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(campaignsData)
             
             // 保存到文件
@@ -858,7 +858,7 @@ class StaticResourceManager {
         // 如果强制刷新，直接从网络获取
         if forceRefresh {
             Logger.info("Force refreshing sovereignty campaigns data from network")
-            let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns(forceRefresh: true)
+            let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
             let jsonData = try JSONEncoder().encode(campaignsData)
             
             // 保存到文件和缓存
@@ -905,7 +905,7 @@ class StaticResourceManager {
         
         // 3. 从网络获取
         Logger.info("Fetching sovereignty campaigns data from network")
-        let campaignsData = try await NetworkManager.shared.fetchSovereigntyCampaigns()
+        let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns()
         let jsonData = try JSONEncoder().encode(campaignsData)
         
         // 保存到文件（同时会更新内存缓存）
