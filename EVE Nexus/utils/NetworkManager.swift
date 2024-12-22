@@ -177,10 +177,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         imageCache.delegate = self
     }
     
-    func setRegionID(_ id: Int) {
-        regionID = id
-    }
-    
     // 通用的数据获取函数
     func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false) async throws -> Data {
         try await rateLimiter.waitForPermission()
@@ -226,17 +222,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
 
-    
-    private func setCachedImage(_ image: UIImage, forKey key: String) async {
-        await withCheckedContinuation { continuation in
-            Task { @NetworkManagerActor in
-                imageCache.setObject(CachedData(data: image, timestamp: Date()), forKey: key as NSString)
-                imageCacheKeys.insert(key)
-                continuation.resume()
-            }
-        }
-    }
-    
     
     // 清除所有缓存
     func clearAllCaches() async {
