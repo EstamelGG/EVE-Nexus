@@ -1,32 +1,56 @@
 import Foundation
 
 // 技能数据模型
-struct CharacterSkill: Codable {
-    let active_skill_level: Int
-    let skill_id: Int
-    let skillpoints_in_skill: Int
-    let trained_skill_level: Int
+public struct CharacterSkill: Codable {
+    public let active_skill_level: Int
+    public let skill_id: Int
+    public let skillpoints_in_skill: Int
+    public let trained_skill_level: Int
+    
+    public init(active_skill_level: Int, skill_id: Int, skillpoints_in_skill: Int, trained_skill_level: Int) {
+        self.active_skill_level = active_skill_level
+        self.skill_id = skill_id
+        self.skillpoints_in_skill = skillpoints_in_skill
+        self.trained_skill_level = trained_skill_level
+    }
 }
 
-struct CharacterSkillsResponse: Codable {
-    let skills: [CharacterSkill]
-    let total_sp: Int
-    let unallocated_sp: Int
+public struct CharacterSkillsResponse: Codable {
+    public let skills: [CharacterSkill]
+    public let total_sp: Int
+    public let unallocated_sp: Int
+    
+    public init(skills: [CharacterSkill], total_sp: Int, unallocated_sp: Int) {
+        self.skills = skills
+        self.total_sp = total_sp
+        self.unallocated_sp = unallocated_sp
+    }
 }
 
 // 技能队列数据模型
-struct SkillQueueItem: Codable {
-    let finish_date: String?
-    let start_date: String?
-    let finished_level: Int
-    let level_end_sp: Int
-    let level_start_sp: Int
-    let queue_position: Int
-    let skill_id: Int
-    let training_start_sp: Int
+public struct SkillQueueItem: Codable {
+    public let finish_date: String?
+    public let start_date: String?
+    public let finished_level: Int
+    public let level_end_sp: Int
+    public let level_start_sp: Int
+    public let queue_position: Int
+    public let skill_id: Int
+    public let training_start_sp: Int
+    
+    public init(finish_date: String?, start_date: String?, finished_level: Int, level_end_sp: Int, level_start_sp: Int, queue_position: Int, skill_id: Int, training_start_sp: Int) {
+        self.finish_date = finish_date
+        self.start_date = start_date
+        self.finished_level = finished_level
+        self.level_end_sp = level_end_sp
+        self.level_start_sp = level_start_sp
+        self.queue_position = queue_position
+        self.skill_id = skill_id
+        self.training_start_sp = training_start_sp
+    }
     
     // 判断当前时间点是否在训练这个技能
-    var isCurrentlyTraining: Bool {
+    public var isCurrentlyTraining: Bool {
         guard let finishDateString = finish_date,
               let startDateString = start_date else {
             return false
@@ -45,7 +69,7 @@ struct SkillQueueItem: Codable {
     }
     
     // 计算训练进度
-    var progress: Double {
+    public var progress: Double {
         guard let finishDateString = finish_date,
               let startDateString = start_date else {
             return 0
@@ -72,12 +96,12 @@ struct SkillQueueItem: Codable {
         }
         
         // 计算时间进度比例
-        let totalTrainingTime = finishDate.timeIntervalSince(startDate) // A
-        let trainedTime = now.timeIntervalSince(startDate) // B
+        let totalTrainingTime = finishDate.timeIntervalSince(startDate)
+        let trainedTime = now.timeIntervalSince(startDate)
         let timeProgress = trainedTime / totalTrainingTime
         
         // 计算剩余需要训练的技能点
-        let remainingSP = level_end_sp - training_start_sp // C
+        let remainingSP = level_end_sp - training_start_sp
         
         // 计算当前已训练的技能点
         let trainedSP = Double(remainingSP) * timeProgress
@@ -89,7 +113,7 @@ struct SkillQueueItem: Codable {
         return currentTotalTrainedSP / Double(totalLevelSP)
     }
     
-    var remainingTime: TimeInterval? {
+    public var remainingTime: TimeInterval? {
         guard let finishDateString = finish_date else { return nil }
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime]
@@ -98,19 +122,19 @@ struct SkillQueueItem: Codable {
         return finishDate.timeIntervalSince(Date())
     }
     
-    var skillLevel: String {
+    public var skillLevel: String {
         let romanNumerals = ["I", "II", "III", "IV", "V"]
         return romanNumerals[finished_level - 1]
     }
 }
 
-class CharacterSkillsAPI {
-    static let shared = CharacterSkillsAPI()
+public class CharacterSkillsAPI {
+    public static let shared = CharacterSkillsAPI()
     
     private init() {}
     
     // 获取角色技能信息
-    func fetchCharacterSkills(characterId: Int) async throws -> CharacterSkillsResponse {
+    public func fetchCharacterSkills(characterId: Int) async throws -> CharacterSkillsResponse {
         // 检查 UserDefaults 缓存
         let skillsCacheKey = "character_\(characterId)_skills"
         let skillsUpdateTimeKey = "character_\(characterId)_skills_update_time"
@@ -120,7 +144,7 @@ class CharacterSkillsAPI {
            let lastUpdateTime = UserDefaults.standard.object(forKey: skillsUpdateTimeKey) as? Date,
            Date().timeIntervalSince(lastUpdateTime) < 300 { // 5分钟缓存
             do {
-                let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: cachedData)
+                let skills: CharacterSkillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: cachedData)
                 Logger.info("Using cached skills data for character \(characterId)")
                 return skills
             } catch {
@@ -141,7 +165,7 @@ class CharacterSkillsAPI {
         
         // 解码数据
         do {
-            let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
+            let skills: CharacterSkillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
             
             // 更新缓存
             if let encodedData = try? JSONEncoder().encode(skills) {
@@ -157,7 +181,7 @@ class CharacterSkillsAPI {
     }
     
     // 获取技能队列信息
-    func fetchSkillQueue(characterId: Int) async throws -> [SkillQueueItem] {
+    public func fetchSkillQueue(characterId: Int) async throws -> [SkillQueueItem] {
         // 检查 UserDefaults 缓存
         let queueCacheKey = "character_\(characterId)_skillqueue"
         let queueUpdateTimeKey = "character_\(characterId)_skillqueue_update_time"
@@ -167,7 +191,7 @@ class CharacterSkillsAPI {
            let lastUpdateTime = UserDefaults.standard.object(forKey: queueUpdateTimeKey) as? Date,
            Date().timeIntervalSince(lastUpdateTime) < 30 * 60 { // 30 分钟缓存
             do {
-                let queue = try JSONDecoder().decode([SkillQueueItem].self, from: cachedData)
+                let queue: [SkillQueueItem] = try JSONDecoder().decode([SkillQueueItem].self, from: cachedData)
                 Logger.info("使用缓存的技能队列数据 - 角色ID: \(characterId)")
                 return queue
             } catch {
@@ -189,7 +213,7 @@ class CharacterSkillsAPI {
         
         // 解码数据
         do {
-            let queue = try JSONDecoder().decode([SkillQueueItem].self, from: data)
+            let queue: [SkillQueueItem] = try JSONDecoder().decode([SkillQueueItem].self, from: data)
             
             // 更新缓存
             if let encodedData = try? JSONEncoder().encode(queue) {
