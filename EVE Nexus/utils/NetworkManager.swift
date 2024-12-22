@@ -198,7 +198,16 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
             
             guard httpResponse.statusCode == 200 else {
-                Logger.error("HTTP error: \(url.absoluteString) [\(httpResponse.statusCode)]")
+                // 添加错误日志记录
+                if let responseBody = String(data: data, encoding: .utf8) {
+                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
+                    Logger.error("状态码: \(httpResponse.statusCode)")
+                    Logger.error("响应体: \(responseBody)")
+                } else {
+                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
+                    Logger.error("状态码: \(httpResponse.statusCode)")
+                    Logger.error("响应体无法解析")
+                }
                 throw NetworkError.httpError(statusCode: httpResponse.statusCode)
             }
             
