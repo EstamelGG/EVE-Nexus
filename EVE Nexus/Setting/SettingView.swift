@@ -376,7 +376,7 @@ struct SettingView: View {
             
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
                 switch type {
-                case .sovereignty, .incursions, .sovereigntyCampaigns:
+                case .sovereignty, .incursions, .sovereignty_campaigns:
                     let isRefreshingThis = refreshingResources.contains(resource.name)
                     
                     let isExpired = resource.exists && resource.lastModified != nil && 
@@ -438,7 +438,7 @@ struct SettingView: View {
                 
                 // 根据类型执行不同的刷新操作
                 switch type {
-                case .sovereignty:
+                case .sovereignty, .incursions, .sovereignty_campaigns:
                     Logger.info("Refreshing sovereignty data")
                     let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
@@ -454,8 +454,8 @@ struct SettingView: View {
                     // 更新下载时间
                     UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
                     updateAllData()
-                case .sovereigntyCampaigns:
-                    Logger.info("Refreshing Sovereignty Campaigns data")
+                case .sovereignty_campaigns:
+                    Logger.info("Force refreshing sovereignty campaigns data")
                     let sovCamp = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovCamp)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
@@ -772,7 +772,7 @@ struct SettingView: View {
             if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }),
                let lastModified = resource.lastModified {
                 switch type {
-                case .sovereignty, .incursions, .sovereigntyCampaigns:
+                case .sovereignty, .incursions, .sovereignty_campaigns:
                     let duration = type.cacheDuration
                     let elapsed = Date().timeIntervalSince(lastModified)
                     let remaining = duration - elapsed

@@ -63,7 +63,7 @@ class StaticResourceManager {
     enum ResourceType: String, CaseIterable {
         case sovereignty = "sovereignty"
         case incursions = "incursions"
-        case sovereigntyCampaigns = "sovereigntyCampaigns"
+        case sovereignty_campaigns = "sovereignty_campaigns"
         case factionIcons = "factionIcons"
         case netRenders = "netRenders"
         case marketData = "marketData"
@@ -75,7 +75,7 @@ class StaticResourceManager {
                 return "sovereignty.json"
             case .incursions:
                 return "incursions.json"
-            case .sovereigntyCampaigns:
+            case .sovereignty_campaigns:
                 return "sovereignty_campaigns.json"
             case .factionIcons, .netRenders, .marketData, .characterPortraits:
                 return ""  // 这些类型使用目录而不是单个文件
@@ -111,7 +111,7 @@ class StaticResourceManager {
             case .marketData:
                 let stats = StaticResourceManager.shared.getMarketDataStats()
                 return stats.name
-            case .sovereigntyCampaigns:
+            case .sovereignty_campaigns:
                 return NSLocalizedString("Main_Sovereignty_Title", comment: "")
             case .characterPortraits:
                 let stats = StaticResourceManager.shared.getCharacterPortraitsStats()
@@ -140,7 +140,7 @@ class StaticResourceManager {
                 return StaticResourceManager.shared.ALLIANCE_ICON_CACHE_DURATION
             case .netRenders:
                 return StaticResourceManager.shared.RENDER_CACHE_DURATION
-            case .sovereigntyCampaigns:
+            case .sovereignty_campaigns:
                 return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
             case .characterPortraits:
                 return CacheDuration.characterPortrait
@@ -193,7 +193,7 @@ class StaticResourceManager {
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
             switch type {
-            case .sovereignty, .incursions, .sovereigntyCampaigns:
+            case .sovereignty, .incursions, .sovereignty_campaigns:
                 let filePath = getStaticDataSetPath().appendingPathComponent(type.filename)
                 let exists = fileManager.fileExists(atPath: filePath.path)
                 var lastModified: Date? = nil
@@ -326,7 +326,7 @@ class StaticResourceManager {
             
             Logger.info("Successfully refreshed incursions data")
             
-        case .sovereigntyCampaigns:
+        case .sovereignty_campaigns:
             Logger.info("Force refreshing sovereignty campaigns data")
             // 从网络获取新数据
             let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
@@ -791,8 +791,8 @@ class StaticResourceManager {
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权战役数据数组
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        let cacheKey = ResourceType.sovereigntyCampaigns.rawValue as NSString
-        let filename = ResourceType.sovereigntyCampaigns.filename
+        let cacheKey = ResourceType.sovereignty_campaigns.rawValue as NSString
+        let filename = ResourceType.sovereignty_campaigns.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
         // 如果强制刷新，直接从网络获取
@@ -802,7 +802,7 @@ class StaticResourceManager {
             let jsonData = try JSONEncoder().encode(campaignsData)
             
             // 保存到文件和缓存
-            try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereigntyCampaigns.rawValue)
+            try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereignty_campaigns.rawValue)
             
             return campaignsData
         }
@@ -812,7 +812,7 @@ class StaticResourceManager {
         
         // 检查文件是否过期
         if fileManager.fileExists(atPath: filePath.path) && 
-           isFileExpired(at: filePath.path, duration: ResourceType.sovereigntyCampaigns.cacheDuration) {
+           isFileExpired(at: filePath.path, duration: ResourceType.sovereignty_campaigns.cacheDuration) {
             shouldRefresh = true
         }
         
@@ -849,7 +849,7 @@ class StaticResourceManager {
         let jsonData = try JSONEncoder().encode(campaignsData)
         
         // 保存到文件（同时会更新内存缓存）
-        try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereigntyCampaigns.rawValue)
+        try saveToFileAndCache(jsonData, filename: filename, cacheKey: ResourceType.sovereignty_campaigns.rawValue)
         
         return campaignsData
     }
@@ -956,19 +956,17 @@ class StaticResourceManager {
     /// 从本地获取主权战争数据
     /// - Returns: 主权战争数据（如果存在且未过期）
     func getSovereigntyCampaigns() -> [EVE_Nexus.SovereigntyCampaign]? {
-        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
-        
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereignty_campaigns.json")
         guard let data = try? Data(contentsOf: fileURL) else {
             return nil
         }
-        
         return try? JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
     }
     
     /// 保存主权战争数据
     /// - Parameter campaigns: 主权战争数据
     func saveSovereigntyCampaigns(_ campaigns: [EVE_Nexus.SovereigntyCampaign]) throws {
-        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereigntyCampaigns.json")
+        let fileURL = getStaticDataSetPath().appendingPathComponent("sovereignty_campaigns.json")
         let data = try JSONEncoder().encode(campaigns)
         try data.write(to: fileURL)
     }

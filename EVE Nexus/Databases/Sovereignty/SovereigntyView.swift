@@ -41,8 +41,8 @@ final class SovereigntyViewModel: ObservableObject {
             let jsonData = try JSONEncoder().encode(campaigns)
             try StaticResourceManager.shared.saveToFileAndCache(
                 jsonData,
-                filename: StaticResourceManager.ResourceType.sovereigntyCampaigns.filename,
-                cacheKey: StaticResourceManager.ResourceType.sovereigntyCampaigns.rawValue
+                filename: StaticResourceManager.ResourceType.sovereignty_campaigns.filename,
+                cacheKey: StaticResourceManager.ResourceType.sovereignty_campaigns.rawValue
             )
             await processCampaigns(campaigns)
         } catch {
