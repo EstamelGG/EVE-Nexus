@@ -331,6 +331,10 @@ struct ContentView: View {
     @State private var selectedCharacterPortrait: UIImage?
     @State private var isRefreshing = false
     @State private var tokenExpired = false
+    @State private var corporationInfo: CorporationInfo?
+    @State private var corporationLogo: UIImage?
+    @State private var allianceInfo: AllianceInfo?
+    @State private var allianceLogo: UIImage?
     
     // 添加 UserDefaults 存储的当前角色 ID
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -376,6 +380,33 @@ struct ContentView: View {
                 if let cachedPortraitData = UserDefaults.standard.data(forKey: "character_portrait_\(currentCharacterId)_128"),
                    let cachedPortrait = UIImage(data: cachedPortraitData) {
                     _selectedCharacterPortrait = State(initialValue: cachedPortrait)
+                }
+                
+                // 从缓存加载军团信息
+                if let corporationId = savedCharacter.character.corporationId,
+                   let cachedCorpData = UserDefaults.standard.data(forKey: "corporation_info_\(corporationId)"),
+                   let corpInfo = try? JSONDecoder().decode(CorporationInfo.self, from: cachedCorpData) {
+                    _corporationInfo = State(initialValue: corpInfo)
+                    
+                    // 从缓存加载军团图标
+                    if let cachedCorpLogoData = UserDefaults.standard.data(forKey: "corporation_logo_\(corporationId)_128"),
+                       let corpLogo = UIImage(data: cachedCorpLogoData) {
+                        _corporationLogo = State(initialValue: corpLogo)
+                    }
+                }
+                
+                // 从缓存加载联盟信息（如果有）
+                if let allianceId = savedCharacter.character.allianceId {
+                    if let cachedAllianceData = UserDefaults.standard.data(forKey: "alliance_info_\(allianceId)"),
+                       let allianceInfo = try? JSONDecoder().decode(AllianceInfo.self, from: cachedAllianceData) {
+                        _allianceInfo = State(initialValue: allianceInfo)
+                    }
+                    
+                    // 从缓存加载联盟图标
+                    if let cachedAllianceLogoData = UserDefaults.standard.data(forKey: "alliance_logo_\(allianceId)_128"),
+                       let allianceLogo = UIImage(data: cachedAllianceLogoData) {
+                        _allianceLogo = State(initialValue: allianceLogo)
+                    }
                 }
                 
                 _isLoggedIn = State(initialValue: true)

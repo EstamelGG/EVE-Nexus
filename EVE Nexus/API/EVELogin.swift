@@ -166,6 +166,8 @@ struct EVECharacterInfo: Codable {
     var locationStatus: CharacterLocation.LocationStatus?
     var currentSkill: CurrentSkillInfo?
     var tokenExpired: Bool = false
+    var corporationId: Int?
+    var allianceId: Int?
     
     struct CurrentSkillInfo: Codable {
         let skillId: Int
@@ -189,6 +191,8 @@ struct EVECharacterInfo: Codable {
         case locationStatus
         case currentSkill
         case tokenExpired
+        case corporationId
+        case allianceId
     }
     
     init(from decoder: Decoder) throws {
@@ -206,6 +210,8 @@ struct EVECharacterInfo: Codable {
         locationStatus = try container.decodeIfPresent(CharacterLocation.LocationStatus.self, forKey: .locationStatus)
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
         tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
+        corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
+        allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -223,6 +229,8 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
         try container.encodeIfPresent(currentSkill, forKey: .currentSkill)
         try container.encode(tokenExpired, forKey: .tokenExpired)
+        try container.encodeIfPresent(corporationId, forKey: .corporationId)
+        try container.encodeIfPresent(allianceId, forKey: .allianceId)
     }
 }
 
@@ -710,7 +718,14 @@ class EVELogin {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         let (data, _) = try await session.data(for: request)
-        return try JSONDecoder().decode(EVECharacterInfo.self, from: data)
+        var characterInfo = try JSONDecoder().decode(EVECharacterInfo.self, from: data)
+        
+        // 获取角色的公开信息以更新军团和联盟ID
+        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterInfo.CharacterID)
+        characterInfo.corporationId = publicInfo.corporation_id
+        characterInfo.allianceId = publicInfo.alliance_id
+        
+        return characterInfo
     }
     
     // 保存认证信息
@@ -1016,7 +1031,7 @@ class EVELogin {
                     return cached.data
                 }
             } catch {
-                Logger.error("EVELogin: UserDefaults中的\(dataType)缓存数据损坏，将被删除: \(error)")
+                Logger.error("EVELogin: UserDefaults中的\(dataType)缓存据损坏，将被删除: \(error)")
                 defaults.removeObject(forKey: cacheKey)
             }
         }
