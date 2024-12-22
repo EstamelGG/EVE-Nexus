@@ -26,7 +26,17 @@ class CharacterAPI {
     private init() {}
     
     // 获取角色公开信息
-    func fetchCharacterPublicInfo(characterId: Int) async throws -> CharacterPublicInfo {
+    func fetchCharacterPublicInfo(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterPublicInfo {
+        let cacheKey = "character_public_info_\(characterId)"
+        
+        // 检查缓存
+        if !forceRefresh,
+           let cached = UserDefaults.standard.data(forKey: cacheKey),
+           let info = try? JSONDecoder().decode(CharacterPublicInfo.self, from: cached) {
+            Logger.info("使用缓存的角色公开信息 - 角色ID: \(characterId)")
+            return info
+        }
+        
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
@@ -34,6 +44,9 @@ class CharacterAPI {
         
         let data = try await NetworkManager.shared.fetchData(from: url)
         let info = try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: cacheKey)
         
         Logger.info("成功获取角色公开信息 - 角色ID: \(characterId)")
         return info

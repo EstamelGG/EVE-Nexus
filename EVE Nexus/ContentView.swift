@@ -330,6 +330,7 @@ struct ContentView: View {
     @State private var selectedCharacter: EVECharacterInfo?
     @State private var selectedCharacterPortrait: UIImage?
     @State private var isRefreshing = false
+    @State private var tokenExpired = false
     
     // 添加 UserDefaults 存储的当前角色 ID
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -649,58 +650,64 @@ struct ContentView: View {
     
     // 加载初始数据
     private func loadInitialData() async {
-        // 加载服务器状态
-        do {
-            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
-            lastStatusUpdateTime = Date()
-        } catch {
-            Logger.error("Failed to load server status: \(error)")
-        }
-        
-        // 如果有保存的角色ID，加载该角色信息
+        // 如果有保存的角色ID，立即从缓存加载该角色信息
         if currentCharacterId != 0 {
-            // 从UserDefaults加载角色信息
             let characters = EVELogin.shared.loadCharacters()
             if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
-                selectedCharacter = savedCharacter.character
-                
-                // 加载角色头像
-                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: currentCharacterId) {
-                    selectedCharacterPortrait = portrait
+                await MainActor.run {
+                    selectedCharacter = savedCharacter.character
+                    // 检查 token 状态
+                    tokenExpired = savedCharacter.character.tokenExpired
+                    Logger.info("""
+                        成功加载保存的所选角色信息:
+                        - 角色ID: \(savedCharacter.character.CharacterID)
+                        - 角色名称: \(savedCharacter.character.CharacterName)
+                        - Token状态: \(tokenExpired ? "已过期" : "有效")
+                        """)
                 }
                 
-                // 加载角色的公开信息
-                do {
-                    let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: currentCharacterId)
-                    
-                    // 加载联盟信息（如果有）
-                    if let allianceId = publicInfo.alliance_id {
-                        do {
-                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                            
-                            let (_, _) = try await (allianceInfoTask, allianceLogoTask)
-                        } catch {
-                            Logger.error("加载联盟信息失败: \(error)")
+                // 立即从缓存加载头像
+                Task {
+                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                        characterId: currentCharacterId,
+                        forceRefresh: false  // 优先使用缓存
+                    ) {
+                        await MainActor.run {
+                            selectedCharacterPortrait = portrait
                         }
                     }
-                    
-                    // 加载军团信息
-                    do {
-                        async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-                        async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
-                        
-                        let (_, _) = try await (corporationInfoTask, corporationLogoTask)
-                    } catch {
-                        Logger.error("加载军团信息失败: \(error)")
+                }
+            }
+        }
+        
+        // 异步加载服务器状态和刷新token
+        Task {
+            // 加载服务器状态
+            do {
+                let status = try await ServerStatusAPI.shared.fetchServerStatus()
+                await MainActor.run {
+                    serverStatus = status
+                    lastStatusUpdateTime = Date()
+                }
+            } catch {
+                Logger.error("Failed to load server status: \(error)")
+            }
+            
+            // 在后台检查和刷新token
+            if let character = selectedCharacter {
+                do {
+                    _ = try await TokenManager.shared.getToken(for: character.CharacterID)
+                    await MainActor.run {
+                        tokenExpired = false
                     }
                 } catch {
-                    Logger.error("加载角色公开信息失败: \(error)")
+                    Logger.error("Token refresh failed: \(error)")
+                    if case NetworkError.tokenExpired = error {
+                        await MainActor.run {
+                            tokenExpired = true
+                        }
+                    }
                 }
-            } else {
-                // 如果在UserDefaults中找不到保存的角色，清除当前角色ID
-                Logger.warning("未找到保存的角色（ID: \(currentCharacterId)），清除当前角色ID")
-                currentCharacterId = 0
             }
         }
     }
