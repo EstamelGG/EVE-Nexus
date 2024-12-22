@@ -536,7 +536,7 @@ class EVELogin {
         let (skills, balance, location, skillQueue) = try await fetchCharacterDetails(characterId: character.CharacterID)
         
         // 获取位置详细信息
-        let locationInfo = await NetworkManager.shared.getLocationInfo(
+        let locationInfo = await getSolarSystemInfo(
             solarSystemId: location.solar_system_id,
             databaseManager: databaseManager
         )

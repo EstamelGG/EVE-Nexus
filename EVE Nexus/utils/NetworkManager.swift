@@ -583,39 +583,11 @@ class NetworkManager: NSObject, @unchecked Sendable {
         )
     }
     
-    // 获取星系位置信息
-    func getLocationInfo(solarSystemId: Int, databaseManager: DatabaseManager) async -> SolarSystemInfo? {
-        let universeQuery = """
-            SELECT u.region_id, u.constellation_id, u.system_security,
-                   s.solarSystemName, c.constellationName, r.regionName
-            FROM universe u
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            JOIN constellations c ON c.constellationID = u.constellation_id
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE u.solarsystem_id = ?
-        """
-        
-        guard case .success(let rows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
-              let row = rows.first,
-              let security = row["system_security"] as? Double,
-              let systemName = row["solarSystemName"] as? String,
-              let constellationName = row["constellationName"] as? String,
-              let regionName = row["regionName"] as? String else {
-            return nil
-        }
-        
-        return SolarSystemInfo(
-            systemName: systemName,
-            security: security,
-            constellationName: constellationName,
-            regionName: regionName
-        )
-    }
     
     // 获取角色完整位置信息（包含星系名称等）
     func fetchCharacterLocationInfo(characterId: Int, databaseManager: DatabaseManager) async throws -> SolarSystemInfo? {
         let location = try await fetchCharacterLocation(characterId: characterId)
-        return await getLocationInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
+        return await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
     }
     
     // 专门用于需访问令牌的请求

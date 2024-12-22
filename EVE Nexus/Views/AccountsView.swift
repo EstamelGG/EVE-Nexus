@@ -298,7 +298,7 @@ struct AccountsView: View {
                                             )
                                             
                                             // 获取位置详细信息
-                                            let locationInfo = await NetworkManager.shared.getLocationInfo(
+                                            let locationInfo = await getSolarSystemInfo(
                                                 solarSystemId: location.solar_system_id,
                                                 databaseManager: self.viewModel.databaseManager
                                             )
