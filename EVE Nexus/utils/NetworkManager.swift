@@ -512,19 +512,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         return try await fetchResource(request)
     }
-    
-    // 获取物品最低售价
-    func fetchLowestSellPrice(typeID: Int) async throws -> Double {
-        let orders = try await fetchMarketOrders(typeID: typeID)
-        
-        // 筛选出售订单并找出最低价
-        let sellOrders = orders.filter { !$0.isBuyOrder }
-        guard let lowestPrice = sellOrders.map({ $0.price }).min() else {
-            throw NetworkError.noValidPrice
-        }
-        
-        return lowestPrice
-    }
+
     
     // 获取市场历史数据（使用内存和文件缓存）
     func fetchMarketHistory(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
