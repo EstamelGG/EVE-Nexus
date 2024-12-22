@@ -286,7 +286,7 @@ struct SettingView: View {
             
             // 更新界面
             await MainActor.run {
-                let formattedSize = formatFileSize(totalSize)
+                let formattedSize = FormatUtil.formatFileSize(totalSize)
                 self.cacheSize = formattedSize
                 self.updateSettingGroups()
             }
@@ -600,7 +600,7 @@ struct SettingView: View {
         let totalSize = cacheDetails.values.reduce(0) { $0 + $1.size }
         let totalCount = cacheDetails.values.reduce(0) { $0 + $1.count }
         
-        var details = formatFileSize(totalSize)
+        var details = FormatUtil.formatFileSize(totalSize)
         details += String(format: NSLocalizedString("Main_Setting_Cache_Total_Count", comment: ""), totalCount)
         
         // 添加详细统计
@@ -611,7 +611,7 @@ struct SettingView: View {
                     let typeLocalized = localizedCacheType(type)
                     details += "\n• " + String(format: NSLocalizedString("Main_Setting_Cache_Item_Format", comment: ""), 
                         typeLocalized,
-                        formatFileSize(stats.size), 
+                        FormatUtil.formatFileSize(stats.size), 
                         stats.count)
                 }
             }
@@ -765,7 +765,7 @@ struct SettingView: View {
         if resource.exists && resource.fileSize != nil && resource.fileSize! > 0 {
             var info = ""
             if let fileSize = resource.fileSize {
-                info += formatFileSize(fileSize)
+                info += FormatUtil.formatFileSize(fileSize)
             }
             
             // 只为主权数据和入侵数据显示缓存有效期

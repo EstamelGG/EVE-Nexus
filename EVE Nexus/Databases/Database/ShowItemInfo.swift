@@ -190,7 +190,7 @@ struct ShowItemInfo: View {
                                             
                                             Spacer()
                                             
-                                            Text("\(NumberFormatUtil.format(material.outputQuantityPerUnit))/\(NSLocalizedString("Misc_unit", comment: "")) ")
+                                            Text("\(FormatUtil.format(material.outputQuantityPerUnit))/\(NSLocalizedString("Misc_unit", comment: "")) ")
                                                 .font(.body)
                                                 .foregroundColor(.secondary)
                                                 .frame(alignment: .trailing)

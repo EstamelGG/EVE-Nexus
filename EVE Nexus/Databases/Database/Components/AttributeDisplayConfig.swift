@@ -194,7 +194,7 @@ struct AttributeDisplayConfig {
     private static let unitFormatRules: [Int: (Double, String?) -> String] = [
         109: { value, unit in
             let diff = value - 1
-            return diff > 0 ? "+\(NumberFormatUtil.format(diff * 100))%" : "\(NumberFormatUtil.format(diff * 100))%"
+            return diff > 0 ? "+\(FormatUtil.format(diff * 100))%" : "\(FormatUtil.format(diff * 100))%"
         },
         3: { value, _ in
             return formatTime(Int(value))

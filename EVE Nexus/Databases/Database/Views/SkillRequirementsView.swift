@@ -13,7 +13,7 @@ struct SkillRequirementRow: View {
             return ""
         }
         let points = Int(Double(SkillTreeManager.levelBasePoints[level - 1]) * multiplier)
-        return "\(NumberFormatUtil.format(Double(points))) SP"
+        return "\(FormatUtil.format(Double(points))) SP"
     }
     
     var body: some View {

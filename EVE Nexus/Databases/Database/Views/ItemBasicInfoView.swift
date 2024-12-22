@@ -107,7 +107,7 @@ struct ItemBasicInfoView: View {
                             .cornerRadius(6)
                         Text(NSLocalizedString("Item_Volume", comment: ""))
                         Spacer()
-                        Text("\(NumberFormatUtil.format(Double(volume))) m3")
+                        Text("\(FormatUtil.format(Double(volume))) m3")
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
@@ -121,7 +121,7 @@ struct ItemBasicInfoView: View {
                             .cornerRadius(6)
                         Text(NSLocalizedString("Item_Capacity", comment: ""))
                         Spacer()
-                        Text("\(NumberFormatUtil.format(Double(capacity))) m3")
+                        Text("\(FormatUtil.format(Double(capacity))) m3")
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
@@ -135,7 +135,7 @@ struct ItemBasicInfoView: View {
                             .cornerRadius(6)
                         Text(NSLocalizedString("Item_Mass", comment: ""))
                         Spacer()
-                        Text("\(NumberFormatUtil.format(Double(mass))) Kg")
+                        Text("\(FormatUtil.format(Double(mass))) Kg")
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }

@@ -23,7 +23,7 @@ struct DamageBarView: View {
     
     // 格式化数值的辅助方法
     private func formatValue(_ value: Double) -> String {
-        return NumberFormatUtil.format(value)
+        return FormatUtil.format(value)
     }
     
     var body: some View {

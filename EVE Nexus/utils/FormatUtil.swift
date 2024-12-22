@@ -1,6 +1,6 @@
 import Foundation
 
-struct NumberFormatUtil {
+struct FormatUtil {
     // 共享的 NumberFormatter 实例
     private static let formatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -35,5 +35,33 @@ struct NumberFormatUtil {
     /// - Returns: 格式化后的带单位的字符串
     static func formatWithUnit(_ value: Double, unit: String) -> String {
         return format(value) + unit
+    }
+    
+    /// 格式化文件大小
+    /// - Parameter size: 文件大小（字节）
+    /// - Returns: 格式化后的文件大小字符串
+    static func formatFileSize(_ size: Int64) -> String {
+        let units = ["bytes", "KB", "MB", "GB"]
+        var size = Double(size)
+        var unitIndex = 0
+        
+        while size >= 1024 && unitIndex < units.count - 1 {
+            size /= 1024
+            unitIndex += 1
+        }
+        
+        // 根据大小使用不同的小数位数
+        let formattedSize: String
+        if unitIndex == 0 {
+            formattedSize = String(format: "%.0f", size) // 字节不显示小数
+        } else if size >= 100 {
+            formattedSize = String(format: "%.0f", size) // 大于100时不显示小数
+        } else if size >= 10 {
+            formattedSize = String(format: "%.1f", size) // 大于10时显示1位小数
+        } else {
+            formattedSize = String(format: "%.2f", size) // 其他情况显示2位小数
+        }
+        
+        return "\(formattedSize) \(units[unitIndex])"
     }
 } 

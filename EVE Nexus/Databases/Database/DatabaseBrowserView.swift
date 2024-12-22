@@ -447,7 +447,7 @@ struct IconWithValueView: View {
     // 添加一个便利初始化方法，用于处理数值类型
     init(iconName: String, numericValue: Int, unit: String? = nil) {
         self.iconName = iconName
-        self.value = unit.map { "\(NumberFormatUtil.format(Double(numericValue)))\($0)" } ?? NumberFormatUtil.format(Double(numericValue))
+        self.value = unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" } ?? FormatUtil.format(Double(numericValue))
     }
     
     // 原有的字符串初始化方法

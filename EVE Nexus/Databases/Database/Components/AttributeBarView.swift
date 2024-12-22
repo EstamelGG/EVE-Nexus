@@ -159,7 +159,7 @@ struct AttributeItemView: View {
             if attribute.unitID == 115 || attribute.unitID == 116 {
                 return ""
             }
-            return unit.map { "\(NumberFormatUtil.format(value))\($0)" } ?? NumberFormatUtil.format(value)
+            return unit.map { "\(FormatUtil.format(value))\($0)" } ?? FormatUtil.format(value)
         case .text(let str):
             return str
         case .resistance:
@@ -336,7 +336,7 @@ struct AttributesView: View {
                         let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
                         return total + points
                     }
-                    Section(header: Text("\(group.name) (\(NumberFormatUtil.format(Double(totalPoints))) SP)").font(.headline)) {
+                    Section(header: Text("\(group.name) (\(FormatUtil.format(Double(totalPoints))) SP)").font(.headline)) {
                         ForEach(requirements, id: \.skillID) { requirement in
                             SkillRequirementRow(
                                 skillID: requirement.skillID,

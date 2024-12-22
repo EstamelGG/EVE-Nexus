@@ -717,7 +717,7 @@ struct ContentView: View {
                        character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
                        let totalSP = character.totalSkillPoints {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
-                .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(totalSP)))
+                .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(totalSP)))
         } else {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: "--")
@@ -757,7 +757,7 @@ struct ContentView: View {
                        character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
                        let balance = character.walletBalance {
             NSLocalizedString("Main_Wealth_ISK", comment: "")
-                .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(balance)))
+                .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(balance)))
         } else {
             NSLocalizedString("Main_Wealth_ISK", comment: "")
                 .replacingOccurrences(of: "$num", with: "--")
