@@ -311,6 +311,10 @@ struct ContentView: View {
     // 添加 UserDefaults 存储的当前角色 ID
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     
+    // 添加主题设置
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system"
+    @Environment(\.colorScheme) var systemColorScheme
+    
     // 添加更新间隔常量
     private let statusUpdateInterval: TimeInterval = 300 // 5分钟 = 300秒
     
@@ -320,14 +324,23 @@ struct ContentView: View {
     // 添加自动刷新的时间间隔常量
     private let characterInfoUpdateInterval: TimeInterval = 300 // 5分钟
     
+    // 使用计算属性来确定当前的颜色方案
+    private var currentColorScheme: ColorScheme? {
+        switch selectedTheme {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default:
+            return nil
+        }
+    }
+    
     // 自定初始化方法，确保 databaseManager 正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
         _tables = State(initialValue: generateTables())
     }
-    
-    // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认系统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -484,6 +497,24 @@ struct ContentView: View {
         .task {
             await loadInitialData()
         }
+        // 应用主题设置
+        .preferredColorScheme(currentColorScheme)
+        // 监听主题变化
+        .onChange(of: selectedTheme) { oldValue, newValue in
+            forceViewUpdate.toggle()
+        }
+        // 监听语言变化
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
+            // 强制视图刷新
+            forceViewUpdate.toggle()
+            // 重新生成表格数据以更新文本
+            tables = generateTables()
+            // 刷新所有数据
+            Task {
+                await refreshAllData()
+            }
+        }
+        .id(forceViewUpdate) // 添加id以强制视图刷新
     }
     
     // 登录部分
@@ -666,7 +697,7 @@ struct ContentView: View {
     private func generateTables() -> [TableNode] {
         // 格式化技能点显示
         let spText = if let character = selectedCharacter,
-                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
+                       character.CharacterID == currentCharacterId,  // 确保是当前选中��角色
                        let totalSP = character.totalSkillPoints {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(totalSP)))
