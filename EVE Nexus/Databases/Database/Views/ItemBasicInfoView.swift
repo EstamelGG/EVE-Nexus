@@ -147,26 +147,12 @@ struct ItemBasicInfoView: View {
     // 加载渲染图
     private func loadRenderImage(for itemID: Int) {
         Task {
-            // 1. 先尝试从缓存获取
-            if let cachedData = StaticResourceManager.shared.getNetRender(typeId: itemID),
-               let cachedImage = UIImage(data: cachedData) {
-                await MainActor.run {
-                    self.renderImage = cachedImage
-                }
-                return
-            }
-            
-            // 2. 从网络获取
             do {
-                let image = try await NetworkManager.shared.fetchEVEItemRender(typeID: itemID)
-                
-                // 3. 保存到缓存
-                if let imageData = image.pngData() {
-                    try StaticResourceManager.shared.saveNetRender(imageData, typeId: itemID)
-                }
-                
-                await MainActor.run {
-                    self.renderImage = image
+                let data = try await ItemRenderAPI.shared.fetchItemRender(typeId: itemID, size: 512)
+                if let image = UIImage(data: data) {
+                    await MainActor.run {
+                        self.renderImage = image
+                    }
                 }
             } catch {
                 Logger.error("加载渲染图失败: \(error.localizedDescription)")

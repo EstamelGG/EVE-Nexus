@@ -375,41 +375,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
     
-    // 获取EVE物品渲染图
-    func fetchEVEItemRender(typeID: Int) async throws -> UIImage {
-        let urlString = "https://images.evetech.net/types/\(typeID)/render?size=512"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        // 1. 检查内存缓存
-        let cacheKey = "item_\(typeID)"
-        if let cached = await getCachedImage(forKey: cacheKey) {
-            return cached
-        }
-        
-        // 2. 检查文件缓存
-        if let data = StaticResourceManager.shared.getNetRender(typeId: typeID),
-           let image = UIImage(data: data) {
-            // 更新内存缓存
-            await setCachedImage(image, forKey: cacheKey)
-            return image
-        }
-        
-        // 3. 从网络获取
-        let data = try await fetchData(from: url)
-        guard let image = UIImage(data: data) else {
-            throw NetworkError.invalidImageData
-        }
-        
-        // 4. 更新缓存
-        await setCachedImage(image, forKey: cacheKey)
-        try? StaticResourceManager.shared.saveNetRender(data, typeId: typeID)
-        
-        return image
-    }
-
-    
     // 通用的缓存处理方法
     private func fetchCachedData<T: Codable>(
         cacheKey: String,
@@ -1163,7 +1128,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         UserDefaults.standard.set(data, forKey: cacheKey)
         UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         
-        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
+        Logger.info("成功获取军团信息 - 军��ID: \(corporationId)")
         return info
     }
     
@@ -1393,7 +1358,7 @@ extension NetworkManager {
         if unitIndex == 0 {
             formattedSize = String(format: "%.0f", size) // 字节不显示小数
         } else if size >= 100 {
-            formattedSize = String(format: "%.0f", size) // 大于100时不显示小数
+            formattedSize = String(format: "%.0f", size) // 大于100时显示小数
         } else if size >= 10 {
             formattedSize = String(format: "%.1f", size) // 大于10时显示1位小数
         } else {
