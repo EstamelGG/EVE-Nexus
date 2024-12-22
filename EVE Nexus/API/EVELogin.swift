@@ -142,7 +142,7 @@ struct JWTValidator {
 }
 
 // 导入技能队列数据模型
-typealias SkillQueueItem = NetworkManager.SkillQueueItem
+typealias SkillQueueItem = CharacterSkillsAPI.SkillQueueItem
 
 // OAuth认证相关的数据模型
 struct EVEAuthToken: Codable {
@@ -546,7 +546,7 @@ class EVELogin {
             databaseManager: databaseManager
         )
         
-        // 步骤4：更新角色信息
+        // 步骤4：更新角色信���
         let updatedCharacter = await updateCharacterInfo(
             character: character,
             skills: skills,
