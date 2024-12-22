@@ -1176,21 +1176,6 @@ class EVELogin {
             }
         }
     }
-    
-    // 获取入侵数据的包装方法
-    func getIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
-        return try await IncursionsAPI.shared.fetchIncursions(forceRefresh: forceRefresh)
-    }
-    
-    // 获取主权数据的包装方法
-    func getSovereignty(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        return try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: forceRefresh)
-    }
-    
-    // 获取主权战争数据的包装方法
-    func getSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [SovereigntyCampaign] {
-        return try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
-    }
 }
 
 // 在 EVELogin 类中添加私有静态配置
