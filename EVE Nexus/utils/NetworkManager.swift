@@ -1176,15 +1176,18 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         let token = try await TokenManager.shared.getToken(for: characterId)
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
+        Logger.info("ESI请求: GET \(urlString)")
         
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token.access_token.prefix(32))...", forHTTPHeaderField: "Authorization")
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        Logger.info("ESI请求头: Authorization: Bearer \(token.access_token.prefix(32))...")
         
         return try await retrier.execute {
             let (data, response) = try await session.data(for: request)
@@ -1193,28 +1196,21 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 throw NetworkError.invalidResponse
             }
             
-            if httpResponse.statusCode == 403 {
-                // Token 过期,清除缓存
-                await TokenManager.shared.clearToken(for: characterId)
-                throw NetworkError.tokenExpired
-            }
+            Logger.info("ESI响应: \(httpResponse.statusCode) - \(endpoint)")
             
-            guard httpResponse.statusCode == 200 else {
-                if httpResponse.statusCode == 504 {
-                    throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            if httpResponse.statusCode == 200 {
+                do {
+                    let decodedData = try JSONDecoder().decode(T.self, from: data)
+                    return decodedData
+                } catch {
+                    Logger.error("ESI响应解析失败: \(error)")
+                    throw NetworkError.decodingError(error)
                 }
-                
+            } else {
                 if let errorString = String(data: data, encoding: .utf8) {
-                    Logger.error("API请求失败，错误信息: \(errorString)")
+                    Logger.error("ESI错误响应: \(errorString)")
                 }
                 throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-            }
-            
-            do {
-                return try JSONDecoder().decode(T.self, from: data)
-            } catch {
-                Logger.error("解码响应数据失败: \(error)")
-                throw NetworkError.invalidData
             }
         }
     }
@@ -1394,6 +1390,7 @@ enum NetworkError: LocalizedError {
     case invalidToken(String)
     case maxRetriesExceeded
     case authenticationError(String)
+    case decodingError(Error)
     
     var errorDescription: String? {
         switch self {
@@ -1419,6 +1416,8 @@ enum NetworkError: LocalizedError {
             return "已达到最大重试次数"
         case .authenticationError(let reason):
             return "认证出错: \(reason)"
+        case .decodingError(let error):
+            return "解码响应数据失败: \(error)"
         }
     }
 }

@@ -74,6 +74,7 @@ class TokenManager {
                 
                 // 刷新 token
                 let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
+                Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
                 
                 // 验证新token的合法性
                 guard try await validateToken(newToken) else {
@@ -87,7 +88,6 @@ class TokenManager {
                 // 保存新的refresh token
                 try SecureStorage.shared.saveToken(newToken.refresh_token, for: characterId)
                 
-                Logger.info("TokenManager: Token刷新成功 - 角色ID: \(characterId)")
                 return newToken
             } catch {
                 // 如果刷新失败，清除所有相关缓存
@@ -113,22 +113,40 @@ class TokenManager {
     
     // 验证token的合法性
     private func validateToken(_ token: EVEAuthToken) async throws -> Bool {
+        let tokenPrefix = String(token.access_token.prefix(32))
+        
         do {
             // 使用JWTValidator验证token
             guard let config = EVELogin.shared.config else {
+                Logger.error("TokenManager: Token验证失败 - Token前缀: \(tokenPrefix), 错误: 配置未初始化")
                 throw NetworkError.invalidData
             }
-            return try await JWTValidator.validate(token.access_token, config: config)
+            
+            let isValid = try await JWTValidator.validate(token.access_token, config: config)
+            if isValid {
+                Logger.info("TokenManager: Token验证成功 - Token前缀: \(tokenPrefix)")
+            } else {
+                Logger.warning("TokenManager: Token验证未通过 - Token前缀: \(tokenPrefix)")
+            }
+            return isValid
         } catch {
-            Logger.error("TokenManager: Token验证失败: \(error)")
+            Logger.error("TokenManager: Token验证失败 - Token前缀: \(tokenPrefix), 错误: \(error)")
             return false
         }
     }
     
     // 清除指定角色的token缓存
     func clearToken(for characterId: Int) {
+        Logger.info("TokenManager: 开始清除Token - 角色ID: \(characterId)")
+        
         lock.lock()
         defer { lock.unlock() }
+        
+        // 记录被清除的token信息
+        if let cachedToken = tokenCache[characterId] {
+            let tokenPrefix = String(cachedToken.token.access_token.prefix(32))
+            Logger.info("TokenManager: 清除缓存Token - 角色ID: \(characterId), Token前缀: \(tokenPrefix)")
+        }
         
         tokenCache.removeValue(forKey: characterId)
         tokenRefreshTasks[characterId]?.cancel()
@@ -137,7 +155,12 @@ class TokenManager {
         refreshTimers.removeValue(forKey: characterId)
         
         // 同时清除 SecureStorage 中的 token
-        try? SecureStorage.shared.deleteToken(for: characterId)
+        do {
+            try SecureStorage.shared.deleteToken(for: characterId)
+            Logger.info("TokenManager: SecureStorage Token清除成功 - 角色ID: \(characterId)")
+        } catch {
+            Logger.error("TokenManager: SecureStorage Token清除失败 - 角色ID: \(characterId), 错误: \(error)")
+        }
     }
     
     // 清除所有缓存

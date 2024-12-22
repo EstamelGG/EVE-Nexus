@@ -616,7 +616,7 @@ class EVELogin {
     // 获取授权URL
     func getAuthorizationURL() -> URL? {
         guard let config = config else { 
-            Logger.error("EVELogin: 配置为空，无法获��授权URL")
+            Logger.error("EVELogin: 配置为空，无法获得授权URL")
             return nil 
         }
         

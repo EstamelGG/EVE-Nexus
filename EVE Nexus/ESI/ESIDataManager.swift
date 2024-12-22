@@ -29,24 +29,31 @@ class ESIDataManager {
             return cachedEntry.value
         }
         
-        Logger.info("在线获取钱包余额 - 角色ID: \(characterId)")
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/"
+        Logger.info("ESI请求: GET \(urlString)")
+        
         // 使用NetworkManager的fetchDataWithToken方法获取原始数据
         let data = try await NetworkManager.shared.fetchData(
-            from: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!,
+            from: URL(string: urlString)!,
             request: {
-                var request = URLRequest(url: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!)
+                var request = URLRequest(url: URL(string: urlString)!)
                 let token = try await TokenManager.shared.getToken(for: characterId)
-                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                request.setValue("Bearer \(token.access_token.prefix(32))...", forHTTPHeaderField: "Authorization")
                 request.setValue("tranquility", forHTTPHeaderField: "datasource")
+                Logger.info("ESI请求头: Authorization: Bearer \(token.access_token.prefix(32))...")
                 return request
             }()
         )
+        
         // 将数据转换为字符串
         guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
               let balance = Double(stringValue) else {
             Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
         }
+        
+        Logger.info("ESI响应: 钱包余额 = \(balance) ISK")
+        
         // 更新缓存
         walletCache[characterId] = CacheEntry(value: balance, timestamp: Date())
         return balance
