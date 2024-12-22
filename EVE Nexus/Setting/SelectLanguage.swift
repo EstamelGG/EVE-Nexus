@@ -29,8 +29,6 @@ struct SelectLanguageView: View {
     
     @AppStorage("selectedLanguage") var storedLanguage: String?
     @State private var selectedLanguage: String?
-    @State private var showingConfirmation = false
-    @State private var pendingLanguage: String?
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
     
@@ -43,8 +41,8 @@ struct SelectLanguageView: View {
                         isSelected: language == selectedLanguage,
                         onTap: {
                             if language != selectedLanguage {
-                                pendingLanguage = language
-                                showingConfirmation = true
+                                selectedLanguage = language
+                                applyLanguageChange()
                             }
                         }
                     )
@@ -57,25 +55,6 @@ struct SelectLanguageView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
-        .alert(
-            NSLocalizedString("Main_Setting_Language_Switch_Title", comment: ""),
-            isPresented: $showingConfirmation,
-            actions: {
-                Button(NSLocalizedString("Main_Setting_Language_Switch_Cancel", comment: ""), role: .cancel) {
-                    pendingLanguage = nil
-                }
-                Button(NSLocalizedString("Main_Setting_Language_Switch_Confirm", comment: ""), role: .destructive) {
-                    if let language = pendingLanguage {
-                        selectedLanguage = language
-                        applyLanguageChange()
-                    }
-                    pendingLanguage = nil
-                }
-            },
-            message: {
-                Text(NSLocalizedString("Main_Setting_Language_Switch_Message", comment: ""))
-            }
-        )
     }
     
     private func setupInitialLanguage() {
@@ -119,13 +98,19 @@ struct SelectLanguageView: View {
             Bundle.setLanguage(languageCode)
         }
         
-        // 4. 发送通知以重新加载UI
-        NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
-        
-        // 5. 清空所有缓存并重新加载数据库
+        // 4. 清空所有缓存并重新加载数据库
         DatabaseBrowserView.clearCache()  // 清除导航缓存
         databaseManager.clearCache()      // 清除 SQL 查询缓存
         databaseManager.loadDatabase()
+        
+        // 5. 先关闭当前视图
+        dismiss()
+        
+        // 6. 延迟发送通知，让视图有时间完成关闭动画
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // 发送通知以重新加载UI
+            NotificationCenter.default.post(name: NSNotification.Name("LanguageChanged"), object: nil)
+        }
     }
 }
 

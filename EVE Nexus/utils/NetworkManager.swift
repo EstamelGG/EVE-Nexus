@@ -205,7 +205,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体: \(responseBody)")
                 } else {
-                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
+                    Logger.error("HTTP���求失败 - URL: \(url.absoluteString)")
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体无法解析")
                 }
@@ -399,9 +399,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 专门用于需访问令牌的请求
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
-        try await rateLimiter.waitForPermission()
-        
-        let token = try await TokenManager.shared.getToken(for: characterId)
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
         Logger.info("ESI请求: GET \(urlString)")
         
@@ -409,36 +406,25 @@ class NetworkManager: NSObject, @unchecked Sendable {
             throw NetworkError.invalidURL
         }
         
+        // 获取角色的token
+        let token = try await TokenManager.shared.getToken(for: characterId)
+        
+        // 创建请求
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(token.access_token.prefix(32))...", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token.access_token)", forHTTPHeaderField: "Authorization")
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        Logger.info("ESI请求头: Authorization: Bearer \(token.access_token.prefix(32))...")
+        // 使用基础的 fetchData 方法获取数据
+        let data = try await fetchData(from: url, request: request)
         
-        return try await retrier.execute {
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw NetworkError.invalidResponse
-            }
-            
-            Logger.info("ESI响应: \(httpResponse.statusCode) - \(endpoint)")
-            
-            if httpResponse.statusCode == 200 {
-                do {
-                    let decodedData = try JSONDecoder().decode(T.self, from: data)
-                    return decodedData
-                } catch {
-                    Logger.error("ESI响应解析失败: \(error)")
-                    throw NetworkError.decodingError(error)
-                }
-            } else {
-                if let errorString = String(data: data, encoding: .utf8) {
-                    Logger.error("ESI错误响应: \(errorString)")
-                }
-                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-            }
+        // 解码数据
+        do {
+            let decodedData = try JSONDecoder().decode(T.self, from: data)
+            return decodedData
+        } catch {
+            Logger.error("ESI响应解析失败: \(error)")
+            throw NetworkError.decodingError(error)
         }
     }
 }
