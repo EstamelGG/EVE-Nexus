@@ -189,7 +189,7 @@ class StaticResourceManager {
         return staticPath
     }
     
-    /// ���取所有静态资源的状态
+    /// 获取所有静态资源的状态
     func getAllResourcesStatus() -> [ResourceInfo] {
         return ResourceType.allCases.map { type in
             switch type {
@@ -348,7 +348,7 @@ class StaticResourceManager {
             break
             
         case .characterPortraits:
-            // 角色头��是按需获取的，不支持批量刷新
+            // 角色头像是按需获取的，不支持批量刷新
             Logger.info("Character portraits are refreshed on-demand")
             break
         }
@@ -381,7 +381,7 @@ class StaticResourceManager {
         let filename = ResourceType.sovereignty.filename
         let filePath = getStaticDataSetPath().appendingPathComponent(filename)
         
-        // ���果强制刷新，直接从网络获取
+        // 如果强制刷新，直接从网络获取
         if forceRefresh {
             Logger.info("Force refreshing sovereignty data from network")
             let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData()
@@ -509,7 +509,7 @@ class StaticResourceManager {
     }
 
     
-    /// 获取市场数据目录��径
+    /// 获取市场数据目录路径
     func getMarketDataPath() -> URL {
         let marketPath = getStaticDataSetPath().appendingPathComponent("Market")
         // 确保目录存在
