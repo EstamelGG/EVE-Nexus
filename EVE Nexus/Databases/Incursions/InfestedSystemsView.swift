@@ -116,7 +116,7 @@ class InfestedSystemsViewModel: ObservableObject {
         // 获取主权数据
         var sovereigntyData: [SovereigntyData]?
         do {
-            sovereigntyData = try await StaticResourceManager.shared.fetchSovereigntyData()
+            sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: false)
         } catch {
             Logger.error("无法获取主权数据: \(error)")
         }

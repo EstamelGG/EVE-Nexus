@@ -67,23 +67,28 @@ enum MarketAPIError: LocalizedError {
 @MarketOrdersAPIActor
 class MarketOrdersAPI {
     static let shared = MarketOrdersAPI()
-    private let marketOrdersCacheDuration: TimeInterval = 300 // 5分钟缓存
+    private let defaults = UserDefaults.standard
+    private let cacheDuration: TimeInterval = 5 * 60 // 5分钟缓存
     
     private init() {}
     
+    private struct CachedData: Codable {
+        let data: [MarketOrder]
+        let timestamp: Date
+    }
+    
     // MARK: - 公共方法
     
-    /// 获取市场订单
+    /// 获取市场订单数据
     /// - Parameters:
-    ///   - typeID: 物品类型ID
-    ///   - regionID: 区域ID
+    ///   - typeID: 物品ID
+    ///   - regionID: 星域ID
     ///   - forceRefresh: 是否强制刷新
-    /// - Returns: 市场订单数组
+    /// - Returns: 市场订单数据数组
     func fetchMarketOrders(typeID: Int, regionID: Int, forceRefresh: Bool = false) async throws -> [MarketOrder] {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
-            let key = StaticResourceManager.DefaultsKey.marketOrders(typeID: typeID, regionID: regionID)
-            if let cached: [MarketOrder] = StaticResourceManager.shared.getFromDefaults(key, duration: marketOrdersCacheDuration) {
+            if let cached = loadFromCache(typeID: typeID, regionID: regionID) {
                 return cached
             }
         }
@@ -92,8 +97,8 @@ class MarketOrdersAPI {
         let baseURL = "https://esi.evetech.net/latest/markets/\(regionID)/orders/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
-            URLQueryItem(name: "datasource", value: "tranquility"),
-            URLQueryItem(name: "type_id", value: String(typeID))
+            URLQueryItem(name: "type_id", value: "\(typeID)"),
+            URLQueryItem(name: "datasource", value: "tranquility")
         ]
         
         guard let url = components?.url else {
@@ -104,10 +109,35 @@ class MarketOrdersAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let orders = try JSONDecoder().decode([MarketOrder].self, from: data)
         
-        // 保存到 UserDefaults
-        let key = StaticResourceManager.DefaultsKey.marketOrders(typeID: typeID, regionID: regionID)
-        try StaticResourceManager.shared.saveToDefaults(orders, key: key)
+        // 保存到缓存
+        try? saveToCache(orders, typeID: typeID, regionID: regionID)
         
         return orders
+    }
+    
+    // MARK: - 私有方法
+    
+    private func getCacheKey(typeID: Int, regionID: Int) -> String {
+        return "market_orders_\(typeID)_\(regionID)"
+    }
+    
+    private func loadFromCache(typeID: Int, regionID: Int) -> [MarketOrder]? {
+        let key = getCacheKey(typeID: typeID, regionID: regionID)
+        guard let data = defaults.data(forKey: key),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的市场订单数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ orders: [MarketOrder], typeID: Int, regionID: Int) throws {
+        let key = getCacheKey(typeID: typeID, regionID: regionID)
+        let cachedData = CachedData(data: orders, timestamp: Date())
+        let encodedData = try JSONEncoder().encode(cachedData)
+        defaults.set(encodedData, forKey: key)
+        Logger.info("市场订单数据已缓存")
     }
 } 

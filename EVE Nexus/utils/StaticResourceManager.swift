@@ -1,11 +1,10 @@
 import Foundation
 
-/// 静态资源管理器
+/// 静态资源管理器（用于管理图片资源的本地缓存）
 class StaticResourceManager {
     static let shared = StaticResourceManager()
     private let fileManager = FileManager.default
     private let cache = NSCache<NSString, CacheData>()
-    private let defaults = UserDefaults.standard
     
     // 同步队列和锁
     private let fileQueue = DispatchQueue(label: "com.eve.nexus.static.file")
@@ -15,21 +14,6 @@ class StaticResourceManager {
     
     /// 缓存时间枚举
     enum CacheDuration {
-        /// 市场订单缓存时间（5分钟）
-        static let marketOrders: TimeInterval = 5 * 60
-        
-        /// 市场历史缓存时间（1小时）
-        static let marketHistory: TimeInterval = 60 * 60
-        
-        /// 星系主权归属数据缓存时间（8小时）
-        static let sovereignty: TimeInterval = 8 * 60 * 60
-        
-        /// 入侵数据缓存时间（60分钟）
-        static let incursions: TimeInterval = 60 * 60
-        
-        /// 主权战争数据缓存时间（8小时）
-        static let sovereigntyCampaigns: TimeInterval = 8 * 60 * 60
-        
         /// 联盟图标缓存时间（1周）
         static let allianceIcon: TimeInterval = 7 * 24 * 60 * 60
         
@@ -38,15 +22,9 @@ class StaticResourceManager {
         
         /// 角色头像缓存时间（1天）
         static let characterPortrait: TimeInterval = 24 * 60 * 60
-        
-        /// 角色技能缓存时间（1小时）
-        static let characterSkills: TimeInterval = 60 * 60
     }
     
-    // 修改原有的缓存时间常量，使用新的枚举
-    var SOVEREIGNTY_CACHE_DURATION: TimeInterval { CacheDuration.sovereignty }
-    var INCURSIONS_CACHE_DURATION: TimeInterval { CacheDuration.incursions }
-    var SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION: TimeInterval { CacheDuration.sovereigntyCampaigns }
+    // 缓存时间常量
     var ALLIANCE_ICON_CACHE_DURATION: TimeInterval { CacheDuration.allianceIcon }
     var RENDER_CACHE_DURATION: TimeInterval { CacheDuration.itemRender }
     
@@ -64,13 +42,6 @@ class StaticResourceManager {
         case factionIcons = "factionIcons"
         case netRenders = "netRenders"
         case characterPortraits = "characterPortraits"
-        
-        var filename: String {
-            switch self {
-            case .factionIcons, .netRenders, .characterPortraits:
-                return ""  // 这些类型使用目录而不是单个文件
-            }
-        }
         
         var displayName: String {
             switch self {
@@ -137,24 +108,17 @@ class StaticResourceManager {
     }
     
     /// 从文件加载数据并更新内存缓存
-    /// - Parameters:
-    ///   - filePath: 文件路径
-    ///   - cacheKey: 缓存键
-    /// - Returns: 文件数据
     private func loadFromFileAndCache(filePath: String, cacheKey: NSString) throws -> Data {
         let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
-        // 更新内存缓存
         cache.setObject(CacheData(data: data, timestamp: Date()), forKey: cacheKey)
         return data
     }
     
     /// 获取静态资源目录路径
     func getStaticDataSetPath() -> URL {
-        // 直接返回路径，不使用同步队列
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let staticPath = paths[0].appendingPathComponent("StaticDataSet")
         
-        // 确保目录存在
         if !FileManager.default.fileExists(atPath: staticPath.path) {
             try? FileManager.default.createDirectory(at: staticPath, withIntermediateDirectories: true)
         }
@@ -199,61 +163,6 @@ class StaticResourceManager {
         }
     }
     
-    /// 保存数据到文件并更新内存缓存
-    /// - Parameters:
-    ///   - data: 要保存的数据
-    ///   - filename: 文件名（包含扩展名）
-    ///   - cacheKey: 缓存键
-    func saveToFileAndCache(_ data: Data, filename: String, cacheKey: String) throws {
-        // 异步保存到文件
-        fileQueue.async {
-            do {
-                let fileURL = self.getStaticDataSetPath().appendingPathComponent(filename)
-                try FileManager.default.createDirectory(
-                    at: fileURL.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try data.write(to: fileURL)
-                
-                // 更新下载时间
-                if let type = ResourceType.allCases.first(where: { $0.filename == filename }) {
-                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
-                }
-                
-                Logger.info("Successfully saved data to file: \(filename)")
-            } catch {
-                Logger.error("Error saving data to file \(filename): \(error)")
-            }
-        }
-        
-        // 更新内存缓存
-        cacheLock.lock()
-        cache.setObject(CacheData(data: data, timestamp: Date()), forKey: cacheKey as NSString)
-        cacheLock.unlock()
-    }
-    
-    /// 强制刷新指定资源
-    /// - Parameter type: 资源类型
-    /// - Returns: 是否刷新成功
-    func forceRefresh(_ type: ResourceType) async throws {
-        switch type {
-        case .factionIcons, .netRenders:
-            // 这两种类型的资源是按需获取的，不支持批量刷新
-            Logger.info("Faction icons and net renders are refreshed on-demand")
-            break
-            
-        case .characterPortraits:
-            // 角色头像是按需获取的，不支持批量刷新
-            Logger.info("Character portraits are refreshed on-demand")
-            break
-        }
-    }
-    
-    /// 清理内存缓存
-    func clearMemoryCache() {
-        cache.removeAllObjects()
-    }
-    
     // MARK: - 缓存时间计算
     private func getRemainingCacheTime(lastModified: Date, duration: TimeInterval) -> TimeInterval {
         let elapsed = Date().timeIntervalSince(lastModified)
@@ -266,13 +175,6 @@ class StaticResourceManager {
             return true
         }
         return getRemainingCacheTime(lastModified: modificationDate, duration: duration) <= 0
-    }
-    
-    /// 获取主权数据
-    /// - Parameter forceRefresh: 是否强制刷新
-    /// - Returns: 主权数据数组
-    func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        return try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: forceRefresh)
     }
     
     /// 清理所有静态资源数据
@@ -296,58 +198,36 @@ class StaticResourceManager {
             UserDefaults.standard.removeObject(forKey: type.downloadTimeKey)
         }
         
-        // 清除 UserDefaults 中的数据
-        defaults.removeObject(forKey: DefaultsKey.incursions.rawValue)
-        defaults.removeObject(forKey: DefaultsKey.sovereignty.rawValue)
-        
-        // 清除所有市场数据
-        let allKeys = defaults.dictionaryRepresentation().keys
-        for key in allKeys {
-            if key.starts(with: "market_history_") || key.starts(with: "market_orders_") {
-                defaults.removeObject(forKey: key)
-            }
-        }
-        
-        Logger.info("Cleared all static data from UserDefaults")
+        Logger.info("Cleared all static data")
     }
+    
+    // MARK: - 图片资源管理
     
     /// 获取联盟图标目录路径
     func getAllianceIconPath() -> URL {
         let iconPath = getStaticDataSetPath().appendingPathComponent("FactionIcons")
-        // 确保目录存在
-        if !FileManager.default.fileExists(atPath: iconPath.path) {
-            try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: iconPath.path) {
+            try? fileManager.createDirectory(at: iconPath, withIntermediateDirectories: true)
         }
         return iconPath
     }
     
     /// 保存联盟图标
-    /// - Parameters:
-    ///   - data: 图标数据
-    ///   - allianceId: 联盟ID
     func saveAllianceIcon(_ data: Data, allianceId: Int) throws {
         let iconPath = getAllianceIconPath()
-        
-        // 确保目录存在
         if !fileManager.fileExists(atPath: iconPath.path) {
             try fileManager.createDirectory(at: iconPath, withIntermediateDirectories: true)
         }
-        
         let iconFile = iconPath.appendingPathComponent("alliance_\(allianceId).png")
         try data.write(to: iconFile)
         Logger.info("Saved alliance icon: \(allianceId)")
     }
     
     /// 获取联盟图标
-    /// - Parameter allianceId: 联盟ID
-    /// - Returns: 图标数据
     func getAllianceIcon(allianceId: Int) -> Data? {
         let iconFile = getAllianceIconPath().appendingPathComponent("alliance_\(allianceId).png")
-        
-        // 检查文件是否存在且未过期
         if fileManager.fileExists(atPath: iconFile.path) {
             if isFileExpired(at: iconFile.path, duration: ALLIANCE_ICON_CACHE_DURATION) {
-                // 如果过期，删除文件
                 try? fileManager.removeItem(at: iconFile)
                 return nil
             }
@@ -359,40 +239,28 @@ class StaticResourceManager {
     /// 获取渲染图目录路径
     func getNetRendersPath() -> URL {
         let renderPath = getStaticDataSetPath().appendingPathComponent("NetRenders")
-        // 确保目录存在
-        if !FileManager.default.fileExists(atPath: renderPath.path) {
-            try? FileManager.default.createDirectory(at: renderPath, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: renderPath.path) {
+            try? fileManager.createDirectory(at: renderPath, withIntermediateDirectories: true)
         }
         return renderPath
     }
     
     /// 保存渲染图
-    /// - Parameters:
-    ///   - data: 图片数据
-    ///   - typeId: 物品ID
     func saveNetRender(_ data: Data, typeId: Int) throws {
         let renderPath = getNetRendersPath()
-        
-        // 确保目录存在
         if !fileManager.fileExists(atPath: renderPath.path) {
             try fileManager.createDirectory(at: renderPath, withIntermediateDirectories: true)
         }
-        
         let renderFile = renderPath.appendingPathComponent("\(typeId).png")
         try data.write(to: renderFile)
         Logger.info("Saved net render: \(typeId)")
     }
     
     /// 获取渲染图
-    /// - Parameter typeId: 物品ID
-    /// - Returns: 图片数据
     func getNetRender(typeId: Int) -> Data? {
         let renderFile = getNetRendersPath().appendingPathComponent("\(typeId).png")
-        
-        // 检查文件是否存在且未过期
         if fileManager.fileExists(atPath: renderFile.path) {
             if isFileExpired(at: renderFile.path, duration: RENDER_CACHE_DURATION) {
-                // 如果过期，删除文件
                 try? fileManager.removeItem(at: renderFile)
                 return nil
             }
@@ -427,8 +295,6 @@ class StaticResourceManager {
                         do {
                             let attributes = try fileManager.attributesOfItem(atPath: filePath)
                             totalSize += attributes[.size] as? Int64 ?? 0
-                            
-                            // 使用最新的修改时间
                             if let fileModified = attributes[.modificationDate] as? Date {
                                 if lastModified == nil || fileModified > lastModified! {
                                     lastModified = fileModified
@@ -442,13 +308,8 @@ class StaticResourceManager {
             }
         }
         
-        var name = NSLocalizedString("Main_Setting_Static_Resource_Net_Renders", comment: "")
-        if renderCount > 0 {
-            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), renderCount)
-        }
-        
         return ResourceInfo(
-            name: name,
+            name: NSLocalizedString("Main_Setting_Static_Resource_Net_Renders", comment: ""),
             exists: exists,
             lastModified: lastModified,
             fileSize: totalSize,
@@ -456,78 +317,13 @@ class StaticResourceManager {
         )
     }
     
-    // MARK: - UserDefaults 数据管理
-    /// 数据容器结构体
-    private struct DataContainer<T: Codable>: Codable {
-        let data: T
-        let timestamp: Date
-    }
+    // MARK: - 角色头像管理
     
-    enum DefaultsKey: String {
-        case incursions = "incursions_data"
-        case sovereignty = "sovereignty_data"
-        
-        // 市场数据使用动态键
-        static func marketHistory(typeID: Int, regionID: Int) -> String {
-            return "market_history_\(typeID)_\(regionID)"
-        }
-        
-        static func marketOrders(typeID: Int, regionID: Int) -> String {
-            return "market_orders_\(typeID)_\(regionID)"
-        }
-    }
-    
-    /// 从 UserDefaults 获取数据
-    /// - Parameters:
-    ///   - key: 数据键
-    ///   - duration: 缓存时间
-    /// - Returns: 解码后的数据（如果存在且未过期）
-    func getFromDefaults<T: Codable>(_ key: String, duration: TimeInterval) -> T? {
-        guard let data = defaults.data(forKey: key),
-              let container = try? JSONDecoder().decode(DataContainer<T>.self, from: data),
-              Date().timeIntervalSince(container.timestamp) < duration else {
-            return nil
-        }
-        return container.data
-    }
-    
-    /// 保存数据到 UserDefaults
-    /// - Parameters:
-    ///   - data: 要保存的数据
-    ///   - key: 数据键
-    func saveToDefaults<T: Codable>(_ data: T, key: String) throws {
-        let container = DataContainer(data: data, timestamp: Date())
-        let encodedData = try JSONEncoder().encode(container)
-        defaults.set(encodedData, forKey: key)
-    }
-    
-    // MARK: - 入侵数据管理
-    func getIncursions() -> [Incursion]? {
-        return getFromDefaults(DefaultsKey.incursions.rawValue, duration: INCURSIONS_CACHE_DURATION)
-    }
-    
-    func saveIncursions(_ incursions: [Incursion]) throws {
-        try saveToDefaults(incursions, key: DefaultsKey.incursions.rawValue)
-        Logger.info("Saved incursions data to UserDefaults")
-    }
-    
-    // MARK: - 主权归属数据管理
-    func getSovereignty() -> [SovereigntyData]? {
-        return getFromDefaults(DefaultsKey.sovereignty.rawValue, duration: SOVEREIGNTY_CACHE_DURATION)
-    }
-    
-    func saveSovereignty(_ sovereignty: [SovereigntyData]) throws {
-        try saveToDefaults(sovereignty, key: DefaultsKey.sovereignty.rawValue)
-        Logger.info("Saved sovereignty data to UserDefaults")
-    }
-    
-    // 添加角色头像相关的函数
     /// 获取角色头像目录路径
     func getCharacterPortraitsPath() -> URL {
         let portraitsPath = getStaticDataSetPath().appendingPathComponent("CharacterPortraits")
-        // 确保目录存在
-        if !FileManager.default.fileExists(atPath: portraitsPath.path) {
-            try? FileManager.default.createDirectory(at: portraitsPath, withIntermediateDirectories: true)
+        if !fileManager.fileExists(atPath: portraitsPath.path) {
+            try? fileManager.createDirectory(at: portraitsPath, withIntermediateDirectories: true)
         }
         return portraitsPath
     }
@@ -536,7 +332,6 @@ class StaticResourceManager {
     func getCharacterPortraitCount() -> Int {
         let portraitsPath = getCharacterPortraitsPath()
         var count = 0
-        
         if let enumerator = fileManager.enumerator(atPath: portraitsPath.path) {
             for case let fileName as String in enumerator {
                 if fileName.hasSuffix(".png") {
@@ -544,7 +339,6 @@ class StaticResourceManager {
                 }
             }
         }
-        
         return count
     }
     
@@ -565,7 +359,6 @@ class StaticResourceManager {
                         do {
                             let attributes = try fileManager.attributesOfItem(atPath: filePath)
                             totalSize += attributes[.size] as? Int64 ?? 0
-                            
                             if let fileModified = attributes[.modificationDate] as? Date {
                                 if lastModified == nil || fileModified > lastModified! {
                                     lastModified = fileModified
@@ -579,13 +372,8 @@ class StaticResourceManager {
             }
         }
         
-        var name = NSLocalizedString("Main_Setting_Static_Resource_Character_Portraits", comment: "")
-        if portraitCount > 0 {
-            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), portraitCount)
-        }
-        
         return ResourceInfo(
-            name: name,
+            name: NSLocalizedString("Main_Setting_Static_Resource_Character_Portraits", comment: ""),
             exists: exists,
             lastModified: lastModified,
             fileSize: totalSize,
@@ -602,19 +390,24 @@ class StaticResourceManager {
         }
     }
     
-    /// 获取势力图标目录路径
-    func getFactionIconPath() -> URL {
-        let iconPath = getStaticDataSetPath().appendingPathComponent("FactionIcons")
-        // 确保目录存在
-        if !FileManager.default.fileExists(atPath: iconPath.path) {
-            try? FileManager.default.createDirectory(at: iconPath, withIntermediateDirectories: true)
+    /// 获取联盟图标数量
+    func getFactionIconCount() -> Int {
+        let iconPath = getAllianceIconPath()
+        var count = 0
+        if fileManager.fileExists(atPath: iconPath.path),
+           let enumerator = fileManager.enumerator(atPath: iconPath.path) {
+            for case let fileName as String in enumerator {
+                if fileName.starts(with: "alliance_") && fileName.hasSuffix(".png") {
+                    count += 1
+                }
+            }
         }
-        return iconPath
+        return count
     }
     
     /// 获取势力图标缓存统计
     func getFactionIconsStats() -> ResourceInfo {
-        let iconPath = getFactionIconPath()
+        let iconPath = getAllianceIconPath()
         let exists = fileManager.fileExists(atPath: iconPath.path)
         var totalSize: Int64 = 0
         var lastModified: Date? = nil
@@ -627,11 +420,11 @@ class StaticResourceManager {
                 if fileURL.pathExtension == "png" {
                     do {
                         let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                        if let fileSize = attributes[.size] as? Int64 {
+                        if let fileSize = attributes[FileAttributeKey.size] as? Int64 {
                             totalSize += fileSize
                             iconCount += 1
                         }
-                        if let modificationDate = attributes[.modificationDate] as? Date {
+                        if let modificationDate = attributes[FileAttributeKey.modificationDate] as? Date {
                             if lastModified == nil || modificationDate > lastModified! {
                                 lastModified = modificationDate
                             }
@@ -643,13 +436,8 @@ class StaticResourceManager {
             }
         }
         
-        var name = NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: "")
-        if iconCount > 0 {
-            name += String(format: NSLocalizedString("Main_Setting_Static_Resource_Icon_Count", comment: ""), iconCount)
-        }
-        
         return ResourceInfo(
-            name: name,
+            name: NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: ""),
             exists: exists && iconCount > 0,
             lastModified: lastModified,
             fileSize: totalSize,
@@ -657,28 +445,10 @@ class StaticResourceManager {
         )
     }
     
-    /// 获取联盟图标数量
-    func getFactionIconCount() -> Int {
-        let iconPath = getAllianceIconPath()
-        var count = 0
-        
-        if fileManager.fileExists(atPath: iconPath.path),
-           let enumerator = fileManager.enumerator(atPath: iconPath.path) {
-            for case let fileName as String in enumerator {
-                if fileName.starts(with: "alliance_") && fileName.hasSuffix(".png") {
-                    count += 1
-                }
-            }
-        }
-        
-        return count
-    }
-    
     /// 获取渲染图数量
     func getNetRenderCount() -> Int {
         let renderPath = getNetRendersPath()
         var count = 0
-        
         if fileManager.fileExists(atPath: renderPath.path),
            let enumerator = fileManager.enumerator(atPath: renderPath.path) {
             for case let fileName as String in enumerator {
@@ -687,7 +457,6 @@ class StaticResourceManager {
                 }
             }
         }
-        
         return count
     }
 } 
