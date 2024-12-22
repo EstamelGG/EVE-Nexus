@@ -171,64 +171,16 @@ struct LoginButtonView: View {
                             
                             // 红色感叹号
                             Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
                         }
                     }
                 }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                .padding(4)
             } else {
-                ZStack {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                        .foregroundColor(.gray)
-                        
-                    if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .frame(width: 64, height: 64)
-                        
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-                        
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-                            
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                .padding(4)
+                Image(systemName: "person.crop.circle")
+                    .resizable()
+                    .frame(width: 64, height: 64)
+                    .foregroundColor(.gray)
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -236,50 +188,7 @@ struct LoginButtonView: View {
                     Text(character.CharacterName)
                         .font(.headline)
                         .lineLimit(1)
-                    
-                    // 显示联盟信息
-                    HStack(spacing: 4) {
-                        if let alliance = allianceInfo, let logo = allianceLogo {
-                            Image(uiImage: logo)
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .clipShape(Circle())
-                            Text("[\(alliance.ticker)] \(alliance.name)")
-                                .font(.caption)
-                                .lineLimit(1)
-                        } else {
-                            Image(systemName: "square.dashed")
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .foregroundColor(.gray)
-                            Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                        }
-                    }
-                    
-                    // 显示军团信息
-                    HStack(spacing: 4) {
-                        if let corporation = corporationInfo, let logo = corporationLogo {
-                            Image(uiImage: logo)
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .clipShape(Circle())
-                            Text("[\(corporation.ticker)] \(corporation.name)")
-                                .font(.caption)
-                                .lineLimit(1)
-                        } else {
-                            Image(systemName: "square.dashed")
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .foregroundColor(.gray)
-                            Text("[-] \(NSLocalizedString("No Corporation", comment: ""))")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                        }
-                    }
+                        .padding(.bottom, 4)
                 } else if isLoggedIn {
                     Text(NSLocalizedString("Account_Management", comment: ""))
                         .font(.headline)
@@ -288,7 +197,6 @@ struct LoginButtonView: View {
                     Text(NSLocalizedString("Account_Add_Character", comment: ""))
                         .font(.headline)
                         .lineLimit(1)
-                        .padding(.bottom, 4)
                 }
                 ServerStatusView(status: serverStatus)
             }
@@ -403,7 +311,7 @@ struct ContentView: View {
     // 添加自动刷新的时间间隔常量
     private let characterInfoUpdateInterval: TimeInterval = 300 // 5分钟
     
-    // 自定初始化方法，确保 databaseManager 被正确传递
+    // 自定初始化方法，确保 databaseManager 正确传递
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
         _tables = State(initialValue: generateTables())
@@ -541,246 +449,224 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
-                // 登录按钮
-                Section {
-                    NavigationLink {
-                        AccountsView(databaseManager: databaseManager) { character, portrait in
-                            var newCharacter = character
-                            // 先将钱包余额和技能点数设为 nil
-                            newCharacter.walletBalance = nil
-                            newCharacter.totalSkillPoints = nil
-                            newCharacter.unallocatedSkillPoints = nil
-                            newCharacter.currentSkill = nil
-                            selectedCharacter = newCharacter
-                            selectedCharacterPortrait = portrait
-                            // 保存当前选中的角色 ID
-                            currentCharacterId = character.CharacterID
-                        }
-                    } label: {
-                        LoginButtonView(
-                            isLoggedIn: isLoggedIn,
-                            serverStatus: serverStatus,
-                            selectedCharacter: selectedCharacter,
-                            characterPortrait: selectedCharacterPortrait,
-                            isRefreshing: isRefreshing
-                        )
-                    }
-                }
+                // 登录按钮部分
+                loginSection
                 
-                // 原有的表格内容
-                ForEach(tables) { table in
-                    Section(header: Text(table.title)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                    ) {
-                        ForEach(table.rows) { row in
-                            NavigationLink(destination: getDestination(for: row)) {
-                                rowContent(row)
-                            }
-                        }
-                    }
-                }
+                // 功能列表部分
+                functionalSections
             }
             .listStyle(.insetGrouped)
             .refreshable {
-                isRefreshing = true
-                // 刷新服务器状态
-                do {
-                    serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
-                    lastStatusUpdateTime = Date()
-                } catch {
-                    Logger.error("Failed to refresh server status: \(error)")
-                }
-                
-                // 如果有选中的角色，刷新角色信息
-                if let character = selectedCharacter {
-                    do {
-                        // 强制刷新角色公开信息
-                        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-                            characterId: character.CharacterID,
-                            forceRefresh: true
-                        )
-                        
-                        // 获取角色头像
-                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                            characterId: character.CharacterID,
-                            forceRefresh: true
-                        ) {
-                            await MainActor.run {
-                                selectedCharacterPortrait = portrait
-                                Logger.info("成功刷新角色头像")
-                            }
-                        }
-                        
-                        // 获取服务器状态
-                        do {
-                            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
-                            Logger.info("成功获取服务器状态")
-                        } catch {
-                            Logger.error("获取服务器状态失败: \(error)")
-                        }
-                        
-                        // 获取联盟信息
-                        if let allianceId = publicInfo.alliance_id {
-                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                                allianceId: allianceId,
-                                forceRefresh: true
-                            )
-                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                                allianceID: allianceId
-                            )
-                            
-                            do {
-                                let (_, _) = try await (allianceInfoTask, allianceLogoTask)
-                                Logger.info("成功刷新联盟信息和图标")
-                            } catch {
-                                Logger.error("刷新联盟信息失败: \(error)")
-                            }
-                        }
-                        
-                        // 获取军团信息
-                        do {
-                            async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                                corporationId: publicInfo.corporation_id,
-                                forceRefresh: true
-                            )
-                            async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                                corporationId: publicInfo.corporation_id
-                            )
-                            
-                            let (_, _) = try await (corporationInfoTask, corporationLogoTask)
-                            Logger.info("成功刷新军团信息和图标")
-                        } catch {
-                            Logger.error("刷新军团信息失败: \(error)")
-                        }
-                        
-                        Logger.info("成功完成所有信息刷新")
-                    } catch {
-                        Logger.error("刷新角色信息失败: \(error)")
-                    }
-                }
-                isRefreshing = false
+                await refreshAllData()
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .toolbar {
-                if selectedCharacter != nil {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            selectedCharacter = nil
-                            selectedCharacterPortrait = nil
-                            // 清除当前角色 ID
-                            currentCharacterId = 0
-                        }) {
-                            Text(NSLocalizedString("Account_Logout", comment: ""))
-                                .foregroundColor(.red)
-                        }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        SettingView(databaseManager: databaseManager)
+                    } label: {
+                        Image("Settings")
+                            .resizable()
+                            .frame(width: 24, height: 24)
                     }
                 }
             }
-            .onAppear {
-                // 检查选中的角色是否还存在，并加载保存的角色信息
-                loadSavedCharacter()
-                
-                // 如果有选中的角色，开始自动刷新任务
-                if selectedCharacter != nil {
-                    Task {
-                        while !Task.isCancelled {
-                            await refreshCharacterInfo()
-                            try? await Task.sleep(nanoseconds: UInt64(characterInfoUpdateInterval) * 1_000_000_000)
-                        }
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("CharacterRemoved"))) { notification in
-                if let removedCharacterId = notification.userInfo?["characterId"] as? Int {
-                    if selectedCharacter?.CharacterID == removedCharacterId {
-                        selectedCharacter = nil
-                        selectedCharacterPortrait = nil
-                        // 如果删除的是当前角色，清除当前角色 ID
-                        if currentCharacterId == removedCharacterId {
-                            currentCharacterId = 0
-                        }
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CharacterTokenStatusChanged"))) { notification in
-                if let characterId = notification.userInfo?["characterId"] as? Int,
-                   let tokenExpired = notification.userInfo?["tokenExpired"] as? Bool,
-                   characterId == selectedCharacter?.CharacterID {
-                    // 如果是当前选中的角色，更新其状态
-                    var updatedCharacter = selectedCharacter
-                    updatedCharacter?.tokenExpired = tokenExpired
-                    selectedCharacter = updatedCharacter
-                }
-            }
-        }
-        .preferredColorScheme(selectedTheme == "light" ? .light : (selectedTheme == "dark" ? .dark : nil))
-        .id(forceViewUpdate)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            forceViewUpdate.toggle()
-            initializeTables()
         }
         .task {
-            async let statusTask: Void = updateServerStatus()
-            async let preloadTask: Void = preloadDatabaseIfNeeded()
-            _ = await (statusTask, preloadTask)
+            await loadInitialData()
         }
     }
     
-    private func updateServerStatus() async {
-        // 检查是否需要更新
-        if let lastUpdate = lastStatusUpdateTime,
-           Date().timeIntervalSince(lastUpdate) < statusUpdateInterval {
-            Logger.info("Server status was updated less than 5 minutes ago, skipping update")
-            isLoadingStatus = false
-            return
+    // 登录部分
+    private var loginSection: some View {
+        Section {
+            NavigationLink {
+                AccountsView(databaseManager: databaseManager) { character, portrait in
+                    selectedCharacter = character
+                    selectedCharacterPortrait = portrait
+                    // 保存当前选中的角色 ID
+                    currentCharacterId = character.CharacterID
+                }
+            } label: {
+                LoginButtonView(
+                    isLoggedIn: isLoggedIn,
+                    serverStatus: serverStatus,
+                    selectedCharacter: selectedCharacter,
+                    characterPortrait: selectedCharacterPortrait,
+                    isRefreshing: isRefreshing
+                )
+            }
         }
+    }
+    
+    // 功能列表部分
+    private var functionalSections: some View {
+        ForEach(tables) { table in
+            Section {
+                tableContent(for: table)
+            } header: {
+                Text(table.title)
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+            }
+        }
+    }
+    
+    // 表格内容
+    private func tableContent(for table: TableNode) -> some View {
+        ForEach(table.rows) { row in
+            NavigationLink(destination: getDestination(for: row)) {
+                rowContent(row)
+            }
+        }
+    }
+    
+    // 刷新所有数据
+    private func refreshAllData() async {
+        isRefreshing = true
+        defer { isRefreshing = false }
         
+        // 刷新服务器状态
+        await refreshServerStatus()
+        
+        // 如果有选中的角色，刷新角色信息
+        if let character = selectedCharacter {
+            await refreshCharacterData(character)
+        }
+    }
+    
+    // 刷新服务器状态
+    private func refreshServerStatus() async {
         do {
             serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
-            await MainActor.run {
-                lastStatusUpdateTime = Date()
-            }
+            lastStatusUpdateTime = Date()
         } catch {
-            Logger.error("Failed to fetch server status: \(error)")
-        }
-        isLoadingStatus = false
-        
-        // 等待5分钟后再次更新
-        try? await Task.sleep(nanoseconds: UInt64(statusUpdateInterval) * 1_000_000_000)
-        if !Task.isCancelled {
-            await updateServerStatus()
+            Logger.error("Failed to refresh server status: \(error)")
         }
     }
     
-    // 预加载数据库内容
-    private func preloadDatabaseIfNeeded() async {
-        print("=== Debug: Checking preload condition ===")
-        print("isDatabasePreloaded: \(isDatabasePreloaded)")
-        
-        guard !isDatabasePreloaded else {
-            print("=== Debug: Database already preloaded, skipping ===")
-            return
+    // 刷新角色数据
+    private func refreshCharacterData(_ character: EVECharacterInfo) async {
+        do {
+            // 获取角色公开信息
+            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
+            
+            // 刷新头像
+            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID) {
+                await MainActor.run {
+                    selectedCharacterPortrait = portrait
+                    Logger.info("成功刷新角色头像")
+                }
+            }
+            
+            // 刷新联盟信息
+            if let allianceId = publicInfo.alliance_id {
+                do {
+                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                    
+                    let (_, _) = try await (allianceInfoTask, allianceLogoTask)
+                    Logger.info("成功刷新联盟信息和图标")
+                } catch {
+                    Logger.error("刷新联盟信息失败: \(error)")
+                }
+            }
+            
+            // 刷新军团信息
+            do {
+                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+                
+                let (_, _) = try await (corporationInfoTask, corporationLogoTask)
+                Logger.info("成功刷新军团信息和图标")
+            } catch {
+                Logger.error("刷新军团信息失败: \(error)")
+            }
+            
+            Logger.info("成功完成所有信息刷新")
+        } catch {
+            Logger.error("刷新角色信息失败: \(error)")
+        }
+    }
+    
+    // 加载初始数据
+    private func loadInitialData() async {
+        // 加载服务器状态
+        do {
+            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
+            lastStatusUpdateTime = Date()
+        } catch {
+            Logger.error("Failed to load server status: \(error)")
         }
         
-        print("=== Debug: Starting database content preload... ===")
-        
-        // 预加载
-        let (published, unpublished) = databaseManager.loadCategories()
-        print("=== Debug: Loaded categories - Published: \(published.count), Unpublished: \(unpublished.count) ===")
-        let res = databaseManager.loadAttributeUnits()
-        print("=== Debug: Loaded \(res.count) AttributeUnits ===")
-        
-        // 预加载分类图标
-        for category in published + unpublished {
-            _ = IconManager.shared.loadUIImage(for: category.iconFileNew)
-        }
-        print("=== Debug: Preloaded \(published.count + unpublished.count) category icons ===")
-        
-        await MainActor.run {
-            isDatabasePreloaded = true
-            print("=== Debug: Database preload completed successfully ===")
+        // 如果有保存的角色ID，加载该角色信息
+        if currentCharacterId != 0 {
+            // 从数据库加载基本信息
+            if case .success(let rows) = databaseManager.executeQuery(
+                "SELECT * FROM characters WHERE CharacterID = ?",
+                parameters: [currentCharacterId]
+            ),
+               let row = rows.first,
+               let characterId = row["CharacterID"] as? Int,
+               let characterName = row["CharacterName"] as? String,
+               let expiresOn = row["ExpiresOn"] as? String,
+               let scopes = row["Scopes"] as? String,
+               let tokenType = row["TokenType"] as? String,
+               let ownerHash = row["CharacterOwnerHash"] as? String {
+                
+                // 创建一个包含必要信息的角色对象
+                do {
+                    let characterDict: [String: Any] = [
+                        "CharacterID": characterId,
+                        "CharacterName": characterName,
+                        "ExpiresOn": expiresOn,
+                        "Scopes": scopes,
+                        "TokenType": tokenType,
+                        "CharacterOwnerHash": ownerHash
+                    ]
+                    
+                    let jsonData = try JSONSerialization.data(withJSONObject: characterDict)
+                    selectedCharacter = try JSONDecoder().decode(EVECharacterInfo.self, from: jsonData)
+                } catch {
+                    Logger.error("创建角色信息失败: \(error)")
+                    return
+                }
+                
+                // 加载角色头像
+                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId) {
+                    selectedCharacterPortrait = portrait
+                }
+                
+                // 加载角色的公开信息
+                do {
+                    let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
+                    
+                    // 加载联盟信息（如果有）
+                    if let allianceId = publicInfo.alliance_id {
+                        do {
+                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                            
+                            let (_, _) = try await (allianceInfoTask, allianceLogoTask)
+                        } catch {
+                            Logger.error("加载联盟信息失败: \(error)")
+                        }
+                    }
+                    
+                    // 加载军团信息
+                    do {
+                        async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+                        async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+                        
+                        let (_, _) = try await (corporationInfoTask, corporationLogoTask)
+                    } catch {
+                        Logger.error("加载军团信息失败: \(error)")
+                    }
+                } catch {
+                    Logger.error("加载角色公开信息失败: \(error)")
+                }
+            }
         }
     }
     
