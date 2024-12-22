@@ -410,7 +410,7 @@ struct ContentView: View {
     }
     
     // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认采用系统模式
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认用系统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -545,7 +545,13 @@ struct ContentView: View {
                 Section {
                     NavigationLink {
                         AccountsView(databaseManager: databaseManager) { character, portrait in
-                            selectedCharacter = character
+                            var newCharacter = character
+                            // 先将钱包余额和技能点数设为 nil
+                            newCharacter.walletBalance = nil
+                            newCharacter.totalSkillPoints = nil
+                            newCharacter.unallocatedSkillPoints = nil
+                            newCharacter.currentSkill = nil
+                            selectedCharacter = newCharacter
                             selectedCharacterPortrait = portrait
                             // 保存当前选中的角色 ID
                             currentCharacterId = character.CharacterID
@@ -779,6 +785,7 @@ struct ContentView: View {
     private func generateTables() -> [TableNode] {
         // 格式化技能点显示
         let spText = if let character = selectedCharacter,
+                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
                        let totalSP = character.totalSkillPoints {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(totalSP)))
@@ -790,6 +797,7 @@ struct ContentView: View {
         // 格式化技能队列显示
         let skillQueueText: String
         if let character = selectedCharacter,
+           character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
            let currentSkill = character.currentSkill {
             if let remainingTime = currentSkill.remainingTime {
                 let days = Int(remainingTime) / 86400
@@ -817,6 +825,7 @@ struct ContentView: View {
         
         // 格式化钱包余额显示
         let iskText = if let character = selectedCharacter,
+                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
                        let balance = character.walletBalance {
             NSLocalizedString("Main_Wealth_ISK", comment: "")
                 .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(balance)))
