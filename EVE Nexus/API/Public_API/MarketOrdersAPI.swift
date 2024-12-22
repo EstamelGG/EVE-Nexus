@@ -67,10 +67,6 @@ enum MarketAPIError: LocalizedError {
 @MarketOrdersAPIActor
 class MarketOrdersAPI {
     static let shared = MarketOrdersAPI()
-    
-    // 缓存
-    private var marketOrdersCache: [Int: [MarketOrder]] = [:]
-    private var marketOrdersTimestamp: [Int: Date] = [:]
     private let marketOrdersCacheDuration: TimeInterval = 300 // 5分钟缓存
     
     private init() {}
@@ -84,11 +80,10 @@ class MarketOrdersAPI {
     ///   - forceRefresh: 是否强制刷新
     /// - Returns: 市场订单数组
     func fetchMarketOrders(typeID: Int, regionID: Int, forceRefresh: Bool = false) async throws -> [MarketOrder] {
-        // 检查缓存
+        // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
-            if let cached = marketOrdersCache[typeID],
-               let timestamp = marketOrdersTimestamp[typeID],
-               Date().timeIntervalSince(timestamp) < marketOrdersCacheDuration {
+            let key = StaticResourceManager.DefaultsKey.marketOrders(typeID: typeID, regionID: regionID)
+            if let cached: [MarketOrder] = StaticResourceManager.shared.getFromDefaults(key, duration: marketOrdersCacheDuration) {
                 return cached
             }
         }
@@ -109,16 +104,10 @@ class MarketOrdersAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let orders = try JSONDecoder().decode([MarketOrder].self, from: data)
         
-        // 更新缓存
-        marketOrdersCache[typeID] = orders
-        marketOrdersTimestamp[typeID] = Date()
+        // 保存到 UserDefaults
+        let key = StaticResourceManager.DefaultsKey.marketOrders(typeID: typeID, regionID: regionID)
+        try StaticResourceManager.shared.saveToDefaults(orders, key: key)
         
         return orders
-    }
-    
-    /// 清除缓存
-    func clearCache() {
-        marketOrdersCache.removeAll()
-        marketOrdersTimestamp.removeAll()
     }
 } 

@@ -401,6 +401,21 @@ class StaticResourceManager {
         for type in ResourceType.allCases {
             UserDefaults.standard.removeObject(forKey: type.downloadTimeKey)
         }
+        
+        // 清除 UserDefaults 中的数据
+        defaults.removeObject(forKey: DefaultsKey.incursions.rawValue)
+        defaults.removeObject(forKey: DefaultsKey.sovereignty.rawValue)
+        defaults.removeObject(forKey: DefaultsKey.sovereigntyCampaigns.rawValue)
+        
+        // 清除所有市场数据
+        let allKeys = defaults.dictionaryRepresentation().keys
+        for key in allKeys {
+            if key.starts(with: "market_history_") || key.starts(with: "market_orders_") {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        
+        Logger.info("Cleared all static data from UserDefaults")
     }
     
     /// 获取联盟图标目录路径
@@ -694,12 +709,12 @@ class StaticResourceManager {
         if forceRefresh {
             Logger.info("Force refreshing incursions data from network")
             let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: true)
-            try saveToDefaults(incursionsData, key: .incursions)
+            try saveToDefaults(incursionsData, key: DefaultsKey.incursions.rawValue)
             return incursionsData
         }
         
         // 尝试从缓存获取
-        if let cached: [Incursion] = getFromDefaults(.incursions, duration: INCURSIONS_CACHE_DURATION) {
+        if let cached: [Incursion] = getFromDefaults(DefaultsKey.incursions.rawValue, duration: INCURSIONS_CACHE_DURATION) {
             Logger.info("Got incursions data from cache")
             return cached
         }
@@ -707,7 +722,7 @@ class StaticResourceManager {
         // 从网络获取
         Logger.info("Fetching incursions data from network")
         let incursionsData = try await IncursionsAPI.shared.fetchIncursions()
-        try saveToDefaults(incursionsData, key: .incursions)
+        try saveToDefaults(incursionsData, key: DefaultsKey.incursions.rawValue)
         return incursionsData
     }
     
@@ -753,12 +768,12 @@ class StaticResourceManager {
         if forceRefresh {
             Logger.info("Force refreshing sovereignty campaigns data from network")
             let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
-            try saveToDefaults(campaignsData, key: .sovereigntyCampaigns)
+            try saveToDefaults(campaignsData, key: DefaultsKey.sovereigntyCampaigns.rawValue)
             return campaignsData
         }
         
         // 尝试从缓存获取
-        if let cached: [SovereigntyCampaign] = getFromDefaults(.sovereigntyCampaigns, duration: SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION) {
+        if let cached: [SovereigntyCampaign] = getFromDefaults(DefaultsKey.sovereigntyCampaigns.rawValue, duration: SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION) {
             Logger.info("Got sovereignty campaigns data from cache")
             return cached
         }
@@ -766,7 +781,7 @@ class StaticResourceManager {
         // 从网络获取
         Logger.info("Fetching sovereignty campaigns data from network")
         let campaignsData = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns()
-        try saveToDefaults(campaignsData, key: .sovereigntyCampaigns)
+        try saveToDefaults(campaignsData, key: DefaultsKey.sovereigntyCampaigns.rawValue)
         return campaignsData
     }
     
@@ -777,10 +792,19 @@ class StaticResourceManager {
     }
     
     // MARK: - UserDefaults 数据管理
-    private enum DefaultsKey: String {
+    enum DefaultsKey: String {
         case incursions = "incursions_data"
         case sovereignty = "sovereignty_data"
         case sovereigntyCampaigns = "sovereignty_campaigns_data"
+        
+        // 市场数据使用动态键
+        static func marketHistory(typeID: Int, regionID: Int) -> String {
+            return "market_history_\(typeID)_\(regionID)"
+        }
+        
+        static func marketOrders(typeID: Int, regionID: Int) -> String {
+            return "market_orders_\(typeID)_\(regionID)"
+        }
     }
     
     /// 从 UserDefaults 获取数据
@@ -788,8 +812,8 @@ class StaticResourceManager {
     ///   - key: 数据键
     ///   - duration: 缓存时间
     /// - Returns: 解码后的数据（如果存在且未过期）
-    private func getFromDefaults<T: Codable>(_ key: DefaultsKey, duration: TimeInterval) -> T? {
-        guard let data = defaults.data(forKey: key.rawValue),
+    func getFromDefaults<T: Codable>(_ key: String, duration: TimeInterval) -> T? {
+        guard let data = defaults.data(forKey: key),
               let container = try? JSONDecoder().decode(DataContainer<T>.self, from: data),
               Date().timeIntervalSince(container.timestamp) < duration else {
             return nil
@@ -801,39 +825,39 @@ class StaticResourceManager {
     /// - Parameters:
     ///   - data: 要保存的数据
     ///   - key: 数据键
-    private func saveToDefaults<T: Codable>(_ data: T, key: DefaultsKey) throws {
+    func saveToDefaults<T: Codable>(_ data: T, key: String) throws {
         let container = DataContainer(data: data, timestamp: Date())
         let encodedData = try JSONEncoder().encode(container)
-        defaults.set(encodedData, forKey: key.rawValue)
+        defaults.set(encodedData, forKey: key)
     }
     
     // MARK: - 入侵数据管理
     func getIncursions() -> [Incursion]? {
-        return getFromDefaults(.incursions, duration: INCURSIONS_CACHE_DURATION)
+        return getFromDefaults(DefaultsKey.incursions.rawValue, duration: INCURSIONS_CACHE_DURATION)
     }
     
     func saveIncursions(_ incursions: [Incursion]) throws {
-        try saveToDefaults(incursions, key: .incursions)
+        try saveToDefaults(incursions, key: DefaultsKey.incursions.rawValue)
         Logger.info("Saved incursions data to UserDefaults")
     }
     
     // MARK: - 主权归属数据管理
     func getSovereignty() -> [SovereigntyData]? {
-        return getFromDefaults(.sovereignty, duration: SOVEREIGNTY_CACHE_DURATION)
+        return getFromDefaults(DefaultsKey.sovereignty.rawValue, duration: SOVEREIGNTY_CACHE_DURATION)
     }
     
     func saveSovereignty(_ sovereignty: [SovereigntyData]) throws {
-        try saveToDefaults(sovereignty, key: .sovereignty)
+        try saveToDefaults(sovereignty, key: DefaultsKey.sovereignty.rawValue)
         Logger.info("Saved sovereignty data to UserDefaults")
     }
     
     // MARK: - 主权战争数据管理
     func getSovereigntyCampaigns() -> [EVE_Nexus.SovereigntyCampaign]? {
-        return getFromDefaults(.sovereigntyCampaigns, duration: SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION)
+        return getFromDefaults(DefaultsKey.sovereigntyCampaigns.rawValue, duration: SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION)
     }
     
     func saveSovereigntyCampaigns(_ campaigns: [EVE_Nexus.SovereigntyCampaign]) throws {
-        try saveToDefaults(campaigns, key: .sovereigntyCampaigns)
+        try saveToDefaults(campaigns, key: DefaultsKey.sovereigntyCampaigns.rawValue)
         Logger.info("Saved sovereignty campaigns data to UserDefaults")
     }
     

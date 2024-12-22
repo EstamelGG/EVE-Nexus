@@ -43,10 +43,6 @@ enum MarketHistoryAPIError: LocalizedError {
 @MarketHistoryAPIActor
 class MarketHistoryAPI {
     static let shared = MarketHistoryAPI()
-    
-    // 缓存
-    private var marketHistoryCache: [Int: [MarketHistory]] = [:]
-    private var marketHistoryTimestamp: [Int: Date] = [:]
     private let marketHistoryCacheDuration: TimeInterval = 7 * 24 * 3600 // 1周缓存
     
     private init() {}
@@ -60,11 +56,10 @@ class MarketHistoryAPI {
     ///   - forceRefresh: 是否强制刷新
     /// - Returns: 市场历史数据数组
     func fetchMarketHistory(typeID: Int, regionID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
-        // 检查缓存
+        // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
-            if let cached = marketHistoryCache[typeID],
-               let timestamp = marketHistoryTimestamp[typeID],
-               Date().timeIntervalSince(timestamp) < marketHistoryCacheDuration {
+            let key = StaticResourceManager.DefaultsKey.marketHistory(typeID: typeID, regionID: regionID)
+            if let cached: [MarketHistory] = StaticResourceManager.shared.getFromDefaults(key, duration: marketHistoryCacheDuration) {
                 return cached
             }
         }
@@ -85,55 +80,10 @@ class MarketHistoryAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let history = try JSONDecoder().decode([MarketHistory].self, from: data)
         
-        // 更新缓存
-        marketHistoryCache[typeID] = history
-        marketHistoryTimestamp[typeID] = Date()
-        
-        // 保存到文件
-        try await saveToFile(history, typeID: typeID, regionID: regionID)
+        // 保存到 UserDefaults
+        let key = StaticResourceManager.DefaultsKey.marketHistory(typeID: typeID, regionID: regionID)
+        try StaticResourceManager.shared.saveToDefaults(history, key: key)
         
         return history
-    }
-    
-    /// 清除缓存
-    func clearCache() {
-        marketHistoryCache.removeAll()
-        marketHistoryTimestamp.removeAll()
-    }
-    
-    // MARK: - 私有方法
-    
-    private func saveToFile(_ history: [MarketHistory], typeID: Int, regionID: Int) async throws {
-        let fileManager = FileManager.default
-        let baseURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Market")
-        
-        // 创建Market目录（如果不存在）
-        try? fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
-        
-        // 构建文件路径
-        let fileName = "history_\(typeID)_\(regionID).json"
-        let fileURL = baseURL.appendingPathComponent(fileName)
-        
-        // 编码数据
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        let data = try encoder.encode(history)
-        
-        // 写入文件
-        try data.write(to: fileURL)
-    }
-    
-    private func loadFromFile(typeID: Int, regionID: Int) throws -> [MarketHistory]? {
-        let fileURL = StaticResourceManager.shared.getStaticDataSetPath()
-            .appendingPathComponent("Market")
-            .appendingPathComponent("history_\(typeID)_\(regionID).json")
-        
-        guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            return nil
-        }
-        
-        let data = try Data(contentsOf: fileURL)
-        return try JSONDecoder().decode([MarketHistory].self, from: data)
     }
 } 
