@@ -506,32 +506,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
     
-    // 获取主权数据
-    func fetchSovereigntyData(forceRefresh: Bool = false) async throws -> [SovereigntyData] {
-        // 如果不是强制刷新，尝试从本地获取
-        if !forceRefresh {
-            if let sovereignty = StaticResourceManager.shared.getSovereignty() {
-                return sovereignty
-            }
-        }
-        
-        // 从网络获取数据
-        let request = ResourceRequest<[SovereigntyData]>(
-            resource: EVEResource.sovereignty,
-            parameters: ["datasource": "tranquility"],
-            cacheStrategy: .memoryOnly,  // 只使用内存缓存
-            forceRefresh: true
-        )
-        
-        let sovereignty = try await fetchResource(request)
-        
-        // 保存到本地
-        try StaticResourceManager.shared.saveSovereignty(sovereignty)
-        
-        return sovereignty
-    }
-
-    
     // 清除所有缓存
     func clearAllCaches() async {
         await withCheckedContinuation { continuation in
@@ -1128,7 +1102,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         UserDefaults.standard.set(data, forKey: cacheKey)
         UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         
-        Logger.info("成功获取军团信息 - 军��ID: \(corporationId)")
+        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
         return info
     }
     

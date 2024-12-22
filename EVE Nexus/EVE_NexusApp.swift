@@ -136,7 +136,7 @@ struct EVE_NexusApp: App {
     private func initializeApp() async {
         do {
             // 在图标解压完成后加载主权数据
-            _ = try await NetworkManager.shared.fetchSovereigntyData()
+            _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
             await MainActor.run {
                 databaseManager.loadDatabase()
                 isInitialized = true

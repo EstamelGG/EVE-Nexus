@@ -440,7 +440,7 @@ struct SettingView: View {
                 switch type {
                 case .sovereignty:
                     Logger.info("Refreshing sovereignty data")
-                    let sovereigntyData = try await NetworkManager.shared.fetchSovereigntyData(forceRefresh: true)
+                    let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: true)
                     let jsonData = try JSONEncoder().encode(sovereigntyData)
                     try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
                     // 更新下载时间
