@@ -400,7 +400,7 @@ struct ContentView: View {
     // 添加预加载状态
     @State private var isDatabasePreloaded = false
     
-    // 添加自动刷新的时间间隔常量
+    // 添加自���刷新的时间间隔常量
     private let characterInfoUpdateInterval: TimeInterval = 300 // 5分钟
     
     // 自定义初始化方法，确保 databaseManager 被正确传递
@@ -410,7 +410,7 @@ struct ContentView: View {
     }
     
     // 使用 @AppStorage 来读取存储的主题设置
-    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认为系统模式
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system" // 默认��系统模式
     
     // 添加图标缓存
     private let cachedIcons: [String: Image] = [
@@ -488,7 +488,7 @@ struct ContentView: View {
             }
             
             // 获取钱包余额
-            if let balance = try? await ESIDataManager.shared.getWalletBalance(
+            if let balance = try? await EVELogin.shared.getCharacterWallet(
                 characterId: character.CharacterID
             ) {
                 await MainActor.run {
@@ -993,7 +993,6 @@ struct ContentView: View {
                     ) {
                         await MainActor.run {
                             selectedCharacterPortrait = portrait
-                            Logger.info("成功加载角色头像")
                         }
                     } else {
                         Logger.error("加载角色头像失败")

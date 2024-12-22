@@ -1053,10 +1053,10 @@ class NetworkManager: NSObject, @unchecked Sendable {
         let queueCacheKey = "character_\(characterId)_skillqueue"
         let queueUpdateTimeKey = "character_\(characterId)_skillqueue_update_time"
         
-        // 如果缓存存在且未过期（1分钟），直接返回缓存数据
+        // 如果缓存存在且未过期（30分钟），直接返回缓存数据
         if let cachedData = UserDefaults.standard.data(forKey: queueCacheKey),
            let lastUpdateTime = UserDefaults.standard.object(forKey: queueUpdateTimeKey) as? Date,
-           Date().timeIntervalSince(lastUpdateTime) < 60 { // 1分钟缓存
+           Date().timeIntervalSince(lastUpdateTime) < 30 * 60 { // 30 分钟缓存
             do {
                 let queue = try JSONDecoder().decode([SkillQueueItem].self, from: cachedData)
                 Logger.info("使用缓存的技能队列数据 - 角色ID: \(characterId)")
