@@ -229,7 +229,7 @@ class InfestedSystemsViewModel: ObservableObject {
                 if systems.first != nil {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(systems.count) 个星系")
-                        let uiImage = try await NetworkManager.shared.fetchAllianceLogo(allianceID: allianceId)
+                        let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
                         if !Task.isCancelled {
                             let icon = Image(uiImage: uiImage)
                             // 更新所有使用这个联盟图标的系统
