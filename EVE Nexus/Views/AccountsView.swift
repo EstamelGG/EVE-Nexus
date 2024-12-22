@@ -195,6 +195,11 @@ struct AccountsView: View {
             }
         }
         .id(forceUpdate) // 添加id以强制视图刷新
+        .onChange(of: viewModel.characters.isEmpty) { oldValue, newValue in
+            if newValue {
+                isEditing = false
+            }
+        }
     }
     
     @MainActor
