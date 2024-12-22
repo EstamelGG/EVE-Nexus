@@ -124,7 +124,7 @@ class InfestedSystemsViewModel: ObservableObject {
         // 获取入侵数据以获取影响力信息
         var influence: Double = 0.0
         do {
-            let incursions = try await StaticResourceManager.shared.fetchIncursionsData()
+            let incursions = try await IncursionsAPI.shared.fetchIncursions()
             if let incursion = incursions.first(where: { $0.infestedSolarSystems.contains(where: { $0 == systemIds.first }) }) {
                 influence = incursion.influence
             }

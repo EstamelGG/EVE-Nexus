@@ -36,14 +36,8 @@ final class SovereigntyViewModel: ObservableObject {
         
         Logger.info("ViewModel: 开始获取主权争夺数据")
         do {
+            // 直接使用 SovereigntyCampaignsAPI
             let campaigns = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
-            // 保存数据到文件并更新时间戳
-            let jsonData = try JSONEncoder().encode(campaigns)
-            try StaticResourceManager.shared.saveToFileAndCache(
-                jsonData,
-                filename: StaticResourceManager.ResourceType.sovereignty_campaigns.filename,
-                cacheKey: StaticResourceManager.ResourceType.sovereignty_campaigns.rawValue
-            )
             await processCampaigns(campaigns)
         } catch {
             Logger.error("ViewModel: 获取主权争夺数据失败: \(error)")
@@ -218,7 +212,6 @@ struct SovereigntyCell: View {
 
 struct SovereigntyView: View {
     @StateObject private var viewModel: SovereigntyViewModel
-    @State private var campaigns: [EVE_Nexus.SovereigntyCampaign] = []
     
     init(databaseManager: DatabaseManager) {
         _viewModel = StateObject(wrappedValue: SovereigntyViewModel(databaseManager: databaseManager))
@@ -232,7 +225,7 @@ struct SovereigntyView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
-                Text("Can not get sovereignty data")
+                Text("Main_Setting_Static_Resource_No_Data")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
             } else {

@@ -228,9 +228,6 @@ struct SettingView: View {
     @State private var unzipProgress: Double = 0
     @State private var loadingState: LoadingState = .unzipping
     @State private var showingLoadingView = false
-    @State private var refreshingResources: Set<String> = []
-    
-    // 新增状态属性
     @State private var settingGroups: [SettingGroup] = []
     @State private var resourceInfoCache: [String: String] = [:]
     @State private var showingLogViewer = false
@@ -374,34 +371,12 @@ struct SettingView: View {
                 title += " (" + getRelativeTimeString(from: downloadTime) + ")"
             }
             
-            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
-                switch type {
-                case .sovereignty, .incursions, .sovereignty_campaigns:
-                    let isRefreshingThis = refreshingResources.contains(resource.name)
-                    
-                    let isExpired = resource.exists && resource.lastModified != nil && 
-                        Date().timeIntervalSince(resource.lastModified!) > type.cacheDuration
-                    
-                    return SettingItem(
-                        title: title,
-                        detail: formatResourceInfo(resource),
-                        icon: isRefreshingThis ? "arrow.triangle.2.circlepath" : 
-                              (resource.exists ? 
-                                (isExpired ? "exclamationmark.triangle.fill" : "checkmark.circle.fill") : 
-                                "arrow.triangle.2.circlepath"),
-                        iconColor: isRefreshingThis ? .blue :
-                                 (resource.exists ? 
-                                    (isExpired ? .yellow : .green) : 
-                                    .blue),
-                        action: { refreshResource(resource) }
-                    )
-                case .factionIcons, .netRenders, .marketData, .characterPortraits:
-                    return SettingItem(
-                        title: title,
-                        detail: formatResourceInfo(resource),
-                        action: { }
-                    )
-                }
+            if let _ = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
+                return SettingItem(
+                    title: title,
+                    detail: formatResourceInfo(resource),
+                    action: { }
+                )
             }
             
             return SettingItem(
@@ -416,72 +391,83 @@ struct SettingView: View {
     
     // MARK: - 资源管理
     private func refreshResource(_ resource: StaticResourceManager.ResourceInfo) {
-        // 如果该资源正在刷新中，直接返回
-        guard !refreshingResources.contains(resource.name) else {
-            return
-        }
+        // 图片资源是按需加载的，不需要手动刷新
+        Logger.info("Image resources are refreshed on-demand")
+    }
+    
+    // MARK: - 资源信息格式化
+    private func formatRemainingTime(_ remaining: TimeInterval) -> String {
+        let days = Int(remaining / (24 * 3600))
+        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
+        let minutes = Int((remaining.truncatingRemainder(dividingBy: 3600)) / 60)
         
-        Task {
-            // 标记资源开始刷新
-            await MainActor.run {
-                refreshingResources.insert(resource.name)
-                // 立即更新UI以显示加载状态
-                updateSettingGroups()
+        if days > 0 {
+            // 如果有天数，显示天和小时
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours)
+        } else if hours > 0 {
+            // 如果有小时，显示小时和分钟
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours_Minutes", comment: ""), hours, minutes)
+        } else {
+            // 只剩分钟
+            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Minutes", comment: ""), minutes)
+        }
+    }
+    
+    private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
+        if resource.exists && resource.fileSize != nil && resource.fileSize! > 0 {
+            var info = ""
+            if let fileSize = resource.fileSize {
+                info += FormatUtil.formatFileSize(fileSize)
             }
             
-            do {
-                // 找到的资源类型
-                guard let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) else {
-                    Logger.error("Unknown resource type: \(resource.name)")
-                    return
-                }
-                
-                // 根据类型执行不同的刷新操作
-                switch type {
-                case .sovereignty:
-                    Logger.info("Refreshing sovereignty data")
-                    let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: true)
-                    try StaticResourceManager.shared.saveSovereignty(sovereigntyData)
-                case .incursions:
-                    Logger.info("Refreshing incursions data")
-                    let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: true)
-                    try StaticResourceManager.shared.saveIncursions(incursionsData)
-                case .sovereignty_campaigns:
-                    Logger.info("Force refreshing sovereignty campaigns data")
-                    let sovCamp = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
-                    try StaticResourceManager.shared.saveSovereigntyCampaigns(sovCamp)
-                case .factionIcons, .netRenders, .marketData, .characterPortraits:
-                    Logger.info("Alliance icons, net renders, market data and character portraits are refreshed on-demand")
-                    break
-                }
-                
-                // 刷新完成后更新UI
-                await MainActor.run {
-                    refreshingResources.remove(resource.name)
-                    // 强制重新创建静态资源组以更新时间显示
-                    if let index = settingGroups.firstIndex(where: { $0.header == NSLocalizedString("Main_Setting_Static_Resources", comment: "") }) {
-                        settingGroups[index] = createStaticResourceGroup()
-                    }
-                }
-            } catch {
-                Logger.error("Failed to refresh resource: \(error)")
-                // 发生错误时也要更新UI
-                await MainActor.run {
-                    refreshingResources.remove(resource.name)
-                    // 立即更新UI以停止加载动画
-                    updateSettingGroups()
-                }
+            // 只显示文件大小和最后更新时间
+            if let lastModified = resource.lastModified {
+                info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""),
+                    getRelativeTimeString(from: lastModified))
             }
+            
+            return info
+        } else {
+            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
         }
     }
     
-    // MARK: - 辅助计算属性
-    private func getResourceBaseName(_ title: String) -> String {
-        return title.components(separatedBy: " (").first ?? title
-    }
-    
-    private func isResourceRefreshing(_ title: String) -> Bool {
-        return refreshingResources.contains(getResourceBaseName(title))
+    // 添加一个新的视图组件来优化列表项渲染
+    private struct SettingItemView: View {
+        let item: SettingItem
+        let isCleaningCache: Bool
+        let showingLoadingView: Bool
+        
+        var body: some View {
+            Button(action: item.action) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(item.title)
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        if let detail = item.detail {
+                            Text(detail)
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    Spacer()
+                    if let icon = item.icon {
+                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                            ProgressView()
+                                .frame(width: 36, height: 36)
+                        } else {
+                            Image(systemName: icon)
+                                .font(.system(size: 20))
+                                .frame(width: 36, height: 36)
+                                .foregroundColor(item.iconColor)
+                        }
+                    }
+                }
+                .frame(height: 36)
+            }
+            .disabled(isCleaningCache || showingLoadingView)
+        }
     }
     
     // MARK: - 视图主体
@@ -493,8 +479,7 @@ struct SettingView: View {
                         SettingItemView(
                             item: item,
                             isCleaningCache: isCleaningCache,
-                            showingLoadingView: showingLoadingView,
-                            isResourceRefreshing: isResourceRefreshing(item.title)
+                            showingLoadingView: showingLoadingView
                         )
                     }
                 } header: {
@@ -726,106 +711,6 @@ struct SettingView: View {
                 isReextractingIcons = false
                 showingDeleteIconsAlert = false
             }
-        }
-    }
-    
-    // MARK: - 资源信息格式化
-    private func formatRemainingTime(_ remaining: TimeInterval) -> String {
-        let days = Int(remaining / (24 * 3600))
-        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
-        let minutes = Int((remaining.truncatingRemainder(dividingBy: 3600)) / 60)
-        
-        if days > 0 {
-            // 如果有天数，显示天和小时
-            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""), days, hours)
-        } else if hours > 0 {
-            // 如果有小时，显示小时和分钟
-            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Hours_Minutes", comment: ""), hours, minutes)
-        } else {
-            // 只剩分钟
-            return String(format: NSLocalizedString("Main_Setting_Cache_Expiration_Minutes", comment: ""), minutes)
-        }
-    }
-    
-    private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
-        if resource.exists && resource.fileSize != nil && resource.fileSize! > 0 {
-            var info = ""
-            if let fileSize = resource.fileSize {
-                info += FormatUtil.formatFileSize(fileSize)
-            }
-            
-            // 只为主权数据和入侵数据显示缓存有效期
-            if let type = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }),
-               let lastModified = resource.lastModified {
-                switch type {
-                case .sovereignty, .incursions, .sovereignty_campaigns:
-                    let duration = type.cacheDuration
-                    let elapsed = Date().timeIntervalSince(lastModified)
-                    let remaining = duration - elapsed
-                    
-                    if remaining > 0 {
-                        info += " (" + formatRemainingTime(remaining) + ")"
-                    } else {
-                        info += " (" + NSLocalizedString("Main_Setting_Static_Resource_Expired", comment: "") + ")"
-                    }
-                    
-                    // 只有当文件存在且有lastModified时才显示最后更新时间
-                    if resource.exists {
-                        info += "\n" + String(format: NSLocalizedString("Main_Setting_Static_Resource_Last_Updated", comment: ""),
-                            getRelativeTimeString(from: lastModified))
-                    }
-                default:
-                    // 对于其他类型，只显示文件大小
-                    break
-                }
-            }
-            
-            return info
-        } else {
-            // 统一使用"无缓存"作为默认显示
-            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
-        }
-    }
-    
-    // 添加一个新的视图组件来优化列表项渲染
-    private struct SettingItemView: View {
-        let item: SettingItem
-        let isCleaningCache: Bool
-        let showingLoadingView: Bool
-        let isResourceRefreshing: Bool
-        
-        var body: some View {
-            Button(action: item.action) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .font(.system(size: 16))
-                            .foregroundColor(.primary)
-                        if let detail = item.detail {
-                            Text(detail)
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    Spacer()
-                    if let icon = item.icon {
-                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
-                            ProgressView()
-                                .frame(width: 36, height: 36)
-                        } else if isResourceRefreshing {
-                            ProgressView()
-                                .frame(width: 36, height: 36)
-                        } else {
-                            Image(systemName: icon)
-                                .font(.system(size: 20))
-                                .frame(width: 36, height: 36)
-                                .foregroundColor(item.iconColor)
-                        }
-                    }
-                }
-                .frame(height: 36)
-            }
-            .disabled(isCleaningCache || showingLoadingView)
         }
     }
 }

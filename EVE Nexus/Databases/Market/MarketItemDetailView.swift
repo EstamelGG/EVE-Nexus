@@ -640,27 +640,14 @@ struct MarketItemDetailView: View {
         defer { isLoadingPrice = false }
         
         do {
-            // 1. 如果不是强制刷新，先尝试从缓存获取
-            if !forceRefresh {
-                if let orders = StaticResourceManager.shared.getMarketOrders(itemId: itemID, regionId: selectedRegionID) {
-                    marketOrders = orders
-                    let sellOrders = orders.filter { !$0.isBuyOrder }
-                    lowestPrice = sellOrders.map { $0.price }.min()
-                    return
-                }
-            }
-            
-            // 2. 从网络加载数据
+            // 从 MarketOrdersAPI 获取数据
             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
                 typeID: itemID,
                 regionID: selectedRegionID,
-                forceRefresh: true
+                forceRefresh: forceRefresh
             )
             
-            // 3. 保存到缓存
-            try StaticResourceManager.shared.saveMarketOrders(orders, itemId: itemID, regionId: selectedRegionID)
-            
-            // 4. 更新UI
+            // 更新UI
             marketOrders = orders
             let sellOrders = orders.filter { !$0.isBuyOrder }
             lowestPrice = sellOrders.map { $0.price }.min()
@@ -681,25 +668,14 @@ struct MarketItemDetailView: View {
         defer { isLoadingHistory = false }
         
         do {
-            // 1. 如果不是强制刷新，先尝试从缓存获取
-            if !forceRefresh {
-                if let history = StaticResourceManager.shared.getMarketHistory(itemId: itemID, regionId: selectedRegionID) {
-                    marketHistory = history
-                    return
-                }
-            }
-            
-            // 2. 从网络加载数据
+            // 从 MarketHistoryAPI 获取数据
             let history = try await MarketHistoryAPI.shared.fetchMarketHistory(
                 typeID: itemID,
                 regionID: selectedRegionID,
-                forceRefresh: true
+                forceRefresh: forceRefresh
             )
             
-            // 3. 保存到缓存
-            try StaticResourceManager.shared.saveMarketHistory(history, itemId: itemID, regionId: selectedRegionID)
-            
-            // 4. 更新UI
+            // 更新UI
             marketHistory = history
         } catch {
             Logger.error("加载市场历史数据失败: \(error)")

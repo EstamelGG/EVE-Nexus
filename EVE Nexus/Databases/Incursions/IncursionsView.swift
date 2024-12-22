@@ -117,7 +117,7 @@ final class IncursionsViewModel: ObservableObject {
         
         Logger.info("ViewModel: 开始获取入侵数据")
         do {
-            let incursions = try await StaticResourceManager.shared.fetchIncursionsData(forceRefresh: forceRefresh)
+            let incursions = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: forceRefresh)
             await processIncursions(incursions)
         } catch {
             Logger.error("ViewModel: 获取入侵数据失败: \(error)")
