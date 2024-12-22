@@ -21,11 +21,6 @@ struct DamageBarView: View {
         self.foregroundColor = color.saturated(by: 1.2)
     }
     
-    // 格式化数值的辅助方法
-    private func formatValue(_ value: Double) -> String {
-        return FormatUtil.format(value)
-    }
-    
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -41,7 +36,7 @@ struct DamageBarView: View {
                     .frame(width: max(0, min(geometry.size.width * CGFloat(percentage) / 100, geometry.size.width)))
                 
                 // 文字显示
-                Text(showValue && value != nil ? formatValue(value!) : "\(percentage)%")
+                Text(showValue && value != nil ? FormatUtil.format(value!) : "\(percentage)%")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.5), radius: 1, x: 0, y: 0)

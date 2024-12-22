@@ -21,30 +21,6 @@ struct AccountsView: View {
         self.onCharacterSelect = onCharacterSelect
     }
     
-    // 格式化 ISK 显示
-    private func formatISK(_ value: Double) -> String {
-        let trillion = 1_000_000_000_000.0
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-        let thousand = 1_000.0
-        
-        if value >= trillion {
-            let formatted = value / trillion
-            return String(format: "%.2fT", formatted)
-        } else if value >= billion {
-            let formatted = value / billion
-            return String(format: "%.2fB", formatted)
-        } else if value >= million {
-            let formatted = value / million
-            return String(format: "%.2fM", formatted)
-        } else if value >= thousand {
-            let formatted = value / thousand
-            return String(format: "%.2fK", formatted)
-        } else {
-            return String(format: "%.2f", value)
-        }
-    }
-    
     var body: some View {
         List {
             // 添加新角色按钮
@@ -79,7 +55,7 @@ struct AccountsView: View {
                                                isRefreshing: refreshingCharacters.contains(character.CharacterID), 
                                                isEditing: isEditing,
                                                tokenExpired: expiredTokenCharacters.contains(character.CharacterID),
-                                               formatISK: formatISK,
+                                               formatISK: FormatUtil.formatISK,
                                                formatSkillPoints: formatSkillPoints,
                                                formatRemainingTime: formatRemainingTime)
                             }
@@ -94,7 +70,7 @@ struct AccountsView: View {
                                                isRefreshing: refreshingCharacters.contains(character.CharacterID), 
                                                isEditing: isEditing,
                                                tokenExpired: expiredTokenCharacters.contains(character.CharacterID),
-                                               formatISK: formatISK,
+                                               formatISK: FormatUtil.formatISK,
                                                formatSkillPoints: formatSkillPoints,
                                                formatRemainingTime: formatRemainingTime)
                             }
@@ -602,7 +578,7 @@ struct CharacterRowView: View {
                         
                         // 钱包信息
                         if let balance = character.walletBalance {
-                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(formatISK(balance)) ISK")
+                            Text("\(NSLocalizedString("Account_Wallet_value", comment: "")): \(FormatUtil.formatISK(balance)) ISK")
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .lineLimit(1)

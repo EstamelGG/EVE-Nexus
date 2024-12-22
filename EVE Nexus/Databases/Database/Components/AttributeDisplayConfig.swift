@@ -197,11 +197,11 @@ struct AttributeDisplayConfig {
             return diff > 0 ? "+\(FormatUtil.format(diff * 100))%" : "\(FormatUtil.format(diff * 100))%"
         },
         3: { value, _ in
-            return formatTime(Int(value))
+            return FormatUtil.formatTime(Int(value))
         },
         101: { value, _ in
             let seconds = value / 1000
-            return formatTime(Int(seconds))
+            return FormatUtil.formatTime(Int(seconds))
         }
     ]
     

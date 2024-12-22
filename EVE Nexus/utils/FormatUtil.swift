@@ -64,4 +64,57 @@ struct FormatUtil {
         
         return "\(formattedSize) \(units[unitIndex])"
     }
+    
+    /// 格式化 ISK 货币
+    /// - Parameter isk: ISK 数值
+    /// - Returns: 格式化后的 ISK 字符串
+    static func formatISK(_ value: Double) -> String {
+        let trillion = 1_000_000_000_000.0
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
+        let thousand = 1_000.0
+        
+        if value >= trillion {
+            let formatted = value / trillion
+            return String(format: "%.2fT", formatted)
+        } else if value >= billion {
+            let formatted = value / billion
+            return String(format: "%.2fB", formatted)
+        } else if value >= million {
+            let formatted = value / million
+            return String(format: "%.2fM", formatted)
+        } else if value >= thousand {
+            let formatted = value / thousand
+            return String(format: "%.2fK", formatted)
+        } else {
+            return String(format: "%.2f", value)
+        }
+    }
+    
+    /// 格式化时间
+    /// - Parameter totalSeconds: 总秒数
+    /// - Returns: 格式化后的时间字符串
+    static func formatTime(_ totalSeconds: Int) -> String {
+        let days = totalSeconds / 86400
+        let hours = (totalSeconds % 86400) / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        
+        var components: [String] = []
+        
+        if days > 0 {
+            components.append("\(days)d")
+        }
+        if hours > 0 {
+            components.append("\(hours)h")
+        }
+        if minutes > 0 {
+            components.append("\(minutes)m")
+        }
+        if seconds > 0 || components.isEmpty {
+            components.append("\(seconds)s")
+        }
+        
+        return components.joined(separator: " ")
+    }
 } 

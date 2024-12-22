@@ -896,18 +896,6 @@ struct ContentView: View {
         return "\(sp)"
     }
     
-    // 添加格式化 ISK 的辅助方法
-    private func formatISK(_ isk: Double) -> String {
-        if isk >= 1_000_000_000 {
-            return String(format: "%.1fB", isk / 1_000_000_000.0)
-        } else if isk >= 1_000_000 {
-            return String(format: "%.1fM", isk / 1_000_000.0)
-        } else if isk >= 1_000 {
-            return String(format: "%.1fK", isk / 1_000.0)
-        }
-        return String(format: "%.0f", isk)
-    }
-    
     // 添加加载保存的角色信息的方法
     private func loadSavedCharacter() {
         Logger.info("正在加载保存的角色信息...")
