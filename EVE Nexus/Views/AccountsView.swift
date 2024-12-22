@@ -293,7 +293,7 @@ struct AccountsView: View {
                                     
                                     async let locationTask: Void = {
                                         do {
-                                            let location = try await NetworkManager.shared.fetchCharacterLocation(
+                                            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
                                                 characterId: characterAuth.character.CharacterID
                                             )
                                             
@@ -318,7 +318,7 @@ struct AccountsView: View {
                                     
                                     async let skillQueueTask: Void = {
                                         do {
-                                            let queue = try await NetworkManager.shared.fetchSkillQueue(
+                                            let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
                                                 characterId: characterAuth.character.CharacterID
                                             )
                                             

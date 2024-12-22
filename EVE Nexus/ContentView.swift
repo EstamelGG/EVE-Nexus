@@ -452,7 +452,7 @@ struct ContentView: View {
             }
             
             // 获取技能队列
-            if let queue = try? await NetworkManager.shared.fetchSkillQueue(
+            if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
                 characterId: character.CharacterID
             ) {
                 await MainActor.run {

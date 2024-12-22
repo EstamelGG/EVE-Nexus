@@ -429,7 +429,7 @@ class EVELogin {
         )
         Logger.info("EVELogin: 成功获取位置信息")
         
-        let skillQueue = try await NetworkManager.shared.fetchSkillQueue(
+        let skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
             characterId: characterId
         )
         Logger.info("EVELogin: 成功获取技能队列信息")
@@ -599,7 +599,7 @@ class EVELogin {
                 let scopesData = try Data(contentsOf: scopesURL)
                 let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
                 
-                // 合并所有��限
+                // 合并所有限
                 var scopesSet = Set<String>()
                 for scopeArray in scopesDict.values {
                     scopesSet.formUnion(scopeArray)
