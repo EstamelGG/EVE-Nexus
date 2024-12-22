@@ -505,9 +505,11 @@ struct ContentView: View {
         }
         // 监听语言变化
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            // 更新表格数据
-            tables = generateTables()
-            // 刷新所有数据
+            withAnimation {
+                // 只更新表格数据和文本，不影响导航状态
+                tables = generateTables()
+            }
+            // 在后台刷新数据
             Task {
                 await refreshAllData()
             }
