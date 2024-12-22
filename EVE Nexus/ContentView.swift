@@ -611,45 +611,19 @@ struct ContentView: View {
         
         // 如果有保存的角色ID，加载该角色信息
         if currentCharacterId != 0 {
-            // 从数据库加载基本信息
-            if case .success(let rows) = databaseManager.executeQuery(
-                "SELECT * FROM characters WHERE CharacterID = ?",
-                parameters: [currentCharacterId]
-            ),
-               let row = rows.first,
-               let characterId = row["CharacterID"] as? Int,
-               let characterName = row["CharacterName"] as? String,
-               let expiresOn = row["ExpiresOn"] as? String,
-               let scopes = row["Scopes"] as? String,
-               let tokenType = row["TokenType"] as? String,
-               let ownerHash = row["CharacterOwnerHash"] as? String {
-                
-                // 创建一个包含必要信息的角色对象
-                do {
-                    let characterDict: [String: Any] = [
-                        "CharacterID": characterId,
-                        "CharacterName": characterName,
-                        "ExpiresOn": expiresOn,
-                        "Scopes": scopes,
-                        "TokenType": tokenType,
-                        "CharacterOwnerHash": ownerHash
-                    ]
-                    
-                    let jsonData = try JSONSerialization.data(withJSONObject: characterDict)
-                    selectedCharacter = try JSONDecoder().decode(EVECharacterInfo.self, from: jsonData)
-                } catch {
-                    Logger.error("创建角色信息失败: \(error)")
-                    return
-                }
+            // 从UserDefaults加载角色信息
+            let characters = EVELogin.shared.loadCharacters()
+            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
+                selectedCharacter = savedCharacter.character
                 
                 // 加载角色头像
-                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId) {
+                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: currentCharacterId) {
                     selectedCharacterPortrait = portrait
                 }
                 
                 // 加载角色的公开信息
                 do {
-                    let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
+                    let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: currentCharacterId)
                     
                     // 加载联盟信息（如果有）
                     if let allianceId = publicInfo.alliance_id {
@@ -675,6 +649,10 @@ struct ContentView: View {
                 } catch {
                     Logger.error("加载角色公开信息失败: \(error)")
                 }
+            } else {
+                // 如果在UserDefaults中找不到保存的角色，清除当前角色ID
+                Logger.warning("未找到保存的角色（ID: \(currentCharacterId)），清除当前角色ID")
+                currentCharacterId = 0
             }
         }
     }
