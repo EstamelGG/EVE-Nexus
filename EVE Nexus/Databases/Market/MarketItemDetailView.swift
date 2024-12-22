@@ -695,9 +695,9 @@ struct MarketItemDetailView: View {
             }
             
             // 2. 从网络加载数据
-            await NetworkManager.shared.setRegionID(selectedRegionID)
-            let history = try await NetworkManager.shared.fetchMarketHistory(
+            let history = try await MarketHistoryAPI.shared.fetchMarketHistory(
                 typeID: itemID,
+                regionID: selectedRegionID,
                 forceRefresh: true
             )
             

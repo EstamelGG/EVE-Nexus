@@ -1,13 +1,6 @@
 import Foundation
 import SwiftUI
 
-// 市场历史数据模型
-struct MarketHistory: Codable {
-    let average: Double
-    let date: String
-    let volume: Int
-}
-
 // 主权数据模型
 struct SovereigntyData: Codable {
     let systemId: Int
@@ -94,7 +87,6 @@ enum EVEResource: CaseIterable, NetworkResource {
     case sovereignty
     case incursions
     case sovereigntyCampaigns
-    case marketHistory(regionId: Int, typeId: Int)
     case serverStatus
     
     // 由于有关联值，我们需要手动实现 allCases
@@ -103,9 +95,7 @@ enum EVEResource: CaseIterable, NetworkResource {
             .sovereignty,
             .incursions,
             .sovereigntyCampaigns,
-            .serverStatus,
-            // 为市场订单和历史数据使用默认值
-            .marketHistory(regionId: 10000002, typeId: 0)
+            .serverStatus
         ]
     }
     
@@ -117,8 +107,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "https://esi.evetech.net/latest/incursions/"
         case .sovereigntyCampaigns:
             return "https://esi.evetech.net/latest/sovereignty/campaigns/"
-        case .marketHistory(let regionId, _):
-            return "https://esi.evetech.net/latest/markets/\(regionId)/history/"
         case .serverStatus:
             return "https://esi.evetech.net/latest/status/"
         }
@@ -132,8 +120,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "incursions"
         case .sovereigntyCampaigns:
             return "sovereigntyCampaigns"
-        case .marketHistory(let regionId, let typeId):
-            return "marketHistory_\(regionId)_\(typeId)"
         case .serverStatus:
             return "serverStatus"
         }
@@ -147,8 +133,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return "incursions.json"
         case .sovereigntyCampaigns:
             return "sovereigntyCampaigns.json"
-        case .marketHistory(let regionId, let typeId):
-            return "Market/history_\(typeId)_\(regionId).json"
         case .serverStatus:
             return "serverStatus.json"
         }
@@ -162,8 +146,6 @@ enum EVEResource: CaseIterable, NetworkResource {
             return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
         case .sovereigntyCampaigns:
             return StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
-        case .marketHistory:
-            return 7 * 24 * 3600 // 1周
         case .serverStatus:
             return 300 // 5分钟
         }
@@ -451,21 +433,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         return image
     }
-    
-    // 获取市场历史数据（使用内存和文件缓存）
-    func fetchMarketHistory(typeID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
-        let request = ResourceRequest<[MarketHistory]>(
-            resource: EVEResource.marketHistory(regionId: regionID, typeId: typeID),
-            parameters: [
-                "datasource": "tranquility",
-                "type_id": typeID
-            ],
-            cacheStrategy: .both,  // 同时使用内存和文件缓存
-            forceRefresh: forceRefresh
-        )
-        
-        return try await fetchResource(request)
-    }
+
     
     // 通用的缓存处理方法
     private func fetchCachedData<T: Codable>(
@@ -1256,7 +1224,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             }
         }
         
-        // ��网络获取数据
+        // 从网络获取数据
         let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
