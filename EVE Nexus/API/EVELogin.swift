@@ -163,7 +163,7 @@ struct EVECharacterInfo: Codable {
     var unallocatedSkillPoints: Int?
     var walletBalance: Double?
     var location: SolarSystemInfo?
-    var locationStatus: NetworkManager.CharacterLocation.LocationStatus?
+    var locationStatus: CharacterLocation.LocationStatus?
     var currentSkill: CurrentSkillInfo?
     var tokenExpired: Bool = false
     
@@ -203,7 +203,7 @@ struct EVECharacterInfo: Codable {
         unallocatedSkillPoints = try container.decodeIfPresent(Int.self, forKey: .unallocatedSkillPoints)
         walletBalance = try container.decodeIfPresent(Double.self, forKey: .walletBalance)
         location = try container.decodeIfPresent(SolarSystemInfo.self, forKey: .location)
-        locationStatus = try container.decodeIfPresent(NetworkManager.CharacterLocation.LocationStatus.self, forKey: .locationStatus)
+        locationStatus = try container.decodeIfPresent(CharacterLocation.LocationStatus.self, forKey: .locationStatus)
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
         tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
     }
@@ -411,7 +411,7 @@ class EVELogin {
     }
     
     // 步骤3：获取角色详细信息
-    private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: NetworkManager.CharacterLocation, skillQueue: [SkillQueueItem]) {
+    private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: CharacterLocation, skillQueue: [SkillQueueItem]) {
         Logger.info("EVELogin: 开始获取角色详细信息...")
         
         let skills = try await NetworkManager.shared.fetchCharacterSkills(
@@ -424,7 +424,7 @@ class EVELogin {
         )
         Logger.info("EVELogin: 成功获取钱包余额")
         
-        let location = try await NetworkManager.shared.fetchCharacterLocation(
+        let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
             characterId: characterId
         )
         Logger.info("EVELogin: 成功获取位置信息")
@@ -442,7 +442,7 @@ class EVELogin {
         character: EVECharacterInfo,
         skills: CharacterSkillsResponse,
         balance: Double,
-        location: NetworkManager.CharacterLocation,
+        location: CharacterLocation,
         locationInfo: SolarSystemInfo?,
         skillQueue: [SkillQueueItem]
     ) async -> EVECharacterInfo {
@@ -459,10 +459,7 @@ class EVELogin {
         
         // 更新当前技能信息
         if let currentSkill = skillQueue.first(where: { $0.isCurrentlyTraining }) {
-            if let skillName = NetworkManager.getSkillName(
-                skillId: currentSkill.skill_id,
-                databaseManager: databaseManager
-            ) {
+            if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
                 updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                     skillId: currentSkill.skill_id,
                     name: skillName,
@@ -472,19 +469,27 @@ class EVELogin {
                 )
             }
         } else if let firstSkill = skillQueue.first {
-            // 如果没有正在训练的技能，但队列中有技能，说明是暂停状态
-            if let skillName = NetworkManager.getSkillName(
-                skillId: firstSkill.skill_id,
-                databaseManager: databaseManager
-            ) {
+            if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
                 updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                     skillId: firstSkill.skill_id,
                     name: skillName,
                     level: firstSkill.skillLevel,
                     progress: firstSkill.progress,
-                    remainingTime: nil // 暂停状态
+                    remainingTime: nil
                 )
             }
+        }
+        
+        // 更新当前技能信息
+        if let currentSkill = updatedCharacter.currentSkill,
+           let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skillId) {
+            updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                skillId: currentSkill.skillId,
+                name: skillName,
+                level: currentSkill.level,
+                progress: currentSkill.progress,
+                remainingTime: currentSkill.remainingTime
+            )
         }
         
         Logger.info("EVELogin: 角色信息更新完成")
@@ -788,7 +793,7 @@ class EVELogin {
             // 重新从当前语言的数据库中获取技能名称
             for i in 0..<characters.count {
                 if let currentSkill = characters[i].character.currentSkill,
-                   let skillName = NetworkManager.getSkillName(skillId: currentSkill.skillId, databaseManager: databaseManager) {
+                   let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skillId) {
                     // 更新技能名称，保持其他信息不变
                     characters[i].character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                         skillId: currentSkill.skillId,
@@ -1079,7 +1084,7 @@ class EVELogin {
     }
     
     // 获取位置信息的包装方法
-    func getCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws -> NetworkManager.CharacterLocation {
+    func getCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterLocation {
         return try await fetchAndCacheESIData(
             characterId: characterId,
             dataType: "location",
@@ -1087,13 +1092,13 @@ class EVELogin {
             cacheDuration: 60, // 位置数据缓存1分钟
             forceRefresh: forceRefresh
         ) { _ in
-            try await NetworkManager.shared.fetchCharacterLocation(
+            try await CharacterLocationAPI.shared.fetchCharacterLocation(
                 characterId: characterId
             )
         }
     }
     
-    // 根��ID获取角色信息
+    // 根据ID获取角色信息
     func getCharacterByID(_ characterId: Int) -> CharacterAuth? {
         let characters = loadCharacters()
         return characters.first { $0.character.CharacterID == characterId }

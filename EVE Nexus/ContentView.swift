@@ -458,10 +458,7 @@ struct ContentView: View {
                 await MainActor.run {
                     // 更新当前技能信息
                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                        if let skillName = NetworkManager.getSkillName(
-                            skillId: currentSkill.skill_id,
-                            databaseManager: databaseManager
-                        ) {
+                        if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
                             selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                                 skillId: currentSkill.skill_id,
                                 name: skillName,
@@ -471,10 +468,7 @@ struct ContentView: View {
                             )
                         }
                     } else if let firstSkill = queue.first {
-                        if let skillName = NetworkManager.getSkillName(
-                            skillId: firstSkill.skill_id,
-                            databaseManager: databaseManager
-                        ) {
+                        if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
                             selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                                 skillId: firstSkill.skill_id,
                                 name: skillName,

@@ -373,51 +373,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
     
-    // 获取技能名称
-    nonisolated static func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String? {
-        let skillQuery = "SELECT name FROM types WHERE type_id = ?"
-        guard case .success(let rows) = databaseManager.executeQuery(skillQuery, parameters: [skillId]),
-              let row = rows.first,
-              let skillName = row["name"] as? String else {
-            return nil
-        }
-        return skillName
-    }
-    
-    // 角色位置信息模型
-    struct CharacterLocation: Codable {
-        let solar_system_id: Int
-        let structure_id: Int?
-        let station_id: Int?
-        
-        var locationStatus: LocationStatus {
-            if station_id != nil {
-                return .inStation
-            } else if structure_id != nil {
-                return .inStructure
-            } else {
-                return .inSpace
-            }
-        }
-        
-        enum LocationStatus: String, Codable {
-            case inStation
-            case inStructure
-            case inSpace
-            
-            var description: String {
-                switch self {
-                case .inStation:
-                    return "(\(NSLocalizedString("Character_in_station", comment: "")))"
-                case .inStructure:
-                    return "(\(NSLocalizedString("Character_in_structure", comment: "")))"
-                case .inSpace:
-                    return "(\(NSLocalizedString("Character_in_space", comment: "")))"
-                }
-            }
-        }
-    }
-    
     // 获取角色位置信息
     func fetchCharacterLocation(characterId: Int) async throws -> CharacterLocation {
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
