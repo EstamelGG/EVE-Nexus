@@ -1574,12 +1574,7 @@ class DatabaseManager: ObservableObject {
     func clearStationInfoCache() {
         stationInfoCache.removeAll()
     }
-    
-    // 清除所有缓存
-    func clearAllCaches() {
-        sqliteManager.clearCache()
-        clearStationInfoCache()
-    }
+
     
     // 在 DatabaseManager 类中添加
     func getItemDamages(for itemID: Int) -> (em: Double, therm: Double, kin: Double, exp: Double)? {
