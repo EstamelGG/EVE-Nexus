@@ -438,30 +438,18 @@ struct SettingView: View {
                 
                 // 根据类型执行不同的刷新操作
                 switch type {
-                case .sovereignty, .incursions, .sovereignty_campaigns:
+                case .sovereignty:
                     Logger.info("Refreshing sovereignty data")
                     let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: true)
-                    let jsonData = try JSONEncoder().encode(sovereigntyData)
-                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
-                    // 更新下载时间
-                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
-                    updateAllData()
+                    try StaticResourceManager.shared.saveSovereignty(sovereigntyData)
                 case .incursions:
                     Logger.info("Refreshing incursions data")
-                    let incursionsData = try await IncursionsAPI.shared.fetchIncursions()
-                    let jsonData = try JSONEncoder().encode(incursionsData)
-                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
-                    // 更新下载时间
-                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
-                    updateAllData()
+                    let incursionsData = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: true)
+                    try StaticResourceManager.shared.saveIncursions(incursionsData)
                 case .sovereignty_campaigns:
                     Logger.info("Force refreshing sovereignty campaigns data")
                     let sovCamp = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: true)
-                    let jsonData = try JSONEncoder().encode(sovCamp)
-                    try StaticResourceManager.shared.saveToFileAndCache(jsonData, filename: type.filename, cacheKey: type.rawValue)
-                    // 更新下载时间
-                    UserDefaults.standard.set(Date(), forKey: type.downloadTimeKey)
-                    updateAllData()
+                    try StaticResourceManager.shared.saveSovereigntyCampaigns(sovCamp)
                 case .factionIcons, .netRenders, .marketData, .characterPortraits:
                     Logger.info("Alliance icons, net renders, market data and character portraits are refreshed on-demand")
                     break
@@ -665,28 +653,26 @@ struct SettingView: View {
     }
     
     private func cleanCache() {
-        showingCleanCacheAlert = false
-        isCleaningCache = true
-        
         Task {
-            // 清理 StaticDataSet 目录
-            let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
-            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
-                do {
-                    try FileManager.default.removeItem(at: staticDataSetPath)
-                    Logger.info("Successfully deleted StaticDataSet directory")
-                } catch {
-                    Logger.error("Failed to clear StaticDataSet directory: \(error)")
+            isCleaningCache = true
+            defer { isCleaningCache = false }
+            
+            do {
+                // 清理所有缓存
+                await CacheManager.shared.clearAllCaches()
+                
+                // 清理静态资源缓存
+                try StaticResourceManager.shared.clearAllStaticData()
+                
+                // 更新UI
+                await MainActor.run {
+                    updateAllData()
                 }
+                
+                Logger.info("Cache cleaned successfully")
+            } catch {
+                Logger.error("Failed to clean cache: \(error)")
             }
-            
-            // 更新界面
-            await MainActor.run {
-                updateAllData()
-                isCleaningCache = false
-            }
-            
-            Logger.info("Cache cleaning completed")
         }
     }
     

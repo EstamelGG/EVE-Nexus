@@ -36,12 +36,6 @@ enum IncursionsAPIError: LocalizedError {
 @IncursionsAPIActor
 class IncursionsAPI {
     static let shared = IncursionsAPI()
-    
-    // 缓存
-    private var incursionsCache: [Incursion] = []
-    private var incursionsTimestamp: Date?
-    private let incursionsCacheDuration: TimeInterval = StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
-    
     private init() {}
     
     // MARK: - 公共方法
@@ -50,17 +44,9 @@ class IncursionsAPI {
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 入侵数据数组
     func fetchIncursions(forceRefresh: Bool = false) async throws -> [Incursion] {
-        // 如果不是强制刷新，检查缓存
-        if !forceRefresh {
-            if let incursions = StaticResourceManager.shared.getIncursions() {
-                return incursions
-            }
-            
-            if let timestamp = incursionsTimestamp,
-               !incursionsCache.isEmpty,
-               Date().timeIntervalSince(timestamp) < incursionsCacheDuration {
-                return incursionsCache
-            }
+        // 如果不是强制刷新，尝试从缓存获取
+        if !forceRefresh, let cached = StaticResourceManager.shared.getIncursions() {
+            return cached
         }
         
         // 构建URL
@@ -78,19 +64,9 @@ class IncursionsAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let incursions = try JSONDecoder().decode([Incursion].self, from: data)
         
-        // 更新缓存
-        incursionsCache = incursions
-        incursionsTimestamp = Date()
-        
         // 保存到本地
         try StaticResourceManager.shared.saveIncursions(incursions)
         
         return incursions
-    }
-    
-    /// 清除缓存
-    func clearCache() {
-        incursionsCache = []
-        incursionsTimestamp = nil
     }
 } 

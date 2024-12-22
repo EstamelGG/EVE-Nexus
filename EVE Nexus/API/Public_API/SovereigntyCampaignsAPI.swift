@@ -36,12 +36,6 @@ enum SovereigntyCampaignsAPIError: LocalizedError {
 @SovereigntyCampaignsAPIActor
 class SovereigntyCampaignsAPI {
     static let shared = SovereigntyCampaignsAPI()
-    
-    // 缓存
-    private var campaignsCache: [EVE_Nexus.SovereigntyCampaign] = []
-    private var campaignsTimestamp: Date?
-    private let campaignsCacheDuration: TimeInterval = StaticResourceManager.shared.SOVEREIGNTY_CAMPAIGNS_CACHE_DURATION
-    
     private init() {}
     
     // MARK: - 公共方法
@@ -50,17 +44,9 @@ class SovereigntyCampaignsAPI {
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 主权战役数据数组
     func fetchSovereigntyCampaigns(forceRefresh: Bool = false) async throws -> [EVE_Nexus.SovereigntyCampaign] {
-        // 如果不是强制刷新，检查缓存
-        if !forceRefresh {
-            if let campaigns = StaticResourceManager.shared.getSovereigntyCampaigns() {
-                return campaigns
-            }
-            
-            if let timestamp = campaignsTimestamp,
-               !campaignsCache.isEmpty,
-               Date().timeIntervalSince(timestamp) < campaignsCacheDuration {
-                return campaignsCache
-            }
+        // 如果不是强制刷新，尝试从缓存获取
+        if !forceRefresh, let cached = StaticResourceManager.shared.getSovereigntyCampaigns() {
+            return cached
         }
         
         // 构建URL
@@ -78,19 +64,9 @@ class SovereigntyCampaignsAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let campaigns = try JSONDecoder().decode([EVE_Nexus.SovereigntyCampaign].self, from: data)
         
-        // 更新缓存
-        campaignsCache = campaigns
-        campaignsTimestamp = Date()
-        
         // 保存到本地
         try StaticResourceManager.shared.saveSovereigntyCampaigns(campaigns)
         
         return campaigns
-    }
-    
-    /// 清除缓存
-    func clearCache() {
-        campaignsCache = []
-        campaignsTimestamp = nil
     }
 } 
