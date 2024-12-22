@@ -1067,6 +1067,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
         
         // 如果没有缓存或缓存已过期，从网络获取
+        Logger.info("在线获取技能队列数据 - 角色ID: \(characterId)")
         let queue: [SkillQueueItem] = try await fetchDataWithToken(
             characterId: characterId,
             endpoint: "/characters/\(characterId)/skillqueue/"

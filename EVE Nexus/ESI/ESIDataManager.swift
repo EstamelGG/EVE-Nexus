@@ -29,8 +29,7 @@ class ESIDataManager {
             return cachedEntry.value
         }
         
-        Logger.info("开始获取钱包余额 - 角色ID: \(characterId)")
-        
+        Logger.info("在线获取钱包余额 - 角色ID: \(characterId)")
         // 使用NetworkManager的fetchDataWithToken方法获取原始数据
         let data = try await NetworkManager.shared.fetchData(
             from: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!,
@@ -42,18 +41,14 @@ class ESIDataManager {
                 return request
             }()
         )
-        
         // 将数据转换为字符串
         guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
               let balance = Double(stringValue) else {
             Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
         }
-        
         // 更新缓存
         walletCache[characterId] = CacheEntry(value: balance, timestamp: Date())
-        Logger.info("成功获取钱包余额: \(balance)")
-        
         return balance
     }
 } 
