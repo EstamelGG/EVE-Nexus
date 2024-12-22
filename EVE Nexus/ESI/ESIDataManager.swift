@@ -35,7 +35,7 @@ class ESIDataManager {
             from: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!,
             request: {
                 var request = URLRequest(url: URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/wallet/")!)
-                let token = try await TokenManager.shared.getToken(for: characterId)
+                let token = try await OldTokenManager.shared.getToken(for: characterId)
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.setValue("tranquility", forHTTPHeaderField: "datasource")
                 return request

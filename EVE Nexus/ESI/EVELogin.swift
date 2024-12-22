@@ -75,8 +75,8 @@ enum KeychainError: Error {
 }
 
 // 修改 TokenManager
-actor TokenManager {
-    static let shared = TokenManager()
+actor OldTokenManager {
+    static let shared = OldTokenManager()
     private var tokenCache: [Int: TokenCache] = [:]
     private let secureStorage = SecureStorage.shared
     

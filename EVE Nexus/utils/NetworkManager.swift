@@ -1174,7 +1174,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
         try await rateLimiter.waitForPermission()
         
-        let token = try await TokenManager.shared.getToken(for: characterId)
+        let token = try await OldTokenManager.shared.getToken(for: characterId)
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
         
         guard let url = URL(string: urlString) else {
@@ -1195,7 +1195,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             
             if httpResponse.statusCode == 403 {
                 // Token 过期,清除缓存
-                await TokenManager.shared.clearToken(for: characterId)
+                await OldTokenManager.shared.clearToken(for: characterId)
                 throw NetworkError.tokenExpired
             }
             
@@ -1393,6 +1393,7 @@ enum NetworkError: LocalizedError {
     case unauthed
     case invalidToken(String)
     case maxRetriesExceeded
+    case authenticationError(String)
     
     var errorDescription: String? {
         switch self {
@@ -1416,6 +1417,8 @@ enum NetworkError: LocalizedError {
             return "Token无效: \(reason)"
         case .maxRetriesExceeded:
             return "已达到最大重试次数"
+        case .authenticationError(let reason):
+            return "认证出错: \(reason)"
         }
     }
 }
