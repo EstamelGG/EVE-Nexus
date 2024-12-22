@@ -186,10 +186,23 @@ struct LoginButtonView: View {
                 .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
                 .padding(4)
             } else {
-                Image(systemName: "person.crop.circle")
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                    .foregroundColor(.gray)
+                ZStack{
+                    Image(systemName: "person.crop.circle")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 64, height: 64)
+                        .clipShape(Circle())
+                }
+                .overlay(
+                    Circle()
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                )
+                .background(
+                    Circle()
+                        .fill(Color.primary.opacity(0.05))
+                )
+                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                .padding(4)
             }
             
             VStack(alignment: .leading, spacing: 4) {
