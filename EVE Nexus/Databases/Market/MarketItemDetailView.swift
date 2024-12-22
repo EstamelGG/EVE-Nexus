@@ -657,15 +657,10 @@ struct MarketItemDetailView: View {
                 forceRefresh: true
             )
             
-            // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard await selectedRegionID == NetworkManager.shared.regionID else {
-                return
-            }
-            
-            // 4. 保存到缓存
+            // 3. 保存到缓存
             try StaticResourceManager.shared.saveMarketOrders(orders, itemId: itemID, regionId: selectedRegionID)
             
-            // 5. 更新UI
+            // 4. 更新UI
             marketOrders = orders
             let sellOrders = orders.filter { !$0.isBuyOrder }
             lowestPrice = sellOrders.map { $0.price }.min()
@@ -701,15 +696,10 @@ struct MarketItemDetailView: View {
                 forceRefresh: true
             )
             
-            // 3. 确保在数据加载完成后，选中的星域ID没有改变
-            guard await selectedRegionID == NetworkManager.shared.regionID else {
-                return
-            }
-            
-            // 4. 保存到缓存
+            // 3. 保存到缓存
             try StaticResourceManager.shared.saveMarketHistory(history, itemId: itemID, regionId: selectedRegionID)
             
-            // 5. 更新UI
+            // 4. 更新UI
             marketHistory = history
         } catch {
             Logger.error("加载市场历史数据失败: \(error)")
