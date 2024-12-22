@@ -46,56 +46,6 @@ struct ResourceRequest<T: Codable> {
     }
 }
 
-// 具体的资源类型实现
-enum EVEResource: CaseIterable, NetworkResource {
-    case sovereignty
-    case incursions
-    
-    // 由于有关联值，我们需要手动实现 allCases
-    static var allCases: [EVEResource] {
-        return [
-            .sovereignty,
-            .incursions
-        ]
-    }
-    
-    var baseURL: String {
-        switch self {
-        case .sovereignty:
-            return "https://esi.evetech.net/latest/sovereignty/map/"
-        case .incursions:
-            return "https://esi.evetech.net/latest/incursions/"
-        }
-    }
-    
-    var cacheKey: String {
-        switch self {
-        case .sovereignty:
-            return "sovereignty"
-        case .incursions:
-            return "incursions"
-        }
-    }
-    
-    var fileName: String {
-        switch self {
-        case .sovereignty:
-            return "sovereignty.json"
-        case .incursions:
-            return "incursions.json"
-        }
-    }
-    
-    var cacheDuration: TimeInterval {
-        switch self {
-        case .sovereignty:
-            return StaticResourceManager.shared.SOVEREIGNTY_CACHE_DURATION
-        case .incursions:
-            return StaticResourceManager.shared.INCURSIONS_CACHE_DURATION
-        }
-    }
-}
-
 // 修改类定义，继承自NSObject
 @globalActor actor NetworkManagerActor {
     static let shared = NetworkManagerActor()
@@ -606,14 +556,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 let encodedData = try JSONEncoder().encode(decodedData)
                 try encodedData.write(to: fileURL)
                 Logger.info("Successfully saved data to file for: \(cacheKey)")
-                
-                // 如果是静态资源，更新下载时间
-                if let resource = request.resource as? EVEResource {
-                    switch resource {
-                    case .sovereignty, .incursions:
-                        UserDefaults.standard.set(Date(), forKey: "StaticResource_\(resource.cacheKey)_DownloadTime")
-                    }
-                }
             } catch {
                 Logger.error("Error saving data to file for \(cacheKey): \(error)")
             }
@@ -828,7 +770,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         return await getLocationInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager)
     }
     
-    // 专门用于需要访问令牌的请求
+    // 专门用于需��访问令牌的请求
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
         try await rateLimiter.waitForPermission()
         
@@ -1170,63 +1112,6 @@ extension NetworkManager {
         }
         
         return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
-    }
-    
-    // 清理特定资源的缓存
-    func clearCache(for resource: EVEResource) {
-        // 清理内存缓存
-        let cacheKey = resource.cacheKey
-        dataCache.removeObject(forKey: cacheKey as NSString)
-        dataCacheKeys.remove(cacheKey)
-        
-        // 清理文件缓存（只清理 StaticDataSet 目录中的文件）
-        let fileManager = FileManager.default
-        let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
-        
-        try? fileManager.removeItem(at: fileURL)
-        Logger.info("Cleared local cache for resource: \(resource)")
-    }
-    
-    // 重新加载特定资源
-    func reloadResource<T: Codable>(_ resource: EVEResource) async throws -> T {
-        let request = ResourceRequest<T>(
-            resource: resource,
-            parameters: ["datasource": "tranquility"],
-            cacheStrategy: .both,
-            forceRefresh: true  // 强制从网络重新加载
-        )
-        
-        return try await fetchResource(request)
-    }
-    
-    // 获取特定资源的缓存状态
-    func getCacheStatus(for resource: EVEResource) -> (inMemory: Bool, inFile: Bool, age: TimeInterval?) {
-        var inMemory = false
-        var inFile = false
-        var age: TimeInterval? = nil
-        
-        // 检查内存缓存
-        if let cached = dataCache.object(forKey: resource.cacheKey as NSString) {
-            inMemory = true
-            age = Date().timeIntervalSince(cached.timestamp)
-        }
-        
-        // 检查文件缓存（只检查 StaticDataSet 目录）
-        let fileManager = FileManager.default
-        let fileURL = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(resource.fileName)
-        
-        if fileManager.fileExists(atPath: fileURL.path) {
-            inFile = true
-            if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path),
-               let modificationDate = attributes[.modificationDate] as? Date {
-                // 如果没有内存缓存的年龄，使用文件缓存的年龄
-                if age == nil {
-                    age = Date().timeIntervalSince(modificationDate)
-                }
-            }
-        }
-        
-        return (inMemory, inFile, age)
     }
     
     // 格式化缓存大小
