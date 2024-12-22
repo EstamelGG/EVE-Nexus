@@ -429,7 +429,7 @@ struct ContentView: View {
         
         do {
             // 获取技能信息
-            if let skills = try? await NetworkManager.shared.fetchCharacterSkills(
+            if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
                 characterId: character.CharacterID
             ) {
                 await MainActor.run {

@@ -279,7 +279,7 @@ struct AccountsView: View {
                                     }()
                                     
                                     async let skillsTask: Void = {
-                                        if let skillsInfo = try? await NetworkManager.shared.fetchCharacterSkills(
+                                        if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
                                             characterId: characterAuth.character.CharacterID
                                         ) {
                                             await updateUI {

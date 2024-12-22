@@ -414,7 +414,7 @@ class EVELogin {
     private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: CharacterLocation, skillQueue: [SkillQueueItem]) {
         Logger.info("EVELogin: 开始获取角色详细信息...")
         
-        let skills = try await NetworkManager.shared.fetchCharacterSkills(
+        let skills = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
             characterId: characterId
         )
         Logger.info("EVELogin: 成功获取技能信息")
@@ -599,7 +599,7 @@ class EVELogin {
                 let scopesData = try Data(contentsOf: scopesURL)
                 let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
                 
-                // 合并所有权限
+                // 合并所有��限
                 var scopesSet = Set<String>()
                 for scopeArray in scopesDict.values {
                     scopesSet.formUnion(scopeArray)
@@ -1068,7 +1068,7 @@ class EVELogin {
             cacheDuration: 3600, // 技能数据缓存1小时
             forceRefresh: forceRefresh
         ) { _ in
-            try await NetworkManager.shared.fetchCharacterSkills(
+            try await CharacterSkillsAPI.shared.fetchCharacterSkills(
                 characterId: characterId
             )
         }
