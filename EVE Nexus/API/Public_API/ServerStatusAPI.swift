@@ -81,35 +81,20 @@ class ServerStatusAPI {
         // 设置不使用缓存
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         
-        do {
-            // 直接从网络获取最新状态
-            let data = try await NetworkManager.shared.fetchData(from: url)
-            let status = try JSONDecoder().decode(ServerStatus.self, from: data)
-            
-            // 如果响应中包含 error 字段，返回离线状态
-            if status.error != nil {
-                return ServerStatus(
-                    players: 0,
-                    serverVersion: "",
-                    startTime: "",
-                    error: "Server is offline",
-                    timeout: nil
-                )
-            }
-            
-            return status
-        } catch NetworkError.httpError(let statusCode) {
-            // 对于 502、504 错误，返回离线状态
-            if statusCode == 502 || statusCode == 504 {
-                return ServerStatus(
-                    players: 0,
-                    serverVersion: "",
-                    startTime: "",
-                    error: "Server is offline (HTTP \(statusCode))",
-                    timeout: nil
-                )
-            }
-            throw NetworkError.httpError(statusCode: statusCode)
+        // 直接从网络获取最新状态
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let status = try JSONDecoder().decode(ServerStatus.self, from: data)
+        
+        // 如果响应中包含 error 字段，返回离线状态
+        if status.error != nil {
+            return ServerStatus(
+                players: 0,
+                serverVersion: "",
+                startTime: "",
+                error: "Server is offline",
+                timeout: nil
+            )
         }
+        return status
     }
 } 

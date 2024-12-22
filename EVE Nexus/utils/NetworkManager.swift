@@ -194,6 +194,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
+                Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
                 throw NetworkError.invalidResponse
             }
             
