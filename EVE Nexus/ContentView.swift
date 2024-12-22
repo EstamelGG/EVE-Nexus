@@ -900,7 +900,7 @@ struct ContentView: View {
                 
                 // 异步加载头像
                 Task {
-                    if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
+                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
                         characterId: currentCharacterId
                     ) {
                         await MainActor.run {

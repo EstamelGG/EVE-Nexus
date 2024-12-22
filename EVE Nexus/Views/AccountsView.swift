@@ -259,10 +259,7 @@ struct AccountsView: View {
                                     
                                     // 并行执行所有更新任务
                                     async let portraitTask: Void = {
-                                        if let portrait = try? await NetworkManager.shared.fetchCharacterPortrait(
-                                            characterId: characterAuth.character.CharacterID,
-                                            forceRefresh: true
-                                        ) {
+                                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
                                             await updateUI {
                                                 self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                             }

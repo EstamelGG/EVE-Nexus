@@ -319,7 +319,7 @@ class EVELoginViewModel: ObservableObject {
             }
             
             // 从网络加载新的头像
-            let portrait = try await NetworkManager.shared.fetchCharacterPortrait(
+            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
                 characterId: characterId,
                 forceRefresh: forceRefresh
             )
@@ -1093,7 +1093,7 @@ class EVELogin {
         }
     }
     
-    // 根据ID获取角色信息
+    // 根��ID获取角色信息
     func getCharacterByID(_ characterId: Int) -> CharacterAuth? {
         let characters = loadCharacters()
         return characters.first { $0.character.CharacterID == characterId }
