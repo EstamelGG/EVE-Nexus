@@ -74,64 +74,6 @@ enum KeychainError: Error {
     case unhandledError(status: OSStatus)
 }
 
-// 修改 TokenManager
-actor OldTokenManager {
-    static let shared = OldTokenManager()
-    private var tokenCache: [Int: TokenCache] = [:]
-    private let secureStorage = SecureStorage.shared
-    
-    struct TokenCache {
-        let accessToken: String
-        let refreshToken: String
-        let expiresAt: Date
-        let scopes: [String]
-        
-        var isExpired: Bool {
-            // 提前5分钟认为过期
-            return Date().addingTimeInterval(300) > expiresAt
-        }
-    }
-    
-    func getToken(for characterId: Int) async throws -> String {
-        if let cached = tokenCache[characterId], !cached.isExpired {
-            return cached.accessToken
-        }
-        return try await refreshTokenIfNeeded(characterId: characterId)
-    }
-    
-    private func refreshTokenIfNeeded(characterId: Int) async throws -> String {
-        guard let character = EVELogin.shared.getCharacterByID(characterId) else {
-            throw NetworkError.unauthed
-        }
-        
-        let newToken = try await EVELogin.shared.refreshToken(
-            refreshToken: character.token.refresh_token,
-            force: true
-        )
-        
-        // 更新缓存
-        let expiresAt = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
-        let cache = TokenCache(
-            accessToken: newToken.access_token,
-            refreshToken: newToken.refresh_token,
-            expiresAt: expiresAt,
-            scopes: character.character.Scopes.components(separatedBy: " ")
-        )
-        
-        tokenCache[characterId] = cache
-        
-        // 保存到 Keychain
-        try secureStorage.saveToken(newToken.refresh_token, for: characterId)
-        
-        return newToken.access_token
-    }
-    
-    func clearToken(for characterId: Int) {
-        tokenCache.removeValue(forKey: characterId)
-        try? secureStorage.deleteToken(for: characterId)
-    }
-}
-
 // 添加 JWT 相关结构
 struct EVEJWTPayload: Codable {
     let scp: [String]

@@ -1174,7 +1174,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     func fetchDataWithToken<T: Codable>(characterId: Int, endpoint: String) async throws -> T {
         try await rateLimiter.waitForPermission()
         
-        let token = try await OldTokenManager.shared.getToken(for: characterId)
+        let token = try await TokenManager.shared.getToken(for: characterId)
         let urlString = "https://esi.evetech.net/latest\(endpoint)"
         
         guard let url = URL(string: urlString) else {
@@ -1195,7 +1195,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             
             if httpResponse.statusCode == 403 {
                 // Token 过期,清除缓存
-                await OldTokenManager.shared.clearToken(for: characterId)
+                await TokenManager.shared.clearToken(for: characterId)
                 throw NetworkError.tokenExpired
             }
             
