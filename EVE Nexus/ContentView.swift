@@ -302,7 +302,6 @@ struct ContentView: View {
     @State private var isLoggedIn = false
     @State private var serverStatus: ServerStatus?
     @State private var isLoadingStatus = true
-    @State private var forceViewUpdate: Bool = false
     @State private var lastStatusUpdateTime: Date?
     @State private var selectedCharacter: EVECharacterInfo?
     @State private var selectedCharacterPortrait: UIImage?
@@ -501,20 +500,18 @@ struct ContentView: View {
         .preferredColorScheme(currentColorScheme)
         // 监听主题变化
         .onChange(of: selectedTheme) { oldValue, newValue in
-            forceViewUpdate.toggle()
+            // 只更新表格数据，不强制刷新整个视图
+            tables = generateTables()
         }
         // 监听语言变化
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            // 强制视图刷新
-            forceViewUpdate.toggle()
-            // 重新生成表格数据以更新文本
+            // 更新表格数据
             tables = generateTables()
             // 刷新所有数据
             Task {
                 await refreshAllData()
             }
         }
-        .id(forceViewUpdate) // 添加id以强制视图刷新
     }
     
     // 登录部分
@@ -697,7 +694,7 @@ struct ContentView: View {
     private func generateTables() -> [TableNode] {
         // 格式化技能点显示
         let spText = if let character = selectedCharacter,
-                       character.CharacterID == currentCharacterId,  // 确保是当前选中��角色
+                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
                        let totalSP = character.totalSkillPoints {
             NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: NumberFormatUtil.format(Double(totalSP)))
