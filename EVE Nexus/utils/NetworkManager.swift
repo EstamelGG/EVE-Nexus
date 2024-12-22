@@ -464,20 +464,6 @@ extension NetworkManager {
     }
 }
 
-// 技能数模型
-struct CharacterSkill: Codable {
-    let active_skill_level: Int
-    let skill_id: Int
-    let skillpoints_in_skill: Int
-    let trained_skill_level: Int
-}
-
-struct CharacterSkillsResponse: Codable {
-    let skills: [CharacterSkill]
-    let total_sp: Int
-    let unallocated_sp: Int
-}
-
 // 添加 RequestRetrier 类
 class RequestRetrier {
     private let maxAttempts: Int
