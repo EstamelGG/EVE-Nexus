@@ -38,31 +38,75 @@ class CharacterLocationAPI {
     static let shared = CharacterLocationAPI()
     
     // 缓存结构
-    private struct CacheEntry {
+    private struct LocationCacheEntry: Codable {
         let value: CharacterLocation
         let timestamp: Date
     }
     
-    // 缓存字典
-    private var locationCache: [Int: CacheEntry] = [:]
+    // 内存缓存
+    private var locationMemoryCache: [Int: LocationCacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 60 // 1分钟缓存
+    
+    // UserDefaults键前缀
+    private let locationCachePrefix = "location_cache_"
     
     private init() {}
     
     // 检查缓存是否有效
-    private func isCacheValid(_ cache: CacheEntry?) -> Bool {
+    private func isCacheValid(_ cache: LocationCacheEntry?) -> Bool {
         guard let cache = cache else { return false }
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
+    // 从UserDefaults获取缓存
+    private func getDiskCache(characterId: Int) -> LocationCacheEntry? {
+        let key = locationCachePrefix + String(characterId)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let cache = try? JSONDecoder().decode(LocationCacheEntry.self, from: data) else {
+            return nil
+        }
+        return cache
+    }
+    
+    // 保存缓存到UserDefaults
+    private func saveToDiskCache(characterId: Int, cache: LocationCacheEntry) {
+        let key = locationCachePrefix + String(characterId)
+        if let encoded = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(encoded, forKey: key)
+        }
+    }
+    
+    // 清除缓存
+    private func clearCache(characterId: Int) {
+        // 清除内存缓存
+        locationMemoryCache.removeValue(forKey: characterId)
+        
+        // 清除磁盘缓存
+        let key = locationCachePrefix + String(characterId)
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+    
     // 获取角色位置信息
     func fetchCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterLocation {
-        // 检查缓存
-        if !forceRefresh,
-           let cachedEntry = locationCache[characterId],
-           isCacheValid(cachedEntry) {
-            Logger.info("使用缓存的位置信息 - 角色ID: \(characterId)")
-            return cachedEntry.value
+        // 如果不是强制刷新，先尝试使用缓存
+        if !forceRefresh {
+            // 1. 先检查内存缓存
+            if let memoryCached = locationMemoryCache[characterId],
+               isCacheValid(memoryCached) {
+                Logger.info("使用内存缓存的位置信息 - 角色ID: \(characterId)")
+                return memoryCached.value
+            }
+            
+            // 2. 如果内存缓存不可用，检查磁盘缓存
+            if let diskCached = getDiskCache(characterId: characterId),
+               isCacheValid(diskCached) {
+                Logger.info("使用磁盘缓存的位置信息 - 角色ID: \(characterId)")
+                // 更新内存缓存
+                locationMemoryCache[characterId] = diskCached
+                return diskCached.value
+            }
+            
+            Logger.info("缓存未命中或已过期,需要从服务器获取位置信息 - 角色ID: \(characterId)")
         }
         
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
@@ -77,8 +121,16 @@ class CharacterLocationAPI {
         
         do {
             let location = try JSONDecoder().decode(CharacterLocation.self, from: data)
-            // 更新缓存
-            locationCache[characterId] = CacheEntry(value: location, timestamp: Date())
+            
+            // 创建新的缓存条目
+            let cacheEntry = LocationCacheEntry(value: location, timestamp: Date())
+            
+            // 更新内存缓存
+            locationMemoryCache[characterId] = cacheEntry
+            
+            // 更新磁盘缓存
+            saveToDiskCache(characterId: characterId, cache: cacheEntry)
+            
             return location
         } catch {
             Logger.error("解析角色位置信息失败: \(error)")

@@ -4,14 +4,17 @@ class CharacterWalletAPI {
     static let shared = CharacterWalletAPI()
     
     // 缓存结构
-    private struct CacheEntry {
+    private struct CacheEntry: Codable {
         let value: Double
         let timestamp: Date
     }
     
-    // 缓存字典
-    private var walletCache: [Int: CacheEntry] = [:]
+    // 内存缓存
+    private var memoryCache: [Int: CacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
+    
+    // UserDefaults键前缀
+    private let walletCachePrefix = "wallet_cache_"
     
     private init() {}
     
@@ -21,15 +24,51 @@ class CharacterWalletAPI {
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
+    // 从UserDefaults获取缓存
+    private func getDiskCache(characterId: Int) -> CacheEntry? {
+        let key = walletCachePrefix + String(characterId)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let cache = try? JSONDecoder().decode(CacheEntry.self, from: data) else {
+            return nil
+        }
+        return cache
+    }
+    
+    // 保存缓存到UserDefaults
+    private func saveToDiskCache(characterId: Int, cache: CacheEntry) {
+        let key = walletCachePrefix + String(characterId)
+        if let encoded = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(encoded, forKey: key)
+        }
+    }
+    
+    // 清除缓存
+    private func clearCache(characterId: Int) {
+        memoryCache.removeValue(forKey: characterId)
+        let key = walletCachePrefix + String(characterId)
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+    
     // 获取钱包余额
     func getWalletBalance(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
-        // 检查缓存
-        if !forceRefresh,
-           let cachedEntry = walletCache[characterId], 
-           isCacheValid(cachedEntry) {
-            Logger.info("使用缓存的钱包余额数据 - 角色ID: \(characterId)")
-            return cachedEntry.value
-        } else {
+        // 如果不是强制刷新，先尝试使用缓存
+        if !forceRefresh {
+            // 1. 先检查内存缓存
+            if let memoryCached = memoryCache[characterId], 
+               isCacheValid(memoryCached) {
+                Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
+                return memoryCached.value
+            }
+            
+            // 2. 如果内存缓存不可用，检查磁盘缓存
+            if let diskCached = getDiskCache(characterId: characterId),
+               isCacheValid(diskCached) {
+                Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
+                // 更新内存缓存
+                memoryCache[characterId] = diskCached
+                return diskCached.value
+            }
+            
             Logger.info("缓存未命中或已过期,需要从服务器获取钱包数据 - 角色ID: \(characterId)")
         }
         
@@ -53,8 +92,15 @@ class CharacterWalletAPI {
         
         Logger.info("ESI响应: 钱包余额 = \(balance) ISK")
         
-        // 更新缓存
-        walletCache[characterId] = CacheEntry(value: balance, timestamp: Date())
+        // 创建新的缓存条目
+        let cacheEntry = CacheEntry(value: balance, timestamp: Date())
+        
+        // 更新内存缓存
+        memoryCache[characterId] = cacheEntry
+        
+        // 更新磁盘缓存
+        saveToDiskCache(characterId: characterId, cache: cacheEntry)
+        
         return balance
     }
 } 
