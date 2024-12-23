@@ -1099,6 +1099,12 @@ struct ContentView: View {
                         selectedCharacter?.skillQueueLength = queue.count
                         if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                             if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                // 获取队列最后一个技能的完成时间
+                                if let lastSkill = queue.last,
+                                   let lastFinishTime = lastSkill.remainingTime {
+                                    selectedCharacter?.queueFinishTime = lastFinishTime
+                                }
+                                
                                 selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                                     skillId: currentSkill.skill_id,
                                     name: skillName,

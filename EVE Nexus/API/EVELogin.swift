@@ -272,6 +272,7 @@ struct EVECharacterInfo: Codable {
         case corporationId
         case allianceId
         case skillQueueLength
+        case queueFinishTime
     }
     
     init(from decoder: Decoder) throws {
@@ -292,6 +293,7 @@ struct EVECharacterInfo: Codable {
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
         skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
+        queueFinishTime = try container.decodeIfPresent(TimeInterval.self, forKey: .queueFinishTime)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -312,6 +314,7 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(corporationId, forKey: .corporationId)
         try container.encodeIfPresent(allianceId, forKey: .allianceId)
         try container.encodeIfPresent(skillQueueLength, forKey: .skillQueueLength)
+        try container.encodeIfPresent(queueFinishTime, forKey: .queueFinishTime)
     }
 }
 
