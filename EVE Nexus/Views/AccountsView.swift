@@ -44,7 +44,7 @@ struct AccountsView: View {
             
             // 已登录角色列表
             if !viewModel.characters.isEmpty {
-                Section(header: Text(NSLocalizedString("Account_Logged_Characters", comment: ""))) {
+                Section(header: Text("\(NSLocalizedString("Account_Logged_Characters", comment: "")) (\(viewModel.characters.count))")) {
                     ForEach(viewModel.characters, id: \.CharacterID) { character in
                         if isEditing {
                             Button(action: {
