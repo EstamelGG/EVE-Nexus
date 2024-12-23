@@ -182,6 +182,7 @@ struct LoginButtonView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
+                        .foregroundColor(Color.primary.opacity(0.5))  // 降低不透明度使其更柔和
                         .clipShape(Circle())
                 }
                 .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
