@@ -427,7 +427,7 @@ class EVELogin {
         )
         Logger.info("EVELogin: 成功获取技能信息")
         
-        let balance = try await ESIDataManager.shared.getWalletBalance(
+        let balance = try await CharacterWalletAPI.shared.getWalletBalance(
             characterId: characterId
         )
         Logger.info("EVELogin: 成功获取钱包余额")
@@ -1068,7 +1068,7 @@ class EVELogin {
             cacheDuration: 300, // 钱包数据缓存5分钟
             forceRefresh: forceRefresh
         ) { _ in
-            try await ESIDataManager.shared.getWalletBalance(
+            try await CharacterWalletAPI.shared.getWalletBalance(
                 characterId: characterId
             )
         }

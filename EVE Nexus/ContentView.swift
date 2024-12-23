@@ -483,6 +483,11 @@ struct ContentView: View {
             if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
                 characterId: character.CharacterID
             ) {
+                // 保存到缓存
+                if let encodedSkills = try? JSONEncoder().encode(skills) {
+                    UserDefaults.standard.set(encodedSkills, forKey: "character_skills_\(character.CharacterID)")
+                }
+                
                 await MainActor.run {
                     selectedCharacter?.totalSkillPoints = skills.total_sp
                     selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
@@ -495,6 +500,9 @@ struct ContentView: View {
             if let balance = try? await EVELogin.shared.getCharacterWallet(
                 characterId: character.CharacterID
             ) {
+                // 保存到缓存
+                UserDefaults.standard.set(balance, forKey: "character_wallet_\(character.CharacterID)")
+                
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
                     // 强制更新表格显示
@@ -506,6 +514,11 @@ struct ContentView: View {
             if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
                 characterId: character.CharacterID
             ) {
+                // 保存到缓存
+                if let encodedQueue = try? JSONEncoder().encode(queue) {
+                    UserDefaults.standard.set(encodedQueue, forKey: "character_skill_queue_\(character.CharacterID)")
+                }
+                
                 await MainActor.run {
                     // 更新当前技能信息
                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
@@ -594,6 +607,10 @@ struct ContentView: View {
                     selectedCharacterPortrait = portrait
                     // 保存当前选中的角色 ID
                     currentCharacterId = character.CharacterID
+                    // 立即刷新角色信息
+                    Task {
+                        await refreshCharacterInfo()
+                    }
                 }
             } label: {
                 LoginButtonView(
@@ -700,6 +717,9 @@ struct ContentView: View {
     
     // 加载初始数据
     private func loadInitialData() async {
+        // 先从缓存加载保存的角色信息
+        await loadSavedCharacter()
+        
         // 如果没有头像，立即从缓存加载
         if selectedCharacterPortrait == nil, currentCharacterId != 0 {
             if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
@@ -936,7 +956,7 @@ struct ContentView: View {
     }
     
     // 添加加载保存的角色信息的方法
-    private func loadSavedCharacter() {
+    private func loadSavedCharacter() async {
         Logger.info("正在加载保存的角色信息...")
         Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
         
@@ -950,6 +970,58 @@ struct ContentView: View {
                     - 角色ID: \(savedCharacter.character.CharacterID)
                     - 角色名称: \(savedCharacter.character.CharacterName)
                     """)
+                
+                // 使用 API 的缓存机制加载数据
+                do {
+                    // 加载技能信息
+                    if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                        characterId: currentCharacterId
+                    ) {
+                        selectedCharacter?.totalSkillPoints = skills.total_sp
+                        selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
+                        Logger.info("加载技能点信息成功")
+                    }
+                    
+                    // 加载钱包余额
+                    if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
+                        characterId: currentCharacterId
+                    ) {
+                        selectedCharacter?.walletBalance = balance
+                        Logger.info("加载钱包余额成功")
+                    }
+                    
+                    // 加载技能队列
+                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                        characterId: currentCharacterId
+                    ) {
+                        if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                            if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                    skillId: currentSkill.skill_id,
+                                    name: skillName,
+                                    level: currentSkill.skillLevel,
+                                    progress: currentSkill.progress,
+                                    remainingTime: currentSkill.remainingTime
+                                )
+                                Logger.info("加载技能队列成功")
+                            }
+                        } else if let firstSkill = queue.first {
+                            if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                                selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                    skillId: firstSkill.skill_id,
+                                    name: skillName,
+                                    level: firstSkill.skillLevel,
+                                    progress: firstSkill.progress,
+                                    remainingTime: nil
+                                )
+                                Logger.info("加载技能队列成功")
+                            }
+                        }
+                    }
+                    
+                    // 强制更新表格显示
+                    tables = generateTables()
+                }
                 
                 // 异步加载头像
                 Task {

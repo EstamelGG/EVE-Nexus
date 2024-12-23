@@ -243,7 +243,7 @@ struct AccountsView: View {
                                     }()
                                     
                                     async let walletTask: Void = {
-                                        if let balance = try? await ESIDataManager.shared.getWalletBalance(
+                                        if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
                                             characterId: characterAuth.character.CharacterID
                                         ) {
                                             await updateUI {
