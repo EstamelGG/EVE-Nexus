@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且已有缓存的头像，直接返回
+            // 如果不是强制刷新且��缓存的像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -835,9 +835,17 @@ class EVELogin {
             
             // 更新 TokenManager 的缓存
             Task {
+                // 生成7-14天的随机间隔
+                let randomDays = Int.random(in: 7...14)
+                let nextRefreshInterval = TimeInterval(randomDays * 24 * 60 * 60)
+                let nextRefreshTime = Date().addingTimeInterval(nextRefreshInterval)
+                Logger.info("EVELogin: 设置下次刷新时间为 \(nextRefreshTime.formatted()) (间隔\(randomDays)天) - 角色ID: \(character.CharacterID)")
+                
                 let tokenCache = TokenManager.CachedToken(
-                    token: token,  // 使用完整的 token
-                    expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in))
+                    token: token,
+                    expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in)),
+                    lastRefreshTime: Date(),
+                    nextRefreshTime: nextRefreshTime
                 )
                 await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
                 Logger.info("EVELogin: TokenManager 缓存已更新")

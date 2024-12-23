@@ -13,9 +13,16 @@ class TokenManager {
     struct CachedToken {
         let token: EVEAuthToken
         let expirationDate: Date
+        let lastRefreshTime: Date
+        let nextRefreshTime: Date
         
         var isValid: Bool {
             return Date() < expirationDate
+        }
+        
+        var shouldRefresh: Bool {
+            let now = Date()
+            return now >= nextRefreshTime
         }
     }
     
@@ -45,14 +52,24 @@ class TokenManager {
     // 获取有效的token
     func getToken(for characterId: Int) async throws -> EVEAuthToken {
         // 检查缓存
-        if let cachedToken = tokenCache[characterId], cachedToken.isValid {
-            // 验证token的合法性
-            if try await validateToken(cachedToken.token) {
-                Logger.info("TokenManager: 使用缓存的有效 token - 角色ID: \(characterId)")
-                return cachedToken.token
+        if let cachedToken = tokenCache[characterId] {
+            if cachedToken.isValid {
+                do {
+                    // 验证token的合法性
+                    if try await validateToken(cachedToken.token) {
+                        Logger.info("TokenManager: 使用缓存的有效 token - 角色ID: \(characterId)")
+                        return cachedToken.token
+                    } else {
+                        // 如果token不合法，清除缓存并重新获取
+                        Logger.info("TokenManager: 缓存的 token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
+                        clearToken(for: characterId)
+                    }
+                } catch {
+                    Logger.error("TokenManager: Token验证失败 - 角色ID: \(characterId), 错误: \(error)")
+                    clearToken(for: characterId)
+                }
             } else {
-                // 如果token不合法，清除缓存并重新获取
-                Logger.info("TokenManager: 缓存的 token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
+                Logger.info("TokenManager: 缓存的 token 已过期 - 角色ID: \(characterId)")
                 clearToken(for: characterId)
             }
         }
@@ -104,13 +121,38 @@ class TokenManager {
     
     // 添加带重试的 token 刷新方法
     private func refreshTokenWithRetry(refreshToken: String, characterId: Int) async throws -> EVEAuthToken {
+        // 检查是否需要刷新
+        if let cachedToken = tokenCache[characterId] {
+            if !cachedToken.shouldRefresh {
+                do {
+                    // 验证缓存的 token 是否仍然有效
+                    if try await validateToken(cachedToken.token) {
+                        Logger.info("TokenManager: 使用缓存的 token，距离下次刷新还有 \(Int(cachedToken.nextRefreshTime.timeIntervalSince(Date())/86400)) 天 - 角色ID: \(characterId)")
+                        return cachedToken.token
+                    }
+                } catch {
+                    Logger.error("TokenManager: Token验证失败，需要刷新 - 角色ID: \(characterId), 错误: \(error)")
+                }
+            }
+        }
+        
+        // 获取当前的 refresh token
+        let currentRefreshToken: String
+        if let cachedToken = tokenCache[characterId] {
+            currentRefreshToken = cachedToken.token.refresh_token
+            Logger.info("TokenManager: 使用缓存的 refresh token - 角色ID: \(characterId)")
+        } else {
+            currentRefreshToken = refreshToken
+            Logger.info("TokenManager: 使用提供的 refresh token - 角色ID: \(characterId)")
+        }
+        
         var retryCount = 0
         var lastError: Error? = nil
         
         while retryCount < 3 {
             do {
-                // 刷新 token
-                let newToken = try await EVELogin.shared.refreshToken(characterId: characterId, refreshToken: refreshToken, force: true)
+                // 使用当前的 refresh token 刷新
+                let newToken = try await EVELogin.shared.refreshToken(characterId: characterId, refreshToken: currentRefreshToken, force: true)
                 Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
                 
                 // 验证新token的合法性
@@ -118,9 +160,20 @@ class TokenManager {
                     throw NetworkError.invalidToken("Invalid token format or signature")
                 }
                 
+                // 生成7-14天的随机间隔
+                let randomDays = Int.random(in: 7...14)
+                let nextRefreshInterval = TimeInterval(randomDays * 24 * 60 * 60)
+                let nextRefreshTime = Date().addingTimeInterval(nextRefreshInterval)
+                Logger.info("TokenManager: 设置下次刷新时间为 \(nextRefreshTime.formatted()) (间隔\(randomDays)天) - 角色ID: \(characterId)")
+                
                 // 更新缓存
                 let expirationDate = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
-                tokenCache[characterId] = CachedToken(token: newToken, expirationDate: expirationDate)
+                tokenCache[characterId] = CachedToken(
+                    token: newToken,
+                    expirationDate: expirationDate,
+                    lastRefreshTime: Date(),
+                    nextRefreshTime: nextRefreshTime
+                )
                 
                 // 保存新的refresh token
                 try SecureStorage.shared.saveToken(newToken.refresh_token, for: characterId)
@@ -198,6 +251,16 @@ class TokenManager {
         lock.lock()
         defer { lock.unlock() }
         
-        tokenCache[characterId] = cachedToken
+        // 如果没有提供 lastRefreshTime，使用当前时间
+        if cachedToken.lastRefreshTime == Date(timeIntervalSince1970: 0) {
+            tokenCache[characterId] = CachedToken(
+                token: cachedToken.token,
+                expirationDate: cachedToken.expirationDate,
+                lastRefreshTime: Date(),
+                nextRefreshTime: cachedToken.nextRefreshTime
+            )
+        } else {
+            tokenCache[characterId] = cachedToken
+        }
     }
 } 
