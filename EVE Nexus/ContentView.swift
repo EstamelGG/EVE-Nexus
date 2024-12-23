@@ -555,8 +555,16 @@ struct ContentView: View {
             ) {
                 await MainActor.run {
                     selectedCharacter?.skillQueueLength = queue.count
+                    
+                    // 找到正在训练的技能和队列最后完成时间
                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                         if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                            // 获取队列最后一个技能的完成时间
+                            if let lastSkill = queue.last,
+                               let lastFinishTime = lastSkill.remainingTime {
+                                selectedCharacter?.queueFinishTime = lastFinishTime
+                            }
+                            
                             selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                                 skillId: currentSkill.skill_id,
                                 name: skillName,
@@ -881,30 +889,28 @@ struct ContentView: View {
         // 格式化技能队列显示
         let skillQueueText: String
         if let character = selectedCharacter,
-           character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
-           let currentSkill = character.currentSkill {
-            if let remainingTime = currentSkill.remainingTime {
+           character.CharacterID == currentCharacterId {  // 确保是当前选中的角色
+            if let _ = character.currentSkill,
+               let queueFinishTime = character.queueFinishTime {
+                // 正在训练状态
+                let remainingTime = queueFinishTime
                 let days = Int(remainingTime) / 86400
                 let hours = (Int(remainingTime) % 86400) / 3600
                 let minutes = (Int(remainingTime) % 3600) / 60
-                skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
-                    .replacingOccurrences(of: "$num", with: "1")
+                skillQueueText = NSLocalizedString("Main_Skills_Queue_Training", comment: "")
+                    .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
                     .replacingOccurrences(of: "$day", with: "\(days)")
                     .replacingOccurrences(of: "$hour", with: "\(hours)")
                     .replacingOccurrences(of: "$minutes", with: "\(minutes)")
             } else {
-                skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
-                    .replacingOccurrences(of: "$num", with: "1")
-                    .replacingOccurrences(of: "$day", with: "0")
-                    .replacingOccurrences(of: "$hour", with: "0")
-                    .replacingOccurrences(of: "$minutes", with: "0")
+                // 暂停状态
+                skillQueueText = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
+                    .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
             }
         } else {
-            skillQueueText = NSLocalizedString("Main_Skills_Queue", comment: "")
+            // 未选择角色
+            skillQueueText = NSLocalizedString("Main_Skills_Queue_Empty", comment: "")
                 .replacingOccurrences(of: "$num", with: "0")
-                .replacingOccurrences(of: "$day", with: "0")
-                .replacingOccurrences(of: "$hour", with: "0")
-                .replacingOccurrences(of: "$minutes", with: "0")
         }
         
         // 格式化钱包余额显示

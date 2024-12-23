@@ -226,24 +226,28 @@ struct EVEAuthToken: Codable {
 }
 
 struct EVECharacterInfo: Codable {
-    let CharacterID: Int
-    let CharacterName: String
-    let ExpiresOn: String
-    let Scopes: String
-    let TokenType: String
-    let CharacterOwnerHash: String
-    var totalSkillPoints: Int?
-    var unallocatedSkillPoints: Int?
-    var walletBalance: Double?
-    var location: SolarSystemInfo?
-    var locationStatus: CharacterLocation.LocationStatus?
-    var currentSkill: CurrentSkillInfo?
-    var tokenExpired: Bool = false
-    var corporationId: Int?
-    var allianceId: Int?
-    var skillQueueLength: Int?
+    public let CharacterID: Int
+    public let CharacterName: String
+    public let ExpiresOn: String
+    public let Scopes: String
+    public let TokenType: String
+    public let CharacterOwnerHash: String
+    public var corporationId: Int?
+    public var allianceId: Int?
+    public var tokenExpired: Bool = false
     
-    struct CurrentSkillInfo: Codable {
+    // 动态属性
+    public var totalSkillPoints: Int?
+    public var unallocatedSkillPoints: Int?
+    public var walletBalance: Double?
+    public var skillQueueLength: Int?
+    public var currentSkill: CurrentSkillInfo?
+    public var locationStatus: CharacterLocation.LocationStatus?
+    public var location: SolarSystemInfo?
+    public var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
+    
+    // 内部类型定义
+    public struct CurrentSkillInfo: Codable {
         let skillId: Int
         let name: String
         let level: String
