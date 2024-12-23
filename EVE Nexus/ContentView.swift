@@ -615,23 +615,20 @@ struct ContentView: View {
                             Logger.info("用户登出角色 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
                         }
                         
-                        // 清空当前选择的角色ID
-                        UserDefaults.standard.removeObject(forKey: "selectedCharacterId")
-                        // 重置角色信息
-                        selectedCharacter = nil
-                        // 清空头像
-                        selectedCharacterPortrait = nil
                         // 清空 currentCharacterId
                         currentCharacterId = 0
-                        // 发送通知以更新其他视图
-                        NotificationCenter.default.post(name: Notification.Name("CharacterDeselected"), object: nil)
+                        
+                        // 重置登录状态和选中角色
+                        isLoggedIn = false
+                        selectedCharacter = nil
+                        selectedCharacterPortrait = nil
                         
                         // 刷新表格数据以显示默认值
                         withAnimation {
                             tables = generateTables()
                         }
                         
-                        Logger.info("角色登出完成 - 已清空所有相关信息")
+                        Logger.info("角色登出完成")
                     } label: {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .resizable()
