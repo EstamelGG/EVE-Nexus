@@ -154,6 +154,7 @@ class TokenManager {
             let isValid = try await JWTValidator.validate(token.access_token, config: config)
             if isValid {
                 Logger.info("TokenManager: Token验证成功 - Token前缀: \(tokenPrefix)")
+                Logger.info("TokenManager: Token验证成功 - Token: \(token)")
             } else {
                 Logger.warning("TokenManager: Token验证未通过 - Token前缀: \(tokenPrefix)")
             }
@@ -190,14 +191,6 @@ class TokenManager {
         } catch {
             Logger.error("TokenManager: SecureStorage Token清除失败 - 角色ID: \(characterId), 错误: \(error)")
         }
-    }
-    
-    // 检查token是否有效
-    func isTokenValid(for characterId: Int) -> Bool {
-        guard let cachedToken = tokenCache[characterId] else {
-            return false
-        }
-        return cachedToken.isValid
     }
     
     // 更新token缓存
