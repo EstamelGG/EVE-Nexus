@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且缓存的像，直接返回
+            // 如果不是强制刷新且存在缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -478,15 +478,7 @@ class EVELogin {
         return (token, character)
     }
     
-    // 步骤2：保存基本认证信息
-    private func saveInitialAuth(token: EVEAuthToken, character: EVECharacterInfo) async throws {
-        Logger.info("EVELogin: 开始保存初始认证信息...")
-        try await saveAuthInfo(token: token, character: character)
-        UserDefaults.standard.synchronize()
-        Logger.info("EVELogin: 初始认证信息保存完成")
-    }
-    
-    // 步骤3：获取角色详细信息
+    // 步骤2：获取角色详细信息
     private func fetchCharacterDetails(characterId: Int) async throws -> (skills: CharacterSkillsResponse, balance: Double, location: CharacterLocation, skillQueue: [SkillQueueItem]) {
         Logger.info("EVELogin: 开始获取角色详细信息...")
         
@@ -513,7 +505,7 @@ class EVELogin {
         return (skills, balance, location, skillQueue)
     }
     
-    // 步骤4：更新角色信息
+    // 步骤3：更新角色信息
     private func updateCharacterInfo(
         character: EVECharacterInfo,
         skills: CharacterSkillsResponse,
@@ -584,7 +576,16 @@ class EVELogin {
         try await saveAuthInfo(token: token, character: character)
         Logger.info("EVELogin: 认证信息保存完成")
         
-        return character
+        // 等待一段时间，确保 token 完全激活
+        Logger.info("EVELogin: 等待 token 激活")
+        try? await Task.sleep(nanoseconds: 3_000_000_000)  // 等待3秒
+        
+        
+        // 3. 加载详细信息
+        let updatedCharacter = try await loadDetailedInfo(token: token, character: character)
+        Logger.info("EVELogin: 详细信息加载完成")
+        
+        return updatedCharacter
     }
     
     // 第二阶段：加载详细信息
