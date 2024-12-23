@@ -309,6 +309,13 @@ struct AccountsView: View {
                                                 characterId: characterAuth.character.CharacterID
                                             )
                                             
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].skillQueueLength = queue.count
+                                                }
+                                            }
+                                            
+                                            // 查找正在训练的技能
                                             if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                                                 // 每次显示时重新获取技能名称，确保使用当前语言
                                                 if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
