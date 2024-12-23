@@ -72,7 +72,10 @@ public struct SkillQueueItem: Codable {
     public var progress: Double {
         guard let finishDateString = finish_date,
               let startDateString = start_date else {
-            return 0
+            // 暂停状态：使用技能点计算进度
+            let totalLevelSP = level_end_sp - level_start_sp
+            let currentTrainedSP = training_start_sp - level_start_sp
+            return Double(currentTrainedSP) / Double(totalLevelSP)
         }
         
         let dateFormatter = ISO8601DateFormatter()
@@ -80,7 +83,10 @@ public struct SkillQueueItem: Codable {
         
         guard let finishDate = dateFormatter.date(from: finishDateString),
               let startDate = dateFormatter.date(from: startDateString) else {
-            return 0
+            // 日期解析失败：使用技能点计算进度
+            let totalLevelSP = level_end_sp - level_start_sp
+            let currentTrainedSP = training_start_sp - level_start_sp
+            return Double(currentTrainedSP) / Double(totalLevelSP)
         }
         
         let now = Date()
@@ -95,6 +101,7 @@ public struct SkillQueueItem: Codable {
             return 1
         }
         
+        // 正在训练：使用基于时间的进度计算
         // 计算时间进度比例
         let totalTrainingTime = finishDate.timeIntervalSince(startDate)
         let trainedTime = now.timeIntervalSince(startDate)
