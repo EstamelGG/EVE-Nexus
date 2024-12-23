@@ -65,22 +65,36 @@ class CharacterWalletAPI {
         UserDefaults.standard.removeObject(forKey: key)
     }
     
-    // 获取钱包余额
+    // 获取缓存的钱包余额（同步方法）
+    func getCachedWalletBalance(characterId: Int) -> String {
+        // 1. 先检查内存缓存
+        if let memoryCached = memoryCache[characterId] {
+            return memoryCached.value
+        }
+        
+        // 2. 如果内存缓存不可用，检查磁盘缓存
+        if let diskCached = getDiskCache(characterId: characterId) {
+            // 更新内存缓存
+            memoryCache[characterId] = diskCached
+            return diskCached.value
+        }
+        
+        return "-"
+    }
+    
+    // 获取钱包余额（异步方法，用于后台刷新）
     func getWalletBalance(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
-        // 如果不是强制刷新，先尝试使用缓存
+        // 如果不是强制刷新，检查缓存是否有效
         if !forceRefresh {
-            // 1. 先检查内存缓存
             if let memoryCached = memoryCache[characterId], 
                isCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
                 return Double(memoryCached.value) ?? 0.0
             }
             
-            // 2. 如果内存缓存不可用，检查磁盘缓存
             if let diskCached = getDiskCache(characterId: characterId),
                isCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
-                // 更新内存缓存
                 memoryCache[characterId] = diskCached
                 return Double(diskCached.value) ?? 0.0
             }
@@ -93,13 +107,11 @@ class CharacterWalletAPI {
             throw NetworkError.invalidURL
         }
         
-        // 使用NetworkManager的fetchDataWithToken方法获取数据
         let data = try await NetworkManager.shared.fetchDataWithToken(
             from: url,
             characterId: characterId
         )
         
-        // 将数据转换为字符串
         guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
@@ -116,7 +128,6 @@ class CharacterWalletAPI {
         // 更新磁盘缓存
         saveToDiskCache(characterId: characterId, cache: cacheEntry)
         
-        // 返回时才转换为 Double
         return Double(stringValue) ?? 0.0
     }
 } 

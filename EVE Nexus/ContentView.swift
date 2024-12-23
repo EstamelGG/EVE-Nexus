@@ -509,14 +509,25 @@ struct ContentView: View {
             }
             
             // 获取钱包余额
-            if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                characterId: character.CharacterID,
-                forceRefresh: forceRefresh
-            ) {
+            // 先显示缓存的余额
+            let cachedBalance = CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
+            if let balance = Double(cachedBalance) {
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
                 }
-                Logger.info("\(logPrefix)钱包余额成功 - 余额: \(FormatUtil.formatISK(balance))")
+            }
+            
+            // 后台刷新
+            Task {
+                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    await MainActor.run {
+                        selectedCharacter?.walletBalance = balance
+                    }
+                    Logger.info("\(logPrefix)钱包余额成功 - 余额: \(FormatUtil.formatISK(balance))")
+                }
             }
             
             // 获取技能队列
@@ -729,7 +740,7 @@ struct ContentView: View {
         }
     }
     
-    // 刷新���务器状态
+    // 刷新服务器状态
     private func refreshServerStatus() async {
         do {
             serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()

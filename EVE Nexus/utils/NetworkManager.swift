@@ -73,6 +73,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
         
         return try await retrier.execute {
+            Logger.info("HTTP Request to: \(url)")
             let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {

@@ -243,6 +243,17 @@ struct AccountsView: View {
                                     }()
                                     
                                     async let walletTask: Void = {
+                                        // 先显示缓存的余额
+                                        let cachedBalance = CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
+                                        if let balance = Double(cachedBalance) {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].walletBalance = balance
+                                                }
+                                            }
+                                        }
+                                        
+                                        // 后台刷新
                                         if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
                                             characterId: characterAuth.character.CharacterID
                                         ) {
