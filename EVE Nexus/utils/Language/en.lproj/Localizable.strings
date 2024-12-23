@@ -14,6 +14,9 @@
 "Main_Skills" = "Skills";
 "Main_Skills_Ponits" = "$num SP";
 "Main_Skills_Queue" = "$num skills in queue ($dayd $hourh $minutesm)";
+"Main_Skills_Queue_Training" = "Training: $num skills ($dayd $hourh $minutesm)";
+"Main_Skills_Queue_Paused" = "Paused: $num skills";
+"Main_Skills_Queue_Empty" = "Skill Queue: $num skills";
 "Main_EVE_Mail" = "EVE Mail";
 "Main_Calendar" = "Calendar";
 "Main_Wealth" = "Wealth";
