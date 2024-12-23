@@ -68,28 +68,13 @@ class TokenManager {
             
             do {
                 // 从 SecureStorage 获取 refresh token
-                if let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) {
-                    // 使用现有的 refresh token
-                    return try await refreshTokenWithRetry(refreshToken: refreshToken, characterId: characterId)
+                guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
+                    Logger.error("TokenManager: 无法从 SecureStorage 获取 refresh token - 角色ID: \(characterId)")
+                    throw NetworkError.authenticationError("No refresh token found")
                 }
                 
-                // 如果 SecureStorage 中没有找到，尝试从 UserDefaults 恢复
-                Logger.info("TokenManager: 尝试从 UserDefaults 恢复 refresh token - 角色ID: \(characterId)")
-                if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: "EVECharacters") ?? Data()),
-                   let character = characters.first(where: { $0.character.CharacterID == characterId }) {
-                    
-                    // 找到了角色信息，尝试恢复 refresh token
-                    do {
-                        try SecureStorage.shared.saveToken(character.token.refresh_token, for: characterId)
-                        Logger.info("TokenManager: 成功从 UserDefaults 恢复 refresh token - 角色ID: \(characterId)")
-                        return try await refreshTokenWithRetry(refreshToken: character.token.refresh_token, characterId: characterId)
-                    } catch {
-                        Logger.error("TokenManager: 恢复 refresh token 失败 - 角色ID: \(characterId), 错误: \(error)")
-                    }
-                }
-                
-                // 如果恢复失败，抛出错误
-                throw NetworkError.authenticationError("No refresh token found")
+                // 使用 refresh token 获取新的 token
+                return try await refreshTokenWithRetry(refreshToken: refreshToken, characterId: characterId)
             } catch {
                 // 如果刷新失败，清除所有相关缓存
                 Logger.error("TokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")

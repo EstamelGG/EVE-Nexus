@@ -10,6 +10,8 @@ class SecureStorage {
     private init() {}
     
     func saveToken(_ token: String, for characterId: Int) throws {
+        Logger.info("SecureStorage: 开始保存 refresh token 到 SecureStorage - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))...")
+        
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: "token_\(characterId)",
@@ -28,8 +30,12 @@ class SecureStorage {
                 kSecValueData as String: token.data(using: .utf8)!
             ]
             SecItemUpdate(updateQuery as CFDictionary, updateAttributes as CFDictionary)
+            Logger.info("SecureStorage: 更新已存在的 refresh token - 角色ID: \(characterId)")
         } else if status != errSecSuccess {
+            Logger.error("SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
             throw KeychainError.unhandledError(status: status)
+        } else {
+            Logger.info("SecureStorage: 成功保存新的 refresh token - 角色ID: \(characterId)")
         }
     }
     
@@ -268,7 +274,13 @@ struct CharacterAuth: Codable {
     // 自定义初始化方法
     init(character: EVECharacterInfo, token: EVEAuthToken, addedDate: Date, lastTokenUpdateTime: Date) {
         self.character = character
-        self.token = token
+        // 创建一个新的 token，但不包含 refresh_token
+        self.token = EVEAuthToken(
+            access_token: token.access_token,
+            expires_in: token.expires_in,
+            token_type: token.token_type,
+            refresh_token: ""  // 不存储 refresh_token
+        )
         self.addedDate = addedDate
         self.lastTokenUpdateTime = lastTokenUpdateTime
     }
@@ -734,6 +746,10 @@ class EVELogin {
     
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) {
+        Logger.info("EVELogin: 开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
+        Logger.info("EVELogin: Access Token 前缀: \(String(token.access_token.prefix(10)))...")
+        Logger.info("EVELogin: Refresh Token 前缀: \(String(token.refresh_token.prefix(10)))...")
+        
         let defaults = UserDefaults.standard
         let characterAuth = CharacterAuth(
             character: character,
@@ -754,30 +770,34 @@ class EVELogin {
                     addedDate: originalAddedDate,
                     lastTokenUpdateTime: Date()
                 )
+                Logger.info("EVELogin: 更新现有角色信息")
             } else {
                 characters.append(characterAuth)
+                Logger.info("EVELogin: 添加新角色信息")
             }
             
-            // 保存到 UserDefaults
+            // 保存到 UserDefaults（不包含 refresh token）
             let encodedData = try JSONEncoder().encode(characters)
             defaults.set(encodedData, forKey: charactersKey)
+            Logger.info("EVELogin: 角色信息已保存到 UserDefaults")
             
-            // 保存refresh token到SecureStorage
+            // 保存 refresh token 到 SecureStorage
             try SecureStorage.shared.saveToken(token.refresh_token, for: character.CharacterID)
             
-            // 更新TokenManager的缓存
+            // 更新 TokenManager 的缓存
             Task {
                 let tokenCache = TokenManager.CachedToken(
                     token: token,
                     expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in))
                 )
                 await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
+                Logger.info("EVELogin: TokenManager 缓存已更新")
             }
             
             // 强制同步到磁盘
             defaults.synchronize()
             
-            Logger.info("EVELogin: 保存角色认证信息成功 - \(character.CharacterName) - \(character.CharacterID)")
+            Logger.info("EVELogin: 保存角色认证信息完成 - \(character.CharacterName) (\(character.CharacterID))")
         } catch {
             Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
         }
@@ -1040,7 +1060,7 @@ class EVELogin {
         return characters.first { $0.character.CharacterID == characterId }
     }
     
-    // 在 EVELogin 类��添加更新 token 状态的方法
+    // 在 EVELogin 类中添加更新 token 状态的方法
     func markTokenExpired(characterId: Int) {
         var characters = loadCharacters()
         if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
