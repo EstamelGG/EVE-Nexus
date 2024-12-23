@@ -68,27 +68,28 @@ class TokenManager {
             
             do {
                 // 从 SecureStorage 获取 refresh token
-                guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
-                    throw NetworkError.authenticationError("No refresh token found")
+                if let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) {
+                    // 使用现有的 refresh token
+                    return try await refreshTokenWithRetry(refreshToken: refreshToken, characterId: characterId)
                 }
                 
-                // 刷新 token
-                let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
-                Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
-                
-                // 验证新token的合法性
-                guard try await validateToken(newToken) else {
-                    throw NetworkError.invalidToken("Invalid token format or signature")
+                // 如果 SecureStorage 中没有找到，尝试从 UserDefaults 恢复
+                Logger.info("TokenManager: 尝试从 UserDefaults 恢复 refresh token - 角色ID: \(characterId)")
+                if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: "EVECharacters") ?? Data()),
+                   let character = characters.first(where: { $0.character.CharacterID == characterId }) {
+                    
+                    // 找到了角色信息，尝试恢复 refresh token
+                    do {
+                        try SecureStorage.shared.saveToken(character.token.refresh_token, for: characterId)
+                        Logger.info("TokenManager: 成功从 UserDefaults 恢复 refresh token - 角色ID: \(characterId)")
+                        return try await refreshTokenWithRetry(refreshToken: character.token.refresh_token, characterId: characterId)
+                    } catch {
+                        Logger.error("TokenManager: 恢复 refresh token 失败 - 角色ID: \(characterId), 错误: \(error)")
+                    }
                 }
                 
-                // 更新缓存
-                let expirationDate = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
-                tokenCache[characterId] = CachedToken(token: newToken, expirationDate: expirationDate)
-                
-                // 保存新的refresh token
-                try SecureStorage.shared.saveToken(newToken.refresh_token, for: characterId)
-                
-                return newToken
+                // 如果恢复失败，抛出错误
+                throw NetworkError.authenticationError("No refresh token found")
             } catch {
                 // 如果刷新失败，清除所有相关缓存
                 Logger.error("TokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")
@@ -109,6 +110,44 @@ class TokenManager {
         }
         
         throw NetworkError.tokenExpired
+    }
+    
+    // 添加带重试的 token 刷新方法
+    private func refreshTokenWithRetry(refreshToken: String, characterId: Int) async throws -> EVEAuthToken {
+        var retryCount = 0
+        var lastError: Error? = nil
+        
+        while retryCount < 3 {
+            do {
+                // 刷新 token
+                let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
+                Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
+                
+                // 验证新token的合法性
+                guard try await validateToken(newToken) else {
+                    throw NetworkError.invalidToken("Invalid token format or signature")
+                }
+                
+                // 更新缓存
+                let expirationDate = Date().addingTimeInterval(TimeInterval(newToken.expires_in))
+                tokenCache[characterId] = CachedToken(token: newToken, expirationDate: expirationDate)
+                
+                // 保存新的refresh token
+                try SecureStorage.shared.saveToken(newToken.refresh_token, for: characterId)
+                
+                return newToken
+            } catch {
+                lastError = error
+                retryCount += 1
+                if retryCount < 3 {
+                    // 等待一秒后重试
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    Logger.info("TokenManager: 重试刷新 token (第\(retryCount)次) - 角色ID: \(characterId)")
+                }
+            }
+        }
+        
+        throw lastError ?? NetworkError.tokenExpired
     }
     
     // 验证token的合法性
