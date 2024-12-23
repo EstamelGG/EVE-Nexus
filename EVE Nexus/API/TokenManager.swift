@@ -48,15 +48,18 @@ class TokenManager {
         if let cachedToken = tokenCache[characterId], cachedToken.isValid {
             // 验证token的合法性
             if try await validateToken(cachedToken.token) {
+                Logger.info("TokenManager: 使用缓存的有效 token - 角色ID: \(characterId)")
                 return cachedToken.token
             } else {
                 // 如果token不合法，清除缓存并重新获取
+                Logger.info("TokenManager: 缓存的 token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
                 clearToken(for: characterId)
             }
         }
         
         // 如果已经有正在进行的刷新任务，等待其完成
         if let existingTask = tokenRefreshTasks[characterId] {
+            Logger.info("TokenManager: 等待现有的刷新任务完成 - 角色ID: \(characterId)")
             return try await existingTask.value
         }
         
@@ -72,6 +75,8 @@ class TokenManager {
                     Logger.error("TokenManager: 无法从 SecureStorage 获取 refresh token - 角色ID: \(characterId)")
                     throw NetworkError.authenticationError("No refresh token found")
                 }
+                
+                Logger.info("TokenManager: 成功从 SecureStorage 获取 refresh token - 角色ID: \(characterId)")
                 
                 // 使用 refresh token 获取新的 token
                 return try await refreshTokenWithRetry(refreshToken: refreshToken, characterId: characterId)
@@ -105,7 +110,7 @@ class TokenManager {
         while retryCount < 3 {
             do {
                 // 刷新 token
-                let newToken = try await EVELogin.shared.refreshToken(refreshToken: refreshToken, force: true)
+                let newToken = try await EVELogin.shared.refreshToken(characterId: characterId, refreshToken: refreshToken, force: true)
                 Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
                 
                 // 验证新token的合法性

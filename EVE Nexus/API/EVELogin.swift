@@ -12,24 +12,33 @@ class SecureStorage {
     func saveToken(_ token: String, for characterId: Int) throws {
         Logger.info("SecureStorage: 开始保存 refresh token 到 SecureStorage - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))...")
         
+        guard let tokenData = token.data(using: .utf8) else {
+            Logger.error("SecureStorage: 无法将 token 转换为数据")
+            throw KeychainError.unhandledError(status: errSecParam)
+        }
+        
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "token_\(characterId)",
-            kSecValueData as String: token.data(using: .utf8)!,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)",
+            String(kSecValueData): tokenData,
+            String(kSecAttrAccessible): kSecAttrAccessibleAfterFirstUnlock
         ]
         
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
             // 如果已存在，则更新
             let updateQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrAccount as String: "token_\(characterId)"
+                String(kSecClass): kSecClassGenericPassword,
+                String(kSecAttrAccount): "token_\(characterId)"
             ]
             let updateAttributes: [String: Any] = [
-                kSecValueData as String: token.data(using: .utf8)!
+                String(kSecValueData): tokenData
             ]
-            SecItemUpdate(updateQuery as CFDictionary, updateAttributes as CFDictionary)
+            let updateStatus = SecItemUpdate(updateQuery as CFDictionary, updateAttributes as CFDictionary)
+            if updateStatus != errSecSuccess {
+                Logger.error("SecureStorage: 更新 refresh token 失败 - 角色ID: \(characterId), 错误码: \(updateStatus)")
+                throw KeychainError.unhandledError(status: updateStatus)
+            }
             Logger.info("SecureStorage: 更新已存在的 refresh token - 角色ID: \(characterId)")
         } else if status != errSecSuccess {
             Logger.error("SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
@@ -40,33 +49,46 @@ class SecureStorage {
     }
     
     func loadToken(for characterId: Int) throws -> String? {
+        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 token - 角色ID: \(characterId)")
+        
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "token_\(characterId)",
-            kSecReturnData as String: true
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)",
+            String(kSecReturnData): true,
+            String(kSecMatchLimit): kSecMatchLimitOne
         ]
+        
+        Logger.info("SecureStorage: 查询参数 - account: token_\(characterId)")
         
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
         if status == errSecItemNotFound {
+            Logger.error("SecureStorage: 在 Keychain 中未找到 token - 角色ID: \(characterId), 错误: 项目不存在")
             return nil
         } else if status != errSecSuccess {
+            Logger.error("SecureStorage: 从 Keychain 加载 token 失败 - 角色ID: \(characterId), 错误码: \(status)")
             throw KeychainError.unhandledError(status: status)
         }
         
-        guard let data = result as? Data,
-              let token = String(data: data, encoding: .utf8) else {
+        guard let data = result as? Data else {
+            Logger.error("SecureStorage: token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
             return nil
         }
         
+        guard let token = String(data: data, encoding: .utf8) else {
+            Logger.error("SecureStorage: token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
+            return nil
+        }
+        
+        Logger.info("SecureStorage: 成功从 Keychain 加载 token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))...")
         return token
     }
     
     func deleteToken(for characterId: Int) throws {
         let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "token_\(characterId)"
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)"
         ]
         
         let status = SecItemDelete(query as CFDictionary)
@@ -598,17 +620,16 @@ class EVELogin {
     
     // 执行后台刷新
     func performBackgroundRefresh() async throws {
-        guard let token = loadAuthInfo().token else {
-            Logger.info("EVELogin: 无需执行后台刷新，未找到令牌")
+        guard let token = loadAuthInfo().token,
+              let character = loadAuthInfo().character else {
+            Logger.info("EVELogin: 无需执行后台刷新，未找到令牌或角色信息")
             return
         }
         
         do {
-            let newToken = try await refreshToken(refreshToken: token.refresh_token)
-            if let character = loadAuthInfo().character {
-                saveAuthInfo(token: newToken, character: character)
-                Logger.info("EVELogin: 后台刷新令牌成功")
-            }
+            let newToken = try await refreshToken(characterId: character.CharacterID, refreshToken: token.refresh_token)
+            saveAuthInfo(token: newToken, character: character)
+            Logger.info("EVELogin: 后台刷新令牌成功")
         } catch {
             Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
             throw error
@@ -751,9 +772,18 @@ class EVELogin {
         Logger.info("EVELogin: Refresh Token 前缀: \(String(token.refresh_token.prefix(10)))...")
         
         let defaults = UserDefaults.standard
+        
+        // 创建一个不包含 refresh token 的 token 副本
+        let tokenWithoutRefresh = EVEAuthToken(
+            access_token: token.access_token,
+            expires_in: token.expires_in,
+            token_type: token.token_type,
+            refresh_token: ""  // 不在 UserDefaults 中保存 refresh token
+        )
+        
         let characterAuth = CharacterAuth(
             character: character,
-            token: token,
+            token: tokenWithoutRefresh,  // 使用不包含 refresh token 的副本
             addedDate: Date(),
             lastTokenUpdateTime: Date()
         )
@@ -766,7 +796,7 @@ class EVELogin {
                 let originalAddedDate = characters[index].addedDate
                 characters[index] = CharacterAuth(
                     character: character,
-                    token: token,
+                    token: tokenWithoutRefresh,  // 使用不包含 refresh token 的副本
                     addedDate: originalAddedDate,
                     lastTokenUpdateTime: Date()
                 )
@@ -787,7 +817,7 @@ class EVELogin {
             // 更新 TokenManager 的缓存
             Task {
                 let tokenCache = TokenManager.CachedToken(
-                    token: token,
+                    token: token,  // 使用完整的 token（包含 refresh token）
                     expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in))
                 )
                 await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
@@ -948,11 +978,11 @@ class EVELogin {
     }
     
     // 刷新令牌
-    func refreshToken(refreshToken: String, force: Bool = false) async throws -> EVEAuthToken {
+    func refreshToken(characterId: Int, refreshToken: String? = nil, force: Bool = false) async throws -> EVEAuthToken {
         // 如果不是强制刷新，检查上次更新时间
         if !force {
             if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
-               let character = characters.first(where: { $0.token.refresh_token == refreshToken }),
+               let character = characters.first(where: { $0.character.CharacterID == characterId }),
                !character.shouldUpdateToken() {
                 // 如果距离上次更新时间不足5分钟，直接返回当前令牌
                 Logger.info("EVELogin: 跳过\(character.character.CharacterName) 令牌刷新，距离上次更新时间不足5分钟")
@@ -965,23 +995,53 @@ class EVELogin {
             throw NetworkError.invalidData
         }
         
+        Logger.info("EVELogin: 开始刷新令牌 - 角色ID: \(characterId)")
+        
+        // 从 SecureStorage 获取 refresh token
+        let storedRefreshToken: String
+        if let providedToken = refreshToken, !providedToken.isEmpty {
+            Logger.info("EVELogin: 使用提供的 refresh token")
+            storedRefreshToken = providedToken
+        } else {
+            Logger.info("EVELogin: 提供的 token 为空或无效，尝试从 SecureStorage 获取 refresh token")
+            guard let token = try? SecureStorage.shared.loadToken(for: characterId) else {
+                Logger.error("EVELogin: 无法从 SecureStorage 获取 refresh token - 角色ID: \(characterId)")
+                throw NetworkError.authenticationError("No refresh token found")
+            }
+            storedRefreshToken = token
+            Logger.info("EVELogin: 成功从 SecureStorage 获取 refresh token")
+        }
+        
+        // 检查最终使用的 token 是否有效
+        guard !storedRefreshToken.isEmpty else {
+            Logger.error("EVELogin: refresh token 为空 - 角色ID: \(characterId)")
+            throw NetworkError.authenticationError("Empty refresh token")
+        }
+        
+        Logger.info("EVELogin: 使用的 refresh token 前缀: \(String(storedRefreshToken.prefix(10)))...")
+        
         var request = URLRequest(url: URL(string: config.urls.token)!)
         request.httpMethod = "POST"
         
-        let authString = "\(config.clientId):\(config.clientSecret)"
-        let authData = authString.data(using: .utf8)!.base64EncodedString()
-        request.setValue("Basic \(authData)", forHTTPHeaderField: "Authorization")
+        // 设置请求头
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("login.eveonline.com", forHTTPHeaderField: "Host")
         
+        // 构建请求体参数
         let bodyParams = [
             "grant_type": "refresh_token",
-            "refresh_token": refreshToken
+            "refresh_token": storedRefreshToken,
+            "client_id": config.clientId
         ]
         
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyParams
+        let bodyString = bodyParams
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: "&")
-            .data(using: .utf8)
+        request.httpBody = bodyString.data(using: .utf8)
+        
+        // 打印请求信息（注意不要打印完整的敏感信息）
+        Logger.info("EVELogin: 刷新令牌请求 URL: \(config.urls.token)")
+        Logger.info("EVELogin: 请求体: grant_type=refresh_token&refresh_token=\(String(storedRefreshToken.prefix(10)))...&client_id=\(config.clientId)")
         
         let (data, response) = try await session.data(for: request)
         
@@ -991,25 +1051,22 @@ class EVELogin {
             
             // 如果状态码不是 200，记录详细错误信息
             if httpResponse.statusCode != 200 {
-                Logger.error("EVELogin: 刷新令牌失败，状态码: \(httpResponse.statusCode)")
                 if let responseString = String(data: data, encoding: .utf8) {
-                    Logger.error("EVELogin: 错误响应体: \(responseString)")
-                }
-                // 记录请求头信息（排除敏感信息）
-                if let headers = httpResponse.allHeaderFields as? [String: String] {
-                    let safeHeaders = headers.filter { !$0.key.lowercased().contains("authorization") }
-                    Logger.error("EVELogin: 响应头: \(safeHeaders)")
+                    Logger.error("EVELogin: 刷新令牌失败 - 角色ID: \(characterId), 响应体: \(responseString)")
+                    Logger.error("EVELogin: 请求头: \(httpResponse.allHeaderFields)")
                 }
                 throw NetworkError.invalidResponse
             }
         }
         
         do {
-            return try JSONDecoder().decode(EVEAuthToken.self, from: data)
+            let newToken = try JSONDecoder().decode(EVEAuthToken.self, from: data)
+            Logger.info("EVELogin: 成功获取新的 token - 角色ID: \(characterId)")
+            return newToken
         } catch {
             // 如果是解码错误，记录原始数据
             if let decodingError = error as? DecodingError {
-                Logger.error("EVELogin: 令牌解码失败: \(decodingError)")
+                Logger.error("EVELogin: 令牌解码失败 - 角色ID: \(characterId), 错误: \(decodingError)")
                 if let responseString = String(data: data, encoding: .utf8) {
                     Logger.error("EVELogin: 无法解码的响应数据: \(responseString)")
                 }

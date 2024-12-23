@@ -222,6 +222,7 @@ struct AccountsView: View {
                             while retryCount < 3 && !tokenRefreshed {
                                 do {
                                     let newToken = try await EVELogin.shared.refreshToken(
+                                        characterId: characterAuth.character.CharacterID,
                                         refreshToken: characterAuth.token.refresh_token,
                                         force: true
                                     )
