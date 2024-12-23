@@ -96,6 +96,51 @@ class SecureStorage {
             throw KeychainError.unhandledError(status: status)
         }
     }
+    
+    // 列出所有有效的 token
+    func listValidTokens() -> [Int] {
+        Logger.info("SecureStorage: 开始检查所有有效的 token")
+        
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecReturnAttributes): true,
+            String(kSecMatchLimit): kSecMatchLimitAll
+        ]
+        
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        
+        if status == errSecItemNotFound {
+            Logger.info("SecureStorage: 未找到任何 token")
+            return []
+        } else if status != errSecSuccess {
+            Logger.error("SecureStorage: 查询 token 失败，错误码: \(status)")
+            return []
+        }
+        
+        guard let items = result as? [[String: Any]] else {
+            Logger.error("SecureStorage: 无法解析查询结果")
+            return []
+        }
+        
+        var validCharacterIds: [Int] = []
+        
+        for item in items {
+            if let account = item[String(kSecAttrAccount)] as? String,
+               account.hasPrefix("token_"),
+               let characterIdStr = account.split(separator: "_").last,
+               let characterId = Int(characterIdStr) {
+                // 检查 token 是否有效
+                if let token = try? loadToken(for: characterId), !token.isEmpty {
+                    validCharacterIds.append(characterId)
+                    Logger.info("SecureStorage: 找到有效的 token - 角色ID: \(characterId)")
+                }
+            }
+        }
+        
+        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 token")
+        return validCharacterIds
+    }
 }
 
 enum KeychainError: Error {
@@ -1169,6 +1214,38 @@ class EVELogin {
             } catch {
                 Logger.error("重置角色 token 状态失败: \(error)")
             }
+        }
+    }
+    
+    // 检查和清理无效的角色
+    func validateCharacters() {
+        Logger.info("EVELogin: 开始验证角色信息")
+        
+        // 获取所有有效的 token
+        let validCharacterIds = SecureStorage.shared.listValidTokens()
+        Logger.info("EVELogin: 找到 \(validCharacterIds.count) 个有效的 token")
+        
+        // 获取当前保存的所有角色
+        var characters = loadCharacters()
+        Logger.info("EVELogin: 当前保存了 \(characters.count) 个角色")
+        
+        // 移除没有有效 token 的角色
+        characters.removeAll { character in
+            let hasValidToken = validCharacterIds.contains(character.character.CharacterID)
+            if !hasValidToken {
+                Logger.info("EVELogin: 移除无效 token 的角色 - \(character.character.CharacterName) (\(character.character.CharacterID))")
+            }
+            return !hasValidToken
+        }
+        
+        // 保存更新后的角色列表
+        do {
+            let encodedData = try JSONEncoder().encode(characters)
+            UserDefaults.standard.set(encodedData, forKey: charactersKey)
+            UserDefaults.standard.synchronize()
+            Logger.info("EVELogin: 成功更新角色列表，保留 \(characters.count) 个有效角色")
+        } catch {
+            Logger.error("EVELogin: 保存更新后的角色列表失败: \(error)")
         }
     }
 }

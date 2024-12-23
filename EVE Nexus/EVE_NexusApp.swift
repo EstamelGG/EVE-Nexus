@@ -70,6 +70,7 @@ struct EVE_NexusApp: App {
 
     init() {
         configureLanguage()
+        validateTokens()
     }
 
     private func configureLanguage() {
@@ -80,6 +81,29 @@ struct EVE_NexusApp: App {
             let systemLanguage = Locale.preferredLanguages.first ?? "en"
             UserDefaults.standard.set([systemLanguage], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
+        }
+    }
+    
+    private func validateTokens() {
+        // 获取所有有效的 token
+        let validCharacterIds = SecureStorage.shared.listValidTokens()
+        Logger.info("App初始化: 找到 \(validCharacterIds.count) 个有效的 refresh token")
+        
+        // 获取当前保存的所有角色
+        let characters = EVELogin.shared.loadCharacters()
+        Logger.info("App初始化: UserDefaults 中保存了 \(characters.count) 个角色")
+        
+        // 打印详细信息
+        for character in characters {
+            let characterId = character.character.CharacterID
+            let hasValidToken = validCharacterIds.contains(characterId)
+            Logger.info("App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidToken ? "有效token" : "无效token")")
+            
+            // 如果没有有效的 token，移除该角色
+            if !hasValidToken {
+                Logger.info("App初始化: 移除无效 token 的角色 - \(character.character.CharacterName) (\(characterId))")
+                EVELogin.shared.removeCharacter(characterId: characterId)
+            }
         }
     }
 
