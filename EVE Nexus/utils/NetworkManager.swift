@@ -12,40 +12,6 @@ class CachedData<T> {
     }
 }
 
-// 缓存策略枚举
-enum CacheStrategy {
-    case none                    // 不使用缓存
-    case memoryOnly             // 仅使用内存缓存
-    case fileOnly               // 仅使用文件缓存
-    case both                   // 同时使用内存和文件缓存
-}
-
-// 资源类型协议
-protocol NetworkResource {
-    var baseURL: String { get }
-    var cacheKey: String { get }
-    var fileName: String { get }
-    var cacheDuration: TimeInterval { get }
-}
-
-// 通用资源请求配置
-struct ResourceRequest<T: Codable> {
-    let resource: NetworkResource
-    let parameters: [String: Any]
-    let cacheStrategy: CacheStrategy
-    let forceRefresh: Bool
-    
-    init(resource: NetworkResource, 
-         parameters: [String: Any] = [:], 
-         cacheStrategy: CacheStrategy = .both,
-         forceRefresh: Bool = false) {
-        self.resource = resource
-        self.parameters = parameters
-        self.cacheStrategy = cacheStrategy
-        self.forceRefresh = forceRefresh
-    }
-}
-
 // 修改类定义，继承自NSObject
 @globalActor actor NetworkManagerActor {
     static let shared = NetworkManagerActor()
@@ -153,7 +119,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     private func clearFileCaches() async {
-        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let staticDataSetPath = paths[0].appendingPathComponent("StaticDataSet")
+        
         do {
             let fileManager = FileManager.default
             let contents = try fileManager.contentsOfDirectory(at: staticDataSetPath, includingPropertiesForKeys: nil)
@@ -254,82 +222,6 @@ extension NetworkManager: NSCacheDelegate {
                 }
             }
         }
-    }
-}
-
-extension NetworkManager {
-    // 缓存信息结构
-    struct CacheInfo {
-        let size: Int64
-        let count: Int
-        let lastModified: Date?
-    }
-    
-    // 获取文件缓存信息
-    func getFileCacheInfo() -> CacheInfo {
-        var totalSize: Int64 = 0
-        var count = 0
-        var lastModified: Date? = nil
-        let fileManager = FileManager.default
-        
-        // 只检查 StaticDataSet 目录
-        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
-        do {
-            let contents = try fileManager.contentsOfDirectory(
-                at: staticDataSetPath,
-                includingPropertiesForKeys: nil,
-                options: [.skipsHiddenFiles]
-            )
-            
-            for url in contents {
-                let filename = url.lastPathComponent
-                // 跳过系统缓存文件和隐藏文件
-                if filename.starts(with: "Cache.db") || filename.starts(with: ".") {
-                    continue
-                }
-                
-                // 如果是目录，递归计算大小
-                var isDirectory: ObjCBool = false
-                if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-                    if isDirectory.boolValue {
-                        if let enumerator = fileManager.enumerator(at: url, 
-                                                                 includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey],
-                                                                 options: [.skipsHiddenFiles]) {
-                            for case let fileURL as URL in enumerator {
-                                if let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path) {
-                                    if let fileSize = attributes[.size] as? Int64 {
-                                        totalSize += fileSize
-                                        count += 1
-                                    }
-                                    if let modificationDate = attributes[.modificationDate] as? Date {
-                                        if lastModified == nil || modificationDate > lastModified! {
-                                            lastModified = modificationDate
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // 是文件，直接获取大小
-                        if let attributes = try? fileManager.attributesOfItem(atPath: url.path) {
-                            if let fileSize = attributes[.size] as? Int64 {
-                                totalSize += fileSize
-                                count += 1
-                            }
-                            if let modificationDate = attributes[.modificationDate] as? Date {
-                                if lastModified == nil || modificationDate > lastModified! {
-                                    lastModified = modificationDate
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch {
-            Logger.error("Error calculating cache size: \(error)")
-        }
-        
-        return CacheInfo(size: totalSize, count: count, lastModified: lastModified)
     }
 }
 
