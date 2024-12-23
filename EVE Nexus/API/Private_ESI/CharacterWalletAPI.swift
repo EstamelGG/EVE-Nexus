@@ -20,17 +20,30 @@ class CharacterWalletAPI {
     
     // 检查缓存是否有效
     private func isCacheValid(_ cache: CacheEntry?) -> Bool {
-        guard let cache = cache else { return false }
-        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
+        guard let cache = cache else { 
+            Logger.info("钱包缓存为空")
+            return false
+        }
+        let timeInterval = Date().timeIntervalSince(cache.timestamp)
+        let isValid = timeInterval < cacheTimeout
+        Logger.info("钱包缓存时间检查 - 缓存时间: \(cache.timestamp), 当前时间: \(Date()), 时间间隔: \(timeInterval)秒, 超时时间: \(cacheTimeout)秒, 是否有效: \(isValid)")
+        return isValid
     }
     
     // 从UserDefaults获取缓存
     private func getDiskCache(characterId: Int) -> CacheEntry? {
         let key = walletCachePrefix + String(characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(CacheEntry.self, from: data) else {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            Logger.info("钱包磁盘缓存不存在 - Key: \(key)")
             return nil
         }
+        
+        guard let cache = try? JSONDecoder().decode(CacheEntry.self, from: data) else {
+            Logger.error("钱包磁盘缓存解码失败 - Key: \(key)")
+            return nil
+        }
+        
+        Logger.info("成功读取钱包磁盘缓存 - Key: \(key), 缓存时间: \(cache.timestamp), 值: \(cache.value)")
         return cache
     }
     
@@ -39,6 +52,9 @@ class CharacterWalletAPI {
         let key = walletCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             UserDefaults.standard.set(encoded, forKey: key)
+            Logger.info("保存钱包缓存到磁盘 - Key: \(key), 缓存时间: \(cache.timestamp), 值: \(cache.value)")
+        } else {
+            Logger.error("保存钱包缓存到磁盘失败 - Key: \(key)")
         }
     }
     
