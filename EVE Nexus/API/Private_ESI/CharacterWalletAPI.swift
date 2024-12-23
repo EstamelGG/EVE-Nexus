@@ -5,7 +5,7 @@ class CharacterWalletAPI {
     
     // 缓存结构
     private struct CacheEntry: Codable {
-        let value: Double
+        let value: String  // 改用字符串存储以保持精度
         let timestamp: Date
     }
     
@@ -57,7 +57,7 @@ class CharacterWalletAPI {
             if let memoryCached = memoryCache[characterId], 
                isCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
-                return memoryCached.value
+                return Double(memoryCached.value) ?? 0.0
             }
             
             // 2. 如果内存缓存不可用，检查磁盘缓存
@@ -66,7 +66,7 @@ class CharacterWalletAPI {
                 Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
                 // 更新内存缓存
                 memoryCache[characterId] = diskCached
-                return diskCached.value
+                return Double(diskCached.value) ?? 0.0
             }
             
             Logger.info("缓存未命中或已过期,需要从服务器获取钱包数据 - 角色ID: \(characterId)")
@@ -84,16 +84,15 @@ class CharacterWalletAPI {
         )
         
         // 将数据转换为字符串
-        guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              let balance = Double(stringValue) else {
+        guard let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) else {
             Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
         }
         
-        Logger.info("ESI响应: 钱包余额 = \(balance) ISK")
+        Logger.info("ESI响应: 钱包余额 = \(stringValue) ISK")
         
-        // 创建新的缓存条目
-        let cacheEntry = CacheEntry(value: balance, timestamp: Date())
+        // 创建新的缓存条目，直接存储字符串值
+        let cacheEntry = CacheEntry(value: stringValue, timestamp: Date())
         
         // 更新内存缓存
         memoryCache[characterId] = cacheEntry
@@ -101,6 +100,7 @@ class CharacterWalletAPI {
         // 更新磁盘缓存
         saveToDiskCache(characterId: characterId, cache: cacheEntry)
         
-        return balance
+        // 返回时才转换为 Double
+        return Double(stringValue) ?? 0.0
     }
 } 
