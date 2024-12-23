@@ -223,7 +223,6 @@ struct AccountsView: View {
                                 do {
                                     let newToken = try await EVELogin.shared.refreshToken(
                                         characterId: characterAuth.character.CharacterID,
-                                        refreshToken: characterAuth.token.refresh_token,
                                         force: true
                                     )
                                     tokenRefreshed = true

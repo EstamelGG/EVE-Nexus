@@ -284,34 +284,12 @@ struct ESIConfig: Codable {
 // 添加角色管理相关的数据结构
 struct CharacterAuth: Codable {
     var character: EVECharacterInfo
-    let token: EVEAuthToken
     let addedDate: Date
     let lastTokenUpdateTime: Date
     
     // 检查是否需要更新令牌
     func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {
         return Date().timeIntervalSince(lastTokenUpdateTime) >= minimumInterval
-    }
-    
-    // 自定义初始化方法
-    init(character: EVECharacterInfo, token: EVEAuthToken, addedDate: Date, lastTokenUpdateTime: Date) {
-        self.character = character
-        // 创建一个新的 token，但不包含 refresh_token
-        self.token = EVEAuthToken(
-            access_token: token.access_token,
-            expires_in: token.expires_in,
-            token_type: token.token_type,
-            refresh_token: ""  // 不存储 refresh_token
-        )
-        self.addedDate = addedDate
-        self.lastTokenUpdateTime = lastTokenUpdateTime
-    }
-    
-    private enum CodingKeys: String, CodingKey {
-        case character
-        case token
-        case addedDate
-        case lastTokenUpdateTime
     }
 }
 
@@ -772,18 +750,8 @@ class EVELogin {
         Logger.info("EVELogin: Refresh Token 前缀: \(String(token.refresh_token.prefix(10)))...")
         
         let defaults = UserDefaults.standard
-        
-        // 创建一个不包含 refresh token 的 token 副本
-        let tokenWithoutRefresh = EVEAuthToken(
-            access_token: token.access_token,
-            expires_in: token.expires_in,
-            token_type: token.token_type,
-            refresh_token: ""  // 不在 UserDefaults 中保存 refresh token
-        )
-        
         let characterAuth = CharacterAuth(
             character: character,
-            token: tokenWithoutRefresh,  // 使用不包含 refresh token 的副本
             addedDate: Date(),
             lastTokenUpdateTime: Date()
         )
@@ -796,7 +764,6 @@ class EVELogin {
                 let originalAddedDate = characters[index].addedDate
                 characters[index] = CharacterAuth(
                     character: character,
-                    token: tokenWithoutRefresh,  // 使用不包含 refresh token 的副本
                     addedDate: originalAddedDate,
                     lastTokenUpdateTime: Date()
                 )
@@ -806,7 +773,7 @@ class EVELogin {
                 Logger.info("EVELogin: 添加新角色信息")
             }
             
-            // 保存到 UserDefaults（不包含 refresh token）
+            // 保存到 UserDefaults（只包含角色信息）
             let encodedData = try JSONEncoder().encode(characters)
             defaults.set(encodedData, forKey: charactersKey)
             Logger.info("EVELogin: 角色信息已保存到 UserDefaults")
@@ -817,7 +784,7 @@ class EVELogin {
             // 更新 TokenManager 的缓存
             Task {
                 let tokenCache = TokenManager.CachedToken(
-                    token: token,  // 使用完整的 token（包含 refresh token）
+                    token: token,  // 使用完整的 token
                     expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in))
                 )
                 await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
@@ -835,18 +802,24 @@ class EVELogin {
     
     // 加载保存的认证信息
     func loadAuthInfo() -> (token: EVEAuthToken?, character: EVECharacterInfo?) {
-        let _ = UserDefaults.standard
-        var token: EVEAuthToken?
-        var character: EVECharacterInfo?
-        
-        // 安全地加载角色数据
         let characters = loadCharacters()
-        if let lastCharacter = characters.last {
-            token = lastCharacter.token
-            character = lastCharacter.character
+        guard let lastCharacter = characters.last else {
+            return (token: nil, character: nil)
         }
         
-        return (token: token, character: character)
+        // 从 SecureStorage 获取 token
+        var token: EVEAuthToken?
+        if let refreshToken = try? SecureStorage.shared.loadToken(for: lastCharacter.character.CharacterID) {
+            // 创建一个临时的 token 对象
+            token = EVEAuthToken(
+                access_token: "",  // access token 会在需要时刷新
+                expires_in: 0,     // 过期时间会在刷新时更新
+                token_type: "Bearer",
+                refresh_token: refreshToken
+            )
+        }
+        
+        return (token: token, character: lastCharacter.character)
     }
     
     // 加载所有角色信息
@@ -984,9 +957,16 @@ class EVELogin {
             if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
                let character = characters.first(where: { $0.character.CharacterID == characterId }),
                !character.shouldUpdateToken() {
-                // 如果距离上次更新时间不足5分钟，直接返回当前令牌
-                Logger.info("EVELogin: 跳过\(character.character.CharacterName) 令牌刷新，距离上次更新时间不足5分钟")
-                return character.token
+                // 如果距离上次更新时间不足5分钟，尝试从 SecureStorage 获取 token
+                if let storedToken = try? SecureStorage.shared.loadToken(for: characterId) {
+                    // 创建一个临时的 token 对象
+                    return EVEAuthToken(
+                        access_token: "",  // access token 会在需要时刷新
+                        expires_in: 0,     // 过期时间会在刷新时更新
+                        token_type: "Bearer",
+                        refresh_token: storedToken
+                    )
+                }
             }
         }
         
@@ -1135,7 +1115,6 @@ class EVELogin {
             updatedCharacter.tokenExpired = true
             characters[index] = CharacterAuth(
                 character: updatedCharacter,
-                token: characters[index].token,
                 addedDate: characters[index].addedDate,
                 lastTokenUpdateTime: characters[index].lastTokenUpdateTime
             )
@@ -1168,7 +1147,6 @@ class EVELogin {
             updatedCharacter.tokenExpired = false
             characters[index] = CharacterAuth(
                 character: updatedCharacter,
-                token: characters[index].token,
                 addedDate: characters[index].addedDate,
                 lastTokenUpdateTime: characters[index].lastTokenUpdateTime
             )
