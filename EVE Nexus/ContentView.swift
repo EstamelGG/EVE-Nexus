@@ -633,7 +633,7 @@ struct ContentView: View {
                             forceRefresh: false
                         ) {
                             selectedCharacter?.walletBalance = balance
-                            Logger.info("从缓存加载钱包余额成功")
+                            Logger.info("从缓存加载钱包余额成功 - \(character.CharacterName) (ID: \(character.CharacterID))")
                         }
                         
                         if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
@@ -649,7 +649,7 @@ struct ContentView: View {
                                         progress: currentSkill.progress,
                                         remainingTime: currentSkill.remainingTime
                                     )
-                                    Logger.info("从缓存加载技能队列成功")
+                                    Logger.info("从缓存加载技能队列成功 - \(character.CharacterName) (ID: \(character.CharacterID))")
                                 }
                             } else if let firstSkill = queue.first {
                                 if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
@@ -660,7 +660,7 @@ struct ContentView: View {
                                         progress: firstSkill.progress,
                                         remainingTime: nil
                                     )
-                                    Logger.info("从缓存加载技能队列成功")
+                                    Logger.info("从缓存加载技能队列成功 - \(character.CharacterName) (ID: \(character.CharacterID))")
                                 }
                             }
                         }
@@ -1074,7 +1074,7 @@ struct ContentView: View {
                                 )
                             }
                         }
-                        Logger.info("加载技能队列成功")
+                        Logger.info("加载技能队列成功 - \(savedCharacter.character.CharacterName) (ID: \(savedCharacter.character.CharacterID))")
                     }
                     
                     // 强制更新表格显示
