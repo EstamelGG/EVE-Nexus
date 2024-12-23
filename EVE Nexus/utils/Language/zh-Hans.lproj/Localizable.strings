@@ -233,7 +233,7 @@
 "Character_in_station" = "空间站中";
 "Character_in_structure" = "建筑物中";
 "Character_in_space" = "在太空中";
-
+"Main_Setting_sovcam_No_Data" = "未找到入侵事件";
 // 日志
 "Main_Setting_Logs" = "应用日志";
 "Main_Setting_Logs_Detail" = "查看应用运行日志";

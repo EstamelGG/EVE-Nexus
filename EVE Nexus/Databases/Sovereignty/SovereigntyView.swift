@@ -225,7 +225,7 @@ struct SovereigntyView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
-                Text("Main_Setting_Static_Resource_No_Data")
+                Text("Main_Setting_sovcam_No_Data")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
             } else {

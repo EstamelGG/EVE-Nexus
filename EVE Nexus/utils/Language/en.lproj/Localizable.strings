@@ -203,7 +203,7 @@
 "Main_Sovereignty_Time_Days" = "%dd %dh";
 "Main_Sovereignty_Time_Hours" = "%dh %dmin";
 "Main_Sovereignty_Time_Minutes" = "%dmin";
-
+"Main_Setting_sovcam_No_Data" = "Sovereignty Campaigns not found";
 "Main_Market_Select_Region" = "Select Region";
 "Main_Market_Pinned_Regions" = "Pinned Regions";
 "Main_Market_Available_Regions" = "Available Regions";
