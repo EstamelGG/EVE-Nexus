@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且��缓存的像，直接返回
+            // 如果不是强制刷新且缓存的像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -479,9 +479,9 @@ class EVELogin {
     }
     
     // 步骤2：保存基本认证信息
-    private func saveInitialAuth(token: EVEAuthToken, character: EVECharacterInfo) {
+    private func saveInitialAuth(token: EVEAuthToken, character: EVECharacterInfo) async throws {
         Logger.info("EVELogin: 开始保存初始认证信息...")
-        saveAuthInfo(token: token, character: character)
+        try await saveAuthInfo(token: token, character: character)
         UserDefaults.standard.synchronize()
         Logger.info("EVELogin: 初始认证信息保存完成")
     }
@@ -574,41 +574,17 @@ class EVELogin {
     
     // 主处理函数 - 第一阶段：基本认证
     func processLogin(url: URL) async throws -> EVECharacterInfo {
-        do {
-            // 步骤1：处理授权回调，获取token和基本角色信息
-            let (token, character) = try await processAuthCallback(url: url)
-            
-            // 步骤2：保存初始认证信息
-            saveInitialAuth(token: token, character: character)
-            
-            // 验证保存是否成功
-            guard getCharacterByID(character.CharacterID) != nil else {
-                Logger.error("EVELogin: 初始认证信息保存失败")
-                throw NetworkError.invalidData
-            }
-            Logger.info("EVELogin: 验证初始认证信息保存成功")
-            
-            // 启动后台任务加载详细信息
-            Task {
-                do {
-                    let updatedCharacter = try await loadDetailedInfo(token: token, character: character)
-                    NotificationCenter.default.post(
-                        name: Notification.Name("CharacterDetailsUpdated"),
-                        object: nil,
-                        userInfo: ["character": updatedCharacter]
-                    )
-                } catch {
-                    Logger.error("EVELogin: 加载详细信息失败: \(error)")
-                }
-            }
-            
-            // 立即返回基本角色信息，让浏览器可以关闭
-            return character
-            
-        } catch {
-            Logger.error("EVELogin: 处理授权失败: \(error)")
-            throw error
-        }
+        Logger.info("EVELogin: 开始处理登录流程...")
+        
+        // 1. 处理授权回调，获取 token 和角色信息
+        let (token, character) = try await processAuthCallback(url: url)
+        Logger.info("EVELogin: 获取到初始 token 和角色信息")
+        
+        // 2. 保存认证信息（等待完成）
+        try await saveAuthInfo(token: token, character: character)
+        Logger.info("EVELogin: 认证信息保存完成")
+        
+        return character
     }
     
     // 第二阶段：加载详细信息
@@ -634,7 +610,7 @@ class EVELogin {
         
         // 步骤5：保存更新后的信息
         Logger.info("EVELogin: 保存更新后的角色信息...")
-        saveAuthInfo(token: token, character: updatedCharacter)
+        try await saveAuthInfo(token: token, character: updatedCharacter)
         UserDefaults.standard.synchronize()
         
         // 步骤6：验证最终保存
@@ -658,7 +634,7 @@ class EVELogin {
         
         do {
             let newToken = try await refreshToken(characterId: character.CharacterID, refreshToken: token.refresh_token)
-            saveAuthInfo(token: newToken, character: character)
+            try await saveAuthInfo(token: newToken, character: character)
             Logger.info("EVELogin: 后台刷新令牌成功")
         } catch {
             Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
@@ -796,7 +772,7 @@ class EVELogin {
     }
     
     // 保存认证信息
-    func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) {
+    func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws {
         Logger.info("EVELogin: 开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
         Logger.info("EVELogin: Access Token 前缀: \(String(token.access_token.prefix(10)))...")
         Logger.info("EVELogin: Refresh Token 前缀: \(String(token.refresh_token.prefix(10)))...")
@@ -832,24 +808,23 @@ class EVELogin {
             
             // 保存 refresh token 到 SecureStorage
             try SecureStorage.shared.saveToken(token.refresh_token, for: character.CharacterID)
+            Logger.info("EVELogin: Refresh token 已保存到 SecureStorage")
+            
+            // 生成7-14天的随机间隔
+            let randomDays = Int.random(in: 7...14)
+            let nextRefreshInterval = TimeInterval(randomDays * 24 * 60 * 60)
+            let nextRefreshTime = Date().addingTimeInterval(nextRefreshInterval)
+            Logger.info("EVELogin: 设置下次刷新时间为 \(nextRefreshTime.formatted()) (间隔\(randomDays)天) - 角色ID: \(character.CharacterID)")
             
             // 更新 TokenManager 的缓存
-            Task {
-                // 生成7-14天的随机间隔
-                let randomDays = Int.random(in: 7...14)
-                let nextRefreshInterval = TimeInterval(randomDays * 24 * 60 * 60)
-                let nextRefreshTime = Date().addingTimeInterval(nextRefreshInterval)
-                Logger.info("EVELogin: 设置下次刷新时间为 \(nextRefreshTime.formatted()) (间隔\(randomDays)天) - 角色ID: \(character.CharacterID)")
-                
-                let tokenCache = TokenManager.CachedToken(
-                    token: token,
-                    expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in)),
-                    lastRefreshTime: Date(),
-                    nextRefreshTime: nextRefreshTime
-                )
-                await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
-                Logger.info("EVELogin: TokenManager 缓存已更新")
-            }
+            let tokenCache = TokenManager.CachedToken(
+                token: token,
+                expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in)),
+                lastRefreshTime: Date(),
+                nextRefreshTime: nextRefreshTime
+            )
+            await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
+            Logger.info("EVELogin: TokenManager 缓存已更新")
             
             // 强制同步到磁盘
             defaults.synchronize()
@@ -857,6 +832,7 @@ class EVELogin {
             Logger.info("EVELogin: 保存角色认证信息完成 - \(character.CharacterName) (\(character.CharacterID))")
         } catch {
             Logger.error("EVELogin: 保存角色认证信息失败: \(error)")
+            throw error
         }
     }
     

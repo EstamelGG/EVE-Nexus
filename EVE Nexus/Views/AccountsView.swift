@@ -357,9 +357,12 @@ struct AccountsView: View {
                                     await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
                                     
                                     // 保存最新的角色信息到数据库
-                                    await updateUI {
-                                        if let updatedCharacter = self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                            EVELogin.shared.saveAuthInfo(token: newToken, character: updatedCharacter)
+                                    let updatedCharacter = await self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID })
+                                    if let character = updatedCharacter {
+                                        do {
+                                            try await EVELogin.shared.saveAuthInfo(token: newToken, character: character)
+                                        } catch {
+                                            Logger.error("保存角色信息失败: \(error)")
                                         }
                                     }
                                     
