@@ -587,11 +587,30 @@ struct ContentView: View {
     
     // 添加重置角色信息的方法
     private func resetCharacterInfo() {
+        if let character = selectedCharacter {
+            Logger.info("重置角色信息显示 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+        }
+        
+        // 重置所有角色相关信息
         selectedCharacter?.totalSkillPoints = nil
         selectedCharacter?.unallocatedSkillPoints = nil
         selectedCharacter?.walletBalance = nil
         selectedCharacter?.skillQueueLength = nil
         selectedCharacter?.currentSkill = nil
+        selectedCharacter?.locationStatus = nil
+        selectedCharacter?.location = nil
+        
+        // 重置军团和联盟信息
+        corporationInfo = nil
+        corporationLogo = nil
+        allianceInfo = nil
+        allianceLogo = nil
+        
+        // 重置状态标志
+        isRefreshing = false
+        tokenExpired = false
+        
+        Logger.info("角色信息显示已重置")
     }
     
     var body: some View {
@@ -669,13 +688,21 @@ struct ContentView: View {
                 AccountsView(databaseManager: databaseManager) { character, portrait in
                     // 在选择新角色之前，先重置当前显示的信息
                     resetCharacterInfo()
-                    // 更新选中的角色
+                    
+                    // 更新选中的角色和头像
                     selectedCharacter = character
                     selectedCharacterPortrait = portrait
                     currentCharacterId = character.CharacterID
+                    
+                    // 立即刷新表格显示，这样会显示 "-"
+                    withAnimation {
+                        tables = generateTables()
+                    }
+                    
                     // 保存选择
                     UserDefaults.standard.set(character.CharacterID, forKey: "selectedCharacterId")
-                    // 刷新数据
+                    
+                    // 异步加载新数据
                     Task {
                         await refreshCharacterInfo()
                     }
