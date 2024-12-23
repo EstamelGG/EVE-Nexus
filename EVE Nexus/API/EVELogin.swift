@@ -886,7 +886,7 @@ class EVELogin {
     func removeCharacter(characterId: Int) {
         let defaults = UserDefaults.standard
         
-        // 从 UserDefaults 中除角色信息
+        // 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
@@ -912,6 +912,16 @@ class EVELogin {
             if characters.isEmpty {
                 defaults.removeObject(forKey: "TokenExpirationDate")
                 Logger.info("EVELogin: 已清除令牌过期时间")
+            }
+            
+            // 清除 SecureStorage 中的 token
+            try SecureStorage.shared.deleteToken(for: characterId)
+            Logger.info("EVELogin: 已从 SecureStorage 中移除角色 token")
+            
+            // 清除 TokenManager 中的缓存
+            Task {
+                await TokenManager.shared.clearToken(for: characterId)
+                Logger.info("EVELogin: 已清除 TokenManager 缓存")
             }
             
             // 同步 UserDefaults 确保数据立即保存

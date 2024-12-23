@@ -146,13 +146,30 @@ struct LoginButtonView: View {
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
-                        .overlay(
-                            tokenExpired ? Circle()
-                                .stroke(Color.red, lineWidth: 3) : nil
-                        )
                     if isRefreshing {
+                        Circle()
+                            .fill(Color.black.opacity(0.6))
+                            .frame(width: 64, height: 64)
+                        
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.8)
+                    } else if tokenExpired {
+                        // Token过期的灰色蒙版和感叹号
+                        Circle()
+                            .fill(Color.black.opacity(0.4))
+                            .frame(width: 64, height: 64)
+                        
+                        ZStack {
+                            // 红色边框三角形
+                            Image(systemName: "triangle")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                            
+                            // 红色感叹号
+                            Image(systemName: "exclamationmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.red)
+                        }
                     }
                 }
                 .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
