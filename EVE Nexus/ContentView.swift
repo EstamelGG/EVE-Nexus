@@ -478,10 +478,13 @@ struct ContentView: View {
     private func refreshCharacterInfo() async {
         guard let character = selectedCharacter else { return }
         
+        Logger.info("开始强制刷新角色信息 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+        
         do {
             // 获取技能信息
             if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                characterId: character.CharacterID
+                characterId: character.CharacterID,
+                forceRefresh: true
             ) {
                 // 保存到缓存
                 if let encodedSkills = try? JSONEncoder().encode(skills) {
@@ -491,31 +494,26 @@ struct ContentView: View {
                 await MainActor.run {
                     selectedCharacter?.totalSkillPoints = skills.total_sp
                     selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
-                    // 强制更新表格显示
-                    tables = generateTables()
                 }
+                Logger.info("强制刷新技能信息成功 - 总技能点: \(skills.total_sp), 未分配技能点: \(skills.unallocated_sp)")
             }
             
             // 获取钱包余额
             if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                characterId: character.CharacterID
+                characterId: character.CharacterID,
+                forceRefresh: true
             ) {
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
-                    // 强制更新表格显示
-                    tables = generateTables()
                 }
+                Logger.info("强制刷新钱包余额成功 - 余额: \(FormatUtil.formatISK(balance))")
             }
             
             // 获取技能队列
             if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                characterId: character.CharacterID
+                characterId: character.CharacterID,
+                forceRefresh: true
             ) {
-                // 保存到缓存
-                if let encodedQueue = try? JSONEncoder().encode(queue) {
-                    UserDefaults.standard.set(encodedQueue, forKey: "character_skill_queue_\(character.CharacterID)")
-                }
-                
                 await MainActor.run {
                     // 更新当前技能信息
                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
@@ -527,6 +525,7 @@ struct ContentView: View {
                                 progress: currentSkill.progress,
                                 remainingTime: currentSkill.remainingTime
                             )
+                            Logger.info("强制刷新技能队列成功 - 当前训练: \(skillName) 等级\(currentSkill.skillLevel)")
                         }
                     } else if let firstSkill = queue.first {
                         if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
@@ -537,12 +536,21 @@ struct ContentView: View {
                                 progress: firstSkill.progress,
                                 remainingTime: nil
                             )
+                            Logger.info("强制刷新技能队列成功 - 队列中第一个技能: \(skillName) 等级\(firstSkill.skillLevel)")
                         }
+                    } else {
+                        Logger.info("强制刷新技能队列成功 - 队列为空")
                     }
-                    // 强制更新表格显示
-                    tables = generateTables()
                 }
             }
+            
+            // 强制更新表格显示
+            await MainActor.run {
+                tables = generateTables()
+            }
+            Logger.info("角色信息强制刷新完成")
+        } catch {
+            Logger.error("强制刷新角色信息失败: \(error)")
         }
     }
     
