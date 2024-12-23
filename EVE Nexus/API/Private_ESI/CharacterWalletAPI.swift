@@ -22,9 +22,11 @@ class CharacterWalletAPI {
     }
     
     // 获取钱包余额
-    func getWalletBalance(characterId: Int) async throws -> Double {
+    func getWalletBalance(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
         // 检查缓存
-        if let cachedEntry = walletCache[characterId], isCacheValid(cachedEntry) {
+        if !forceRefresh,
+           let cachedEntry = walletCache[characterId], 
+           isCacheValid(cachedEntry) {
             Logger.info("使用缓存的钱包余额数据 - 角色ID: \(characterId)")
             return cachedEntry.value
         }

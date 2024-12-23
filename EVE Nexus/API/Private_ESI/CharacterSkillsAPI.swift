@@ -131,27 +131,41 @@ public struct SkillQueueItem: Codable {
 public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
     
+    // 缓存结构
+    private struct CacheEntry {
+        let value: CharacterSkillsResponse
+        let timestamp: Date
+    }
+    
+    // 缓存字典
+    private var skillsCache: [Int: CacheEntry] = [:]
+    private var skillQueueCache: [Int: (value: [SkillQueueItem], timestamp: Date)] = [:]
+    private let skillsCacheTimeout: TimeInterval = 300 // 5分钟缓存
+    private let queueCacheTimeout: TimeInterval = 1800 // 30分钟缓存
+    
     private init() {}
     
+    // 检查缓存是否有效
+    private func isCacheValid(_ cache: CacheEntry?, timeout: TimeInterval) -> Bool {
+        guard let cache = cache else { return false }
+        return Date().timeIntervalSince(cache.timestamp) < timeout
+    }
+    
+    private func isQueueCacheValid(_ cache: (value: [SkillQueueItem], timestamp: Date)?) -> Bool {
+        guard let cache = cache else { return false }
+        return Date().timeIntervalSince(cache.timestamp) < queueCacheTimeout
+    }
+    
     // 获取角色技能信息
-    public func fetchCharacterSkills(characterId: Int) async throws -> CharacterSkillsResponse {
-        // 检查 UserDefaults 缓存
-        let skillsCacheKey = "character_\(characterId)_skills"
-        let skillsUpdateTimeKey = "character_\(characterId)_skills_update_time"
-        
-        // 如果缓存存在且未过期（5分钟），直接返回缓存数据
-        if let cachedData = UserDefaults.standard.data(forKey: skillsCacheKey),
-           let lastUpdateTime = UserDefaults.standard.object(forKey: skillsUpdateTimeKey) as? Date,
-           Date().timeIntervalSince(lastUpdateTime) < 300 { // 5分钟缓存
-            do {
-                let skills: CharacterSkillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: cachedData)
-                Logger.info("Using cached skills data for character \(characterId)")
-                return skills
-            } catch {
-                Logger.error("Failed to decode cached skills data: \(error)")
-            }
+    public func fetchCharacterSkills(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterSkillsResponse {
+        // 检查缓存
+        if !forceRefresh,
+           let cachedEntry = skillsCache[characterId],
+           isCacheValid(cachedEntry, timeout: skillsCacheTimeout) {
+            Logger.info("使用缓存的技能数据 - 角色ID: \(characterId)")
+            return cachedEntry.value
         }
-
+        
         // 如果没有缓存或缓存已过期，从网络获取
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
         guard let url = URL(string: urlString) else {
@@ -168,10 +182,7 @@ public class CharacterSkillsAPI {
             let skills: CharacterSkillsResponse = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
             
             // 更新缓存
-            if let encodedData = try? JSONEncoder().encode(skills) {
-                UserDefaults.standard.set(encodedData, forKey: skillsCacheKey)
-                UserDefaults.standard.set(Date(), forKey: skillsUpdateTimeKey)
-            }
+            skillsCache[characterId] = CacheEntry(value: skills, timestamp: Date())
             
             return skills
         } catch {
@@ -181,22 +192,13 @@ public class CharacterSkillsAPI {
     }
     
     // 获取技能队列信息
-    public func fetchSkillQueue(characterId: Int) async throws -> [SkillQueueItem] {
-        // 检查 UserDefaults 缓存
-        let queueCacheKey = "character_\(characterId)_skillqueue"
-        let queueUpdateTimeKey = "character_\(characterId)_skillqueue_update_time"
-        
-        // 如果缓存存在且未过期（30分钟），直接返回缓存数据
-        if let cachedData = UserDefaults.standard.data(forKey: queueCacheKey),
-           let lastUpdateTime = UserDefaults.standard.object(forKey: queueUpdateTimeKey) as? Date,
-           Date().timeIntervalSince(lastUpdateTime) < 30 * 60 { // 30 分钟缓存
-            do {
-                let queue: [SkillQueueItem] = try JSONDecoder().decode([SkillQueueItem].self, from: cachedData)
-                Logger.info("使用缓存的技能队列数据 - 角色ID: \(characterId)")
-                return queue
-            } catch {
-                Logger.error("解码缓存的技能队列数据失败: \(error)")
-            }
+    public func fetchSkillQueue(characterId: Int, forceRefresh: Bool = false) async throws -> [SkillQueueItem] {
+        // 检查缓存
+        if !forceRefresh,
+           let cachedEntry = skillQueueCache[characterId],
+           isQueueCacheValid(cachedEntry) {
+            Logger.info("使用缓存的技能队列数据 - 角色ID: \(characterId)")
+            return cachedEntry.value
         }
         
         // 如果没有缓存或缓存已过期，从网络获取
@@ -216,10 +218,7 @@ public class CharacterSkillsAPI {
             let queue: [SkillQueueItem] = try JSONDecoder().decode([SkillQueueItem].self, from: data)
             
             // 更新缓存
-            if let encodedData = try? JSONEncoder().encode(queue) {
-                UserDefaults.standard.set(encodedData, forKey: queueCacheKey)
-                UserDefaults.standard.set(Date(), forKey: queueUpdateTimeKey)
-            }
+            skillQueueCache[characterId] = (value: queue, timestamp: Date())
             
             return queue
         } catch {

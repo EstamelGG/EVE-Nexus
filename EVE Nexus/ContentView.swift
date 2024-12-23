@@ -497,12 +497,9 @@ struct ContentView: View {
             }
             
             // 获取钱包余额
-            if let balance = try? await EVELogin.shared.getCharacterWallet(
+            if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
                 characterId: character.CharacterID
             ) {
-                // 保存到缓存
-                UserDefaults.standard.set(balance, forKey: "character_wallet_\(character.CharacterID)")
-                
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
                     // 强制更新表格显示
@@ -603,6 +600,7 @@ struct ContentView: View {
         Section {
             NavigationLink {
                 AccountsView(databaseManager: databaseManager) { character, portrait in
+                    Logger.info("切换角色: \(character.CharacterName) (ID: \(character.CharacterID))")
                     selectedCharacter = character
                     selectedCharacterPortrait = portrait
                     // 保存当前选中的角色 ID

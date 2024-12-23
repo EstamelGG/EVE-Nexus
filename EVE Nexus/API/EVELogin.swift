@@ -909,6 +909,7 @@ class EVELogin {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: charactersKey)
         defaults.removeObject(forKey: "TokenExpirationDate")
+        defaults.synchronize()
         Logger.info("EVELogin: 清除所有认证信息")
     }
     
@@ -1010,45 +1011,15 @@ class EVELogin {
         let timestamp: Date
     }
     
-    // 通用的ESI数据获取和缓存方法
+    // 通用的ESI数据获取方法
     func fetchAndCacheESIData<T: Codable>(
         characterId: Int,
         dataType: String,
-        cacheKey: String,
-        cacheDuration: TimeInterval = 3600,
-        forceRefresh: Bool = false,
-        fetchData: @escaping (String) async throws -> T
+        fetchData: @escaping () async throws -> T
     ) async throws -> T {
-        let defaults = UserDefaults.standard
-        
-        // 1. 安全地尝试从UserDefaults获取缓存数据
-        if !forceRefresh,
-           let cachedData = defaults.data(forKey: cacheKey) {
-            do {
-                let cached = try JSONDecoder().decode(ESICachedData<T>.self, from: cachedData)
-                if cached.timestamp.addingTimeInterval(cacheDuration) > Date() {
-                    Logger.info("EVELogin: 从UserDefaults获取\(dataType)缓存数据 - 角色ID: \(characterId)")
-                    return cached.data
-                }
-            } catch {
-                Logger.error("EVELogin: UserDefaults中的\(dataType)缓存据损坏，将被删除: \(error)")
-                defaults.removeObject(forKey: cacheKey)
-            }
-        }
-        
-        // 2. 从ESI接口获取新数据
         do {
-            // 使用TokenManager获取有效的token
-            let token = try await TokenManager.shared.getToken(for: characterId)
-            let data = try await fetchData(token.access_token)
-            
-            // 3. 安全地保存数据到缓存
-            let cachedData = ESICachedData(data: data, timestamp: Date())
-            if let encodedData = try? JSONEncoder().encode(cachedData) {
-                defaults.set(encodedData, forKey: cacheKey)
-                Logger.info("EVELogin: 已更新\(dataType)数据缓存 - 角色ID: \(characterId)")
-            }
-            
+            let data = try await fetchData()
+            Logger.info("EVELogin: 成功获取\(dataType)数据 - 角色ID: \(characterId)")
             return data
         } catch {
             Logger.error("EVELogin: 获取\(dataType)数据失败 - 角色ID: \(characterId), 错误: \(error)")
@@ -1056,51 +1027,6 @@ class EVELogin {
                 markTokenExpired(characterId: characterId)
             }
             throw error
-        }
-    }
-    
-    // 获取钱包余额的包装方法
-    func getCharacterWallet(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
-        return try await fetchAndCacheESIData(
-            characterId: characterId,
-            dataType: "wallet",
-            cacheKey: "wallet_\(characterId)",
-            cacheDuration: 300, // 钱包数据缓存5分钟
-            forceRefresh: forceRefresh
-        ) { _ in
-            try await CharacterWalletAPI.shared.getWalletBalance(
-                characterId: characterId
-            )
-        }
-    }
-    
-    // 获取技能信息的包装方法
-    func getCharacterSkills(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterSkillsResponse {
-        return try await fetchAndCacheESIData(
-            characterId: characterId,
-            dataType: "skills",
-            cacheKey: "skills_\(characterId)",
-            cacheDuration: 3600, // 技能数据缓存1小时
-            forceRefresh: forceRefresh
-        ) { _ in
-            try await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                characterId: characterId
-            )
-        }
-    }
-    
-    // 获取位置信息的包装方法
-    func getCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterLocation {
-        return try await fetchAndCacheESIData(
-            characterId: characterId,
-            dataType: "location",
-            cacheKey: "location_\(characterId)",
-            cacheDuration: 60, // 位置数据缓存1分钟
-            forceRefresh: forceRefresh
-        ) { _ in
-            try await CharacterLocationAPI.shared.fetchCharacterLocation(
-                characterId: characterId
-            )
         }
     }
     
