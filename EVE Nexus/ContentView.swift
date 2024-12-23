@@ -475,16 +475,17 @@ struct ContentView: View {
     }
     
     // 添加刷新角色信息的方法
-    private func refreshCharacterInfo() async {
+    private func refreshCharacterInfo(forceRefresh: Bool = false) async {
         guard let character = selectedCharacter else { return }
         
-        Logger.info("开始强制刷新角色信息 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+        let logPrefix = forceRefresh ? "强制刷新" : "加载"
+        Logger.info("\(logPrefix)角色信息 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
         
         do {
             // 获取技能信息
             if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
                 characterId: character.CharacterID,
-                forceRefresh: true
+                forceRefresh: forceRefresh
             ) {
                 // 保存到缓存
                 if let encodedSkills = try? JSONEncoder().encode(skills) {
@@ -495,24 +496,24 @@ struct ContentView: View {
                     selectedCharacter?.totalSkillPoints = skills.total_sp
                     selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
                 }
-                Logger.info("强制刷新技能信息成功 - 总技能点: \(skills.total_sp), 未分配技能点: \(skills.unallocated_sp)")
+                Logger.info("\(logPrefix)技能信息成功 - 总技能点: \(skills.total_sp), 未分配技能点: \(skills.unallocated_sp)")
             }
             
             // 获取钱包余额
             if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
                 characterId: character.CharacterID,
-                forceRefresh: true
+                forceRefresh: forceRefresh
             ) {
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
                 }
-                Logger.info("强制刷新钱包余额成功 - 余额: \(FormatUtil.formatISK(balance))")
+                Logger.info("\(logPrefix)钱包余额成功 - 余额: \(FormatUtil.formatISK(balance))")
             }
             
             // 获取技能队列
             if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
                 characterId: character.CharacterID,
-                forceRefresh: true
+                forceRefresh: forceRefresh
             ) {
                 await MainActor.run {
                     // 更新当前技能信息
@@ -525,7 +526,7 @@ struct ContentView: View {
                                 progress: currentSkill.progress,
                                 remainingTime: currentSkill.remainingTime
                             )
-                            Logger.info("强制刷新技能队列成功 - 当前训练: \(skillName) 等级\(currentSkill.skillLevel)")
+                            Logger.info("\(logPrefix)技能队列成功 - 当前训练: \(skillName) 等级\(currentSkill.skillLevel)")
                         }
                     } else if let firstSkill = queue.first {
                         if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
@@ -536,10 +537,10 @@ struct ContentView: View {
                                 progress: firstSkill.progress,
                                 remainingTime: nil
                             )
-                            Logger.info("强制刷新技能队列成功 - 队列中第一个技能: \(skillName) 等级\(firstSkill.skillLevel)")
+                            Logger.info("\(logPrefix)技能队列成功 - 队列中第一个技能: \(skillName) 等级\(firstSkill.skillLevel)")
                         }
                     } else {
-                        Logger.info("强制刷新技能队列成功 - 队列为空")
+                        Logger.info("\(logPrefix)技能队列成功 - 队列为空")
                     }
                 }
             }
@@ -548,9 +549,9 @@ struct ContentView: View {
             await MainActor.run {
                 tables = generateTables()
             }
-            Logger.info("角色信息强制刷新完成")
+            Logger.info("\(logPrefix)角色信息完成")
         } catch {
-            Logger.error("强制刷新角色信息失败: \(error)")
+            Logger.error("\(logPrefix)角色信息失败: \(error)")
         }
     }
     
@@ -613,9 +614,9 @@ struct ContentView: View {
                     selectedCharacterPortrait = portrait
                     // 保存当前选中的角色 ID
                     currentCharacterId = character.CharacterID
-                    // 立即刷新角色信息
+                    // 加载角色信息（使用缓存）
                     Task {
-                        await refreshCharacterInfo()
+                        await refreshCharacterInfo(forceRefresh: false)
                     }
                 }
             } label: {
@@ -661,9 +662,10 @@ struct ContentView: View {
         // 刷新服务器状态
         await refreshServerStatus()
         
-        // 如果有选中的角色，刷新角色信息
+        // 如果有选中的角色，强制刷新角色信息
         if let character = selectedCharacter {
             await refreshCharacterData(character)
+            await refreshCharacterInfo(forceRefresh: true)
         }
     }
     
