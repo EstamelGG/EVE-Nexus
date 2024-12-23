@@ -164,6 +164,8 @@ public class CharacterSkillsAPI {
            isCacheValid(cachedEntry, timeout: skillsCacheTimeout) {
             Logger.info("使用缓存的技能数据 - 角色ID: \(characterId)")
             return cachedEntry.value
+        } else {
+            Logger.info("缓存未命中或已过期,需要从服务器获取技能数据 - 角色ID: \(characterId)")
         }
         
         // 如果没有缓存或缓存已过期，从网络获取

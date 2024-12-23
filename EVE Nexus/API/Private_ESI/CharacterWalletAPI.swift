@@ -29,6 +29,8 @@ class CharacterWalletAPI {
            isCacheValid(cachedEntry) {
             Logger.info("使用缓存的钱包余额数据 - 角色ID: \(characterId)")
             return cachedEntry.value
+        } else {
+            Logger.info("缓存未命中或已过期,需要从服务器获取钱包数据 - 角色ID: \(characterId)")
         }
         
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/"
