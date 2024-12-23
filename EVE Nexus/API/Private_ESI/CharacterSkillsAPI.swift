@@ -185,6 +185,7 @@ public class CharacterSkillsAPI {
             
             // 更新缓存
             skillsCache[characterId] = CacheEntry(value: skills, timestamp: Date())
+            Logger.info("已更新技能数据缓存 - 角色ID: \(characterId)")
             
             return skills
         } catch {

@@ -168,6 +168,7 @@ struct EVECharacterInfo: Codable {
     var tokenExpired: Bool = false
     var corporationId: Int?
     var allianceId: Int?
+    var skillQueueLength: Int?
     
     struct CurrentSkillInfo: Codable {
         let skillId: Int
@@ -193,6 +194,7 @@ struct EVECharacterInfo: Codable {
         case tokenExpired
         case corporationId
         case allianceId
+        case skillQueueLength
     }
     
     init(from decoder: Decoder) throws {
@@ -212,6 +214,7 @@ struct EVECharacterInfo: Codable {
         tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
+        skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
     }
     
     func encode(to encoder: Encoder) throws {
@@ -231,6 +234,7 @@ struct EVECharacterInfo: Codable {
         try container.encode(tokenExpired, forKey: .tokenExpired)
         try container.encodeIfPresent(corporationId, forKey: .corporationId)
         try container.encodeIfPresent(allianceId, forKey: .allianceId)
+        try container.encodeIfPresent(skillQueueLength, forKey: .skillQueueLength)
     }
 }
 
@@ -1036,7 +1040,7 @@ class EVELogin {
         return characters.first { $0.character.CharacterID == characterId }
     }
     
-    // 在 EVELogin 类中添加更新 token 状态的方法
+    // 在 EVELogin 类��添加更新 token 状态的方法
     func markTokenExpired(characterId: Int) {
         var characters = loadCharacters()
         if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {

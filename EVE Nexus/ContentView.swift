@@ -478,6 +478,15 @@ struct ContentView: View {
     private func refreshCharacterInfo(forceRefresh: Bool = false) async {
         guard let character = selectedCharacter else { return }
         
+        if forceRefresh {
+            Logger.info("强制刷新角色信息 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+            // 重置显示值
+            selectedCharacter?.totalSkillPoints = 0
+            selectedCharacter?.unallocatedSkillPoints = 0
+            selectedCharacter?.walletBalance = 0
+            selectedCharacter?.skillQueueLength = 0
+        }
+        
         let logPrefix = forceRefresh ? "强制刷新" : "加载"
         Logger.info("\(logPrefix)角色信息 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
         
@@ -516,7 +525,7 @@ struct ContentView: View {
                 forceRefresh: forceRefresh
             ) {
                 await MainActor.run {
-                    // 更新当前技能信息
+                    selectedCharacter?.skillQueueLength = queue.count
                     if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                         if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
                             selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
@@ -526,22 +535,16 @@ struct ContentView: View {
                                 progress: currentSkill.progress,
                                 remainingTime: currentSkill.remainingTime
                             )
-                            Logger.info("\(logPrefix)技能队列成功 - 当前训练: \(skillName) 等级\(currentSkill.skillLevel)")
                         }
-                    } else if let firstSkill = queue.first {
-                        if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                            selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                skillId: firstSkill.skill_id,
-                                name: skillName,
-                                level: firstSkill.skillLevel,
-                                progress: firstSkill.progress,
-                                remainingTime: nil
-                            )
-                            Logger.info("\(logPrefix)技能队列成功 - 队列中第一个技能: \(skillName) 等级\(firstSkill.skillLevel)")
-                        }
-                    } else {
-                        Logger.info("\(logPrefix)技能队列成功 - 队列为空")
                     }
+                }
+                
+                // 修改日志输出
+                if let firstSkill = queue.first,
+                   let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                    Logger.info("\(logPrefix)技能队列成功 - 队列中第一个技能: \(skillName) \(firstSkill.skillLevel)")
+                } else {
+                    Logger.info("\(logPrefix)技能队列成功 - 队列为空")
                 }
             }
             
@@ -726,7 +729,7 @@ struct ContentView: View {
         }
     }
     
-    // 刷新服务器状态
+    // 刷新���务器状态
     private func refreshServerStatus() async {
         do {
             serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
@@ -1059,6 +1062,7 @@ struct ContentView: View {
                     if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
                         characterId: currentCharacterId
                     ) {
+                        selectedCharacter?.skillQueueLength = queue.count
                         if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                             if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
                                 selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
@@ -1068,20 +1072,9 @@ struct ContentView: View {
                                     progress: currentSkill.progress,
                                     remainingTime: currentSkill.remainingTime
                                 )
-                                Logger.info("加载技能队列成功")
-                            }
-                        } else if let firstSkill = queue.first {
-                            if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                                selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                    skillId: firstSkill.skill_id,
-                                    name: skillName,
-                                    level: firstSkill.skillLevel,
-                                    progress: firstSkill.progress,
-                                    remainingTime: nil
-                                )
-                                Logger.info("加载技能队列成功")
                             }
                         }
+                        Logger.info("加载技能队列成功")
                     }
                     
                     // 强制更新表格显示
