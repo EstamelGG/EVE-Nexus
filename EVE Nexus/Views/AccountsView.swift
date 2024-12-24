@@ -353,20 +353,20 @@ struct AccountsView: View {
                                                     )
                                                 }
                                             }
-                                        } else if let firstSkill = queue.first {
-                                            // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
-                                            // 同样每次显示时重新获取技能名称
-                                            if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                                                await updateUI {
-                                                    if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                        self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                                            skillId: firstSkill.skill_id,
-                                                            name: skillName,
-                                                            level: firstSkill.skillLevel,
-                                                            progress: firstSkill.progress,
-                                                            remainingTime: nil // 暂停状态
-                                                        )
-                                                    }
+                                        }
+                                    } else if let firstSkill = queue.first {
+                                        // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
+                                        // 同样每次显示时重新获取技能名称
+                                        if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        skillId: firstSkill.skill_id,
+                                                        name: skillName,
+                                                        level: firstSkill.skillLevel,
+                                                        progress: firstSkill.progress,
+                                                        remainingTime: nil // 暂停状态
+                                                    )
                                                 }
                                             }
                                         }
