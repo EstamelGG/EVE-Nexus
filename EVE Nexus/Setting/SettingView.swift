@@ -294,8 +294,7 @@ struct SettingView: View {
         settingGroups = [
             createAppearanceGroup(),
             createOthersGroup(),
-            createCacheGroup(),
-            createStaticResourceGroup()
+            createCacheGroup()
         ]
     }
     
@@ -361,32 +360,6 @@ struct SettingView: View {
                 action: { showingDeleteIconsAlert = true }
             )
         ])
-    }
-    
-    private func createStaticResourceGroup() -> SettingGroup {
-        let items = StaticResourceManager.shared.getAllResourcesStatus().map { resource in
-            var title = resource.name
-            // 只在文件存在时才显示下载时间
-            if resource.exists, let downloadTime = resource.downloadTime {
-                title += " (" + getRelativeTimeString(from: downloadTime) + ")"
-            }
-            
-            if let _ = StaticResourceManager.ResourceType.allCases.first(where: { $0.displayName == resource.name }) {
-                return SettingItem(
-                    title: title,
-                    detail: formatResourceInfo(resource),
-                    action: { }
-                )
-            }
-            
-            return SettingItem(
-                title: title,
-                detail: formatResourceInfo(resource),
-                action: { }
-            )
-        }
-        
-        return SettingGroup(header: NSLocalizedString("Main_Setting_Static_Resources", comment: ""), items: items)
     }
     
     // MARK: - 资源管理
