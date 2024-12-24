@@ -379,7 +379,7 @@ class EVELoginViewModel: ObservableObject {
                 if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
                     characters[index] = updatedCharacter
                 }
-                // 如果是当前���中的角色，也更新characterInfo
+                // 如果是当前选中的角色，也更新characterInfo
                 if characterInfo?.CharacterID == updatedCharacter.CharacterID {
                     characterInfo = updatedCharacter
                 }
@@ -576,11 +576,6 @@ class EVELogin {
         try await saveAuthInfo(token: token, character: character)
         Logger.info("EVELogin: 认证信息保存完成")
         
-        // 等待一段时间，确保 token 完全激活
-        Logger.info("EVELogin: 等待 token 激活")
-        try? await Task.sleep(nanoseconds: 3_000_000_000)  // 等待3秒
-        
-        
         // 3. 加载详细信息
         let updatedCharacter = try await loadDetailedInfo(token: token, character: character)
         Logger.info("EVELogin: 详细信息加载完成")
@@ -774,7 +769,7 @@ class EVELogin {
     
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws {
-        Logger.info("EVELogin: 开始保存���证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
+        Logger.info("EVELogin: 开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
         
         let defaults = UserDefaults.standard
         let characterAuth = CharacterAuth(
