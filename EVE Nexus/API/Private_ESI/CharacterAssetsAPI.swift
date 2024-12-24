@@ -24,7 +24,12 @@ public struct AssetNode {
     func displayAssetTree(level: Int = 0) -> String {
         var result = ""
         let indent = String(repeating: "    ", count: level)
-        result += "\(indent)- TypeID:\(asset.type_id) x\(asset.quantity) [\(asset.location_flag)]"
+        
+        // 添加更详细的信息
+        result += "\(indent)- Location:\(asset.location_id) | TypeID:\(asset.type_id) x\(asset.quantity) | Flag:[\(asset.location_flag)] | Type:[\(asset.location_type)]"
+        if let isCopy = asset.is_blueprint_copy {
+            result += " | Blueprint:\(isCopy ? "Copy" : "Original")"
+        }
         
         for child in children {
             result += "\n" + child.displayAssetTree(level: level + 1)
