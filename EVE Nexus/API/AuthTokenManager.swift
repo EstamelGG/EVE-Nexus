@@ -14,13 +14,13 @@ actor AuthTokenManager: NSObject {
         let authState = try await getOrCreateAuthState(for: characterId)
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
-                if let error = error {
+                if let error {
                     Logger.error("AuthTokenManager: Token获取失败 - 角色ID: \(characterId), 错误: \(error)")
                     continuation.resume(throwing: error)
                     return
                 }
                 
-                guard let accessToken = accessToken else {
+                guard let accessToken else {
                     Logger.error("AuthTokenManager: Token无效 - 角色ID: \(characterId)")
                     continuation.resume(throwing: NetworkError.invalidData)
                     return
@@ -44,22 +44,40 @@ actor AuthTokenManager: NSObject {
             throw NetworkError.authenticationError("No refresh token found")
         }
         
-        // 创建新的 auth state
-        let authState = try await createAuthState(characterId: characterId, refreshToken: refreshToken)
+        let authState = try await createAuthState(refreshToken: refreshToken)
         authStates[characterId] = authState
         return authState
     }
     
-    private func createAuthState(characterId: Int, refreshToken: String) async throws -> OIDAuthState {
-        // 创建 OAuth 配置
+    private func createAuthState(refreshToken: String) async throws -> OIDAuthState {
+        let configuration = try await getOAuthConfiguration()
+        let request = createTokenRequest(with: configuration, refreshToken: refreshToken)
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            OIDAuthorizationService.perform(request) { [weak self] response, error in
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    do {
+                        let authState = try await self.handleTokenResponse(response, error: error, configuration: configuration)
+                        continuation.resume(returning: authState)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getOAuthConfiguration() async throws -> OIDServiceConfiguration {
         let issuer = URL(string: "https://login.eveonline.com")!
+        return try await OIDAuthorizationService.discoverConfiguration(forIssuer: issuer)
+    }
+    
+    private func createTokenRequest(with configuration: OIDServiceConfiguration, refreshToken: String) -> OIDTokenRequest {
         let redirectURI = URL(string: "eve-nexus://oauth/callback")!
         let clientId = EVELogin.shared.config?.clientId ?? ""
         
-        let configuration = try await OIDAuthorizationService.discoverConfiguration(forIssuer: issuer)
-        
-        // 创建 token request
-        let request = OIDTokenRequest(
+        return OIDTokenRequest(
             configuration: configuration,
             grantType: OIDGrantTypeRefreshToken,
             authorizationCode: nil,
@@ -71,48 +89,45 @@ actor AuthTokenManager: NSObject {
             codeVerifier: nil,
             additionalParameters: nil
         )
-        
-        // 执行 token 请求
-        return try await withCheckedThrowingContinuation { continuation in
-            OIDAuthorizationService.perform(request) { response, error in
-                if let error = error {
-                    Logger.error("AuthTokenManager: Token验证失败 - 角色ID: \(characterId), 错误: \(error)")
-                    continuation.resume(throwing: error)
-                    return
-                }
-                
-                guard let response = response else {
-                    Logger.error("AuthTokenManager: Token响应无效 - 角色ID: \(characterId)")
-                    continuation.resume(throwing: NetworkError.invalidData)
-                    return
-                }
-                
-                // 创建模拟的授权请求和响应
-                let authRequest = OIDAuthorizationRequest(
-                    configuration: configuration,
-                    clientId: clientId,
-                    scopes: nil,
-                    redirectURL: redirectURI,
-                    responseType: OIDResponseTypeCode,
-                    additionalParameters: nil
-                )
-                
-                let authResponse = OIDAuthorizationResponse(
-                    request: authRequest,
-                    parameters: [
-                        "code": "refresh_token_flow" as NSString,
-                        "state": "refresh_token_flow" as NSString
-                    ]
-                )
-                
-                // 创建 auth state
-                let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
-                authState.stateChangeDelegate = self
-                
-                Logger.info("AuthTokenManager: Token验证成功 - 角色ID: \(characterId)")
-                continuation.resume(returning: authState)
-            }
+    }
+    
+    private func handleTokenResponse(_ response: OIDTokenResponse?, error: Error?, configuration: OIDServiceConfiguration) async throws -> OIDAuthState {
+        if let error {
+            Logger.error("AuthTokenManager: Token验证失败, 错误: \(error)")
+            throw error
         }
+        
+        guard let response else {
+            Logger.error("AuthTokenManager: Token响应无效")
+            throw NetworkError.invalidData
+        }
+        
+        let redirectURI = URL(string: "eve-nexus://oauth/callback")!
+        let clientId = EVELogin.shared.config?.clientId ?? ""
+        
+        // 创建模拟的授权请求和响应
+        let authRequest = OIDAuthorizationRequest(
+            configuration: configuration,
+            clientId: clientId,
+            scopes: nil,
+            redirectURL: redirectURI,
+            responseType: OIDResponseTypeCode,
+            additionalParameters: nil
+        )
+        
+        let authResponse = OIDAuthorizationResponse(
+            request: authRequest,
+            parameters: [
+                "code": "refresh_token_flow" as NSString,
+                "state": "refresh_token_flow" as NSString
+            ]
+        )
+        
+        let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
+        authState.stateChangeDelegate = self
+        
+        Logger.info("AuthTokenManager: Token验证成功")
+        return authState
     }
     
     func clearTokens(for characterId: Int) async {
@@ -133,13 +148,11 @@ actor AuthTokenManager: NSObject {
 
 extension AuthTokenManager: OIDAuthStateChangeDelegate {
     nonisolated func didChange(_ state: OIDAuthState) {
-        // 当 auth state 发生变化时（比如 token 刷新）会调用此方法
         if let refreshToken = state.refreshToken {
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                guard let self else { return }
                 
-                // 通过 auth state 的 lastTokenResponse 找到对应的 characterId
-                if let characterId = await self.findCharacterId(for: state) {
+                if let characterId = await findCharacterId(for: state) {
                     do {
                         try SecureStorage.shared.saveToken(refreshToken, for: characterId)
                         Logger.info("AuthTokenManager: Auth state 变化，新的 refresh token 已保存 - 角色ID: \(characterId)")
