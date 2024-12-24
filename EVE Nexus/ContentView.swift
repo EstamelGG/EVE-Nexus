@@ -1181,41 +1181,6 @@ struct ContentView: View {
             Logger.info("没有保存的角色ID")
         }
     }
-    
-    func handleCharacterSelection(_ character: EVECharacterInfo, _ portrait: UIImage?) {
-        // 使用传入的已缓存数据
-        selectedCharacter = character
-        if let portrait = portrait {
-            selectedCharacterPortrait = portrait
-        }
-        
-        // 更新选中的角色ID
-        currentCharacterId = character.CharacterID
-        
-        // 保存选择到 UserDefaults
-        UserDefaults.standard.set(character.CharacterID, forKey: "SelectedCharacterID")
-        
-        // 发送角色选择通知
-        NotificationCenter.default.post(
-            name: Notification.Name("CharacterSelected"),
-            object: nil,
-            userInfo: [
-                "characterId": character.CharacterID,
-                "character": character
-            ]
-        )
-        
-        // 如果没有头像数据，才异步加载
-        if portrait == nil {
-            Task {
-                if let newPortrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID) {
-                    await MainActor.run {
-                        selectedCharacterPortrait = newPortrait
-                    }
-                }
-            }
-        }
-    }
 }
 
 #Preview {

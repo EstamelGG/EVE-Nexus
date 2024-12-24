@@ -67,18 +67,7 @@ struct AccountsView: View {
                     } else {
                         ForEach(viewModel.characters, id: \.CharacterID) { character in
                             Button {
-                                // 复用已加载的数据
-                                let portrait = viewModel.characterPortraits[character.CharacterID]
-                                // 保存当前角色的最新状态到 EVELogin
-                                Task {
-                                    if let token = try? await TokenManager.shared.getAccessToken(for: character.CharacterID) {
-                                        try? await EVELogin.shared.saveAuthInfo(
-                                            token: token,
-                                            character: character
-                                        )
-                                    }
-                                }
-                                onCharacterSelect?(character, portrait)
+                                onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
                                 dismiss()
                             } label: {
                                 CharacterRowView(character: character, 
