@@ -810,13 +810,12 @@ class EVELogin {
             Logger.info("EVELogin: Refresh token 已保存到 SecureStorage")
             
             // 更新 TokenManager 的缓存
-            let tokenCache = TokenManager.CachedToken(
+            let expirationDate = Date().addingTimeInterval(TimeInterval(token.expires_in))
+            let cachedToken = TokenManager.CachedToken(
                 token: token,
-                expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in)),
-                lastRefreshTime: Date(),
-                nextRefreshTime: Date().addingTimeInterval(TimeInterval(token.expires_in))
+                expirationDate: expirationDate
             )
-            await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
+            await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: cachedToken)
             Logger.info("EVELogin: TokenManager 缓存已更新")
             
             // 强制同步到磁盘
