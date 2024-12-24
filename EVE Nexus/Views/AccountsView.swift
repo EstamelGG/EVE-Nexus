@@ -51,6 +51,35 @@ struct AccountsView: View {
                             
                             // 加载新角色的头像
                             await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
+                            
+                            // 加载技能队列信息
+                            await updateCharacterSkillQueue(character: character)
+                            
+                            // 保存更新后的角色信息到UserDefaults
+                            if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) }) {
+                                let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
+                                do {
+                                    // 获取 access token
+                                    let accessToken = try await AuthTokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID)
+                                    // 创建 EVEAuthToken 对象
+                                    let token = EVEAuthToken(
+                                        access_token: accessToken,
+                                        expires_in: 1200, // 20分钟过期
+                                        token_type: "Bearer",
+                                        refresh_token: try SecureStorage.shared.loadToken(for: updatedCharacter.CharacterID) ?? ""
+                                    )
+                                    // 保存认证信息
+                                    try await EVELogin.shared.saveAuthInfo(
+                                        token: token,
+                                        character: updatedCharacter
+                                    )
+                                    Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
+                                } catch {
+                                    Logger.error("保存认证信息失败: \(error)")
+                                }
+                            }
+                            
+                            Logger.info("成功刷新角色信息 - \(character.CharacterName)")
                         } catch {
                             viewModel.errorMessage = error.localizedDescription
                             viewModel.showingError = true
@@ -329,51 +358,7 @@ struct AccountsView: View {
                             }()
                             
                             async let skillQueueTask: Void = {
-                                do {
-                                    let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterAuth.character.CharacterID)
-                                    
-                                    await updateUI {
-                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                            self.viewModel.characters[index].skillQueueLength = queue.count
-                                        }
-                                    }
-                                    
-                                    // 查找正在训练的技能
-                                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                                        // 每次显示时重新获取技能名称，确保使用当前语言
-                                        if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                                        skillId: currentSkill.skill_id,
-                                                        name: skillName,
-                                                        level: currentSkill.skillLevel,
-                                                        progress: currentSkill.progress,
-                                                        remainingTime: currentSkill.remainingTime
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } else if let firstSkill = queue.first {
-                                        // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
-                                        // 同样每次显示时重新获取技能名称
-                                        if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                                        skillId: firstSkill.skill_id,
-                                                        name: skillName,
-                                                        level: firstSkill.skillLevel,
-                                                        progress: firstSkill.progress,
-                                                        remainingTime: nil // 暂停状态
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch {
-                                    Logger.error("获取技能队列失败: \(error)")
-                                }
+                                await updateCharacterSkillQueue(character: characterAuth.character)
                             }()
                             
                             // 等待所有任务完成
@@ -471,6 +456,86 @@ struct AccountsView: View {
             return "\(hours)h \(minutes)m"
         } else {
             return "\(minutes)m"
+        }
+    }
+    
+    // 添加技能队列加载方法
+    private func updateCharacterSkillQueue(character: EVECharacterInfo) async {
+        do {
+            let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
+                characterId: character.CharacterID
+            )
+            
+            // 查找正在训练的技能
+            if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                    await updateUI {
+                        var updatedCharacter = character
+                        updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                            skillId: currentSkill.skill_id,
+                            name: skillName,
+                            level: currentSkill.skillLevel,
+                            progress: currentSkill.progress,
+                            remainingTime: currentSkill.remainingTime
+                        )
+                        updatedCharacter.skillQueueLength = queue.count
+                        
+                        // 更新角色列表中的信息
+                        if let index = viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                            viewModel.characters[index] = updatedCharacter
+                        }
+                        
+                        // 如果是当前选中的角色，也更新 characterInfo
+                        if viewModel.characterInfo?.CharacterID == character.CharacterID {
+                            viewModel.characterInfo = updatedCharacter
+                        }
+                    }
+                }
+            } else if let firstSkill = queue.first {
+                // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
+                if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                    await updateUI {
+                        var updatedCharacter = character
+                        updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                            skillId: firstSkill.skill_id,
+                            name: skillName,
+                            level: firstSkill.skillLevel,
+                            progress: firstSkill.progress,
+                            remainingTime: nil // 暂停状态
+                        )
+                        updatedCharacter.skillQueueLength = queue.count
+                        
+                        // 更新角色列表中的信息
+                        if let index = viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                            viewModel.characters[index] = updatedCharacter
+                        }
+                        
+                        // 如果是当前选中的角色，也更新 characterInfo
+                        if viewModel.characterInfo?.CharacterID == character.CharacterID {
+                            viewModel.characterInfo = updatedCharacter
+                        }
+                    }
+                }
+            } else {
+                // 队列为空的情况
+                await updateUI {
+                    var updatedCharacter = character
+                    updatedCharacter.currentSkill = nil
+                    updatedCharacter.skillQueueLength = 0
+                    
+                    // 更新角色列表中的信息
+                    if let index = viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                        viewModel.characters[index] = updatedCharacter
+                    }
+                    
+                    // 如果是当前选中的角色，也更新 characterInfo
+                    if viewModel.characterInfo?.CharacterID == character.CharacterID {
+                        viewModel.characterInfo = updatedCharacter
+                    }
+                }
+            }
+        } catch {
+            Logger.error("获取技能队列失败: \(error)")
         }
     }
 }
