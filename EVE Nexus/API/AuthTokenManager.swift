@@ -5,15 +5,12 @@ actor AuthTokenManager: NSObject {
     static let shared = AuthTokenManager()
     private var authStates: [Int: OIDAuthState] = [:]
     private var refreshTasks: [Int: Task<String, Error>] = [:]
-    private var continuations: [Int: [CheckedContinuation<String, Error>]] = [:]
     
     private override init() {
         super.init()
     }
     
-    // 获取有效的access token
     func getAccessToken(for characterId: Int) async throws -> String {
-        // 如果已经有刷新任务在进行，等待其完成
         if let refreshTask = refreshTasks[characterId] {
             return try await refreshTask.value
         }
@@ -27,9 +24,7 @@ actor AuthTokenManager: NSObject {
                     do {
                         if let error = error as? NSError,
                            error.domain == OIDOAuthTokenErrorDomain {
-                            // Token 过期，尝试刷新
-                            let token = try await self.handleTokenRefresh(for: characterId)
-                            continuation.resume(returning: token)
+                            continuation.resume(returning: try await self.handleTokenRefresh(for: characterId))
                         } else if let error {
                             continuation.resume(throwing: error)
                         } else if let accessToken {
@@ -46,9 +41,7 @@ actor AuthTokenManager: NSObject {
         }
     }
     
-    // 提供一个方法用于重试失败的请求
     func retryWithFreshToken(for characterId: Int) async throws -> String {
-        // 直接等待或触发刷新
         if let refreshTask = refreshTasks[characterId] {
             return try await refreshTask.value
         }
@@ -56,75 +49,38 @@ actor AuthTokenManager: NSObject {
     }
     
     private func handleTokenRefresh(for characterId: Int) async throws -> String {
-        // 如果已经有刷新任务在进行，等待其完成
         if let existingTask = refreshTasks[characterId] {
             return try await existingTask.value
         }
         
-        // 创建新的刷新任务
         let refreshTask = Task<String, Error> { [weak self] in
-            guard let self = self else {
-                throw NetworkError.invalidData
-            }
+            guard let self = self else { throw NetworkError.invalidData }
             
-            do {
-                // 执行刷新
-                let newAuthState = try await self.refreshAuthState(for: characterId)
-                let token = try await self.getAccessTokenFromState(newAuthState)
-                
-                // 在主 actor 上清理任务
-                await self.cleanupRefreshTask(for: characterId)
-                return token
-            } catch {
-                // 在主 actor 上清理任务和通知失败
-                await self.handleRefreshFailure(characterId: characterId, error: error)
-                throw error
-            }
+            let newAuthState = try await self.refreshAuthState(for: characterId)
+            let token = try await self.getAccessTokenFromState(newAuthState)
+            
+            await self.cleanupRefreshTask(for: characterId)
+            return token
         }
         
         refreshTasks[characterId] = refreshTask
-        let token = try await refreshTask.value
-        resumeAllContinuations(for: characterId, with: .success(token))
-        return token
+        return try await refreshTask.value
     }
     
     private func cleanupRefreshTask(for characterId: Int) {
         refreshTasks[characterId] = nil
     }
     
-    private func handleRefreshFailure(characterId: Int, error: Error) {
-        refreshTasks[characterId] = nil
-        resumeAllContinuations(for: characterId, with: .failure(error))
-    }
-    
-    private func resumeAllContinuations(for characterId: Int, with result: Result<String, Error>) {
-        let waitingList = continuations[characterId] ?? []
-        continuations[characterId] = nil
-        
-        for continuation in waitingList {
-            switch result {
-            case .success(let token):
-                continuation.resume(returning: token)
-            case .failure(let error):
-                continuation.resume(throwing: error)
-            }
-        }
-    }
-    
     private func getAccessTokenFromState(_ authState: OIDAuthState) async throws -> String {
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
-                if let error {
+                if let error = error {
                     continuation.resume(throwing: error)
-                    return
-                }
-                
-                guard let accessToken else {
+                } else if let accessToken = accessToken {
+                    continuation.resume(returning: accessToken)
+                } else {
                     continuation.resume(throwing: NetworkError.invalidData)
-                    return
                 }
-                
-                continuation.resume(returning: accessToken)
             }
         }
     }
@@ -143,34 +99,57 @@ actor AuthTokenManager: NSObject {
         if let existingState = authStates[characterId] {
             return existingState
         }
-        
-        guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
-            Logger.error("AuthTokenManager: 无法从 SecureStorage 获取 refresh token - 角色ID: \(characterId)")
-            throw NetworkError.authenticationError("No refresh token found")
-        }
-        
-        let authState = try await createAuthState(refreshToken: refreshToken)
-        authStates[characterId] = authState
-        return authState
+        return try await refreshAuthState(for: characterId)
     }
     
     private func createAuthState(refreshToken: String) async throws -> OIDAuthState {
         let configuration = try await getOAuthConfiguration()
         let request = createTokenRequest(with: configuration, refreshToken: refreshToken)
         
-        return try await withCheckedThrowingContinuation { continuation in
-            OIDAuthorizationService.perform(request) { [weak self] response, error in
-                Task { [weak self] in
-                    guard let self = self else { return }
-                    do {
-                        let authState = try await self.handleTokenResponse(response, error: error, configuration: configuration)
-                        continuation.resume(returning: authState)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
+        let (authState, _): (OIDAuthState, OIDTokenResponse) = try await withCheckedThrowingContinuation { continuation in
+            OIDAuthorizationService.perform(request) { response, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                    return
                 }
+                
+                guard let response = response else {
+                    continuation.resume(throwing: NetworkError.invalidData)
+                    return
+                }
+                
+                let authState = self.createAuthStateFromResponse(response, configuration: configuration)
+                continuation.resume(returning: (authState, response))
             }
         }
+        
+        return authState
+    }
+    
+    private func createAuthStateFromResponse(_ response: OIDTokenResponse, configuration: OIDServiceConfiguration) -> OIDAuthState {
+        let redirectURI = URL(string: "eve-nexus://oauth/callback")!
+        let clientId = EVELogin.shared.config?.clientId ?? ""
+        
+        let authRequest = OIDAuthorizationRequest(
+            configuration: configuration,
+            clientId: clientId,
+            scopes: nil,
+            redirectURL: redirectURI,
+            responseType: OIDResponseTypeCode,
+            additionalParameters: nil
+        )
+        
+        let authResponse = OIDAuthorizationResponse(
+            request: authRequest,
+            parameters: [
+                "code": "refresh_token_flow" as NSString,
+                "state": "refresh_token_flow" as NSString
+            ]
+        )
+        
+        let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
+        authState.stateChangeDelegate = self
+        return authState
     }
     
     private func getOAuthConfiguration() async throws -> OIDServiceConfiguration {
@@ -196,49 +175,8 @@ actor AuthTokenManager: NSObject {
         )
     }
     
-    private func handleTokenResponse(_ response: OIDTokenResponse?, error: Error?, configuration: OIDServiceConfiguration) async throws -> OIDAuthState {
-        if let error {
-            Logger.error("AuthTokenManager: Token验证失败, 错误: \(error)")
-            throw error
-        }
-        
-        guard let response else {
-            Logger.error("AuthTokenManager: Token响应无效")
-            throw NetworkError.invalidData
-        }
-        
-        let redirectURI = URL(string: "eve-nexus://oauth/callback")!
-        let clientId = EVELogin.shared.config?.clientId ?? ""
-        
-        let authRequest = OIDAuthorizationRequest(
-            configuration: configuration,
-            clientId: clientId,
-            scopes: nil,
-            redirectURL: redirectURI,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: nil
-        )
-        
-        let authResponse = OIDAuthorizationResponse(
-            request: authRequest,
-            parameters: [
-                "code": "refresh_token_flow" as NSString,
-                "state": "refresh_token_flow" as NSString
-            ]
-        )
-        
-        let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
-        authState.stateChangeDelegate = self
-        
-        Logger.info("AuthTokenManager: Token验证成功")
-        return authState
-    }
-    
     func clearTokens(for characterId: Int) async {
         Logger.info("AuthTokenManager: 开始清除Token - 角色ID: \(characterId)")
-        
-        // 取消所有等待的请求
-        resumeAllContinuations(for: characterId, with: .failure(NetworkError.authenticationError("Token cleared")))
         
         refreshTasks[characterId]?.cancel()
         refreshTasks[characterId] = nil
@@ -260,7 +198,7 @@ extension AuthTokenManager: OIDAuthStateChangeDelegate {
     nonisolated func didChange(_ state: OIDAuthState) {
         if let refreshToken = state.refreshToken {
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self = self else { return }
                 
                 if let characterId = try? await self.findCharacterId(for: state) {
                     do {
