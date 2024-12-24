@@ -143,17 +143,18 @@ class CharacterAPI {
     func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
         
-        if forceRefresh {
-            // 如果强制刷新，清除该URL的缓存
-            try await ImageCache.default.removeImage(forKey: portraitURL.absoluteString)
-        }
-        
-        let options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = await [
             .cacheOriginalImage,
             .backgroundDecode,
             .scaleFactor(UIScreen.main.scale),
             .transition(.fade(0.2))
         ]
+        
+        // 如果需要强制刷新，添加相应的选项
+        if forceRefresh {
+            options.append(.forceRefresh)
+            options.append(.fromMemoryCacheOrRefresh)
+        }
         
         return try await withCheckedThrowingContinuation { continuation in
             KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
