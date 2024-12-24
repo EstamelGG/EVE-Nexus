@@ -852,7 +852,7 @@ struct ContentView: View {
             // 在后台检查和刷新token
             if let character = selectedCharacter {
                 do {
-                    _ = try await TokenManager.shared.getToken(for: character.CharacterID)
+                    _ = try await TokenManager.shared.getAccessToken(for: character.CharacterID)
                     await MainActor.run {
                         tokenExpired = false
                     }

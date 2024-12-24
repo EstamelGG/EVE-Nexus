@@ -379,7 +379,7 @@ class EVELoginViewModel: ObservableObject {
                 if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
                     characters[index] = updatedCharacter
                 }
-                // 如果是当前选中的角色，也更新characterInfo
+                // 如果是当前���中的角色，也更新characterInfo
                 if characterInfo?.CharacterID == updatedCharacter.CharacterID {
                     characterInfo = updatedCharacter
                 }
@@ -774,7 +774,7 @@ class EVELogin {
     
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws {
-        Logger.info("EVELogin: 开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
+        Logger.info("EVELogin: 开始保存���证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
         
         let defaults = UserDefaults.standard
         let characterAuth = CharacterAuth(
@@ -951,7 +951,7 @@ class EVELogin {
             
             // 清除 TokenManager 中的缓存
             Task {
-                await TokenManager.shared.clearToken(for: characterId)
+                await TokenManager.shared.clearTokens(for: characterId)
                 Logger.info("EVELogin: 已清除 TokenManager 缓存")
             }
             
@@ -1092,7 +1092,7 @@ class EVELogin {
         
         do {
             // 使用TokenManager获取有效的token
-            let token = try await TokenManager.shared.getToken(for: character.CharacterID)
+            let token = try await TokenManager.shared.getAccessToken(for: character.CharacterID)
             return token.access_token
         } catch {
             Logger.error("EVELogin: 获取有效token失败: \(error)")

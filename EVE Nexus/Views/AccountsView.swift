@@ -215,7 +215,7 @@ struct AccountsView: View {
                         
                         do {
                             // 使用 TokenManager 获取有效的 token
-                            _ = try await TokenManager.shared.getToken(for: characterAuth.character.CharacterID)
+                            _ = try await TokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
                             
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {

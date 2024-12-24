@@ -31,7 +31,7 @@ class TokenManager {
             try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
             if !Task.isCancelled {
                 do {
-                    _ = try await getToken(for: characterId)
+                    _ = try await getAccessToken(for: characterId)
                     Logger.info("TokenManager: 定时刷新token成功 - 角色ID: \(characterId)")
                 } catch {
                     Logger.error("TokenManager: 定时刷新token失败 - 角色ID: \(characterId), 错误: \(error)")
@@ -42,28 +42,28 @@ class TokenManager {
         refreshTimers[characterId] = refreshTask
     }
     
-    // 获取有效的token
-    func getToken(for characterId: Int) async throws -> EVEAuthToken {
+    // 获取有效的access token
+    func getAccessToken(for characterId: Int) async throws -> EVEAuthToken {
         // 检查缓存
         if let cachedToken = tokenCache[characterId] {
             if cachedToken.isValid {
                 do {
-                    // 验证token的合法性
-                    if try await validateToken(cachedToken.token) {
-                        Logger.info("TokenManager: 使用缓存的有效 token - 角色ID: \(characterId)")
+                    // 验证access token的合法性
+                    if try await validateAccessToken(cachedToken.token) {
+                        Logger.info("TokenManager: 使用缓存的有效 access token - 角色ID: \(characterId)")
                         return cachedToken.token
                     } else {
-                        // 如果token不合法，清除缓存并重新获取
-                        Logger.info("TokenManager: 缓存的 token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
-                        clearToken(for: characterId)
+                        // 如果access token不合法，清除缓存并重新获取
+                        Logger.info("TokenManager: 缓存的 access token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
+                        clearTokens(for: characterId)
                     }
                 } catch {
-                    Logger.error("TokenManager: Token验证失败 - 角色ID: \(characterId), 错误: \(error)")
-                    clearToken(for: characterId)
+                    Logger.error("TokenManager: Access token验证失败 - 角色ID: \(characterId), 错误: \(error)")
+                    clearTokens(for: characterId)
                 }
             } else {
-                Logger.info("TokenManager: 缓存的 token 已过期 - 角色ID: \(characterId)")
-                clearToken(for: characterId)
+                Logger.info("TokenManager: 缓存的 access token 已过期 - 角色ID: \(characterId)")
+                clearTokens(for: characterId)
             }
         }
         
@@ -93,7 +93,7 @@ class TokenManager {
             } catch {
                 // 如果刷新失败，清除所有相关缓存
                 Logger.error("TokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")
-                clearToken(for: characterId)
+                clearTokens(for: characterId)
                 
                 // 通知EVELogin token已过期
                 EVELogin.shared.markTokenExpired(characterId: characterId)
@@ -124,7 +124,7 @@ class TokenManager {
                 Logger.info("TokenManager: Token已刷新 - 角色ID: \(characterId)")
                 
                 // 验证新token的合法性
-                guard try await validateToken(newToken) else {
+                guard try await validateAccessToken(newToken) else {
                     throw NetworkError.invalidToken("Invalid token format or signature")
                 }
                 
@@ -152,8 +152,8 @@ class TokenManager {
         throw lastError ?? NetworkError.tokenExpired
     }
     
-    // 验证token的合法性
-    private func validateToken(_ token: EVEAuthToken) async throws -> Bool {
+    // 验证access token的合法性
+    private func validateAccessToken(_ token: EVEAuthToken) async throws -> Bool {
         let tokenPrefix = String(token.access_token.prefix(32))
         
         do {
@@ -177,8 +177,8 @@ class TokenManager {
         }
     }
     
-    // 清除指定角色的token缓存
-    func clearToken(for characterId: Int) {
+    // 清除指定角色的所有token缓存
+    func clearTokens(for characterId: Int) {
         Logger.info("TokenManager: 开始清除Token - 角色ID: \(characterId)")
         
         lock.lock()
