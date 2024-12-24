@@ -1119,7 +1119,10 @@ struct ContentView: View {
                 rows: [
                     TableRowNode(
                         title: NSLocalizedString("Main_Assets", comment: ""),
-                        iconName: "assets"
+                        iconName: "assets",
+                        destination: selectedCharacter.map { character in
+                            AnyView(CharacterAssetsView(characterId: character.CharacterID))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market Orders", comment: ""),

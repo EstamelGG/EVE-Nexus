@@ -87,6 +87,7 @@ public enum AssetError: Error {
     case decodingError(Error)
     case invalidURL
     case maxRetriesReached
+    case pageNotFound
 }
 
 // MARK: - Cache Structure
@@ -152,11 +153,25 @@ public class CharacterAssetsAPI {
         
         for attempt in 0..<maxRetries {
             do {
-                return try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+                let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+                return data
+            } catch let error as NetworkError {
+                // 检查是否是404错误
+                if case .httpError(let statusCode) = error, statusCode == 404 {
+                    // 404错误，直接抛出pageNotFound
+                    throw AssetError.pageNotFound
+                }
+                
+                lastError = error
+                Logger.warning("获取资产数据失败 (尝试 \(attempt + 1)/\(maxRetries)): \(error)")
+                if attempt < maxRetries - 1 {
+                    try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt))) * 1_000_000_000) // 指数退避
+                }
             } catch {
                 lastError = error
+                Logger.warning("获取资产数据失败 (尝试 \(attempt + 1)/\(maxRetries)): \(error)")
                 if attempt < maxRetries - 1 {
-                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1秒后重试
+                    try await Task.sleep(nanoseconds: UInt64(pow(2.0, Double(attempt))) * 1_000_000_000) // 指数退避
                 }
             }
         }
@@ -198,20 +213,29 @@ public class CharacterAssetsAPI {
                 
                 let data = try await fetchWithRetry(url: url, characterId: characterId)
                 
-                // 检查是否是错误响应
+                // 尝试解码数据
                 if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
                    errorResponse.error == "Requested page does not exist!" {
-                    break // 获取完所有页面
+                    // 如果是页面不存在的响应，视为正常结束
+                    Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
+                    break
                 }
                 
                 let pageAssets = try JSONDecoder().decode([CharacterAsset].self, from: data)
                 allAssets.append(contentsOf: pageAssets)
                 
+                Logger.info("成功获取第\(page)页资产数据，本页包含\(pageAssets.count)个项目")
+                
                 page += 1
                 try await Task.sleep(nanoseconds: UInt64(requestDelay * 1_000_000_000))
                 
-            } catch AssetError.maxRetriesReached {
-                throw AssetError.incompleteData("获取第\(page)页资产数据失败，为确保数据准确性，请稍后重试")
+            } catch AssetError.pageNotFound {
+                // 正常的页面结束，跳出循环
+                Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
+                break
+            } catch {
+                Logger.error("获取资产数据失败: \(error)")
+                throw AssetError.networkError(error)
             }
         }
         
