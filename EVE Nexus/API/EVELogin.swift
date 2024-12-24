@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且存在缓存的头像，直接返回
+            // 如果不是强制刷新且在缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -975,25 +975,6 @@ class EVELogin {
     
     // 刷新令牌
     func refreshToken(characterId: Int, refreshToken: String? = nil, force: Bool = false) async throws -> EVEAuthToken {
-        // 如果不是强制刷新，检查上次更新时间
-        if !force {
-            if let characters = try? JSONDecoder().decode([CharacterAuth].self, from: UserDefaults.standard.data(forKey: charactersKey) ?? Data()),
-               let character = characters.first(where: { $0.character.CharacterID == characterId }),
-               !character.shouldUpdateToken() {
-                // 如果距离上次更新时间不足5分钟，尝试从 SecureStorage 获取 token
-                if let storedToken = try? SecureStorage.shared.loadToken(for: characterId) {
-                    // 创建一个临时的 token 对象
-                    return EVEAuthToken(
-                        access_token: "",  // access token 会在需要时刷新
-                        expires_in: 0,     // 过期时间会在刷新时更新
-                        token_type: "Bearer",
-                        refresh_token: storedToken
-                    )
-                }
-            }
-        }
-        
-        // 执行令牌刷新
         guard let config = config else {
             throw NetworkError.invalidData
         }
