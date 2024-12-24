@@ -752,53 +752,127 @@ struct ContentView: View {
     
     // 刷新所有数据
     private func refreshAllData(forceRefresh: Bool = false) async {
-        isRefreshing = true
-        defer { isRefreshing = false }
-        
-        Logger.info("开始刷新所有数据...")
-        
-        // 如果有选中的角色，只调用一次刷新
-        if let character = selectedCharacter {
-            Logger.info("开始刷新角色数据 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+        // 启动后台任务处理数据刷新
+        Task {
+            Logger.info("开始刷新所有数据...")
             
-            // 重置显示值
-            resetCharacterInfo()
-            
-            // 刷新所有角色相关数据
-            do {
-                // 获取角色公开信息和头像
-                async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
-                async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
+            // 如果有选中的角色，只调用一次刷新
+            if let character = selectedCharacter {
+                Logger.info("开始刷新角色数据 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
                 
-                let (publicInfo, portrait) = try await (publicInfoTask, portraitTask)
-                
-                await MainActor.run {
-                    selectedCharacterPortrait = portrait
-                }
-                
-                // 并行刷新军团和联盟信息
-                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
-                
-                if let allianceId = publicInfo.alliance_id {
-                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                do {
+                    // 创建一个临时的角色信息副本，用于累积更新
+                    var updatedCharacter = character
                     
-                    // 等待所有任务完成
-                    let (_, _, _, _) = try await (corporationInfoTask, corporationLogoTask, allianceInfoTask, allianceLogoTask)
-                } else {
-                    // 如果没有联盟，只等待军团信息
-                    let (_, _) = try await (corporationInfoTask, corporationLogoTask)
+                    // 获取角色公开信息和头像
+                    async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
+                    async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
+                    
+                    let (publicInfo, portrait) = try await (publicInfoTask, portraitTask)
+                    
+                    // 并行刷新军团和联盟信息
+                    async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+                    async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+                    
+                    var newCorpInfo: CorporationInfo?
+                    var newCorpLogo: UIImage?
+                    var newAllianceInfo: AllianceInfo?
+                    var newAllianceLogo: UIImage?
+                    
+                    if let allianceId = publicInfo.alliance_id {
+                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                        
+                        // 等待所有任务完成
+                        let (corpInfo, corpLogo, allianceInfo, allianceLogo) = try await (corporationInfoTask, corporationLogoTask, allianceInfoTask, allianceLogoTask)
+                        newCorpInfo = corpInfo
+                        newCorpLogo = corpLogo
+                        newAllianceInfo = allianceInfo
+                        newAllianceLogo = allianceLogo
+                    } else {
+                        // 等待军团相关任务完成
+                        let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+                        newCorpInfo = corpInfo
+                        newCorpLogo = corpLogo
+                    }
+                    
+                    // 刷新角色信息
+                    if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                        characterId: character.CharacterID,
+                        forceRefresh: forceRefresh
+                    ) {
+                        updatedCharacter.totalSkillPoints = skills.total_sp
+                        updatedCharacter.unallocatedSkillPoints = skills.unallocated_sp
+                    }
+                    
+                    // 获取钱包余额
+                    if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(characterId: character.CharacterID) {
+                        updatedCharacter.walletBalance = balance
+                    }
+                    
+                    // 获取位置信息
+                    if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(characterId: character.CharacterID) {
+                        updatedCharacter.locationStatus = location.locationStatus
+                        if let locationInfo = await getSolarSystemInfo(
+                            solarSystemId: location.solar_system_id,
+                            databaseManager: databaseManager
+                        ) {
+                            updatedCharacter.location = locationInfo
+                        }
+                    }
+                    
+                    // 获取技能队列
+                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: character.CharacterID) {
+                        updatedCharacter.skillQueueLength = queue.count
+                        if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }),
+                           let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                            updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                skillId: currentSkill.skill_id,
+                                name: skillName,
+                                level: currentSkill.skillLevel,
+                                progress: currentSkill.progress,
+                                remainingTime: currentSkill.remainingTime
+                            )
+                        } else if let firstSkill = queue.first,
+                                  let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                            updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                skillId: firstSkill.skill_id,
+                                name: skillName,
+                                level: firstSkill.skillLevel,
+                                progress: firstSkill.progress,
+                                remainingTime: nil
+                            )
+                        }
+                    }
+                    
+                    // 一次性更新所有UI
+                    await MainActor.run {
+                        selectedCharacter = updatedCharacter
+                        selectedCharacterPortrait = portrait
+                        corporationInfo = newCorpInfo
+                        corporationLogo = newCorpLogo
+                        allianceInfo = newAllianceInfo
+                        allianceLogo = newAllianceLogo
+                        tables = generateTables()
+                    }
+                    
+                } catch {
+                    Logger.error("刷新角色数据失败: \(error)")
                 }
-                
-                // 刷新角色的其他信息（技能、钱包等）
-                await refreshCharacterInfo(forceRefresh: forceRefresh)
-                // 刷新服务器状态
-                await refreshServerStatus()
-                Logger.info("成功完成所有数据刷新")
-            } catch {
-                Logger.error("刷新角色数据失败: \(error)")
             }
+            
+            // 刷新服务器状态
+            do {
+                let status = try await ServerStatusAPI.shared.fetchServerStatus()
+                await MainActor.run {
+                    serverStatus = status
+                    lastStatusUpdateTime = Date()
+                }
+            } catch {
+                Logger.error("Failed to refresh server status: \(error)")
+            }
+            
+            Logger.info("完成所有数据刷新")
         }
     }
     
@@ -819,11 +893,10 @@ struct ContentView: View {
             let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
             
             // 刷新头像
-            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID) {
-                await MainActor.run {
-                    selectedCharacterPortrait = portrait
-                    Logger.info("成功刷新角色头像")
-                }
+            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
+            await MainActor.run {
+                selectedCharacterPortrait = portrait
+                Logger.info("成功刷新角色头像")
             }
             
             // 刷新联盟信息
