@@ -276,11 +276,24 @@ struct AccountsView: View {
             }
         }
         
+        // 创建一个信号量来控制并发数
+        let semaphore = AsyncSemaphore(value: 3) // 限制最大并发数为3
+        
         // 启动后台任务处理数据刷新
         Task {
             await withTaskGroup(of: Void.self) { group in
                 for characterAuth in characterAuths {
+                    // 等待信号量
+                    await semaphore.wait()
+                    
                     group.addTask {
+                        defer {
+                            // 任务完成后释放信号量
+                            Task {
+                                await semaphore.signal()
+                            }
+                        }
+                        
                         // 添加角色到刷新集合
                         await updateUI {
                             refreshingCharacters.insert(characterAuth.character.CharacterID)
@@ -800,5 +813,36 @@ struct CharacterRowView: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .padding(.vertical, 4)
+    }
+}
+
+// 添加 AsyncSemaphore 类来控制并发
+actor AsyncSemaphore {
+    private var value: Int
+    private var waiters: [(CheckedContinuation<Void, Never>)] = []
+    
+    init(value: Int) {
+        self.value = value
+    }
+    
+    func wait() async {
+        if value > 0 {
+            value -= 1
+            return
+        }
+        
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+    
+    func signal() {
+        if let waiter = waiters.first {
+            waiters.removeFirst()
+            waiter.resume()
+            return
+        }
+        
+        value += 1
     }
 } 
