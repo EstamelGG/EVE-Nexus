@@ -143,7 +143,7 @@ final class CharacterAPI: @unchecked Sendable {
     func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
         
-        var options: KingfisherOptionsInfo = [
+        var options: KingfisherOptionsInfo = await [
             .cacheOriginalImage,
             .backgroundDecode,
             .scaleFactor(UIScreen.main.scale),
