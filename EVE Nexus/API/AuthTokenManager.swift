@@ -277,29 +277,3 @@ extension AuthTokenManager: OIDAuthStateChangeDelegate {
         return authStates.first(where: { $0.value === state })?.key
     }
 }
-
-// 网络请求的包装器
-extension URLSession {
-    func dataRequest(for request: URLRequest, characterId: Int) async throws -> (Data, URLResponse) {
-        do {
-            let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
-            var authenticatedRequest = request
-            authenticatedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
-            let (data, response) = try await URLSession.shared.data(for: authenticatedRequest)
-            
-            // 如果收到 401，AppAuth 会在下次请求时自动刷新 token
-            if let httpResponse = response as? HTTPURLResponse,
-               httpResponse.statusCode == 401 {
-                // 重试一次
-                let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
-                authenticatedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                return try await URLSession.shared.data(for: authenticatedRequest)
-            }
-            
-            return (data, response)
-        } catch {
-            throw error
-        }
-    }
-} 

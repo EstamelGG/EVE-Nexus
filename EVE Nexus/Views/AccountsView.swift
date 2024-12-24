@@ -288,8 +288,8 @@ struct AccountsView: View {
                         
                         do {
                             // 使用 TokenManager 获取有效的 token
-                            _ = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
-                            
+                            let current_access_token = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
+                            Logger.info("获得角色Token \(characterAuth.character.CharacterID) : \(current_access_token)")
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {
                                 if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
