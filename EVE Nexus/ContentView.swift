@@ -865,17 +865,15 @@ struct ContentView: View {
                     )
                 }
                 
-                // 一次性更新所有UI，使用动画
+                // 一次性更新所有UI，移除动画效果
                 await updateUI {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        selectedCharacter = updatedCharacter
-                        selectedCharacterPortrait = portrait
-                        corporationInfo = newCorpInfo
-                        corporationLogo = newCorpLogo
-                        allianceInfo = newAllianceInfo
-                        allianceLogo = newAllianceLogo
-                        tables = generateTables()
-                    }
+                    selectedCharacter = updatedCharacter
+                    selectedCharacterPortrait = portrait
+                    corporationInfo = newCorpInfo
+                    corporationLogo = newCorpLogo
+                    allianceInfo = newAllianceInfo
+                    allianceLogo = newAllianceLogo
+                    tables = generateTables()
                 }
                 
             } catch {
