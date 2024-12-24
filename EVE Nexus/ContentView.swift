@@ -757,9 +757,6 @@ struct ContentView: View {
         
         Logger.info("开始刷新所有数据...")
         
-        // 刷新服务器状态
-        await refreshServerStatus()
-        
         // 如果有选中的角色，只调用一次刷新
         if let character = selectedCharacter {
             Logger.info("开始刷新角色数据 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
@@ -796,7 +793,8 @@ struct ContentView: View {
                 
                 // 刷新角色的其他信息（技能、钱包等）
                 await refreshCharacterInfo(forceRefresh: forceRefresh)
-                
+                // 刷新服务器状态
+                await refreshServerStatus()
                 Logger.info("成功完成所有数据刷新")
             } catch {
                 Logger.error("刷新角色数据失败: \(error)")
