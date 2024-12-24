@@ -178,7 +178,7 @@ struct EVECharacterInfo: Codable {
     public var currentSkill: CurrentSkillInfo?
     public var locationStatus: CharacterLocation.LocationStatus?
     public var location: SolarSystemInfo?
-    public var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
+    public var queueFinishTime: TimeInterval?  // 添加队列总剩余��间属性
     
     // 内部类型定义
     public struct CurrentSkillInfo: Codable {
@@ -586,7 +586,23 @@ class EVELogin {
         }
         
         do {
-            return try JSONDecoder().decode([CharacterAuth].self, from: data)
+            var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
+            
+            // 获取保存的顺序
+            if let savedOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] {
+                // 创建一个字典，用于快速查找角色
+                let characterDict = Dictionary(uniqueKeysWithValues: characters.map { ($0.character.CharacterID, $0) })
+                
+                // 按保存的顺序重新排列角色
+                characters = savedOrder.compactMap { characterDict[$0] }
+                
+                // 添加可能存在的新角色（不在已保存顺序中的角色）
+                let savedCharacterIds = Set(savedOrder)
+                let unsortedCharacters = characters.filter { !savedCharacterIds.contains($0.character.CharacterID) }
+                characters.append(contentsOf: unsortedCharacters)
+            }
+            
+            return characters
         } catch {
             Logger.error("EVELogin: 加载角色信息失败: \(error)")
             return []
