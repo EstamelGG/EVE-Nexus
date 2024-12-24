@@ -231,23 +231,26 @@ struct AccountsView: View {
                             }()
                             
                             async let walletTask: Void = {
-                                // 先显示缓存的余额
-                                let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
-                                if let balance = Double(cachedBalance) {
+                                do {
+                                    // 先显示缓存的余额
+                                    let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
+                                    if let balance = Double(cachedBalance) {
+                                        await updateUI {
+                                            if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                self.viewModel.characters[index].walletBalance = balance
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 后台刷新
+                                    let balance = try await CharacterWalletAPI.shared.getWalletBalance(characterId: characterAuth.character.CharacterID)
                                     await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].walletBalance = balance
                                         }
                                     }
-                                }
-                                
-                                // 后台刷新
-                                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(characterId: characterAuth.character.CharacterID) {
-                                    await updateUI {
-                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                            self.viewModel.characters[index].walletBalance = balance
-                                        }
-                                    }
+                                } catch {
+                                    Logger.error("获取钱包余额失败: \(error)")
                                 }
                             }()
                             
@@ -320,6 +323,19 @@ struct AccountsView: View {
                             // 等待所有任务完成
                             await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
                             
+                            // 保存更新后的角色信息到UserDefaults
+                            if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) }) {
+                                let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
+                                // 获取token并保存角色信息
+                                if let token = try? await TokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID) {
+                                    try? await EVELogin.shared.saveAuthInfo(
+                                        token: token,
+                                        character: updatedCharacter
+                                    )
+                                    Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
+                                }
+                            }
+                            
                             Logger.info("成功刷新角色信息 - \(characterAuth.character.CharacterName)")
                         } catch {
                             if case NetworkError.tokenExpired = error {
@@ -332,7 +348,9 @@ struct AccountsView: View {
                         }
                         
                         // 从刷新集合中移除角色
-                        await updateRefreshingStatus(for: characterAuth.character.CharacterID)
+                        await updateUI {
+                            refreshingCharacters.remove(characterAuth.character.CharacterID)
+                        }
                     }
                 }
                 

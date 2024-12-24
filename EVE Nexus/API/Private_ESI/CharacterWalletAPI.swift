@@ -65,8 +65,8 @@ actor CharacterWalletAPI {
         UserDefaults.standard.removeObject(forKey: key)
     }
     
-    // 获取缓存的钱包余额（现在是异步方法）
-    func getCachedWalletBalance(characterId: Int) -> String {
+    // 获取缓存的钱包余额（异步方法）
+    func getCachedWalletBalance(characterId: Int) async -> String {
         // 1. 先检查内存缓存
         if let memoryCached = memoryCache[characterId] {
             return memoryCached.value
