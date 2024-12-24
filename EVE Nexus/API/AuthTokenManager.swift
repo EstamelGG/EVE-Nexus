@@ -4,7 +4,7 @@ import Foundation
 actor AuthTokenManager: NSObject {
     static let shared = AuthTokenManager()
     private var authStates: [Int: OIDAuthState] = [:]
-    private var refreshTasks: [Int: Task<Void, Never>] = [:]
+    private var refreshTasks: [Int: Task<String, Error>] = [:]
     private var continuations: [Int: [CheckedContinuation<String, Error>]] = [:]
     
     private override init() {
@@ -13,8 +13,12 @@ actor AuthTokenManager: NSObject {
     
     // 获取有效的access token
     func getAccessToken(for characterId: Int) async throws -> String {
-        let authState = try await getOrCreateAuthState(for: characterId)
+        // 如果已经有刷新任务在进行，等待其完成
+        if let refreshTask = refreshTasks[characterId] {
+            return try await refreshTask.value
+        }
         
+        let authState = try await getOrCreateAuthState(for: characterId)
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { [weak self] accessToken, _, error in
                 guard let self else { return }
@@ -24,7 +28,8 @@ actor AuthTokenManager: NSObject {
                         if let error = error as? NSError,
                            error.domain == OIDOAuthTokenErrorDomain {
                             // Token 过期，尝试刷新
-                            try await self.handleTokenRefresh(for: characterId, continuation: continuation)
+                            let token = try await self.handleTokenRefresh(for: characterId)
+                            continuation.resume(returning: token)
                         } else if let error {
                             continuation.resume(throwing: error)
                         } else if let accessToken {
@@ -41,40 +46,60 @@ actor AuthTokenManager: NSObject {
         }
     }
     
-    private func handleTokenRefresh(for characterId: Int, continuation: CheckedContinuation<String, Error>) async throws {
-        // 将当前请求添加到等待队列
-        var waitingList = continuations[characterId] ?? []
-        waitingList.append(continuation)
-        continuations[characterId] = waitingList
-        
-        // 如果已经有刷新任务在进行，直接返回
-        guard refreshTasks[characterId] == nil else {
-            return
+    // 提供一个方法用于重试失败的请求
+    func retryWithFreshToken(for characterId: Int) async throws -> String {
+        // 直接等待或触发刷新
+        if let refreshTask = refreshTasks[characterId] {
+            return try await refreshTask.value
+        }
+        return try await handleTokenRefresh(for: characterId)
+    }
+    
+    private func handleTokenRefresh(for characterId: Int) async throws -> String {
+        // 如果已经有刷新任务在进行，等待其完成
+        if let existingTask = refreshTasks[characterId] {
+            return try await existingTask.value
         }
         
-        // 创建刷新任务
-        let refreshTask = Task<Void, Never> { [weak self] in
-            guard let self = self else { return }
+        // 创建新的刷新任务
+        let refreshTask = Task<String, Error> { [weak self] in
+            guard let self = self else {
+                throw NetworkError.invalidData
+            }
+            
             do {
                 // 执行刷新
                 let newAuthState = try await self.refreshAuthState(for: characterId)
-                let newToken = try await self.getAccessTokenFromState(newAuthState)
+                let token = try await self.getAccessTokenFromState(newAuthState)
                 
-                // 通知所有等待的请求
-                await self.resumeAllContinuations(for: characterId, with: .success(newToken))
+                // 在主 actor 上清理任务
+                await self.cleanupRefreshTask(for: characterId)
+                return token
             } catch {
-                // 通知所有等待的请求失败
-                await self.resumeAllContinuations(for: characterId, with: .failure(error))
+                // 在主 actor 上清理任务和通知失败
+                await self.handleRefreshFailure(characterId: characterId, error: error)
+                throw error
             }
         }
         
         refreshTasks[characterId] = refreshTask
+        let token = try await refreshTask.value
+        resumeAllContinuations(for: characterId, with: .success(token))
+        return token
+    }
+    
+    private func cleanupRefreshTask(for characterId: Int) {
+        refreshTasks[characterId] = nil
+    }
+    
+    private func handleRefreshFailure(characterId: Int, error: Error) {
+        refreshTasks[characterId] = nil
+        resumeAllContinuations(for: characterId, with: .failure(error))
     }
     
     private func resumeAllContinuations(for characterId: Int, with result: Result<String, Error>) {
         let waitingList = continuations[characterId] ?? []
         continuations[characterId] = nil
-        refreshTasks[characterId] = nil
         
         for continuation in waitingList {
             switch result {
@@ -237,7 +262,7 @@ extension AuthTokenManager: OIDAuthStateChangeDelegate {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 
-                if let characterId = await findCharacterId(for: state) {
+                if let characterId = try? await self.findCharacterId(for: state) {
                     do {
                         try SecureStorage.shared.saveToken(refreshToken, for: characterId)
                         Logger.info("AuthTokenManager: Auth state 变化，新的 refresh token 已保存 - 角色ID: \(characterId)")
@@ -249,7 +274,57 @@ extension AuthTokenManager: OIDAuthStateChangeDelegate {
         }
     }
     
-    private func findCharacterId(for state: OIDAuthState) async -> Int? {
-        return authStates.first(where: { $0.value === state })?.key
+    private func findCharacterId(for state: OIDAuthState) async throws -> Int {
+        guard let characterId = authStates.first(where: { $0.value === state })?.key else {
+            throw NetworkError.invalidData
+        }
+        return characterId
+    }
+}
+
+// 扩展 NetworkError 以支持 token 过期检查
+extension NetworkError {
+    var isTokenExpired: Bool {
+        switch self {
+        case .authenticationError:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+// 示例用法：网络请求的包装器
+extension URLSession {
+    func dataRequest(for request: URLRequest, characterId: Int) async throws -> (Data, URLResponse) {
+        do {
+            // 首先获取 token
+            let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
+            var authenticatedRequest = request
+            authenticatedRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            // 执行请求
+            let (data, response) = try await URLSession.shared.data(for: authenticatedRequest)
+            
+            // 检查响应
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode == 401 {
+                // Token 可能在请求过程中过期，尝试重试
+                let newToken = try await AuthTokenManager.shared.retryWithFreshToken(for: characterId)
+                authenticatedRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+                return try await URLSession.shared.data(for: authenticatedRequest)
+            }
+            
+            return (data, response)
+        } catch {
+            // 如果是认证错误，尝试重试
+            if case NetworkError.authenticationError = error {
+                let newToken = try await AuthTokenManager.shared.retryWithFreshToken(for: characterId)
+                var authenticatedRequest = request
+                authenticatedRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+                return try await URLSession.shared.data(for: authenticatedRequest)
+            }
+            throw error
+        }
     }
 } 
