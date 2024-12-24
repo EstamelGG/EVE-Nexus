@@ -148,11 +148,9 @@ struct ItemBasicInfoView: View {
     private func loadRenderImage(for itemID: Int) {
         Task {
             do {
-                let data = try await ItemRenderAPI.shared.fetchItemRender(typeId: itemID, size: 512)
-                if let image = UIImage(data: data) {
-                    await MainActor.run {
-                        self.renderImage = image
-                    }
+                let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: itemID, size: 512)
+                await MainActor.run {
+                    self.renderImage = image
                 }
             } catch {
                 Logger.error("加载渲染图失败: \(error.localizedDescription)")
