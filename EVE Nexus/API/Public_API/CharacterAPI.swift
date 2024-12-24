@@ -16,11 +16,6 @@ struct CharacterPublicInfo: Codable {
     let title: String?
 }
 
-@globalActor actor CharacterActor {
-    static let shared = CharacterActor()
-}
-
-@CharacterActor
 final class CharacterAPI: @unchecked Sendable {
     static let shared = CharacterAPI()
     
@@ -29,6 +24,9 @@ final class CharacterAPI: @unchecked Sendable {
         let value: CharacterPublicInfo
         let timestamp: Date
     }
+    
+    // 添加并发队列用于同步访问
+    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.character-cache", attributes: .concurrent)
     
     // 内存缓存
     private var publicInfoMemoryCache: [Int: PublicInfoCacheEntry] = [:]
@@ -49,6 +47,25 @@ final class CharacterAPI: @unchecked Sendable {
         // 配置下载器
         let downloader = ImageDownloader.default
         downloader.downloadTimeout = 15.0 // 15秒超时
+    }
+    
+    // 安全地获取公开信息缓存
+    private func getPublicInfoMemoryCache(characterId: Int) -> PublicInfoCacheEntry? {
+        var result: PublicInfoCacheEntry?
+        cacheQueue.sync { [publicInfoMemoryCache] in
+            result = publicInfoMemoryCache[characterId]
+        }
+        return result
+    }
+    
+    // 安全地设置公开信息缓存
+    private func setPublicInfoMemoryCache(characterId: Int, cache: PublicInfoCacheEntry) {
+        let cacheQueue = self.cacheQueue
+        Task { @MainActor in
+            cacheQueue.async(flags: .barrier) { [weak self] in
+                self?.publicInfoMemoryCache[characterId] = cache
+            }
+        }
     }
     
     // 检查公开信息缓存是否有效
@@ -77,10 +94,16 @@ final class CharacterAPI: @unchecked Sendable {
     
     // 清除指定角色的所有缓存
     private func clearCache(characterId: Int) async throws {
-        // 清除公开信息缓存
-        publicInfoMemoryCache.removeValue(forKey: characterId)
+        let cacheQueue = self.cacheQueue
         let publicInfoKey = publicInfoCachePrefix + String(characterId)
-        UserDefaults.standard.removeObject(forKey: publicInfoKey)
+        
+        await withCheckedContinuation { continuation in
+            cacheQueue.async(flags: .barrier) { [weak self] in
+                self?.publicInfoMemoryCache.removeValue(forKey: characterId)
+                UserDefaults.standard.removeObject(forKey: publicInfoKey)
+                continuation.resume()
+            }
+        }
         
         // 清除所有尺寸的头像缓存
         let sizes = [32, 64, 128, 256, 512]
@@ -100,7 +123,7 @@ final class CharacterAPI: @unchecked Sendable {
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh {
             // 1. 先检查内存缓存
-            if let memoryCached = publicInfoMemoryCache[characterId],
+            if let memoryCached = getPublicInfoMemoryCache(characterId: characterId),
                isPublicInfoCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的角色公开信息 - 角色ID: \(characterId)")
                 return memoryCached.value
@@ -111,7 +134,7 @@ final class CharacterAPI: @unchecked Sendable {
                isPublicInfoCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的角色公开信息 - 角色ID: \(characterId)")
                 // 更新内存缓存
-                publicInfoMemoryCache[characterId] = diskCached
+                setPublicInfoMemoryCache(characterId: characterId, cache: diskCached)
                 return diskCached.value
             }
             
@@ -130,7 +153,7 @@ final class CharacterAPI: @unchecked Sendable {
         let cacheEntry = PublicInfoCacheEntry(value: info, timestamp: Date())
         
         // 更新内存缓存
-        publicInfoMemoryCache[characterId] = cacheEntry
+        setPublicInfoMemoryCache(characterId: characterId, cache: cacheEntry)
         
         // 更新磁盘缓存
         savePublicInfoToDiskCache(characterId: characterId, cache: cacheEntry)
