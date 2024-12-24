@@ -45,8 +45,8 @@ struct AccountsView: View {
             // 已登录角色列表
             if !viewModel.characters.isEmpty {
                 Section(header: Text("\(NSLocalizedString("Account_Logged_Characters", comment: "")) (\(viewModel.characters.count))")) {
-                    ForEach(viewModel.characters, id: \.CharacterID) { character in
-                        if isEditing {
+                    if isEditing {
+                        ForEach(viewModel.characters, id: \.CharacterID) { character in
                             Button(action: {
                                 characterToRemove = character
                             }) {
@@ -60,7 +60,12 @@ struct AccountsView: View {
                                                formatRemainingTime: formatRemainingTime)
                             }
                             .foregroundColor(.primary)
-                        } else {
+                        }
+                        .onMove { from, to in
+                            viewModel.moveCharacter(from: from, to: to)
+                        }
+                    } else {
+                        ForEach(viewModel.characters, id: \.CharacterID) { character in
                             Button {
                                 onCharacterSelect?(character, viewModel.characterPortraits[character.CharacterID])
                                 dismiss()
@@ -77,7 +82,6 @@ struct AccountsView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .contentShape(Rectangle())
                 }
             }
         }

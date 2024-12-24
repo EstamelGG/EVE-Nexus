@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且在缓存的头像，直接返回
+            // 如果不是强制刷新且有缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -451,6 +451,13 @@ class EVELoginViewModel: ObservableObject {
         characterPortraits.removeValue(forKey: character.CharacterID) // 移除头像缓存
         loadCharacters()
     }
+    
+    func moveCharacter(from source: IndexSet, to destination: Int) {
+        characters.move(fromOffsets: source, toOffset: destination)
+        // 保存新的顺序
+        let characterIds = characters.map { $0.CharacterID }
+        EVELogin.shared.saveCharacterOrder(characterIds)
+    }
 }
 
 class EVELogin {
@@ -458,6 +465,7 @@ class EVELogin {
     internal var config: ESIConfig?
     private var session: URLSession!
     private let charactersKey = "EVECharacters"
+    private let characterOrderKey = "EVECharacterOrder"  // 新增key
     private let databaseManager: DatabaseManager
     
     private init() {
@@ -855,6 +863,15 @@ class EVELogin {
         do {
             var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
             
+            // 按保存的顺序排序
+            if let orderData = defaults.array(forKey: characterOrderKey) as? [Int] {
+                characters.sort { char1, char2 in
+                    let index1 = orderData.firstIndex(of: char1.character.CharacterID) ?? Int.max
+                    let index2 = orderData.firstIndex(of: char2.character.CharacterID) ?? Int.max
+                    return index1 < index2
+                }
+            }
+            
             // 新从当前语言的数据库中获取技能名称
             for i in 0..<characters.count {
                 if let currentSkill = characters[i].character.currentSkill,
@@ -908,9 +925,23 @@ class EVELogin {
         }
     }
     
-    // 移除指定角色
+    // 保存角色顺序
+    func saveCharacterOrder(_ characterIds: [Int]) {
+        let defaults = UserDefaults.standard
+        defaults.set(characterIds, forKey: characterOrderKey)
+        defaults.synchronize()
+        Logger.info("EVELogin: 保存角色顺序: \(characterIds)")
+    }
+    
+    // 在移除角色时也要更新顺序
     func removeCharacter(characterId: Int) {
         let defaults = UserDefaults.standard
+        
+        // 更新顺序
+        if var order = defaults.array(forKey: characterOrderKey) as? [Int] {
+            order.removeAll { $0 == characterId }
+            defaults.set(order, forKey: characterOrderKey)
+        }
         
         // 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
