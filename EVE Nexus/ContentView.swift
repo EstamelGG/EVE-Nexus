@@ -632,7 +632,7 @@ struct ContentView: View {
             }
             .listStyle(.insetGrouped)
             .refreshable {
-                await refreshAllData(forceRefresh: true)
+                await refreshAllData()
             }
             .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
             .toolbar {
@@ -751,7 +751,7 @@ struct ContentView: View {
     }
     
     // 刷新所有数据
-    private func refreshAllData(forceRefresh: Bool = false) async {
+    private func refreshAllData() async {
         isRefreshing = true
         defer { isRefreshing = false }
         
@@ -795,7 +795,7 @@ struct ContentView: View {
                 }
                 
                 // 刷新角色的其他信息（技能、钱包等）
-                await refreshCharacterInfo(forceRefresh: forceRefresh)
+                await refreshCharacterInfo(forceRefresh: true)
                 
                 Logger.info("成功完成所有数据刷新")
             } catch {
