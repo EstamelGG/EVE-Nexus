@@ -20,8 +20,7 @@ actor AuthTokenManager: NSObject {
     // 初始授权流程
     func authorize(presenting viewController: UIViewController, scopes: [String]) async throws -> OIDAuthState {
         return try await withCheckedThrowingContinuation { continuation in
-            // 确保在主线程上执行 UI 操作
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 guard let authorizationEndpoint = URL(string: "https://login.eveonline.com/v2/oauth/authorize/"),
                       let tokenEndpoint = URL(string: "https://login.eveonline.com/v2/oauth/token") else {
                     continuation.resume(throwing: NetworkError.invalidURL)
@@ -43,8 +42,8 @@ actor AuthTokenManager: NSObject {
                     additionalParameters: nil
                 )
                 
-                // 在主线程上执行授权请求
-                self.currentAuthorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: viewController) { authState, error in
+                // 在主线程上执行授权请求，但在 actor 上下文中设置 currentAuthorizationFlow
+                let authFlow = OIDAuthState.authState(byPresenting: request, presenting: viewController) { [] authState, error in
                     if let error = error {
                         continuation.resume(throwing: error)
                         return
@@ -56,8 +55,18 @@ actor AuthTokenManager: NSObject {
                     
                     continuation.resume(returning: authState)
                 }
+                
+                // 在 actor 上下文中设置 currentAuthorizationFlow
+                Task {
+                    await self.setCurrentAuthorizationFlow(authFlow)
+                }
             }
         }
+    }
+    
+    // 添加一个方法来设置 currentAuthorizationFlow
+    private func setCurrentAuthorizationFlow(_ flow: OIDExternalUserAgentSession?) {
+        self.currentAuthorizationFlow = flow
     }
     
     // 保存认证状态
