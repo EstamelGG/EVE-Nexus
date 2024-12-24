@@ -712,7 +712,7 @@ struct ContentView: View {
                     
                     // 异步加载新数据
                     Task {
-                        await refreshCharacterInfo()
+                        await refreshAllData()
                     }
                 }
             } label: {
@@ -755,13 +755,52 @@ struct ContentView: View {
         isRefreshing = true
         defer { isRefreshing = false }
         
+        Logger.info("开始刷新所有数据...")
+        
         // 刷新服务器状态
         await refreshServerStatus()
         
-        // 如果有选中的角色，强制刷新角色信息
+        // 如果有选中的角色，只调用一次刷新
         if let character = selectedCharacter {
-            await refreshCharacterData(character)
-            await refreshCharacterInfo(forceRefresh: true)
+            Logger.info("开始刷新角色数据 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
+            
+            // 重置显示值
+            resetCharacterInfo()
+            
+            // 刷新所有角色相关数据
+            do {
+                // 获取角色公开信息和头像
+                async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
+                async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
+                
+                let (publicInfo, portrait) = try await (publicInfoTask, portraitTask)
+                
+                await MainActor.run {
+                    selectedCharacterPortrait = portrait
+                }
+                
+                // 并行刷新军团和联盟信息
+                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
+                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+                
+                if let allianceId = publicInfo.alliance_id {
+                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                    
+                    // 等待所有任务完成
+                    let (_, _, _, _) = try await (corporationInfoTask, corporationLogoTask, allianceInfoTask, allianceLogoTask)
+                } else {
+                    // 如果没有联盟，只等待军团信息
+                    let (_, _) = try await (corporationInfoTask, corporationLogoTask)
+                }
+                
+                // 刷新角色的其他信息（技能、钱包等）
+                await refreshCharacterInfo(forceRefresh: true)
+                
+                Logger.info("成功完成所有数据刷新")
+            } catch {
+                Logger.error("刷新角色数据失败: \(error)")
+            }
         }
     }
     
