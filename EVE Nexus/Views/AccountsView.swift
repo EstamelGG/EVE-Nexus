@@ -79,7 +79,7 @@ struct AccountsView: View {
                                 }
                             }
                             
-                            Logger.info("成功刷新角色信息 - \(character.CharacterName)")
+                            Logger.info("成功刷新角色信息(\(character.CharacterID) - \(character.CharacterName)")
                         } catch {
                             viewModel.errorMessage = error.localizedDescription
                             viewModel.showingError = true
@@ -388,7 +388,7 @@ struct AccountsView: View {
                                 }
                             }
                             
-                            Logger.info("成功刷新角色信息 - \(characterAuth.character.CharacterName)")
+                            Logger.info("成功刷新角色信息\(characterAuth.character.CharacterID) - \(characterAuth.character.CharacterName)")
                         } catch {
                             if case NetworkError.tokenExpired = error {
                                 await updateUI {
