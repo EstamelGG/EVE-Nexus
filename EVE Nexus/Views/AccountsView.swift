@@ -178,6 +178,13 @@ struct AccountsView: View {
         }
     }
     
+    // 添加一个帮助函数来处理 MainActor.run 的返回值
+    @discardableResult
+    @Sendable
+    private func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
+        await MainActor.run { operation() }
+    }
+    
     @MainActor
     private func refreshAllCharacters() async {
         // 先让刷新指示器完成动画
@@ -196,13 +203,6 @@ struct AccountsView: View {
             }
         }
         
-        // 添加一个帮助函数来处理 MainActor.run 的返回值
-        @discardableResult
-        @Sendable
-        func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
-            await MainActor.run { operation() }
-        }
-        
         // 启动后台任务处理数据刷新
         Task {
             await withTaskGroup(of: Void.self) { group in
@@ -214,181 +214,119 @@ struct AccountsView: View {
                         }
                         
                         do {
-                            // 尝试刷新token，最多重试3次
-                            var retryCount = 0
-                            var tokenRefreshed = false
-                            var lastError: Error? = nil
+                            // 使用 TokenManager 获取有效的 token
+                            _ = try await TokenManager.shared.getToken(for: characterAuth.character.CharacterID)
                             
-                            while retryCount < 3 && !tokenRefreshed {
-                                do {
-                                    let newToken = try await EVELogin.shared.refreshToken(
-                                        characterId: characterAuth.character.CharacterID,
-                                        force: true
-                                    )
-                                    tokenRefreshed = true
-                                    
-                                    // Token刷新成功，立即清除过期状态
+                            // 并行执行所有更新任务
+                            async let portraitTask: Void = {
+                                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
                                     await updateUI {
-                                        expiredTokenCharacters.remove(characterAuth.character.CharacterID)
-                                        EVELogin.shared.resetTokenExpired(characterId: characterAuth.character.CharacterID)
-                                    }
-                                    
-                                    // 并行执行所有更新任务
-                                    async let portraitTask: Void = {
-                                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
-                                            await updateUI {
-                                                self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
-                                            }
-                                        }
-                                    }()
-                                    
-                                    async let walletTask: Void = {
-                                        // 先显示缓存的余额
-                                        let cachedBalance = CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
-                                        if let balance = Double(cachedBalance) {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].walletBalance = balance
-                                                }
-                                            }
-                                        }
-                                        
-                                        // 后台刷新
-                                        if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                                            characterId: characterAuth.character.CharacterID
-                                        ) {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].walletBalance = balance
-                                                }
-                                            }
-                                        }
-                                    }()
-                                    
-                                    async let skillsTask: Void = {
-                                        if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                                            characterId: characterAuth.character.CharacterID
-                                        ) {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
-                                                    self.viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
-                                                }
-                                            }
-                                        }
-                                    }()
-                                    
-                                    async let locationTask: Void = {
-                                        do {
-                                            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
-                                                characterId: characterAuth.character.CharacterID
-                                            )
-                                            
-                                            // 获取位置详细信息
-                                            let locationInfo = await getSolarSystemInfo(
-                                                solarSystemId: location.solar_system_id,
-                                                databaseManager: self.viewModel.databaseManager
-                                            )
-                                            
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].locationStatus = location.locationStatus
-                                                    if let locationInfo = locationInfo {
-                                                        self.viewModel.characters[index].location = locationInfo
-                                                    }
-                                                }
-                                            }
-                                        } catch {
-                                            Logger.error("获取位置信息失败: \(error)")
-                                        }
-                                    }()
-                                    
-                                    async let skillQueueTask: Void = {
-                                        do {
-                                            let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
-                                                characterId: characterAuth.character.CharacterID
-                                            )
-                                            
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].skillQueueLength = queue.count
-                                                }
-                                            }
-                                            
-                                            // 查找正在训练的技能
-                                            if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                                                // 每次显示时重新获取技能名称，确保使用当前语言
-                                                if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                                                    await updateUI {
-                                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                            self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                                                skillId: currentSkill.skill_id,
-                                                                name: skillName,
-                                                                level: currentSkill.skillLevel,
-                                                                progress: currentSkill.progress,
-                                                                remainingTime: currentSkill.remainingTime
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            } else if let firstSkill = queue.first {
-                                                // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
-                                                // 同样每次显示时重新获取技能名称
-                                                if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                                                    await updateUI {
-                                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                            self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                                                skillId: firstSkill.skill_id,
-                                                                name: skillName,
-                                                                level: firstSkill.skillLevel,
-                                                                progress: firstSkill.progress,
-                                                                remainingTime: nil // 暂停状态
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        } catch {
-                                            Logger.error("获取技能队列失败: \(error)")
-                                        }
-                                    }()
-                                    
-                                    // 等待所有任务完成
-                                    await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
-                                    
-                                    // 保存最新的角色信息到数据库
-                                    let updatedCharacter = await self.viewModel.characters.first(where: { $0.CharacterID == characterAuth.character.CharacterID })
-                                    if let character = updatedCharacter {
-                                        do {
-                                            try await EVELogin.shared.saveAuthInfo(token: newToken, character: character)
-                                        } catch {
-                                            Logger.error("保存角色信息失败: \(error)")
-                                        }
-                                    }
-                                    
-                                    Logger.info("成功刷新角色信息 - \(characterAuth.character.CharacterName)")
-                                } catch {
-                                    lastError = error
-                                    retryCount += 1
-                                    if retryCount < 3 {
-                                        // 等待一秒后重试
-                                        try? await Task.sleep(nanoseconds: 1_000_000_000)
+                                        self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
                                 }
-                            }
+                            }()
                             
-                            if !tokenRefreshed {
-                                // Token刷新失败，标记该角色token已过期
+                            async let walletTask: Void = {
+                                // 先显示缓存的余额
+                                let cachedBalance = CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
+                                if let balance = Double(cachedBalance) {
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].walletBalance = balance
+                                        }
+                                    }
+                                }
+                                
+                                // 后台刷新
+                                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(characterId: characterAuth.character.CharacterID) {
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].walletBalance = balance
+                                        }
+                                    }
+                                }
+                            }()
+                            
+                            async let skillsTask: Void = {
+                                if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterAuth.character.CharacterID) {
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
+                                            self.viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
+                                        }
+                                    }
+                                }
+                            }()
+                            
+                            async let locationTask: Void = {
+                                do {
+                                    let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(characterId: characterAuth.character.CharacterID)
+                                    
+                                    // 获取位置详细信息
+                                    let locationInfo = await getSolarSystemInfo(
+                                        solarSystemId: location.solar_system_id,
+                                        databaseManager: self.viewModel.databaseManager
+                                    )
+                                    
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].locationStatus = location.locationStatus
+                                            if let locationInfo = locationInfo {
+                                                self.viewModel.characters[index].location = locationInfo
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    Logger.error("获取位置信息失败: \(error)")
+                                }
+                            }()
+                            
+                            async let skillQueueTask: Void = {
+                                do {
+                                    let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterAuth.character.CharacterID)
+                                    
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].skillQueueLength = queue.count
+                                        }
+                                    }
+                                    
+                                    // 查找正在训练的技能
+                                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                                        // 每次显示时重新获取技能名称，确保使用当前语言
+                                        if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        skillId: currentSkill.skill_id,
+                                                        name: skillName,
+                                                        level: currentSkill.skillLevel,
+                                                        progress: currentSkill.progress,
+                                                        remainingTime: currentSkill.remainingTime
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    Logger.error("获取技能队列失败: \(error)")
+                                }
+                            }()
+                            
+                            // 等待所有任务完成
+                            await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
+                            
+                            Logger.info("成功刷新角色信息 - \(characterAuth.character.CharacterName)")
+                        } catch {
+                            if case NetworkError.tokenExpired = error {
                                 await updateUI {
                                     expiredTokenCharacters.insert(characterAuth.character.CharacterID)
-                                    // 保存token过期状态
                                     EVELogin.shared.markTokenExpired(characterId: characterAuth.character.CharacterID)
                                 }
-                                if let error = lastError {
-                                    Logger.error("刷新角色Token失败（已重试3次） - \(characterAuth.character.CharacterName): \(error)")
-                                }
                             }
+                            Logger.error("刷新角色信息失败: \(error)")
                         }
+                        
                         // 从刷新集合中移除角色
                         await updateRefreshingStatus(for: characterAuth.character.CharacterID)
                     }

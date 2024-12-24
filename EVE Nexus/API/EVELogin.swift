@@ -379,7 +379,7 @@ class EVELoginViewModel: ObservableObject {
                 if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
                     characters[index] = updatedCharacter
                 }
-                // 如果是当前选中的角色，也更新characterInfo
+                // ��果是当前选中的角色，也更新characterInfo
                 if characterInfo?.CharacterID == updatedCharacter.CharacterID {
                     characterInfo = updatedCharacter
                 }
@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且存在缓存的头像，直接返回
+            // 如果不是强制刷新且��在缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -775,8 +775,6 @@ class EVELogin {
     // 保存认证信息
     func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws {
         Logger.info("EVELogin: 开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
-        Logger.info("EVELogin: Access Token 前缀: \(String(token.access_token.prefix(10)))...")
-        Logger.info("EVELogin: Refresh Token 前缀: \(String(token.refresh_token.prefix(10)))...")
         
         let defaults = UserDefaults.standard
         let characterAuth = CharacterAuth(
@@ -802,7 +800,7 @@ class EVELogin {
                 Logger.info("EVELogin: 添加新角色信息")
             }
             
-            // 保存到 UserDefaults（只包含角色信息）
+            // 保存到 UserDefaults
             let encodedData = try JSONEncoder().encode(characters)
             defaults.set(encodedData, forKey: charactersKey)
             Logger.info("EVELogin: 角色信息已保存到 UserDefaults")
@@ -811,18 +809,12 @@ class EVELogin {
             try SecureStorage.shared.saveToken(token.refresh_token, for: character.CharacterID)
             Logger.info("EVELogin: Refresh token 已保存到 SecureStorage")
             
-            // 生成7-14天的随机间隔
-            let randomDays = Int.random(in: 7...14)
-            let nextRefreshInterval = TimeInterval(randomDays * 24 * 60 * 60)
-            let nextRefreshTime = Date().addingTimeInterval(nextRefreshInterval)
-            Logger.info("EVELogin: 设置下次刷新时间为 \(nextRefreshTime.formatted()) (间隔\(randomDays)天) - 角色ID: \(character.CharacterID)")
-            
             // 更新 TokenManager 的缓存
             let tokenCache = TokenManager.CachedToken(
                 token: token,
                 expirationDate: Date().addingTimeInterval(TimeInterval(token.expires_in)),
                 lastRefreshTime: Date(),
-                nextRefreshTime: nextRefreshTime
+                nextRefreshTime: Date().addingTimeInterval(TimeInterval(token.expires_in))
             )
             await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: tokenCache)
             Logger.info("EVELogin: TokenManager 缓存已更新")
