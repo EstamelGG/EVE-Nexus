@@ -38,6 +38,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
     private let imageQueue = DispatchQueue(label: "com.eve.nexus.network.image", attributes: .concurrent)
     private let marketQueue = DispatchQueue(label: "com.eve.nexus.network.market", attributes: .concurrent)
     
+    // 添加并发控制信号量
+    private let concurrentSemaphore = DispatchSemaphore(value: 8)
+    
     private override init() {
         self.retrier = RequestRetrier()
         self.rateLimiter = RateLimiter()
@@ -55,6 +58,19 @@ class NetworkManager: NSObject, @unchecked Sendable {
     
     // 通用的数据获取函数
     func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false) async throws -> Data {
+        // 等待信号量
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                self.concurrentSemaphore.wait()
+                continuation.resume()
+            }
+        }
+        
+        defer {
+            // 完成后释放信号量
+            concurrentSemaphore.signal()
+        }
+        
         try await rateLimiter.waitForPermission()
         
         // 创建请求
