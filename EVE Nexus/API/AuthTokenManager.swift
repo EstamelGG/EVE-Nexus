@@ -5,6 +5,7 @@ actor AuthTokenManager: NSObject {
     static let shared = AuthTokenManager()
     private var authStates: [Int: OIDAuthState] = [:]
     private var currentAuthorizationFlow: OIDExternalUserAgentSession?
+    private let redirectURI = URL(string: "eveauthpanel://callback/")!
     
     private override init() {
         super.init()
@@ -18,27 +19,42 @@ actor AuthTokenManager: NSObject {
     
     // 初始授权流程
     func authorize(presenting viewController: UIViewController, scopes: [String]) async throws -> OIDAuthState {
-        let configuration = try await getConfiguration()
-        let redirectURI = URL(string: "eveauthpanel://callback/")!
-        let clientId = EVELogin.shared.config?.clientId ?? ""
-        
-        let request = OIDAuthorizationRequest(
-            configuration: configuration,
-            clientId: clientId,
-            scopes: scopes,
-            redirectURL: redirectURI,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: nil
-        )
-        
         return try await withCheckedThrowingContinuation { continuation in
-            self.currentAuthorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: viewController) { authState, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else if let authState = authState {
+            // 确保在主线程上执行 UI 操作
+            DispatchQueue.main.async {
+                guard let authorizationEndpoint = URL(string: "https://login.eveonline.com/v2/oauth/authorize/"),
+                      let tokenEndpoint = URL(string: "https://login.eveonline.com/v2/oauth/token") else {
+                    continuation.resume(throwing: NetworkError.invalidURL)
+                    return
+                }
+                
+                let configuration = OIDServiceConfiguration(
+                    authorizationEndpoint: authorizationEndpoint,
+                    tokenEndpoint: tokenEndpoint
+                )
+                
+                let request = OIDAuthorizationRequest(
+                    configuration: configuration,
+                    clientId: "7339147833b44ad3815c7ef0957950c2",
+                    clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
+                    scopes: scopes,
+                    redirectURL: self.redirectURI,
+                    responseType: OIDResponseTypeCode,
+                    additionalParameters: nil
+                )
+                
+                // 在主线程上执行授权请求
+                self.currentAuthorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: viewController) { authState, error in
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    
+                    guard let authState = authState else {
+                        return
+                    }
+                    
                     continuation.resume(returning: authState)
-                } else {
-                    continuation.resume(throwing: NetworkError.invalidResponse)
                 }
             }
         }

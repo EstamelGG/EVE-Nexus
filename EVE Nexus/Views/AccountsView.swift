@@ -26,13 +26,14 @@ struct AccountsView: View {
             // 添加新角色按钮
             Section {
                 Button(action: {
-                    Task {
+                    Task { @MainActor in
                         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                               let viewController = scene.windows.first?.rootViewController else {
                             return
                         }
                         
                         do {
+                            // 由于我们已经在 @MainActor 上下文中，不需要额外的主线程包装
                             let authState = try await AuthTokenManager.shared.authorize(
                                 presenting: viewController,
                                 scopes: EVELogin.shared.config?.scopes ?? []
@@ -43,21 +44,16 @@ struct AccountsView: View {
                                 authState: authState
                             )
                             
-                            await MainActor.run {
-                                viewModel.characterInfo = character
-                                viewModel.isLoggedIn = true
-                                viewModel.loadCharacters()
-                                
-                                // 加载新角色的头像
-                                Task {
-                                    await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
-                                }
-                            }
+                            // UI 更新已经在 MainActor 上下文中
+                            viewModel.characterInfo = character
+                            viewModel.isLoggedIn = true
+                            viewModel.loadCharacters()
+                            
+                            // 加载新角色的头像
+                            await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
                         } catch {
-                            await MainActor.run {
-                                viewModel.errorMessage = error.localizedDescription
-                                viewModel.showingError = true
-                            }
+                            viewModel.errorMessage = error.localizedDescription
+                            viewModel.showingError = true
                             Logger.error("登录失败: \(error)")
                         }
                     }

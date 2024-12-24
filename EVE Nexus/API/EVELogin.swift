@@ -361,6 +361,7 @@ class EVELoginViewModel: ObservableObject {
                 }
                 
                 // 1. 使用 AuthTokenManager 处理授权回调
+                // 由于我们已经在 @MainActor 上下文中，不需要额外的主线程包装
                 let authState = try await AuthTokenManager.shared.authorize(
                     presenting: viewController,
                     scopes: EVELogin.shared.config?.scopes ?? []
@@ -369,10 +370,10 @@ class EVELoginViewModel: ObservableObject {
                 // 2. 处理登录流程
                 let character = try await EVELogin.shared.processLogin(authState: authState)
                 
-                // 3. 更新 UI
+                // 3. 更新 UI（已在 MainActor 上下文中）
                 characterInfo = character
                 isLoggedIn = true
-                loadCharacters() // 重新加载角色列表
+                loadCharacters()
                 
                 // 4. 加载新角色的头像
                 await loadCharacterPortrait(characterId: character.CharacterID)
