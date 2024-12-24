@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Kingfisher
 
 // 角色公开信息数据模型
 struct CharacterPublicInfo: Codable {
@@ -29,24 +30,26 @@ class CharacterAPI {
         let timestamp: Date
     }
     
-    private struct PortraitCacheEntry: Codable {
-        let imageData: Data
-        let timestamp: Date
-    }
-    
     // 内存缓存
     private var publicInfoMemoryCache: [Int: PublicInfoCacheEntry] = [:]
-    private var portraitMemoryCache: [String: PortraitCacheEntry] = [:]  // key: "characterId_size"
     
     // 缓存超时时间
     private let publicInfoCacheTimeout: TimeInterval = 3600 // 1小时
-    private let portraitCacheTimeout: TimeInterval = 86400 // 24小时
     
     // UserDefaults键前缀
     private let publicInfoCachePrefix = "character_public_info_"
-    private let portraitCachePrefix = "character_portrait_"
     
-    private init() {}
+    private init() {
+        // 配置 Kingfisher 的全局设置
+        let cache = ImageCache.default
+        cache.memoryStorage.config.totalCostLimit = 300 * 1024 * 1024 // 300MB
+        cache.diskStorage.config.sizeLimit = 1000 * 1024 * 1024 // 1GB
+        cache.diskStorage.config.expiration = .days(7) // 7天过期
+        
+        // 配置下载器
+        let downloader = ImageDownloader.default
+        downloader.downloadTimeout = 15.0 // 15秒超时
+    }
     
     // 检查公开信息缓存是否有效
     private func isPublicInfoCacheValid(_ cache: PublicInfoCacheEntry?) -> Bool {
@@ -54,27 +57,11 @@ class CharacterAPI {
         return Date().timeIntervalSince(cache.timestamp) < publicInfoCacheTimeout
     }
     
-    // 检查头像缓存是否有效
-    private func isPortraitCacheValid(_ cache: PortraitCacheEntry?) -> Bool {
-        guard let cache = cache else { return false }
-        return Date().timeIntervalSince(cache.timestamp) < portraitCacheTimeout
-    }
-    
     // 从UserDefaults获取公开信息缓存
     private func getPublicInfoDiskCache(characterId: Int) -> PublicInfoCacheEntry? {
         let key = publicInfoCachePrefix + String(characterId)
         guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(PublicInfoCacheEntry.self, from: data) else {
-            return nil
-        }
-        return cache
-    }
-    
-    // 从UserDefaults获取头像缓存
-    private func getPortraitDiskCache(characterId: Int, size: Int) -> PortraitCacheEntry? {
-        let key = portraitCachePrefix + "\(characterId)_\(size)"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(PortraitCacheEntry.self, from: data) else {
             return nil
         }
         return cache
@@ -88,16 +75,8 @@ class CharacterAPI {
         }
     }
     
-    // 保存头像缓存到UserDefaults
-    private func savePortraitToDiskCache(characterId: Int, size: Int, cache: PortraitCacheEntry) {
-        let key = portraitCachePrefix + "\(characterId)_\(size)"
-        if let encoded = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(encoded, forKey: key)
-        }
-    }
-    
     // 清除指定角色的所有缓存
-    private func clearCache(characterId: Int) {
+    private func clearCache(characterId: Int) async throws {
         // 清除公开信息缓存
         publicInfoMemoryCache.removeValue(forKey: characterId)
         let publicInfoKey = publicInfoCachePrefix + String(characterId)
@@ -106,10 +85,14 @@ class CharacterAPI {
         // 清除所有尺寸的头像缓存
         let sizes = [32, 64, 128, 256, 512]
         for size in sizes {
-            let portraitKey = portraitCachePrefix + "\(characterId)_\(size)"
-            portraitMemoryCache.removeValue(forKey: "\(characterId)_\(size)")
-            UserDefaults.standard.removeObject(forKey: portraitKey)
+            let portraitURL = getPortraitURL(characterId: characterId, size: size)
+            try await ImageCache.default.removeImage(forKey: portraitURL.absoluteString)
         }
+    }
+    
+    // 获取角色头像URL
+    private func getPortraitURL(characterId: Int, size: Int) -> URL {
+        return URL(string: "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)")!
     }
     
     // 获取角色公开信息
@@ -158,51 +141,31 @@ class CharacterAPI {
     
     // 获取角色头像
     func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
-        let cacheKey = "\(characterId)_\(size)"
+        let portraitURL = getPortraitURL(characterId: characterId, size: size)
         
-        // 如果不是强制刷新，先尝试使用缓存
-        if !forceRefresh {
-            // 1. 先检查内存缓存
-            if let memoryCached = portraitMemoryCache[cacheKey],
-               isPortraitCacheValid(memoryCached),
-               let image = UIImage(data: memoryCached.imageData) {
-                Logger.info("使用内存缓存的角色头像 - 角色ID: \(characterId)")
-                return image
+        if forceRefresh {
+            // 如果强制刷新，清除该URL的缓存
+            try await ImageCache.default.removeImage(forKey: portraitURL.absoluteString)
+        }
+        
+        let options: KingfisherOptionsInfo = await [
+            .cacheOriginalImage,
+            .backgroundDecode,
+            .scaleFactor(UIScreen.main.scale),
+            .transition(.fade(0.2))
+        ]
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
+                switch result {
+                case .success(let imageResult):
+                    Logger.info("成功获取角色头像 - 角色ID: \(characterId), 大小: \(size)")
+                    continuation.resume(returning: imageResult.image)
+                case .failure(let error):
+                    Logger.error("获取角色头像失败 - 角色ID: \(characterId), 错误: \(error)")
+                    continuation.resume(throwing: NetworkError.invalidImageData)
+                }
             }
-            
-            // 2. 如果内存缓存不可用，检查磁盘缓存
-            if let diskCached = getPortraitDiskCache(characterId: characterId, size: size),
-               isPortraitCacheValid(diskCached),
-               let image = UIImage(data: diskCached.imageData) {
-                Logger.info("使用磁盘缓存的角色头像 - 角色ID: \(characterId)")
-                // 更新内存缓存
-                portraitMemoryCache[cacheKey] = diskCached
-                return image
-            }
-            
-            Logger.info("缓存未命中或已过期,需要从服务器获取角色头像 - 角色ID: \(characterId)")
         }
-        
-        let urlString = "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        guard let image = UIImage(data: data) else {
-            throw NetworkError.invalidImageData
-        }
-        
-        // 创建新的缓存条目
-        let cacheEntry = PortraitCacheEntry(imageData: data, timestamp: Date())
-        
-        // 更新内存缓存
-        portraitMemoryCache[cacheKey] = cacheEntry
-        
-        // 更新磁盘缓存
-        savePortraitToDiskCache(characterId: characterId, size: size, cache: cacheEntry)
-        
-        Logger.info("成功获取角色头像 - 角色ID: \(characterId)")
-        return image
     }
 } 
