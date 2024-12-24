@@ -1,6 +1,6 @@
 import Foundation
 
-actor CharacterWalletAPI {
+class CharacterWalletAPI {
     static let shared = CharacterWalletAPI()
     
     // 缓存结构
@@ -8,6 +8,9 @@ actor CharacterWalletAPI {
         let value: String  // 改用字符串存储以保持精度
         let timestamp: Date
     }
+    
+    // 添加并发队列用于同步访问
+    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.wallet-cache", attributes: .concurrent)
     
     // 内存缓存
     private var memoryCache: [Int: CacheEntry] = [:]
@@ -17,6 +20,22 @@ actor CharacterWalletAPI {
     private let walletCachePrefix = "wallet_cache_"
     
     private init() {}
+    
+    // 安全地获取钱包缓存
+    private func getWalletMemoryCache(characterId: Int) -> CacheEntry? {
+        var result: CacheEntry?
+        cacheQueue.sync {
+            result = memoryCache[characterId]
+        }
+        return result
+    }
+    
+    // 安全地设置钱包缓存
+    private func setWalletMemoryCache(characterId: Int, cache: CacheEntry) {
+        cacheQueue.async(flags: .barrier) {
+            self.memoryCache[characterId] = cache
+        }
+    }
     
     // 检查缓存是否有效
     private func isCacheValid(_ cache: CacheEntry?) -> Bool {
@@ -60,22 +79,24 @@ actor CharacterWalletAPI {
     
     // 清除缓存
     private func clearCache(characterId: Int) {
-        memoryCache.removeValue(forKey: characterId)
-        let key = walletCachePrefix + String(characterId)
-        UserDefaults.standard.removeObject(forKey: key)
+        cacheQueue.async(flags: .barrier) {
+            self.memoryCache.removeValue(forKey: characterId)
+            let key = self.walletCachePrefix + String(characterId)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
     }
     
     // 获取缓存的钱包余额（异步方法）
     func getCachedWalletBalance(characterId: Int) async -> String {
         // 1. 先检查内存缓存
-        if let memoryCached = memoryCache[characterId] {
+        if let memoryCached = getWalletMemoryCache(characterId: characterId) {
             return memoryCached.value
         }
         
         // 2. 如果内存缓存不可用，检查磁盘缓存
         if let diskCached = getDiskCache(characterId: characterId) {
             // 更新内存缓存
-            memoryCache[characterId] = diskCached
+            setWalletMemoryCache(characterId: characterId, cache: diskCached)
             return diskCached.value
         }
         
@@ -88,7 +109,7 @@ actor CharacterWalletAPI {
         if !forceRefresh {
             // 检查缓存
             let cachedResult: Double? = {
-                if let memoryCached = memoryCache[characterId], 
+                if let memoryCached = getWalletMemoryCache(characterId: characterId), 
                    isCacheValid(memoryCached) {
                     Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
                     return Double(memoryCached.value)
@@ -97,7 +118,7 @@ actor CharacterWalletAPI {
                 if let diskCached = getDiskCache(characterId: characterId),
                    isCacheValid(diskCached) {
                     Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
-                    memoryCache[characterId] = diskCached
+                    setWalletMemoryCache(characterId: characterId, cache: diskCached)
                     return Double(diskCached.value)
                 }
                 
@@ -132,7 +153,7 @@ actor CharacterWalletAPI {
         let cacheEntry = CacheEntry(value: stringValue, timestamp: Date())
         
         // 更新内存缓存
-        memoryCache[characterId] = cacheEntry
+        setWalletMemoryCache(characterId: characterId, cache: cacheEntry)
         
         // 更新磁盘缓存
         saveToDiskCache(characterId: characterId, cache: cacheEntry)

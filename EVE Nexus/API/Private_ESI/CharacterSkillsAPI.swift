@@ -149,6 +149,9 @@ public class CharacterSkillsAPI {
         let timestamp: Date
     }
     
+    // 添加并发队列用于同步访问
+    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.cache", attributes: .concurrent)
+    
     // 内存缓存
     private var skillsMemoryCache: [Int: SkillsCacheEntry] = [:]
     private var queueMemoryCache: [Int: QueueCacheEntry] = [:]
@@ -207,17 +210,51 @@ public class CharacterSkillsAPI {
         }
     }
     
+    // 安全地获取队列缓存
+    private func getQueueMemoryCache(characterId: Int) -> QueueCacheEntry? {
+        var result: QueueCacheEntry?
+        cacheQueue.sync {
+            result = queueMemoryCache[characterId]
+        }
+        return result
+    }
+    
+    // 安全地设置队列缓存
+    private func setQueueMemoryCache(characterId: Int, cache: QueueCacheEntry) {
+        cacheQueue.async(flags: .barrier) {
+            self.queueMemoryCache[characterId] = cache
+        }
+    }
+    
+    // 安全地获取技能缓存
+    private func getSkillsMemoryCache(characterId: Int) -> SkillsCacheEntry? {
+        var result: SkillsCacheEntry?
+        cacheQueue.sync {
+            result = skillsMemoryCache[characterId]
+        }
+        return result
+    }
+    
+    // 安全地设置技能缓存
+    private func setSkillsMemoryCache(characterId: Int, cache: SkillsCacheEntry) {
+        cacheQueue.async(flags: .barrier) {
+            self.skillsMemoryCache[characterId] = cache
+        }
+    }
+    
     // 清除缓存
     private func clearCache(characterId: Int) {
-        // 清除内存缓存
-        skillsMemoryCache.removeValue(forKey: characterId)
-        queueMemoryCache.removeValue(forKey: characterId)
-        
-        // 清除磁盘缓存
-        let skillsKey = skillsCachePrefix + String(characterId)
-        let queueKey = queueCachePrefix + String(characterId)
-        UserDefaults.standard.removeObject(forKey: skillsKey)
-        UserDefaults.standard.removeObject(forKey: queueKey)
+        cacheQueue.async(flags: .barrier) {
+            // 清除内存缓存
+            self.skillsMemoryCache.removeValue(forKey: characterId)
+            self.queueMemoryCache.removeValue(forKey: characterId)
+            
+            // 清除磁盘缓存
+            let skillsKey = self.skillsCachePrefix + String(characterId)
+            let queueKey = self.queueCachePrefix + String(characterId)
+            UserDefaults.standard.removeObject(forKey: skillsKey)
+            UserDefaults.standard.removeObject(forKey: queueKey)
+        }
     }
     
     private init() {}
@@ -227,7 +264,7 @@ public class CharacterSkillsAPI {
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh {
             // 1. 先检查内存缓存
-            if let memoryCached = skillsMemoryCache[characterId],
+            if let memoryCached = getSkillsMemoryCache(characterId: characterId),
                isSkillsCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的技能数据 - 角色ID: \(characterId)")
                 return memoryCached.value
@@ -238,7 +275,7 @@ public class CharacterSkillsAPI {
                isSkillsCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的技能数据 - 角色ID: \(characterId)")
                 // 更新内存缓存
-                skillsMemoryCache[characterId] = diskCached
+                setSkillsMemoryCache(characterId: characterId, cache: diskCached)
                 return diskCached.value
             }
             
@@ -263,7 +300,7 @@ public class CharacterSkillsAPI {
             let cacheEntry = SkillsCacheEntry(value: skills, timestamp: Date())
             
             // 更新内存缓存
-            skillsMemoryCache[characterId] = cacheEntry
+            setSkillsMemoryCache(characterId: characterId, cache: cacheEntry)
             
             // 更新磁盘缓存
             saveSkillsToDiskCache(characterId: characterId, cache: cacheEntry)
@@ -282,7 +319,7 @@ public class CharacterSkillsAPI {
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh {
             // 1. 先检查内存缓存
-            if let memoryCached = queueMemoryCache[characterId],
+            if let memoryCached = getQueueMemoryCache(characterId: characterId),
                isQueueCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的技能队列数据 - 角色ID: \(characterId)")
                 return memoryCached.value
@@ -293,7 +330,7 @@ public class CharacterSkillsAPI {
                isQueueCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的技能队列数据 - 角色ID: \(characterId)")
                 // 更新内存缓存
-                queueMemoryCache[characterId] = diskCached
+                setQueueMemoryCache(characterId: characterId, cache: diskCached)
                 return diskCached.value
             }
             
@@ -318,7 +355,7 @@ public class CharacterSkillsAPI {
             let cacheEntry = QueueCacheEntry(value: queue, timestamp: Date())
             
             // 更新内存缓存
-            queueMemoryCache[characterId] = cacheEntry
+            setQueueMemoryCache(characterId: characterId, cache: cacheEntry)
             
             // 更新磁盘缓存
             saveQueueToDiskCache(characterId: characterId, cache: cacheEntry)

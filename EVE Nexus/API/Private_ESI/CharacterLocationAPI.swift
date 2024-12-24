@@ -43,6 +43,9 @@ class CharacterLocationAPI {
         let timestamp: Date
     }
     
+    // 添加并发队列用于同步访问
+    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.location-cache", attributes: .concurrent)
+    
     // 内存缓存
     private var locationMemoryCache: [Int: LocationCacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 60 // 1分钟缓存
@@ -51,6 +54,22 @@ class CharacterLocationAPI {
     private let locationCachePrefix = "location_cache_"
     
     private init() {}
+    
+    // 安全地获取位置缓存
+    private func getLocationMemoryCache(characterId: Int) -> LocationCacheEntry? {
+        var result: LocationCacheEntry?
+        cacheQueue.sync {
+            result = locationMemoryCache[characterId]
+        }
+        return result
+    }
+    
+    // 安全地设置位置缓存
+    private func setLocationMemoryCache(characterId: Int, cache: LocationCacheEntry) {
+        cacheQueue.async(flags: .barrier) {
+            self.locationMemoryCache[characterId] = cache
+        }
+    }
     
     // 检查缓存是否有效
     private func isCacheValid(_ cache: LocationCacheEntry?) -> Bool {
@@ -78,12 +97,14 @@ class CharacterLocationAPI {
     
     // 清除缓存
     private func clearCache(characterId: Int) {
-        // 清除内存缓存
-        locationMemoryCache.removeValue(forKey: characterId)
-        
-        // 清除磁盘缓存
-        let key = locationCachePrefix + String(characterId)
-        UserDefaults.standard.removeObject(forKey: key)
+        cacheQueue.async(flags: .barrier) {
+            // 清除内存缓存
+            self.locationMemoryCache.removeValue(forKey: characterId)
+            
+            // 清除磁盘缓存
+            let key = self.locationCachePrefix + String(characterId)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
     }
     
     // 获取角色位置信息
@@ -91,7 +112,7 @@ class CharacterLocationAPI {
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh {
             // 1. 先检查内存缓存
-            if let memoryCached = locationMemoryCache[characterId],
+            if let memoryCached = getLocationMemoryCache(characterId: characterId),
                isCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的位置信息 - 角色ID: \(characterId)")
                 return memoryCached.value
@@ -102,7 +123,7 @@ class CharacterLocationAPI {
                isCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的位置信息 - 角色ID: \(characterId)")
                 // 更新内存缓存
-                locationMemoryCache[characterId] = diskCached
+                setLocationMemoryCache(characterId: characterId, cache: diskCached)
                 return diskCached.value
             }
             
@@ -126,7 +147,7 @@ class CharacterLocationAPI {
             let cacheEntry = LocationCacheEntry(value: location, timestamp: Date())
             
             // 更新内存缓存
-            locationMemoryCache[characterId] = cacheEntry
+            setLocationMemoryCache(characterId: characterId, cache: cacheEntry)
             
             // 更新磁盘缓存
             saveToDiskCache(characterId: characterId, cache: cacheEntry)
