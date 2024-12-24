@@ -38,7 +38,7 @@ actor AuthTokenManager: NSObject {
         // 获取配置
         let issuer = URL(string: "https://login.eveonline.com")!
         let configuration = try await OIDAuthorizationService.discoverConfiguration(forIssuer: issuer)
-        let redirectURI = URL(string: "eve-nexus://oauth/callback")!
+        let redirectURI = URL(string: "eveauthpanel://callback/")!
         let clientId = EVELogin.shared.config?.clientId ?? ""
         
         // 创建 token 请求
