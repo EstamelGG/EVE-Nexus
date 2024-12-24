@@ -379,7 +379,7 @@ class EVELoginViewModel: ObservableObject {
                 if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
                     characters[index] = updatedCharacter
                 }
-                // ��果是当前选中的角色，也更新characterInfo
+                // 如果是当前选中的角色，也更新characterInfo
                 if characterInfo?.CharacterID == updatedCharacter.CharacterID {
                     characterInfo = updatedCharacter
                 }
@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且��在缓存的头像，直接返回
+            // 如果不是强制刷新且存在缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -1210,27 +1210,20 @@ class EVELogin {
         Logger.info("EVELogin: 找到 \(validCharacterIds.count) 个有效的 token")
         
         // 获取当前保存的所有角色
-        var characters = loadCharacters()
+        let characters = loadCharacters()
         Logger.info("EVELogin: 当前保存了 \(characters.count) 个角色")
         
-        // 移除没有有效 token 的角色
-        characters.removeAll { character in
+        // 检查每个角色的token状态
+        for character in characters {
             let hasValidToken = validCharacterIds.contains(character.character.CharacterID)
             if !hasValidToken {
-                Logger.info("EVELogin: 移除无效 token 的角色 - \(character.character.CharacterName) (\(character.character.CharacterID))")
+                Logger.info("EVELogin: 发现无效token的角色 - \(character.character.CharacterName) (\(character.character.CharacterID))")
+                // 标记token已过期
+                markTokenExpired(characterId: character.character.CharacterID)
             }
-            return !hasValidToken
         }
         
-        // 保存更新后的角色列表
-        do {
-            let encodedData = try JSONEncoder().encode(characters)
-            UserDefaults.standard.set(encodedData, forKey: charactersKey)
-            UserDefaults.standard.synchronize()
-            Logger.info("EVELogin: 成功更新角色列表，保留 \(characters.count) 个有效角色")
-        } catch {
-            Logger.error("EVELogin: 保存更新后的角色列表失败: \(error)")
-        }
+        Logger.info("EVELogin: 角色token状态验证完成")
     }
 }
 
