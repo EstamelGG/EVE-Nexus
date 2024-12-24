@@ -53,17 +53,17 @@ class TokenManager {
                         Logger.info("TokenManager: 使用缓存的有效 access token - 角色ID: \(characterId)")
                         return cachedToken.token
                     } else {
-                        // 如果access token不合法，清除缓存并重新获取
-                        Logger.info("TokenManager: 缓存的 access token 无效，准备清除并重新获取 - 角色ID: \(characterId)")
-                        clearTokens(for: characterId)
+                        // 如果access token不合法，只清除缓存的token
+                        Logger.info("TokenManager: 缓存的 access token 无效，准备重新获取 - 角色ID: \(characterId)")
+                        tokenCache.removeValue(forKey: characterId)
                     }
                 } catch {
                     Logger.error("TokenManager: Access token验证失败 - 角色ID: \(characterId), 错误: \(error)")
-                    clearTokens(for: characterId)
+                    tokenCache.removeValue(forKey: characterId)
                 }
             } else {
                 Logger.info("TokenManager: 缓存的 access token 已过期 - 角色ID: \(characterId)")
-                clearTokens(for: characterId)
+                tokenCache.removeValue(forKey: characterId)
             }
         }
         
@@ -91,13 +91,9 @@ class TokenManager {
                 // 使用 refresh token 获取新的 token
                 return try await refreshTokenWithRetry(refreshToken: refreshToken, characterId: characterId)
             } catch {
-                // 如果刷新失败，清除所有相关缓存
+                // 如果刷新失败，只标记token过期
                 Logger.error("TokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")
-                clearTokens(for: characterId)
-                
-                // 通知EVELogin token已过期
                 EVELogin.shared.markTokenExpired(characterId: characterId)
-                
                 throw error
             }
         }
@@ -149,6 +145,8 @@ class TokenManager {
             }
         }
         
+        // 所有重试都失败了，标记token过期但不删除refresh token
+        EVELogin.shared.markTokenExpired(characterId: characterId)
         throw lastError ?? NetworkError.tokenExpired
     }
     

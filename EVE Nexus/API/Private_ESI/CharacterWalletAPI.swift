@@ -1,6 +1,6 @@
 import Foundation
 
-class CharacterWalletAPI {
+actor CharacterWalletAPI {
     static let shared = CharacterWalletAPI()
     
     // 缓存结构
@@ -65,7 +65,7 @@ class CharacterWalletAPI {
         UserDefaults.standard.removeObject(forKey: key)
     }
     
-    // 获取缓存的钱包余额（同步方法）
+    // 获取缓存的钱包余额（现在是异步方法）
     func getCachedWalletBalance(characterId: Int) -> String {
         // 1. 先检查内存缓存
         if let memoryCached = memoryCache[characterId] {
@@ -86,17 +86,26 @@ class CharacterWalletAPI {
     func getWalletBalance(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
         // 如果不是强制刷新，检查缓存是否有效
         if !forceRefresh {
-            if let memoryCached = memoryCache[characterId], 
-               isCacheValid(memoryCached) {
-                Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
-                return Double(memoryCached.value) ?? 0.0
-            }
+            // 检查缓存
+            let cachedResult: Double? = {
+                if let memoryCached = memoryCache[characterId], 
+                   isCacheValid(memoryCached) {
+                    Logger.info("使用内存缓存的钱包余额数据 - 角色ID: \(characterId)")
+                    return Double(memoryCached.value)
+                }
+                
+                if let diskCached = getDiskCache(characterId: characterId),
+                   isCacheValid(diskCached) {
+                    Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
+                    memoryCache[characterId] = diskCached
+                    return Double(diskCached.value)
+                }
+                
+                return nil
+            }()
             
-            if let diskCached = getDiskCache(characterId: characterId),
-               isCacheValid(diskCached) {
-                Logger.info("使用磁盘缓存的钱包余额数据 - 角色ID: \(characterId)")
-                memoryCache[characterId] = diskCached
-                return Double(diskCached.value) ?? 0.0
+            if let cachedValue = cachedResult {
+                return cachedValue
             }
             
             Logger.info("缓存未命中或已过期,需要从服务器获取钱包数据 - 角色ID: \(characterId)")

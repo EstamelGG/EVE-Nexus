@@ -528,7 +528,7 @@ struct ContentView: View {
             
             // 获取钱包余额
             // 先显示缓存的余额
-            let cachedBalance = CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
+            let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
             if let balance = Double(cachedBalance) {
                 await MainActor.run {
                     selectedCharacter?.walletBalance = balance
