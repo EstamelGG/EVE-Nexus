@@ -161,11 +161,11 @@ class NetworkManager: NSObject, @unchecked Sendable {
     // 专门用于需访问令牌的请求
     func fetchDataWithToken(from url: URL, characterId: Int, headers: [String: String]? = nil) async throws -> Data {
         // 获取角色的token
-        let token = try await TokenManager.shared.getAccessToken(for: characterId)
+        let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
         
         // 创建基本请求头
         var allHeaders: [String: String] = [
-            "Authorization": "Bearer \(token.access_token)",
+            "Authorization": "Bearer \(token)",
             "datasource": "tranquility",
             "Accept": "application/json"
         ]

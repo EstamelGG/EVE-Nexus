@@ -71,11 +71,23 @@ struct AccountsView: View {
                                 let portrait = viewModel.characterPortraits[character.CharacterID]
                                 // 保存当前角色的最新状态到 EVELogin
                                 Task {
-                                    if let token = try? await TokenManager.shared.getAccessToken(for: character.CharacterID) {
-                                        try? await EVELogin.shared.saveAuthInfo(
+                                    do {
+                                        // 获取 access token
+                                        let accessToken = try await AuthTokenManager.shared.getAccessToken(for: character.CharacterID)
+                                        // 创建 EVEAuthToken 对象
+                                        let token = EVEAuthToken(
+                                            access_token: accessToken,
+                                            expires_in: 1200, // 20分钟过期
+                                            token_type: "Bearer",
+                                            refresh_token: try SecureStorage.shared.loadToken(for: character.CharacterID) ?? ""
+                                        )
+                                        // 保存认证信息
+                                        try await EVELogin.shared.saveAuthInfo(
                                             token: token,
                                             character: character
                                         )
+                                    } catch {
+                                        Logger.error("保存认证信息失败: \(error)")
                                     }
                                 }
                                 onCharacterSelect?(character, portrait)
@@ -230,7 +242,7 @@ struct AccountsView: View {
                         
                         do {
                             // 使用 TokenManager 获取有效的 token
-                            _ = try await TokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
+                            _ = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
                             
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {
@@ -337,13 +349,24 @@ struct AccountsView: View {
                             // 保存更新后的角色信息到UserDefaults
                             if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) }) {
                                 let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
-                                // 获取token并保存角色信息
-                                if let token = try? await TokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID) {
-                                    try? await EVELogin.shared.saveAuthInfo(
+                                do {
+                                    // 获取 access token
+                                    let accessToken = try await AuthTokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID)
+                                    // 创建 EVEAuthToken 对象
+                                    let token = EVEAuthToken(
+                                        access_token: accessToken,
+                                        expires_in: 1200, // 20分钟过期
+                                        token_type: "Bearer",
+                                        refresh_token: try SecureStorage.shared.loadToken(for: updatedCharacter.CharacterID) ?? ""
+                                    )
+                                    // 保存认证信息
+                                    try await EVELogin.shared.saveAuthInfo(
                                         token: token,
                                         character: updatedCharacter
                                     )
                                     Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
+                                } catch {
+                                    Logger.error("保存认证信息失败: \(error)")
                                 }
                             }
                             

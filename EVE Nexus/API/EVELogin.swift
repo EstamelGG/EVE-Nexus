@@ -379,7 +379,7 @@ class EVELoginViewModel: ObservableObject {
                 if let index = characters.firstIndex(where: { $0.CharacterID == updatedCharacter.CharacterID }) {
                     characters[index] = updatedCharacter
                 }
-                // 如果是当前选中的角色，也更新characterInfo
+                // 如果是前选中的角色也更新characterInfo
                 if characterInfo?.CharacterID == updatedCharacter.CharacterID {
                     characterInfo = updatedCharacter
                 }
@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且缓存的头像，直接返回
+            // 如果不是强制刷新且存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -630,15 +630,14 @@ class EVELogin {
     
     // 执行后台刷新
     func performBackgroundRefresh() async throws {
-        guard let token = loadAuthInfo().token,
-              let character = loadAuthInfo().character else {
-            Logger.info("EVELogin: 无需执行后台刷新，未找到令牌或角色信息")
+        guard let character = loadAuthInfo().character else {
+            Logger.info("EVELogin: 无需执行后台刷新，未找到角色信息")
             return
         }
         
         do {
-            let newToken = try await refreshToken(characterId: character.CharacterID, refreshToken: token.refresh_token)
-            try await saveAuthInfo(token: newToken, character: character)
+            // 尝试获取新的token，如果需要会自动刷新
+            _ = try await AuthTokenManager.shared.getAccessToken(for: character.CharacterID)
             Logger.info("EVELogin: 后台刷新令牌成功")
         } catch {
             Logger.error("EVELogin: 后台刷新令牌失败: \(error)")
@@ -812,15 +811,6 @@ class EVELogin {
             try SecureStorage.shared.saveToken(token.refresh_token, for: character.CharacterID)
             Logger.info("EVELogin: Refresh token 已保存到 SecureStorage")
             
-            // 更新 TokenManager 的缓存
-            let expirationDate = Date().addingTimeInterval(TimeInterval(token.expires_in))
-            let cachedToken = TokenManager.CachedToken(
-                token: token,
-                expirationDate: expirationDate
-            )
-            await TokenManager.shared.updateTokenCache(characterId: character.CharacterID, cachedToken: cachedToken)
-            Logger.info("EVELogin: TokenManager 缓存已更新")
-            
             // 强制同步到磁盘
             defaults.synchronize()
             
@@ -975,10 +965,10 @@ class EVELogin {
             try SecureStorage.shared.deleteToken(for: characterId)
             Logger.info("EVELogin: 已从 SecureStorage 中移除角色 token")
             
-            // 清除 TokenManager 中的缓存
+            // 清除 AuthTokenManager 中的缓存
             Task {
-                await TokenManager.shared.clearTokens(for: characterId)
-                Logger.info("EVELogin: 已清除 TokenManager 缓存")
+                await AuthTokenManager.shared.clearTokens(for: characterId)
+                Logger.info("EVELogin: 已清除 AuthTokenManager 缓存")
             }
             
             // 同步 UserDefaults 确保数据立即保存
@@ -1104,9 +1094,9 @@ class EVELogin {
         }
         
         do {
-            // 使用TokenManager获取有效的token
-            let token = try await TokenManager.shared.getAccessToken(for: character.CharacterID)
-            return token.access_token
+            // 使用AuthTokenManager获取有效的token
+            let token = try await AuthTokenManager.shared.getAccessToken(for: character.CharacterID)
+            return token
         } catch {
             Logger.error("EVELogin: 获取有效token失败: \(error)")
             if case NetworkError.tokenExpired = error {

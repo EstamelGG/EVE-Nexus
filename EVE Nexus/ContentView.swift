@@ -885,23 +885,6 @@ struct ContentView: View {
             } catch {
                 Logger.error("Failed to load server status: \(error)")
             }
-            
-            // 在后台检查和刷新token
-            if let character = selectedCharacter {
-                do {
-                    _ = try await TokenManager.shared.getAccessToken(for: character.CharacterID)
-                    await MainActor.run {
-                        tokenExpired = false
-                    }
-                } catch {
-                    Logger.error("Token refresh failed: \(error)")
-                    if case NetworkError.tokenExpired = error {
-                        await MainActor.run {
-                            tokenExpired = true
-                        }
-                    }
-                }
-            }
         }
     }
     
