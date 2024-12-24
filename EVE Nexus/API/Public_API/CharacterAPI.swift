@@ -16,7 +16,12 @@ struct CharacterPublicInfo: Codable {
     let title: String?
 }
 
-class CharacterAPI {
+@globalActor actor CharacterActor {
+    static let shared = CharacterActor()
+}
+
+@CharacterActor
+final class CharacterAPI: @unchecked Sendable {
     static let shared = CharacterAPI()
     
     // 缓存结构
@@ -24,9 +29,6 @@ class CharacterAPI {
         let value: CharacterPublicInfo
         let timestamp: Date
     }
-    
-    // 添加并发队列用于同步访问
-    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.character-cache", attributes: .concurrent)
     
     // 内存缓存
     private var publicInfoMemoryCache: [Int: PublicInfoCacheEntry] = [:]
@@ -47,22 +49,6 @@ class CharacterAPI {
         // 配置下载器
         let downloader = ImageDownloader.default
         downloader.downloadTimeout = 15.0 // 15秒超时
-    }
-    
-    // 安全地获取公开信息缓存
-    private func getPublicInfoMemoryCache(characterId: Int) -> PublicInfoCacheEntry? {
-        var result: PublicInfoCacheEntry?
-        cacheQueue.sync {
-            result = publicInfoMemoryCache[characterId]
-        }
-        return result
-    }
-    
-    // 安全地设置公开信息缓存
-    private func setPublicInfoMemoryCache(characterId: Int, cache: PublicInfoCacheEntry) {
-        cacheQueue.async(flags: .barrier) {
-            self.publicInfoMemoryCache[characterId] = cache
-        }
     }
     
     // 检查公开信息缓存是否有效
@@ -91,12 +77,10 @@ class CharacterAPI {
     
     // 清除指定角色的所有缓存
     private func clearCache(characterId: Int) async throws {
-        cacheQueue.async(flags: .barrier) {
-            // 清除公开信息缓存
-            self.publicInfoMemoryCache.removeValue(forKey: characterId)
-            let publicInfoKey = self.publicInfoCachePrefix + String(characterId)
-            UserDefaults.standard.removeObject(forKey: publicInfoKey)
-        }
+        // 清除公开信息缓存
+        publicInfoMemoryCache.removeValue(forKey: characterId)
+        let publicInfoKey = publicInfoCachePrefix + String(characterId)
+        UserDefaults.standard.removeObject(forKey: publicInfoKey)
         
         // 清除所有尺寸的头像缓存
         let sizes = [32, 64, 128, 256, 512]
@@ -116,7 +100,7 @@ class CharacterAPI {
         // 如果不是强制刷新，先尝试使用缓存
         if !forceRefresh {
             // 1. 先检查内存缓存
-            if let memoryCached = getPublicInfoMemoryCache(characterId: characterId),
+            if let memoryCached = publicInfoMemoryCache[characterId],
                isPublicInfoCacheValid(memoryCached) {
                 Logger.info("使用内存缓存的角色公开信息 - 角色ID: \(characterId)")
                 return memoryCached.value
@@ -127,7 +111,7 @@ class CharacterAPI {
                isPublicInfoCacheValid(diskCached) {
                 Logger.info("使用磁盘缓存的角色公开信息 - 角色ID: \(characterId)")
                 // 更新内存缓存
-                setPublicInfoMemoryCache(characterId: characterId, cache: diskCached)
+                publicInfoMemoryCache[characterId] = diskCached
                 return diskCached.value
             }
             
@@ -146,7 +130,7 @@ class CharacterAPI {
         let cacheEntry = PublicInfoCacheEntry(value: info, timestamp: Date())
         
         // 更新内存缓存
-        setPublicInfoMemoryCache(characterId: characterId, cache: cacheEntry)
+        publicInfoMemoryCache[characterId] = cacheEntry
         
         // 更新磁盘缓存
         savePublicInfoToDiskCache(characterId: characterId, cache: cacheEntry)
@@ -159,7 +143,7 @@ class CharacterAPI {
     func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
         
-        var options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = [
             .cacheOriginalImage,
             .backgroundDecode,
             .scaleFactor(UIScreen.main.scale),
