@@ -26,7 +26,7 @@ struct AccountsView: View {
             // 添加新角色按钮
             Section {
                 Button(action: {
-                    if EVELogin.shared.getAuthorizationURL() != nil {
+                    if AuthTokenManager.shared.getAuthorizationURL() != nil {
                         showingWebView = true
                     } else {
                         Logger.error("获取授权URL失败")
@@ -129,7 +129,7 @@ struct AccountsView: View {
         }
         .sheet(isPresented: $showingWebView) {
         } content: {
-            if let url = EVELogin.shared.getAuthorizationURL() {
+            if let url = AuthTokenManager.shared.getAuthorizationURL() {
                 SafariView(url: url)
                     .environmentObject(viewModel)
             } else {
@@ -180,7 +180,7 @@ struct AccountsView: View {
         }
         .onOpenURL { url in
             Task {
-                await viewModel.handleCallback(url: url)
+                viewModel.handleCallback(url: url)
                 showingWebView = false
                 // 如果登录成功，清除该角色的token过期状态
                 if let character = viewModel.characterInfo {
@@ -375,7 +375,10 @@ struct AccountsView: View {
                             if case NetworkError.tokenExpired = error {
                                 await updateUI {
                                     expiredTokenCharacters.insert(characterAuth.character.CharacterID)
-                                    EVELogin.shared.markTokenExpired(characterId: characterAuth.character.CharacterID)
+                                    // 清除过期的 token
+                                    Task {
+                                        await AuthTokenManager.shared.clearTokens(for: characterAuth.character.CharacterID)
+                                    }
                                 }
                             }
                             Logger.error("刷新角色信息失败: \(error)")
