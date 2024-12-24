@@ -26,10 +26,40 @@ struct AccountsView: View {
             // 添加新角色按钮
             Section {
                 Button(action: {
-                    if AuthTokenManager.shared.getAuthorizationURL() != nil {
-                        showingWebView = true
-                    } else {
-                        Logger.error("获取授权URL失败")
+                    Task {
+                        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                              let viewController = scene.windows.first?.rootViewController else {
+                            return
+                        }
+                        
+                        do {
+                            let authState = try await AuthTokenManager.shared.authorize(
+                                presenting: viewController,
+                                scopes: EVELogin.shared.config?.scopes ?? []
+                            )
+                            
+                            // 获取角色信息
+                            let character = try await EVELogin.shared.processLogin(
+                                authState: authState
+                            )
+                            
+                            await MainActor.run {
+                                viewModel.characterInfo = character
+                                viewModel.isLoggedIn = true
+                                viewModel.loadCharacters()
+                                
+                                // 加载新角色的头像
+                                Task {
+                                    await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
+                                }
+                            }
+                        } catch {
+                            await MainActor.run {
+                                viewModel.errorMessage = error.localizedDescription
+                                viewModel.showingError = true
+                            }
+                            Logger.error("登录失败: \(error)")
+                        }
                     }
                 }) {
                     HStack {
@@ -125,15 +155,6 @@ struct AccountsView: View {
                             .foregroundColor(.blue)
                     }
                 }
-            }
-        }
-        .sheet(isPresented: $showingWebView) {
-        } content: {
-            if let url = AuthTokenManager.shared.getAuthorizationURL() {
-                SafariView(url: url)
-                    .environmentObject(viewModel)
-            } else {
-                Text(NSLocalizedString("Account_Cannot_Get_Auth_URL", comment: ""))
             }
         }
         .alert(NSLocalizedString("Account_Login_Failed", comment: ""), isPresented: Binding(

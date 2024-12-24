@@ -1,3 +1,4 @@
+@preconcurrency import AppAuth
 import Foundation
 import BackgroundTasks
 import SwiftUI
@@ -354,12 +355,26 @@ class EVELoginViewModel: ObservableObject {
     func handleCallback(url: URL) {
         Task { @MainActor in
             do {
-                let character = try await EVELogin.shared.processLogin(url: url)
+                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                      let viewController = scene.windows.first?.rootViewController else {
+                    return
+                }
+                
+                // 1. 使用 AuthTokenManager 处理授权回调
+                let authState = try await AuthTokenManager.shared.authorize(
+                    presenting: viewController,
+                    scopes: EVELogin.shared.config?.scopes ?? []
+                )
+                
+                // 2. 处理登录流程
+                let character = try await EVELogin.shared.processLogin(authState: authState)
+                
+                // 3. 更新 UI
                 characterInfo = character
                 isLoggedIn = true
                 loadCharacters() // 重新加载角色列表
                 
-                // 加载新角色的头像
+                // 4. 加载新角色的头像
                 await loadCharacterPortrait(characterId: character.CharacterID)
             } catch {
                 errorMessage = error.localizedDescription
@@ -409,30 +424,20 @@ class EVELogin {
     }
     
     // 主处理函数 - 基本认证
-    func processLogin(url: URL) async throws -> EVECharacterInfo {
+    func processLogin(authState: OIDAuthState) async throws -> EVECharacterInfo {
         Logger.info("EVELogin: 开始处理登录流程...")
         
-        // 1. 使用 AuthTokenManager 处理授权回调
-        guard let viewController = await UIApplication.shared.windows.first?.rootViewController else {
-            throw NetworkError.invalidData
-        }
-        
-        let authState = try await AuthTokenManager.shared.authorize(
-            presenting: viewController,
-            scopes: config?.scopes ?? []
-        )
-        
-        // 2. 获取角色信息
+        // 1. 获取角色信息
         let character = try await getCharacterInfo(token: authState.lastTokenResponse?.accessToken ?? "")
         Logger.info("EVELogin: 成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
         
-        // 3. 保存认证状态
+        // 2. 保存认证状态
         await AuthTokenManager.shared.saveAuthState(authState, for: character.CharacterID)
         
-        // 4. 保存角色信息
+        // 3. 保存角色信息
         try await saveCharacterInfo(character)
         
-        // 5. 加载详细信息
+        // 4. 加载详细信息
         let updatedCharacter = try await loadDetailedInfo(character: character)
         
         return updatedCharacter
