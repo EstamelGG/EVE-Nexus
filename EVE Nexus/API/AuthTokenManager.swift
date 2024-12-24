@@ -11,17 +11,11 @@ actor AuthTokenManager: NSObject {
     
     // 获取有效的access token
     func getAccessToken(for characterId: Int) async throws -> String {
-        // 获取或创建 auth state（线程安全）
         let authState = try await getOrCreateAuthState(for: characterId)
-        
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
                 if let error = error {
                     Logger.error("AuthTokenManager: Token获取失败 - 角色ID: \(characterId), 错误: \(error)")
-                    // 如果是token相关错误，标记过期
-                    if (error as NSError).domain == OIDOAuthTokenErrorDomain {
-                        EVELogin.shared.markTokenExpired(characterId: characterId)
-                    }
                     continuation.resume(throwing: error)
                     return
                 }
@@ -51,38 +45,38 @@ actor AuthTokenManager: NSObject {
         }
         
         // 创建新的 auth state
-        let authState = try await refreshAndCreateAuthState(characterId: characterId, refreshToken: refreshToken)
+        let authState = try await createAuthState(characterId: characterId, refreshToken: refreshToken)
         authStates[characterId] = authState
         return authState
     }
     
-    private func refreshAndCreateAuthState(characterId: Int, refreshToken: String) async throws -> OIDAuthState {
+    private func createAuthState(characterId: Int, refreshToken: String) async throws -> OIDAuthState {
         // 创建 OAuth 配置
         let issuer = URL(string: "https://login.eveonline.com")!
         let redirectURI = URL(string: "eve-nexus://oauth/callback")!
+        let clientId = EVELogin.shared.config?.clientId ?? ""
         
         let configuration = try await OIDAuthorizationService.discoverConfiguration(forIssuer: issuer)
         
+        // 创建 token request
+        let request = OIDTokenRequest(
+            configuration: configuration,
+            grantType: OIDGrantTypeRefreshToken,
+            authorizationCode: nil,
+            redirectURL: redirectURI,
+            clientID: clientId,
+            clientSecret: nil,
+            scope: nil,
+            refreshToken: refreshToken,
+            codeVerifier: nil,
+            additionalParameters: nil
+        )
+        
+        // 执行 token 请求
         return try await withCheckedThrowingContinuation { continuation in
-            let request = OIDTokenRequest(
-                configuration: configuration,
-                grantType: OIDGrantTypeRefreshToken,
-                authorizationCode: nil,
-                redirectURL: redirectURI,
-                clientID: EVELogin.shared.config?.clientId ?? "",
-                clientSecret: nil,
-                scope: nil,
-                refreshToken: refreshToken,
-                codeVerifier: nil,
-                additionalParameters: nil
-            )
-            
-            OIDAuthorizationService.perform(request) { [weak self] response, error in
-                guard let self = self else { return }
-                
+            OIDAuthorizationService.perform(request) { response, error in
                 if let error = error {
-                    Logger.error("AuthTokenManager: Token刷新失败 - 角色ID: \(characterId), 错误: \(error)")
-                    EVELogin.shared.markTokenExpired(characterId: characterId)
+                    Logger.error("AuthTokenManager: Token验证失败 - 角色ID: \(characterId), 错误: \(error)")
                     continuation.resume(throwing: error)
                     return
                 }
@@ -93,40 +87,29 @@ actor AuthTokenManager: NSObject {
                     return
                 }
                 
-                // 创建模拟的授权响应
+                // 创建模拟的授权请求和响应
                 let authRequest = OIDAuthorizationRequest(
                     configuration: configuration,
-                    clientId: EVELogin.shared.config?.clientId ?? "",
-                    clientSecret: nil,
-                    scope: nil,
+                    clientId: clientId,
+                    scopes: nil,
                     redirectURL: redirectURI,
                     responseType: OIDResponseTypeCode,
-                    state: nil,
-                    nonce: nil,
-                    codeVerifier: nil,
-                    codeChallenge: nil,
-                    codeChallengeMethod: nil,
                     additionalParameters: nil
                 )
                 
-                let parameters: [String: NSString] = [
-                    "code": "dummy_code" as NSString,
-                    "state": "dummy_state" as NSString
-                ]
-                
                 let authResponse = OIDAuthorizationResponse(
                     request: authRequest,
-                    parameters: parameters
+                    parameters: [
+                        "code": "refresh_token_flow" as NSString,
+                        "state": "refresh_token_flow" as NSString
+                    ]
                 )
                 
-                // 创建新的 auth state
+                // 创建 auth state
                 let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
+                authState.stateChangeDelegate = self
                 
-                Task { @MainActor in
-                    authState.stateChangeDelegate = self
-                }
-                
-                Logger.info("AuthTokenManager: Token刷新成功 - 角色ID: \(characterId)")
+                Logger.info("AuthTokenManager: Token验证成功 - 角色ID: \(characterId)")
                 continuation.resume(returning: authState)
             }
         }
@@ -135,7 +118,9 @@ actor AuthTokenManager: NSObject {
     func clearTokens(for characterId: Int) async {
         Logger.info("AuthTokenManager: 开始清除Token - 角色ID: \(characterId)")
         
-        authStates.removeValue(forKey: characterId)
+        if let authState = authStates.removeValue(forKey: characterId) {
+            authState.stateChangeDelegate = nil
+        }
         
         do {
             try SecureStorage.shared.deleteToken(for: characterId)
