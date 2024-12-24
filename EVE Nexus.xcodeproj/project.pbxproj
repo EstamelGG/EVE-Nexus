@@ -10,6 +10,8 @@
 		C61378522D1A686600B9FB6B /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C61378512D1A686600B9FB6B /* AppAuth */; };
 		C61378552D1A772100B9FB6B /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = C61378542D1A772100B9FB6B /* Kingfisher */; };
 		C61378582D1A776900B9FB6B /* Pulse in Frameworks */ = {isa = PBXBuildFile; productRef = C61378572D1A776900B9FB6B /* Pulse */; };
+		C613785C2D1A786C00B9FB6B /* Pulse in Frameworks */ = {isa = PBXBuildFile; productRef = C613785B2D1A786C00B9FB6B /* Pulse */; };
+		C613785E2D1A786C00B9FB6B /* PulseUI in Frameworks */ = {isa = PBXBuildFile; productRef = C613785D2D1A786C00B9FB6B /* PulseUI */; };
 		C68E07512D047AD2007DA6D8 /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = C68E07502D047AD2007DA6D8 /* Zip */; };
 /* End PBXBuildFile section */
 
@@ -72,8 +74,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C613785E2D1A786C00B9FB6B /* PulseUI in Frameworks */,
 				C61378552D1A772100B9FB6B /* Kingfisher in Frameworks */,
 				C61378522D1A686600B9FB6B /* AppAuth in Frameworks */,
+				C613785C2D1A786C00B9FB6B /* Pulse in Frameworks */,
 				C61378582D1A776900B9FB6B /* Pulse in Frameworks */,
 				C68E07512D047AD2007DA6D8 /* Zip in Frameworks */,
 			);
@@ -140,6 +144,8 @@
 				C61378512D1A686600B9FB6B /* AppAuth */,
 				C61378542D1A772100B9FB6B /* Kingfisher */,
 				C61378572D1A776900B9FB6B /* Pulse */,
+				C613785B2D1A786C00B9FB6B /* Pulse */,
+				C613785D2D1A786C00B9FB6B /* PulseUI */,
 			);
 			productName = "EVE Nexus";
 			productReference = C6417FC12CF80C4D0032F75C /* EVE Nexus.app */;
@@ -676,6 +682,14 @@
 		C61378572D1A776900B9FB6B /* Pulse */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Pulse;
+		};
+		C613785B2D1A786C00B9FB6B /* Pulse */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Pulse;
+		};
+		C613785D2D1A786C00B9FB6B /* PulseUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PulseUI;
 		};
 		C68E07502D047AD2007DA6D8 /* Zip */ = {
 			isa = XCSwiftPackageProductDependency;
