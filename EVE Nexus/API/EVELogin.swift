@@ -389,7 +389,7 @@ class EVELoginViewModel: ObservableObject {
     
     func loadCharacterPortrait(characterId: Int, forceRefresh: Bool = false) async {
         do {
-            // 如果不是强制刷新且有缓存的头像，直接返回
+            // 如果不是强制刷新且缓存的头像，直接返回
             if !forceRefresh && characterPortraits[characterId] != nil {
                 return
             }
@@ -1033,6 +1033,12 @@ class EVELogin {
             throw NetworkError.authenticationError("Empty refresh token")
         }
         
+        // 对 refresh token 进行 URL 编码
+        guard let encodedRefreshToken = storedRefreshToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            Logger.error("EVELogin: refresh token URL编码失败 - 角色ID: \(characterId)")
+            throw NetworkError.invalidData
+        }
+        
         Logger.info("EVELogin: 使用的 refresh token 前缀: \(String(storedRefreshToken.prefix(10)))...")
         
         var request = URLRequest(url: URL(string: config.urls.token)!)
@@ -1045,7 +1051,7 @@ class EVELogin {
         // 构建请求体参数
         let bodyParams = [
             "grant_type": "refresh_token",
-            "refresh_token": storedRefreshToken,
+            "refresh_token": encodedRefreshToken,
             "client_id": config.clientId
         ]
         
@@ -1056,7 +1062,7 @@ class EVELogin {
         
         // 打印请求信息（注意不要打印完整的敏感信息）
         Logger.info("EVELogin: 刷新令牌请求 URL: \(config.urls.token)")
-        Logger.info("EVELogin: 请求体: grant_type=refresh_token&refresh_token=\(String(storedRefreshToken.prefix(10)))...&client_id=\(config.clientId)")
+        Logger.info("EVELogin: 请求体: grant_type=refresh_token&refresh_token=\(encodedRefreshToken)&client_id=\(config.clientId)")
         
         let (data, response) = try await session.data(for: request)
         
