@@ -124,12 +124,6 @@ struct AssetItemView: View {
             }
             
             Spacer()
-            
-            // 如果有子资产，显示箭头
-            if !node.children.isEmpty {
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-            }
         }
         .padding(.vertical, 4)
     }
