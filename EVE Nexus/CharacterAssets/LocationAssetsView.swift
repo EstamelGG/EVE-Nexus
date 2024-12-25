@@ -1,5 +1,90 @@
 import SwiftUI
 
+// 格式化location_flag显示
+private func formatLocationFlag(_ flag: String) -> String {
+    // 这里可以添加更多的映射
+    switch flag {
+    case "Hangar":
+        return "机库"
+    case "CorpSAG1":
+        return "公司机库 1"
+    case "CorpSAG2":
+        return "公司机库 2"
+    case "CorpSAG3":
+        return "公司机库 3"
+    case "CorpSAG4":
+        return "公司机库 4"
+    case "CorpSAG5":
+        return "公司机库 5"
+    case "CorpSAG6":
+        return "公司机库 6"
+    case "CorpSAG7":
+        return "公司机库 7"
+    case "CorpDeliveries":
+        return "公司交付"
+    case "AutoFit":
+        return "自动装配"
+    case "Cargo":
+        return "货物"
+    case "DroneBay":
+        return "无人机舱"
+    case "FleetHangar":
+        return "舰队机库"
+    case "Deliveries":
+        return "交付"
+    case "HiddenModifiers":
+        return "隐藏修改器"
+    case "ShipHangar":
+        return "舰船机库"
+    case "FighterBay":
+        return "战斗机舱"
+    case "FighterTube0", "FighterTube1", "FighterTube2", "FighterTube3", "FighterTube4":
+        return "战斗机发射管 \(flag.dropFirst("FighterTube".count))"
+    case "SubSystemBay":
+        return "子系统舱"
+    case "SubSystemSlot0", "SubSystemSlot1", "SubSystemSlot2", "SubSystemSlot3", "SubSystemSlot4":
+        return "子系统插槽 \(flag.dropFirst("SubSystemSlot".count))"
+    case "SpecializedAmmoHold":
+        return "特殊弹药仓"
+    case "SpecializedCommandCenterHold":
+        return "特殊指挥中心仓"
+    case "SpecializedFuelBay":
+        return "特殊燃料仓"
+    case "SpecializedGasHold":
+        return "特殊气体仓"
+    case "SpecializedIndustrialShipHold":
+        return "特殊工业舰船仓"
+    case "SpecializedLargeShipHold":
+        return "特殊大型舰船仓"
+    case "SpecializedMaterialBay":
+        return "特殊材料仓"
+    case "SpecializedMediumShipHold":
+        return "特殊中型舰船仓"
+    case "SpecializedMineralHold":
+        return "特殊矿物仓"
+    case "SpecializedOreHold":
+        return "特殊矿石仓"
+    case "SpecializedPlanetaryCommoditiesHold":
+        return "特殊行星商品仓"
+    case "SpecializedSalvageHold":
+        return "特殊打捞仓"
+    case "SpecializedShipHold":
+        return "特殊舰船仓"
+    case "SpecializedSmallShipHold":
+        return "特殊小型舰船仓"
+    case "HiSlot0", "HiSlot1", "HiSlot2", "HiSlot3", "HiSlot4", "HiSlot5", "HiSlot6", "HiSlot7":
+        return "高槽 \(flag.dropFirst("HiSlot".count))"
+    case "MedSlot0", "MedSlot1", "MedSlot2", "MedSlot3", "MedSlot4", "MedSlot5", "MedSlot6", "MedSlot7":
+        return "中槽 \(flag.dropFirst("MedSlot".count))"
+    case "LoSlot0", "LoSlot1", "LoSlot2", "LoSlot3", "LoSlot4", "LoSlot5", "LoSlot6", "LoSlot7":
+        return "低槽 \(flag.dropFirst("LoSlot".count))"
+    case "RigSlot0", "RigSlot1", "RigSlot2", "RigSlot3", "RigSlot4", "RigSlot5", "RigSlot6", "RigSlot7":
+        return "改装槽 \(flag.dropFirst("RigSlot".count))"
+    default:
+        return flag
+    }
+}
+
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
@@ -11,17 +96,21 @@ struct LocationAssetsView: View {
     
     var body: some View {
         List {
-            ForEach(viewModel.filteredAssets(), id: \.item_id) { node in
-                if let items = node.items, !items.isEmpty {
-                    // 如果有子资产，使用导航链接
-                    NavigationLink {
-                        SubLocationAssetsView(parentNode: node)
-                    } label: {
-                        AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+                Section(header: Text(formatLocationFlag(group.flag))) {
+                    ForEach(group.items, id: \.item_id) { node in
+                        if let items = node.items, !items.isEmpty {
+                            // 如果有子资产，使用导航链接
+                            NavigationLink {
+                                SubLocationAssetsView(parentNode: node)
+                            } label: {
+                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                            }
+                        } else {
+                            // 如果没有子资产，只显示资产信息
+                            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                        }
                     }
-                } else {
-                    // 如果没有子资产，只显示资产信息
-                    AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
                 }
             }
         }
@@ -92,15 +181,19 @@ struct SubLocationAssetsView: View {
     var body: some View {
         List {
             if parentNode.items != nil {
-                ForEach(viewModel.filteredAssets(), id: \.item_id) { node in
-                    if let subitems = node.items, !subitems.isEmpty {
-                        NavigationLink {
-                            SubLocationAssetsView(parentNode: node)
-                        } label: {
-                            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+                    Section(header: Text(formatLocationFlag(group.flag))) {
+                        ForEach(group.items, id: \.item_id) { node in
+                            if let subitems = node.items, !subitems.isEmpty {
+                                NavigationLink {
+                                    SubLocationAssetsView(parentNode: node)
+                                } label: {
+                                    AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                                }
+                            } else {
+                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                            }
                         }
-                    } else {
-                        AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
                     }
                 }
             }
@@ -127,8 +220,16 @@ class LocationAssetsViewModel: ObservableObject {
         itemInfoCache[typeId]
     }
     
-    func filteredAssets() -> [AssetTreeNode] {
-        location.items ?? []
+    // 按location_flag分组的资产
+    func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
+        let items = location.items ?? []
+        let grouped = Dictionary(grouping: items) { item in
+            item.location_flag
+        }
+        
+        // 对分组进行排序
+        return grouped.map { (flag: $0.key, items: $0.value) }
+            .sorted { $0.flag < $1.flag }
     }
     
     // 从数据库加载物品信息
