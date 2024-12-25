@@ -245,7 +245,6 @@ private struct AssetTreeNode: Codable {
     let icon_name: String?
     let is_singleton: Bool
     let is_blueprint_copy: Bool?
-    let type_name: String?      // 物品类型名称
     let system_name: String?    // 星系名称
     let region_name: String?    // 星域名称
     let security_status: Double? // 星系安全等级
@@ -932,7 +931,6 @@ public class CharacterAssetsAPI {
                 icon_name: iconName,
                 is_singleton: asset.is_singleton,
                 is_blueprint_copy: asset.is_blueprint_copy,
-                type_name: typeName,
                 system_name: nil,  // 将在顶层节点设置
                 region_name: nil,  // 将在顶层节点设置
                 security_status: nil, // 星系安全等级
@@ -994,7 +992,6 @@ public class CharacterAssetsAPI {
                     icon_name: iconName,
                     is_singleton: true,
                     is_blueprint_copy: nil,
-                    type_name: nil,
                     system_name: systemName,
                     region_name: regionName,
                     security_status: securityStatus,
