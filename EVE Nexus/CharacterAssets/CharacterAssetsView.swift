@@ -11,10 +11,15 @@ struct CharacterAssetsView: View {
     @State private var error: Error?
     
     // 按星域分组的位置
-    private var locationsByRegion: [String: [AssetLocation]] {
-        Dictionary(grouping: locations) { location in
+    private var locationsByRegion: [(region: String, locations: [AssetLocation])] {
+        let grouped = Dictionary(grouping: locations) { location in
             location.solarSystemInfo?.regionName ?? "Unknown Region"
         }
+        
+        // 过滤掉空列表，并按星域名称排序
+        return grouped.filter { !$0.value.isEmpty }
+            .map { (region: $0.key, locations: $0.value) }
+            .sorted { $0.region < $1.region }
     }
     
     var body: some View {
@@ -34,9 +39,9 @@ struct CharacterAssetsView: View {
                 }
             } else {
                 List {
-                    ForEach(Array(locationsByRegion.keys.sorted()), id: \.self) { region in
-                        Section(header: Text(region)) {
-                            ForEach(locationsByRegion[region] ?? [], id: \.locationId) { location in
+                    ForEach(locationsByRegion, id: \.region) { regionGroup in
+                        Section(header: Text(regionGroup.region)) {
+                            ForEach(regionGroup.locations, id: \.locationId) { location in
                                 if let systemInfo = location.solarSystemInfo {
                                     HStack {
                                         // 位置图标

@@ -36,6 +36,7 @@ public struct AssetLocation {
     let structureInfo: StructureInfo?
     let solarSystemInfo: SolarSystemInfo?
     let iconFileName: String?
+    let error: Error?  // 添加错误信息字段
     
     // 格式化显示名称
     var displayName: String {
@@ -53,8 +54,11 @@ public struct AssetLocation {
             }
             // 如果不以星系名开头，直接返回建筑物名称
             return structure.name
+        } else if let error = error {
+            // 如果有错误，显示错误信息
+            return "[\(locationType) \(locationId)] - \(error.localizedDescription)"
         }
-        return "Unknown Location"
+        return "Unknown Location [\(locationType) \(locationId)]"
     }
 }
 
@@ -432,63 +436,97 @@ public class CharacterAssetsAPI {
         var locations: [AssetLocation] = []
         
         for (locationId, locationType) in locationMap {
+            var location: AssetLocation?
+            var locationError: Error?
+            
             do {
                 switch locationType.lowercased() {
                 case "station":
-                    // 获取空间站信息
-                    let stationInfo = try await fetchStationInfo(stationId: locationId)
-                    
-                    // 获取星系信息
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                        // 获取空间站图标
-                        let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                    do {
+                        // 获取空间站信息
+                        let stationInfo = try await fetchStationInfo(stationId: locationId)
                         
-                        // 创建位置信息
-                        let location = AssetLocation(
-                            locationId: locationId,
-                            locationType: locationType,
-                            stationInfo: stationInfo,
-                            structureInfo: nil,
-                            solarSystemInfo: systemInfo,
-                            iconFileName: iconFileName
-                        )
-                        locations.append(location)
+                        // 获取星系信息
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                            // 获取空间站图标
+                            let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                            
+                            // 创建位置信息
+                            location = AssetLocation(
+                                locationId: locationId,
+                                locationType: locationType,
+                                stationInfo: stationInfo,
+                                structureInfo: nil,
+                                solarSystemInfo: systemInfo,
+                                iconFileName: iconFileName,
+                                error: nil
+                            )
+                        }
+                    } catch {
+                        locationError = error
                     }
                     
                 case "item": // 建筑物资产
-                    // 获取建筑物信息
-                    let structureInfo = try await fetchStructureInfo(structureId: locationId, characterId: characterId)
-                    
-                    // 获取星系信息
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                        // 获取建筑物图标
-                        let iconFileName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                    do {
+                        // 获取建筑物信息
+                        let structureInfo = try await fetchStructureInfo(structureId: locationId, characterId: characterId)
                         
-                        // 创建位置信息
-                        let location = AssetLocation(
-                            locationId: locationId,
-                            locationType: locationType,
-                            stationInfo: nil,
-                            structureInfo: structureInfo,
-                            solarSystemInfo: systemInfo,
-                            iconFileName: iconFileName
-                        )
-                        locations.append(location)
+                        // 获取星系信息
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                            // 获取建筑物图标
+                            let iconFileName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                            
+                            // 创建位置信息
+                            location = AssetLocation(
+                                locationId: locationId,
+                                locationType: locationType,
+                                stationInfo: nil,
+                                structureInfo: structureInfo,
+                                solarSystemInfo: systemInfo,
+                                iconFileName: iconFileName,
+                                error: nil
+                            )
+                        }
+                    } catch {
+                        locationError = error
                     }
                     
                 default:
-                    Logger.info("跳过未知类型的位置: \(locationType), ID: \(locationId)")
-                    continue
+                    Logger.info("未知类型的位置: \(locationType), ID: \(locationId)")
+                    locationError = AssetError.incompleteData("Unknown location type: \(locationType)")
                 }
             } catch {
-                Logger.error("处理位置信息失败 - Type: \(locationType), ID: \(locationId), Error: \(error)")
-                // 继续处理其他位置，而不是直接抛出错误
-                continue
+                locationError = error
+            }
+            
+            // 如果获取信息失败，创建一个带错误信息的位置
+            if location == nil {
+                location = AssetLocation(
+                    locationId: locationId,
+                    locationType: locationType,
+                    stationInfo: nil,
+                    structureInfo: nil,
+                    solarSystemInfo: nil,
+                    iconFileName: DatabaseConfig.defaultItemIcon,
+                    error: locationError
+                )
+            }
+            
+            if let location = location {
+                locations.append(location)
             }
         }
         
-        // 4. 按星域和星系名称排序
+        // 4. 按星域和星系名称排序，未知位置排在最后
         return locations.sorted { loc1, loc2 in
+            // 如果有一个位置没有系统信息，将其排在后面
+            if loc1.solarSystemInfo == nil {
+                return false
+            }
+            if loc2.solarSystemInfo == nil {
+                return true
+            }
+            
             guard let system1 = loc1.solarSystemInfo,
                   let system2 = loc2.solarSystemInfo else {
                 return false
