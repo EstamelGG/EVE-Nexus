@@ -87,111 +87,6 @@ struct InventionProductItemView: View {
     }
 }
 
-// 材料列表视图
-struct MaterialListView: View {
-    let title: String
-    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
-    let databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            ForEach(items, id: \.typeID) { item in
-                NavigationLink {
-                    if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                        ItemInfoMap.getItemInfoView(
-                            itemID: item.typeID,
-                            categoryID: categoryID,
-                            databaseManager: databaseManager
-                        )
-                    }
-                } label: {
-                    HStack {
-                        IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
-                            .resizable()
-                            .frame(width: 32, height: 32)
-                            .cornerRadius(6)
-                        
-                        Text(item.typeName)
-                        
-                        Spacer()
-                        
-                        Text("\(item.quantity)")
-                            .foregroundColor(.secondary)
-                            .frame(alignment: .trailing)
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 技能列表视图
-struct SkillListView: View {
-    let title: String
-    let skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)]
-    let databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            ForEach(skills, id: \.typeID) { skill in
-                HStack {
-                    IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                    
-                    Text(skill.typeName)
-                    
-                    Spacer()
-                    
-                    Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.trailing)
-                        .frame(alignment: .trailing)
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 产出物列表视图
-struct ProductListView: View {
-    let title: String
-    let items: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
-    let databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            ForEach(items, id: \.typeID) { item in
-                ProductItemView(item: item, databaseManager: databaseManager)
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
-// 发明产出列表视图
-struct InventionProductListView: View {
-    let title: String
-    let products: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
-    let databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            ForEach(products, id: \.typeID) { product in
-                InventionProductItemView(product: product, databaseManager: databaseManager)
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle(title)
-    }
-}
-
 // 主视图
 struct ShowBluePrintInfo: View {
     let blueprintID: Int
@@ -340,13 +235,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(manufacturing.materials, id: \.typeID) { material in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: material.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ShowItemInfo(
+                                            databaseManager: databaseManager,
+                                            itemID: material.typeID
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
