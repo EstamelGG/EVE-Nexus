@@ -169,10 +169,10 @@ struct MarketBrowserView: View {
                     }
                 },
                 searchQuery: { _ in
-                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.type_id = ?)"
+                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
                 },
                 searchParameters: { text in
-                    ["%\(text)%", "\(text)"]
+                    ["%\(text)%", "%\(text)%", "\(text)"]
                 }
             )
             .onAppear {
@@ -200,10 +200,10 @@ struct MarketGroupView: View {
             searchQuery: { _ in
                 let groupIDs = MarketManager.shared.getAllSubGroupIDs(allGroups, startingFrom: group.id)
                 let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
-                return "t.marketGroupID IN (\(groupIDsString)) AND t.name LIKE ?"
+                return "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
             },
             searchParameters: { text in
-                ["%\(text)%"]
+                ["%\(text)%", "%\(text)%"]
             }
         )
     }
@@ -284,10 +284,10 @@ struct MarketItemListView: View {
                 }
             },
             searchQuery: { _ in
-                "t.marketGroupID = ? AND t.name LIKE ?"
+                "t.marketGroupID = ? AND (t.name LIKE ? OR t.en_name LIKE ?)"
             },
             searchParameters: { text in
-                [marketGroupID, "%\(text)%"]
+                [marketGroupID, "%\(text)%", "%\(text)%"]
             }
         )
         .onAppear {
