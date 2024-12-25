@@ -85,28 +85,22 @@ struct AssetItemView: View {
     fileprivate let itemInfo: ItemInfo?
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack {
             // 资产图标
             IconManager.shared.loadImage(for: itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon)
                 .resizable()
                 .frame(width: 32, height: 32)
-                .cornerRadius(4)
+                .cornerRadius(6)
             
             VStack(alignment: .leading, spacing: 4) {
                 // 资产名称和数量
-                HStack {
+                HStack(spacing: 4) {
                     if let name = node.name {
-                        // 如果有自定义名称，优先显示
                         Text(name)
-                            .font(.headline)
                     } else if let itemInfo = itemInfo {
-                        // 其次显示数据库中的名称
                         Text(itemInfo.name)
-                            .font(.headline)
                     } else {
-                        // 最后显示类型ID
                         Text("Type ID: \(node.asset.type_id)")
-                            .font(.headline)
                     }
                     
                     if node.asset.quantity > 1 {
@@ -114,6 +108,8 @@ struct AssetItemView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .font(.subheadline)
+                .lineLimit(1)
                 
                 // 如果有子资产，显示子资产数量
                 if !node.children.isEmpty {
@@ -122,10 +118,7 @@ struct AssetItemView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
-            Spacer()
         }
-        .padding(.vertical, 4)
     }
 }
 
