@@ -115,6 +115,7 @@ struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
     @State private var showingSearchResults = false
+    @State private var searchTask: Task<Void, Never>?
     
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
@@ -151,9 +152,21 @@ struct CharacterAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .onChange(of: searchText) { newValue, old in
-            Task {
-                await viewModel.searchAssets(query: newValue)
+        .onChange(of: searchText) { old, newValue in
+            // 取消之前的搜索任务
+            searchTask?.cancel()
+            
+            // 创建新的搜索任务
+            searchTask = Task {
+                // 等待500毫秒
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                
+                // 如果任务没有被取消，执行搜索
+                if !Task.isCancelled {
+                    // 使用闭包捕获当前的搜索文本
+                    let currentSearchText = newValue
+                    await viewModel.searchAssets(query: currentSearchText)
+                }
             }
         }
         .refreshable {

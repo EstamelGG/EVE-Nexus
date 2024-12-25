@@ -141,7 +141,7 @@ class CharacterAssetsViewModel: ObservableObject {
             WHERE LOWER(name) LIKE LOWER('%\(query)%')
             ORDER BY name
         """
-        
+        Logger.debug("Search for \(query)")
         var typeIdToName: [Int: String] = [:]
         if case .success(let rows) = databaseManager.executeQuery(itemQuery) {
             for row in rows {
