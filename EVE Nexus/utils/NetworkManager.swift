@@ -57,7 +57,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 通用的数据获取函数
-    func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false) async throws -> Data {
+    func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false, timeout: TimeInterval = 15.0) async throws -> Data {
         // 等待信号量
         await withCheckedContinuation { continuation in
             DispatchQueue.global().async {
@@ -78,6 +78,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
         if forceRefresh {
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         }
+        
+        // 设置超时时间
+        request.timeoutInterval = timeout
         
         // 添加基本请求头
         request.setValue("application/json", forHTTPHeaderField: "Accept")
