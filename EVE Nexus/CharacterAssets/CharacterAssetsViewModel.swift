@@ -10,6 +10,7 @@ struct AssetPathNode {
 struct AssetSearchResult {
     let path: [AssetPathNode]  // 从根节点到目标物品的完整路径
     let itemName: String       // 物品名称
+    let iconFileName: String   // 物品图标文件名
     
     var locationName: String? {
         path.first?.node.name
@@ -134,20 +135,21 @@ class CharacterAssetsViewModel: ObservableObject {
             return
         }
         
-        // 获取所有type_id和对应的名称
+        // 获取所有type_id和对应的名称和图标
         let itemQuery = """
-            SELECT type_id, name
+            SELECT type_id, name, icon_filename
             FROM types
             WHERE LOWER(name) LIKE LOWER('%\(query)%')
             ORDER BY name
         """
         Logger.debug("Search for \(query)")
-        var typeIdToName: [Int: String] = [:]
+        var typeIdToInfo: [Int: (name: String, iconFileName: String)] = [:]
         if case .success(let rows) = databaseManager.executeQuery(itemQuery) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                    let name = row["name"] as? String {
-                    typeIdToName[typeId] = name
+                    let iconFileName = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    typeIdToInfo[typeId] = (name: name, iconFileName: iconFileName)
                 }
             }
         }
@@ -160,7 +162,7 @@ class CharacterAssetsViewModel: ObservableObject {
             if let items = node.items {
                 for item in items {
                     // 如果物品类型匹配搜索条件
-                    if let itemName = typeIdToName[item.type_id] {
+                    if let itemInfo = typeIdToInfo[item.type_id] {
                         // 创建新路径，包含当前路径和目标物品
                         var newPath = currentPath
                         newPath.append(AssetPathNode(node: item, isTarget: true))
@@ -168,7 +170,8 @@ class CharacterAssetsViewModel: ObservableObject {
                         // 创建搜索结果
                         results.append(AssetSearchResult(
                             path: newPath,
-                            itemName: itemName
+                            itemName: itemInfo.name,
+                            iconFileName: itemInfo.iconFileName
                         ))
                     }
                     

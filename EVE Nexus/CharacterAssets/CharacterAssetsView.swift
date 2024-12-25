@@ -87,26 +87,36 @@ private struct SearchResultRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 物品名称
-            Text(result.itemName)
-                .font(.headline)
-            
-            // 位置路径（只显示到倒数第二个项目）
-            HStack(spacing: 4) {
-                ForEach(Array(result.path.dropLast().enumerated()), id: \.offset) { index, pathNode in
-                    if index > 0 {
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .imageScale(.small)
-                    }
+            HStack {
+                // 物品图标
+                IconManager.shared.loadImage(for: result.iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    // 物品名称
+                    Text(result.itemName)
+                        .font(.headline)
                     
-                    // 节点名称
-                    Text(pathNode.node.name ?? "Unknown")
-                        .foregroundColor(.primary)
+                    // 位置路径（只显示到倒数第二个项目）
+                    HStack(spacing: 4) {
+                        ForEach(Array(result.path.dropLast().enumerated()), id: \.offset) { index, pathNode in
+                            if index > 0 {
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.secondary)
+                                    .imageScale(.small)
+                            }
+                            
+                            // 节点名称
+                            Text(pathNode.node.name ?? "Unknown")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .lineLimit(1)
                 }
             }
-            .font(.caption)
-            .lineLimit(1)
         }
     }
 }
