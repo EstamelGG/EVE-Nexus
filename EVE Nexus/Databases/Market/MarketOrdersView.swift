@@ -71,7 +71,17 @@ struct MarketOrdersView: View {
                                 if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
                                     Text(formatSecurity(stationInfo.security))
                                         .foregroundColor(getSecurityColor(stationInfo.security))
-                                    Text(stationInfo.stationName)
+                                    
+                                    // 检查空间站名称是否以星系名开头
+                                    if stationInfo.stationName.hasPrefix(stationInfo.solarSystemName) {
+                                        // 如果是，将星系名部分加粗
+                                        Text(stationInfo.solarSystemName)
+                                            .fontWeight(.bold) +
+                                        Text(stationInfo.stationName.dropFirst(stationInfo.solarSystemName.count))
+                                    } else {
+                                        // 如果不是，正常显示空间站名称
+                                        Text(stationInfo.stationName)
+                                    }
                                 } else {
                                     Text("0.0")
                                         .foregroundColor(.red)

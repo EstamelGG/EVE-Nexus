@@ -1555,6 +1555,7 @@ class DatabaseManager: ObservableObject {
     struct StationInfo: Hashable {
         let stationName: String
         let security: Double
+        let solarSystemName: String
     }
     
     private var stationInfoCache: [Int: StationInfo] = [:]
@@ -1567,9 +1568,10 @@ class DatabaseManager: ObservableObject {
         
         // 从数据库加载
         let query = """
-            SELECT stationName, security
-            FROM stations
-            WHERE stationID = ?
+            SELECT s.stationName, s.security, s.solarSystemID, ss.solarSystemName
+            FROM stations s
+            LEFT JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
+            WHERE s.stationID = ?
         """
         
         let result = executeQuery(query, parameters: [stationID])
@@ -1578,10 +1580,12 @@ class DatabaseManager: ObservableObject {
         case .success(let rows):
             if let row = rows.first,
                let stationName = row["stationName"] as? String,
-               let security = row["security"] as? Double {
+               let security = row["security"] as? Double,
+               let solarSystemName = row["solarSystemName"] as? String {
                 let info = StationInfo(
                     stationName: stationName,
-                    security: security
+                    security: security,
+                    solarSystemName: solarSystemName
                 )
                 // 更新缓存
                 stationInfoCache[stationID] = info
