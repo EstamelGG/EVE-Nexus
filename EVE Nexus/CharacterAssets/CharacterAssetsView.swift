@@ -39,7 +39,7 @@ struct CharacterAssetsView: View {
                             ForEach(locationsByRegion[region] ?? [], id: \.locationId) { location in
                                 if let systemInfo = location.solarSystemInfo {
                                     HStack {
-                                        // 空间站图标
+                                        // 位置图标
                                         if let iconFileName = location.iconFileName {
                                             IconManager.shared.loadImage(for: iconFileName)
                                                 .resizable()
@@ -48,12 +48,12 @@ struct CharacterAssetsView: View {
                                         }
                                         
                                         VStack(alignment: .leading, spacing: 4) {
-                                            // 安全等级和空间站名称
+                                            // 安全等级和位置名称
                                             HStack(spacing: 4) {
                                                 Text(formatSecurity(systemInfo.security))
                                                     .foregroundColor(getSecurityColor(systemInfo.security))
                                                 
-                                                // 空间站名称处理
+                                                // 位置名称处理
                                                 if location.displayName.hasPrefix(systemInfo.systemName) {
                                                     Text(systemInfo.systemName)
                                                         .fontWeight(.bold) +
@@ -61,8 +61,16 @@ struct CharacterAssetsView: View {
                                                 } else {
                                                     Text(location.displayName)
                                                 }
-                                            }.lineLimit(1)
+                                            }
                                             .font(.subheadline)
+                                            .lineLimit(1)
+                                            
+                                            // 位置类型标识
+                                            Text(location.locationType == "station" ? 
+                                                 NSLocalizedString("Character_in_station", comment: "") :
+                                                 NSLocalizedString("Character_in_structure", comment: ""))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
                                         }
                                     }
                                 }
@@ -114,6 +122,7 @@ struct CharacterAssetsView: View {
             // 处理位置信息
             let assetLocations = try await CharacterAssetsAPI.shared.processAssetLocations(
                 assets: assets,
+                characterId: characterId,
                 databaseManager: DatabaseManager()
             )
             

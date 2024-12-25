@@ -20,11 +20,20 @@ public struct StationInfo: Codable {
     let type_id: Int
 }
 
+// 建筑物信息
+public struct StructureInfo: Codable {
+    let name: String
+    let owner_id: Int
+    let solar_system_id: Int
+    let type_id: Int
+}
+
 // 资产位置信息
 public struct AssetLocation {
     let locationId: Int64
     let locationType: String
     let stationInfo: StationInfo?
+    let structureInfo: StructureInfo?
     let solarSystemInfo: SolarSystemInfo?
     let iconFileName: String?
     
@@ -37,6 +46,13 @@ public struct AssetLocation {
             }
             // 如果不以星系名开头，直接返回空间站名称
             return station.name
+        } else if let structure = structureInfo, let system = solarSystemInfo {
+            if structure.name.hasPrefix(system.systemName) {
+                // 如果建筑物名称以星系名开头，返回完整名称供UI层处理加粗
+                return structure.name
+            }
+            // 如果不以星系名开头，直接返回建筑物名称
+            return structure.name
         }
         return "Unknown Location"
     }
@@ -362,50 +378,116 @@ public class CharacterAssetsAPI {
         return DatabaseConfig.defaultItemIcon
     }
     
-    // 处理资产位置信息
-    func processAssetLocations(assets: [CharacterAsset], databaseManager: DatabaseManager) async throws -> [AssetLocation] {
-        var locations: [AssetLocation] = []
-        var processedLocationIds = Set<Int64>()
+    // 获取建筑物信息
+    private func fetchStructureInfo(structureId: Int64, characterId: Int) async throws -> StructureInfo {
+        let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw AssetError.invalidURL
+        }
         
-        for asset in assets {
-            // 只处理顶层资产且未处理过的位置
-            if !processedLocationIds.contains(asset.location_id) {
-                processedLocationIds.insert(asset.location_id)
-                
-                switch asset.location_type.lowercased() {
-                case "station":
-                    do {
-                        // 获取空间站信息
-                        let stationInfo = try await fetchStationInfo(stationId: asset.location_id)
-                        
-                        // 获取星系信息
-                        if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                            // 获取空间站图标
-                            let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                            
-                            // 创建位置信息
-                            let location = AssetLocation(
-                                locationId: asset.location_id,
-                                locationType: asset.location_type,
-                                stationInfo: stationInfo,
-                                solarSystemInfo: systemInfo,
-                                iconFileName: iconFileName
-                            )
-                            locations.append(location)
-                        }
-                    } catch {
-                        Logger.error("处理空间站资产失败: \(error)")
-                        throw AssetError.locationFetchError("Failed to process station asset: \(error)")
-                    }
-                    
-                default:
-                    // 其他类型的位置暂时不处理
-                    continue
-                }
+        do {
+            // 添加必要的请求头
+            let headers = [
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            ]
+            
+            let data = try await NetworkManager.shared.fetchDataWithToken(
+                from: url,
+                characterId: characterId,
+                headers: headers
+            )
+            
+            do {
+                let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
+                return structureInfo
+            } catch {
+                Logger.error("解析建筑物信息失败: \(error)")
+                throw AssetError.decodingError(error)
+            }
+        } catch {
+            Logger.error("获取建筑物信息失败: \(error)")
+            throw AssetError.locationFetchError("Failed to fetch structure info: \(error)")
+        }
+    }
+    
+    // 处理资产位置信息
+    func processAssetLocations(assets: [CharacterAsset], characterId: Int, databaseManager: DatabaseManager) async throws -> [AssetLocation] {
+        // 1. 先构建资产树
+        let assetTree = buildAssetTree(assets: assets)
+        
+        // 2. 从资产树中提取所有顶层位置ID和类型
+        var locationMap: [Int64: String] = [:] // locationId -> locationType
+        
+        func extractLocations(from nodes: [AssetNode]) {
+            for node in nodes {
+                locationMap[node.asset.location_id] = node.asset.location_type
             }
         }
         
-        // 按星域和星系名称排序
+        // 提取顶层资产的位置信息
+        extractLocations(from: assetTree)
+        
+        // 3. 获取所有位置的详细信息
+        var locations: [AssetLocation] = []
+        
+        for (locationId, locationType) in locationMap {
+            do {
+                switch locationType.lowercased() {
+                case "station":
+                    // 获取空间站信息
+                    let stationInfo = try await fetchStationInfo(stationId: locationId)
+                    
+                    // 获取星系信息
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                        // 获取空间站图标
+                        let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                        
+                        // 创建位置信息
+                        let location = AssetLocation(
+                            locationId: locationId,
+                            locationType: locationType,
+                            stationInfo: stationInfo,
+                            structureInfo: nil,
+                            solarSystemInfo: systemInfo,
+                            iconFileName: iconFileName
+                        )
+                        locations.append(location)
+                    }
+                    
+                case "item": // 建筑物资产
+                    // 获取建筑物信息
+                    let structureInfo = try await fetchStructureInfo(structureId: locationId, characterId: characterId)
+                    
+                    // 获取星系信息
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                        // 获取建筑物图标
+                        let iconFileName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                        
+                        // 创建位置信息
+                        let location = AssetLocation(
+                            locationId: locationId,
+                            locationType: locationType,
+                            stationInfo: nil,
+                            structureInfo: structureInfo,
+                            solarSystemInfo: systemInfo,
+                            iconFileName: iconFileName
+                        )
+                        locations.append(location)
+                    }
+                    
+                default:
+                    Logger.info("跳过未知类型的位置: \(locationType), ID: \(locationId)")
+                    continue
+                }
+            } catch {
+                Logger.error("处理位置信息失败 - Type: \(locationType), ID: \(locationId), Error: \(error)")
+                // 继续处理其他位置，而不是直接抛出错误
+                continue
+            }
+        }
+        
+        // 4. 按星域和星系名称排序
         return locations.sorted { loc1, loc2 in
             guard let system1 = loc1.solarSystemInfo,
                   let system2 = loc2.solarSystemInfo else {
