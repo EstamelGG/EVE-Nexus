@@ -38,12 +38,20 @@ private func formatLocationFlag(_ flag: String) -> String {
         return "舰船机库"
     case "FighterBay":
         return "战斗机舱"
-    case "FighterTube0", "FighterTube1", "FighterTube2", "FighterTube3", "FighterTube4":
-        return "战斗机发射管 \(flag.dropFirst("FighterTube".count))"
+    case "FighterTubes":
+        return "战斗机发射管"
     case "SubSystemBay":
         return "子系统舱"
-    case "SubSystemSlot0", "SubSystemSlot1", "SubSystemSlot2", "SubSystemSlot3", "SubSystemSlot4":
-        return "子系统插槽 \(flag.dropFirst("SubSystemSlot".count))"
+    case "SubSystemSlots":
+        return "子系统插槽"
+    case "HiSlots":
+        return "高槽"
+    case "MedSlots":
+        return "中槽"
+    case "LoSlots":
+        return "低槽"
+    case "RigSlots":
+        return "改装槽"
     case "SpecializedAmmoHold":
         return "特殊弹药仓"
     case "SpecializedCommandCenterHold":
@@ -72,14 +80,6 @@ private func formatLocationFlag(_ flag: String) -> String {
         return "特殊舰船仓"
     case "SpecializedSmallShipHold":
         return "特殊小型舰船仓"
-    case "HiSlot0", "HiSlot1", "HiSlot2", "HiSlot3", "HiSlot4", "HiSlot5", "HiSlot6", "HiSlot7":
-        return "高槽 \(flag.dropFirst("HiSlot".count))"
-    case "MedSlot0", "MedSlot1", "MedSlot2", "MedSlot3", "MedSlot4", "MedSlot5", "MedSlot6", "MedSlot7":
-        return "中槽 \(flag.dropFirst("MedSlot".count))"
-    case "LoSlot0", "LoSlot1", "LoSlot2", "LoSlot3", "LoSlot4", "LoSlot5", "LoSlot6", "LoSlot7":
-        return "低槽 \(flag.dropFirst("LoSlot".count))"
-    case "RigSlot0", "RigSlot1", "RigSlot2", "RigSlot3", "RigSlot4", "RigSlot5", "RigSlot6", "RigSlot7":
-        return "改装槽 \(flag.dropFirst("RigSlot".count))"
     default:
         return flag
     }
@@ -223,13 +223,97 @@ class LocationAssetsViewModel: ObservableObject {
     // 按location_flag分组的资产
     func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
         let items = location.items ?? []
-        let grouped = Dictionary(grouping: items) { item in
-            item.location_flag
+        
+        // 预处理location_flag，将相同类型的槽位合并
+        let processedItems = items.map { item -> (flag: String, node: AssetTreeNode) in
+            let flag = item.location_flag
+            let processedFlag: String
+            
+            switch flag {
+            case let f where f.hasPrefix("HiSlot"):
+                processedFlag = "HiSlots"
+            case let f where f.hasPrefix("MedSlot"):
+                processedFlag = "MedSlots"
+            case let f where f.hasPrefix("LoSlot"):
+                processedFlag = "LoSlots"
+            case let f where f.hasPrefix("RigSlot"):
+                processedFlag = "RigSlots"
+            case let f where f.hasPrefix("SubSystemSlot"):
+                processedFlag = "SubSystemSlots"
+            case let f where f.hasPrefix("FighterTube"):
+                processedFlag = "FighterTubes"
+            default:
+                processedFlag = flag
+            }
+            
+            return (flag: processedFlag, node: item)
         }
         
-        // 对分组进行排序
-        return grouped.map { (flag: $0.key, items: $0.value) }
-            .sorted { $0.flag < $1.flag }
+        // 按处理后的flag分组
+        let grouped = Dictionary(grouping: processedItems) { $0.flag }
+        
+        // 对分组进行排序，并只返回节点
+        return grouped.map { (flag: $0.key, items: $0.value.map { $0.node }) }
+            .sorted { pair1, pair2 in
+                // 自定义排序逻辑
+                let order: [String] = [
+                    // 装配槽位
+                    "HiSlots",
+                    "MedSlots",
+                    "LoSlots",
+                    "RigSlots",
+                    "SubSystemSlots",
+                    
+                    // 无人机和战斗机
+                    "DroneBay",
+                    "FighterBay",
+                    "FighterTubes",
+                    
+                    // 特殊舱室
+                    "SpecializedAmmoHold",
+                    "SpecializedFuelBay",
+                    "SpecializedOreHold",
+                    "SpecializedGasHold",
+                    "SpecializedMineralHold",
+                    "SpecializedSalvageHold",
+                    "SpecializedShipHold",
+                    "SpecializedSmallShipHold",
+                    "SpecializedMediumShipHold",
+                    "SpecializedLargeShipHold",
+                    "SpecializedIndustrialShipHold",
+                    "SpecializedMaterialBay",
+                    "SpecializedPlanetaryCommoditiesHold",
+                    "SpecializedCommandCenterHold",
+                    
+                    // 基础舱室
+                    "Cargo",
+                    "Hangar",
+                    "ShipHangar",
+                    "FleetHangar",
+                    "SubSystemBay",
+                    
+                    // 公司机库
+                    "CorpSAG1", 
+                    "CorpSAG2", 
+                    "CorpSAG3", 
+                    "CorpSAG4", 
+                    "CorpSAG5", 
+                    "CorpSAG6", 
+                    "CorpSAG7",
+                    
+                    // 交付箱
+                    "Deliveries",
+                    "CorpDeliveries",
+                    
+                    // 其他
+                    "AutoFit",
+                    "HiddenModifiers"
+                ]
+                
+                let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
+                let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
+                return index1 < index2
+            }
     }
     
     // 从数据库加载物品信息
