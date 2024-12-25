@@ -209,8 +209,6 @@ public class CharacterAssetsAPI {
         
         while true {
             do {
-                progressCallback?(.fetchingAPI(page: page, totalPages: nil))
-                
                 let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/?datasource=tranquility&page=\(page)"
                 guard let url = URL(string: urlString) else {
                     throw AssetError.invalidURL
@@ -229,6 +227,8 @@ public class CharacterAssetsAPI {
                 let pageAssets = try JSONDecoder().decode([CharacterAsset].self, from: data)
                 allAssets.append(contentsOf: pageAssets)
                 
+                // 只在成功获取数据后才显示进度
+                progressCallback?(.fetchingAPI(page: page, totalPages: nil))
                 Logger.info("成功获取第\(page)页资产数据，本页包含\(pageAssets.count)个项目")
                 
                 page += 1
