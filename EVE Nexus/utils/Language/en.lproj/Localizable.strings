@@ -256,3 +256,9 @@
 "Main_Setting_Logs_Level_Fault" = "FAULT";
 "Main_Setting_Logs_Search_Placeholder" = "Search in log...";
 "Main_Setting_Logs_Search_No_Results" = "No results found";
+
+// Assets Loading
+"Assets_Loading_Fetching" = "Fetching assets data (Page %d)";
+"Assets_Loading_Building_Tree" = "Building asset tree (%d/%d)";
+"Assets_Loading_Complete" = "Loading complete";
+"Assets_Loading" = "Loading...";

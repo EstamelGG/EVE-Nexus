@@ -253,3 +253,9 @@
 "Main_Setting_Delete" = "删除";
 "Main_Setting_Logs_Search_Placeholder" = "搜索日志内容...";
 "Main_Setting_Logs_Search_No_Results" = "未找到匹配内容";
+
+// Assets Loading
+"Assets_Loading_Fetching" = "正在获取资产数据 (第%d页)";
+"Assets_Loading_Building_Tree" = "正在构建资产树 (%d/%d)";
+"Assets_Loading_Complete" = "加载完成";
+"Assets_Loading" = "加载中...";
