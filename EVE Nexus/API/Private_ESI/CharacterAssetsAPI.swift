@@ -12,6 +12,36 @@ public struct CharacterAsset: Codable {
     let is_blueprint_copy: Bool?
 }
 
+// 空间站信息
+public struct StationInfo: Codable {
+    let name: String
+    let station_id: Int64
+    let system_id: Int
+    let type_id: Int
+}
+
+// 资产位置信息
+public struct AssetLocation {
+    let locationId: Int64
+    let locationType: String
+    let stationInfo: StationInfo?
+    let solarSystemInfo: SolarSystemInfo?
+    let iconFileName: String?
+    
+    // 格式化显示名称
+    var displayName: String {
+        if let station = stationInfo, let system = solarSystemInfo {
+            if station.name.hasPrefix(system.systemName) {
+                // 如果空间站名称以星系名开头，返回完整名称供UI层处理加粗
+                return station.name
+            }
+            // 如果不以星系名开头，直接返回空间站名称
+            return station.name
+        }
+        return "Unknown Location"
+    }
+}
+
 public struct ESIErrorResponse: Codable {
     let error: String
 }
@@ -93,6 +123,7 @@ public enum AssetError: Error {
     case invalidURL
     case maxRetriesReached
     case pageNotFound
+    case locationFetchError(String)
 }
 
 // MARK: - Cache Structure
@@ -301,5 +332,90 @@ public class CharacterAssetsAPI {
         
         progressCallback?(.complete)
         return results
+    }
+    
+    // 获取空间站信息
+    private func fetchStationInfo(stationId: Int64) async throws -> StationInfo {
+        let urlString = "https://esi.evetech.net/latest/universe/stations/\(stationId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw AssetError.invalidURL
+        }
+        
+        do {
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            let stationInfo = try JSONDecoder().decode(StationInfo.self, from: data)
+            return stationInfo
+        } catch {
+            throw AssetError.locationFetchError("Failed to fetch station info: \(error)")
+        }
+    }
+    
+    // 获取空间站图标
+    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
+        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let iconFileName = row["icon_filename"] as? String {
+            return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+        }
+        return DatabaseConfig.defaultItemIcon
+    }
+    
+    // 处理资产位置信息
+    func processAssetLocations(assets: [CharacterAsset], databaseManager: DatabaseManager) async throws -> [AssetLocation] {
+        var locations: [AssetLocation] = []
+        var processedLocationIds = Set<Int64>()
+        
+        for asset in assets {
+            // 只处理顶层资产且未处理过的位置
+            if !processedLocationIds.contains(asset.location_id) {
+                processedLocationIds.insert(asset.location_id)
+                
+                switch asset.location_type.lowercased() {
+                case "station":
+                    do {
+                        // 获取空间站信息
+                        let stationInfo = try await fetchStationInfo(stationId: asset.location_id)
+                        
+                        // 获取星系信息
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                            // 获取空间站图标
+                            let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                            
+                            // 创建位置信息
+                            let location = AssetLocation(
+                                locationId: asset.location_id,
+                                locationType: asset.location_type,
+                                stationInfo: stationInfo,
+                                solarSystemInfo: systemInfo,
+                                iconFileName: iconFileName
+                            )
+                            locations.append(location)
+                        }
+                    } catch {
+                        Logger.error("处理空间站资产失败: \(error)")
+                        throw AssetError.locationFetchError("Failed to process station asset: \(error)")
+                    }
+                    
+                default:
+                    // 其他类型的位置暂时不处理
+                    continue
+                }
+            }
+        }
+        
+        // 按星域和星系名称排序
+        return locations.sorted { loc1, loc2 in
+            guard let system1 = loc1.solarSystemInfo,
+                  let system2 = loc2.solarSystemInfo else {
+                return false
+            }
+            
+            if system1.regionName != system2.regionName {
+                return system1.regionName < system2.regionName
+            }
+            return system1.systemName < system2.systemName
+        }
     }
 } 
