@@ -1,11 +1,34 @@
 import Foundation
 
+// 搜索结果路径节点
+struct AssetPathNode {
+    let node: AssetTreeNode
+    let isTarget: Bool  // 是否为搜索目标物品
+}
+
+// 搜索结果
+struct AssetSearchResult {
+    let path: [AssetPathNode]  // 从根节点到目标物品的完整路径
+    let itemName: String       // 物品名称
+    
+    var locationName: String? {
+        path.first?.node.name
+    }
+    
+    var containerNode: AssetTreeNode? {
+        // 如果路径长度大于1，返回目标物品的直接容器
+        // 否则返回顶层位置节点
+        path.count > 1 ? path[path.count - 2].node : path.first?.node
+    }
+}
+
 @MainActor
 class CharacterAssetsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var assetLocations: [AssetTreeNode] = []
     @Published var error: Error?
     @Published var loadingProgress: AssetLoadingProgress?
+    @Published var searchResults: [AssetSearchResult] = []  // 添加搜索结果属性
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
@@ -102,6 +125,74 @@ class CharacterAssetsViewModel: ObservableObject {
         }
         
         return itemInfoCache
+    }
+    
+    // 搜索资产
+    func searchAssets(query: String) async {
+        guard !query.isEmpty else {
+            searchResults = []
+            return
+        }
+        
+        // 获取所有type_id和对应的名称
+        let itemQuery = """
+            SELECT type_id, name
+            FROM types
+            WHERE LOWER(name) LIKE LOWER('%\(query)%')
+            ORDER BY name
+        """
+        
+        var typeIdToName: [Int: String] = [:]
+        if case .success(let rows) = databaseManager.executeQuery(itemQuery) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String {
+                    typeIdToName[typeId] = name
+                }
+            }
+        }
+        
+        var results: [AssetSearchResult] = []
+        
+        // 递归搜索函数
+        func searchNode(_ node: AssetTreeNode, currentPath: [AssetPathNode]) {
+            // 检查当前节点是否匹配
+            if let items = node.items {
+                for item in items {
+                    // 如果物品类型匹配搜索条件
+                    if let itemName = typeIdToName[item.type_id] {
+                        // 创建新路径，包含当前路径和目标物品
+                        var newPath = currentPath
+                        newPath.append(AssetPathNode(node: item, isTarget: true))
+                        
+                        // 创建搜索结果
+                        results.append(AssetSearchResult(
+                            path: newPath,
+                            itemName: itemName
+                        ))
+                    }
+                    
+                    // 如果当前物品是容器，继续搜索其内容
+                    if let subItems = item.items {
+                        var newPath = currentPath
+                        newPath.append(AssetPathNode(node: item, isTarget: false))
+                        searchNode(item, currentPath: newPath)
+                    }
+                }
+            }
+        }
+        
+        // 开始搜索每个顶层位置
+        for location in assetLocations {
+            let rootPath = [AssetPathNode(node: location, isTarget: false)]
+            searchNode(location, currentPath: rootPath)
+        }
+        
+        // 按物品名称排序结果
+        results.sort { $0.itemName < $1.itemName }
+        
+        // 更新搜索结果
+        self.searchResults = results
     }
 }
 

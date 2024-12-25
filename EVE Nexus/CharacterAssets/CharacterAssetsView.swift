@@ -81,9 +81,48 @@ private struct LoadingProgressView: View {
     }
 }
 
+// 搜索结果行视图
+private struct SearchResultRowView: View {
+    let result: AssetSearchResult
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 物品名称
+            Text(result.itemName)
+                .font(.headline)
+            
+            // 位置路径
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(result.path.enumerated()), id: \.offset) { index, pathNode in
+                    HStack(spacing: 4) {
+                        // 缩进
+                        if index > 0 {
+                            Text(String(repeating: "    ", count: index))
+                                .font(.system(.body, design: .monospaced))
+                        }
+                        
+                        // 箭头（除了第一项）
+                        if index > 0 {
+                            Image(systemName: "arrow.right")
+                                .foregroundColor(.secondary)
+                                .imageScale(.small)
+                        }
+                        
+                        // 节点名称
+                        Text(pathNode.node.name ?? "Unknown")
+                            .foregroundColor(pathNode.isTarget ? .accentColor : .primary)
+                    }
+                }
+            }
+            .font(.caption)
+        }
+    }
+}
+
 struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
+    @State private var showingSearchResults = false
     
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
@@ -93,10 +132,23 @@ struct CharacterAssetsView: View {
         VStack {
             if viewModel.isLoading && viewModel.assetLocations.isEmpty {
                 LoadingProgressView(progress: viewModel.loadingProgress)
+            } else if !searchText.isEmpty && !viewModel.searchResults.isEmpty {
+                // 搜索结果列表
+                List {
+                    ForEach(viewModel.searchResults, id: \.path.last?.node.item_id) { result in
+                        if let containerNode = result.containerNode {
+                            NavigationLink(
+                                destination: LocationAssetsView(location: containerNode)
+                            ) {
+                                SearchResultRowView(result: result)
+                            }
+                        }
+                    }
+                }
             } else {
                 LocationsList(
                     locationsByRegion: viewModel.locationsByRegion,
-                    searchText: searchText
+                    searchText: ""  // 不再使用searchText过滤位置列表
                 )
             }
         }
@@ -106,6 +158,11 @@ struct CharacterAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
+        .onChange(of: searchText) { newValue in
+            Task {
+                await viewModel.searchAssets(query: newValue)
+            }
+        }
         .refreshable {
             await viewModel.loadAssets(forceRefresh: true)
         }
