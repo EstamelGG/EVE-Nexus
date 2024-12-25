@@ -912,7 +912,7 @@ public class CharacterAssetsAPI {
         // 递归构建树节点
         func buildTreeNode(from asset: CharacterAsset) -> AssetTreeNode {
             // 获取图标名称和物品类型名称
-            let query = "SELECT icon_filename, typeName FROM types WHERE type_id = ?"
+            let query = "SELECT icon_filename, name FROM types WHERE type_id = ?"
             var iconName: String? = nil
             var typeName: String? = nil
             if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
@@ -920,7 +920,7 @@ public class CharacterAssetsAPI {
                 if let filename = row["icon_filename"] as? String {
                     iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
                 }
-                typeName = row["typeName"] as? String
+                typeName = row["name"] as? String
             }
             
             // 获取子项
