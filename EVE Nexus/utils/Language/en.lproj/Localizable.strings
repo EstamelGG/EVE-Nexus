@@ -262,3 +262,5 @@
 "Assets_Loading_Building_Tree" = "Building asset tree (%d/%d)";
 "Assets_Loading_Complete" = "Loading complete";
 "Assets_Loading" = "Loading...";
+
+"Assets_Item_Count" = "%d items";

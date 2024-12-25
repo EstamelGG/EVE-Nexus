@@ -90,9 +90,7 @@ struct CharacterAssetsView: View {
                                         .lineLimit(1)
                                         
                                         // 位置类型标识
-                                        Text(location.locationType == "station" ? 
-                                             NSLocalizedString("Character_in_station", comment: "") :
-                                             NSLocalizedString("Character_in_structure", comment: ""))
+                                        Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), location.itemCount))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }

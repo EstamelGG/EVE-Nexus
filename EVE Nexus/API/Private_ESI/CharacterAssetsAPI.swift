@@ -37,6 +37,7 @@ public struct AssetLocation {
     let solarSystemInfo: SolarSystemInfo?
     let iconFileName: String?
     let error: Error?  // 添加错误信息字段
+    let itemCount: Int // 添加物品数量字段
     
     // 格式化显示名称
     var displayName: String {
@@ -420,12 +421,15 @@ public class CharacterAssetsAPI {
         // 1. 先构建资产树
         let assetTree = buildAssetTree(assets: assets)
         
-        // 2. 从资产树中提取所有顶层位置ID和类型
+        // 2. 从资产树中提取所有顶层位置ID和类型，并计算每个位置的物品数量
         var locationMap: [Int64: String] = [:] // locationId -> locationType
+        var locationItemCount: [Int64: Int] = [:] // locationId -> itemCount
         
         func extractLocations(from nodes: [AssetNode]) {
             for node in nodes {
                 locationMap[node.asset.location_id] = node.asset.location_type
+                // 只计算直接子节点的数量，不考虑每个物品的数量
+                locationItemCount[node.asset.location_id, default: 0] = node.children.count
             }
         }
         
@@ -450,7 +454,7 @@ public class CharacterAssetsAPI {
                         if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
                             // 获取空间站图标
                             let iconFileName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                            
+                            Logger.debug("获取地点 \(locationId): \(stationInfo.name)")
                             // 创建位置信息
                             location = AssetLocation(
                                 locationId: locationId,
@@ -459,7 +463,8 @@ public class CharacterAssetsAPI {
                                 structureInfo: nil,
                                 solarSystemInfo: systemInfo,
                                 iconFileName: iconFileName,
-                                error: nil
+                                error: nil,
+                                itemCount: locationItemCount[locationId] ?? 0
                             )
                         }
                     } catch {
@@ -475,8 +480,8 @@ public class CharacterAssetsAPI {
                         if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
                             // 获取建筑物图标
                             let iconFileName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
-                            
                             // 创建位置信息
+                            Logger.debug("获取地点 \(locationId): \(structureInfo.name)")
                             location = AssetLocation(
                                 locationId: locationId,
                                 locationType: locationType,
@@ -484,7 +489,8 @@ public class CharacterAssetsAPI {
                                 structureInfo: structureInfo,
                                 solarSystemInfo: systemInfo,
                                 iconFileName: iconFileName,
-                                error: nil
+                                error: nil,
+                                itemCount: locationItemCount[locationId] ?? 0
                             )
                         }
                     } catch {
@@ -506,7 +512,8 @@ public class CharacterAssetsAPI {
                     structureInfo: nil,
                     solarSystemInfo: nil,
                     iconFileName: DatabaseConfig.defaultItemIcon,
-                    error: locationError
+                    error: locationError,
+                    itemCount: locationItemCount[locationId] ?? 0
                 )
             }
             

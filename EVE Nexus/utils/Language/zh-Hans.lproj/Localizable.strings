@@ -259,3 +259,5 @@
 "Assets_Loading_Building_Tree" = "正在构建资产树 (%d/%d)";
 "Assets_Loading_Complete" = "加载完成";
 "Assets_Loading" = "加载中...";
+
+"Assets_Item_Count" = "%d个物品";
