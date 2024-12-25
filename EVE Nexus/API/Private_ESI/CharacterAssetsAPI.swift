@@ -429,9 +429,49 @@ public class CharacterAssetsAPI {
             for node in nodes {
                 // 只处理顶层节点
                 locationMap[node.asset.location_id] = node.asset.location_type
-                // 计算该位置下的直接物品数量
-                locationItemCount[node.asset.location_id] = node.children.count
+                
+                // 递归计算物品数量，每个物品都单独计数
+                func countItems(in node: AssetNode) -> Int {
+                    // 当前节点算一个
+                    var count = 1
+                    // 加上所有子节点的数量
+                    for child in node.children {
+                        count += countItems(in: child)
+                    }
+                    return count
+                }
+                
+                // 找出所有直接属于这个位置的物品
+                let itemsInLocation = assets.filter { asset in
+                    asset.location_id == node.asset.location_id
+                }
+                
+                // 为每个物品计算其所有子物品的数量
+                var totalItems = 0
+                for asset in itemsInLocation {
+                    if let assetNode = findNode(itemId: asset.item_id, in: assetTree) {
+                        totalItems += countItems(in: assetNode)
+                    }
+                }
+                
+                // 计算该位置下的总物品数量
+                locationItemCount[node.asset.location_id] = totalItems
+                
+                Logger.debug("位置 \(node.asset.location_id) 包含 \(totalItems) 个物品")
             }
+        }
+        
+        // 辅助函数：根据item_id查找节点
+        func findNode(itemId: Int64, in nodes: [AssetNode]) -> AssetNode? {
+            for node in nodes {
+                if node.asset.item_id == itemId {
+                    return node
+                }
+                if let found = findNode(itemId: itemId, in: node.children) {
+                    return found
+                }
+            }
+            return nil
         }
         
         // 只提取顶层资产的位置信息
