@@ -243,6 +243,12 @@ private struct AssetTreeNode: Codable {
     let quantity: Int
     let name: String?
     let icon_name: String?
+    let is_singleton: Bool
+    let is_blueprint_copy: Bool?
+    let type_name: String?      // 物品类型名称
+    let system_name: String?    // 星系名称
+    let region_name: String?    // 星域名称
+    let security_status: Double? // 星系安全等级
     let items: [AssetTreeNode]?
 }
 
@@ -905,13 +911,16 @@ public class CharacterAssetsAPI {
         
         // 递归构建树节点
         func buildTreeNode(from asset: CharacterAsset) -> AssetTreeNode {
-            // 获取图标名称
-            let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+            // 获取图标名称和物品类型名称
+            let query = "SELECT icon_filename, typeName FROM types WHERE type_id = ?"
             var iconName: String? = nil
+            var typeName: String? = nil
             if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
-               let row = rows.first,
-               let filename = row["icon_filename"] as? String {
-                iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
+               let row = rows.first {
+                if let filename = row["icon_filename"] as? String {
+                    iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
+                }
+                typeName = row["typeName"] as? String
             }
             
             // 获取子项
@@ -926,6 +935,12 @@ public class CharacterAssetsAPI {
                 quantity: asset.quantity,
                 name: names[asset.item_id],
                 icon_name: iconName,
+                is_singleton: asset.is_singleton,
+                is_blueprint_copy: asset.is_blueprint_copy,
+                type_name: typeName,
+                system_name: nil,  // 将在顶层节点设置
+                region_name: nil,  // 将在顶层节点设置
+                security_status: nil, // 星系安全等级
                 items: children.isEmpty ? nil : children
             )
         }
@@ -943,14 +958,33 @@ public class CharacterAssetsAPI {
                 // 获取位置类型（从第一个子项获取）
                 let locationType = items.first?.location_type ?? "unknown"
                 
-                // 获取位置的图标
+                // 获取位置的图标、名称和系统信息
                 var iconName: String? = nil
+                var locationName: String? = nil
+                var systemName: String? = nil
+                var regionName: String? = nil
+                var securityStatus: Double? = nil
+                
                 if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
-                    // 如果是空间站，获取空间站的图标
+                    // 如果是空间站，获取空间站的图标和名称
                     iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                    locationName = stationInfo.name
+                    // 获取星系和星域信息
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                        systemName = systemInfo.systemName
+                        regionName = systemInfo.regionName
+                        securityStatus = systemInfo.security
+                    }
                 } else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                    // 如果是建筑物，获取建筑物的图标
+                    // 如果是建筑物，获取建筑物的图标和名称
                     iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                    locationName = structureInfo.name
+                    // 获取星系和星域信息
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                        systemName = systemInfo.systemName
+                        regionName = systemInfo.regionName
+                        securityStatus = systemInfo.security
+                    }
                 }
                 
                 // 创建位置节点
@@ -961,8 +995,14 @@ public class CharacterAssetsAPI {
                     location_type: locationType,
                     location_flag: "root",
                     quantity: 1,
-                    name: nil,  // 位置名称会在UI层处理
+                    name: locationName,
                     icon_name: iconName,
+                    is_singleton: true,
+                    is_blueprint_copy: nil,
+                    type_name: nil,
+                    system_name: systemName,
+                    region_name: regionName,
+                    security_status: securityStatus,
                     items: items.map { buildTreeNode(from: $0) }
                 )
                 rootNodes.append(locationNode)
