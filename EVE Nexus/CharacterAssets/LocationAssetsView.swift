@@ -51,7 +51,7 @@ struct AssetItemView: View {
     let node: AssetNode
     
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             // 资产图标
             IconManager.shared.loadImage(for: DatabaseConfig.defaultItemIcon)
                 .resizable()
@@ -68,16 +68,12 @@ struct AssetItemView: View {
                         Text("Type ID: \(node.asset.type_id)")  // TODO: 从数据库获取物品名称
                             .font(.headline)
                     }
+                    
                     if node.asset.quantity > 1 {
                         Text("x\(node.asset.quantity)")
                             .foregroundColor(.secondary)
                     }
                 }
-                
-                // 资产位置标识
-                Text(node.asset.location_flag)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
                 
                 // 如果有子资产，显示子资产数量
                 if !node.children.isEmpty {
