@@ -187,16 +187,15 @@ struct AssetItemRow: View {
 
 class CharacterAssetsViewModel: ObservableObject {
     private let characterId: Int
-    @Published private(set) var regionGroups: [String: [AssetTreeNode]] = [:]
-    @Published private(set) var unknownRegionNodes: [AssetTreeNode] = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var error: Error?
+    @Published var regionGroups: [String: [AssetTreeNode]] = [:]
+    @Published var unknownRegionNodes: [AssetTreeNode] = []
+    @Published var isLoading = false
+    @Published var error: Error?
     
     init(characterId: Int) {
         self.characterId = characterId
     }
     
-    @MainActor
     func loadAssets() async {
         isLoading = true
         error = nil
@@ -221,13 +220,16 @@ class CharacterAssetsViewModel: ObservableObject {
                 }
             }
             
-            self.regionGroups = groups
-            self.unknownRegionNodes = unknown
-            self.isLoading = false
-            
+            await MainActor.run {
+                self.regionGroups = groups
+                self.unknownRegionNodes = unknown
+                self.isLoading = false
+            }
         } catch {
-            self.error = error
-            self.isLoading = false
+            await MainActor.run {
+                self.error = error
+                self.isLoading = false
+            }
         }
     }
 }
