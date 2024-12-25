@@ -263,6 +263,6 @@
 "Assets_Loading_Complete" = "Loading complete";
 "Assets_Loading" = "Loading...";
 
-"Assets_Item_Count" = "%d items";
+"Assets_Item_Count" = "Include %d items";
 
 "Unknown_System" = "Unknown System";

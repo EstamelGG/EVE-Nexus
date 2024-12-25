@@ -85,16 +85,15 @@ struct AssetItemView: View {
     fileprivate let itemInfo: ItemInfo?
     
     var body: some View {
-        HStack {
-            // 资产图标
-            IconManager.shared.loadImage(for: itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon)
-                .resizable()
-                .frame(width: 32, height: 32)
-                .cornerRadius(6)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                // 资产名称和数量
-                HStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                // 资产图标
+                IconManager.shared.loadImage(for: itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                VStack(alignment: .leading, spacing: 2) {
+                    // 资产名称
                     if let name = node.name {
                         Text(name)
                     } else if let itemInfo = itemInfo {
@@ -103,21 +102,22 @@ struct AssetItemView: View {
                         Text("Type ID: \(node.asset.type_id)")
                     }
                     
+                    // 数量信息
                     if node.asset.quantity > 1 {
-                        Text("x\(node.asset.quantity)")
+                        Text("数量：\(node.asset.quantity)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    // 如果有子资产，显示子资产数量
+                    if !node.children.isEmpty {
+                        Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), node.children.count))
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                .font(.subheadline)
-                .lineLimit(1)
-                
-                // 如果有子资产，显示子资产数量
-                if !node.children.isEmpty {
-                    Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), node.children.count))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
             }
+            .frame(height: 36)
         }
     }
 }

@@ -260,6 +260,6 @@
 "Assets_Loading_Complete" = "加载完成";
 "Assets_Loading" = "加载中...";
 
-"Assets_Item_Count" = "%d个物品";
+"Assets_Item_Count" = "包含%d个物品";
 
 "Unknown_System" = "未知星系";

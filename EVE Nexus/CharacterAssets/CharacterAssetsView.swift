@@ -119,12 +119,6 @@ struct CharacterAssetsView: View {
                 )
             }
         }
-        .searchable(
-            text: $searchText,
-            isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
-        )
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
         .refreshable {
             await loadAssets(forceRefresh: true)
