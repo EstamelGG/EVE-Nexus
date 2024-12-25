@@ -275,19 +275,29 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isManufacturingSkillsExpanded,
                             content: {
                                 ForEach(manufacturing.skills, id: \.typeID) { skill in
-                                    HStack {
-                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        
-                                        Text(skill.typeName)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: skill.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: skill.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(skill.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                                .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
+                                        }
                                     }
                                 }
                             },
@@ -367,19 +377,29 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isResearchMaterialSkillsExpanded,
                             content: {
                                 ForEach(researchMaterial.skills, id: \.typeID) { skill in
-                                    HStack {
-                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        
-                                        Text(skill.typeName)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: skill.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: skill.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(skill.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                                .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
+                                        }
                                     }
                                 }
                             },
@@ -472,19 +492,29 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isResearchTimeSkillsExpanded,
                             content: {
                                 ForEach(researchTime.skills, id: \.typeID) { skill in
-                                    HStack {
-                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        
-                                        Text(skill.typeName)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: skill.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: skill.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(skill.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                                .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
+                                        }
                                     }
                                 }
                             },
@@ -577,19 +607,29 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isCopyingSkillsExpanded,
                             content: {
                                 ForEach(copying.skills, id: \.typeID) { skill in
-                                    HStack {
-                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        
-                                        Text(skill.typeName)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: skill.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: skill.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(skill.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                                .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
+                                        }
                                     }
                                 }
                             },
@@ -676,19 +716,29 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isInventionSkillsExpanded,
                             content: {
                                 ForEach(invention.skills, id: \.typeID) { skill in
-                                    HStack {
-                                        IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        
-                                        Text(skill.typeName)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
+                                    NavigationLink {
+                                        if let categoryID = databaseManager.getCategoryID(for: skill.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: skill.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
+                                    } label: {
+                                        HStack {
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
+                                            
+                                            Text(skill.typeName)
+                                            
+                                            Spacer()
+                                            
+                                            Text(String(format: NSLocalizedString("Blueprint_Level", comment: ""), skill.level))
+                                                .foregroundColor(.secondary)
+                                                .frame(alignment: .trailing)
+                                        }
                                     }
                                 }
                             },
