@@ -495,8 +495,6 @@ public class CharacterAssetsAPI {
                     Logger.info("未知类型的位置: \(locationType), ID: \(locationId)")
                     locationError = AssetError.incompleteData("Unknown location type: \(locationType)")
                 }
-            } catch {
-                locationError = error
             }
             
             // 如果获取信息失败，创建一个带错误信息的位置

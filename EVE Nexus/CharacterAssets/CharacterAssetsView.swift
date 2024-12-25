@@ -13,13 +13,27 @@ struct CharacterAssetsView: View {
     // 按星域分组的位置
     private var locationsByRegion: [(region: String, locations: [AssetLocation])] {
         let grouped = Dictionary(grouping: locations) { location in
+            // 如果没有solar system信息，归类到Unknown Region
             location.solarSystemInfo?.regionName ?? "Unknown Region"
         }
         
-        // 过滤掉空列表，并按星域名称排序
+        // 将分组转换为数组并排序，确保Unknown Region在最后
         return grouped.filter { !$0.value.isEmpty }
-            .map { (region: $0.key, locations: $0.value) }
-            .sorted { $0.region < $1.region }
+            .map { (region: $0.key, locations: $0.value.sorted { 
+                // 按照solar system名称排序，如果没有solar system信息则排在后面
+                if let system1 = $0.solarSystemInfo?.systemName,
+                   let system2 = $1.solarSystemInfo?.systemName {
+                    return system1 < system2
+                }
+                // 如果其中一个没有solar system信息，将其排在后面
+                return $0.solarSystemInfo?.systemName != nil
+            })}
+            .sorted { pair1, pair2 in
+                // 确保Unknown Region始终在最后
+                if pair1.region == "Unknown Region" { return false }
+                if pair2.region == "Unknown Region" { return true }
+                return pair1.region < pair2.region
+            }
     }
     
     var body: some View {
@@ -42,19 +56,19 @@ struct CharacterAssetsView: View {
                     ForEach(locationsByRegion, id: \.region) { regionGroup in
                         Section(header: Text(regionGroup.region)) {
                             ForEach(regionGroup.locations, id: \.locationId) { location in
-                                if let systemInfo = location.solarSystemInfo {
-                                    HStack {
-                                        // 位置图标
-                                        if let iconFileName = location.iconFileName {
-                                            IconManager.shared.loadImage(for: iconFileName)
-                                                .resizable()
-                                                .frame(width: 32, height: 32)
-                                                .cornerRadius(6)
-                                        }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            // 安全等级和位置名称
-                                            HStack(spacing: 4) {
+                                HStack {
+                                    // 位置图标
+                                    if let iconFileName = location.iconFileName {
+                                        IconManager.shared.loadImage(for: iconFileName)
+                                            .resizable()
+                                            .frame(width: 32, height: 32)
+                                            .cornerRadius(6)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        // 安全等级和位置名称
+                                        HStack(spacing: 4) {
+                                            if let systemInfo = location.solarSystemInfo {
                                                 Text(formatSecurity(systemInfo.security))
                                                     .foregroundColor(getSecurityColor(systemInfo.security))
                                                 
@@ -66,17 +80,21 @@ struct CharacterAssetsView: View {
                                                 } else {
                                                     Text(location.displayName)
                                                 }
+                                            } else {
+                                                // 对于未知位置，直接显示displayName
+                                                Text(location.displayName)
+                                                    .foregroundColor(.secondary)
                                             }
-                                            .font(.subheadline)
-                                            .lineLimit(1)
-                                            
-                                            // 位置类型标识
-                                            Text(location.locationType == "station" ? 
-                                                 NSLocalizedString("Character_in_station", comment: "") :
-                                                 NSLocalizedString("Character_in_structure", comment: ""))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                         }
+                                        .font(.subheadline)
+                                        .lineLimit(1)
+                                        
+                                        // 位置类型标识
+                                        Text(location.locationType == "station" ? 
+                                             NSLocalizedString("Character_in_station", comment: "") :
+                                             NSLocalizedString("Character_in_structure", comment: ""))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
                                     }
                                 }
                             }
