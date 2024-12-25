@@ -75,6 +75,13 @@ private struct AssetTreeCacheEntry: Codable {
     let timestamp: Date
 }
 
+// MARK: - Progress Types
+public enum AssetLoadingProgress {
+    case fetchingPage(Int)      // 获取第几页
+    case calculatingJson        // 计算JSON
+    case fetchingNames         // 获取名称
+}
+
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
     private let cacheTimeout: TimeInterval = 1800 // 30分钟缓存
@@ -83,7 +90,11 @@ public class CharacterAssetsJsonAPI {
     private init() {}
     
     // MARK: - Public Methods
-    public func generateAssetTreeJson(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
+    public func generateAssetTreeJson(
+        characterId: Int,
+        forceRefresh: Bool = false,
+        progressCallback: ((AssetLoadingProgress) -> Void)? = nil
+    ) async throws -> String? {
         // 检查缓存
         if !forceRefresh {
             if let cachedJson = getCachedJson(characterId: characterId) {
@@ -93,14 +104,18 @@ public class CharacterAssetsJsonAPI {
         }
         
         // 1. 获取所有资产
-        let assets = try await fetchAllAssets(characterId: characterId)
+        let assets = try await fetchAllAssets(characterId: characterId) { page in
+            progressCallback?(.fetchingPage(page))
+        }
         
         // 2. 生成资产树JSON
+        progressCallback?(.calculatingJson)
         if let jsonString = try await generateAssetTreeJson(
             assets: assets,
             names: [:],
             characterId: characterId,
-            databaseManager: DatabaseManager()
+            databaseManager: DatabaseManager(),
+            progressCallback: progressCallback
         ) {
             // 保存到缓存
             saveToCache(jsonString: jsonString, characterId: characterId)
@@ -138,7 +153,10 @@ public class CharacterAssetsJsonAPI {
     
     // MARK: - Private Methods
     // 获取所有资产
-    private func fetchAllAssets(characterId: Int) async throws -> [CharacterAsset] {
+    private func fetchAllAssets(
+        characterId: Int,
+        progressCallback: ((Int) -> Void)? = nil
+    ) async throws -> [CharacterAsset] {
         var allAssets: [CharacterAsset] = []
         var page = 1
         
@@ -163,6 +181,7 @@ public class CharacterAssetsJsonAPI {
                 allAssets.append(contentsOf: pageAssets)
                 
                 Logger.info("成功获取第\(page)页资产数据，本页包含\(pageAssets.count)个项目")
+                progressCallback?(page)
                 
                 page += 1
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
@@ -358,7 +377,8 @@ public class CharacterAssetsJsonAPI {
         assets: [CharacterAsset],
         names: [Int64: String],
         characterId: Int,
-        databaseManager: DatabaseManager
+        databaseManager: DatabaseManager,
+        progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> String? {
         // 建立 location_id 到资产列表的映射
         var locationMap: [Int64: [CharacterAsset]] = [:]
@@ -387,6 +407,7 @@ public class CharacterAssetsJsonAPI {
         let containerIds = collectContainerIds(from: rootNodes)
         
         // 获取容器名称
+        progressCallback?(.fetchingNames)
         let containerNames = try await fetchContainerNames(
             containerIds: Array(containerIds),
             characterId: characterId

@@ -59,6 +59,28 @@ private struct LocationNameView: View {
     }
 }
 
+// 加载进度视图
+private struct LoadingProgressView: View {
+    let progress: AssetLoadingProgress?
+    
+    var body: some View {
+        ProgressView {
+            if let progress = progress {
+                switch progress {
+                case .fetchingPage(let page):
+                    Text("已获取第\(page)页")
+                case .calculatingJson:
+                    Text("正在计算")
+                case .fetchingNames:
+                    Text("正在获取名称")
+                }
+            } else {
+                Text(NSLocalizedString("Assets_Loading", comment: ""))
+            }
+        }
+    }
+}
+
 struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
@@ -70,9 +92,7 @@ struct CharacterAssetsView: View {
     var body: some View {
         VStack {
             if viewModel.isLoading && viewModel.assetLocations.isEmpty {
-                ProgressView {
-                    Text(NSLocalizedString("Assets_Loading", comment: ""))
-                }
+                LoadingProgressView(progress: viewModel.loadingProgress)
             } else {
                 LocationsList(
                     locationsByRegion: viewModel.locationsByRegion,

@@ -5,6 +5,7 @@ class CharacterAssetsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var assetLocations: [AssetTreeNode] = []
     @Published var error: Error?
+    @Published var loadingProgress: AssetLoadingProgress?
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
@@ -51,12 +52,18 @@ class CharacterAssetsViewModel: ObservableObject {
         
         isLoading = true
         error = nil
+        loadingProgress = nil
         
         do {
             // 获取JSON数据（现在支持缓存）
             if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
                 characterId: characterId,
-                forceRefresh: forceRefresh
+                forceRefresh: forceRefresh,
+                progressCallback: { progress in
+                    Task { @MainActor in
+                        self.loadingProgress = progress
+                    }
+                }
             ) {
                 // 解析JSON
                 let decoder = JSONDecoder()
@@ -72,6 +79,7 @@ class CharacterAssetsViewModel: ObservableObject {
         }
         
         isLoading = false
+        loadingProgress = nil
     }
     
     // 获取物品信息
