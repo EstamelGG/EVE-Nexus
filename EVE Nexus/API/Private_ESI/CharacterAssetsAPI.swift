@@ -516,37 +516,67 @@ public class CharacterAssetsAPI {
     
     // 获取二级位置的名称
     private func fetchSecondLevelNames(characterId: Int, locationIds: [Int64]) async throws -> [Int64: String] {
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/names/"
-        guard let url = URL(string: urlString) else {
-            throw AssetError.invalidURL
-        }
+        let batchSize = 900 // ESI API 限制每次最多 900 个
+        var results: [Int64: String] = [:]
         
-        // 准备请求头
-        let headers = [
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        ]
-        
-        // 将locationIds转换为JSON数据
-        guard let jsonData = try? JSONEncoder().encode(locationIds) else {
-            throw AssetError.invalidData("Failed to encode location IDs to JSON")
-        }
-        
-        do {
-            let data = try await NetworkManager.shared.postDataWithToken(
-                to: url,
-                body: jsonData,
-                characterId: characterId,
-                headers: headers
-            )
+        // 将 locationIds 分批处理
+        for batch in stride(from: 0, to: locationIds.count, by: batchSize) {
+            let endIndex = min(batch + batchSize, locationIds.count)
+            let currentBatch = Array(locationIds[batch..<endIndex])
             
-            let nameResponses = try JSONDecoder().decode([AssetNameResponse].self, from: data)
-            Logger.debug("获取资产名称: \(nameResponses)")
-            return Dictionary(uniqueKeysWithValues: nameResponses.map { ($0.item_id, $0.name) })
-        } catch {
-            Logger.error("获取资产名称失败: \(error)")
-            throw AssetError.locationFetchError("Failed to fetch asset names: \(error)")
+            Logger.debug("处理资产名称批次 \(batch/batchSize + 1)，数量：\(currentBatch.count)")
+            
+            let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/names/"
+            guard let url = URL(string: urlString) else {
+                throw AssetError.invalidURL
+            }
+            
+            // 准备请求头
+            let headers = [
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            ]
+            
+            // 将 locationIds 转换为 JSON 数据
+            guard let jsonData = try? JSONEncoder().encode(currentBatch) else {
+                throw AssetError.invalidData("Failed to encode location IDs to JSON")
+            }
+            
+            do {
+                let data = try await NetworkManager.shared.postDataWithToken(
+                    to: url,
+                    body: jsonData,
+                    characterId: characterId,
+                    headers: headers
+                )
+                
+                let nameResponses = try JSONDecoder().decode([AssetNameResponse].self, from: data)
+                Logger.debug("获取资产名称批次 \(batch/batchSize + 1) 成功: \(nameResponses.count) 个名称")
+                
+                // 合并结果
+                for response in nameResponses {
+                    results[response.item_id] = response.name
+                }
+                
+                // 添加延迟以遵守 API 限制
+                if endIndex < locationIds.count {
+                    try await Task.sleep(nanoseconds: 100_000_000) // 100ms 延迟
+                }
+                
+            } catch {
+                Logger.error("获取资产名称批次 \(batch/batchSize + 1) 失败: \(error)")
+                // 继续处理其他批次，而不是立即失败
+                continue
+            }
         }
+        
+        if results.isEmpty {
+            Logger.warning("没有成功获取到任何资产名称")
+        } else {
+            Logger.info("成功获取 \(results.count) 个资产名称")
+        }
+        
+        return results
     }
     
     // 收集所有二级位置ID

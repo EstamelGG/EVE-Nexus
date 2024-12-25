@@ -57,7 +57,14 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 通用的数据获取函数
-    func fetchData(from url: URL, headers: [String: String]? = nil, forceRefresh: Bool = false, timeout: TimeInterval = 15.0) async throws -> Data {
+    func fetchData(
+        from url: URL,
+        method: String = "GET",
+        body: Data? = nil,
+        headers: [String: String]? = nil,
+        forceRefresh: Bool = false,
+        timeout: TimeInterval = 15.0
+    ) async throws -> Data {
         // 等待信号量
         await withCheckedContinuation { continuation in
             DispatchQueue.global().async {
@@ -75,6 +82,8 @@ class NetworkManager: NSObject, @unchecked Sendable {
         
         // 创建请求
         var request = URLRequest(url: url)
+        request.httpMethod = method
+        
         if forceRefresh {
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         }
@@ -86,13 +95,23 @@ class NetworkManager: NSObject, @unchecked Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
         
+        // 如果是 POST 请求且有请求体，设置 Content-Type
+        if method == "POST" && body != nil {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+        
         // 添加自定义请求头
         headers?.forEach { key, value in
             request.setValue(value, forHTTPHeaderField: key)
         }
         
+        // 设置请求体
+        if let body = body {
+            request.httpBody = body
+        }
+        
         return try await retrier.execute {
-            Logger.info("HTTP Request to: \(url)")
+            Logger.info("HTTP \(method) Request to: \(url)")
             let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -205,27 +224,13 @@ class NetworkManager: NSObject, @unchecked Sendable {
             allHeaders[key] = value
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpBody = body
-        
-        // 设置所有请求头
-        allHeaders.forEach { key, value in
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        // 检查HTTP响应状态码
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
-        }
-        
-        if !(200...299).contains(httpResponse.statusCode) {
-            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-        }
-        
-        return data
+        // 使用基础的 fetchData 方法获取数据
+        return try await fetchData(
+            from: url,
+            method: "POST",
+            body: body,
+            headers: allHeaders
+        )
     }
 }
 
