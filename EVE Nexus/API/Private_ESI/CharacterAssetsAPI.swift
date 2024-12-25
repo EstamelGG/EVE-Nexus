@@ -153,14 +153,82 @@ private struct AssetsCacheEntry: Codable {
     let timestamp: Date
 }
 
+// 用于缓存的AssetNode版本
+private struct CacheableAssetNode: Codable {
+    let asset: CharacterAsset
+    let children: [CacheableAssetNode]
+    
+    init(from node: AssetNode) {
+        self.asset = node.asset
+        self.children = node.children.map { CacheableAssetNode(from: $0) }
+    }
+    
+    func toAssetNode() -> AssetNode {
+        return AssetNode(
+            asset: asset,
+            children: children.map { $0.toAssetNode() }
+        )
+    }
+}
+
+// 用于缓存的完整资产数据结构
+private struct AssetTreeCacheEntry: Codable {
+    let assetTree: [CacheableAssetNode]
+    let locations: [CacheableAssetLocation]
+    let timestamp: Date
+}
+
+// 用于缓存的AssetLocation版本
+private struct CacheableAssetLocation: Codable {
+    let locationId: Int64
+    let locationType: String
+    let stationInfo: StationInfo?
+    let structureInfo: StructureInfo?
+    let solarSystemInfo: SolarSystemInfo?
+    let iconFileName: String?
+    let errorDescription: String?
+    let itemCount: Int
+    
+    // 从AssetLocation转换
+    init(from location: AssetLocation) {
+        self.locationId = location.locationId
+        self.locationType = location.locationType
+        self.stationInfo = location.stationInfo
+        self.structureInfo = location.structureInfo
+        self.solarSystemInfo = location.solarSystemInfo
+        self.iconFileName = location.iconFileName
+        self.errorDescription = location.error?.localizedDescription
+        self.itemCount = location.itemCount
+    }
+    
+    // 转换回AssetLocation
+    func toAssetLocation() -> AssetLocation {
+        return AssetLocation(
+            locationId: locationId,
+            locationType: locationType,
+            stationInfo: stationInfo,
+            structureInfo: structureInfo,
+            solarSystemInfo: solarSystemInfo,
+            iconFileName: iconFileName,
+            error: errorDescription.map { NSError(domain: "AssetLocation", code: 0, userInfo: [NSLocalizedDescriptionKey: $0]) },
+            itemCount: itemCount
+        )
+    }
+}
+
+private struct AssetLocationsCacheEntry: Codable {
+    let locations: [CacheableAssetLocation]
+    let timestamp: Date
+}
+
 public class CharacterAssetsAPI {
     public static let shared = CharacterAssetsAPI()
     
     // 缓存相关
     private let cacheQueue = DispatchQueue(label: "com.eve-nexus.assets-cache", attributes: .concurrent)
-    private var memoryCache: [Int: AssetsCacheEntry] = [:]
+    private var assetTreeMemoryCache: [Int: AssetTreeCacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 1800 // 30分钟缓存
-    private let cachePrefix = "assets_cache_"
+    private let assetTreeCachePrefix = "asset_tree_cache_"
     
     // 请求控制
     private let requestDelay: TimeInterval = 0.1 // 每秒10个请求
@@ -168,36 +236,36 @@ public class CharacterAssetsAPI {
     private init() {}
     
     // MARK: - Cache Management
-    private func isAssetsCacheValid(_ cache: AssetsCacheEntry?) -> Bool {
+    private func isAssetTreeCacheValid(_ cache: AssetTreeCacheEntry?) -> Bool {
         guard let cache = cache else { return false }
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
-    private func getMemoryCache(characterId: Int) -> AssetsCacheEntry? {
-        var result: AssetsCacheEntry?
+    private func getAssetTreeMemoryCache(characterId: Int) -> AssetTreeCacheEntry? {
+        var result: AssetTreeCacheEntry?
         cacheQueue.sync {
-            result = memoryCache[characterId]
+            result = assetTreeMemoryCache[characterId]
         }
         return result
     }
     
-    private func setMemoryCache(characterId: Int, cache: AssetsCacheEntry) {
+    private func setAssetTreeMemoryCache(characterId: Int, cache: AssetTreeCacheEntry) {
         cacheQueue.async(flags: .barrier) {
-            self.memoryCache[characterId] = cache
+            self.assetTreeMemoryCache[characterId] = cache
         }
     }
     
-    private func getDiskCache(characterId: Int) -> AssetsCacheEntry? {
-        let key = cachePrefix + String(characterId)
+    private func getAssetTreeDiskCache(characterId: Int) -> AssetTreeCacheEntry? {
+        let key = assetTreeCachePrefix + String(characterId)
         guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(AssetsCacheEntry.self, from: data) else {
+              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data) else {
             return nil
         }
         return cache
     }
     
-    private func saveToDiskCache(characterId: Int, cache: AssetsCacheEntry) {
-        let key = cachePrefix + String(characterId)
+    private func saveAssetTreeToDiskCache(characterId: Int, cache: AssetTreeCacheEntry) {
+        let key = assetTreeCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             UserDefaults.standard.set(encoded, forKey: key)
         }
@@ -244,15 +312,20 @@ public class CharacterAssetsAPI {
     ) async throws -> [CharacterAsset] {
         // 检查缓存
         if !forceRefresh {
-            if let memoryCached = getMemoryCache(characterId: characterId),
-               isAssetsCacheValid(memoryCached) {
-                return memoryCached.assets
+            if let memoryCached = getAssetTreeMemoryCache(characterId: characterId),
+               isAssetTreeCacheValid(memoryCached) {
+                Logger.debug("使用内存中的资产缓存")
+                // 从缓存的资产树中提取所有资产
+                let assets = extractAssetsFromTree(memoryCached.assetTree)
+                return assets
             }
             
-            if let diskCached = getDiskCache(characterId: characterId),
-               isAssetsCacheValid(diskCached) {
-                setMemoryCache(characterId: characterId, cache: diskCached)
-                return diskCached.assets
+            if let diskCached = getAssetTreeDiskCache(characterId: characterId),
+               isAssetTreeCacheValid(diskCached) {
+                Logger.debug("使用磁盘中的资产缓存")
+                // 从缓存的资产树中提取所有资产
+                let assets = extractAssetsFromTree(diskCached.assetTree)
+                return assets
             }
         }
         
@@ -296,12 +369,25 @@ public class CharacterAssetsAPI {
             }
         }
         
-        // 更新缓存
-        let cacheEntry = AssetsCacheEntry(assets: allAssets, timestamp: Date())
-        setMemoryCache(characterId: characterId, cache: cacheEntry)
-        saveToDiskCache(characterId: characterId, cache: cacheEntry)
-        
         return allAssets
+    }
+    
+    // 辅助方法：从缓存的资产树中提取所有资产
+    private func extractAssetsFromTree(_ nodes: [CacheableAssetNode]) -> [CharacterAsset] {
+        var assets: [CharacterAsset] = []
+        
+        func extract(from node: CacheableAssetNode) {
+            assets.append(node.asset)
+            for child in node.children {
+                extract(from: child)
+            }
+        }
+        
+        for node in nodes {
+            extract(from: node)
+        }
+        
+        return assets
     }
     
     // MARK: - Asset Tree Building
@@ -417,7 +503,37 @@ public class CharacterAssetsAPI {
     }
     
     // 处理资产位置信息
-    func processAssetLocations(assets: [CharacterAsset], characterId: Int, databaseManager: DatabaseManager) async throws -> [AssetLocation] {
+    func processAssetLocations(assets: [CharacterAsset], characterId: Int, databaseManager: DatabaseManager, forceRefresh: Bool = false) async throws -> ([AssetNode], [AssetLocation]) {
+        // 检查缓存
+        if !forceRefresh {
+            if let memoryCached = getAssetTreeMemoryCache(characterId: characterId),
+               isAssetTreeCacheValid(memoryCached) {
+                Logger.debug("使用内存中的资产树缓存")
+                return (
+                    memoryCached.assetTree.map { $0.toAssetNode() },
+                    memoryCached.locations.map { $0.toAssetLocation() }
+                )
+            }
+            
+            if let diskCached = getAssetTreeDiskCache(characterId: characterId),
+               isAssetTreeCacheValid(diskCached) {
+                Logger.debug("使用磁盘中的资产树缓存")
+                let cache = AssetTreeCacheEntry(
+                    assetTree: diskCached.assetTree,
+                    locations: diskCached.locations,
+                    timestamp: diskCached.timestamp
+                )
+                setAssetTreeMemoryCache(characterId: characterId, cache: cache)
+                return (
+                    diskCached.assetTree.map { $0.toAssetNode() },
+                    diskCached.locations.map { $0.toAssetLocation() }
+                )
+            }
+        }
+        
+        // 如果没有缓存或需要强制刷新，则处理资产位置信息
+        Logger.debug("开始处理资产位置信息")
+        
         // 1. 先构建资产树
         let assetTree = buildAssetTree(assets: assets)
         
@@ -564,7 +680,7 @@ public class CharacterAssetsAPI {
         }
         
         // 4. 按星域和星系名称排序，未知位置排在最后
-        return locations.sorted { loc1, loc2 in
+        let sortedLocations = locations.sorted { loc1, loc2 in
             // 如果有一个位置没有系统信息，将其排在后面
             if loc1.solarSystemInfo == nil {
                 return false
@@ -583,5 +699,19 @@ public class CharacterAssetsAPI {
             }
             return system1.systemName < system2.systemName
         }
+        
+        // 保存到缓存
+        let cacheableTree = assetTree.map { CacheableAssetNode(from: $0) }
+        let cacheableLocations = sortedLocations.map { CacheableAssetLocation(from: $0) }
+        let cacheEntry = AssetTreeCacheEntry(
+            assetTree: cacheableTree,
+            locations: cacheableLocations,
+            timestamp: Date()
+        )
+        setAssetTreeMemoryCache(characterId: characterId, cache: cacheEntry)
+        saveAssetTreeToDiskCache(characterId: characterId, cache: cacheEntry)
+        
+        Logger.debug("资产树和位置信息处理完成，已保存到缓存")
+        return (assetTree, sortedLocations)
     }
 } 

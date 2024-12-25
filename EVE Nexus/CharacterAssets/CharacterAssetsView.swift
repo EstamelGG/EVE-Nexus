@@ -137,14 +137,12 @@ struct CharacterAssetsView: View {
                 }
             )
             
-            // 构建资产树
-            let newAssetTree = CharacterAssetsAPI.shared.buildAssetTree(assets: assets)
-            
-            // 处理位置信息
-            let assetLocations = try await CharacterAssetsAPI.shared.processAssetLocations(
+            // 处理位置信息和资产树
+            let (newAssetTree, assetLocations) = try await CharacterAssetsAPI.shared.processAssetLocations(
                 assets: assets,
                 characterId: characterId,
-                databaseManager: DatabaseManager()
+                databaseManager: DatabaseManager(),
+                forceRefresh: forceRefresh
             )
             
             // 更新UI
