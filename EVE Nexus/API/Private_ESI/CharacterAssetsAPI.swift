@@ -233,6 +233,19 @@ private struct AssetLocationsCacheEntry: Codable {
     let timestamp: Date
 }
 
+// 用于展示的资产树结构
+private struct AssetTreeNode: Codable {
+    let location_id: Int64
+    let item_id: Int64
+    let type_id: Int
+    let location_type: String
+    let location_flag: String
+    let quantity: Int
+    let name: String?
+    let icon_name: String?
+    let items: [AssetTreeNode]?
+}
+
 public class CharacterAssetsAPI {
     public static let shared = CharacterAssetsAPI()
     
@@ -353,6 +366,11 @@ public class CharacterAssetsAPI {
                 
                 let data = try await fetchWithRetry(url: url, characterId: characterId)
                 
+                // 打印原始 JSON
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    Logger.debug("资产 JSON 数据：\n\(jsonString)")
+                }
+                
                 // 尝试解码数据
                 if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
                    errorResponse.error == "Requested page does not exist!" {
@@ -413,20 +431,36 @@ public class CharacterAssetsAPI {
         for asset in assets {
             assetMap[asset.item_id] = asset
             locationMap[asset.location_id, default: []].append(asset)
+            Logger.debug("资产详情 - ID: \(asset.item_id), 位置ID: \(asset.location_id), 位置类型: \(asset.location_type), 位置标志: \(asset.location_flag)")
         }
         
+        Logger.debug("资产总数: \(assets.count)")
+        Logger.debug("位置总数: \(locationMap.keys.count)")
+        
         // 递归构建树节点
-        func buildNode(from asset: CharacterAsset) -> AssetNode {
-            let children = locationMap[asset.item_id, default: []].map { buildNode(from: $0) }
+        func buildNode(from asset: CharacterAsset, depth: Int = 0) -> AssetNode {
+            let children = locationMap[asset.item_id, default: []].map { childAsset in
+                buildNode(from: childAsset, depth: depth + 1)
+            }
+            
+            if !children.isEmpty {
+                Logger.debug("构建容器节点 - ID: \(asset.item_id), 子项数量: \(children.count), 深度: \(depth)")
+            }
+            
             return AssetNode(asset: asset, children: children)
         }
         
-        // 找出顶层资产（没有其他资产以它的 item_id 作为 location_id 的资产）
+        // 找出顶层资产（有其他资产以它的 item_id 作为 location_id 的资产）
         let topLevelAssets = assets.filter { asset in
             !assets.contains { $0.item_id == asset.location_id }
         }
         
-        return topLevelAssets.map { buildNode(from: $0) }
+        Logger.debug("顶层资产数量: \(topLevelAssets.count)")
+        
+        let tree = topLevelAssets.map { buildNode(from: $0) }
+        Logger.debug("构建完成，树的根节点数量: \(tree.count)")
+        
+        return tree
     }
     
     // MARK: - Search Methods
@@ -579,21 +613,37 @@ public class CharacterAssetsAPI {
         return results
     }
     
-    // 收集所有二级位置ID
+    // 收集所有需要获取名称的物品ID
     private func collectSecondLevelLocationIds(from nodes: [AssetNode]) -> Set<Int64> {
         var locationIds = Set<Int64>()
         
-        for node in nodes {
-            // 对于每个顶层节点的子节点，收集它们的item_id
+        func collectIds(from node: AssetNode, depth: Int = 0) {
+            let indent = String(repeating: "  ", count: depth)
+            Logger.debug("\(indent)检查节点 - ID: \(node.asset.item_id), 子项数量: \(node.children.count)")
+            
+            // 如果有子物品，收集该容器的ID
+            if !node.children.isEmpty {
+                locationIds.insert(node.asset.item_id)
+                Logger.debug("\(indent)收集容器ID: \(node.asset.item_id), 包含 \(node.children.count) 个子物品")
+            }
+            
+            // 递归处理所有子节点
             for child in node.children {
-                locationIds.insert(child.asset.item_id)
-                // 如果这个子节点被其他资产用作位置，那么它就是一个二级位置
-                if nodes.contains(where: { $0.asset.location_id == child.asset.item_id }) {
-                    locationIds.insert(child.asset.item_id)
-                }
+                collectIds(from: child, depth: depth + 1)
             }
         }
         
+        Logger.debug("开始收集容器ID，根节点数量: \(nodes.count)")
+        // 从根节点的子节点开始收集
+        for (index, node) in nodes.enumerated() {
+            Logger.debug("处理根节点 \(index + 1)/\(nodes.count) - ID: \(node.asset.item_id)")
+            // 直接处理根节点的子节点
+            for child in node.children {
+                collectIds(from: child, depth: 1)
+            }
+        }
+        
+        Logger.debug("收集到 \(locationIds.count) 个容器物品ID需要获取名称")
         return locationIds
     }
     
@@ -603,6 +653,7 @@ public class CharacterAssetsAPI {
             var updatedNode = node
             if let name = names[node.asset.item_id] {
                 updatedNode.name = name
+                Logger.debug("更新物品名称 - ID: \(node.asset.item_id), 名称: \(name)")
             }
             updatedNode.children = updateAssetTreeWithNames(tree: node.children, names: names)
             return updatedNode
@@ -646,15 +697,19 @@ public class CharacterAssetsAPI {
         
         // 2. 获取二级位置的名称
         let secondLevelIds = Array(collectSecondLevelLocationIds(from: assetTree))
+        var names: [Int64: String] = [:]
         if !secondLevelIds.isEmpty {
             do {
-                let names = try await fetchSecondLevelNames(characterId: characterId, locationIds: secondLevelIds)
+                names = try await fetchSecondLevelNames(characterId: characterId, locationIds: secondLevelIds)
                 assetTree = updateAssetTreeWithNames(tree: assetTree, names: names)
             } catch {
                 Logger.error("获取二级位置名称失败: \(error)")
                 // 继续处理，即使获取名称失败
             }
         }
+        
+        // 生成并打印资产树JSON
+        await logAssetTree(assets: assets, names: names, characterId: characterId, databaseManager: databaseManager)
         
         // 2. 从资产树中提取所有顶层位置ID和类型，并计算每个位置的物品数量
         var locationMap: [Int64: String] = [:] // locationId -> locationType
@@ -832,5 +887,110 @@ public class CharacterAssetsAPI {
         
         Logger.debug("资产树和位置信息处理完成，已保存到缓存")
         return (assetTree, sortedLocations)
+    }
+    
+    private func generateAssetTreeJson(
+        assets: [CharacterAsset],
+        names: [Int64: String],
+        characterId: Int,
+        databaseManager: DatabaseManager
+    ) async throws -> String? {
+        // 建立 location_id 到资产列表的映射
+        var locationMap: [Int64: [CharacterAsset]] = [:]
+        
+        // 构建映射关系
+        for asset in assets {
+            locationMap[asset.location_id, default: []].append(asset)
+        }
+        
+        // 递归构建树节点
+        func buildTreeNode(from asset: CharacterAsset) -> AssetTreeNode {
+            // 获取图标名称
+            let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+            var iconName: String? = nil
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
+               let row = rows.first,
+               let filename = row["icon_filename"] as? String {
+                iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
+            }
+            
+            // 获取子项
+            let children = locationMap[asset.item_id, default: []].map { buildTreeNode(from: $0) }
+            
+            return AssetTreeNode(
+                location_id: asset.location_id,
+                item_id: asset.item_id,
+                type_id: asset.type_id,
+                location_type: asset.location_type,
+                location_flag: asset.location_flag,
+                quantity: asset.quantity,
+                name: names[asset.item_id],
+                icon_name: iconName,
+                items: children.isEmpty ? nil : children
+            )
+        }
+        
+        // 找出顶层位置（空间站和建筑物）
+        var topLocations: Set<Int64> = Set(assets.map { $0.location_id })
+        for asset in assets {
+            topLocations.remove(asset.item_id)
+        }
+        
+        // 为每个顶层位置创建一个虚拟的根节点
+        var rootNodes: [AssetTreeNode] = []
+        for locationId in topLocations {
+            if let items = locationMap[locationId] {
+                // 获取位置类型（从第一个子项获取）
+                let locationType = items.first?.location_type ?? "unknown"
+                
+                // 获取位置的图标
+                var iconName: String? = nil
+                if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
+                    // 如果是空间站，获取空间站的图标
+                    iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                } else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                    // 如果是建筑物，获取建筑物的图标
+                    iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                }
+                
+                // 创建位置节点
+                let locationNode = AssetTreeNode(
+                    location_id: locationId,
+                    item_id: locationId,
+                    type_id: 0,  // 位置本身没有type_id
+                    location_type: locationType,
+                    location_flag: "root",
+                    quantity: 1,
+                    name: nil,  // 位置名称会在UI层处理
+                    icon_name: iconName,
+                    items: items.map { buildTreeNode(from: $0) }
+                )
+                rootNodes.append(locationNode)
+            }
+        }
+        
+        // 转换为JSON
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        
+        do {
+            let jsonData = try encoder.encode(rootNodes)
+            return String(data: jsonData, encoding: .utf8)
+        } catch {
+            Logger.error("生成资产树JSON失败: \(error)")
+            return nil
+        }
+    }
+    
+    // 在处理资产时调用此方法
+    private func logAssetTree(assets: [CharacterAsset], names: [Int64: String], characterId: Int, databaseManager: DatabaseManager) async {
+        if let jsonString = try? await generateAssetTreeJson(
+            assets: assets,
+            names: names,
+            characterId: characterId,
+            databaseManager: databaseManager
+        ) {
+            Logger.debug("资产树结构：\n\(jsonString)")
+        }
     }
 } 
