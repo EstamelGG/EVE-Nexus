@@ -178,7 +178,7 @@ struct EVECharacterInfo: Codable {
     public var currentSkill: CurrentSkillInfo?
     public var locationStatus: CharacterLocation.LocationStatus?
     public var location: SolarSystemInfo?
-    public var queueFinishTime: TimeInterval?  // 添加队列总剩余��间属性
+    public var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
     
     // 内部类型定义
     public struct CurrentSkillInfo: Codable {

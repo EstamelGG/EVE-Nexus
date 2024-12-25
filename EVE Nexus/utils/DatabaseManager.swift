@@ -350,10 +350,10 @@ class DatabaseManager: ObservableObject {
                    g.name as group_name
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
-            WHERE t.name LIKE ? or t.type_id = ?
+            WHERE t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?
         """
         
-        var parameters: [Any] = ["%\(searchText)%", "\(searchText)"]
+        var parameters: [Any] = ["%\(searchText)%", "%\(searchText)%", "\(searchText)"]
         
         if let categoryID = categoryID {
             query += " AND t.categoryID = ?"
