@@ -31,7 +31,7 @@ struct LocationAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .navigationTitle(location.system_name ?? NSLocalizedString("Unknown_System", comment: ""))
+        .navigationTitle(location.name ?? location.system_name ?? NSLocalizedString("Unknown_System", comment: ""))
         .task {
             await viewModel.loadItemInfo()
         }
