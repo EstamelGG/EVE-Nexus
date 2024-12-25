@@ -1554,6 +1554,7 @@ class DatabaseManager: ObservableObject {
     // MARK: - Station Info
     struct StationInfo: Hashable {
         let stationName: String
+        let stationTypeID: Int
         let security: Double
         let solarSystemName: String
     }
@@ -1580,10 +1581,12 @@ class DatabaseManager: ObservableObject {
         case .success(let rows):
             if let row = rows.first,
                let stationName = row["stationName"] as? String,
+               let stationTypeID = row["stationTypeID"] as? Int,
                let security = row["security"] as? Double,
                let solarSystemName = row["solarSystemName"] as? String {
                 let info = StationInfo(
                     stationName: stationName,
+                    stationTypeID: stationTypeID,
                     security: security,
                     solarSystemName: solarSystemName
                 )
