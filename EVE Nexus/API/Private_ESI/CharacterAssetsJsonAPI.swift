@@ -69,23 +69,71 @@ public enum AssetError: Error {
     case invalidData(String)
 }
 
+// MARK: - Cache Structure
+private struct AssetTreeCacheEntry: Codable {
+    let jsonString: String
+    let timestamp: Date
+}
+
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
+    private let cacheTimeout: TimeInterval = 1800 // 30分钟缓存
+    private let assetTreeCachePrefix = "asset_tree_json_cache_"
     
     private init() {}
     
     // MARK: - Public Methods
-    public func generateAssetTreeJson(characterId: Int) async throws -> String? {
+    public func generateAssetTreeJson(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
+        // 检查缓存
+        if !forceRefresh {
+            if let cachedJson = getCachedJson(characterId: characterId) {
+                Logger.debug("使用缓存的资产树JSON")
+                return cachedJson
+            }
+        }
+        
         // 1. 获取所有资产
         let assets = try await fetchAllAssets(characterId: characterId)
         
         // 2. 生成资产树JSON
-        return try await generateAssetTreeJson(
+        if let jsonString = try await generateAssetTreeJson(
             assets: assets,
             names: [:],
             characterId: characterId,
             databaseManager: DatabaseManager()
-        )
+        ) {
+            // 保存到缓存
+            saveToCache(jsonString: jsonString, characterId: characterId)
+            return jsonString
+        }
+        return nil
+    }
+    
+    // MARK: - Cache Methods
+    private func getCacheKey(characterId: Int) -> String {
+        return assetTreeCachePrefix + String(characterId)
+    }
+    
+    private func isValidCache(_ cache: AssetTreeCacheEntry) -> Bool {
+        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
+    }
+    
+    private func getCachedJson(characterId: Int) -> String? {
+        let key = getCacheKey(characterId: characterId)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data),
+              isValidCache(cache) else {
+            return nil
+        }
+        return cache.jsonString
+    }
+    
+    private func saveToCache(jsonString: String, characterId: Int) {
+        let cache = AssetTreeCacheEntry(jsonString: jsonString, timestamp: Date())
+        let key = getCacheKey(characterId: characterId)
+        if let encoded = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(encoded, forKey: key)
+        }
     }
     
     // MARK: - Private Methods

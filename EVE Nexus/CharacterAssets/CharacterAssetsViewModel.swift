@@ -53,8 +53,11 @@ class CharacterAssetsViewModel: ObservableObject {
         error = nil
         
         do {
-            // 获取JSON数据
-            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(characterId: characterId) {
+            // 获取JSON数据（现在支持缓存）
+            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            ) {
                 // 解析JSON
                 let decoder = JSONDecoder()
                 let data = jsonString.data(using: .utf8)!
