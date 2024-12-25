@@ -10,7 +10,7 @@ private struct LocationRowView: View {
             if let iconFileName = location.icon_name {
                 IconManager.shared.loadImage(for: iconFileName)
                     .resizable()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .cornerRadius(6)
             }
             
