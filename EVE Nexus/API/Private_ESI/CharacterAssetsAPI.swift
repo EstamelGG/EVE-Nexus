@@ -541,6 +541,7 @@ public class CharacterAssetsAPI {
             )
             
             let nameResponses = try JSONDecoder().decode([AssetNameResponse].self, from: data)
+            Logger.debug("获取资产名称: \(nameResponses)")
             return Dictionary(uniqueKeysWithValues: nameResponses.map { ($0.item_id, $0.name) })
         } catch {
             Logger.error("获取资产名称失败: \(error)")

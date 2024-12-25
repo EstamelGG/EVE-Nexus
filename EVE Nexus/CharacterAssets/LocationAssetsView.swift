@@ -93,13 +93,17 @@ struct AssetItemView: View {
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
                 VStack(alignment: .leading, spacing: 2) {
-                    // 资产名称
-                    if let name = node.name {
-                        Text(name)
-                    } else if let itemInfo = itemInfo {
-                        Text(itemInfo.name)
-                    } else {
-                        Text("Type ID: \(node.asset.type_id)")
+                    // 资产名称和自定义名称
+                    HStack(spacing: 4) {
+                        if let itemInfo = itemInfo {
+                            Text(itemInfo.name)
+                            if let customName = node.name {
+                                Text("[\(customName)]")
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text("Type ID: \(node.asset.type_id)")
+                        }
                     }
                     
                     // 数量信息
