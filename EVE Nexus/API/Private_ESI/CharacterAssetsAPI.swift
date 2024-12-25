@@ -372,11 +372,6 @@ public class CharacterAssetsAPI {
                 
                 let data = try await fetchWithRetry(url: url, characterId: characterId)
                 
-                // 打印原始 JSON
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    Logger.debug("资产 JSON 数据：\n\(jsonString)")
-                }
-                
                 // 尝试解码数据
                 if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
                    errorResponse.error == "Requested page does not exist!" {

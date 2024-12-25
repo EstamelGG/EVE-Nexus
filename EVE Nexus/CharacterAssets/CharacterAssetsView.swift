@@ -160,12 +160,6 @@ struct CharacterAssetsView: View {
                 self.assetTree = newAssetTree
                 self.locations = assetLocations
             }
-            
-            // 在日志中打印树状结构
-            for node in newAssetTree {
-                Logger.info("\n资产树结构：\n\(node.displayAssetTree())")
-            }
-            
         } catch {
             Logger.error("加载资产失败: \(error)")
             self.error = error
