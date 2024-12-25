@@ -2,12 +2,12 @@ import SwiftUI
 
 // 位置行视图
 private struct LocationRowView: View {
-    let location: AssetLocation
+    let location: AssetTreeNode
     
     var body: some View {
         HStack {
             // 位置图标
-            if let iconFileName = location.iconFileName {
+            if let iconFileName = location.icon_name {
                 IconManager.shared.loadImage(for: iconFileName)
                     .resizable()
                     .frame(width: 32, height: 32)
@@ -21,9 +21,11 @@ private struct LocationRowView: View {
                     .lineLimit(1)
                 
                 // 物品数量
-                Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), location.itemCount))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let items = location.items {
+                    Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), items.count))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -31,25 +33,28 @@ private struct LocationRowView: View {
 
 // 位置名称视图
 private struct LocationNameView: View {
-    let location: AssetLocation
+    let location: AssetTreeNode
     
     var body: some View {
         HStack(spacing: 4) {
-            if let systemInfo = location.solarSystemInfo {
-                Text(formatSecurity(systemInfo.security))
-                    .foregroundColor(getSecurityColor(systemInfo.security))
+            if let security = location.security_status {
+                Text(formatSecurity(security))
+                    .foregroundColor(getSecurityColor(security))
                 
                 // 位置名称处理
-                if location.displayName.hasPrefix(systemInfo.systemName) {
-                    Text(systemInfo.systemName)
-                        .fontWeight(.bold) +
-                    Text(location.displayName.dropFirst(systemInfo.systemName.count))
-                } else {
-                    Text(location.displayName)
+                if let systemName = location.system_name,
+                   let name = location.name {
+                    if name.hasPrefix(systemName) {
+                        Text(systemName)
+                            .fontWeight(.bold) +
+                        Text(name.dropFirst(systemName.count))
+                    } else {
+                        Text(name)
+                    }
                 }
             } else {
-                // 对于未知位置，直接显示displayName
-                Text(location.displayName)
+                // 对于未知位置，直接显示名称
+                Text(location.name ?? "Unknown Location")
                     .foregroundColor(.secondary)
             }
         }
@@ -62,13 +67,12 @@ struct CharacterAssetsView: View {
     @State private var loadingProgress: AssetLoadingProgress?
     @State private var searchText = ""
     @State private var isSearchActive = false
-    @State private var assetTree: [AssetNode] = []
-    @State private var locations: [AssetLocation] = []
+    @State private var assetNodes: [AssetTreeNode] = []
     @State private var error: Error?
     private let databaseManager = DatabaseManager()
     
     // 按星域分组的位置
-    private var locationsByRegion: [(region: String, locations: [AssetLocation])] {
+    private var locationsByRegion: [(region: String, locations: [AssetTreeNode])] {
         // 1. 按区域分组
         let grouped = groupLocationsByRegion()
         // 2. 转换为排序后的数组
@@ -76,27 +80,27 @@ struct CharacterAssetsView: View {
     }
     
     // 将位置按区域分组
-    private func groupLocationsByRegion() -> [String: [AssetLocation]] {
-        Dictionary(grouping: locations) { location in
-            location.solarSystemInfo?.regionName ?? "Unknown Region"
+    private func groupLocationsByRegion() -> [String: [AssetTreeNode]] {
+        Dictionary(grouping: assetNodes) { node in
+            node.region_name ?? "Unknown Region"
         }
     }
     
     // 对位置进行排序
-    private func sortLocations(_ locations: [AssetLocation]) -> [AssetLocation] {
+    private func sortLocations(_ locations: [AssetTreeNode]) -> [AssetTreeNode] {
         locations.sorted { loc1, loc2 in
             // 按照solar system名称排序，如果没有solar system信息则排在后面
-            if let system1 = loc1.solarSystemInfo?.systemName,
-               let system2 = loc2.solarSystemInfo?.systemName {
+            if let system1 = loc1.system_name,
+               let system2 = loc2.system_name {
                 return system1 < system2
             }
             // 如果其中一个没有solar system信息，将其排在后面
-            return loc1.solarSystemInfo?.systemName != nil
+            return loc1.system_name != nil
         }
     }
     
     // 对分组后的位置进行排序
-    private func sortGroupedLocations(_ grouped: [String: [AssetLocation]]) -> [(region: String, locations: [AssetLocation])] {
+    private func sortGroupedLocations(_ grouped: [String: [AssetTreeNode]]) -> [(region: String, locations: [AssetTreeNode])] {
         grouped.filter { !$0.value.isEmpty }
             .map { (region: $0.key, locations: sortLocations($0.value)) }
             .sorted { pair1, pair2 in
@@ -109,12 +113,11 @@ struct CharacterAssetsView: View {
     
     var body: some View {
         VStack {
-            if isLoading && assetTree.isEmpty {
+            if isLoading && assetNodes.isEmpty {
                 CustomLoadingView(progress: loadingProgress)
             } else {
                 LocationsList(
                     locationsByRegion: locationsByRegion,
-                    assetTree: assetTree,
                     databaseManager: databaseManager
                 )
             }
@@ -124,7 +127,7 @@ struct CharacterAssetsView: View {
             await loadAssets(forceRefresh: true)
         }
         .task {
-            if assetTree.isEmpty {
+            if assetNodes.isEmpty {
                 await loadAssets()
             }
         }
@@ -137,7 +140,7 @@ struct CharacterAssetsView: View {
         error = nil
         
         do {
-            let assets = try await CharacterAssetsAPI.shared.fetchAllAssets(
+            let jsonString = try await CharacterAssetsAPI.shared.fetchAssetTreeJson(
                 characterId: characterId,
                 forceRefresh: forceRefresh,
                 progressCallback: { progress in
@@ -147,23 +150,14 @@ struct CharacterAssetsView: View {
                 }
             )
             
-            // 处理位置信息和资产树
-            let (newAssetTree, assetLocations) = try await CharacterAssetsAPI.shared.processAssetLocations(
-                assets: assets,
-                characterId: characterId,
-                databaseManager: databaseManager,
-                forceRefresh: forceRefresh
-            )
-            
-            // 更新UI
-            await MainActor.run {
-                self.assetTree = newAssetTree
-                self.locations = assetLocations
-            }
-            
-            // 在日志中打印树状结构
-            for node in newAssetTree {
-                Logger.info("\n资产树结构：\n\(node.displayAssetTree())")
+            // 解析JSON
+            if let jsonData = jsonString.data(using: .utf8),
+               let nodes = try? JSONDecoder().decode([AssetTreeNode].self, from: jsonData) {
+                await MainActor.run {
+                    self.assetNodes = nodes
+                }
+            } else {
+                throw AssetError.decodingError(NSError(domain: "", code: -1))
             }
             
         } catch {
@@ -172,6 +166,31 @@ struct CharacterAssetsView: View {
         }
         
         isLoading = false
+    }
+}
+
+// 位置列表视图
+private struct LocationsList: View {
+    let locationsByRegion: [(region: String, locations: [AssetTreeNode])]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(locationsByRegion, id: \.region) { regionGroup in
+                Section(header: Text(regionGroup.region)) {
+                    ForEach(regionGroup.locations, id: \.item_id) { location in
+                        NavigationLink(
+                            destination: AssetTreeNodeView(
+                                node: location,
+                                databaseManager: databaseManager
+                            )
+                        ) {
+                            LocationRowView(location: location)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -190,33 +209,6 @@ private struct CustomLoadingView: View {
                 Text(NSLocalizedString("Assets_Loading_Complete", comment: ""))
             case .none:
                 Text(NSLocalizedString("Assets_Loading", comment: ""))
-            }
-        }
-    }
-}
-
-// 位置列表视图
-private struct LocationsList: View {
-    let locationsByRegion: [(region: String, locations: [AssetLocation])]
-    let assetTree: [AssetNode]
-    let databaseManager: DatabaseManager
-    
-    var body: some View {
-        List {
-            ForEach(locationsByRegion, id: \.region) { regionGroup in
-                Section(header: Text(regionGroup.region)) {
-                    ForEach(regionGroup.locations, id: \.locationId) { location in
-                        NavigationLink(
-                            destination: LocationAssetsView(
-                                location: location,
-                                assetTree: assetTree,
-                                databaseManager: databaseManager
-                            )
-                        ) {
-                            LocationRowView(location: location)
-                        }
-                    }
-                }
             }
         }
     }
