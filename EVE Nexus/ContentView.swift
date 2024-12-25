@@ -353,6 +353,8 @@ struct ContentView: View {
     @State private var corporationLogo: UIImage?
     @State private var allianceInfo: AllianceInfo?
     @State private var allianceLogo: UIImage?
+    // 添加任务标识符
+    @State private var currentTaskId = UUID()
     
     // 添加 UserDefaults 存储的当前角色 ID
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -759,6 +761,12 @@ struct ContentView: View {
     
     // 刷新所有数据
     private func refreshAllData(forceRefresh: Bool = false) async {
+        // 生成新的任务ID
+        let taskId = UUID()
+        await updateUI {
+            currentTaskId = taskId
+        }
+        
         // 先让刷新指示器完成动画
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
         
@@ -778,6 +786,12 @@ struct ContentView: View {
                 
                 let (publicInfo, portrait) = try await (publicInfoTask, portraitTask)
                 
+                // 检查是否仍是当前任务
+                guard await checkCurrentTask(taskId) else {
+                    Logger.info("取消过期的角色数据刷新任务")
+                    return
+                }
+                
                 // 并行刷新军团和联盟信息
                 async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
                 async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
@@ -793,6 +807,13 @@ struct ContentView: View {
                     
                     // 等待所有任务完成
                     let (corpInfo, corpLogo, allianceInfo, allianceLogo) = try await (corporationInfoTask, corporationLogoTask, allianceInfoTask, allianceLogoTask)
+                    
+                    // 再次检查是否仍是当前任务
+                    guard await checkCurrentTask(taskId) else {
+                        Logger.info("取消过期的联盟数据刷新任务")
+                        return
+                    }
+                    
                     newCorpInfo = corpInfo
                     newCorpLogo = corpLogo
                     newAllianceInfo = allianceInfo
@@ -800,6 +821,13 @@ struct ContentView: View {
                 } else {
                     // 等待军团相关任务完成
                     let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+                    
+                    // 再次检查是否仍是当前任务
+                    guard await checkCurrentTask(taskId) else {
+                        Logger.info("取消过期的军团数据刷新任务")
+                        return
+                    }
+                    
                     newCorpInfo = corpInfo
                     newCorpLogo = corpLogo
                 }
@@ -826,6 +854,12 @@ struct ContentView: View {
                     locationTask,
                     queueTask
                 )
+                
+                // 最终检查是否仍是当前任务
+                guard await checkCurrentTask(taskId) else {
+                    Logger.info("取消过期的角色状态刷新任务")
+                    return
+                }
                 
                 // 更新技能信息
                 updatedCharacter.totalSkillPoints = skills.total_sp
@@ -865,7 +899,7 @@ struct ContentView: View {
                     )
                 }
                 
-                // 一次性更新所有UI，移除动画效果
+                // 一次性更新所有UI
                 await updateUI {
                     selectedCharacter = updatedCharacter
                     selectedCharacterPortrait = portrait
@@ -884,6 +918,13 @@ struct ContentView: View {
         // 刷新服务器状态
         do {
             let status = try await ServerStatusAPI.shared.fetchServerStatus()
+            
+            // 检查是否仍是当前任务
+            guard await checkCurrentTask(taskId) else {
+                Logger.info("取消过期的服务器状态刷新任务")
+                return
+            }
+            
             await updateUI {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     serverStatus = status
@@ -897,88 +938,158 @@ struct ContentView: View {
         Logger.info("完成所有数据刷新")
     }
     
-    // 刷新服务器状态
-    private func refreshServerStatus() async {
-        do {
-            serverStatus = try await ServerStatusAPI.shared.fetchServerStatus()
-            lastStatusUpdateTime = Date()
-        } catch {
-            Logger.error("Failed to refresh server status: \(error)")
-        }
+    // 添加检查当前任务的方法
+    private func checkCurrentTask(_ taskId: UUID) async -> Bool {
+        await MainActor.run { currentTaskId == taskId }
     }
     
-    // 刷新角色数据
-    private func refreshCharacterData(_ character: EVECharacterInfo) async {
-        do {
-            // 获取角色公开信息
-            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
-            
-            // 刷新头像
-            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
-            await MainActor.run {
-                selectedCharacterPortrait = portrait
-                Logger.info("成功刷新角色头像")
-            }
-            
-            // 刷新联盟信息
-            if let allianceId = publicInfo.alliance_id {
-                do {
-                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                    
-                    let (_, _) = try await (allianceInfoTask, allianceLogoTask)
-                    Logger.info("成功刷新联盟信息和图标")
-                } catch {
-                    Logger.error("刷新联盟信息失败: \(error)")
-                }
-            }
-            
-            // 刷新军团信息
-            do {
-                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+    // 修改角色选择处理方法
+    func handleCharacterSelection(_ character: EVECharacterInfo, _ portrait: UIImage?) {
+        // 生成新的任务ID
+        let newTaskId = UUID()
+        currentTaskId = newTaskId
+        
+        // 重置当前显示的信息
+        resetCharacterInfo()
+        
+        // 使用传入的已缓存数据
+        selectedCharacter = character
+        if let portrait = portrait {
+            selectedCharacterPortrait = portrait
+        }
+        
+        // 更新选中的角色ID
+        currentCharacterId = character.CharacterID
+        
+        // 保存选择到 UserDefaults
+        UserDefaults.standard.set(character.CharacterID, forKey: "SelectedCharacterID")
+        
+        // 发送角色选择通知
+        NotificationCenter.default.post(
+            name: Notification.Name("CharacterSelected"),
+            object: nil,
+            userInfo: [
+                "characterId": character.CharacterID,
+                "character": character
+            ]
+        )
+        
+        // 如果没有头像数据，才异步加载
+        if portrait == nil {
+            Task {
+                // 检查是否仍是当前任务
+                guard await checkCurrentTask(newTaskId) else { return }
                 
-                let (_, _) = try await (corporationInfoTask, corporationLogoTask)
-                Logger.info("成功刷新军团信息和图标")
-            } catch {
-                Logger.error("刷新军团信息失败: \(error)")
+                if let newPortrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID) {
+                    // 再次检查是否仍是当前任务
+                    guard await checkCurrentTask(newTaskId) else { return }
+                    
+                    await MainActor.run {
+                        selectedCharacterPortrait = newPortrait
+                    }
+                }
             }
-            
-            Logger.info("成功完成所有信息刷新")
-        } catch {
-            Logger.error("刷新角色信息失败: \(error)")
+        }
+        
+        // 异步加载新数据
+        Task {
+            await refreshAllData()
         }
     }
     
-    // 加载初始数据
-    private func loadInitialData() async {
-        // 先从缓存加载保存的角色信息
-        await loadSavedCharacter()
-        
-        // 如果没有头像，立即从缓存加载
-        if selectedCharacterPortrait == nil, currentCharacterId != 0 {
-            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                characterId: currentCharacterId,
-                forceRefresh: false
-            ) {
-                await MainActor.run {
-                    selectedCharacterPortrait = portrait
-                }
-            }
+    // 添加格式化技能点的辅助方法
+    private func formatSkillPoints(_ sp: Int) -> String {
+        if sp >= 1_000_000 {
+            return String(format: "%.1fM", Double(sp) / 1_000_000.0)
+        } else if sp >= 1_000 {
+            return String(format: "%.1fK", Double(sp) / 1_000.0)
         }
+        return "\(sp)"
+    }
+    
+    // 添加加载保存的角色信息的方法
+    private func loadSavedCharacter() async {
+        Logger.info("正在加载保存的角色信息...")
+        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
         
-        // 异步加载服务器状态和刷新token
-        Task {
-            // 加载服务器状态
-            do {
-                let status = try await ServerStatusAPI.shared.fetchServerStatus()
-                await MainActor.run {
-                    serverStatus = status
-                    lastStatusUpdateTime = Date()
+        // 如果有保存的角色 ID，尝试加载该角色信息
+        if currentCharacterId != 0 {
+            let characters = EVELogin.shared.loadCharacters()
+            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
+                selectedCharacter = savedCharacter.character
+                Logger.info("""
+                    成功加载保存的所选角色信息:
+                    - 角色ID: \(savedCharacter.character.CharacterID)
+                    - 角色名称: \(savedCharacter.character.CharacterName)
+                    """)
+                
+                // 使用 API 的缓存机制加载数据
+                do {
+                    // 加载技能信息
+                    if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                        characterId: currentCharacterId
+                    ) {
+                        selectedCharacter?.totalSkillPoints = skills.total_sp
+                        selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
+                        Logger.info("加载技能点信息成功")
+                    }
+                    
+                    // 加载钱包余额
+                    if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
+                        characterId: currentCharacterId
+                    ) {
+                        selectedCharacter?.walletBalance = balance
+                        Logger.info("加载钱包余额成功")
+                    }
+                    
+                    // 加载技能队列
+                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                        characterId: currentCharacterId
+                    ) {
+                        selectedCharacter?.skillQueueLength = queue.count
+                        if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                            if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                // 获取队列最后一个技能的完成时间
+                                if let lastSkill = queue.last,
+                                   let lastFinishTime = lastSkill.remainingTime {
+                                    selectedCharacter?.queueFinishTime = lastFinishTime
+                                }
+                                
+                                selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                    skillId: currentSkill.skill_id,
+                                    name: skillName,
+                                    level: currentSkill.skillLevel,
+                                    progress: currentSkill.progress,
+                                    remainingTime: currentSkill.remainingTime
+                                )
+                            }
+                        }
+                        Logger.info("加载技能队列成功 - \(savedCharacter.character.CharacterName) (ID: \(savedCharacter.character.CharacterID))")
+                    }
+                    
+                    // 强制更新表格显示
+                    tables = generateTables()
                 }
-            } catch {
-                Logger.error("Failed to load server status: \(error)")
+                
+                // 异步加载头像
+                Task {
+                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                        characterId: currentCharacterId
+                    ) {
+                        await MainActor.run {
+                            selectedCharacterPortrait = portrait
+                        }
+                    } else {
+                        Logger.error("加载角色头像失败")
+                    }
+                }
+            } else {
+                // 如果找不到保存的角色，清除当前角色 ID
+                Logger.warning("未找到保存的角色（ID: \(currentCharacterId)），清除当前角色ID")
+                currentCharacterId = 0
             }
+        } else {
+            Logger.info("没有保存的角色ID")
         }
     }
     
@@ -1164,134 +1275,50 @@ struct ContentView: View {
         ]
     }
     
-    // 添加格式化技能点的辅助方法
-    private func formatSkillPoints(_ sp: Int) -> String {
-        if sp >= 1_000_000 {
-            return String(format: "%.1fM", Double(sp) / 1_000_000.0)
-        } else if sp >= 1_000 {
-            return String(format: "%.1fK", Double(sp) / 1_000.0)
+    // 添加加载初始数据的方法
+    private func loadInitialData() async {
+        // 生成新的任务ID
+        let taskId = UUID()
+        await updateUI {
+            currentTaskId = taskId
         }
-        return "\(sp)"
-    }
-    
-    // 添加加载保存的角色信息的方法
-    private func loadSavedCharacter() async {
-        Logger.info("正在加载保存的角色信息...")
-        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
         
-        // 如果有保存的角色 ID，尝试加载该角色信息
-        if currentCharacterId != 0 {
-            let characters = EVELogin.shared.loadCharacters()
-            if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
-                selectedCharacter = savedCharacter.character
-                Logger.info("""
-                    成功加载保存的所选角色信息:
-                    - 角色ID: \(savedCharacter.character.CharacterID)
-                    - 角色名称: \(savedCharacter.character.CharacterName)
-                    """)
+        // 先从缓存加载保存的角色信息
+        await loadSavedCharacter()
+        
+        // 如果没有头像，立即从缓存加载
+        if selectedCharacterPortrait == nil, currentCharacterId != 0 {
+            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                characterId: currentCharacterId,
+                forceRefresh: false
+            ) {
+                // 检查是否仍是当前任务
+                guard await checkCurrentTask(taskId) else { return }
                 
-                // 使用 API 的缓存机制加载数据
-                do {
-                    // 加载技能信息
-                    if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                        characterId: currentCharacterId
-                    ) {
-                        selectedCharacter?.totalSkillPoints = skills.total_sp
-                        selectedCharacter?.unallocatedSkillPoints = skills.unallocated_sp
-                        Logger.info("加载技能点信息成功")
-                    }
-                    
-                    // 加载钱包余额
-                    if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                        characterId: currentCharacterId
-                    ) {
-                        selectedCharacter?.walletBalance = balance
-                        Logger.info("加载钱包余额成功")
-                    }
-                    
-                    // 加载技能队列
-                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                        characterId: currentCharacterId
-                    ) {
-                        selectedCharacter?.skillQueueLength = queue.count
-                        if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                            if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                                // 获取队列最后一个技能的完成时间
-                                if let lastSkill = queue.last,
-                                   let lastFinishTime = lastSkill.remainingTime {
-                                    selectedCharacter?.queueFinishTime = lastFinishTime
-                                }
-                                
-                                selectedCharacter?.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                    skillId: currentSkill.skill_id,
-                                    name: skillName,
-                                    level: currentSkill.skillLevel,
-                                    progress: currentSkill.progress,
-                                    remainingTime: currentSkill.remainingTime
-                                )
-                            }
-                        }
-                        Logger.info("加载技能队列成功 - \(savedCharacter.character.CharacterName) (ID: \(savedCharacter.character.CharacterID))")
-                    }
-                    
-                    // 强制更新表格显示
-                    tables = generateTables()
-                }
-                
-                // 异步加载头像
-                Task {
-                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: currentCharacterId
-                    ) {
-                        await MainActor.run {
-                            selectedCharacterPortrait = portrait
-                        }
-                    } else {
-                        Logger.error("加载角色头像失败")
-                    }
-                }
-            } else {
-                // 如果找不到保存的角色，清除当前角色 ID
-                Logger.warning("未找到保存的角色（ID: \(currentCharacterId)），清除当前角色ID")
-                currentCharacterId = 0
-            }
-        } else {
-            Logger.info("没有保存的角色ID")
-        }
-    }
-    
-    func handleCharacterSelection(_ character: EVECharacterInfo, _ portrait: UIImage?) {
-        // 使用传入的已缓存数据
-        selectedCharacter = character
-        if let portrait = portrait {
-            selectedCharacterPortrait = portrait
-        }
-        
-        // 更新选中的角色ID
-        currentCharacterId = character.CharacterID
-        
-        // 保存选择到 UserDefaults
-        UserDefaults.standard.set(character.CharacterID, forKey: "SelectedCharacterID")
-        
-        // 发送角色选择通知
-        NotificationCenter.default.post(
-            name: Notification.Name("CharacterSelected"),
-            object: nil,
-            userInfo: [
-                "characterId": character.CharacterID,
-                "character": character
-            ]
-        )
-        
-        // 如果没有头像数据，才异步加载
-        if portrait == nil {
-            Task {
-                if let newPortrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID) {
-                    await MainActor.run {
-                        selectedCharacterPortrait = newPortrait
-                    }
+                await MainActor.run {
+                    selectedCharacterPortrait = portrait
                 }
             }
+        }
+        
+        // 异步加载服务器状态
+        do {
+            let status = try await ServerStatusAPI.shared.fetchServerStatus()
+            
+            // 检查是否仍是当前任务
+            guard await checkCurrentTask(taskId) else { return }
+            
+            await MainActor.run {
+                serverStatus = status
+                lastStatusUpdateTime = Date()
+            }
+        } catch {
+            Logger.error("Failed to load server status: \(error)")
+        }
+        
+        // 如果有选中的角色，刷新数据
+        if selectedCharacter != nil {
+            await refreshAllData()
         }
     }
 }
