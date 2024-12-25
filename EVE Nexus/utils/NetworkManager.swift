@@ -181,6 +181,52 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 使用基础的 fetchData 方法获取数据
         return try await fetchData(from: url, headers: allHeaders)
     }
+
+    // POST请求带Token的方法
+    func postDataWithToken(
+        to url: URL,
+        body: Data,
+        characterId: Int,
+        headers: [String: String]? = nil
+    ) async throws -> Data {
+        // 获取角色的token
+        let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
+        
+        // 创建基本请求头
+        var allHeaders: [String: String] = [
+            "Authorization": "Bearer \(token)",
+            "datasource": "tranquility",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
+        
+        // 添加自定义请求头
+        headers?.forEach { key, value in
+            allHeaders[key] = value
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = body
+        
+        // 设置所有请求头
+        allHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        // 检查HTTP响应状态码
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.invalidResponse
+        }
+        
+        if !(200...299).contains(httpResponse.statusCode) {
+            throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+        }
+        
+        return data
+    }
 }
 
 // 网络错误枚举

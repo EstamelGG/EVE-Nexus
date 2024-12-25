@@ -67,9 +67,38 @@ public struct ESIErrorResponse: Codable {
     let error: String
 }
 
+// 资产名称响应
+private struct AssetNameResponse: Codable {
+    let item_id: Int64
+    let name: String
+}
+
+// 修改CacheableAssetNode以包含名称
+private struct CacheableAssetNode: Codable {
+    let asset: CharacterAsset
+    let children: [CacheableAssetNode]
+    let name: String?  // 添加名称字段
+    
+    init(from node: AssetNode) {
+        self.asset = node.asset
+        self.children = node.children.map { CacheableAssetNode(from: $0) }
+        self.name = node.name
+    }
+    
+    func toAssetNode() -> AssetNode {
+        return AssetNode(
+            asset: asset,
+            children: children.map { $0.toAssetNode() },
+            name: name
+        )
+    }
+}
+
+// 修改AssetNode以包含名称
 public struct AssetNode {
     let asset: CharacterAsset
     var children: [AssetNode]
+    var name: String?  // 添加名称字段
     
     // 递归展示资产树
     func displayAssetTree(level: Int = 0) -> String {
@@ -145,30 +174,13 @@ public enum AssetError: Error {
     case maxRetriesReached
     case pageNotFound
     case locationFetchError(String)
+    case invalidData(String)
 }
 
 // MARK: - Cache Structure
 private struct AssetsCacheEntry: Codable {
     let assets: [CharacterAsset]
     let timestamp: Date
-}
-
-// 用于缓存的AssetNode版本
-private struct CacheableAssetNode: Codable {
-    let asset: CharacterAsset
-    let children: [CacheableAssetNode]
-    
-    init(from node: AssetNode) {
-        self.asset = node.asset
-        self.children = node.children.map { CacheableAssetNode(from: $0) }
-    }
-    
-    func toAssetNode() -> AssetNode {
-        return AssetNode(
-            asset: asset,
-            children: children.map { $0.toAssetNode() }
-        )
-    }
 }
 
 // 用于缓存的完整资产数据结构
@@ -502,6 +514,70 @@ public class CharacterAssetsAPI {
         }
     }
     
+    // 获取二级位置的名称
+    private func fetchSecondLevelNames(characterId: Int, locationIds: [Int64]) async throws -> [Int64: String] {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/names/"
+        guard let url = URL(string: urlString) else {
+            throw AssetError.invalidURL
+        }
+        
+        // 准备请求头
+        let headers = [
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
+        
+        // 将locationIds转换为JSON数据
+        guard let jsonData = try? JSONEncoder().encode(locationIds) else {
+            throw AssetError.invalidData("Failed to encode location IDs to JSON")
+        }
+        
+        do {
+            let data = try await NetworkManager.shared.postDataWithToken(
+                to: url,
+                body: jsonData,
+                characterId: characterId,
+                headers: headers
+            )
+            
+            let nameResponses = try JSONDecoder().decode([AssetNameResponse].self, from: data)
+            return Dictionary(uniqueKeysWithValues: nameResponses.map { ($0.item_id, $0.name) })
+        } catch {
+            Logger.error("获取资产名称失败: \(error)")
+            throw AssetError.locationFetchError("Failed to fetch asset names: \(error)")
+        }
+    }
+    
+    // 收集所有二级位置ID
+    private func collectSecondLevelLocationIds(from nodes: [AssetNode]) -> Set<Int64> {
+        var locationIds = Set<Int64>()
+        
+        for node in nodes {
+            // 对于每个顶层节点的子节点，收集它们的item_id
+            for child in node.children {
+                locationIds.insert(child.asset.item_id)
+                // 如果这个子节点被其他资产用作位置，那么它就是一个二级位置
+                if nodes.contains(where: { $0.asset.location_id == child.asset.item_id }) {
+                    locationIds.insert(child.asset.item_id)
+                }
+            }
+        }
+        
+        return locationIds
+    }
+    
+    // 更新资产树中的名称
+    private func updateAssetTreeWithNames(tree: [AssetNode], names: [Int64: String]) -> [AssetNode] {
+        return tree.map { node in
+            var updatedNode = node
+            if let name = names[node.asset.item_id] {
+                updatedNode.name = name
+            }
+            updatedNode.children = updateAssetTreeWithNames(tree: node.children, names: names)
+            return updatedNode
+        }
+    }
+    
     // 处理资产位置信息
     func processAssetLocations(assets: [CharacterAsset], characterId: Int, databaseManager: DatabaseManager, forceRefresh: Bool = false) async throws -> ([AssetNode], [AssetLocation]) {
         // 检查缓存
@@ -535,7 +611,19 @@ public class CharacterAssetsAPI {
         Logger.debug("开始处理资产位置信息")
         
         // 1. 先构建资产树
-        let assetTree = buildAssetTree(assets: assets)
+        var assetTree = buildAssetTree(assets: assets)
+        
+        // 2. 获取二级位置的名称
+        let secondLevelIds = Array(collectSecondLevelLocationIds(from: assetTree))
+        if !secondLevelIds.isEmpty {
+            do {
+                let names = try await fetchSecondLevelNames(characterId: characterId, locationIds: secondLevelIds)
+                assetTree = updateAssetTreeWithNames(tree: assetTree, names: names)
+            } catch {
+                Logger.error("获取二级位置名称失败: \(error)")
+                // 继续处理，即使获取名称失败
+            }
+        }
         
         // 2. 从资产树中提取所有顶层位置ID和类型，并计算每个位置的物品数量
         var locationMap: [Int64: String] = [:] // locationId -> locationType

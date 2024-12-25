@@ -64,7 +64,11 @@ struct AssetNodeView: View {
                 VStack(alignment: .leading) {
                     // 资产名称和数量
                     HStack {
-                        Text("Type ID: \(node.asset.type_id)")  // TODO: 从数据库获取物品名称
+                        if let name = node.name {
+                            Text(name)
+                        } else {
+                            Text("Type ID: \(node.asset.type_id)")  // TODO: 从数据库获取物品名称
+                        }
                         if node.asset.quantity > 1 {
                             Text("x\(node.asset.quantity)")
                                 .foregroundColor(.secondary)
