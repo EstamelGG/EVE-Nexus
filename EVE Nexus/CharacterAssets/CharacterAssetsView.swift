@@ -91,30 +91,22 @@ private struct SearchResultRowView: View {
             Text(result.itemName)
                 .font(.headline)
             
-            // 位置路径
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(Array(result.path.enumerated()), id: \.offset) { index, pathNode in
-                    HStack(spacing: 4) {
-                        // 缩进
-                        if index > 0 {
-                            Text(String(repeating: "    ", count: index))
-                                .font(.system(.body, design: .monospaced))
-                        }
-                        
-                        // 箭头（除了第一项）
-                        if index > 0 {
-                            Image(systemName: "arrow.right")
-                                .foregroundColor(.secondary)
-                                .imageScale(.small)
-                        }
-                        
-                        // 节点名称
-                        Text(pathNode.node.name ?? "Unknown")
-                            .foregroundColor(pathNode.isTarget ? .accentColor : .primary)
+            // 位置路径（只显示到倒数第二个项目）
+            HStack(spacing: 4) {
+                ForEach(Array(result.path.dropLast().enumerated()), id: \.offset) { index, pathNode in
+                    if index > 0 {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .imageScale(.small)
                     }
+                    
+                    // 节点名称
+                    Text(pathNode.node.name ?? "Unknown")
+                        .foregroundColor(.primary)
                 }
             }
             .font(.caption)
+            .lineLimit(1)
         }
     }
 }
@@ -139,6 +131,7 @@ struct CharacterAssetsView: View {
                         if let containerNode = result.containerNode {
                             NavigationLink(
                                 destination: LocationAssetsView(location: containerNode)
+                                    .navigationTitle(containerNode.name ?? "Unknown Location")
                             ) {
                                 SearchResultRowView(result: result)
                             }

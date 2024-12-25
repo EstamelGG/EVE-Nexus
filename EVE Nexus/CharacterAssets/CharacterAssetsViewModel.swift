@@ -173,7 +173,7 @@ class CharacterAssetsViewModel: ObservableObject {
                     }
                     
                     // 如果当前物品是容器，继续搜索其内容
-                    if let subItems = item.items {
+                    if item.items != nil {
                         var newPath = currentPath
                         newPath.append(AssetPathNode(node: item, isTarget: false))
                         searchNode(item, currentPath: newPath)
