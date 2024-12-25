@@ -264,3 +264,5 @@
 "Assets_Loading" = "Loading...";
 
 "Assets_Item_Count" = "%d items";
+
+"Unknown_System" = "Unknown System";

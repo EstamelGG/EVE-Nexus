@@ -56,43 +56,45 @@ struct CharacterAssetsView: View {
                     ForEach(locationsByRegion, id: \.region) { regionGroup in
                         Section(header: Text(regionGroup.region)) {
                             ForEach(regionGroup.locations, id: \.locationId) { location in
-                                HStack {
-                                    // 位置图标
-                                    if let iconFileName = location.iconFileName {
-                                        IconManager.shared.loadImage(for: iconFileName)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                    }
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        // 安全等级和位置名称
-                                        HStack(spacing: 4) {
-                                            if let systemInfo = location.solarSystemInfo {
-                                                Text(formatSecurity(systemInfo.security))
-                                                    .foregroundColor(getSecurityColor(systemInfo.security))
-                                                
-                                                // 位置名称处理
-                                                if location.displayName.hasPrefix(systemInfo.systemName) {
-                                                    Text(systemInfo.systemName)
-                                                        .fontWeight(.bold) +
-                                                    Text(location.displayName.dropFirst(systemInfo.systemName.count))
-                                                } else {
-                                                    Text(location.displayName)
-                                                }
-                                            } else {
-                                                // 对于未知位置，直接显示displayName
-                                                Text(location.displayName)
-                                                    .foregroundColor(.secondary)
-                                            }
+                                NavigationLink(destination: LocationAssetsView(location: location, assetTree: assetTree)) {
+                                    HStack {
+                                        // 位置图标
+                                        if let iconFileName = location.iconFileName {
+                                            IconManager.shared.loadImage(for: iconFileName)
+                                                .resizable()
+                                                .frame(width: 32, height: 32)
+                                                .cornerRadius(6)
                                         }
-                                        .font(.subheadline)
-                                        .lineLimit(1)
                                         
-                                        // 位置类型标识
-                                        Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), location.itemCount))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            // 安全等级和位置名称
+                                            HStack(spacing: 4) {
+                                                if let systemInfo = location.solarSystemInfo {
+                                                    Text(formatSecurity(systemInfo.security))
+                                                        .foregroundColor(getSecurityColor(systemInfo.security))
+                                                    
+                                                    // 位置名称处理
+                                                    if location.displayName.hasPrefix(systemInfo.systemName) {
+                                                        Text(systemInfo.systemName)
+                                                            .fontWeight(.bold) +
+                                                        Text(location.displayName.dropFirst(systemInfo.systemName.count))
+                                                    } else {
+                                                        Text(location.displayName)
+                                                    }
+                                                } else {
+                                                    // 对于未知位置，直接显示displayName
+                                                    Text(location.displayName)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            }
+                                            .font(.subheadline)
+                                            .lineLimit(1)
+                                            
+                                            // 位置类型标识
+                                            Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), location.itemCount))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
                                     }
                                 }
                             }
