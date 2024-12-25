@@ -151,7 +151,7 @@ struct CharacterAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .onChange(of: searchText) { newValue in
+        .onChange(of: searchText) { newValue, old in
             Task {
                 await viewModel.searchAssets(query: newValue)
             }

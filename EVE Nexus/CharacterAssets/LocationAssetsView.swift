@@ -3,7 +3,6 @@ import SwiftUI
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @State private var searchText = ""
     
     init(location: AssetTreeNode) {
         self.location = location
@@ -12,7 +11,7 @@ struct LocationAssetsView: View {
     
     var body: some View {
         List {
-            ForEach(viewModel.filteredAssets(searchText: searchText), id: \.item_id) { node in
+            ForEach(viewModel.filteredAssets(), id: \.item_id) { node in
                 if let items = node.items, !items.isEmpty {
                     // 如果有子资产，使用导航链接
                     NavigationLink {
@@ -26,11 +25,6 @@ struct LocationAssetsView: View {
                 }
             }
         }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
-        )
         .navigationTitle(location.name ?? location.system_name ?? NSLocalizedString("Unknown_System", comment: ""))
         .task {
             await viewModel.loadItemInfo()
@@ -89,7 +83,6 @@ struct AssetItemView: View {
 struct SubLocationAssetsView: View {
     let parentNode: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @State private var searchText = ""
     
     init(parentNode: AssetTreeNode) {
         self.parentNode = parentNode
@@ -99,7 +92,7 @@ struct SubLocationAssetsView: View {
     var body: some View {
         List {
             if parentNode.items != nil {
-                ForEach(viewModel.filteredAssets(searchText: searchText), id: \.item_id) { node in
+                ForEach(viewModel.filteredAssets(), id: \.item_id) { node in
                     if let subitems = node.items, !subitems.isEmpty {
                         NavigationLink {
                             SubLocationAssetsView(parentNode: node)
@@ -112,11 +105,6 @@ struct SubLocationAssetsView: View {
                 }
             }
         }
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
-        )
         .navigationTitle(parentNode.name ?? viewModel.itemInfo(for: parentNode.type_id)?.name ?? String(parentNode.type_id))
         .task {
             await viewModel.loadItemInfo()
@@ -139,19 +127,8 @@ class LocationAssetsViewModel: ObservableObject {
         itemInfoCache[typeId]
     }
     
-    func filteredAssets(searchText: String) -> [AssetTreeNode] {
-        guard let items = location.items else { return [] }
-        
-        if searchText.isEmpty {
-            return items
-        }
-        
-        return items.filter { node in
-            if let itemInfo = itemInfoCache[node.type_id] {
-                return itemInfo.name.localizedCaseInsensitiveContains(searchText)
-            }
-            return String(node.type_id).contains(searchText)
-        }
+    func filteredAssets() -> [AssetTreeNode] {
+        location.items ?? []
     }
     
     // 从数据库加载物品信息
