@@ -143,16 +143,13 @@ struct AssetItemView: View {
                                 Text("[\(customName)]")
                                     .foregroundColor(.secondary)
                             }
+                            if node.quantity > 1 {
+                                Text("×\(node.quantity)")
+                                    .foregroundColor(.secondary)
+                            }
                         } else {
                             Text("Type ID: \(node.type_id)")
                         }
-                    }
-                    
-                    // 数量信息
-                    if node.quantity > 1 {
-                        Text("数量：\(node.quantity)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                     
                     // 如果有子资产，显示子资产数量
@@ -252,68 +249,119 @@ class LocationAssetsViewModel: ObservableObject {
         // 按处理后的flag分组
         let grouped = Dictionary(grouping: processedItems) { $0.flag }
         
-        // 对分组进行排序，并只返回节点
-        return grouped.map { (flag: $0.key, items: $0.value.map { $0.node }) }
-            .sorted { pair1, pair2 in
-                // 自定义排序逻辑
-                let order: [String] = [
-                    // 装配槽位
-                    "HiSlots",
-                    "MedSlots",
-                    "LoSlots",
-                    "RigSlots",
-                    "SubSystemSlots",
-                    
-                    // 无人机和战斗机
-                    "DroneBay",
-                    "FighterBay",
-                    "FighterTubes",
-                    
-                    // 特殊舱室
-                    "SpecializedAmmoHold",
-                    "SpecializedFuelBay",
-                    "SpecializedOreHold",
-                    "SpecializedGasHold",
-                    "SpecializedMineralHold",
-                    "SpecializedSalvageHold",
-                    "SpecializedShipHold",
-                    "SpecializedSmallShipHold",
-                    "SpecializedMediumShipHold",
-                    "SpecializedLargeShipHold",
-                    "SpecializedIndustrialShipHold",
-                    "SpecializedMaterialBay",
-                    "SpecializedPlanetaryCommoditiesHold",
-                    "SpecializedCommandCenterHold",
-                    
-                    // 基础舱室
-                    "Cargo",
-                    "Hangar",
-                    "ShipHangar",
-                    "FleetHangar",
-                    "SubSystemBay",
-                    
-                    // 公司机库
-                    "CorpSAG1", 
-                    "CorpSAG2", 
-                    "CorpSAG3", 
-                    "CorpSAG4", 
-                    "CorpSAG5", 
-                    "CorpSAG6", 
-                    "CorpSAG7",
-                    
-                    // 交付箱
-                    "Deliveries",
-                    "CorpDeliveries",
-                    
-                    // 其他
-                    "AutoFit",
-                    "HiddenModifiers"
-                ]
+        // 对分组进行排序，并合并相同物品
+        return grouped.map { flag, items in
+            // 对每个分组内的物品进行合并
+            let mergedItems = Dictionary(grouping: items) { item in
+                // 使用type_id和name作为合并的key
+                "\(item.node.type_id)_\(item.node.name ?? "")"
+            }.map { _, sameItems -> AssetTreeNode in
+                let firstItem = sameItems[0].node
+                let totalQuantity = sameItems.reduce(0) { $0 + $1.node.quantity }
                 
-                let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
-                let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
-                return index1 < index2
+                // 如果数量大于1，创建新的节点
+                if sameItems.count > 1 || totalQuantity > 1 {
+                    return AssetTreeNode(
+                        location_id: firstItem.location_id,
+                        item_id: firstItem.item_id,
+                        type_id: firstItem.type_id,
+                        location_type: firstItem.location_type,
+                        location_flag: firstItem.location_flag,
+                        quantity: totalQuantity,
+                        name: firstItem.name,
+                        icon_name: firstItem.icon_name,
+                        is_singleton: false,
+                        is_blueprint_copy: firstItem.is_blueprint_copy,
+                        system_name: firstItem.system_name,
+                        region_name: firstItem.region_name,
+                        security_status: firstItem.security_status,
+                        items: firstItem.items
+                    )
+                } else {
+                    return firstItem
+                }
             }
+            .sorted { node1, node2 in
+                // 获取物品名称
+                let name1 = itemInfo(for: node1.type_id)?.name ?? ""
+                let name2 = itemInfo(for: node2.type_id)?.name ?? ""
+                
+                // 首先按是否为容器排序（容器在前）
+                if (node1.items != nil) != (node2.items != nil) {
+                    return node1.items != nil
+                }
+                
+                // 然后按名称排序
+                if name1 != name2 {
+                    return name1 < name2
+                }
+                
+                // 如果名称相同，按type_id排序
+                return node1.type_id < node2.type_id
+            }
+            
+            return (flag: flag, items: mergedItems)
+        }
+        .sorted { pair1, pair2 in
+            // 自定义排序逻辑
+            let order: [String] = [
+                // 装配槽位
+                "HiSlots",
+                "MedSlots",
+                "LoSlots",
+                "RigSlots",
+                "SubSystemSlots",
+                
+                // 无人机和战斗机
+                "DroneBay",
+                "FighterBay",
+                "FighterTubes",
+                
+                // 特殊舱室
+                "SpecializedAmmoHold",
+                "SpecializedFuelBay",
+                "SpecializedOreHold",
+                "SpecializedGasHold",
+                "SpecializedMineralHold",
+                "SpecializedSalvageHold",
+                "SpecializedShipHold",
+                "SpecializedSmallShipHold",
+                "SpecializedMediumShipHold",
+                "SpecializedLargeShipHold",
+                "SpecializedIndustrialShipHold",
+                "SpecializedMaterialBay",
+                "SpecializedPlanetaryCommoditiesHold",
+                "SpecializedCommandCenterHold",
+                
+                // 基础舱室
+                "Cargo",
+                "Hangar",
+                "ShipHangar",
+                "FleetHangar",
+                "SubSystemBay",
+                
+                // 公司机库
+                "CorpSAG1", 
+                "CorpSAG2", 
+                "CorpSAG3", 
+                "CorpSAG4", 
+                "CorpSAG5", 
+                "CorpSAG6", 
+                "CorpSAG7",
+                
+                // 交付箱
+                "Deliveries",
+                "CorpDeliveries",
+                
+                // 其他
+                "AutoFit",
+                "HiddenModifiers"
+            ]
+            
+            let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
+            let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
+            return index1 < index2
+        }
     }
     
     // 从数据库加载物品信息
