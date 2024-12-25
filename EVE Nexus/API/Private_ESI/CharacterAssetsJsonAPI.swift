@@ -461,21 +461,48 @@ public class CharacterAssetsJsonAPI {
                 var regionName: String? = nil
                 var securityStatus: Double? = nil
                 
-                if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
-                    iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                    locationName = stationInfo.name
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                        systemName = systemInfo.systemName
-                        regionName = systemInfo.regionName
-                        securityStatus = systemInfo.security
+                // 根据location_type决定API调用顺序
+                if locationType == "station" {
+                    // 优先尝试空间站API
+                    if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
+                        iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                        locationName = stationInfo.name
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                            systemName = systemInfo.systemName
+                            regionName = systemInfo.regionName
+                            securityStatus = systemInfo.security
+                        }
                     }
-                } else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                    iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
-                    locationName = structureInfo.name
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                        systemName = systemInfo.systemName
-                        regionName = systemInfo.regionName
-                        securityStatus = systemInfo.security
+                    // 如果空间站API失败，再尝试建筑物API作为后备
+                    else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                        iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                        locationName = structureInfo.name
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                            systemName = systemInfo.systemName
+                            regionName = systemInfo.regionName
+                            securityStatus = systemInfo.security
+                        }
+                    }
+                } else {
+                    // 优先尝试建筑物API
+                    if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                        iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                        locationName = structureInfo.name
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                            systemName = systemInfo.systemName
+                            regionName = systemInfo.regionName
+                            securityStatus = systemInfo.security
+                        }
+                    }
+                    // 如果建筑物API失败，再尝试空间站API作为后备
+                    else if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
+                        iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                        locationName = stationInfo.name
+                        if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                            systemName = systemInfo.systemName
+                            regionName = systemInfo.regionName
+                            securityStatus = systemInfo.security
+                        }
                     }
                 }
                 
