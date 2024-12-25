@@ -1568,7 +1568,7 @@ class DatabaseManager: ObservableObject {
         
         // 从数据库加载
         let query = """
-            SELECT s.stationName, s.security, s.solarSystemID, ss.solarSystemName
+            SELECT s.stationName, s.stationTypeID, s.security, s.solarSystemID, ss.solarSystemName
             FROM stations s
             LEFT JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
             WHERE s.stationID = ?
