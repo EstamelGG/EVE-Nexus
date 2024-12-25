@@ -969,16 +969,31 @@ class DatabaseManager: ObservableObject {
         return nil
     }
     
-    // 获取物品的类ID
+    // 获取物品的分类ID
     func getCategoryID(for typeID: Int) -> Int? {
-        let query = "SELECT categoryID FROM types WHERE type_id = ?"
+        Logger.debug("DatabaseManager - 获取物品分类ID，typeID: \(typeID)")
         
-        if case .success(let rows) = executeQuery(query, parameters: [typeID]),
-           let row = rows.first,
-           let categoryID = row["categoryID"] as? Int {
-            return categoryID
+        let query = """
+            SELECT categoryID
+            FROM types
+            WHERE type_id = ?
+        """
+        
+        let result = executeQuery(query, parameters: [typeID])
+        
+        switch result {
+        case .success(let rows):
+            if let row = rows.first,
+               let categoryID = row["categoryID"] as? Int {
+                Logger.debug("DatabaseManager - 找到分类ID: \(categoryID)")
+                return categoryID
+            }
+            Logger.debug("DatabaseManager - 未找到分类ID")
+            return nil
+        case .error(let error):
+            Logger.error("DatabaseManager - 获取分类ID失败: \(error)")
+            return nil
         }
-        return nil
     }
     
     // 获取物品详情
@@ -1113,8 +1128,11 @@ class DatabaseManager: ObservableObject {
     
     // 获取可以精炼/回收得到指定物品的源物品列表
     func getSourceMaterials(for itemID: Int, groupID: Int) -> [(typeID: Int, name: String, iconFileName: String, outputQuantityPerUnit: Double)]? {
+        Logger.debug("DatabaseManager - 获取精炼来源，itemID: \(itemID), groupID: \(groupID)")
+        
         let query: String
         if groupID == 18 { // 矿物，只看矿石来源
+            Logger.debug("DatabaseManager - 构建矿物查询")
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1124,6 +1142,7 @@ class DatabaseManager: ObservableObject {
                 ORDER BY output_per_unit DESC
             """
         } else if groupID == 1996 { // 突变残渣，只看装备来源
+            Logger.debug("DatabaseManager - 构建突变残渣查询")
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1133,6 +1152,7 @@ class DatabaseManager: ObservableObject {
                 ORDER BY output_per_unit DESC
             """
         } else if groupID == 423 { // 同位素，只看矿石来源
+            Logger.debug("DatabaseManager - 构建同位素查询")
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1142,6 +1162,7 @@ class DatabaseManager: ObservableObject {
                 ORDER BY output_per_unit DESC
             """
         } else if groupID == 427 { //元素，只看石来源
+            Logger.debug("DatabaseManager - 构建元素查询")
             query = """
                 SELECT DISTINCT t.type_id, t.name, t.icon_filename,
                        CAST(tm.output_quantity AS FLOAT) / tm.process_size as output_per_unit
@@ -1151,6 +1172,7 @@ class DatabaseManager: ObservableObject {
                 ORDER BY output_per_unit DESC
             """
         } else {
+            Logger.debug("DatabaseManager - 不支持的物品组: \(groupID)")
             return nil
         }
         
@@ -1159,6 +1181,7 @@ class DatabaseManager: ObservableObject {
         
         switch result {
         case .success(let rows):
+            Logger.debug("DatabaseManager - 查询成功，找到 \(rows.count) 条记录")
             for row in rows {
                 if let typeID = row["type_id"] as? Int,
                    let name = row["name"] as? String,
@@ -1175,7 +1198,7 @@ class DatabaseManager: ObservableObject {
             return materials.isEmpty ? nil : materials
             
         case .error(let error):
-            Logger.error("Error getting source materials: \(error)")
+            Logger.error("DatabaseManager - 获取精炼来源失败: \(error)")
             return nil
         }
     }
