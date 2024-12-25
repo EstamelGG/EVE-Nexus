@@ -889,6 +889,119 @@ public class CharacterAssetsAPI {
         return (assetTree, sortedLocations)
     }
     
+    // 收集所有容器的ID (除了最顶层建筑物)
+    private func collectContainerIds(from nodes: [AssetTreeNode]) -> Set<Int64> {
+        var containerIds = Set<Int64>()
+        
+        func collect(from node: AssetTreeNode, isRoot: Bool = false) {
+            // 如果不是根节点且有子项，则这是一个容器
+            if !isRoot && node.items != nil && !node.items!.isEmpty {
+                containerIds.insert(node.item_id)
+            }
+            
+            // 递归处理子节点
+            if let items = node.items {
+                for item in items {
+                    collect(from: item)
+                }
+            }
+        }
+        
+        // 从根节点开始收集，但标记为根节点以跳过它们
+        for node in nodes {
+            collect(from: node, isRoot: true)
+        }
+        
+        return containerIds
+    }
+
+    // 获取容器名称
+    private func fetchContainerNames(containerIds: [Int64], characterId: Int) async throws -> [Int64: String] {
+        guard !containerIds.isEmpty else { return [:] }
+        
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/names/"
+        guard let url = URL(string: urlString) else {
+            throw AssetError.invalidURL
+        }
+        
+        let headers = [
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
+        
+        // 将ID列表转换为JSON数据
+        guard let jsonData = try? JSONEncoder().encode(containerIds) else {
+            throw AssetError.invalidData("Failed to encode container IDs")
+        }
+        
+        do {
+            let data = try await NetworkManager.shared.postDataWithToken(
+                to: url,
+                body: jsonData,
+                characterId: characterId,
+                headers: headers
+            )
+            
+            let nameResponses = try JSONDecoder().decode([AssetNameResponse].self, from: data)
+            
+            // 转换为字典
+            var namesDict: [Int64: String] = [:]
+            for response in nameResponses {
+                namesDict[response.item_id] = response.name
+            }
+            
+            return namesDict
+        } catch {
+            Logger.error("获取容器名称失败: \(error)")
+            throw error
+        }
+    }
+
+    // 递归构建树节点的辅助函数
+    private func buildTreeNode(
+        from asset: CharacterAsset,
+        locationMap: [Int64: [CharacterAsset]],
+        names: [Int64: String],
+        databaseManager: DatabaseManager
+    ) -> AssetTreeNode {
+        // 获取图标名称和物品类型名称
+        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+        var iconName: String? = nil
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
+           let row = rows.first {
+            if let filename = row["icon_filename"] as? String {
+                iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
+            }
+        }
+        
+        // 获取子项
+        let children = locationMap[asset.item_id, default: []].map { childAsset in
+            buildTreeNode(
+                from: childAsset,
+                locationMap: locationMap,
+                names: names,
+                databaseManager: databaseManager
+            )
+        }
+        
+        return AssetTreeNode(
+            location_id: asset.location_id,
+            item_id: asset.item_id,
+            type_id: asset.type_id,
+            location_type: asset.location_type,
+            location_flag: asset.location_flag,
+            quantity: asset.quantity,
+            name: names[asset.item_id],
+            icon_name: iconName,
+            is_singleton: asset.is_singleton,
+            is_blueprint_copy: asset.is_blueprint_copy,
+            system_name: nil,
+            region_name: nil,
+            security_status: nil,
+            items: children.isEmpty ? nil : children
+        )
+    }
+
     private func generateAssetTreeJson(
         assets: [CharacterAsset],
         names: [Int64: String],
@@ -903,101 +1016,44 @@ public class CharacterAssetsAPI {
             locationMap[asset.location_id, default: []].append(asset)
         }
         
-        // 递归构建树节点
-        func buildTreeNode(from asset: CharacterAsset) -> AssetTreeNode {
-            // 获取图标名称和物品类型名称
-            let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-            var iconName: String? = nil
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
-               let row = rows.first {
-                if let filename = row["icon_filename"] as? String {
-                    iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
-                }
-            }
-            
-            // 获取子项
-            let children = locationMap[asset.item_id, default: []].map { buildTreeNode(from: $0) }
-            
-            return AssetTreeNode(
-                location_id: asset.location_id,
-                item_id: asset.item_id,
-                type_id: asset.type_id,
-                location_type: asset.location_type,
-                location_flag: asset.location_flag,
-                quantity: asset.quantity,
-                name: names[asset.item_id],
-                icon_name: iconName,
-                is_singleton: asset.is_singleton,
-                is_blueprint_copy: asset.is_blueprint_copy,
-                system_name: nil,  // 将在顶层节点设置
-                region_name: nil,  // 将在顶层节点设置
-                security_status: nil, // 星系安全等级
-                items: children.isEmpty ? nil : children
-            )
-        }
-        
         // 找出顶层位置（空间站和建筑物）
         var topLocations: Set<Int64> = Set(assets.map { $0.location_id })
         for asset in assets {
             topLocations.remove(asset.item_id)
         }
         
-        // 为每个顶层位置创建一个虚拟的根节点
-        var rootNodes: [AssetTreeNode] = []
-        for locationId in topLocations {
-            if let items = locationMap[locationId] {
-                // 获取位置类型（从第一个子项获取）
-                let locationType = items.first?.location_type ?? "unknown"
-                
-                // 获取位置的图标、名称和系统信息
-                var iconName: String? = nil
-                var locationName: String? = nil
-                var systemName: String? = nil
-                var regionName: String? = nil
-                var securityStatus: Double? = nil
-                
-                if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
-                    // 如果是空间站，获取空间站的图标和名称
-                    iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                    locationName = stationInfo.name
-                    // 获取星系和星域信息
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                        systemName = systemInfo.systemName
-                        regionName = systemInfo.regionName
-                        securityStatus = systemInfo.security
-                    }
-                } else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                    // 如果是建筑物，获取建筑物的图标和名称
-                    iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
-                    locationName = structureInfo.name
-                    // 获取星系和星域信息
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                        systemName = systemInfo.systemName
-                        regionName = systemInfo.regionName
-                        securityStatus = systemInfo.security
-                    }
-                }
-                
-                // 创建位置节点
-                let locationNode = AssetTreeNode(
-                    location_id: locationId,
-                    item_id: locationId,
-                    type_id: 0,  // 位置本身没有type_id
-                    location_type: locationType,
-                    location_flag: "root",
-                    quantity: 1,
-                    name: locationName,
-                    icon_name: iconName,
-                    is_singleton: true,
-                    is_blueprint_copy: nil,
-                    system_name: systemName,
-                    region_name: regionName,
-                    security_status: securityStatus,
-                    items: items.map { buildTreeNode(from: $0) }
-                )
-                rootNodes.append(locationNode)
-            }
+        // 创建初始的根节点
+        var rootNodes = try await createInitialRootNodes(
+            topLocations: topLocations,
+            locationMap: locationMap,
+            characterId: characterId,
+            databaseManager: databaseManager,
+            names: names
+        )
+        
+        // 收集所有容器的ID
+        let containerIds = collectContainerIds(from: rootNodes)
+        
+        // 获取容器名称
+        let containerNames = try await fetchContainerNames(
+            containerIds: Array(containerIds),
+            characterId: characterId
+        )
+        
+        // 合并所有名称
+        var allNames = names
+        for (id, name) in containerNames {
+            allNames[id] = name
         }
+        
+        // 使用更新后的名称重新构建树
+        rootNodes = try await createInitialRootNodes(
+            topLocations: topLocations,
+            locationMap: locationMap,
+            characterId: characterId,
+            databaseManager: databaseManager,
+            names: allNames
+        )
         
         // 转换为JSON
         let encoder = JSONEncoder()
@@ -1010,6 +1066,67 @@ public class CharacterAssetsAPI {
             Logger.error("生成资产树JSON失败: \(error)")
             return nil
         }
+    }
+    
+    // 辅助函数：创建初始的根节点
+    private func createInitialRootNodes(
+        topLocations: Set<Int64>,
+        locationMap: [Int64: [CharacterAsset]],
+        characterId: Int,
+        databaseManager: DatabaseManager,
+        names: [Int64: String] = [:]
+    ) async throws -> [AssetTreeNode] {
+        var rootNodes: [AssetTreeNode] = []
+        
+        for locationId in topLocations {
+            if let items = locationMap[locationId] {
+                let locationType = items.first?.location_type ?? "unknown"
+                
+                var iconName: String? = nil
+                var locationName: String? = nil
+                var systemName: String? = nil
+                var regionName: String? = nil
+                var securityStatus: Double? = nil
+                
+                if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
+                    iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
+                    locationName = stationInfo.name
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                        systemName = systemInfo.systemName
+                        regionName = systemInfo.regionName
+                        securityStatus = systemInfo.security
+                    }
+                } else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                    iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
+                    locationName = structureInfo.name
+                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                        systemName = systemInfo.systemName
+                        regionName = systemInfo.regionName
+                        securityStatus = systemInfo.security
+                    }
+                }
+                
+                let locationNode = AssetTreeNode(
+                    location_id: locationId,
+                    item_id: locationId,
+                    type_id: 0,
+                    location_type: locationType,
+                    location_flag: "root",
+                    quantity: 1,
+                    name: locationName,
+                    icon_name: iconName,
+                    is_singleton: true,
+                    is_blueprint_copy: nil,
+                    system_name: systemName,
+                    region_name: regionName,
+                    security_status: securityStatus,
+                    items: items.map { buildTreeNode(from: $0, locationMap: locationMap, names: names, databaseManager: databaseManager) }
+                )
+                rootNodes.append(locationNode)
+            }
+        }
+        
+        return rootNodes
     }
     
     // 在处理资产时调用此方法
