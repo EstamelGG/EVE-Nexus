@@ -427,13 +427,14 @@ public class CharacterAssetsAPI {
         
         func extractLocations(from nodes: [AssetNode]) {
             for node in nodes {
+                // 只处理顶层节点
                 locationMap[node.asset.location_id] = node.asset.location_type
-                // 只计算直接子节点的数量，不考虑每个物品的数量
-                locationItemCount[node.asset.location_id, default: 0] = node.children.count
+                // 计算该位置下的直接物品数量
+                locationItemCount[node.asset.location_id] = node.children.count
             }
         }
         
-        // 提取顶层资产的位置信息
+        // 只提取顶层资产的位置信息
         extractLocations(from: assetTree)
         
         // 3. 获取所有位置的详细信息
