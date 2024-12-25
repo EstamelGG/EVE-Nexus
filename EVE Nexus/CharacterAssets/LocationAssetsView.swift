@@ -1,9 +1,17 @@
 import SwiftUI
 
+// 物品信息结构体
+fileprivate struct ItemInfo {
+    let name: String
+    let iconFileName: String
+}
+
 struct LocationAssetsView: View {
     let location: AssetLocation
     let assetTree: [AssetNode]
+    let databaseManager: DatabaseManager
     @State private var searchText = ""
+    @State fileprivate var itemInfoCache: [Int: ItemInfo] = [:]
     
     // 获取该位置下的所有二级资产
     private var assetsInLocation: [AssetNode] {
@@ -16,8 +24,10 @@ struct LocationAssetsView: View {
             return assetsInLocation
         }
         return assetsInLocation.filter { node in
-            // TODO: 添加资产名称的搜索，需要从数据库获取type_id对应的名称
-            String(node.asset.type_id).contains(searchText)
+            if let itemInfo = itemInfoCache[node.asset.type_id] {
+                return itemInfo.name.localizedCaseInsensitiveContains(searchText)
+            }
+            return String(node.asset.type_id).contains(searchText)
         }
     }
     
@@ -27,13 +37,13 @@ struct LocationAssetsView: View {
                 if !node.children.isEmpty {
                     // 如果有子资产，使用导航链接
                     NavigationLink {
-                        SubLocationAssetsView(parentNode: node)
+                        SubLocationAssetsView(parentNode: node, databaseManager: databaseManager)
                     } label: {
-                        AssetItemView(node: node)
+                        AssetItemView(node: node, itemInfo: itemInfoCache[node.asset.type_id])
                     }
                 } else {
                     // 如果没有子资产，只显示资产信息
-                    AssetItemView(node: node)
+                    AssetItemView(node: node, itemInfo: itemInfoCache[node.asset.type_id])
                 }
             }
         }
@@ -43,17 +53,41 @@ struct LocationAssetsView: View {
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .navigationTitle(location.solarSystemInfo?.systemName ?? NSLocalizedString("Unknown_System", comment: ""))
+        .task {
+            await loadItemInfo()
+        }
+    }
+    
+    // 从数据库加载物品信息
+    private func loadItemInfo() async {
+        let typeIds = Set(assetsInLocation.map { $0.asset.type_id })
+        let query = """
+            SELECT type_id, name, icon_filename
+            FROM types
+            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String {
+                    let iconFileName = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconFileName)
+                }
+            }
+        }
     }
 }
 
 // 单个资产项的视图
 struct AssetItemView: View {
     let node: AssetNode
+    fileprivate let itemInfo: ItemInfo?
     
     var body: some View {
         HStack(spacing: 12) {
             // 资产图标
-            IconManager.shared.loadImage(for: DatabaseConfig.defaultItemIcon)
+            IconManager.shared.loadImage(for: itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon)
                 .resizable()
                 .frame(width: 32, height: 32)
                 .cornerRadius(4)
@@ -62,10 +96,16 @@ struct AssetItemView: View {
                 // 资产名称和数量
                 HStack {
                     if let name = node.name {
+                        // 如果有自定义名称，优先显示
                         Text(name)
                             .font(.headline)
+                    } else if let itemInfo = itemInfo {
+                        // 其次显示数据库中的名称
+                        Text(itemInfo.name)
+                            .font(.headline)
                     } else {
-                        Text("Type ID: \(node.asset.type_id)")  // TODO: 从数据库获取物品名称
+                        // 最后显示类型ID
+                        Text("Type ID: \(node.asset.type_id)")
                             .font(.headline)
                     }
                     
@@ -98,7 +138,9 @@ struct AssetItemView: View {
 // 子位置资产视图
 struct SubLocationAssetsView: View {
     let parentNode: AssetNode
+    let databaseManager: DatabaseManager
     @State private var searchText = ""
+    @State fileprivate var itemInfoCache: [Int: ItemInfo] = [:]
     
     // 过滤后的子资产
     private var filteredAssets: [AssetNode] {
@@ -106,8 +148,10 @@ struct SubLocationAssetsView: View {
             return parentNode.children
         }
         return parentNode.children.filter { node in
-            // TODO: 添加资产名称的搜索
-            String(node.asset.type_id).contains(searchText)
+            if let itemInfo = itemInfoCache[node.asset.type_id] {
+                return itemInfo.name.localizedCaseInsensitiveContains(searchText)
+            }
+            return String(node.asset.type_id).contains(searchText)
         }
     }
     
@@ -116,12 +160,12 @@ struct SubLocationAssetsView: View {
             ForEach(filteredAssets, id: \.asset.item_id) { node in
                 if !node.children.isEmpty {
                     NavigationLink {
-                        SubLocationAssetsView(parentNode: node)
+                        SubLocationAssetsView(parentNode: node, databaseManager: databaseManager)
                     } label: {
-                        AssetItemView(node: node)
+                        AssetItemView(node: node, itemInfo: itemInfoCache[node.asset.type_id])
                     }
                 } else {
-                    AssetItemView(node: node)
+                    AssetItemView(node: node, itemInfo: itemInfoCache[node.asset.type_id])
                 }
             }
         }
@@ -130,24 +174,29 @@ struct SubLocationAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .navigationTitle(parentNode.name ?? String(parentNode.asset.type_id))
+        .navigationTitle(parentNode.name ?? itemInfoCache[parentNode.asset.type_id]?.name ?? String(parentNode.asset.type_id))
+        .task {
+            await loadItemInfo()
+        }
+    }
+    
+    // 从数据库加载物品信息
+    private func loadItemInfo() async {
+        let typeIds = Set(parentNode.children.map { $0.asset.type_id })
+        let query = """
+            SELECT type_id, name, icon_filename
+            FROM types
+            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String {
+                    let iconFileName = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconFileName)
+                }
+            }
+        }
     }
 }
-
-#Preview {
-    NavigationView {
-        LocationAssetsView(
-            location: AssetLocation(
-                locationId: 0,
-                locationType: "station",
-                stationInfo: nil,
-                structureInfo: nil,
-                solarSystemInfo: nil,
-                iconFileName: nil,
-                error: nil,
-                itemCount: 0
-            ),
-            assetTree: []
-        )
-    }
-} 
