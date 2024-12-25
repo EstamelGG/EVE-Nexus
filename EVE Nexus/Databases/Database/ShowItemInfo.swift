@@ -126,10 +126,13 @@ struct ShowItemInfo: View {
                             DisclosureGroup {
                                 ForEach(materials, id: \.outputMaterial) { material in
                                     NavigationLink {
-                                        ShowItemInfo(
-                                            databaseManager: databaseManager,
-                                            itemID: material.outputMaterial
-                                        )
+                                        if let categoryID = databaseManager.getCategoryID(for: material.outputMaterial) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.outputMaterial,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(for: material.outputMaterialIcon)
@@ -168,10 +171,13 @@ struct ShowItemInfo: View {
                             DisclosureGroup {
                                 ForEach(sourceMaterials, id: \.typeID) { material in
                                     NavigationLink {
-                                        ShowItemInfo(
-                                            databaseManager: databaseManager,
-                                            itemID: material.typeID
-                                        )
+                                        if let categoryID = databaseManager.getCategoryID(for: material.typeID) {
+                                            ItemInfoMap.getItemInfoView(
+                                                itemID: material.typeID,
+                                                categoryID: categoryID,
+                                                databaseManager: databaseManager
+                                            )
+                                        }
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(for: material.iconFileName)
