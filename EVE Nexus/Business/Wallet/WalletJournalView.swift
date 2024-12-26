@@ -187,7 +187,7 @@ struct WalletJournalEntryRow: View {
                 Spacer()
                 Text("\(FormatUtil.format(entry.amount)) ISK")
                     .foregroundColor(entry.amount >= 0 ? .green : .red)
-                    .font(.system(.body, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced))
             }
             
             Text(entry.description)
@@ -195,13 +195,13 @@ struct WalletJournalEntryRow: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
             
-            Text("Balance:\(FormatUtil.format(entry.balance)) ISK")
+            Text("Balance: \(FormatUtil.format(entry.balance)) ISK")
                 .font(.caption)
                 .foregroundColor(.gray)
                 
             if let date = dateFormatter.date(from: entry.date) {
                 Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundColor(.gray)
             }
         }

@@ -214,37 +214,31 @@ struct WalletTransactionEntryRow: View {
             if let icon = itemIcon {
                 icon
                     .resizable()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .clipShape(RoundedRectangle(cornerRadius: 4))
             } else {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 // 物品名称和交易类型
-                HStack {
-                    Text(itemInfo?.name ?? "Loading...")
-                        .font(.body)
-                        .lineLimit(1)
-                    Spacer()
-                    Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
-                        .foregroundColor(entry.is_buy ? .red : .green)
-                        .font(.system(.body, design: .monospaced))
-                }
-                
-                // 数量和单价
-                Text("\(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
+                Text(itemInfo?.name ?? "Loading...")
+                    .font(.body)
+                Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
+                    .foregroundColor(entry.is_buy ? .red : .green)
+                    .font(.system(.caption, design: .monospaced))
                 // 交易类型和时间
                 if let date = dateFormatter.date(from: entry.date) {
-                    Text("\(entry.is_buy ? "买入" : "卖出") - \(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                    Text("\(entry.is_buy ? "买入" : "卖出") - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
                         .font(.caption2)
                         .foregroundColor(.gray)
+                    Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
+
             }
         }
         .padding(.vertical, 2)
@@ -257,4 +251,4 @@ struct WalletTransactionEntryRow: View {
             }
         }
     }
-} 
+}
