@@ -225,7 +225,6 @@
 				C68E074F2D047AD2007DA6D8 /* XCLocalSwiftPackageReference "Thirdparty/Zip" */,
 				C61378502D1A686600B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/AppAuth-iOS" */,
 				C61378532D1A772100B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Kingfisher" */,
-				C61378562D1A776900B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Pulse" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C6417FC22CF80C4D0032F75C /* Products */;
@@ -650,10 +649,6 @@
 		C61378532D1A772100B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Kingfisher" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Thirdparty/Kingfisher;
-		};
-		C61378562D1A776900B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Pulse" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Thirdparty/Pulse;
 		};
 		C68E074F2D047AD2007DA6D8 /* XCLocalSwiftPackageReference "Thirdparty/Zip" */ = {
 			isa = XCLocalSwiftPackageReference;

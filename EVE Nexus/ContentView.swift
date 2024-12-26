@@ -1094,7 +1094,10 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
-                        iconName: "wallet"
+                        iconName: "wallet",
+                        destination: selectedCharacter.map { character in
+                            AnyView(WalletJournalView(characterId: character.CharacterID))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
