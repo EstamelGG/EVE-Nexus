@@ -167,6 +167,7 @@ struct SovereigntyCell: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 48, height: 48)
+                        .clipShape(Circle())
                 }
             }
             .frame(width: 56, height: 56)
