@@ -51,27 +51,32 @@ struct WalletJournalView: View {
     }()
     
     var body: some View {
-        List {
-            if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+        VStack {
+            if isLoading && journalGroups.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
             } else if let error = errorMessage {
                 Text(error)
                     .foregroundColor(.red)
+                    .frame(maxWidth: .infinity)
             } else {
-                ForEach(journalGroups) { group in
-                    Section(header: Text(displayDateFormatter.string(from: group.date)).textCase(.none)) {
-                        ForEach(group.entries, id: \.id) { entry in
-                            WalletJournalEntryRow(entry: entry)
+                List {
+                    ForEach(journalGroups) { group in
+                        Section(header: Text(displayDateFormatter.string(from: group.date))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                        ) {
+                            ForEach(group.entries, id: \.id) { entry in
+                                WalletJournalEntryRow(entry: entry)
+                            }
                         }
                     }
                 }
+                .listStyle(.insetGrouped)
             }
         }
-        .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
         .task {
             await loadJournalData()
