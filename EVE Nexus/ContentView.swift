@@ -203,7 +203,7 @@ struct LoginButtonView: View {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
-                                .clipShape(Circle())
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
                             Text("[\(alliance.ticker)] \(alliance.name)")
                                 .font(.caption)
                                 .lineLimit(1)
@@ -225,7 +225,7 @@ struct LoginButtonView: View {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
-                                .clipShape(Circle())
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
                             Text("[\(corporation.ticker)] \(corporation.name)")
                                 .font(.caption)
                                 .lineLimit(1)
@@ -484,7 +484,7 @@ struct ContentView: View {
         selectedCharacter?.locationStatus = nil
         selectedCharacter?.location = nil
         
-        // 重置军团和联盟信���
+        // 重置军团和联盟信息
         corporationInfo = nil
         corporationLogo = nil
         allianceInfo = nil
@@ -863,7 +863,7 @@ struct ContentView: View {
                         selectedCharacter?.skillQueueLength = queue.count
                         if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                             if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                                // 获取队列最后一个技能的完成时间
+                                // 获取队列最后一个技能的完成时���
                                 if let lastSkill = queue.last,
                                    let lastFinishTime = lastSkill.remainingTime {
                                     selectedCharacter?.queueFinishTime = lastFinishTime

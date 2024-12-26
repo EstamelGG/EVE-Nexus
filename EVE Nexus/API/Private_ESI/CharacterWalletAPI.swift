@@ -274,7 +274,7 @@ class CharacterWalletAPI {
         
         // 保存到缓存
         saveJournalToCache(jsonString: jsonString, characterId: characterId)
-        Logger.debug("Wallet journey: \(jsonString)")
+        // Logger.debug("Wallet journey: \(jsonString)")
         return jsonString
     }
 } 
