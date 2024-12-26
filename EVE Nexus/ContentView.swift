@@ -1023,40 +1023,6 @@ struct ContentView: View {
                     )
                 ]
             ))
-            
-            // 添加商业相关功能列表
-            tables.append(TableNode(
-                title: NSLocalizedString("Main_Business", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Assets", comment: ""),
-                        iconName: "assets",
-                        destination: selectedCharacter.map { character in
-                            AnyView(CharacterAssetsView(characterId: character.CharacterID))
-                        }
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market Orders", comment: ""),
-                        iconName: "marketdeliveries"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Contracts", comment: ""),
-                        iconName: "contracts"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market Transactions", comment: ""),
-                        iconName: "journal"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Wallet Journal", comment: ""),
-                        iconName: "wallet"
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Industry Jobs", comment: ""),
-                        iconName: "industry"
-                    )
-                ]
-            ))
         }
         
         // 数据库列表（始终显示）
@@ -1098,6 +1064,42 @@ struct ContentView: View {
                 )
             ]
         ))
+        
+        if currentCharacterId != 0 {
+            // 添加商业相关功能列表
+            tables.append(TableNode(
+                title: NSLocalizedString("Main_Business", comment: ""),
+                rows: [
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Assets", comment: ""),
+                        iconName: "assets",
+                        destination: selectedCharacter.map { character in
+                            AnyView(CharacterAssetsView(characterId: character.CharacterID))
+                        }
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Market Orders", comment: ""),
+                        iconName: "marketdeliveries"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Contracts", comment: ""),
+                        iconName: "contracts"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Market Transactions", comment: ""),
+                        iconName: "journal"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Wallet Journal", comment: ""),
+                        iconName: "wallet"
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Industry Jobs", comment: ""),
+                        iconName: "industry"
+                    )
+                ]
+            ))
+        }
         
         // 其他设置列表（始终显示）
         tables.append(TableNode(

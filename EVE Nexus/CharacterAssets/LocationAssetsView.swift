@@ -5,81 +5,81 @@ private func formatLocationFlag(_ flag: String) -> String {
     // 这里可以添加更多的映射
     switch flag {
     case "Hangar":
-        return "机库"
+        return NSLocalizedString("Location_Flag_Hangar", comment: "")
     case "CorpSAG1":
-        return "公司机库 1"
+        return NSLocalizedString("Location_Flag_CorpSAG1", comment: "")
     case "CorpSAG2":
-        return "公司机库 2"
+        return NSLocalizedString("Location_Flag_CorpSAG2", comment: "")
     case "CorpSAG3":
-        return "公司机库 3"
+        return NSLocalizedString("Location_Flag_CorpSAG3", comment: "")
     case "CorpSAG4":
-        return "公司机库 4"
+        return NSLocalizedString("Location_Flag_CorpSAG4", comment: "")
     case "CorpSAG5":
-        return "公司机库 5"
+        return NSLocalizedString("Location_Flag_CorpSAG5", comment: "")
     case "CorpSAG6":
-        return "公司机库 6"
+        return NSLocalizedString("Location_Flag_CorpSAG6", comment: "")
     case "CorpSAG7":
-        return "公司机库 7"
+        return NSLocalizedString("Location_Flag_CorpSAG7", comment: "")
     case "CorpDeliveries":
-        return "公司交付"
+        return NSLocalizedString("Location_Flag_CorpDeliveries", comment: "")
     case "AutoFit":
-        return "自动装配"
+        return NSLocalizedString("Location_Flag_AutoFit", comment: "")
     case "Cargo":
-        return "货物"
+        return NSLocalizedString("Location_Flag_Cargo", comment: "")
     case "DroneBay":
-        return "无人机舱"
+        return NSLocalizedString("Location_Flag_DroneBay", comment: "")
     case "FleetHangar":
-        return "舰队机库"
+        return NSLocalizedString("Location_Flag_FleetHangar", comment: "")
     case "Deliveries":
-        return "交付"
+        return NSLocalizedString("Location_Flag_Deliveries", comment: "")
     case "HiddenModifiers":
-        return "隐藏修改器"
+        return NSLocalizedString("Location_Flag_HiddenModifiers", comment: "")
     case "ShipHangar":
-        return "舰船机库"
+        return NSLocalizedString("Location_Flag_ShipHangar", comment: "")
     case "FighterBay":
-        return "战斗机舱"
+        return NSLocalizedString("Location_Flag_FighterBay", comment: "")
     case "FighterTubes":
-        return "战斗机发射管"
+        return NSLocalizedString("Location_Flag_FighterTubes", comment: "")
     case "SubSystemBay":
-        return "子系统舱"
+        return NSLocalizedString("Location_Flag_SubSystemBay", comment: "")
     case "SubSystemSlots":
-        return "子系统插槽"
+        return NSLocalizedString("Location_Flag_SubSystemSlots", comment: "")
     case "HiSlots":
-        return "高槽"
+        return NSLocalizedString("Location_Flag_HiSlots", comment: "")
     case "MedSlots":
-        return "中槽"
+        return NSLocalizedString("Location_Flag_MedSlots", comment: "")
     case "LoSlots":
-        return "低槽"
+        return NSLocalizedString("Location_Flag_LoSlots", comment: "")
     case "RigSlots":
-        return "改装槽"
+        return NSLocalizedString("Location_Flag_RigSlots", comment: "")
     case "SpecializedAmmoHold":
-        return "特殊弹药仓"
+        return NSLocalizedString("Location_Flag_SpecializedAmmoHold", comment: "")
     case "SpecializedCommandCenterHold":
-        return "特殊指挥中心仓"
+        return NSLocalizedString("Location_Flag_SpecializedCommandCenterHold", comment: "")
     case "SpecializedFuelBay":
-        return "特殊燃料仓"
+        return NSLocalizedString("Location_Flag_SpecializedFuelBay", comment: "")
     case "SpecializedGasHold":
-        return "特殊气体仓"
+        return NSLocalizedString("Location_Flag_SpecializedGasHold", comment: "")
     case "SpecializedIndustrialShipHold":
-        return "特殊工业舰船仓"
+        return NSLocalizedString("Location_Flag_SpecializedIndustrialShipHold", comment: "")
     case "SpecializedLargeShipHold":
-        return "特殊大型舰船仓"
+        return NSLocalizedString("Location_Flag_SpecializedLargeShipHold", comment: "")
     case "SpecializedMaterialBay":
-        return "特殊材料仓"
+        return NSLocalizedString("Location_Flag_SpecializedMaterialBay", comment: "")
     case "SpecializedMediumShipHold":
-        return "特殊中型舰船仓"
+        return NSLocalizedString("Location_Flag_SpecializedMediumShipHold", comment: "")
     case "SpecializedMineralHold":
-        return "特殊矿物仓"
+        return NSLocalizedString("Location_Flag_SpecializedMineralHold", comment: "")
     case "SpecializedOreHold":
-        return "特殊矿石仓"
+        return NSLocalizedString("Location_Flag_SpecializedOreHold", comment: "")
     case "SpecializedPlanetaryCommoditiesHold":
-        return "特殊行星商品仓"
+        return NSLocalizedString("Location_Flag_SpecializedPlanetaryCommoditiesHold", comment: "")
     case "SpecializedSalvageHold":
-        return "特殊打捞仓"
+        return NSLocalizedString("Location_Flag_SpecializedSalvageHold", comment: "")
     case "SpecializedShipHold":
-        return "特殊舰船仓"
+        return NSLocalizedString("Location_Flag_SpecializedShipHold", comment: "")
     case "SpecializedSmallShipHold":
-        return "特殊小型舰船仓"
+        return NSLocalizedString("Location_Flag_SpecializedSmallShipHold", comment: "")
     default:
         return flag
     }

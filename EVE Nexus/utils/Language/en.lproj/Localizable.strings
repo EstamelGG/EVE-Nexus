@@ -266,3 +266,43 @@
 "Assets_Item_Count" = "Include %d items";
 
 "Unknown_System" = "Unknown System";
+
+// Location Flags
+"Location_Flag_Hangar" = "Hangar";
+"Location_Flag_CorpSAG1" = "Corporation Hangar 1";
+"Location_Flag_CorpSAG2" = "Corporation Hangar 2";
+"Location_Flag_CorpSAG3" = "Corporation Hangar 3";
+"Location_Flag_CorpSAG4" = "Corporation Hangar 4";
+"Location_Flag_CorpSAG5" = "Corporation Hangar 5";
+"Location_Flag_CorpSAG6" = "Corporation Hangar 6";
+"Location_Flag_CorpSAG7" = "Corporation Hangar 7";
+"Location_Flag_CorpDeliveries" = "Corporation Deliveries";
+"Location_Flag_AutoFit" = "Auto Fit";
+"Location_Flag_Cargo" = "Cargo";
+"Location_Flag_DroneBay" = "Drone Bay";
+"Location_Flag_FleetHangar" = "Fleet Hangar";
+"Location_Flag_Deliveries" = "Deliveries";
+"Location_Flag_HiddenModifiers" = "Hidden Modifiers";
+"Location_Flag_ShipHangar" = "Ship Hangar";
+"Location_Flag_FighterBay" = "Fighter Bay";
+"Location_Flag_FighterTubes" = "Fighter Tubes";
+"Location_Flag_SubSystemBay" = "SubSystem Bay";
+"Location_Flag_SubSystemSlots" = "SubSystem Slots";
+"Location_Flag_HiSlots" = "High Slots";
+"Location_Flag_MedSlots" = "Medium Slots";
+"Location_Flag_LoSlots" = "Low Slots";
+"Location_Flag_RigSlots" = "Rig Slots";
+"Location_Flag_SpecializedAmmoHold" = "Specialized Ammo Hold";
+"Location_Flag_SpecializedCommandCenterHold" = "Specialized Command Center Hold";
+"Location_Flag_SpecializedFuelBay" = "Specialized Fuel Bay";
+"Location_Flag_SpecializedGasHold" = "Specialized Gas Hold";
+"Location_Flag_SpecializedIndustrialShipHold" = "Specialized Industrial Ship Hold";
+"Location_Flag_SpecializedLargeShipHold" = "Specialized Large Ship Hold";
+"Location_Flag_SpecializedMaterialBay" = "Specialized Material Bay";
+"Location_Flag_SpecializedMediumShipHold" = "Specialized Medium Ship Hold";
+"Location_Flag_SpecializedMineralHold" = "Specialized Mineral Hold";
+"Location_Flag_SpecializedOreHold" = "Specialized Ore Hold";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = "Specialized Planetary Commodities Hold";
+"Location_Flag_SpecializedSalvageHold" = "Specialized Salvage Hold";
+"Location_Flag_SpecializedShipHold" = "Specialized Ship Hold";
+"Location_Flag_SpecializedSmallShipHold" = "Specialized Small Ship Hold";

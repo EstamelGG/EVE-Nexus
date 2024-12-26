@@ -263,3 +263,43 @@
 "Assets_Item_Count" = "包含%d个物品";
 
 "Unknown_System" = "未知星系";
+
+// Location Flags
+"Location_Flag_Hangar" = "机库";
+"Location_Flag_CorpSAG1" = "公司机库 1";
+"Location_Flag_CorpSAG2" = "公司机库 2";
+"Location_Flag_CorpSAG3" = "公司机库 3";
+"Location_Flag_CorpSAG4" = "公司机库 4";
+"Location_Flag_CorpSAG5" = "公司机库 5";
+"Location_Flag_CorpSAG6" = "公司机库 6";
+"Location_Flag_CorpSAG7" = "公司机库 7";
+"Location_Flag_CorpDeliveries" = "公司交付";
+"Location_Flag_AutoFit" = "自动装配";
+"Location_Flag_Cargo" = "货物";
+"Location_Flag_DroneBay" = "无人机舱";
+"Location_Flag_FleetHangar" = "舰队机库";
+"Location_Flag_Deliveries" = "交付";
+"Location_Flag_HiddenModifiers" = "隐藏修改器";
+"Location_Flag_ShipHangar" = "舰船机库";
+"Location_Flag_FighterBay" = "战斗机舱";
+"Location_Flag_FighterTubes" = "战斗机发射管";
+"Location_Flag_SubSystemBay" = "子系统舱";
+"Location_Flag_SubSystemSlots" = "子系统插槽";
+"Location_Flag_HiSlots" = "高槽";
+"Location_Flag_MedSlots" = "中槽";
+"Location_Flag_LoSlots" = "低槽";
+"Location_Flag_RigSlots" = "改装槽";
+"Location_Flag_SpecializedAmmoHold" = "特殊弹药仓";
+"Location_Flag_SpecializedCommandCenterHold" = "特殊指挥中心仓";
+"Location_Flag_SpecializedFuelBay" = "特殊燃料仓";
+"Location_Flag_SpecializedGasHold" = "特殊气体仓";
+"Location_Flag_SpecializedIndustrialShipHold" = "特殊工业舰船仓";
+"Location_Flag_SpecializedLargeShipHold" = "特殊大型舰船仓";
+"Location_Flag_SpecializedMaterialBay" = "特殊材料仓";
+"Location_Flag_SpecializedMediumShipHold" = "特殊中型舰船仓";
+"Location_Flag_SpecializedMineralHold" = "特殊矿物仓";
+"Location_Flag_SpecializedOreHold" = "特殊矿石仓";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = "特殊行星商品仓";
+"Location_Flag_SpecializedSalvageHold" = "特殊打捞仓";
+"Location_Flag_SpecializedShipHold" = "特殊舰船仓";
+"Location_Flag_SpecializedSmallShipHold" = "特殊小型舰船仓";
