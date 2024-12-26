@@ -1100,57 +1100,61 @@ struct ContentView: View {
     
     // 创建生成表格数据的私有方法
     private func generateTables() -> [TableNode] {
-        // 格式化技能点显示
-        let spText = if let character = selectedCharacter,
-                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
-                       let totalSP = character.totalSkillPoints {
-            NSLocalizedString("Main_Skills_Ponits", comment: "")
-                .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(totalSP)))
-        } else {
-            NSLocalizedString("Main_Skills_Ponits", comment: "")
-                .replacingOccurrences(of: "$num", with: "--")
-        }
+        var tables: [TableNode] = []
         
-        // 格式化技能队列显示
-        let skillQueueText: String
-        if let character = selectedCharacter,
-           character.CharacterID == currentCharacterId {  // 确保是当前选中的角色
-            if let _ = character.currentSkill,
-               let queueFinishTime = character.queueFinishTime {
-                // 正在训练状态
-                let remainingTime = queueFinishTime
-                let days = Int(remainingTime) / 86400
-                let hours = (Int(remainingTime) % 86400) / 3600
-                let minutes = (Int(remainingTime) % 3600) / 60
-                skillQueueText = NSLocalizedString("Main_Skills_Queue_Training", comment: "")
-                    .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
-                    .replacingOccurrences(of: "$day", with: "\(days)")
-                    .replacingOccurrences(of: "$hour", with: "\(hours)")
-                    .replacingOccurrences(of: "$minutes", with: "\(minutes)")
+        // 如果有选中的角色，显示所有功能列表
+        if currentCharacterId != 0 {
+            // 格式化技能点显示
+            let spText = if let character = selectedCharacter,
+                           character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
+                           let totalSP = character.totalSkillPoints {
+                NSLocalizedString("Main_Skills_Ponits", comment: "")
+                    .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(totalSP)))
             } else {
-                // 暂停状态
-                skillQueueText = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
-                    .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
+                NSLocalizedString("Main_Skills_Ponits", comment: "")
+                    .replacingOccurrences(of: "$num", with: "--")
             }
-        } else {
-            // 未选择角色
-            skillQueueText = NSLocalizedString("Main_Skills_Queue_Empty", comment: "")
-                .replacingOccurrences(of: "$num", with: "0")
-        }
-        
-        // 格式化钱包余额显示
-        let iskText = if let character = selectedCharacter,
-                       character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
-                       let balance = character.walletBalance {
-            NSLocalizedString("Main_Wealth_ISK", comment: "")
-                .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(balance)))
-        } else {
-            NSLocalizedString("Main_Wealth_ISK", comment: "")
-                .replacingOccurrences(of: "$num", with: "--")
-        }
-        
-        return [
-            TableNode(
+            
+            // 格式化技能队列显示
+            let skillQueueText: String
+            if let character = selectedCharacter,
+               character.CharacterID == currentCharacterId {  // 确保是当前选中的角色
+                if let _ = character.currentSkill,
+                   let queueFinishTime = character.queueFinishTime {
+                    // 正在训练状态
+                    let remainingTime = queueFinishTime
+                    let days = Int(remainingTime) / 86400
+                    let hours = (Int(remainingTime) % 86400) / 3600
+                    let minutes = (Int(remainingTime) % 3600) / 60
+                    skillQueueText = NSLocalizedString("Main_Skills_Queue_Training", comment: "")
+                        .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
+                        .replacingOccurrences(of: "$day", with: "\(days)")
+                        .replacingOccurrences(of: "$hour", with: "\(hours)")
+                        .replacingOccurrences(of: "$minutes", with: "\(minutes)")
+                } else {
+                    // 暂停状态
+                    skillQueueText = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
+                        .replacingOccurrences(of: "$num", with: "\(character.skillQueueLength ?? 0)")
+                }
+            } else {
+                // 未选择角色
+                skillQueueText = NSLocalizedString("Main_Skills_Queue_Empty", comment: "")
+                    .replacingOccurrences(of: "$num", with: "0")
+            }
+            
+            // 格式化钱包余额显示
+            let iskText = if let character = selectedCharacter,
+                           character.CharacterID == currentCharacterId,  // 确保是当前选中的角色
+                           let balance = character.walletBalance {
+                NSLocalizedString("Main_Wealth_ISK", comment: "")
+                    .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(balance)))
+            } else {
+                NSLocalizedString("Main_Wealth_ISK", comment: "")
+                    .replacingOccurrences(of: "$num", with: "--")
+            }
+            
+            // 添加角色相关功能列表
+            tables.append(TableNode(
                 title: NSLocalizedString("Main_Character", comment: ""),
                 rows: [
                     TableRowNode(
@@ -1186,46 +1190,10 @@ struct ContentView: View {
                         iconName: "lpstore"
                     )
                 ]
-            ),
-            TableNode(
-                title: NSLocalizedString("Main_Databases", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Database", comment: ""),
-                        iconName: "items",
-                        destination: AnyView(DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .categories
-                        ))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Market", comment: ""),
-                        iconName: "market",
-                        destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: "NPC",
-                        iconName: "criminal",
-                        destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_WH", comment: ""),
-                        iconName: "terminate",
-                        destination: AnyView(WormholeView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Incursions", comment: ""),
-                        iconName: "incursions",
-                        destination: AnyView(IncursionsView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Sovereignty", comment: ""),
-                        iconName: "sovereignty",
-                        destination: AnyView(SovereigntyView(databaseManager: databaseManager))
-                    )
-                ]
-            ),
-            TableNode(
+            ))
+            
+            // 添加商业相关功能列表
+            tables.append(TableNode(
                 title: NSLocalizedString("Main_Business", comment: ""),
                 rows: [
                     TableRowNode(
@@ -1256,23 +1224,67 @@ struct ContentView: View {
                         iconName: "industry"
                     )
                 ]
-            ),
-            TableNode(
-                title: NSLocalizedString("Main_Other", comment: ""),
-                rows: [
-                    TableRowNode(
-                        title: NSLocalizedString("Main_Setting", comment: ""),
-                        iconName: "Settings",
-                        destination: AnyView(SettingView(databaseManager: databaseManager))
-                    ),
-                    TableRowNode(
-                        title: NSLocalizedString("Main_About", comment: ""),
-                        iconName: "info",
-                        destination: AnyView(AboutView())
-                    )
-                ]
-            )
-        ]
+            ))
+        }
+        
+        // 数据库列表（始终显示）
+        tables.append(TableNode(
+            title: NSLocalizedString("Main_Databases", comment: ""),
+            rows: [
+                TableRowNode(
+                    title: NSLocalizedString("Main_Database", comment: ""),
+                    iconName: "items",
+                    destination: AnyView(DatabaseBrowserView(
+                        databaseManager: databaseManager,
+                        level: .categories
+                    ))
+                ),
+                TableRowNode(
+                    title: NSLocalizedString("Main_Market", comment: ""),
+                    iconName: "market",
+                    destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
+                ),
+                TableRowNode(
+                    title: "NPC",
+                    iconName: "criminal",
+                    destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
+                ),
+                TableRowNode(
+                    title: NSLocalizedString("Main_WH", comment: ""),
+                    iconName: "terminate",
+                    destination: AnyView(WormholeView(databaseManager: databaseManager))
+                ),
+                TableRowNode(
+                    title: NSLocalizedString("Main_Incursions", comment: ""),
+                    iconName: "incursions",
+                    destination: AnyView(IncursionsView(databaseManager: databaseManager))
+                ),
+                TableRowNode(
+                    title: NSLocalizedString("Main_Sovereignty", comment: ""),
+                    iconName: "sovereignty",
+                    destination: AnyView(SovereigntyView(databaseManager: databaseManager))
+                )
+            ]
+        ))
+        
+        // 其他设置列表（始终显示）
+        tables.append(TableNode(
+            title: NSLocalizedString("Main_Other", comment: ""),
+            rows: [
+                TableRowNode(
+                    title: NSLocalizedString("Main_Setting", comment: ""),
+                    iconName: "Settings",
+                    destination: AnyView(SettingView(databaseManager: databaseManager))
+                ),
+                TableRowNode(
+                    title: NSLocalizedString("Main_About", comment: ""),
+                    iconName: "info",
+                    destination: AnyView(AboutView())
+                )
+            ]
+        ))
+        
+        return tables
     }
     
     // 添加加载初始数据的方法
