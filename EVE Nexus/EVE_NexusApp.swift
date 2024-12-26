@@ -73,13 +73,36 @@ struct EVE_NexusApp: App {
         let defaults = UserDefaults.standard
         let dictionary = defaults.dictionaryRepresentation()
         Logger.info("UserDefaults 内容:")
-        var totalSize = 0
+        
+        // 使用 PropertyListSerialization 来获取实际的序列化大小
+        var sizeMap: [(key: String, size: Int)] = []
+        var totalSize: Int = 0
+        
         for (key, value) in dictionary {
-            let size = String(describing: value).utf8.count
-            totalSize += size
-            Logger.info("键: \(key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))")
+            if let data = try? PropertyListSerialization.data(fromPropertyList: value, format: .binary, options: 0) {
+                let size = data.count
+                totalSize += size
+                sizeMap.append((key: key, size: size))
+                
+                // 检查单个键值对是否过大（比如超过1MB）
+                if size > 1_000_000 {
+                    Logger.error("警告：键 '\(key)' 的数据大小(\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)))过大")
+                }
+            }
         }
+        
+        // 按大小排序并打印
+        sizeMap.sort { $0.size > $1.size }
+        for item in sizeMap {
+            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
+        }
+        
         Logger.info("UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))")
+        
+        // 检查总大小是否接近限制（4MB）
+        if totalSize > 3_000_000 {
+            Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
+        }
         
         configureLanguage()
         validateTokens()
