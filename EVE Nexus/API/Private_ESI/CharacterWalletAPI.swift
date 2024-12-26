@@ -19,6 +19,17 @@ class CharacterWalletAPI {
     // UserDefaults键前缀
     private let walletCachePrefix = "wallet_cache_"
     
+    // MARK: - Wallet Journal Methods
+    
+    // 钱包日志缓存结构
+    private struct WalletJournalCacheEntry: Codable {
+        let jsonString: String
+        let timestamp: Date
+    }
+    
+    // 钱包日志缓存前缀
+    private let walletJournalCachePrefix = "wallet_journal_cache_"
+    
     private init() {}
     
     // 安全地获取钱包缓存
@@ -159,5 +170,104 @@ class CharacterWalletAPI {
         saveToDiskCache(characterId: characterId, cache: cacheEntry)
         
         return Double(stringValue) ?? 0.0
+    }
+    
+    // 获取钱包日志的缓存键
+    private func getJournalCacheKey(characterId: Int) -> String {
+        return walletJournalCachePrefix + String(characterId)
+    }
+    
+    // 检查钱包日志缓存是否有效
+    private func isJournalCacheValid(_ cache: WalletJournalCacheEntry) -> Bool {
+        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
+    }
+    
+    // 获取缓存的钱包日志
+    private func getCachedJournal(characterId: Int) -> String? {
+        let key = getJournalCacheKey(characterId: characterId)
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let cache = try? JSONDecoder().decode(WalletJournalCacheEntry.self, from: data),
+              isJournalCacheValid(cache) else {
+            return nil
+        }
+        return cache.jsonString
+    }
+    
+    // 保存钱包日志到缓存
+    private func saveJournalToCache(jsonString: String, characterId: Int) {
+        let cache = WalletJournalCacheEntry(jsonString: jsonString, timestamp: Date())
+        let key = getJournalCacheKey(characterId: characterId)
+        if let encoded = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(encoded, forKey: key)
+            Logger.info("保存钱包日志到缓存 - Key: \(key)")
+        } else {
+            Logger.error("保存钱包日志到缓存失败 - Key: \(key)")
+        }
+    }
+    
+    // 获取钱包日志（公开方法）
+    public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
+        // 检查缓存
+        if !forceRefresh {
+            if let cachedJson = getCachedJournal(characterId: characterId) {
+                Logger.debug("使用缓存的钱包日志")
+                return cachedJson
+            }
+        }
+        
+        var allJournalEntries: [[String: Any]] = []
+        var page = 1
+        
+        while true {
+            do {
+                let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility&page=\(page)"
+                guard let url = URL(string: urlString) else {
+                    throw NetworkError.invalidURL
+                }
+                
+                let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+                
+                // 检查是否是空页面响应
+                if let errorString = String(data: data, encoding: .utf8),
+                   errorString.contains("Requested page does not exist") {
+                    Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")
+                    break
+                }
+                
+                // 解析JSON数据
+                guard let pageEntries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                allJournalEntries.append(contentsOf: pageEntries)
+                Logger.info("成功获取第\(page)页钱包日志，本页包含\(pageEntries.count)条记录")
+                
+                page += 1
+                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
+                
+            } catch let error as NetworkError {
+                if case .httpError(let statusCode) = error, statusCode == 404 {
+                    if !allJournalEntries.isEmpty {
+                        break
+                    }
+                }
+                Logger.error("获取钱包日志失败: \(error)")
+                throw error
+            } catch {
+                Logger.error("获取钱包日志失败: \(error)")
+                throw error
+            }
+        }
+        
+        // 转换为JSON字符串
+        let jsonData = try JSONSerialization.data(withJSONObject: allJournalEntries, options: [.prettyPrinted, .sortedKeys])
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 保存到缓存
+        saveJournalToCache(jsonString: jsonString, characterId: characterId)
+        
+        return jsonString
     }
 } 
