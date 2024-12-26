@@ -545,6 +545,9 @@ struct ContentView: View {
                             Logger.info("用户登出角色 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
                         }
                         
+                        // 生成新的任务ID来取消当前任务
+                        currentTaskId = UUID()
+                        
                         // 清空 currentCharacterId
                         currentCharacterId = 0
                         
