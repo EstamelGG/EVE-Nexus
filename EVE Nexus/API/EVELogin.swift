@@ -469,11 +469,9 @@ class EVELogin {
             Logger.info("EVELogin: 添加新角色信息")
         }
         
-        // 保存到 UserDefaults
-        if let encodedData = try? JSONEncoder().encode(characters) {
-            Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
-            UserDefaults.standard.set(encodedData, forKey: charactersKey)
-        }
+        // 保存到 CoreData
+        CoreDataManager.shared.setValue(characters, forKey: charactersKey)
+        Logger.info("EVELogin: 角色信息已保存到 CoreData")
     }
     
     // 加载详细信息
@@ -582,58 +580,47 @@ class EVELogin {
     
     // 加载保存的角色列表
     func loadCharacters() -> [CharacterAuth] {
-        guard let data = UserDefaults.standard.data(forKey: charactersKey) else {
-            return []
-        }
-        
-        do {
-            var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
-            
+        // 从 CoreData 加载数据
+        if let characters: [CharacterAuth] = CoreDataManager.shared.getValue(forKey: charactersKey) {
             // 获取保存的顺序
-            if let savedOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] {
+            if let savedOrder = CoreDataManager.shared.getValue(forKey: characterOrderKey) as [Int]? {
                 // 创建一个字典，用于快速查找角色
                 let characterDict = Dictionary(uniqueKeysWithValues: characters.map { ($0.character.CharacterID, $0) })
                 
                 // 按保存的顺序重新排列角色
-                characters = savedOrder.compactMap { characterDict[$0] }
+                var orderedCharacters = savedOrder.compactMap { characterDict[$0] }
                 
                 // 添加可能存在的新角色（不在已保存顺序中的角色）
                 let savedCharacterIds = Set(savedOrder)
                 let unsortedCharacters = characters.filter { !savedCharacterIds.contains($0.character.CharacterID) }
-                characters.append(contentsOf: unsortedCharacters)
+                orderedCharacters.append(contentsOf: unsortedCharacters)
+                
+                return orderedCharacters
             }
             
             return characters
-        } catch {
-            Logger.error("EVELogin: 加载角色信息失败: \(error)")
-            return []
         }
+        
+        return []
     }
     
     // 移除角色
     func removeCharacter(characterId: Int) {
-        // 从 UserDefaults 中移除角色信息
+        // 从 CoreData 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
-        
-        if let encodedData = try? JSONEncoder().encode(characters) {
-            Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
-            UserDefaults.standard.set(encodedData, forKey: charactersKey)
-        }
+        CoreDataManager.shared.setValue(characters, forKey: charactersKey)
         
         // 清除 AuthTokenManager 中的缓存
         Task {
             await AuthTokenManager.shared.clearTokens(for: characterId)
         }
-        
-        UserDefaults.standard.synchronize()
     }
     
     // 保存角色顺序
     func saveCharacterOrder(_ characterIds: [Int]) {
-        Logger.info("正在缓存角色顺序数据, key: \(charactersKey), 数据大小: \(characterIds.count) bytes")
-        UserDefaults.standard.set(characterIds, forKey: characterOrderKey)
-        UserDefaults.standard.synchronize()
+        CoreDataManager.shared.setValue(characterIds, forKey: characterOrderKey)
+        Logger.info("EVELogin: 角色顺序已保存到 CoreData")
     }
     
     // 获取指定ID的角色
