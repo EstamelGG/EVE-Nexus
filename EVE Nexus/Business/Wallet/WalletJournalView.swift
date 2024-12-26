@@ -138,17 +138,27 @@ struct WalletJournalView: View {
 struct WalletJournalEntryRow: View {
     let entry: WalletJournalEntry
     
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter
-    }()
-    
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
     
@@ -178,6 +188,12 @@ struct WalletJournalEntryRow: View {
             Text("Balance:\(FormatUtil.format(entry.balance)) ISK")
                 .font(.caption)
                 .foregroundColor(.gray)
+                
+            if let date = dateFormatter.date(from: entry.date) {
+                Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
         }
         .padding(.vertical, 2)
     }
