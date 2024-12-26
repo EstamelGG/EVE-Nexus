@@ -50,7 +50,7 @@ class CharacterLocationAPI {
     private var locationMemoryCache: [Int: LocationCacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 60 // 1分钟缓存
     
-    // UserDefaults键前缀
+    // CoreDataManager键前缀
     private let locationCachePrefix = "location_cache_"
     
     private init() {}
@@ -77,23 +77,23 @@ class CharacterLocationAPI {
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
-    // 从UserDefaults获取缓存
+    // 从CoreDataManager获取缓存
     private func getDiskCache(characterId: Int) -> LocationCacheEntry? {
         let key = locationCachePrefix + String(characterId)
-        Logger.debug("正在从 UserDefaults 读取键: \(key)")
-        guard let data = UserDefaults.standard.data(forKey: key),
+        Logger.debug("正在从 CoreDataManager 读取键: \(key)")
+        guard let data = CoreDataManager.shared.data(forKey: key),
               let cache = try? JSONDecoder().decode(LocationCacheEntry.self, from: data) else {
             return nil
         }
         return cache
     }
     
-    // 保存缓存到UserDefaults
+    // 保存缓存到CoreDataManager
     private func saveToDiskCache(characterId: Int, cache: LocationCacheEntry) {
         let key = locationCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            Logger.debug("正在写入 CoreDataManager，键: \(key), 数据大小: \(encoded.count) bytes")
+            CoreDataManager.shared.set(encoded, forKey: key)
         }
     }
     
@@ -105,8 +105,8 @@ class CharacterLocationAPI {
             
             // 清除磁盘缓存
             let key = self.locationCachePrefix + String(characterId)
-            Logger.debug("正在从 UserDefaults 删除键: \(key)")
-            UserDefaults.standard.removeObject(forKey: key)
+            Logger.debug("正在从 CoreDataManager 删除键: \(key)")
+            CoreDataManager.shared.removeObject(forKey: key)
         }
     }
     

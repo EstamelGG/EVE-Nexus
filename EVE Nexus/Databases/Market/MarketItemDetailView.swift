@@ -221,8 +221,8 @@ struct RegionPickerView: View {
                 return Region(id: id, name: name)
             }
             
-            // 从 UserDefaults 加载置顶的星域，保持用户设置的顺序
-            let pinnedRegionIDs = UserDefaultsManager.shared.pinnedRegionIDs
+            // 从 CoreDataManager 加载置顶的星域，保持用户设置的顺序
+            let pinnedRegionIDs = CoreDataManagerManager.shared.pinnedRegionIDs
             // 按照 pinnedRegionIDs 的顺序加载星域
             pinnedRegions = pinnedRegionIDs.compactMap { id in
                 allRegions.first { $0.id == id }
@@ -242,7 +242,7 @@ struct RegionPickerView: View {
     
     private func savePinnedRegions() {
         let pinnedIDs = pinnedRegions.map { $0.id }
-        UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
+        CoreDataManagerManager.shared.pinnedRegionIDs = pinnedIDs
     }
     
     var body: some View {
@@ -259,7 +259,7 @@ struct RegionPickerView: View {
                                 onSelect: {
                                     selectedRegionID = region.id
                                     selectedRegionName = region.name
-                                    let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                    let defaults: CoreDataManagerManager = CoreDataManagerManager.shared
                                     defaults.selectedRegionID = region.id
                                     if !isEditMode {
                                         dismiss()
@@ -305,7 +305,7 @@ struct RegionPickerView: View {
                             onSelect: {
                                 selectedRegionID = region.id
                                 selectedRegionName = region.name
-                                let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                let defaults: CoreDataManagerManager = CoreDataManagerManager.shared
                                 defaults.selectedRegionID = region.id
                                 if !isEditMode {
                                     dismiss()
@@ -408,12 +408,12 @@ struct MarketItemDetailView: View {
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
     @State private var selectedRegionID: Int = {
-        let defaults: UserDefaultsManager = UserDefaultsManager.shared
+        let defaults: CoreDataManagerManager = CoreDataManagerManager.shared
         return defaults.selectedRegionID
     }()
     @State private var regions: [Region] = []
     @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
-    @State private var selectedRegionName: String = UserDefaultsManager.shared.defaultRegionName
+    @State private var selectedRegionName: String = CoreDataManagerManager.shared.defaultRegionName
     @State private var searchText = ""
     @State private var isSearching = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -608,7 +608,7 @@ struct MarketItemDetailView: View {
             loadRegions()
             
             // 加载保存的星域ID和名称
-            let defaults: UserDefaultsManager = UserDefaultsManager.shared
+            let defaults: CoreDataManagerManager = CoreDataManagerManager.shared
             selectedRegionID = defaults.selectedRegionID
             // 根据ID查找对应的星域名称
             if let region = regions.first(where: { $0.id == selectedRegionID }) {

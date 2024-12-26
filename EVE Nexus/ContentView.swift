@@ -359,8 +359,8 @@ struct ContentView: View {
         self.databaseManager = databaseManager
         
         // 预加载角色信息
-        Logger.debug("正在从 UserDefaults 读取键: currentCharacterId")
-        let currentCharacterId = UserDefaults.standard.integer(forKey: "currentCharacterId")
+        Logger.debug("正在从 CoreDataManager 读取键: currentCharacterId")
+        let currentCharacterId = CoreDataManager.shared.integer(forKey: "currentCharacterId")
         if currentCharacterId != 0 {
             let characters = EVELogin.shared.loadCharacters()
             if let savedCharacter = characters.first(where: { $0.character.CharacterID == currentCharacterId }) {
@@ -368,22 +368,22 @@ struct ContentView: View {
                 _tokenExpired = State(initialValue: savedCharacter.character.tokenExpired)
                 
                 // 从缓存加载头像
-                Logger.debug("正在从 UserDefaults 读取键: character_portrait_\(currentCharacterId)_128")
-                if let cachedPortraitData = UserDefaults.standard.data(forKey: "character_portrait_\(currentCharacterId)_128"),
+                Logger.debug("正在从 CoreDataManager 读取键: character_portrait_\(currentCharacterId)_128")
+                if let cachedPortraitData = CoreDataManager.shared.data(forKey: "character_portrait_\(currentCharacterId)_128"),
                    let cachedPortrait = UIImage(data: cachedPortraitData) {
                     _selectedCharacterPortrait = State(initialValue: cachedPortrait)
                 }
                 
                 // 从缓存加载军团信息
                 if let corporationId = savedCharacter.character.corporationId {
-                    Logger.debug("正在从 UserDefaults 读取键: corporation_info_\(corporationId)")
-                    if let cachedCorpData = UserDefaults.standard.data(forKey: "corporation_info_\(corporationId)"),
+                    Logger.debug("正在从 CoreDataManager 读取键: corporation_info_\(corporationId)")
+                    if let cachedCorpData = CoreDataManager.shared.data(forKey: "corporation_info_\(corporationId)"),
                        let corpInfo = try? JSONDecoder().decode(CorporationInfo.self, from: cachedCorpData) {
                         _corporationInfo = State(initialValue: corpInfo)
                         
                         // 从缓存加载军团图标
-                        Logger.debug("正在从 UserDefaults 读取键: corporation_logo_\(corporationId)_128")
-                        if let cachedCorpLogoData = UserDefaults.standard.data(forKey: "corporation_logo_\(corporationId)_128"),
+                        Logger.debug("正在从 CoreDataManager 读取键: corporation_logo_\(corporationId)_128")
+                        if let cachedCorpLogoData = CoreDataManager.shared.data(forKey: "corporation_logo_\(corporationId)_128"),
                            let corpLogo = UIImage(data: cachedCorpLogoData) {
                             _corporationLogo = State(initialValue: corpLogo)
                         }
@@ -392,15 +392,15 @@ struct ContentView: View {
                 
                 // 从缓存加载联盟信息（如果有）
                 if let allianceId = savedCharacter.character.allianceId {
-                    Logger.debug("正在从 UserDefaults 读取键: alliance_info_\(allianceId)")
-                    if let cachedAllianceData = UserDefaults.standard.data(forKey: "alliance_info_\(allianceId)"),
+                    Logger.debug("正在从 CoreDataManager 读取键: alliance_info_\(allianceId)")
+                    if let cachedAllianceData = CoreDataManager.shared.data(forKey: "alliance_info_\(allianceId)"),
                        let allianceInfo = try? JSONDecoder().decode(AllianceInfo.self, from: cachedAllianceData) {
                         _allianceInfo = State(initialValue: allianceInfo)
                     }
                     
                     // 从缓存加载联盟图标
-                    Logger.debug("正在从 UserDefaults 读取键: alliance_logo_\(allianceId)_128")
-                    if let cachedAllianceLogoData = UserDefaults.standard.data(forKey: "alliance_logo_\(allianceId)_128"),
+                    Logger.debug("正在从 CoreDataManager 读取键: alliance_logo_\(allianceId)_128")
+                    if let cachedAllianceLogoData = CoreDataManager.shared.data(forKey: "alliance_logo_\(allianceId)_128"),
                        let allianceLogo = UIImage(data: cachedAllianceLogoData) {
                         _allianceLogo = State(initialValue: allianceLogo)
                     }
@@ -590,7 +590,7 @@ struct ContentView: View {
                     }
                     
                     // 保存选择
-                    UserDefaults.standard.set(character.CharacterID, forKey: "selectedCharacterId")
+                    CoreDataManager.shared.set(character.CharacterID, forKey: "selectedCharacterId")
                     
                     // 异步加载新数据
                     Task {

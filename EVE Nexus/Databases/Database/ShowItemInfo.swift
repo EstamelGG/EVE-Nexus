@@ -10,7 +10,7 @@ struct ShowItemInfo: View {
     @State private var attributeGroups: [AttributeGroup] = []
     @State private var roleBonuses: [Trait] = []
     @State private var typeBonuses: [Trait] = []
-    @State private var isSimplifiedMode: Bool = UserDefaultsManager.shared.isSimplifiedMode  // 从UserDefaults加载初始值
+    @State private var isSimplifiedMode: Bool = CoreDataManagerManager.shared.isSimplifiedMode  // 从CoreDataManager加载初始值
     
     private func buildTraitsText(roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager) -> String {
         var text = ""
@@ -217,7 +217,7 @@ struct ShowItemInfo: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     isSimplifiedMode.toggle()
-                    UserDefaultsManager.shared.isSimplifiedMode = isSimplifiedMode  // 保存设置
+                    CoreDataManagerManager.shared.isSimplifiedMode = isSimplifiedMode  // 保存设置
                 }) {
                     Text(isSimplifiedMode ? 
                          NSLocalizedString("Main_Database_toComplete", comment: "") :

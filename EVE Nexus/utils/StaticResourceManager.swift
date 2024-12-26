@@ -195,7 +195,7 @@ class StaticResourceManager {
         
         // 清理下载时间记录
         for type in ResourceType.allCases {
-            UserDefaults.standard.removeObject(forKey: type.downloadTimeKey)
+            CoreDataManager.shared.removeObject(forKey: type.downloadTimeKey)
         }
         
         Logger.info("Cleared all static data")

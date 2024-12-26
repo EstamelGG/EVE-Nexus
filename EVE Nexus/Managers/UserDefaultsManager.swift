@@ -1,8 +1,8 @@
 import Foundation
 
-class UserDefaultsManager {
-    static let shared = UserDefaultsManager()
-    private let defaults = UserDefaults.standard
+class CoreDataManagerManager {
+    static let shared = CoreDataManagerManager()
+    private let defaults = CoreDataManager.shared
     
     // The Forge 的 regionID 是 10000002
     private let defaultRegionID = 10000002
@@ -24,11 +24,11 @@ class UserDefaultsManager {
     // 选中的星域ID
     var selectedRegionID: Int {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedRegionID)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.selectedRegionID)")
             return defaults.integer(forKey: Keys.selectedRegionID) == 0 ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedRegionID), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.selectedRegionID), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size) bytes")
             defaults.set(newValue, forKey: Keys.selectedRegionID)
         }
     }
@@ -36,14 +36,14 @@ class UserDefaultsManager {
     // 置顶的星域ID列表
     var pinnedRegionIDs: [Int] {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.pinnedRegionIDs)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.pinnedRegionIDs)")
             if defaults.object(forKey: Keys.pinnedRegionIDs) == nil {
                 return [defaultRegionID]
             }
             return defaults.array(forKey: Keys.pinnedRegionIDs) as? [Int] ?? []
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.pinnedRegionIDs), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size * newValue.count) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.pinnedRegionIDs), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size * newValue.count) bytes")
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)
         }
     }
@@ -51,11 +51,11 @@ class UserDefaultsManager {
     // 选中的语言
     var selectedLanguage: String {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedLanguage)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.selectedLanguage)")
             return defaults.string(forKey: Keys.selectedLanguage) ?? "en"
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedLanguage), 值: \(newValue), 数据大小: \(newValue.utf8.count) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.selectedLanguage), 值: \(newValue), 数据大小: \(newValue.utf8.count) bytes")
             defaults.set(newValue, forKey: Keys.selectedLanguage)
         }
     }
@@ -63,11 +63,11 @@ class UserDefaultsManager {
     // 是否使用简化模式
     var isSimplifiedMode: Bool {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.isSimplifiedMode)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.isSimplifiedMode)")
             return defaults.bool(forKey: Keys.isSimplifiedMode)
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.isSimplifiedMode), 值: \(newValue), 数据大小: \(MemoryLayout<Bool>.size) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.isSimplifiedMode), 值: \(newValue), 数据大小: \(MemoryLayout<Bool>.size) bytes")
             defaults.set(newValue, forKey: Keys.isSimplifiedMode)
         }
     }
@@ -75,11 +75,11 @@ class UserDefaultsManager {
     // 最后检查更新时间
     var lastUpdateCheck: Date? {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastUpdateCheck)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.lastUpdateCheck)")
             return defaults.object(forKey: Keys.lastUpdateCheck) as? Date
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastUpdateCheck), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.lastUpdateCheck), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastUpdateCheck)
         }
     }
@@ -87,11 +87,11 @@ class UserDefaultsManager {
     // 最后数据库更新时间
     var lastDatabaseUpdate: Date? {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastDatabaseUpdate)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.lastDatabaseUpdate)")
             return defaults.object(forKey: Keys.lastDatabaseUpdate) as? Date
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastDatabaseUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.lastDatabaseUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastDatabaseUpdate)
         }
     }
@@ -99,11 +99,11 @@ class UserDefaultsManager {
     // 最后市场数据更新时间
     var lastMarketUpdate: Date? {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastMarketUpdate)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(Keys.lastMarketUpdate)")
             return defaults.object(forKey: Keys.lastMarketUpdate) as? Date
         }
         set {
-            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastMarketUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
+            Logger.debug("正在写入 CoreDataManager，键: \(Keys.lastMarketUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastMarketUpdate)
         }
     }

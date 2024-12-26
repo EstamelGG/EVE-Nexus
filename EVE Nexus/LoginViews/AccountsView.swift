@@ -55,7 +55,7 @@ struct AccountsView: View {
                             // 加载技能队列信息
                             await updateCharacterSkillQueue(character: character)
                             
-                            // 保存更新后的角色信息到UserDefaults
+                            // 保存更新后的角色信息到CoreDataManager
                             if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) }) {
                                 let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
                                 do {
@@ -377,7 +377,7 @@ struct AccountsView: View {
                             // 等待所有任务完成
                             await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
                             
-                            // 保存更新后的角色信息到UserDefaults
+                            // 保存更新后的角色信息到CoreDataManager
                             if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) }) {
                                 let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
                                 do {

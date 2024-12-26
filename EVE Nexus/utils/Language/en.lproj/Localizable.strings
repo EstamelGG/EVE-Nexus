@@ -155,7 +155,7 @@
 "Main_Setting_Cache_Item_Format" = "%@: %@ (%d items)";
 "Main_Setting_Cache_Type_Network" = "Network Cache";
 "Main_Setting_Cache_Type_Memory" = "Memory Cache";
-"Main_Setting_Cache_Type_UserDefaults" = "User Defaults";
+"Main_Setting_Cache_Type_CoreDataManager" = "User Defaults";
 "Main_Setting_Cache_Type_Temp" = "Temporary Files";
 "Main_Setting_Cache_Type_Database" = "Database Cache";
 "Main_Setting_Cache_Type_StaticDataSet" = "Static Dataset";

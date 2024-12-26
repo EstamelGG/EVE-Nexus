@@ -42,9 +42,9 @@ struct PreparedIncursion: Identifiable, Codable {
 struct Cache<Value: Codable> {
     private let key: String
     private let validityDuration: TimeInterval
-    private let storage: UserDefaults
+    private let storage: CoreDataManager
     
-    init(key: String, validityDuration: TimeInterval, storage: UserDefaults = .standard) {
+    init(key: String, validityDuration: TimeInterval, storage: CoreDataManager = .shared) {
         self.key = key
         self.validityDuration = validityDuration
         self.storage = storage
@@ -52,7 +52,7 @@ struct Cache<Value: Codable> {
     
     var wrappedValue: Value? {
         get {
-            Logger.debug("正在从 UserDefaults 读取键: \(key)")
+            Logger.debug("正在从 CoreDataManager 读取键: \(key)")
             guard let data = storage.data(forKey: key),
                   let cache = try? JSONDecoder().decode(CacheContainer.self, from: data),
                   !cache.isExpired(validityDuration: validityDuration) else {
@@ -62,13 +62,13 @@ struct Cache<Value: Codable> {
         }
         set {
             guard let value = newValue else {
-                Logger.debug("正在从 UserDefaults 删除键: \(key)")
+                Logger.debug("正在从 CoreDataManager 删除键: \(key)")
                 storage.removeObject(forKey: key)
                 return
             }
             let cache = CacheContainer(value: value)
             if let data = try? JSONEncoder().encode(cache) {
-                Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(data.count) bytes")
+                Logger.debug("正在写入 CoreDataManager，键: \(key), 数据大小: \(data.count) bytes")
                 storage.set(data, forKey: key)
             }
         }

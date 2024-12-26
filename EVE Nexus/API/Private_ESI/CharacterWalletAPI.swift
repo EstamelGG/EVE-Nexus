@@ -16,7 +16,7 @@ class CharacterWalletAPI {
     private var memoryCache: [Int: CacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 30 * 60 // 30分钟缓存
     
-    // UserDefaults键前缀
+    // CoreDataManager键前缀
     private let walletCachePrefix = "wallet_cache_"
     
     // MARK: - Wallet Journal Methods
@@ -40,9 +40,9 @@ class CharacterWalletAPI {
     }
     
     private init() {
-        // 从 UserDefaults 恢复缓存
-        let defaults = UserDefaults.standard
-        Logger.debug("正在从 UserDefaults 读取所有钱包缓存键")
+        // 从 CoreDataManager 恢复缓存
+        let defaults = CoreDataManager.shared
+        Logger.debug("正在从 CoreDataManager 读取所有钱包缓存键")
         for key in defaults.dictionaryRepresentation().keys {
             if key.hasPrefix(walletCachePrefix),
                let data = defaults.data(forKey: key),
@@ -93,10 +93,10 @@ class CharacterWalletAPI {
         return timeInterval < cacheTimeout
     }
     
-    // 从UserDefaults获取缓存
+    // 从CoreDataManager获取缓存
     private func getDiskCache(characterId: Int) -> CacheEntry? {
         let key = walletCachePrefix + String(characterId)
-        guard let data = UserDefaults.standard.data(forKey: key) else {
+        guard let data = CoreDataManager.shared.data(forKey: key) else {
             Logger.info("钱包磁盘缓存不存在 - Key: \(key)")
             return nil
         }
@@ -110,12 +110,12 @@ class CharacterWalletAPI {
         return cache
     }
     
-    // 保存缓存到UserDefaults
+    // 保存缓存到CoreDataManager
     private func saveToDiskCache(characterId: Int, cache: CacheEntry) {
         let key = walletCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.info("保存钱包缓存到磁盘 - Key: \(key), 缓存时间: \(cache.timestamp), 值: \(cache.value), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            CoreDataManager.shared.set(encoded, forKey: key)
         } else {
             Logger.error("保存钱包缓存到磁盘失败 - Key: \(key)")
         }
@@ -126,7 +126,7 @@ class CharacterWalletAPI {
         cacheQueue.async(flags: .barrier) {
             self.memoryCache.removeValue(forKey: characterId)
             let key = self.walletCachePrefix + String(characterId)
-            UserDefaults.standard.removeObject(forKey: key)
+            CoreDataManager.shared.removeObject(forKey: key)
         }
     }
     
@@ -213,7 +213,7 @@ class CharacterWalletAPI {
     // 获取缓存的钱包日志
     private func getCachedJournal(characterId: Int) -> String? {
         let key = getJournalCacheKey(characterId: characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
+        guard let data = CoreDataManager.shared.data(forKey: key),
               let cache = try? JSONDecoder().decode(WalletJournalCacheEntry.self, from: data),
               isJournalCacheValid(cache) else {
             return nil
@@ -227,7 +227,7 @@ class CharacterWalletAPI {
         let key = getJournalCacheKey(characterId: characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.info("保存钱包日志到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            CoreDataManager.shared.set(encoded, forKey: key)
         } else {
             Logger.error("保存钱包日志到缓存失败 - Key: \(key)")
         }
@@ -316,7 +316,7 @@ class CharacterWalletAPI {
         // 检查缓存
         if !forceRefresh {
             let key = getTransactionsCacheKey(characterId: characterId)
-            if let data = UserDefaults.standard.data(forKey: key),
+            if let data = CoreDataManager.shared.data(forKey: key),
                let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data),
                isTransactionsCacheValid(cache) {
                 Logger.debug("使用缓存的钱包交易记录")
@@ -343,7 +343,7 @@ class CharacterWalletAPI {
         let key = getTransactionsCacheKey(characterId: characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.info("保存钱包交易记录到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            CoreDataManager.shared.set(encoded, forKey: key)
         }
         
         return jsonString
