@@ -173,52 +173,76 @@ public class CharacterAssetsJsonAPI {
         progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [CharacterAsset] {
         var allAssets: [CharacterAsset] = []
-        var page = 1
+        var currentPage = 1
+        let concurrentLimit = 3 // 并发数量限制
+        var shouldContinue = true
         
-        while true {
-            do {
-                let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/?datasource=tranquility&page=\(page)"
-                guard let url = URL(string: urlString) else {
-                    throw AssetError.invalidURL
-                }
-                
-                let data = try await NetworkManager.shared.fetchDataWithToken(
-                    from: url,
-                    characterId: characterId,
-                    noRetryKeywords: ["Requested page does not exist"]
-                )
-                
-                // 尝试解码数据
-                if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
-                   errorResponse.error == "Requested page does not exist!" {
-                    // 如果是页面不存在的响应，视为正常结束
-                    Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
-                    break
-                }
-                
-                let pageAssets = try JSONDecoder().decode([CharacterAsset].self, from: data)
-                allAssets.append(contentsOf: pageAssets)
-                
-                Logger.info("成功获取第\(page)页资产数据，本页包含\(pageAssets.count)个项目")
-                progressCallback?(page)
-                
-                page += 1
-                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
-                
-            } catch let error as NetworkError {
-                if case .httpError(let statusCode, let message) = error,
-                   statusCode == 404,
-                   message?.contains("Requested page does not exist") == true {
-                    if !allAssets.isEmpty {
-                        Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
-                        break
+        while shouldContinue {
+            // 创建任务组进行并发请求
+            try await withThrowingTaskGroup(of: (Int, [CharacterAsset]).self) { group in
+                // 添加并发任务
+                for offset in 0..<concurrentLimit {
+                    let page = currentPage + offset
+                    group.addTask {
+                        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/?datasource=tranquility&page=\(page)"
+                        guard let url = URL(string: urlString) else {
+                            throw AssetError.invalidURL
+                        }
+                        
+                        do {
+                            let data = try await NetworkManager.shared.fetchDataWithToken(
+                                from: url,
+                                characterId: characterId,
+                                noRetryKeywords: ["Requested page does not exist"]
+                            )
+                            
+                            // 检查是否是页面不存在的响应
+                            if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
+                               errorResponse.error == "Requested page does not exist!" {
+                                return (page, []) // 返回空数组和页码，表示该页不存在
+                            }
+                            
+                            let pageAssets = try JSONDecoder().decode([CharacterAsset].self, from: data)
+                            Logger.info("成功获取第\(page)页资产数据，本页包含\(pageAssets.count)个项目")
+                            progressCallback?(page)
+                            return (page, pageAssets)
+                            
+                        } catch let error as NetworkError {
+                            if case .httpError(let statusCode, let message) = error,
+                               statusCode == 404,
+                               message?.contains("Requested page does not exist") == true {
+                                return (page, []) // 返回空数组和页码，表示该页不存在
+                            }
+                            throw error
+                        }
                     }
                 }
-                Logger.error("获取资产数据失败: \(error)")
-                throw AssetError.networkError(error)
-            } catch {
-                Logger.error("获取资产数据失败: \(error)")
-                throw AssetError.networkError(error)
+                
+                // 收集并发任务的结果
+                var validPages = Set<Int>()
+                var maxValidPage = 0
+                
+                // 处理每个任务的结果
+                for try await (page, pageAssets) in group {
+                    if !pageAssets.isEmpty {
+                        allAssets.append(contentsOf: pageAssets)
+                        validPages.insert(page)
+                        maxValidPage = max(maxValidPage, page)
+                    }
+                }
+                
+                // 检查是否所有页面都已获取完毕
+                if validPages.isEmpty || maxValidPage < currentPage + concurrentLimit - 1 {
+                    Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
+                    shouldContinue = false
+                    return
+                }
+                
+                // 更新起始页码到最后一个有效页面之后
+                currentPage = maxValidPage + 1
+                
+                // 添加短暂延迟以避免请求过于频繁
+                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
             }
         }
         
