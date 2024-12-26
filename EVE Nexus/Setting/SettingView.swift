@@ -81,29 +81,13 @@ class CacheManager {
         var totalSize: Int64 = 0
         let count = dictionary.count
         
-        // 计算UserDefaults大小
-        for (key, value) in dictionary {
-            if let data = value as? Data {
+        // 估算UserDefaults大小
+        for (_, value) in dictionary {
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: false) {
                 totalSize += Int64(data.count)
-            } else if let string = value as? String {
-                totalSize += Int64(string.utf8.count)
-            } else if let array = value as? [Any] {
-                if let data = try? JSONSerialization.data(withJSONObject: array) {
-                    totalSize += Int64(data.count)
-                }
-            } else if let dict = value as? [String: Any] {
-                if let data = try? JSONSerialization.data(withJSONObject: dict) {
-                    totalSize += Int64(data.count)
-                }
-            } else {
-                // 对于其他类型，使用其描述字符串的长度作为估算
-                totalSize += Int64(String(describing: value).utf8.count)
             }
-            // 加上键的大小
-            totalSize += Int64(key.utf8.count)
         }
         
-        Logger.debug("UserDefaults 统计 - 总条目: \(count), 总大小: \(totalSize) bytes")
         return CacheStats(size: totalSize, count: count)
     }
     
