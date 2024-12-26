@@ -152,17 +152,19 @@ struct WalletJournalEntryRow: View {
         return formatter
     }()
     
+    private func formatRefType(_ refType: String) -> String {
+        return refType.split(separator: "_")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
-                if let date = dateFormatter.date(from: entry.date) {
-                    Text(timeFormatter.string(from: date))
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
-                
+                Text(formatRefType(entry.ref_type))
+                    .font(.body)
+                    .lineLimit(1)
                 Spacer()
-                
                 Text("\(FormatUtil.format(entry.amount)) ISK")
                     .foregroundColor(entry.amount >= 0 ? .green : .red)
                     .font(.system(.body, design: .monospaced))
@@ -170,18 +172,13 @@ struct WalletJournalEntryRow: View {
             
             Text(entry.description)
                 .font(.caption)
+                .foregroundColor(.secondary)
                 .lineLimit(1)
             
             Text("Balance:\(FormatUtil.format(entry.balance)) ISK")
                 .font(.caption)
                 .foregroundColor(.gray)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
-
-#Preview {
-    NavigationStack {
-        WalletJournalView(characterId: 2112343155)
-    }
-} 
