@@ -24,9 +24,11 @@ class UserDefaultsManager {
     // 选中的星域ID
     var selectedRegionID: Int {
         get {
-            defaults.integer(forKey: Keys.selectedRegionID) == 0 ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedRegionID)")
+            return defaults.integer(forKey: Keys.selectedRegionID) == 0 ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedRegionID), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size) bytes")
             defaults.set(newValue, forKey: Keys.selectedRegionID)
         }
     }
@@ -34,13 +36,14 @@ class UserDefaultsManager {
     // 置顶的星域ID列表
     var pinnedRegionIDs: [Int] {
         get {
-            // 如果是首次使用（没有保存过置顶列表），返回默认的 The Forge
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.pinnedRegionIDs)")
             if defaults.object(forKey: Keys.pinnedRegionIDs) == nil {
                 return [defaultRegionID]
             }
             return defaults.array(forKey: Keys.pinnedRegionIDs) as? [Int] ?? []
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.pinnedRegionIDs), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size * newValue.count) bytes")
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)
         }
     }
@@ -48,9 +51,11 @@ class UserDefaultsManager {
     // 选中的语言
     var selectedLanguage: String {
         get {
-            defaults.string(forKey: Keys.selectedLanguage) ?? "en"
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedLanguage)")
+            return defaults.string(forKey: Keys.selectedLanguage) ?? "en"
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedLanguage), 值: \(newValue), 数据大小: \(newValue.utf8.count) bytes")
             defaults.set(newValue, forKey: Keys.selectedLanguage)
         }
     }
@@ -58,9 +63,11 @@ class UserDefaultsManager {
     // 是否使用简化模式
     var isSimplifiedMode: Bool {
         get {
-            defaults.bool(forKey: Keys.isSimplifiedMode)
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.isSimplifiedMode)")
+            return defaults.bool(forKey: Keys.isSimplifiedMode)
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.isSimplifiedMode), 值: \(newValue), 数据大小: \(MemoryLayout<Bool>.size) bytes")
             defaults.set(newValue, forKey: Keys.isSimplifiedMode)
         }
     }
@@ -68,9 +75,11 @@ class UserDefaultsManager {
     // 最后检查更新时间
     var lastUpdateCheck: Date? {
         get {
-            defaults.object(forKey: Keys.lastUpdateCheck) as? Date
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastUpdateCheck)")
+            return defaults.object(forKey: Keys.lastUpdateCheck) as? Date
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastUpdateCheck), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastUpdateCheck)
         }
     }
@@ -78,9 +87,11 @@ class UserDefaultsManager {
     // 最后数据库更新时间
     var lastDatabaseUpdate: Date? {
         get {
-            defaults.object(forKey: Keys.lastDatabaseUpdate) as? Date
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastDatabaseUpdate)")
+            return defaults.object(forKey: Keys.lastDatabaseUpdate) as? Date
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastDatabaseUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastDatabaseUpdate)
         }
     }
@@ -88,9 +99,11 @@ class UserDefaultsManager {
     // 最后市场数据更新时间
     var lastMarketUpdate: Date? {
         get {
-            defaults.object(forKey: Keys.lastMarketUpdate) as? Date
+            Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastMarketUpdate)")
+            return defaults.object(forKey: Keys.lastMarketUpdate) as? Date
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(Keys.lastMarketUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
             defaults.set(newValue, forKey: Keys.lastMarketUpdate)
         }
     }

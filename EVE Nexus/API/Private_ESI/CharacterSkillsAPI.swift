@@ -198,6 +198,7 @@ public class CharacterSkillsAPI {
     private func saveSkillsToDiskCache(characterId: Int, cache: SkillsCacheEntry) {
         let key = skillsCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
         }
     }
@@ -206,6 +207,7 @@ public class CharacterSkillsAPI {
     private func saveQueueToDiskCache(characterId: Int, cache: QueueCacheEntry) {
         let key = queueCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
         }
     }

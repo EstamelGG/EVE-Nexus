@@ -80,6 +80,7 @@ class CharacterLocationAPI {
     // 从UserDefaults获取缓存
     private func getDiskCache(characterId: Int) -> LocationCacheEntry? {
         let key = locationCachePrefix + String(characterId)
+        Logger.debug("正在从 UserDefaults 读取键: \(key)")
         guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(LocationCacheEntry.self, from: data) else {
             return nil
@@ -91,6 +92,7 @@ class CharacterLocationAPI {
     private func saveToDiskCache(characterId: Int, cache: LocationCacheEntry) {
         let key = locationCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
         }
     }
@@ -103,6 +105,7 @@ class CharacterLocationAPI {
             
             // 清除磁盘缓存
             let key = self.locationCachePrefix + String(characterId)
+            Logger.debug("正在从 UserDefaults 删除键: \(key)")
             UserDefaults.standard.removeObject(forKey: key)
         }
     }

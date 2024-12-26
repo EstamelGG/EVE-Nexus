@@ -471,6 +471,7 @@ class EVELogin {
         
         // 保存到 UserDefaults
         if let encodedData = try? JSONEncoder().encode(characters) {
+            Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
     }
@@ -616,6 +617,7 @@ class EVELogin {
         characters.removeAll { $0.character.CharacterID == characterId }
         
         if let encodedData = try? JSONEncoder().encode(characters) {
+            Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
         
@@ -629,6 +631,7 @@ class EVELogin {
     
     // 保存角色顺序
     func saveCharacterOrder(_ characterIds: [Int]) {
+        Logger.info("正在缓存角色顺序数据, key: \(charactersKey), 数据大小: \(characterIds.count) bytes")
         UserDefaults.standard.set(characterIds, forKey: characterOrderKey)
         UserDefaults.standard.synchronize()
     }

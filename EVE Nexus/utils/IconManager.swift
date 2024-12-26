@@ -30,9 +30,11 @@ class IconManager {
     
     var isExtractionComplete: Bool {
         get {
-            defaults.bool(forKey: extractionStateKey)
+            Logger.debug("正在从 UserDefaults 读取键: \(extractionStateKey)")
+            return defaults.bool(forKey: extractionStateKey)
         }
         set {
+            Logger.debug("正在写入 UserDefaults，键: \(extractionStateKey), 值: \(newValue)")
             defaults.set(newValue, forKey: extractionStateKey)
         }
     }

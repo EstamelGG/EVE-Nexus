@@ -97,7 +97,7 @@ class SovereigntyCampaignsAPI {
     private func saveToCache(_ campaigns: [SovereigntyCampaign]) throws {
         let cachedData = CachedData(data: campaigns, timestamp: Date())
         let encodedData = try JSONEncoder().encode(cachedData)
+        Logger.info("正在缓存主权战争数据, key: \(cacheKey), 数据大小: \(encodedData.count) bytes")
         UserDefaults.standard.set(encodedData, forKey: cacheKey)
-        Logger.info("主权战役数据已缓存")
     }
 } 

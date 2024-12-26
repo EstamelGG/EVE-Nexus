@@ -101,6 +101,7 @@ class CorporationAPI {
         let info = try JSONDecoder().decode(CorporationInfo.self, from: data)
         
         // 更新缓存
+        Logger.info("成功缓存军团信息, key: \(cacheKey), 数据大小: \(data.count) bytes")
         UserDefaults.standard.set(data, forKey: cacheKey)
         UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         

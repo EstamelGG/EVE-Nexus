@@ -75,10 +75,12 @@ struct EVE_NexusApp: App {
 
     private func configureLanguage() {
         if let language = selectedLanguage {
+            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(language)]")
             UserDefaults.standard.set([language], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
         } else {
             let systemLanguage = Locale.preferredLanguages.first ?? "en"
+            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(systemLanguage)]")
             UserDefaults.standard.set([systemLanguage], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
         }

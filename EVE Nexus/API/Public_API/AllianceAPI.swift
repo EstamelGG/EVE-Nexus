@@ -96,6 +96,7 @@ class AllianceAPI {
         let info = try JSONDecoder().decode(AllianceInfo.self, from: data)
         
         // 更新缓存
+        Logger.info("保存联盟信息到缓存 - Key: \(cacheKey), 数据大小: \(data.count) bytes")
         UserDefaults.standard.set(data, forKey: cacheKey)
         UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         

@@ -39,7 +39,19 @@ class CharacterWalletAPI {
         let timestamp: Date
     }
     
-    private init() {}
+    private init() {
+        // 从 UserDefaults 恢复缓存
+        let defaults = UserDefaults.standard
+        Logger.debug("正在从 UserDefaults 读取所有钱包缓存键")
+        for key in defaults.dictionaryRepresentation().keys {
+            if key.hasPrefix(walletCachePrefix),
+               let data = defaults.data(forKey: key),
+               let entry = try? JSONDecoder().decode(CacheEntry.self, from: data),
+               let characterId = Int(key.replacingOccurrences(of: walletCachePrefix, with: "")) {
+                memoryCache[characterId] = entry
+            }
+        }
+    }
     
     // 安全地获取钱包缓存
     private func getWalletMemoryCache(characterId: Int) -> CacheEntry? {
@@ -102,8 +114,8 @@ class CharacterWalletAPI {
     private func saveToDiskCache(characterId: Int, cache: CacheEntry) {
         let key = walletCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.info("保存钱包缓存到磁盘 - Key: \(key), 缓存时间: \(cache.timestamp), 值: \(cache.value), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
-            Logger.info("保存钱包缓存到磁盘 - Key: \(key), 缓存时间: \(cache.timestamp), 值: \(cache.value)")
         } else {
             Logger.error("保存钱包缓存到磁盘失败 - Key: \(key)")
         }
@@ -214,8 +226,8 @@ class CharacterWalletAPI {
         let cache = WalletJournalCacheEntry(jsonString: jsonString, timestamp: Date())
         let key = getJournalCacheKey(characterId: characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.info("保存钱包日志到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
-            Logger.info("保存钱包日志到缓存 - Key: \(key)")
         } else {
             Logger.error("保存钱包日志到缓存失败 - Key: \(key)")
         }
@@ -330,8 +342,8 @@ class CharacterWalletAPI {
         let cache = WalletTransactionsCacheEntry(jsonString: jsonString, timestamp: Date())
         let key = getTransactionsCacheKey(characterId: characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
+            Logger.info("保存钱包交易记录到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
-            Logger.info("保存钱包交易记录到缓存 - Key: \(key)")
         }
         
         return jsonString

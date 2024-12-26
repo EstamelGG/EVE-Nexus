@@ -52,6 +52,7 @@ struct Cache<Value: Codable> {
     
     var wrappedValue: Value? {
         get {
+            Logger.debug("正在从 UserDefaults 读取键: \(key)")
             guard let data = storage.data(forKey: key),
                   let cache = try? JSONDecoder().decode(CacheContainer.self, from: data),
                   !cache.isExpired(validityDuration: validityDuration) else {
@@ -61,11 +62,13 @@ struct Cache<Value: Codable> {
         }
         set {
             guard let value = newValue else {
+                Logger.debug("正在从 UserDefaults 删除键: \(key)")
                 storage.removeObject(forKey: key)
                 return
             }
             let cache = CacheContainer(value: value)
             if let data = try? JSONEncoder().encode(cache) {
+                Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(data.count) bytes")
                 storage.set(data, forKey: key)
             }
         }

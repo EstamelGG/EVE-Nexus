@@ -97,7 +97,7 @@ class IncursionsAPI {
     private func saveToCache(_ incursions: [Incursion]) throws {
         let cachedData = CachedData(data: incursions, timestamp: Date())
         let encodedData = try JSONEncoder().encode(cachedData)
+        Logger.info("正在缓存入侵数据, key: \(cacheKey), 数据大小: \(encodedData.count) bytes")
         UserDefaults.standard.set(encodedData, forKey: cacheKey)
-        Logger.info("入侵数据已缓存")
     }
 } 

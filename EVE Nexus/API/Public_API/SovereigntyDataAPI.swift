@@ -97,7 +97,7 @@ class SovereigntyDataAPI {
     private func saveToCache(_ sovereignty: [SovereigntyData]) throws {
         let cachedData = CachedData(data: sovereignty, timestamp: Date())
         let encodedData = try JSONEncoder().encode(cachedData)
+        Logger.info("正在缓存主权数据, key: \(cacheKey), 数据大小: \(encodedData.count) bytes")
         UserDefaults.standard.set(encodedData, forKey: cacheKey)
-        Logger.info("主权数据已缓存")
     }
 } 
