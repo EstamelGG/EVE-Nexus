@@ -125,8 +125,16 @@ public class CharacterAssetsJsonAPI {
     }
     
     // MARK: - Cache Methods
-    private func getCacheKey(characterId: Int) -> String {
-        return assetTreeCachePrefix + String(characterId)
+    private func getCacheFilePath(characterId: Int) -> URL? {
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let cacheDirectory = documentsDirectory.appendingPathComponent("AssetCache", isDirectory: true)
+        
+        // 确保缓存目录存在
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        
+        return cacheDirectory.appendingPathComponent("\(assetTreeCachePrefix)\(characterId).json")
     }
     
     private func isValidCache(_ cache: AssetTreeCacheEntry) -> Bool {
@@ -134,8 +142,8 @@ public class CharacterAssetsJsonAPI {
     }
     
     private func getCachedJson(characterId: Int) -> String? {
-        let key = getCacheKey(characterId: characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
+        guard let cacheFile = getCacheFilePath(characterId: characterId),
+              let data = try? Data(contentsOf: cacheFile),
               let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data),
               isValidCache(cache) else {
             return nil
@@ -145,9 +153,16 @@ public class CharacterAssetsJsonAPI {
     
     private func saveToCache(jsonString: String, characterId: Int) {
         let cache = AssetTreeCacheEntry(jsonString: jsonString, timestamp: Date())
-        let key = getCacheKey(characterId: characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(encoded, forKey: key)
+        guard let cacheFile = getCacheFilePath(characterId: characterId),
+              let encoded = try? JSONEncoder().encode(cache) else {
+            return
+        }
+        
+        do {
+            try encoded.write(to: cacheFile)
+            Logger.debug("资产树JSON已缓存到文件: \(cacheFile.path)")
+        } catch {
+            Logger.error("保存资产树缓存失败: \(error)")
         }
     }
     
