@@ -290,18 +290,13 @@ class LocationAssetsViewModel: ObservableObject {
                 let name1 = itemInfo(for: node1.type_id)?.name ?? ""
                 let name2 = itemInfo(for: node2.type_id)?.name ?? ""
                 
-                // 首先按是否为容器排序（容器在前）
-                if (node1.items != nil) != (node2.items != nil) {
-                    return node1.items != nil
-                }
-                
-                // 然后按名称排序
+                // 先按名称排序
                 if name1 != name2 {
                     return name1 < name2
                 }
                 
-                // 如果名称相同，按type_id排序
-                return node1.type_id < node2.type_id
+                // 如果名称相同，按item_id排序
+                return node1.item_id < node2.item_id
             }
             
             return (flag: flag, items: mergedItems)
