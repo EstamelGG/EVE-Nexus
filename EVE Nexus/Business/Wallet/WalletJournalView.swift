@@ -51,7 +51,7 @@ struct WalletJournalView: View {
     }()
     
     var body: some View {
-        VStack {
+        List {
             if isLoading && journalGroups.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity)
@@ -60,30 +60,28 @@ struct WalletJournalView: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity)
             } else {
-                List {
-                    ForEach(journalGroups) { group in
-                        Section(header: Text(displayDateFormatter.string(from: group.date))
-                            .fontWeight(.bold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                        ) {
-                            ForEach(group.entries, id: \.id) { entry in
-                                WalletJournalEntryRow(entry: entry)
-                            }
+                ForEach(journalGroups) { group in
+                    Section(header: Text(displayDateFormatter.string(from: group.date))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.entries, id: \.id) { entry in
+                            WalletJournalEntryRow(entry: entry)
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
             }
         }
-        .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
-        .task {
-            await loadJournalData()
-        }
+        .listStyle(.insetGrouped)
         .refreshable {
             await loadJournalData(forceRefresh: true)
         }
+        .task {
+            await loadJournalData()
+        }
+        .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
     }
     
     private func loadJournalData(forceRefresh: Bool = false) async {
