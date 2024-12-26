@@ -313,3 +313,12 @@
 "Assets_Loading_Fetching_Names" = "Fetching names";
 "Assets_Unknown_Location" = "Unknown Location";
 "Assets_Unknown_Region" = "Unknown Region";
+
+// Market Transactions
+"Main_Market_Transactions_Buy" = "Buy";
+"Main_Market_Transactions_Sell" = "Sell";
+"Main_Market_Transactions_Loading" = "Loading...";
+"Main_Market_Transactions_No_Data" = "No transactions found";
+"Main_Market_Transactions_Unit_Price" = "Unit Price";
+"Main_Market_Transactions_Quantity" = "Quantity";
+"Main_Market_Transactions_Total" = "Total";

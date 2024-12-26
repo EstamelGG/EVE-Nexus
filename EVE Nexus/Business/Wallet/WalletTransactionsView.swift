@@ -147,7 +147,7 @@ struct WalletTransactionsView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.transactionGroups.isEmpty {
-                Text(viewModel.errorMessage ?? "No Data")
+                Text(viewModel.errorMessage ?? NSLocalizedString("Main_Market_Transactions_No_Data", comment: ""))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
             } else {
@@ -224,21 +224,20 @@ struct WalletTransactionEntryRow: View {
             
             VStack(alignment: .leading, spacing: 2) {
                 // 物品名称和交易类型
-                Text(itemInfo?.name ?? "Loading...")
+                Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
                     .font(.body)
                 Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
                     .foregroundColor(entry.is_buy ? .red : .green)
                     .font(.system(.caption, design: .monospaced))
                 // 交易类型和时间
                 if let date = dateFormatter.date(from: entry.date) {
-                    Text("\(entry.is_buy ? "买入" : "卖出") - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                    Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
                         .font(.caption2)
                         .foregroundColor(.gray)
                     Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-
             }
         }
         .padding(.vertical, 2)
