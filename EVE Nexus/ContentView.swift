@@ -863,7 +863,7 @@ struct ContentView: View {
                         selectedCharacter?.skillQueueLength = queue.count
                         if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
                             if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                                // 获取队列最后一个技能的完成时���
+                                // 获取队列最后一个技能的完成时间
                                 if let lastSkill = queue.last,
                                    let lastFinishTime = lastSkill.remainingTime {
                                     selectedCharacter?.queueFinishTime = lastFinishTime
@@ -1064,7 +1064,10 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market_Transactions", comment: ""),
-                        iconName: "journal"
+                        iconName: "journal",
+                        destination: selectedCharacter.map { character in
+                            AnyView(WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Wallet_Journal", comment: ""),

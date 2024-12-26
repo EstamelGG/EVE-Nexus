@@ -30,6 +30,15 @@ class CharacterWalletAPI {
     // 钱包日志缓存前缀
     private let walletJournalCachePrefix = "wallet_journal_cache_"
     
+    // 钱包交易记录缓存前缀
+    private let walletTransactionsCachePrefix = "wallet_transactions_cache_"
+    
+    // 钱包交易记录缓存结构
+    private struct WalletTransactionsCacheEntry: Codable {
+        let jsonString: String
+        let timestamp: Date
+    }
+    
     private init() {}
     
     // 安全地获取钱包缓存
@@ -58,6 +67,18 @@ class CharacterWalletAPI {
         let isValid = timeInterval < cacheTimeout
         Logger.info("钱包缓存时间检查 - 缓存时间: \(cache.timestamp), 当前时间: \(Date()), 时间间隔: \(timeInterval)秒, 超时时间: \(cacheTimeout)秒, 是否有效: \(isValid)")
         return isValid
+    }
+    
+    // 检查日志缓存是否有效
+    private func isJournalCacheValid(_ cache: WalletJournalCacheEntry) -> Bool {
+        let timeInterval = Date().timeIntervalSince(cache.timestamp)
+        return timeInterval < cacheTimeout
+    }
+    
+    // 检查交易记录缓存是否有效
+    private func isTransactionsCacheValid(_ cache: WalletTransactionsCacheEntry) -> Bool {
+        let timeInterval = Date().timeIntervalSince(cache.timestamp)
+        return timeInterval < cacheTimeout
     }
     
     // 从UserDefaults获取缓存
@@ -177,11 +198,6 @@ class CharacterWalletAPI {
         return walletJournalCachePrefix + String(characterId)
     }
     
-    // 检查钱包日志缓存是否有效
-    private func isJournalCacheValid(_ cache: WalletJournalCacheEntry) -> Bool {
-        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
-    }
-    
     // 获取缓存的钱包日志
     private func getCachedJournal(characterId: Int) -> String? {
         let key = getJournalCacheKey(characterId: characterId)
@@ -275,6 +291,49 @@ class CharacterWalletAPI {
         // 保存到缓存
         saveJournalToCache(jsonString: jsonString, characterId: characterId)
         // Logger.debug("Wallet journey: \(jsonString)")
+        return jsonString
+    }
+    
+    // 获取钱包交易记录的缓存键
+    private func getTransactionsCacheKey(characterId: Int) -> String {
+        return walletTransactionsCachePrefix + String(characterId)
+    }
+    
+    // 获取钱包交易记录（公开方法）
+    public func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
+        // 检查缓存
+        if !forceRefresh {
+            let key = getTransactionsCacheKey(characterId: characterId)
+            if let data = UserDefaults.standard.data(forKey: key),
+               let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data),
+               isTransactionsCacheValid(cache) {
+                Logger.debug("使用缓存的钱包交易记录")
+                return cache.jsonString
+            }
+        }
+        
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/transactions/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        guard let jsonString = String(data: data, encoding: .utf8) else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 保存到缓存
+        let cache = WalletTransactionsCacheEntry(jsonString: jsonString, timestamp: Date())
+        let key = getTransactionsCacheKey(characterId: characterId)
+        if let encoded = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(encoded, forKey: key)
+            Logger.info("保存钱包交易记录到缓存 - Key: \(key)")
+        }
+        
         return jsonString
     }
 } 
