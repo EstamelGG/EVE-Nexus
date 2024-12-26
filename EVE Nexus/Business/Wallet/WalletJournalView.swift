@@ -22,23 +22,17 @@ struct WalletJournalGroup: Identifiable {
     var entries: [WalletJournalEntry]
 }
 
-struct WalletJournalView: View {
-    let characterId: Int
-    @State private var journalGroups: [WalletJournalGroup] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
+@MainActor
+final class WalletJournalViewModel: ObservableObject {
+    @Published private(set) var journalGroups: [WalletJournalGroup] = []
+    @Published var isLoading = true
+    @Published var errorMessage: String?
+    
+    private let characterId: Int
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        formatter.timeZone = TimeZone(identifier: "UTC")!
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-    
-    private let displayDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: "UTC")!
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
@@ -50,57 +44,24 @@ struct WalletJournalView: View {
         return calendar
     }()
     
-    var body: some View {
-        List {
-            if isLoading && journalGroups.isEmpty {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else if let error = errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity)
-            } else {
-                ForEach(journalGroups) { group in
-                    Section(header: Text(displayDateFormatter.string(from: group.date))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                    ) {
-                        ForEach(group.entries, id: \.id) { entry in
-                            WalletJournalEntryRow(entry: entry)
-                        }
-                    }
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .refreshable {
-            await loadJournalData(forceRefresh: true)
-        }
-        .task {
-            await loadJournalData()
-        }
-        .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
+    init(characterId: Int) {
+        self.characterId = characterId
     }
     
-    private func loadJournalData(forceRefresh: Bool = false) async {
+    func loadJournalData(forceRefresh: Bool = false) async {
         isLoading = true
         errorMessage = nil
         
         do {
-            // 获取钱包日志数据
             guard let jsonString = try await CharacterWalletAPI.shared.getWalletJournal(characterId: characterId, forceRefresh: forceRefresh) else {
                 throw NetworkError.invalidResponse
             }
             
-            // 解析JSON数据
             guard let jsonData = jsonString.data(using: .utf8),
                   let entries = try? JSONDecoder().decode([WalletJournalEntry].self, from: jsonData) else {
                 throw NetworkError.invalidResponse
             }
             
-            // 按日期分组
             var groupedEntries: [Date: [WalletJournalEntry]] = [:]
             for entry in entries {
                 guard let date = dateFormatter.date(from: entry.date) else {
@@ -117,23 +78,69 @@ struct WalletJournalView: View {
                 groupedEntries[dayDate, default: []].append(entry)
             }
             
-            // 转换为数组并排序
             let groups = groupedEntries.map { (date, entries) -> WalletJournalGroup in
                 WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
             }.sorted { $0.date > $1.date }
             
-            // 更新UI
-            await MainActor.run {
-                self.journalGroups = groups
-                self.isLoading = false
-            }
+            self.journalGroups = groups
+            self.isLoading = false
             
         } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                self.isLoading = false
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
+        }
+    }
+}
+
+struct WalletJournalView: View {
+    @StateObject private var viewModel: WalletJournalViewModel
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    init(characterId: Int) {
+        _viewModel = StateObject(wrappedValue: WalletJournalViewModel(characterId: characterId))
+    }
+    
+    var body: some View {
+        List {
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            } else if viewModel.journalGroups.isEmpty {
+                Text(viewModel.errorMessage ?? "No Data")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+            } else {
+                ForEach(viewModel.journalGroups) { group in
+                    Section(header: Text(displayDateFormatter.string(from: group.date))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.entries, id: \.id) { entry in
+                            WalletJournalEntryRow(entry: entry)
+                        }
+                    }
+                }
             }
         }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            await viewModel.loadJournalData(forceRefresh: true)
+        }
+        .task {
+            if viewModel.journalGroups.isEmpty {
+                await viewModel.loadJournalData()
+            }
+        }
+        .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
     }
 }
 
