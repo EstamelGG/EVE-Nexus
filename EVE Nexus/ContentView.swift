@@ -285,55 +285,29 @@ struct LoginButtonView: View {
                     await MainActor.run {
                         self.allianceInfo = info
                         self.allianceLogo = logo
-                        // 成功获取信息，重置token状态
-                        self.tokenExpired = false
                     }
                 } catch {
-                    Logger.error("加载联盟信息失败: \(error)")
-                    // 如果是token相关错误，标记token过期
-                    if case NetworkError.tokenExpired = error {
-                        await MainActor.run {
-                            self.tokenExpired = true
-                        }
-                    }
+                    Logger.error("获取联盟信息失败: \(error)")
                 }
-            } else {
-                // 如果角色没有联盟，清除联盟信息
-                await MainActor.run {
-                    self.allianceInfo = nil
-                    self.allianceLogo = nil
-                }
-                Logger.info("角色没有所属联盟")
             }
             
             // 获取军团信息
-            async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-            async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+            let corporationId = publicInfo.corporation_id
+            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: corporationId)
+            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
             
             do {
-                let (info, logo) = try await (corporationInfoTask, corporationLogoTask)
+                let (info, logo) = try await (corpInfoTask, corpLogoTask)
                 await MainActor.run {
                     self.corporationInfo = info
                     self.corporationLogo = logo
                 }
             } catch {
-                Logger.error("加载军团信息失败: \(error)")
-                // 如果是token相关错误，标记token过期
-                if case NetworkError.tokenExpired = error {
-                    await MainActor.run {
-                        self.tokenExpired = true
-                    }
-                }
+                Logger.error("获取军团信息失败: \(error)")
             }
             
         } catch {
-            Logger.error("加载角色公开信息失败: \(error)")
-            // 如果是token相关错误，标记token过期
-            if case NetworkError.tokenExpired = error {
-                await MainActor.run {
-                    self.tokenExpired = true
-                }
-            }
+            Logger.error("获取角色信息失败: \(error)")
         }
     }
 }
@@ -510,7 +484,7 @@ struct ContentView: View {
         selectedCharacter?.locationStatus = nil
         selectedCharacter?.location = nil
         
-        // 重置军团和联盟信息
+        // 重置军团和联盟信���
         corporationInfo = nil
         corporationLogo = nil
         allianceInfo = nil

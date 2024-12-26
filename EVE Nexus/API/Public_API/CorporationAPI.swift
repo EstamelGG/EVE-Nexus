@@ -37,42 +37,6 @@ class CorporationAPI {
         downloader.downloadTimeout = 15.0 // 15秒超时
     }
     
-    // 获取军团信息
-    func fetchCorporationInfo(corporationId: Int, forceRefresh: Bool = false) async throws -> CorporationInfo {
-        let cacheKey = "corporation_info_\(corporationId)"
-        let cacheTimeKey = "corporation_info_\(corporationId)_time"
-        
-        // 检查缓存
-        if !forceRefresh,
-           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
-           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
-           Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
-            do {
-                let info = try JSONDecoder().decode(CorporationInfo.self, from: cachedData)
-                Logger.info("使用缓存的军团信息 - 军团ID: \(corporationId)")
-                return info
-            } catch {
-                Logger.error("解析缓存的军团信息失败: \(error)")
-            }
-        }
-        
-        // 从网络获取数据
-        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        let info = try JSONDecoder().decode(CorporationInfo.self, from: data)
-        
-        // 更新缓存
-        UserDefaults.standard.set(data, forKey: cacheKey)
-        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
-        
-        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
-        return info
-    }
-    
     // 获取军团图标URL
     private func getLogoURL(corporationId: Int, size: Int = 64) -> URL {
         return URL(string: "https://images.evetech.net/corporations/\(corporationId)/logo?size=\(size)")!
@@ -107,5 +71,40 @@ class CorporationAPI {
                 }
             }
         }
+    }
+    
+    func fetchCorporationInfo(corporationId: Int, forceRefresh: Bool = false) async throws -> CorporationInfo {
+        let cacheKey = "corporation_info_\(corporationId)"
+        let cacheTimeKey = "corporation_info_\(corporationId)_time"
+        
+        // 检查缓存
+        if !forceRefresh,
+           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
+           Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
+            do {
+                let info = try JSONDecoder().decode(CorporationInfo.self, from: cachedData)
+                Logger.info("使用缓存的军团信息 - 军团ID: \(corporationId)")
+                return info
+            } catch {
+                Logger.error("解析缓存的军团信息失败: \(error)")
+            }
+        }
+        
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let info = try JSONDecoder().decode(CorporationInfo.self, from: data)
+        
+        // 更新缓存
+        UserDefaults.standard.set(data, forKey: cacheKey)
+        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
+        
+        Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
+        return info
     }
 } 
