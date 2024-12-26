@@ -167,7 +167,11 @@ public class CharacterAssetsJsonAPI {
                     throw AssetError.invalidURL
                 }
                 
-                let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+                let data = try await NetworkManager.shared.fetchDataWithToken(
+                    from: url,
+                    characterId: characterId,
+                    noRetryKeywords: ["Requested page does not exist"]
+                )
                 
                 // 尝试解码数据
                 if let errorResponse = try? JSONDecoder().decode(ESIErrorResponse.self, from: data),
@@ -187,8 +191,9 @@ public class CharacterAssetsJsonAPI {
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
                 
             } catch let error as NetworkError {
-                // 检查是否是404错误，如果是且已经获取了一些资产，则视为正常结束
-                if case .httpError(let statusCode) = error, statusCode == 404 {
+                if case .httpError(let statusCode, let message) = error,
+                   statusCode == 404,
+                   message?.contains("Requested page does not exist") == true {
                     if !allAssets.isEmpty {
                         Logger.info("资产数据获取完成，共\(allAssets.count)个项目")
                         break

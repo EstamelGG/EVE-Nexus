@@ -225,7 +225,11 @@ class CharacterWalletAPI {
                     throw NetworkError.invalidURL
                 }
                 
-                let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+                let data = try await NetworkManager.shared.fetchDataWithToken(
+                    from: url,
+                    characterId: characterId,
+                    noRetryKeywords: ["Requested page does not exist"]
+                )
                 
                 // 解析JSON数据
                 guard let pageEntries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
@@ -239,7 +243,9 @@ class CharacterWalletAPI {
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
                 
             } catch let error as NetworkError {
-                if case .httpError(let statusCode) = error, statusCode == 500 || statusCode == 404 {
+                if case .httpError(let statusCode, let message) = error,
+                   statusCode == 500,
+                   message?.contains("Requested page does not exist") == true {
                     // 这是正常的分页结束情况
                     Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")
                     break

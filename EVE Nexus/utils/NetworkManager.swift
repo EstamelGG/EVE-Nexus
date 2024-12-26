@@ -63,7 +63,8 @@ class NetworkManager: NSObject, @unchecked Sendable {
         body: Data? = nil,
         headers: [String: String]? = nil,
         forceRefresh: Bool = false,
-        timeout: TimeInterval = 15.0
+        timeout: TimeInterval = 15.0,
+        noRetryKeywords: [String]? = nil
     ) async throws -> Data {
         // 等待信号量
         await withCheckedContinuation { continuation in
@@ -110,9 +111,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
             request.httpBody = body
         }
         
-        return try await retrier.execute {
+        return try await retrier.execute(noRetryKeywords: noRetryKeywords) {
             Logger.info("HTTP \(method) Request to: \(url)")
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await self.session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
@@ -125,12 +126,15 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体: \(responseBody)")
+                    
+                    // 将响应体包含在错误中
+                    throw NetworkError.httpError(statusCode: httpResponse.statusCode, message: responseBody)
                 } else {
                     Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
                     Logger.error("状态码: \(httpResponse.statusCode)")
                     Logger.error("响应体无法解析")
+                    throw NetworkError.httpError(statusCode: httpResponse.statusCode)
                 }
-                throw NetworkError.httpError(statusCode: httpResponse.statusCode)
             }
             
             return data
@@ -181,7 +185,12 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
     
     // 专门用于需访问令牌的请求
-    func fetchDataWithToken(from url: URL, characterId: Int, headers: [String: String]? = nil) async throws -> Data {
+    func fetchDataWithToken(
+        from url: URL,
+        characterId: Int,
+        headers: [String: String]? = nil,
+        noRetryKeywords: [String]? = nil
+    ) async throws -> Data {
         // 获取角色的token
         let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
         
@@ -198,7 +207,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
         
         // 使用基础的 fetchData 方法获取数据
-        return try await fetchData(from: url, headers: allHeaders)
+        return try await fetchData(from: url, headers: allHeaders, noRetryKeywords: noRetryKeywords)
     }
 
     // POST请求带Token的方法
@@ -238,7 +247,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
 enum NetworkError: LocalizedError {
     case invalidURL
     case invalidResponse
-    case httpError(statusCode: Int)
+    case httpError(statusCode: Int, message: String? = nil)
     case invalidImageData
     case noValidPrice
     case invalidData
@@ -255,7 +264,10 @@ enum NetworkError: LocalizedError {
             return NSLocalizedString("Network_Error_Invalid_URL", comment: "")
         case .invalidResponse:
             return NSLocalizedString("Network_Error_Invalid_Response", comment: "")
-        case .httpError(let statusCode):
+        case .httpError(let statusCode, let message):
+            if let message = message {
+                return "\(String(format: NSLocalizedString("Network_Error_HTTP_Error", comment: ""), statusCode)): \(message)"
+            }
             return String(format: NSLocalizedString("Network_Error_HTTP_Error", comment: ""), statusCode)
         case .invalidImageData:
             return NSLocalizedString("Network_Error_Invalid_Image", comment: "")
@@ -300,13 +312,20 @@ extension NetworkManager: NSCacheDelegate {
 class RequestRetrier {
     private let maxAttempts: Int
     private let retryDelay: TimeInterval
+    private var noRetryKeywords: [String]
     
-    init(maxAttempts: Int = 3, retryDelay: TimeInterval = 1.0) {
+    init(maxAttempts: Int = 3, retryDelay: TimeInterval = 1.0, noRetryKeywords: [String] = []) {
         self.maxAttempts = maxAttempts
         self.retryDelay = retryDelay
+        self.noRetryKeywords = noRetryKeywords
     }
     
-    func execute<T>(_ operation: () async throws -> T) async throws -> T {
+    func execute<T>(
+        noRetryKeywords: [String]? = nil,
+        _ operation: @escaping () async throws -> T
+    ) async throws -> T {
+        // 合并默认的和临时的不重试关键词
+        let keywords = Set(self.noRetryKeywords + (noRetryKeywords ?? []))
         var attempts = 0
         var lastError: Error?
         
@@ -316,12 +335,20 @@ class RequestRetrier {
             } catch {
                 lastError = error
                 
+                // 检查响应中是否包含不重试的关键词
+                if let networkError = error as? NetworkError,
+                   case .httpError(_, let message) = networkError,
+                   let errorMessage = message {
+                    if keywords.contains(where: { errorMessage.contains($0) }) {
+                        throw error // 如果包含关键词，直接抛出错误不重试
+                    }
+                }
+                
                 // 判断是否应该重试
                 guard shouldRetry(error) else { throw error }
                 
                 attempts += 1
                 if attempts < maxAttempts {
-                    // 使用指数退避策略计算延迟时间
                     let delay = UInt64(retryDelay * pow(2.0, Double(attempts))) * 1_000_000_000
                     try await Task.sleep(nanoseconds: delay)
                 }
@@ -332,8 +359,7 @@ class RequestRetrier {
     }
     
     private func shouldRetry(_ error: Error) -> Bool {
-        if case NetworkError.httpError(let statusCode) = error {
-            // 对于特定状态码进行重试
+        if case NetworkError.httpError(let statusCode, _) = error {
             return [500, 502, 503, 504].contains(statusCode)
         }
         return false
