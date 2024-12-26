@@ -69,6 +69,18 @@ struct EVE_NexusApp: App {
     @State private var needsUnzip = false
 
     init() {
+        // 打印 UserDefaults 中的所有键值
+        let defaults = UserDefaults.standard
+        let dictionary = defaults.dictionaryRepresentation()
+        Logger.info("UserDefaults 内容:")
+        var totalSize = 0
+        for (key, value) in dictionary {
+            let size = String(describing: value).utf8.count
+            totalSize += size
+            Logger.info("键: \(key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))")
+        }
+        Logger.info("UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))")
+        
         configureLanguage()
         validateTokens()
     }
