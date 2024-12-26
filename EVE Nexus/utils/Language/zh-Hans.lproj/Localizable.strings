@@ -97,7 +97,7 @@
 "Main_Setting_Cache_Item_Format" = "%@: %@ (%d 项)";
 "Main_Setting_Cache_Type_Network" = "网络缓存";
 "Main_Setting_Cache_Type_Memory" = "内存缓存";
-"Main_Setting_Cache_Type_CoreDataManager" = "用户设置";
+"Main_Setting_Cache_Type_UserDefaults" = "用户设置";
 "Main_Setting_Cache_Type_Temp" = "临时文件";
 "Main_Setting_Cache_Type_Database" = "数据库缓存";
 "Main_Setting_Cache_Type_StaticDataSet" = "静态数据集";

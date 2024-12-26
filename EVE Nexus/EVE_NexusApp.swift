@@ -67,20 +67,22 @@ struct EVE_NexusApp: App {
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
     @State private var needsUnzip = false
-    
+
     init() {
         configureLanguage()
         validateTokens()
     }
-    
+
     private func configureLanguage() {
         if let language = selectedLanguage {
-            Logger.debug("正在写入 CoreDataManager，键: AppleLanguages, 值: [\(language)]")
-            CoreDataManager.shared.set([language], forKey: "AppleLanguages")
+            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(language)]")
+            UserDefaults.standard.set([language], forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
         } else {
             let systemLanguage = Locale.preferredLanguages.first ?? "en"
-            Logger.debug("正在写入 CoreDataManager，键: AppleLanguages, 值: [\(systemLanguage)]")
-            CoreDataManager.shared.set([systemLanguage], forKey: "AppleLanguages")
+            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(systemLanguage)]")
+            UserDefaults.standard.set([systemLanguage], forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
         }
     }
     
@@ -91,7 +93,7 @@ struct EVE_NexusApp: App {
         
         // 获取当前保存的所有角色
         let characters = EVELogin.shared.loadCharacters()
-        Logger.info("App初始化: CoreDataManager 中保存了 \(characters.count) 个角色")
+        Logger.info("App初始化: UserDefaults 中保存了 \(characters.count) 个角色")
         
         // 打印详细信息
         for character in characters {
@@ -106,16 +108,16 @@ struct EVE_NexusApp: App {
             }
         }
     }
-    
+
     private func checkAndExtractIcons() async {
         guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
             Logger.error("icons.zip file not found in bundle")
             return
         }
-        
+
         let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
         let iconURL = URL(fileURLWithPath: iconPath)
-        
+
         // 检查是否已经成功解压过
         if IconManager.shared.isExtractionComplete,
            FileManager.default.fileExists(atPath: destinationPath.path),
@@ -128,17 +130,17 @@ struct EVE_NexusApp: App {
             }
             return
         }
-        
+
         // 需要解压
         await MainActor.run {
             needsUnzip = true
         }
-        
+
         // 如果目录存在但未完全解压，删除它重新解压
         if FileManager.default.fileExists(atPath: destinationPath.path) {
             try? FileManager.default.removeItem(at: destinationPath)
         }
-        
+
         do {
             try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) { progress in
                 Task { @MainActor in
@@ -156,7 +158,7 @@ struct EVE_NexusApp: App {
             IconManager.shared.isExtractionComplete = false
         }
     }
-    
+
     private func initializeApp() async {
         do {
             // 在图标解压完成后加载主权数据
@@ -174,7 +176,7 @@ struct EVE_NexusApp: App {
             }
         }
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ZStack {

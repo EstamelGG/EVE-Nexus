@@ -469,24 +469,24 @@ class EVELogin {
             Logger.info("EVELogin: 添加新角色信息")
         }
         
-        // 保存到 CoreDataManager
+        // 保存到 UserDefaults
         if let encodedData = try? JSONEncoder().encode(characters) {
             Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
-            CoreDataManager.shared.set(encodedData, forKey: charactersKey)
+            UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
     }
-    
+
     // 加载详细信息
     private func loadDetailedInfo(character: EVECharacterInfo) async throws -> EVECharacterInfo {
         // 获取角色详细信息
         let (skills, balance, location, skillQueue) = try await fetchCharacterDetails(characterId: character.CharacterID)
-        
+
         // 获取位置详细信息
         let locationInfo = await getSolarSystemInfo(
             solarSystemId: location.solar_system_id,
             databaseManager: databaseManager
         )
-        
+
         // 更新角色信息
         var updatedCharacter = character
         updatedCharacter.totalSkillPoints = skills.total_sp
@@ -495,7 +495,7 @@ class EVELogin {
         updatedCharacter.location = locationInfo
         updatedCharacter.locationStatus = location.locationStatus
         updatedCharacter.skillQueueLength = skillQueue.count
-        
+
         // 更新技能队列信息
         if let trainingSkill = skillQueue.first(where: { $0.isCurrentlyTraining }),
            let skillName = SkillTreeManager.shared.getSkillName(for: trainingSkill.skill_id) {
@@ -506,48 +506,48 @@ class EVELogin {
                 progress: trainingSkill.progress,
                 remainingTime: trainingSkill.remainingTime
             )
-            
+
             if let lastSkill = skillQueue.last,
                let finishTime = lastSkill.remainingTime {
                 updatedCharacter.queueFinishTime = finishTime
             }
         }
-        
+
         // 保存更新后的信息
         try await saveCharacterInfo(updatedCharacter)
-        
+
         Logger.info("EVELogin: 详细信息加载完成")
         return updatedCharacter
     }
-    
+
     // 执行后台刷新
     func performBackgroundRefresh() async throws {
         Logger.info("EVELogin: 开始执行后台刷新...")
-        
+
         // 获取所有角色
         let characters = loadCharacters()
         guard !characters.isEmpty else {
             Logger.info("EVELogin: 无需执行后台刷新，未找到角色信息")
             return
         }
-        
+
         // 为每个角色刷新令牌和信息
         for character in characters {
             do {
                 // 1. 刷新令牌
                 _ = try await AuthTokenManager.shared.getAccessToken(for: character.character.CharacterID)
                 Logger.info("EVELogin: 成功刷新角色 \(character.character.CharacterName) 的令牌")
-                
+
                 // 2. 更新角色信息
                 let updatedCharacter = try await loadDetailedInfo(character: character.character)
-                
+
                 // 3. 发送通知
                 NotificationCenter.default.post(
                     name: Notification.Name("CharacterDetailsUpdated"),
                     object: nil,
                     userInfo: ["character": updatedCharacter]
                 )
-                
+
                 Logger.info("EVELogin: 成功更新角色 \(character.character.CharacterName) 的信息")
             } catch {
                 Logger.error("EVELogin: 更新角色 \(character.character.CharacterName) 失败: \(error)")
@@ -555,82 +555,85 @@ class EVELogin {
                 continue
             }
         }
-        
+
         Logger.info("EVELogin: 后台刷新完成")
     }
-    
+
     // 获取角色信息
     private func getCharacterInfo(token: String) async throws -> EVECharacterInfo {
         guard let config = config,
               let verifyURL = URL(string: config.urls.verify) else {
             throw NetworkError.invalidURL
         }
-        
+
         var request = URLRequest(url: verifyURL)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         let (data, _) = try await session.data(for: request)
         var characterInfo = try JSONDecoder().decode(EVECharacterInfo.self, from: data)
-        
+
         // 获取角色的公开信息以更新军团和联盟ID
         let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterInfo.CharacterID)
         characterInfo.corporationId = publicInfo.corporation_id
         characterInfo.allianceId = publicInfo.alliance_id
-        
+
         return characterInfo
     }
-    
+
     // 加载保存的角色列表
     func loadCharacters() -> [CharacterAuth] {
-        guard let data = CoreDataManager.shared.data(forKey: charactersKey) else {
+        guard let data = UserDefaults.standard.data(forKey: charactersKey) else {
             return []
         }
-        
+
         do {
             var characters = try JSONDecoder().decode([CharacterAuth].self, from: data)
-            
+
             // 获取保存的顺序
-            if let savedOrder = CoreDataManager.shared.array(forKey: characterOrderKey) as? [Int] {
+            if let savedOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] {
                 // 创建一个字典，用于快速查找角色
                 let characterDict = Dictionary(uniqueKeysWithValues: characters.map { ($0.character.CharacterID, $0) })
-                
+
                 // 按保存的顺序重新排列角色
                 characters = savedOrder.compactMap { characterDict[$0] }
-                
+
                 // 添加可能存在的新角色（不在已保存顺序中的角色）
                 let savedCharacterIds = Set(savedOrder)
                 let unsortedCharacters = characters.filter { !savedCharacterIds.contains($0.character.CharacterID) }
                 characters.append(contentsOf: unsortedCharacters)
             }
-            
+
             return characters
         } catch {
             Logger.error("EVELogin: 加载角色信息失败: \(error)")
             return []
         }
     }
-    
+
     // 移除角色
     func removeCharacter(characterId: Int) {
-        // 从 CoreDataManager 中移除角色信息
+        // 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
-        
+
         if let encodedData = try? JSONEncoder().encode(characters) {
             Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
-            CoreDataManager.shared.set(encodedData, forKey: charactersKey)
+            UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
-        
+
         // 清除 AuthTokenManager 中的缓存
         Task {
             await AuthTokenManager.shared.clearTokens(for: characterId)
         }
+
+        UserDefaults.standard.synchronize()
     }
-    
+
     // 保存角色顺序
     func saveCharacterOrder(_ characterIds: [Int]) {
         Logger.info("正在缓存角色顺序数据, key: \(charactersKey), 数据大小: \(characterIds.count) bytes")
-        CoreDataManager.shared.set(characterIds, forKey: characterOrderKey)
+        UserDefaults.standard.set(characterIds, forKey: characterOrderKey)
+        UserDefaults.standard.synchronize()
     }
     
     // 获取指定ID的角色
@@ -687,7 +690,7 @@ class EVELogin {
         configWithScopes.scopes = allScopes
         self.config = configWithScopes
     }
-    
+
     
     // 重置token状态
     func resetTokenExpired(characterId: Int) {

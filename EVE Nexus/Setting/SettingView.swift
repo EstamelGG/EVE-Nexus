@@ -48,8 +48,8 @@ class CacheManager {
         // 2. NSCache统计
         stats["Memory"] = getNSCacheStats()
         
-        // 3. CoreDataManager统计
-        stats["CoreDataManager"] = getCoreDataManagerStats()
+        // 3. UserDefaults统计
+        stats["UserDefaults"] = getUserDefaultsStats()
         
         // 4. 临时文件统计
         stats["Temp"] = await getTempFileStats()
@@ -73,15 +73,15 @@ class CacheManager {
         )
     }
     
-    // 获取CoreDataManager统计
-    private func getCoreDataManagerStats() -> CacheStats {
-        let defaults = CoreDataManager.shared
+    // 获取UserDefaults统计
+    private func getUserDefaultsStats() -> CacheStats {
+        let defaults = UserDefaults.standard
         let dictionary = defaults.dictionaryRepresentation()
         
         var totalSize: Int64 = 0
         let count = dictionary.count
         
-        // 计算CoreDataManager大小
+        // 计算UserDefaults大小
         for (key, value) in dictionary {
             if let data = value as? Data {
                 totalSize += Int64(data.count)
@@ -103,7 +103,7 @@ class CacheManager {
             totalSize += Int64(key.utf8.count)
         }
         
-        Logger.debug("CoreDataManager 统计 - 总条目: \(count), 总大小: \(totalSize) bytes")
+        Logger.debug("UserDefaults 统计 - 总条目: \(count), 总大小: \(totalSize) bytes")
         return CacheStats(size: totalSize, count: count)
     }
     
@@ -175,7 +175,7 @@ class CacheManager {
         
         // 3. 清理入侵相关缓存
         await MainActor.run {
-            CoreDataManager.shared.removeObject(forKey: "incursions_cache")
+            UserDefaults.standard.removeObject(forKey: "incursions_cache")
             InfestedSystemsViewModel.clearCache()
         }
         
@@ -588,8 +588,8 @@ struct SettingView: View {
             return NSLocalizedString("Main_Setting_Cache_Type_Network", comment: "")
         case "Memory":
             return NSLocalizedString("Main_Setting_Cache_Type_Memory", comment: "")
-        case "CoreDataManager":
-            return NSLocalizedString("Main_Setting_Cache_Type_CoreDataManager", comment: "")
+        case "UserDefaults":
+            return NSLocalizedString("Main_Setting_Cache_Type_UserDefaults", comment: "")
         case "Temp":
             return NSLocalizedString("Main_Setting_Cache_Type_Temp", comment: "")
         case "Database":

@@ -84,7 +84,7 @@ class SovereigntyDataAPI {
     // MARK: - 私有方法
     
     private func loadFromCache() throws -> [SovereigntyData]? {
-        guard let cachedData = CoreDataManager.shared.data(forKey: cacheKey),
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
               let cached = try? JSONDecoder().decode(CachedData.self, from: cachedData),
               cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
             return nil
@@ -98,6 +98,6 @@ class SovereigntyDataAPI {
         let cachedData = CachedData(data: sovereignty, timestamp: Date())
         let encodedData = try JSONEncoder().encode(cachedData)
         Logger.info("正在缓存主权数据, key: \(cacheKey), 数据大小: \(encodedData.count) bytes")
-        CoreDataManager.shared.set(encodedData, forKey: cacheKey)
+        UserDefaults.standard.set(encodedData, forKey: cacheKey)
     }
 } 

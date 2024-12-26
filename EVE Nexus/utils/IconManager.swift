@@ -8,7 +8,7 @@ class IconManager {
     private let fileManager = FileManager.default
     private var imageCache = NSCache<NSString, UIImage>()
     private var iconsDirectory: URL?
-    private let defaults = CoreDataManager.shared
+    private let defaults = UserDefaults.standard
     private let extractionStateKey = "IconExtractionComplete"
     
     private init() {
@@ -30,11 +30,11 @@ class IconManager {
     
     var isExtractionComplete: Bool {
         get {
-            Logger.debug("正在从 CoreDataManager 读取键: \(extractionStateKey)")
+            Logger.debug("正在从 UserDefaults 读取键: \(extractionStateKey)")
             return defaults.bool(forKey: extractionStateKey)
         }
         set {
-            Logger.debug("正在写入 CoreDataManager，键: \(extractionStateKey), 值: \(newValue)")
+            Logger.debug("正在写入 UserDefaults，键: \(extractionStateKey), 值: \(newValue)")
             defaults.set(newValue, forKey: extractionStateKey)
         }
     }

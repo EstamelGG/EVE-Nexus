@@ -89,7 +89,8 @@ struct SelectLanguageView: View {
         storedLanguage = languageCode
         
         // 2. 更新语言设置
-        CoreDataManager.shared.set([languageCode], forKey: "AppleLanguages")
+        UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
+        UserDefaults.standard.synchronize()
         
         // 3. 应用新的语言设置
         if let languageBundlePath = Bundle.main.path(forResource: languageCode, ofType: "lproj"),

@@ -159,7 +159,7 @@ public class CharacterSkillsAPI {
     // 缓存超时时间
     private let cacheTimeout: TimeInterval = 1800 // 30分钟缓存
     
-    // CoreDataManager键前缀
+    // UserDefaults键前缀
     private let skillsCachePrefix = "skills_cache_"
     private let queueCachePrefix = "queue_cache_"
     
@@ -174,41 +174,41 @@ public class CharacterSkillsAPI {
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
-    // 从CoreDataManager获取技能缓存
+    // 从UserDefaults获取技能缓存
     private func getSkillsDiskCache(characterId: Int) -> SkillsCacheEntry? {
         let key = skillsCachePrefix + String(characterId)
-        guard let data = CoreDataManager.shared.data(forKey: key),
+        guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(SkillsCacheEntry.self, from: data) else {
             return nil
         }
         return cache
     }
     
-    // 从CoreDataManager获取技能队列缓存
+    // 从UserDefaults获取技能队列缓存
     private func getQueueDiskCache(characterId: Int) -> QueueCacheEntry? {
         let key = queueCachePrefix + String(characterId)
-        guard let data = CoreDataManager.shared.data(forKey: key),
+        guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(QueueCacheEntry.self, from: data) else {
             return nil
         }
         return cache
     }
     
-    // 保存技能缓存到CoreDataManager
+    // 保存技能缓存到UserDefaults
     private func saveSkillsToDiskCache(characterId: Int, cache: SkillsCacheEntry) {
         let key = skillsCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 CoreDataManager，键: \(key), 数据大小: \(encoded.count) bytes")
-            CoreDataManager.shared.set(encoded, forKey: key)
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
-    // 保存技能队列缓存到CoreDataManager
+    // 保存技能队列缓存到UserDefaults
     private func saveQueueToDiskCache(characterId: Int, cache: QueueCacheEntry) {
         let key = queueCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 CoreDataManager，键: \(key), 数据大小: \(encoded.count) bytes")
-            CoreDataManager.shared.set(encoded, forKey: key)
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
@@ -254,8 +254,8 @@ public class CharacterSkillsAPI {
             // 清除磁盘缓存
             let skillsKey = self.skillsCachePrefix + String(characterId)
             let queueKey = self.queueCachePrefix + String(characterId)
-            CoreDataManager.shared.removeObject(forKey: skillsKey)
-            CoreDataManager.shared.removeObject(forKey: queueKey)
+            UserDefaults.standard.removeObject(forKey: skillsKey)
+            UserDefaults.standard.removeObject(forKey: queueKey)
         }
     }
     

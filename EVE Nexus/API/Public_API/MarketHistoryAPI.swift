@@ -43,7 +43,7 @@ enum MarketHistoryAPIError: LocalizedError {
 @MarketHistoryAPIActor
 class MarketHistoryAPI {
     static let shared = MarketHistoryAPI()
-    private let defaults = CoreDataManager.shared
+    private let defaults = UserDefaults.standard
     private let cacheDuration: TimeInterval = 60 * 60 // 1小时缓存
     
     private init() {}

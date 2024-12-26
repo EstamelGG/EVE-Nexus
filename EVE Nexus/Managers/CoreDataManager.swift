@@ -23,33 +23,6 @@ class CoreDataManager {
     
     // MARK: - UserDefaults 风格的接口
     
-    func dictionaryRepresentation() -> [String: Any] {
-        let fetchRequest: NSFetchRequest<CacheEntry> = CacheEntry.fetchRequest()
-        
-        do {
-            let entries = try context.fetch(fetchRequest)
-            var result: [String: Any] = [:]
-            
-            for entry in entries {
-                if let key = entry.key,
-                   let data = entry.data {
-                    // 尝试解码数据
-                    if let object = try? NSKeyedUnarchiver.unarchivedObject(ofClasses: [NSArray.self, NSDictionary.self, NSString.self, NSNumber.self, NSData.self], from: data) {
-                        result[key] = object
-                    } else {
-                        // 如果解码失败，直接存储原始数据
-                        result[key] = data
-                    }
-                }
-            }
-            
-            return result
-        } catch {
-            Logger.error("CoreData 获取所有数据失败: \(error)")
-            return [:]
-        }
-    }
-    
     func set(_ value: Any?, forKey key: String) {
         guard let value = value else {
             removeObject(forKey: key)

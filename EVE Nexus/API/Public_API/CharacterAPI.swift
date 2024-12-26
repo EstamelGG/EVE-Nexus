@@ -34,7 +34,7 @@ final class CharacterAPI: @unchecked Sendable {
     // 缓存超时时间
     private let publicInfoCacheTimeout: TimeInterval = 3600 // 1小时
     
-    // CoreDataManager键前缀
+    // UserDefaults键前缀
     private let publicInfoCachePrefix = "character_public_info_"
     
     private init() {
@@ -74,23 +74,23 @@ final class CharacterAPI: @unchecked Sendable {
         return Date().timeIntervalSince(cache.timestamp) < publicInfoCacheTimeout
     }
     
-    // 从CoreDataManager获取公开信息缓存
+    // 从UserDefaults获取公开信息缓存
     private func getPublicInfoDiskCache(characterId: Int) -> PublicInfoCacheEntry? {
         let key = publicInfoCachePrefix + String(characterId)
-        Logger.debug("正在从 CoreDataManager 读取键: \(key)")
-        guard let data = CoreDataManager.shared.data(forKey: key),
+        Logger.debug("正在从 UserDefaults 读取键: \(key)")
+        guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(PublicInfoCacheEntry.self, from: data) else {
             return nil
         }
         return cache
     }
     
-    // 保存公开信息缓存到CoreDataManager
+    // 保存公开信息缓存到UserDefaults
     private func savePublicInfoToDiskCache(characterId: Int, cache: PublicInfoCacheEntry) {
         let key = publicInfoCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 CoreDataManager，键: \(key), 数据大小: \(encoded.count) bytes")
-            CoreDataManager.shared.set(encoded, forKey: key)
+            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
+            UserDefaults.standard.set(encoded, forKey: key)
         }
     }
     
@@ -102,8 +102,8 @@ final class CharacterAPI: @unchecked Sendable {
         await withCheckedContinuation { continuation in
             cacheQueue.async(flags: .barrier) { [weak self] in
                 self?.publicInfoMemoryCache.removeValue(forKey: characterId)
-                Logger.debug("正在从 CoreDataManager 删除键: \(publicInfoKey)")
-                CoreDataManager.shared.removeObject(forKey: publicInfoKey)
+                Logger.debug("正在从 UserDefaults 删除键: \(publicInfoKey)")
+                UserDefaults.standard.removeObject(forKey: publicInfoKey)
                 continuation.resume()
             }
         }
@@ -170,10 +170,10 @@ final class CharacterAPI: @unchecked Sendable {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
         let cacheKey = "character_portrait_\(characterId)_\(size)"
         
-        // 1. 首先尝试从 CoreDataManager 读取
-        if !forceRefresh, let cachedData = CoreDataManager.shared.data(forKey: cacheKey),
+        // 1. 首先尝试从 UserDefaults 读取
+        if !forceRefresh, let cachedData = UserDefaults.standard.data(forKey: cacheKey),
            let cachedImage = UIImage(data: cachedData) {
-            Logger.info("从 CoreDataManager 加载角色头像成功 - 角色ID: \(characterId), 数据大小: \(cachedData.count) bytes")
+            Logger.info("从 UserDefaults 加载角色头像成功 - 角色ID: \(characterId), 数据大小: \(cachedData.count) bytes")
             return cachedImage
         }
         
@@ -198,10 +198,10 @@ final class CharacterAPI: @unchecked Sendable {
             KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
                 switch result {
                 case .success(let imageResult):
-                    // 保存到 CoreDataManager
+                    // 保存到 UserDefaults
                     if let imageData = imageResult.image.jpegData(compressionQuality: 0.8) {
                         Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(imageData.count) bytes")
-                        CoreDataManager.shared.set(imageData, forKey: cacheKey)
+                        UserDefaults.standard.set(imageData, forKey: cacheKey)
                     }
                     continuation.resume(returning: imageResult.image)
                 case .failure(let error):

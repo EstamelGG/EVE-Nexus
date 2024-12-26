@@ -79,8 +79,8 @@ class CorporationAPI {
         
         // 检查缓存
         if !forceRefresh,
-           let cachedData = CoreDataManager.shared.data(forKey: cacheKey),
-           let lastUpdateTime = CoreDataManager.shared.object(forKey: cacheTimeKey) as? Date,
+           let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let lastUpdateTime = UserDefaults.standard.object(forKey: cacheTimeKey) as? Date,
            Date().timeIntervalSince(lastUpdateTime) < 7 * 24 * 3600 {
             do {
                 let info = try JSONDecoder().decode(CorporationInfo.self, from: cachedData)
@@ -102,8 +102,8 @@ class CorporationAPI {
         
         // 更新缓存
         Logger.info("成功缓存军团信息, key: \(cacheKey), 数据大小: \(data.count) bytes")
-        CoreDataManager.shared.set(data, forKey: cacheKey)
-        CoreDataManager.shared.set(Date(), forKey: cacheTimeKey)
+        UserDefaults.standard.set(data, forKey: cacheKey)
+        UserDefaults.standard.set(Date(), forKey: cacheTimeKey)
         
         Logger.info("成功获取军团信息 - 军团ID: \(corporationId)")
         return info
