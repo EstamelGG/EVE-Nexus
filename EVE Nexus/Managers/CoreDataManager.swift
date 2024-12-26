@@ -25,7 +25,7 @@ class CoreDataManager {
     
     func set(_ value: Any?, forKey key: String) {
         guard let value = value else {
-            removeObject(forKey: key)
+            removeValue(forKey: key)
             return
         }
         
@@ -94,7 +94,7 @@ class CoreDataManager {
         }
     }
     
-    func removeObject(forKey key: String) {
+    func removeValue(forKey key: String) {
         let fetchRequest: NSFetchRequest<CacheEntry> = CacheEntry.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "key == %@", key)
         
@@ -121,34 +121,28 @@ class CoreDataManager {
         }
     }
     
-    // MARK: - 便捷方法
+    // MARK: - 辅助方法
     
-    func integer(forKey key: String) -> Int {
-        return object(forKey: key) as? Int ?? 0
+    func getValue<T: Codable>(forKey key: String) -> T? {
+        guard let data = data(forKey: key) else {
+            return nil
+        }
+        
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            Logger.error("CoreData 解码失败 - Key: \(key), 错误: \(error)")
+            return nil
+        }
     }
     
-    func float(forKey key: String) -> Float {
-        return object(forKey: key) as? Float ?? 0.0
-    }
-    
-    func double(forKey key: String) -> Double {
-        return object(forKey: key) as? Double ?? 0.0
-    }
-    
-    func bool(forKey key: String) -> Bool {
-        return object(forKey: key) as? Bool ?? false
-    }
-    
-    func string(forKey key: String) -> String? {
-        return object(forKey: key) as? String
-    }
-    
-    func array(forKey key: String) -> [Any]? {
-        return object(forKey: key) as? [Any]
-    }
-    
-    func dictionary(forKey key: String) -> [String: Any]? {
-        return object(forKey: key) as? [String: Any]
+    func setValue<T: Codable>(_ value: T, forKey key: String) {
+        do {
+            let data = try JSONEncoder().encode(value)
+            set(data, forKey: key)
+        } catch {
+            Logger.error("CoreData 编码失败 - Key: \(key), 错误: \(error)")
+        }
     }
     
     // MARK: - 统计方法
@@ -163,20 +157,6 @@ class CoreDataManager {
         } catch {
             Logger.error("CoreData 获取统计信息失败: \(error)")
             return (0, 0)
-        }
-    }
-    
-    // MARK: - 同步方法
-    
-    func synchronize() -> Bool {
-        do {
-            if context.hasChanges {
-                try context.save()
-            }
-            return true
-        } catch {
-            Logger.error("CoreData 同步失败: \(error)")
-            return false
         }
     }
 } 
