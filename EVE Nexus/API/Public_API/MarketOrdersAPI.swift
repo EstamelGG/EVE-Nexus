@@ -67,7 +67,6 @@ enum MarketAPIError: LocalizedError {
 @MarketOrdersAPIActor
 class MarketOrdersAPI {
     static let shared = MarketOrdersAPI()
-    private let defaults = UserDefaults.standard
     private let cacheDuration: TimeInterval = 5 * 60 // 5分钟缓存
     
     private init() {}
@@ -77,14 +76,50 @@ class MarketOrdersAPI {
         let timestamp: Date
     }
     
-    // MARK: - 公共方法
+    // MARK: - 缓存方法
+    private func getCacheDirectory() -> URL? {
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let cacheDirectory = documentsDirectory.appendingPathComponent("MarketCache", isDirectory: true)
+        
+        // 确保缓存目录存在
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+        
+        return cacheDirectory
+    }
     
-    /// 获取市场订单数据
-    /// - Parameters:
-    ///   - typeID: 物品ID
-    ///   - regionID: 星域ID
-    ///   - forceRefresh: 是否强制刷新
-    /// - Returns: 市场订单数据数组
+    private func getCacheFilePath(typeID: Int, regionID: Int) -> URL? {
+        guard let cacheDirectory = getCacheDirectory() else { return nil }
+        return cacheDirectory.appendingPathComponent("market_orders_\(typeID)_\(regionID).json")
+    }
+    
+    private func loadFromCache(typeID: Int, regionID: Int) -> [MarketOrder]? {
+        guard let cacheFile = getCacheFilePath(typeID: typeID, regionID: regionID),
+              let data = try? Data(contentsOf: cacheFile),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的市场订单数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ orders: [MarketOrder], typeID: Int, regionID: Int) {
+        guard let cacheFile = getCacheFilePath(typeID: typeID, regionID: regionID) else { return }
+        
+        let cachedData = CachedData(data: orders, timestamp: Date())
+        do {
+            let encodedData = try JSONEncoder().encode(cachedData)
+            try encodedData.write(to: cacheFile)
+            Logger.info("市场订单数据已缓存到文件")
+        } catch {
+            Logger.error("保存市场订单缓存失败: \(error)")
+        }
+    }
+    
+    // MARK: - 公共方法
     func fetchMarketOrders(typeID: Int, regionID: Int, forceRefresh: Bool = false) async throws -> [MarketOrder] {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
@@ -110,34 +145,8 @@ class MarketOrdersAPI {
         let orders = try JSONDecoder().decode([MarketOrder].self, from: data)
         
         // 保存到缓存
-        try? saveToCache(orders, typeID: typeID, regionID: regionID)
+        saveToCache(orders, typeID: typeID, regionID: regionID)
         
         return orders
-    }
-    
-    // MARK: - 私有方法
-    
-    private func getCacheKey(typeID: Int, regionID: Int) -> String {
-        return "market_orders_\(typeID)_\(regionID)"
-    }
-    
-    private func loadFromCache(typeID: Int, regionID: Int) -> [MarketOrder]? {
-        let key = getCacheKey(typeID: typeID, regionID: regionID)
-        guard let data = defaults.data(forKey: key),
-              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
-              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
-            return nil
-        }
-        
-        Logger.info("使用缓存的市场订单数据")
-        return cached.data
-    }
-    
-    private func saveToCache(_ orders: [MarketOrder], typeID: Int, regionID: Int) throws {
-        let key = getCacheKey(typeID: typeID, regionID: regionID)
-        let cachedData = CachedData(data: orders, timestamp: Date())
-        let encodedData = try JSONEncoder().encode(cachedData)
-        defaults.set(encodedData, forKey: key)
-        Logger.info("市场订单数据已缓存")
     }
 } 

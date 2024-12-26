@@ -43,7 +43,6 @@ enum MarketHistoryAPIError: LocalizedError {
 @MarketHistoryAPIActor
 class MarketHistoryAPI {
     static let shared = MarketHistoryAPI()
-    private let defaults = UserDefaults.standard
     private let cacheDuration: TimeInterval = 60 * 60 // 1小时缓存
     
     private init() {}
@@ -53,14 +52,50 @@ class MarketHistoryAPI {
         let timestamp: Date
     }
     
-    // MARK: - 公共方法
+    // MARK: - 缓存方法
+    private func getCacheDirectory() -> URL? {
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let cacheDirectory = documentsDirectory.appendingPathComponent("MarketCache", isDirectory: true)
+        
+        // 确保缓存目录存在
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+        
+        return cacheDirectory
+    }
     
-    /// 获取市场历史数据
-    /// - Parameters:
-    ///   - typeID: 物品ID
-    ///   - regionID: 星域ID
-    ///   - forceRefresh: 是否强制刷新
-    /// - Returns: 市场历史数据数组
+    private func getCacheFilePath(typeID: Int, regionID: Int) -> URL? {
+        guard let cacheDirectory = getCacheDirectory() else { return nil }
+        return cacheDirectory.appendingPathComponent("market_history_\(typeID)_\(regionID).json")
+    }
+    
+    private func loadFromCache(typeID: Int, regionID: Int) -> [MarketHistory]? {
+        guard let cacheFile = getCacheFilePath(typeID: typeID, regionID: regionID),
+              let data = try? Data(contentsOf: cacheFile),
+              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
+              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的市场历史数据")
+        return cached.data
+    }
+    
+    private func saveToCache(_ history: [MarketHistory], typeID: Int, regionID: Int) {
+        guard let cacheFile = getCacheFilePath(typeID: typeID, regionID: regionID) else { return }
+        
+        let cachedData = CachedData(data: history, timestamp: Date())
+        do {
+            let encodedData = try JSONEncoder().encode(cachedData)
+            try encodedData.write(to: cacheFile)
+            Logger.info("市场历史数据已缓存到文件")
+        } catch {
+            Logger.error("保存市场历史缓存失败: \(error)")
+        }
+    }
+    
+    // MARK: - 公共方法
     func fetchMarketHistory(typeID: Int, regionID: Int, forceRefresh: Bool = false) async throws -> [MarketHistory] {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
@@ -86,34 +121,8 @@ class MarketHistoryAPI {
         let history = try JSONDecoder().decode([MarketHistory].self, from: data)
         
         // 保存到缓存
-        try? saveToCache(history, typeID: typeID, regionID: regionID)
+        saveToCache(history, typeID: typeID, regionID: regionID)
         
         return history
-    }
-    
-    // MARK: - 私有方法
-    
-    private func getCacheKey(typeID: Int, regionID: Int) -> String {
-        return "market_history_\(typeID)_\(regionID)"
-    }
-    
-    private func loadFromCache(typeID: Int, regionID: Int) -> [MarketHistory]? {
-        let key = getCacheKey(typeID: typeID, regionID: regionID)
-        guard let data = defaults.data(forKey: key),
-              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
-              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
-            return nil
-        }
-        
-        Logger.info("使用缓存的市场历史数据")
-        return cached.data
-    }
-    
-    private func saveToCache(_ history: [MarketHistory], typeID: Int, regionID: Int) throws {
-        let key = getCacheKey(typeID: typeID, regionID: regionID)
-        let cachedData = CachedData(data: history, timestamp: Date())
-        let encodedData = try JSONEncoder().encode(cachedData)
-        defaults.set(encodedData, forKey: key)
-        Logger.info("市场历史数据已缓存")
     }
 } 
