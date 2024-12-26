@@ -68,12 +68,18 @@ struct WalletJournalView: View {
         .task {
             await loadJournalData()
         }
+        .refreshable {
+            await loadJournalData(forceRefresh: true)
+        }
     }
     
-    private func loadJournalData() async {
+    private func loadJournalData(forceRefresh: Bool = false) async {
+        isLoading = true
+        errorMessage = nil
+        
         do {
             // 获取钱包日志数据
-            guard let jsonString = try await CharacterWalletAPI.shared.getWalletJournal(characterId: characterId) else {
+            guard let jsonString = try await CharacterWalletAPI.shared.getWalletJournal(characterId: characterId, forceRefresh: forceRefresh) else {
                 throw NetworkError.invalidResponse
             }
             
@@ -86,14 +92,18 @@ struct WalletJournalView: View {
             // 按日期分组
             let groupedEntries = Dictionary(grouping: entries) { entry -> Date in
                 if let date = dateFormatter.date(from: entry.date) {
-                    return Calendar.current.startOfDay(for: date)
+                    // 使用UTC时区的日历来获取日期组件
+                    var calendar = Calendar(identifier: .gregorian)
+                    calendar.timeZone = TimeZone(identifier: "UTC")!
+                    let components = calendar.dateComponents([.year, .month, .day], from: date)
+                    return calendar.date(from: components) ?? date
                 }
                 return Date()
             }
             
             // 转换为数组并排序
             let groups = groupedEntries.map { (date, entries) in
-                WalletJournalGroup(date: date, entries: entries.sorted { $0.date > $1.date })
+                WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
             }.sorted { $0.date > $1.date }
             
             // 更新UI
@@ -140,16 +150,16 @@ struct WalletJournalEntryRow: View {
                 
                 Spacer()
                 
-                Text(FormatUtil.format(entry.amount))
+                Text("\(FormatUtil.format(entry.amount)) ISK")
                     .foregroundColor(entry.amount >= 0 ? .green : .red)
                     .font(.system(.body, design: .monospaced))
             }
             
             Text(entry.description)
-                .font(.body)
-                .lineLimit(2)
+                .font(.caption)
+                .lineLimit(1)
             
-            Text(FormatUtil.format(entry.balance) + " ISK")
+            Text("Balance:\(FormatUtil.format(entry.balance)) ISK")
                 .font(.caption)
                 .foregroundColor(.gray)
         }

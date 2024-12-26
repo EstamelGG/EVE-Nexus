@@ -227,13 +227,6 @@ class CharacterWalletAPI {
                 
                 let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
                 
-                // 检查是否是空页面响应
-                if let errorString = String(data: data, encoding: .utf8),
-                   errorString.contains("Requested page does not exist") {
-                    Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")
-                    break
-                }
-                
                 // 解析JSON数据
                 guard let pageEntries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
                     throw NetworkError.invalidResponse
@@ -246,17 +239,25 @@ class CharacterWalletAPI {
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
                 
             } catch let error as NetworkError {
-                if case .httpError(let statusCode) = error, statusCode == 404 {
-                    if !allJournalEntries.isEmpty {
-                        break
-                    }
+                if case .httpError(let statusCode) = error, statusCode == 500 || statusCode == 404 {
+                    // 这是正常的分页结束情况
+                    Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")
+                    break
                 }
-                Logger.error("获取钱包日志失败: \(error)")
+                // 其他网络错误则抛出
                 throw error
             } catch {
-                Logger.error("获取钱包日志失败: \(error)")
                 throw error
             }
+        }
+        
+        // 如果没有获取到任何数据，返回空数组
+        if allJournalEntries.isEmpty {
+            let emptyJsonData = try JSONSerialization.data(withJSONObject: [], options: [.prettyPrinted, .sortedKeys])
+            guard let jsonString = String(data: emptyJsonData, encoding: .utf8) else {
+                throw NetworkError.invalidResponse
+            }
+            return jsonString
         }
         
         // 转换为JSON字符串
@@ -267,7 +268,7 @@ class CharacterWalletAPI {
         
         // 保存到缓存
         saveJournalToCache(jsonString: jsonString, characterId: characterId)
-        
+        Logger.debug("Wallet journey: \(jsonString)")
         return jsonString
     }
 } 
