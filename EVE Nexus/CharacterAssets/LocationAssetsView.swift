@@ -217,6 +217,24 @@ class LocationAssetsViewModel: ObservableObject {
         itemInfoCache[typeId]
     }
     
+    // 判断物品是否为容器类型
+    private func isContainer(typeId: Int) -> Bool {
+        // 这里列出所有容器类型的type_id
+        let containerTypeIds = Set([
+            33003,  // 便携式仓库
+            17366,  // 安全容器
+            17367,  // 审计日志安全容器
+            17368,  // 通用货运集装箱
+            3293,   // 中型标准货柜
+            3296,   // 大型标准货柜
+            3297,   // 巨型标准货柜
+            11488,  // 锚定货柜
+            11489,  // 锚定安全货柜
+            // 可以继续添加其他容器类型的type_id
+        ])
+        return containerTypeIds.contains(typeId)
+    }
+    
     // 按location_flag分组的资产
     func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
         let items = location.items ?? []
@@ -253,14 +271,18 @@ class LocationAssetsViewModel: ObservableObject {
         return grouped.map { flag, items in
             // 对每个分组内的物品进行合并
             let mergedItems = Dictionary(grouping: items) { item in
-                // 使用type_id和name作为合并的key
-                "\(item.node.type_id)_\(item.node.name ?? "")"
+                // 如果是容器类型或者有子物品的船只，使用唯一标识符防止合并
+                if isContainer(typeId: item.node.type_id) || item.node.items != nil {
+                    return "\(item.node.type_id)_\(item.node.name ?? "")_\(item.node.item_id)"
+                }
+                // 非容器类物品使用type_id和name作为合并的key
+                return "\(item.node.type_id)_\(item.node.name ?? "")"
             }.map { _, sameItems -> AssetTreeNode in
                 let firstItem = sameItems[0].node
-                let totalQuantity = sameItems.reduce(0) { $0 + $1.node.quantity }
                 
-                // 如果数量大于1，创建新的节点
-                if sameItems.count > 1 || totalQuantity > 1 {
+                // 只有在非容器且数量大于1时才合并
+                if !isContainer(typeId: firstItem.type_id) && firstItem.items == nil && (sameItems.count > 1 || firstItem.quantity > 1) {
+                    let totalQuantity = sameItems.reduce(0) { $0 + $1.node.quantity }
                     return AssetTreeNode(
                         location_id: firstItem.location_id,
                         item_id: firstItem.item_id,
@@ -275,7 +297,7 @@ class LocationAssetsViewModel: ObservableObject {
                         system_name: firstItem.system_name,
                         region_name: firstItem.region_name,
                         security_status: firstItem.security_status,
-                        items: firstItem.items
+                        items: nil
                     )
                 } else {
                     return firstItem
