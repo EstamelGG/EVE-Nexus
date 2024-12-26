@@ -31,15 +31,23 @@ struct WalletJournalView: View {
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
+    }()
+    
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
     }()
     
     var body: some View {
@@ -55,7 +63,7 @@ struct WalletJournalView: View {
                     .foregroundColor(.red)
             } else {
                 ForEach(journalGroups) { group in
-                    Section(header: Text(displayDateFormatter.string(from: group.date))) {
+                    Section(header: Text(displayDateFormatter.string(from: group.date)).textCase(.none)) {
                         ForEach(group.entries, id: \.id) { entry in
                             WalletJournalEntryRow(entry: entry)
                         }
@@ -90,19 +98,24 @@ struct WalletJournalView: View {
             }
             
             // 按日期分组
-            let groupedEntries = Dictionary(grouping: entries) { entry -> Date in
-                if let date = dateFormatter.date(from: entry.date) {
-                    // 使用UTC时区的日历来获取日期组件
-                    var calendar = Calendar(identifier: .gregorian)
-                    calendar.timeZone = TimeZone(identifier: "UTC")!
-                    let components = calendar.dateComponents([.year, .month, .day], from: date)
-                    return calendar.date(from: components) ?? date
+            var groupedEntries: [Date: [WalletJournalEntry]] = [:]
+            for entry in entries {
+                guard let date = dateFormatter.date(from: entry.date) else {
+                    print("Failed to parse date: \(entry.date)")
+                    continue
                 }
-                return Date()
+                
+                let components = calendar.dateComponents([.year, .month, .day], from: date)
+                guard let dayDate = calendar.date(from: components) else {
+                    print("Failed to create date from components for: \(entry.date)")
+                    continue
+                }
+                
+                groupedEntries[dayDate, default: []].append(entry)
             }
             
             // 转换为数组并排序
-            let groups = groupedEntries.map { (date, entries) in
+            let groups = groupedEntries.map { (date, entries) -> WalletJournalGroup in
                 WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
             }.sorted { $0.date > $1.date }
             
