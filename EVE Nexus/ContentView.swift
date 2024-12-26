@@ -1081,7 +1081,7 @@ struct ContentView: View {
                         }
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Market Orders", comment: ""),
+                        title: NSLocalizedString("Main_Market_Orders", comment: ""),
                         iconName: "marketdeliveries"
                     ),
                     TableRowNode(
@@ -1089,15 +1089,15 @@ struct ContentView: View {
                         iconName: "contracts"
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Market Transactions", comment: ""),
+                        title: NSLocalizedString("Main_Market_Transactions", comment: ""),
                         iconName: "journal"
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Wallet Journal", comment: ""),
+                        title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
                         iconName: "wallet"
                     ),
                     TableRowNode(
-                        title: NSLocalizedString("Main_Industry Jobs", comment: ""),
+                        title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
                         iconName: "industry"
                     )
                 ]

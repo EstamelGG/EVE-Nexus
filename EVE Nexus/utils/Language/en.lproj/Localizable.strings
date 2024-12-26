@@ -60,11 +60,11 @@
 "Main_Infested_Systems" = "Infested Systems";
 "Main_Business" = "Business";
 "Main_Assets" = "Assets";
-"Main_Market Orders" = "Market Orders";
+"Main_Market_Orders" = "Market Orders";
 "Main_Contracts" = "Contracts";
-"Main_Market Transactions" = "Market Transactions";
-"Main_Wallet Journal" = "Wallet Journal";
-"Main_Industry Jobs" = "Industry Jobs";
+"Main_Market_Transactions" = "Market Transactions";
+"Main_Wallet_Journal" = "Wallet Journal";
+"Main_Industry_Jobs" = "Industry Jobs";
 "Main_Other" = "Other";
 
 "Main_Setting" = "Setting";
