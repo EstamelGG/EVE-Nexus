@@ -165,12 +165,24 @@ final class CharacterAPI: @unchecked Sendable {
     // 获取角色头像
     func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
+        let cacheKey = "character_portrait_\(characterId)_\(size)"
+        
+        // 1. 首先尝试从 UserDefaults 读取
+        if !forceRefresh, let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+           let cachedImage = UIImage(data: cachedData) {
+            Logger.info("从 UserDefaults 加载角色头像成功 - 角色ID: \(characterId)")
+            return cachedImage
+        }
         
         var options: KingfisherOptionsInfo = await [
             .cacheOriginalImage,
             .backgroundDecode,
             .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2))
+            .transition(.fade(0.2)),
+            .diskCacheExpiration(.days(30)), // 延长磁盘缓存时间到30天
+            .memoryCacheExpiration(.seconds(3600)), // 内存缓存1小时
+            .processor(DownsamplingImageProcessor(size: CGSize(width: size, height: size))), // 图片尺寸优化
+            .alsoPrefetchToMemory // 预加载到内存
         ]
         
         // 如果需要强制刷新，添加相应的选项
@@ -183,7 +195,11 @@ final class CharacterAPI: @unchecked Sendable {
             KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
                 switch result {
                 case .success(let imageResult):
-                    Logger.info("成功获取角色头像 - 角色ID: \(characterId), 大小: \(size)")
+                    // 保存到 UserDefaults
+                    if let imageData = imageResult.image.jpegData(compressionQuality: 0.8) {
+                        UserDefaults.standard.set(imageData, forKey: cacheKey)
+                    }
+                    Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size)")
                     continuation.resume(returning: imageResult.image)
                 case .failure(let error):
                     Logger.error("获取角色头像失败 - 角色ID: \(characterId), 错误: \(error)")

@@ -1283,25 +1283,28 @@ struct ContentView: View {
             currentTaskId = taskId
         }
         
-        // 先从缓存加载保存的角色信息
-        await loadSavedCharacter()
-        
-        // 如果没有头像，立即从缓存加载
-        if selectedCharacterPortrait == nil, currentCharacterId != 0 {
-            if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                characterId: currentCharacterId,
-                forceRefresh: false
-            ) {
-                // 检查是否仍是当前任务
-                guard await checkCurrentTask(taskId) else { return }
-                
-                await MainActor.run {
-                    selectedCharacterPortrait = portrait
+        // 1. 如果有已保存的角色ID，立即尝试加载头像（不等待其他信息）
+        if currentCharacterId != 0 {
+            // 尝试加载头像（优先使用缓存）
+            if selectedCharacterPortrait == nil {
+                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: currentCharacterId,
+                    forceRefresh: false
+                ) {
+                    // 检查是否仍是当前任务
+                    guard await checkCurrentTask(taskId) else { return }
+                    
+                    await MainActor.run {
+                        selectedCharacterPortrait = portrait
+                    }
                 }
             }
         }
         
-        // 异步加载服务器状态
+        // 2. 加载保存的角色信息
+        await loadSavedCharacter()
+        
+        // 3. 异步加载服务器状态
         do {
             let status = try await ServerStatusAPI.shared.fetchServerStatus()
             
@@ -1316,8 +1319,23 @@ struct ContentView: View {
             Logger.error("Failed to load server status: \(error)")
         }
         
-        // 如果有选中的角色，刷新数据
+        // 4. 如果有选中的角色，刷新其他数据
         if selectedCharacter != nil {
+            // 如果头像加载失败，在这里重试一次
+            if selectedCharacterPortrait == nil {
+                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: currentCharacterId,
+                    forceRefresh: true  // 这次强制刷新
+                ) {
+                    // 检查是否仍是当前任务
+                    guard await checkCurrentTask(taskId) else { return }
+                    
+                    await MainActor.run {
+                        selectedCharacterPortrait = portrait
+                    }
+                }
+            }
+            
             await refreshAllData()
         }
     }
