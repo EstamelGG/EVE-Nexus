@@ -494,101 +494,136 @@ public class CharacterAssetsJsonAPI {
         names: [Int64: String] = [:]
     ) async throws -> [AssetTreeNode] {
         var rootNodes: [AssetTreeNode] = []
+        let concurrentLimit = 5 // 并发数量限制
         
         // 创建统一的临时缓存字典
         var locationCache: [Int64: (name: String, typeId: Int, systemId: Int)] = [:]
         
-        for locationId in topLocations {
-            if let items = locationMap[locationId] {
-                let locationType = items.first?.location_type ?? "unknown"
-                
-                var iconName: String? = nil
-                var locationName: String? = nil
-                var systemName: String? = nil
-                var regionName: String? = nil
-                var securityStatus: Double? = nil
-                
-                // 检查统一缓存
-                if let cached = locationCache[locationId] {
-                    iconName = getStationIcon(typeId: cached.typeId, databaseManager: databaseManager)
-                    locationName = cached.name
-                    if let systemInfo = await getSolarSystemInfo(solarSystemId: cached.systemId, databaseManager: databaseManager) {
-                        systemName = systemInfo.systemName
-                        regionName = systemInfo.regionName
-                        securityStatus = systemInfo.security
-                    }
-                } else {
-                    // 根据location_type决定API调用顺序
-                    if locationType == "station" {
-                        // 优先尝试空间站API
-                        if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
-                            iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                            locationName = stationInfo.name
-                            if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+        // 将 topLocations 转换为数组以便分批处理
+        let locationArray = Array(topLocations)
+        var currentIndex = 0
+        
+        while currentIndex < locationArray.count {
+            // 创建任务组进行并发请求
+            try await withThrowingTaskGroup(of: (Int64, String?, String?, Int?, Int?, String?, String?, Double?).self) { group in
+                // 添加并发任务
+                for offset in 0..<concurrentLimit {
+                    let index = currentIndex + offset
+                    guard index < locationArray.count else { break }
+                    
+                    let locationId = locationArray[index]
+                    group.addTask {
+                        guard let items = locationMap[locationId] else {
+                            return (locationId, nil, nil, nil, nil, nil, nil, nil)
+                        }
+                        
+                        let locationType = items.first?.location_type ?? "unknown"
+                        var locationName: String? = nil
+                        var iconName: String? = nil
+                        var typeId: Int? = nil
+                        var systemId: Int? = nil
+                        var systemName: String? = nil
+                        var regionName: String? = nil
+                        var securityStatus: Double? = nil
+                        
+                        // 检查缓存
+                        if let cached = locationCache[locationId] {
+                            locationName = cached.name
+                            typeId = cached.typeId
+                            if let systemInfo = await getSolarSystemInfo(solarSystemId: cached.systemId, databaseManager: databaseManager) {
                                 systemName = systemInfo.systemName
                                 regionName = systemInfo.regionName
                                 securityStatus = systemInfo.security
                             }
-                            // 保存到统一缓存
-                            locationCache[locationId] = (name: stationInfo.name, typeId: stationInfo.type_id, systemId: stationInfo.system_id)
-                        }
-                        // 如果空间站API失败，再尝试建筑物API作为后备
-                        else if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                            iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
-                            locationName = structureInfo.name
-                            if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                                systemName = systemInfo.systemName
-                                regionName = systemInfo.regionName
-                                securityStatus = systemInfo.security
+                        } else {
+                            // 根据location_type决定API调用顺序
+                            if locationType == "station" {
+                                if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
+                                    locationName = stationInfo.name
+                                    typeId = stationInfo.type_id
+                                    systemId = stationInfo.system_id
+                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                                        systemName = systemInfo.systemName
+                                        regionName = systemInfo.regionName
+                                        securityStatus = systemInfo.security
+                                    }
+                                } else if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                                    locationName = structureInfo.name
+                                    typeId = structureInfo.type_id
+                                    systemId = structureInfo.solar_system_id
+                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                                        systemName = systemInfo.systemName
+                                        regionName = systemInfo.regionName
+                                        securityStatus = systemInfo.security
+                                    }
+                                }
+                            } else {
+                                if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                                    locationName = structureInfo.name
+                                    typeId = structureInfo.type_id
+                                    systemId = structureInfo.solar_system_id
+                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                                        systemName = systemInfo.systemName
+                                        regionName = systemInfo.regionName
+                                        securityStatus = systemInfo.security
+                                    }
+                                } else if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
+                                    locationName = stationInfo.name
+                                    typeId = stationInfo.type_id
+                                    systemId = stationInfo.system_id
+                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                                        systemName = systemInfo.systemName
+                                        regionName = systemInfo.regionName
+                                        securityStatus = systemInfo.security
+                                    }
+                                }
                             }
-                            // 保存到统一缓存
-                            locationCache[locationId] = (name: structureInfo.name, typeId: structureInfo.type_id, systemId: structureInfo.solar_system_id)
-                        }
-                    } else {
-                        // 优先尝试建筑物API
-                        if let structureInfo = try? await fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                            iconName = getStationIcon(typeId: structureInfo.type_id, databaseManager: databaseManager)
-                            locationName = structureInfo.name
-                            if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                                systemName = systemInfo.systemName
-                                regionName = systemInfo.regionName
-                                securityStatus = systemInfo.security
+                            
+                            // 更新缓存
+                            if let name = locationName, let tid = typeId, let sid = systemId {
+                                locationCache[locationId] = (name: name, typeId: tid, systemId: sid)
                             }
-                            // 保存到统一缓存
-                            locationCache[locationId] = (name: structureInfo.name, typeId: structureInfo.type_id, systemId: structureInfo.solar_system_id)
                         }
-                        // 如果建筑物API失败，再尝试空间站API作为后备
-                        else if let stationInfo = try? await fetchStationInfo(stationId: locationId) {
-                            iconName = getStationIcon(typeId: stationInfo.type_id, databaseManager: databaseManager)
-                            locationName = stationInfo.name
-                            if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                                systemName = systemInfo.systemName
-                                regionName = systemInfo.regionName
-                                securityStatus = systemInfo.security
-                            }
-                            // 保存到统一缓存
-                            locationCache[locationId] = (name: stationInfo.name, typeId: stationInfo.type_id, systemId: stationInfo.system_id)
+                        
+                        if let tid = typeId {
+                            iconName = self.getStationIcon(typeId: tid, databaseManager: databaseManager)
                         }
+                        
+                        return (locationId, locationName, iconName, typeId, systemId, systemName, regionName, securityStatus)
                     }
                 }
                 
-                let locationNode = AssetTreeNode(
-                    location_id: locationId,
-                    item_id: locationId,
-                    type_id: 0,
-                    location_type: locationType,
-                    location_flag: "root",
-                    quantity: 1,
-                    name: locationName,
-                    icon_name: iconName,
-                    is_singleton: true,
-                    is_blueprint_copy: nil,
-                    system_name: systemName,
-                    region_name: regionName,
-                    security_status: securityStatus,
-                    items: items.map { buildTreeNode(from: $0, locationMap: locationMap, names: names, databaseManager: databaseManager) }
-                )
-                rootNodes.append(locationNode)
+                // 收集并发任务的结果
+                for try await (locationId, locationName, iconName, typeId, _, systemName, regionName, securityStatus) in group {
+                    if let items = locationMap[locationId] {
+                        let locationType = items.first?.location_type ?? "unknown"
+                        
+                        let locationNode = AssetTreeNode(
+                            location_id: locationId,
+                            item_id: locationId,
+                            type_id: typeId ?? 0,
+                            location_type: locationType,
+                            location_flag: "root",
+                            quantity: 1,
+                            name: locationName,
+                            icon_name: iconName,
+                            is_singleton: true,
+                            is_blueprint_copy: nil,
+                            system_name: systemName,
+                            region_name: regionName,
+                            security_status: securityStatus,
+                            items: items.map { buildTreeNode(from: $0, locationMap: locationMap, names: names, databaseManager: databaseManager) }
+                        )
+                        rootNodes.append(locationNode)
+                    }
+                }
+            }
+            
+            currentIndex += concurrentLimit
+            
+            // 添加短暂延迟以避免请求过于频繁
+            if currentIndex < locationArray.count {
+                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
             }
         }
         
