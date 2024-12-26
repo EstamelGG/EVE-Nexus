@@ -306,3 +306,10 @@
 "Location_Flag_SpecializedSalvageHold" = "Specialized Salvage Hold";
 "Location_Flag_SpecializedShipHold" = "Specialized Ship Hold";
 "Location_Flag_SpecializedSmallShipHold" = "Specialized Small Ship Hold";
+
+// Assets Loading Status
+"Assets_Loading_Page" = "Fetching page %d";
+"Assets_Loading_Calculating" = "Calculating";
+"Assets_Loading_Fetching_Names" = "Fetching names";
+"Assets_Unknown_Location" = "Unknown Location";
+"Assets_Unknown_Region" = "Unknown Region";

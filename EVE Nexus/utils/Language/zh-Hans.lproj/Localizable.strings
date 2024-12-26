@@ -303,3 +303,10 @@
 "Location_Flag_SpecializedSalvageHold" = "特殊打捞仓";
 "Location_Flag_SpecializedShipHold" = "特殊舰船仓";
 "Location_Flag_SpecializedSmallShipHold" = "特殊小型舰船仓";
+
+// Assets Loading Status
+"Assets_Loading_Page" = "正在获取第%d页";
+"Assets_Loading_Calculating" = "正在计算";
+"Assets_Loading_Fetching_Names" = "正在获取名称";
+"Assets_Unknown_Location" = "未知位置";
+"Assets_Unknown_Region" = "未知星域";

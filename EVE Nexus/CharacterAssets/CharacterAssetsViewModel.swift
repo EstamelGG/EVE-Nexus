@@ -43,7 +43,7 @@ class CharacterAssetsViewModel: ObservableObject {
     var locationsByRegion: [(region: String, locations: [AssetTreeNode])] {
         // 1. 按区域分组
         let grouped = Dictionary(grouping: assetLocations) { location in
-            location.region_name ?? "Unknown Region"
+            location.region_name ?? NSLocalizedString("Assets_Unknown_Region", comment: "")
         }
         
         // 2. 转换为排序后的数组
@@ -51,8 +51,8 @@ class CharacterAssetsViewModel: ObservableObject {
             .map { (region: $0.key, locations: sortLocations($0.value)) }
             .sorted { pair1, pair2 in
                 // 确保Unknown Region始终在最后
-                if pair1.region == "Unknown Region" { return false }
-                if pair2.region == "Unknown Region" { return true }
+                if pair1.region == NSLocalizedString("Assets_Unknown_Region", comment: "") { return false }
+                if pair2.region == NSLocalizedString("Assets_Unknown_Region", comment: "") { return true }
                 return pair1.region < pair2.region
             }
     }

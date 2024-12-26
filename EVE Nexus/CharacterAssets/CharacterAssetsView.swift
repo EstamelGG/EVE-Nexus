@@ -68,11 +68,11 @@ private struct LoadingProgressView: View {
             if let progress = progress {
                 switch progress {
                 case .fetchingPage(let page):
-                    Text("已获取第\(page)页")
+                    Text(String(format: NSLocalizedString("Assets_Loading_Page", comment: ""), page))
                 case .calculatingJson:
-                    Text("正在计算")
+                    Text(NSLocalizedString("Assets_Loading_Calculating", comment: ""))
                 case .fetchingNames:
-                    Text("正在获取名称")
+                    Text(NSLocalizedString("Assets_Loading_Fetching_Names", comment: ""))
                 }
             } else {
                 Text(NSLocalizedString("Assets_Loading", comment: ""))
@@ -109,7 +109,7 @@ private struct SearchResultRowView: View {
                             }
                             
                             // 节点名称
-                            Text(pathNode.node.name ?? "Unknown")
+                            Text(pathNode.node.name ?? NSLocalizedString("Assets_Unknown_Location", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
