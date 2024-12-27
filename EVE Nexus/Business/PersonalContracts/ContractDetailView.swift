@@ -17,6 +17,7 @@ final class ContractDetailViewModel: ObservableObject {
     @Published private(set) var issuerName: String = ""
     @Published private(set) var assigneeName: String = ""
     @Published private(set) var acceptorName: String = ""
+    @Published var isLoadingNames = true
     
     private let characterId: Int
     private let contract: ContractInfo
@@ -46,6 +47,7 @@ final class ContractDetailViewModel: ObservableObject {
     }
     
     func loadContractParties() async {
+        isLoadingNames = true
         var ids = Set<Int>()
         
         // 只有当 issuer_id 不为 0 时才添加
@@ -67,35 +69,28 @@ final class ContractDetailViewModel: ObservableObject {
         }
         
         // 如果没有有效的 ID 则直接返回
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty else {
+            isLoadingNames = false
+            return
+        }
         
         do {
-            let url = URL(string: "https://esi.evetech.net/latest/universe/names/?datasource=tranquility")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            let names = try await UniverseNameCache.shared.getNames(for: ids)
             
-            let jsonData = try JSONEncoder().encode(Array(ids))
-            request.httpBody = jsonData
-            
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let names = try JSONDecoder().decode([UniverseNameResponse].self, from: data)
-            
-            for name in names {
-                if contract.issuer_id != 0 && name.id == contract.issuer_id {
-                    issuerName = name.name
-                }
-                if let assigneeId = contract.assignee_id, assigneeId != 0, name.id == assigneeId {
-                    assigneeName = name.name
-                }
-                if let acceptorId = contract.acceptor_id, acceptorId != 0, name.id == acceptorId {
-                    acceptorName = name.name
-                }
+            if contract.issuer_id != 0 {
+                issuerName = names[contract.issuer_id] ?? ""
+            }
+            if let assigneeId = contract.assignee_id, assigneeId != 0 {
+                assigneeName = names[assigneeId] ?? ""
+            }
+            if let acceptorId = contract.acceptor_id, acceptorId != 0 {
+                acceptorName = names[acceptorId] ?? ""
             }
         } catch {
             errorMessage = error.localizedDescription
         }
+        
+        isLoadingNames = false
     }
     
     func getItemDetails(for typeId: Int) -> (name: String, description: String, iconFileName: String)? {
@@ -136,147 +131,155 @@ struct ContractDetailView: View {
     }
     
     var body: some View {
-        List {
-            // 合同基本信息
-            Section {
-                // 合同类型
-                HStack {
-                    Text(NSLocalizedString("Contract_Type", comment: ""))
-                    Spacer()
-                    Text(NSLocalizedString("Contract_Type_\(contract.type)", comment: ""))
-                        .foregroundColor(.secondary)
-                }
-                
-                // 合同状态
-                HStack {
-                    Text(NSLocalizedString("Contract_Status", comment: ""))
-                    Spacer()
-                    Text(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))
-                        .foregroundColor(.secondary)
-                }
-                
-                // 合同发起人（如果 ID 不为 0）
-                if contract.issuer_id != 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Issuer", comment: ""))
-                        Spacer()
-                        Text(viewModel.issuerName)
-                            .foregroundColor(.secondary)
+        ZStack {
+            if viewModel.isLoading || viewModel.isLoadingNames {
+                ProgressView()
+            } else {
+                List {
+                    // 合同基本信息
+                    Section {
+                        // 合同类型
+                        HStack {
+                            Text(NSLocalizedString("Contract_Type", comment: ""))
+                            Spacer()
+                            Text(NSLocalizedString("Contract_Type_\(contract.type)", comment: ""))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        // 合同状态
+                        HStack {
+                            Text(NSLocalizedString("Contract_Status", comment: ""))
+                            Spacer()
+                            Text(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        // 合同发起人（如果 ID 不为 0）
+                        if contract.issuer_id != 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Issuer", comment: ""))
+                                Spacer()
+                                Text(viewModel.issuerName)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 合同对象（如果存在且 ID 不为 0）
+                        if let assigneeId = contract.assignee_id, assigneeId != 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Assignee", comment: ""))
+                                Spacer()
+                                Text(viewModel.assigneeName)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 如果接收人存在且与对象不同，且 ID 不为 0，显示接收人
+                        if let acceptorId = contract.acceptor_id,
+                           let assigneeId = contract.assignee_id,
+                           acceptorId != assigneeId,
+                           acceptorId != 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Acceptor", comment: ""))
+                                Spacer()
+                                Text(viewModel.acceptorName)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 合同价格（如果有）
+                        if contract.price > 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Price", comment: ""))
+                                Spacer()
+                                Text("\(FormatUtil.format(contract.price)) ISK")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 合同报酬（如果有）
+                        if contract.reward > 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Reward", comment: ""))
+                                Spacer()
+                                Text("\(FormatUtil.format(contract.reward)) ISK")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 保证金（如果有）
+                        if contract.collateral > 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Collateral", comment: ""))
+                                Spacer()
+                                Text("\(FormatUtil.format(contract.collateral)) ISK")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 体积
+                        if contract.volume > 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Volume", comment: ""))
+                                Spacer()
+                                Text("\(FormatUtil.format(contract.volume)) m³")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 完成期限
+                        if contract.days_to_complete > 0 {
+                            HStack {
+                                Text(NSLocalizedString("Contract_Days_To_Complete", comment: ""))
+                                Spacer()
+                                Text("\(contract.days_to_complete)")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } header: {
+                        Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
                     }
-                }
-                
-                // 合同对象（如果存在且 ID 不为 0）
-                if let assigneeId = contract.assignee_id, assigneeId != 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Assignee", comment: ""))
-                        Spacer()
-                        Text(viewModel.assigneeName)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 如果接收人存在且与对象不同，且 ID 不为 0，显示接收人
-                if let acceptorId = contract.acceptor_id,
-                   let assigneeId = contract.assignee_id,
-                   acceptorId != assigneeId,
-                   acceptorId != 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Acceptor", comment: ""))
-                        Spacer()
-                        Text(viewModel.acceptorName)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 合同价格（如果有）
-                if contract.price > 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Price", comment: ""))
-                        Spacer()
-                        Text("\(FormatUtil.format(contract.price)) ISK")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 合同报酬（如果有）
-                if contract.reward > 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Reward", comment: ""))
-                        Spacer()
-                        Text("\(FormatUtil.format(contract.reward)) ISK")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 保证金（如果有）
-                if contract.collateral > 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Collateral", comment: ""))
-                        Spacer()
-                        Text("\(FormatUtil.format(contract.collateral)) ISK")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 体积
-                if contract.volume > 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Volume", comment: ""))
-                        Spacer()
-                        Text("\(FormatUtil.format(contract.volume)) m³")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                // 完成期限
-                if contract.days_to_complete > 0 {
-                    HStack {
-                        Text(NSLocalizedString("Contract_Days_To_Complete", comment: ""))
-                        Spacer()
-                        Text("\(contract.days_to_complete)")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            } header: {
-                Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
-            }
-            
-            // 提供的物品列表
-            if !viewModel.items.filter({ $0.is_included }).isEmpty {
-                Section {
-                    ForEach(viewModel.items.filter { $0.is_included }) { item in
-                        if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                            ContractItemRow(item: item, itemDetails: itemDetails)
-                                .frame(height: 36)
+                    
+                    // 提供的物品列表
+                    if !viewModel.items.filter({ $0.is_included }).isEmpty {
+                        Section {
+                            ForEach(viewModel.items.filter { $0.is_included }) { item in
+                                if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
+                                    ContractItemRow(item: item, itemDetails: itemDetails)
+                                        .frame(height: 36)
+                                }
+                            }
+                        } header: {
+                            Text(NSLocalizedString("Contract_Items_Included", comment: ""))
                         }
                     }
-                } header: {
-                    Text(NSLocalizedString("Contract_Items_Included", comment: ""))
-                }
-            }
-            
-            // 需求的物品列表
-            if !viewModel.items.filter({ !$0.is_included }).isEmpty {
-                Section {
-                    ForEach(viewModel.items.filter { !$0.is_included }) { item in
-                        if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                            ContractItemRow(item: item, itemDetails: itemDetails)
-                                .frame(height: 36)
+                    
+                    // 需求的物品列表
+                    if !viewModel.items.filter({ !$0.is_included }).isEmpty {
+                        Section {
+                            ForEach(viewModel.items.filter { !$0.is_included }) { item in
+                                if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
+                                    ContractItemRow(item: item, itemDetails: itemDetails)
+                                        .frame(height: 36)
+                                }
+                            }
+                        } header: {
+                            Text(NSLocalizedString("Contract_Items_Required", comment: ""))
                         }
                     }
-                } header: {
-                    Text(NSLocalizedString("Contract_Items_Required", comment: ""))
+                }
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.loadContractItems(forceRefresh: true)
+                    await viewModel.loadContractParties()
                 }
             }
-        }
-        .listStyle(.insetGrouped)
-        .refreshable {
-            await viewModel.loadContractItems(forceRefresh: true)
-            await viewModel.loadContractParties()
         }
         .task {
-            await viewModel.loadContractItems()
-            await viewModel.loadContractParties()
+            // 并行加载数据
+            async let itemsTask: () = viewModel.loadContractItems()
+            async let namesTask: () = viewModel.loadContractParties()
+            await (_, _) = (itemsTask, namesTask)
         }
         .navigationTitle(contract.title.isEmpty ? NSLocalizedString("Contract_Details", comment: "") : contract.title)
     }
