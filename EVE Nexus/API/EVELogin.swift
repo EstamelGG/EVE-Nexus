@@ -50,7 +50,7 @@ class SecureStorage {
     }
     
     func loadToken(for characterId: Int) throws -> String? {
-        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 token - 角色ID: \(characterId)")
+        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
         
         let query: [String: Any] = [
             String(kSecClass): kSecClassGenericPassword,
@@ -65,24 +65,24 @@ class SecureStorage {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
         if status == errSecItemNotFound {
-            Logger.error("SecureStorage: 在 Keychain 中未找到 token - 角色ID: \(characterId), 错误: 项目不存在")
+            Logger.error("SecureStorage: 在 Keychain 中未找到 refresh token - 角色ID: \(characterId), 错误: 项目不存在")
             return nil
         } else if status != errSecSuccess {
-            Logger.error("SecureStorage: 从 Keychain 加载 token 失败 - 角色ID: \(characterId), 错误码: \(status)")
+            Logger.error("SecureStorage: 从 Keychain 加载 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
             throw KeychainError.unhandledError(status: status)
         }
         
         guard let data = result as? Data else {
-            Logger.error("SecureStorage: token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
+            Logger.error("SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
             return nil
         }
         
         guard let token = String(data: data, encoding: .utf8) else {
-            Logger.error("SecureStorage: token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
+            Logger.error("SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
             return nil
         }
         
-        Logger.info("SecureStorage: 成功从 Keychain 加载 token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))...")
+        Logger.info("SecureStorage: 成功从 Keychain 加载 refresh token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))...")
         return token
     }
     
@@ -100,7 +100,7 @@ class SecureStorage {
     
     // 列出所有有效的 token
     func listValidTokens() -> [Int] {
-        Logger.info("SecureStorage: 开始检查所有有效的 token")
+        Logger.info("SecureStorage: 开始检查所有有效的 refresh token")
         
         let query: [String: Any] = [
             String(kSecClass): kSecClassGenericPassword,
@@ -112,10 +112,10 @@ class SecureStorage {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         
         if status == errSecItemNotFound {
-            Logger.info("SecureStorage: 未找到任何 token")
+            Logger.info("SecureStorage: 未找到任何 refresh token")
             return []
         } else if status != errSecSuccess {
-            Logger.error("SecureStorage: 查询 token 失败，错误码: \(status)")
+            Logger.error("SecureStorage: 查询 refresh token 失败，错误码: \(status)")
             return []
         }
         
@@ -134,12 +134,12 @@ class SecureStorage {
                 // 检查 token 是否有效
                 if let token = try? loadToken(for: characterId), !token.isEmpty {
                     validCharacterIds.append(characterId)
-                    Logger.info("SecureStorage: 找到有效的 token - 角色ID: \(characterId)")
+                    Logger.info("SecureStorage: 找到有效的 refresh token - 角色ID: \(characterId)")
                 }
             }
         }
         
-        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 token")
+        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 refresh token")
         return validCharacterIds
     }
 }
