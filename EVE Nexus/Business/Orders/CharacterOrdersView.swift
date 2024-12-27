@@ -48,52 +48,38 @@ struct CharacterOrdersView: View {
     var body: some View {
         VStack(spacing: 0) {
             // 买卖单切换按钮
-            Picker("Order Type", selection: $showBuyOrders) {
-                Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !($0.isBuyOrder ?? false) }.count))").tag(false)
-                Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
+            TabView(selection: $showBuyOrders) {
+                OrderListView(
+                    orders: orders.filter { !($0.isBuyOrder ?? false) },
+                    itemInfoCache: itemInfoCache,
+                    locationInfoCache: locationInfoCache,
+                    isLoading: isLoading,
+                    isDataReady: isDataReady
+                )
+                .tag(false)
+                
+                OrderListView(
+                    orders: orders.filter { $0.isBuyOrder ?? false },
+                    itemInfoCache: itemInfoCache,
+                    locationInfoCache: locationInfoCache,
+                    isLoading: isLoading,
+                    isDataReady: isDataReady
+                )
+                .tag(true)
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color(.systemGroupedBackground))
-            
-            List {
-                if isLoading || !isDataReady {
-                    Section {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    Picker("Order Type", selection: $showBuyOrders) {
+                        Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !($0.isBuyOrder ?? false) }.count))").tag(false)
+                        Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
                     }
-                } else if filteredOrders.isEmpty {
-                    Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
-                        }
-                    }
-                } else {
-                    Section {
-                        ForEach(filteredOrders) { order in
-                            OrderRow(
-                                order: order,
-                                itemInfo: itemInfoCache[order.typeId],
-                                locationInfo: locationInfoCache[order.locationId]
-                            )
-                        }
-                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
                 }
+                .background(Color(.systemGroupedBackground))
             }
-            .listStyle(.insetGrouped)
         }
         .refreshable {
             await loadOrders(forceRefresh: true)
@@ -107,6 +93,60 @@ struct CharacterOrdersView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadOrders()
+        }
+    }
+    
+    // 订单列表视图
+    private struct OrderListView: View {
+        let orders: [CharacterMarketOrder]
+        let itemInfoCache: [Int64: OrderItemInfo]
+        let locationInfoCache: [Int64: OrderLocationInfo]
+        let isLoading: Bool
+        let isDataReady: Bool
+        
+        var body: some View {
+            List {
+                if isLoading || !isDataReady {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    }
+                    .listSectionSpacing(.compact)
+                } else if orders.isEmpty {
+                    Section {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 4) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
+                            }
+                            .padding()
+                            Spacer()
+                        }
+                    }
+                    .listSectionSpacing(.compact)
+                } else {
+                    Section {
+                        ForEach(orders) { order in
+                            OrderRow(
+                                order: order,
+                                itemInfo: itemInfoCache[order.typeId],
+                                locationInfo: locationInfoCache[order.locationId]
+                            )
+                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                        }
+                    }
+                    .listSectionSpacing(.compact)
+                }
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.visible)
         }
     }
     
