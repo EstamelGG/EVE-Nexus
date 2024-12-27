@@ -296,25 +296,17 @@ struct ContractItemRow: View {
                 .resizable()
                 .frame(width: 32, height: 32)
                 .cornerRadius(4)
-            VStack(alignment: .leading, spacing: 2) {
-                // 物品名称
-                Text(itemDetails.name)
-                    .font(.body)
-                
-                // 物品数量和包含状态
-                HStack {
-                    Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    if item.is_singleton {
-                        Text(NSLocalizedString("Contract_Item_Singleton", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                    }
-                }
+            // 物品名称
+            Text("\(itemDetails.name)")
+                .font(.body)
+            Spacer()
+            // 物品数量和包含状态
+            HStack {
+                Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                    .foregroundColor(.secondary)
             }
+            
         }
         .padding(.vertical, 2)
     }
-} 
+}

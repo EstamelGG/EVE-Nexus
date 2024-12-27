@@ -97,6 +97,7 @@
 "Misc_false" = "False";
 "Misc_back" = "Back";
 "Misc_number_item" = "×";
+"Misc_number_item_x" = "×";
 "Misc_number_point" = "points";
 "Misc_number_types" = " Items";
 "Misc_per" = "per";
