@@ -362,3 +362,14 @@
 "Contract_Title" = "Title";
 "Contract_Collateral" = "Collateral";
 "Contract_Volume" = "Volume";
+"Contract_Details" = "Contract Details";
+"Contract_Basic_Info" = "Basic Information";
+"Contract_Items" = "Contract Items";
+"Contract_Type" = "Type";
+"Contract_Status" = "Status";
+"Contract_Price" = "Price";
+"Contract_Reward" = "Reward";
+"Contract_Days_To_Complete" = "Days to Complete";
+"Contract_Item_Singleton" = "Singleton";
+"Contract_Item_Included" = "Included";
+"Contract_Item_Required" = "Required";

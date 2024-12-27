@@ -358,3 +358,10 @@
 "Contract_Title" = "标题";
 "Contract_Collateral" = "保证金";
 "Contract_Volume" = "体积";
+"Contract_Details" = "合同详情";
+"Contract_Basic_Info" = "基本信息";
+"Contract_Items" = "合同物品";
+"Contract_Type" = "类型";
+"Contract_Status" = "状态";
+"Contract_Price" = "价格";
+"Contract_Reward" = "报酬";

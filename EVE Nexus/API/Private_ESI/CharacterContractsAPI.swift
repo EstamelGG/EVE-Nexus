@@ -158,6 +158,93 @@ class CharacterContractsAPI {
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         Logger.debug("清除所有合同缓存")
     }
+    
+    // 合同物品信息模型
+    struct ContractItemInfo: Codable, Identifiable {
+        let is_included: Bool
+        let is_singleton: Bool
+        let quantity: Int
+        let record_id: Int64
+        let type_id: Int
+        let raw_quantity: Int?
+        
+        var id: Int64 { record_id }
+    }
+    
+    // 获取合同物品的缓存文件路径
+    private func getItemsCacheFilePath(characterId: Int, contractId: Int) -> URL {
+        return cacheDirectory.appendingPathComponent("contracts_\(characterId)_\(contractId)_items.json")
+    }
+    
+    // 从缓存加载合同物品
+    private func loadItemsFromCache(characterId: Int, contractId: Int) -> [ContractItemInfo]? {
+        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
+        
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
+              let modificationDate = attributes[.modificationDate] as? Date else {
+            return nil
+        }
+        
+        // 检查缓存是否过期
+        if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
+            Logger.debug("合同物品缓存已过期 - 角色ID: \(characterId), 合同ID: \(contractId)")
+            return nil
+        }
+        
+        do {
+            let data = try Data(contentsOf: cacheFile)
+            let decoder = JSONDecoder()
+            let items = try decoder.decode([ContractItemInfo].self, from: data)
+            Logger.debug("从缓存加载合同物品成功 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
+            return items
+        } catch {
+            Logger.error("读取合同物品缓存失败 - 角色ID: \(characterId), 合同ID: \(contractId), 错误: \(error)")
+            return nil
+        }
+    }
+    
+    // 保存合同物品到缓存
+    private func saveItemsToCache(items: [ContractItemInfo], characterId: Int, contractId: Int) {
+        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
+        
+        do {
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(items)
+            try data.write(to: cacheFile)
+            Logger.debug("保存合同物品到缓存成功 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
+        } catch {
+            Logger.error("保存合同物品缓存失败 - 角色ID: \(characterId), 合同ID: \(contractId), 错误: \(error)")
+        }
+    }
+    
+    // 获取合同物品列表
+    func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
+        // 如果不是强制刷新，尝试从缓存加载
+        if !forceRefresh {
+            if let cachedItems = loadItemsFromCache(characterId: characterId, contractId: contractId) {
+                return cachedItems
+            }
+        }
+        
+        let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/contracts/\(contractId)/items/?datasource=tranquility")!
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+        
+        let decoder = JSONDecoder()
+        let items = try decoder.decode([ContractItemInfo].self, from: data)
+        
+        // 保存到缓存
+        saveItemsToCache(items: items, characterId: characterId, contractId: contractId)
+        
+        return items
+    }
+    
+    // 清除指定合同的物品缓存
+    func clearItemsCache(for characterId: Int, contractId: Int) {
+        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
+        try? FileManager.default.removeItem(at: cacheFile)
+        Logger.debug("清除合同物品缓存 - 角色ID: \(characterId), 合同ID: \(contractId)")
+    }
 }
 
 // 合同信息模型

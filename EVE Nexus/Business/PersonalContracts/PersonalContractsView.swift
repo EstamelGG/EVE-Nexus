@@ -127,6 +127,7 @@ struct PersonalContractsView: View {
 struct ContractRow: View {
     let contract: ContractInfo
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    @StateObject private var databaseManager = DatabaseManager()
     
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -228,43 +229,51 @@ struct ContractRow: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(formatContractStatus(contract.status))
-                    .font(.caption)
-                    .foregroundColor(getStatusColor(contract.status))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.2))
-                    )
-                Text(formatContractType(contract.type))
-                    .font(.body)
-                    .lineLimit(1)
-                Spacer()
-                priceView()
+        NavigationLink {
+            ContractDetailView(
+                characterId: currentCharacterId,
+                contract: contract,
+                databaseManager: databaseManager
+            )
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(formatContractStatus(contract.status))
+                        .font(.caption)
+                        .foregroundColor(getStatusColor(contract.status))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.2))
+                        )
+                    Text(formatContractType(contract.type))
+                        .font(.body)
+                        .lineLimit(1)
+                    Spacer()
+                    priceView()
+                }
+                
+                if !contract.title.isEmpty {
+                    Text(NSLocalizedString("Contract_Title", comment: "") + ": \(contract.title)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                if contract.volume > 0 {
+                    Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
             }
-            
-            if !contract.title.isEmpty {
-                Text(NSLocalizedString("Contract_Title", comment: "") + ": \(contract.title)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-            
-            if contract.volume > 0 {
-                Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            HStack {
-                Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
+            .padding(.vertical, 2)
         }
-        .padding(.vertical, 2)
     }
 } 
