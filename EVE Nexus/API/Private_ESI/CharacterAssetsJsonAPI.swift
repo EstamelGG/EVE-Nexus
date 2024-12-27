@@ -100,6 +100,9 @@ public class CharacterAssetsJsonAPI {
     private let cacheTimeout: TimeInterval = 7200 // 120分钟缓存
     private let assetTreeCachePrefix = "asset_tree_json_cache_"
     
+    // 添加内存缓存，用于存储本次操作中已获取的建筑物信息
+    private var structureInfoCache: [Int64: StructureInfo] = [:]
+    
     private init() {}
     
     // MARK: - Public Methods
@@ -108,6 +111,9 @@ public class CharacterAssetsJsonAPI {
         forceRefresh: Bool = false,
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> String? {
+        // 重置内存缓存
+        structureInfoCache.removeAll()
+        
         // 检查缓存
         if !forceRefresh {
             if let cachedJson = getCachedJson(characterId: characterId) {
@@ -302,8 +308,16 @@ public class CharacterAssetsJsonAPI {
     
     // 获取建筑物信息
     private func fetchStructureInfo(structureId: Int64, characterId: Int) async throws -> StructureInfo {
-        // 先尝试从缓存加载
+        // 先检查内存缓存
+        if let cachedStructure = structureInfoCache[structureId] {
+            Logger.info("使用内存缓存的建筑物信息 - 建筑物ID: \(structureId)")
+            return cachedStructure
+        }
+        
+        // 再尝试从文件缓存加载
         if let cachedStructure = loadStructureFromCache(structureId: structureId) {
+            // 保存到内存缓存
+            structureInfoCache[structureId] = cachedStructure
             return cachedStructure
         }
         
@@ -321,13 +335,17 @@ public class CharacterAssetsJsonAPI {
             let data = try await NetworkManager.shared.fetchDataWithToken(
                 from: url,
                 characterId: characterId,
-                headers: headers
+                headers: headers,
+                noRetryKeywords: ["Forbidden"]
             )
             
             let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
             
-            // 保存到缓存
+            // 保存到文件缓存
             saveStructureToCache(structureInfo, structureId: structureId)
+            
+            // 保存到内存缓存
+            structureInfoCache[structureId] = structureInfo
             
             return structureInfo
         } catch {
