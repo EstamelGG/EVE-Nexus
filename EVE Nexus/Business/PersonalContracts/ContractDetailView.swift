@@ -241,16 +241,31 @@ struct ContractDetailView: View {
                 Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
             }
             
-            // 合同物品列表
-            if !viewModel.items.isEmpty {
+            // 提供的物品列表
+            if !viewModel.items.filter({ $0.is_included }).isEmpty {
                 Section {
-                    ForEach(viewModel.items) { item in
+                    ForEach(viewModel.items.filter { $0.is_included }) { item in
                         if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
                             ContractItemRow(item: item, itemDetails: itemDetails)
+                                .frame(height: 36)
                         }
                     }
                 } header: {
-                    Text(NSLocalizedString("Contract_Items", comment: ""))
+                    Text(NSLocalizedString("Contract_Items_Included", comment: ""))
+                }
+            }
+            
+            // 需求的物品列表
+            if !viewModel.items.filter({ !$0.is_included }).isEmpty {
+                Section {
+                    ForEach(viewModel.items.filter { !$0.is_included }) { item in
+                        if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
+                            ContractItemRow(item: item, itemDetails: itemDetails)
+                                .frame(height: 36)
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("Contract_Items_Required", comment: ""))
                 }
             }
         }
@@ -278,7 +293,6 @@ struct ContractItemRow: View {
                 .resizable()
                 .frame(width: 32, height: 32)
                 .cornerRadius(4)
-            
             VStack(alignment: .leading, spacing: 2) {
                 // 物品名称
                 Text(itemDetails.name)
@@ -295,10 +309,6 @@ struct ContractItemRow: View {
                             .font(.caption)
                             .foregroundColor(.blue)
                     }
-                    
-                    Text(item.is_included ? NSLocalizedString("Contract_Item_Included", comment: "") : NSLocalizedString("Contract_Item_Required", comment: ""))
-                        .font(.caption)
-                        .foregroundColor(item.is_included ? .green : .red)
                 }
             }
         }

@@ -53,7 +53,8 @@
 "Main_Market_WH_Size" = "Size";
 "Main_Database_toComplete" = "Lite";
 "Main_Database_toSimplified" = "Full";
-
+"Contract_Items_Included" = "Items to Give";
+"Contract_Items_Required" = "Items Required";
 "Contract_Issuer" = "Issuer";
 "Contract_Assignee" = "Assignee";
 "Contract_Acceptor" = "Acceptor";
