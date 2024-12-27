@@ -322,6 +322,8 @@
 
 // Market Orders
 "Orders_Remaining" = "剩余";
-"Orders_Buy" = "买单";
-"Orders_Sell" = "卖单";
+"Orders_Buy" = "收购";
+"Orders_Sell" = "出售";
 "Orders_Corp" = "公司";
+"Orders_No_Buy_Orders" = "无收购订单";
+"Orders_No_Sell_Orders" = "无出售订单";
