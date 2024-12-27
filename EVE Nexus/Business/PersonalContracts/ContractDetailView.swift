@@ -19,6 +19,23 @@ final class ContractDetailViewModel: ObservableObject {
     @Published private(set) var acceptorName: String = ""
     @Published var isLoadingNames = true
     
+    // 添加排序后的物品列表计算属性
+    var sortedIncludedItems: [ContractItemInfo] {
+        return items
+            .filter { $0.is_included }
+            .sorted { item1, item2 in
+                item1.record_id < item2.record_id
+            }
+    }
+    
+    var sortedRequiredItems: [ContractItemInfo] {
+        return items
+            .filter { !$0.is_included }
+            .sorted { item1, item2 in
+                item1.record_id < item2.record_id
+            }
+    }
+    
     private let characterId: Int
     private let contract: ContractInfo
     private let databaseManager: DatabaseManager
@@ -238,12 +255,16 @@ struct ContractDetailView: View {
                         }
                     } header: {
                         Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
                     }
                     
                     // 提供的物品列表
-                    if !viewModel.items.filter({ $0.is_included }).isEmpty {
+                    if !viewModel.sortedIncludedItems.isEmpty {
                         Section {
-                            ForEach(viewModel.items.filter { $0.is_included }) { item in
+                            ForEach(viewModel.sortedIncludedItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
                                     ContractItemRow(item: item, itemDetails: itemDetails)
                                         .frame(height: 36)
@@ -251,13 +272,17 @@ struct ContractDetailView: View {
                             }
                         } header: {
                             Text(NSLocalizedString("Contract_Items_Included", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
                         }
                     }
                     
                     // 需求的物品列表
-                    if !viewModel.items.filter({ !$0.is_included }).isEmpty {
+                    if !viewModel.sortedRequiredItems.isEmpty {
                         Section {
-                            ForEach(viewModel.items.filter { !$0.is_included }) { item in
+                            ForEach(viewModel.sortedRequiredItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
                                     ContractItemRow(item: item, itemDetails: itemDetails)
                                         .frame(height: 36)
@@ -265,6 +290,10 @@ struct ContractDetailView: View {
                             }
                         } header: {
                             Text(NSLocalizedString("Contract_Items_Required", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
                         }
                     }
                 }
