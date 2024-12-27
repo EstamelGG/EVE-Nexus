@@ -758,7 +758,7 @@ struct ContentView: View {
                     
                     // 再次检查是否仍是当前任务
                     guard await checkCurrentTask(taskId) else {
-                        Logger.info("取消过期的联盟数据刷新任务")
+                        Logger.info("取消过期的联���数据刷新任务")
                         return
                     }
                     
@@ -1134,7 +1134,10 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Contracts", comment: ""),
-                        iconName: "contracts"
+                        iconName: "contracts",
+                        destination: selectedCharacter.map { character in
+                            AnyView(PersonalContractsView(characterId: character.CharacterID))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market_Transactions", comment: ""),
@@ -1180,7 +1183,7 @@ struct ContentView: View {
     
     // 添加加载初始数据的方法
     private func loadInitialData() async {
-        // 生成新的任���ID
+        // 生成新的任务ID
         let taskId = UUID()
         await updateUI {
             currentTaskId = taskId

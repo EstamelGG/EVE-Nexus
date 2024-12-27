@@ -334,3 +334,33 @@
 "Orders_Remaining_Hours_Minutes" = "%d小时%d分后过期";
 "Orders_Remaining_Hours" = "%d后过期小时";
 "Orders_Remaining_Minutes" = "%d分后过期";
+
+// Contract Types
+"Contract_Type_item_exchange" = "物品交换";
+"Contract_Type_courier" = "运输";
+"Contract_Type_auction" = "拍卖";
+"Contract_Type_unknown" = "未知";
+
+// Contract Status
+"Contract_Status_outstanding" = "待处理";
+"Contract_Status_in_progress" = "进行中";
+"Contract_Status_finished_issuer" = "已完成(发布方)";
+"Contract_Status_finished_contractor" = "已完成(承包方)";
+"Contract_Status_finished" = "已完成";
+"Contract_Status_cancelled" = "已取消";
+"Contract_Status_rejected" = "已拒绝";
+"Contract_Status_failed" = "已失败";
+"Contract_Status_deleted" = "已删除";
+"Contract_Status_reversed" = "已撤销";
+"Contract_Status_unknown" = "未知";
+
+// Contract Details
+"Contract_Collateral" = "保证金";
+"Contract_Volume" = "体积";
+"Contract_Expires" = "过期时间";
+"Contract_Issued" = "发布时间";
+"Contract_Accepted" = "接受时间";
+"Contract_Completed" = "完成时间";
+"Contract_Days_To_Complete" = "完成期限";
+"Contract_Price" = "价格";
+"Contract_Reward" = "报酬";

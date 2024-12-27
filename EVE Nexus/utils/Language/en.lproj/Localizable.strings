@@ -338,3 +338,33 @@
 "Orders_Remaining_Hours_Minutes" = "Expire in %dh %dm";
 "Orders_Remaining_Hours" = "Expire in %dh";
 "Orders_Remaining_Minutes" = "Expire in %dm";
+
+// Contract Types
+"Contract_Type_item_exchange" = "Item Exchange";
+"Contract_Type_courier" = "Courier";
+"Contract_Type_auction" = "Auction";
+"Contract_Type_unknown" = "Unknown";
+
+// Contract Status
+"Contract_Status_outstanding" = "Outstanding";
+"Contract_Status_in_progress" = "In Progress";
+"Contract_Status_finished_issuer" = "Finished (Issuer)";
+"Contract_Status_finished_contractor" = "Finished (Contractor)";
+"Contract_Status_finished" = "Finished";
+"Contract_Status_cancelled" = "Cancelled";
+"Contract_Status_rejected" = "Rejected";
+"Contract_Status_failed" = "Failed";
+"Contract_Status_deleted" = "Deleted";
+"Contract_Status_reversed" = "Reversed";
+"Contract_Status_unknown" = "Unknown";
+
+// Contract Details
+"Contract_Collateral" = "Collateral";
+"Contract_Volume" = "Volume";
+"Contract_Expires" = "Expires";
+"Contract_Issued" = "Issued";
+"Contract_Accepted" = "Accepted";
+"Contract_Completed" = "Completed";
+"Contract_Days_To_Complete" = "Days to Complete";
+"Contract_Price" = "Price";
+"Contract_Reward" = "Reward";
