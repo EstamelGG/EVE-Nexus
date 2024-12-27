@@ -294,39 +294,43 @@ struct ContractDetailView: View {
                     // 合同基本信息
                     Section {
                         // 合同类型
-                        HStack {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
-                            Spacer()
                             Text(NSLocalizedString("Contract_Type_\(contract.type)", comment: ""))
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        .frame(height: 36)
                         
                         // 合同状态
-                        HStack {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("Contract_Status", comment: ""))
-                            Spacer()
                             Text(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        .frame(height: 36)
                         
                         // 合同发起人（如果 ID 不为 0）
                         if contract.issuer_id != 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Issuer", comment: ""))
-                                Spacer()
                                 Text(viewModel.issuerName)
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 合同对象（如果存在且 ID 不为 0）
                         if let assigneeId = contract.assignee_id, assigneeId != 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Assignee", comment: ""))
-                                Spacer()
                                 Text(viewModel.assigneeName)
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 如果接收人存在且与对象不同，且 ID 不为 0，显示接收人
@@ -334,12 +338,13 @@ struct ContractDetailView: View {
                            let assigneeId = contract.assignee_id,
                            acceptorId != assigneeId,
                            acceptorId != 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Acceptor", comment: ""))
-                                Spacer()
                                 Text(viewModel.acceptorName)
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 地点信息
@@ -354,6 +359,7 @@ struct ContractDetailView: View {
                                         security: startInfo.security
                                     )
                                 }
+                                .frame(height: 36)
                             } else {
                                 // 显示起点
                                 VStack(alignment: .leading, spacing: 4) {
@@ -364,7 +370,7 @@ struct ContractDetailView: View {
                                         security: startInfo.security
                                     )
                                 }
-                                
+                                .frame(height: 36)
                                 // 显示终点（如果存在）
                                 if let endInfo = viewModel.endLocationInfo {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -375,58 +381,64 @@ struct ContractDetailView: View {
                                             security: endInfo.security
                                         )
                                     }
+                                    .frame(height: 36)
                                 }
                             }
                         }
                         
                         // 合同价格（如果有）
                         if contract.price > 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Price", comment: ""))
-                                Spacer()
                                 Text("\(FormatUtil.format(contract.price)) ISK")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 合同报酬（如果有）
                         if contract.reward > 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
-                                Spacer()
                                 Text("\(FormatUtil.format(contract.reward)) ISK")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 保证金（如果有）
                         if contract.collateral > 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
-                                Spacer()
                                 Text("\(FormatUtil.format(contract.collateral)) ISK")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 体积
                         if contract.volume > 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Volume", comment: ""))
-                                Spacer()
-                                Text("\(FormatUtil.format(contract.volume)) m³")
+                                Text("\(FormatUtil.format(contract.volume)) m3")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                         
                         // 完成期限
                         if contract.days_to_complete > 0 {
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Days_To_Complete", comment: ""))
-                                Spacer()
                                 Text("\(contract.days_to_complete)")
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            .frame(height: 36)
                         }
                     } header: {
                         Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
