@@ -143,6 +143,39 @@ struct ContractRow: View {
         return NSLocalizedString("Contract_Status_\(status)", comment: "")
     }
     
+    @ViewBuilder
+    private func priceView() -> some View {
+        switch contract.type {
+        case "item_exchange":
+            if contract.price > 0 {
+                Text("\(FormatUtil.format(contract.price)) ISK")
+                    .foregroundColor(.red)
+                    .font(.system(.caption, design: .monospaced))
+            }
+        case "courier":
+            VStack(alignment: .trailing, spacing: 2) {
+                if contract.reward > 0 {
+                    Text("+\(FormatUtil.format(contract.reward)) ISK")
+                        .foregroundColor(.green)
+                        .font(.system(.caption, design: .monospaced))
+                }
+                if contract.collateral > 0 {
+                    Text(NSLocalizedString("Contract_Collateral", comment: "") + ": \(FormatUtil.format(contract.collateral)) ISK")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        case "auction":
+            if contract.price > 0 {
+                Text("\(FormatUtil.format(contract.price)) ISK")
+                    .foregroundColor(.orange)
+                    .font(.system(.caption, design: .monospaced))
+            }
+        default:
+            EmptyView()
+        }
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
@@ -150,16 +183,7 @@ struct ContractRow: View {
                     .font(.body)
                     .lineLimit(1)
                 Spacer()
-                if contract.price > 0 {
-                    Text("\(FormatUtil.format(contract.price)) ISK")
-                        .foregroundColor(.red)
-                        .font(.system(.caption, design: .monospaced))
-                }
-                if contract.reward > 0 {
-                    Text("+\(FormatUtil.format(contract.reward)) ISK")
-                        .foregroundColor(.green)
-                        .font(.system(.caption, design: .monospaced))
-                }
+                priceView()
             }
             
             if !contract.title.isEmpty {
@@ -169,8 +193,8 @@ struct ContractRow: View {
                     .lineLimit(1)
             }
             
-            if contract.collateral > 0 {
-                Text(NSLocalizedString("Contract_Collateral", comment: "") + ": \(FormatUtil.format(contract.collateral)) ISK")
+            if contract.volume > 0 {
+                Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
