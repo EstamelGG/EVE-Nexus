@@ -334,24 +334,10 @@ struct CharacterOrdersView: View {
             
             // 如果数据库中找不到，说明可能是玩家建筑物，通过API获取
             do {
-                let urlString = "https://esi.evetech.net/latest/universe/structures/\(locationId)/?datasource=tranquility"
-                guard let url = URL(string: urlString) else { continue }
-                
-                let data = try await NetworkManager.shared.fetchDataWithToken(
-                    from: url,
-                    characterId: Int(characterId),
-                    headers: [
-                        "Accept": "application/json",
-                        "Content-Type": "application/json"
-                    ]
+                let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
+                    structureId: locationId,
+                    characterId: Int(characterId)
                 )
-                
-                struct StructureInfo: Codable {
-                    let name: String
-                    let solar_system_id: Int64
-                }
-                
-                let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
                 
                 // 获取星系信息
                 let systemQuery = """

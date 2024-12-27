@@ -27,14 +27,6 @@ private struct StationInfo: Codable {
     let security: Double
 }
 
-// 建筑物信息
-private struct StructureInfo: Codable {
-    let name: String
-    let owner_id: Int
-    let solar_system_id: Int
-    let type_id: Int
-}
-
 // 资产名称响应
 private struct AssetNameResponse: Codable {
     let item_id: Int64
@@ -84,24 +76,10 @@ public enum AssetLoadingProgress {
     case fetchingNames         // 获取名称
 }
 
-// 建筑物信息缓存结构
-private struct StructureCacheData: Codable {
-    let data: StructureInfo
-    let timestamp: Date
-    
-    var isExpired: Bool {
-        // 设置缓存有效期为24小时
-        return Date().timeIntervalSince(timestamp) > 7 * 24 * 3600
-    }
-}
-
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
     private let cacheTimeout: TimeInterval = 7200 // 120分钟缓存
     private let assetTreeCachePrefix = "asset_tree_json_cache_"
-    
-    // 添加内存缓存，用于存储本次操作中已获取的建筑物信息
-    private var structureInfoCache: [Int64: StructureInfo] = [:]
     
     private init() {}
     
@@ -111,9 +89,6 @@ public class CharacterAssetsJsonAPI {
         forceRefresh: Bool = false,
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> String? {
-        // 重置内存缓存
-        structureInfoCache.removeAll()
-        
         // 检查缓存
         if !forceRefresh {
             if let cachedJson = getCachedJson(characterId: characterId) {
@@ -303,54 +278,6 @@ public class CharacterAssetsJsonAPI {
         case .error(let error):
             Logger.error("从数据库获取空间站信息失败: \(error)")
             throw AssetError.locationFetchError("Failed to fetch station info: \(error)")
-        }
-    }
-    
-    // 获取建筑物信息
-    private func fetchStructureInfo(structureId: Int64, characterId: Int) async throws -> StructureInfo {
-        // 先检查内存缓存
-        if let cachedStructure = structureInfoCache[structureId] {
-            Logger.info("使用内存缓存的建筑物信息 - 建筑物ID: \(structureId)")
-            return cachedStructure
-        }
-        
-        // 再尝试从文件缓存加载
-        if let cachedStructure = loadStructureFromCache(structureId: structureId) {
-            // 保存到内存缓存
-            structureInfoCache[structureId] = cachedStructure
-            return cachedStructure
-        }
-        
-        let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw AssetError.invalidURL
-        }
-        
-        do {
-            let headers = [
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            ]
-            
-            let data = try await NetworkManager.shared.fetchDataWithToken(
-                from: url,
-                characterId: characterId,
-                headers: headers,
-                noRetryKeywords: ["Forbidden"]
-            )
-            
-            let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
-            
-            // 保存到文件缓存
-            saveStructureToCache(structureInfo, structureId: structureId)
-            
-            // 保存到内存缓存
-            structureInfoCache[structureId] = structureInfo
-            
-            return structureInfo
-        } catch {
-            Logger.error("获取建筑物信息失败: \(error)")
-            throw AssetError.locationFetchError("Failed to fetch structure info: \(error)")
         }
     }
     
@@ -573,7 +500,7 @@ public class CharacterAssetsJsonAPI {
                     systemName = systemInfo.systemName
                     regionName = systemInfo.regionName
                 }
-            } else if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+            } else if let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(structureId: locationId, characterId: characterId) {
                 locationName = structureInfo.name
                 typeId = structureInfo.type_id
                 systemId = structureInfo.solar_system_id
@@ -585,7 +512,7 @@ public class CharacterAssetsJsonAPI {
                 }
             }
         } else {
-            if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+            if let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(structureId: locationId, characterId: characterId) {
                 locationName = structureInfo.name
                 typeId = structureInfo.type_id
                 systemId = structureInfo.solar_system_id
@@ -622,9 +549,6 @@ public class CharacterAssetsJsonAPI {
         var rootNodes: [AssetTreeNode] = []
         let concurrentLimit = 5 // 并发数量限制
         
-        // 创建统一的临时缓存字典
-        var locationCache: [Int64: (name: String, typeId: Int, systemId: Int)] = [:]
-        
         // 将 topLocations 转换为数组以便分批处理
         let locationArray = Array(topLocations)
         var currentIndex = 0
@@ -652,31 +576,15 @@ public class CharacterAssetsJsonAPI {
                         var regionName: String? = nil
                         var securityStatus: Double? = nil
                         
-                        // 检查缓存
-                        if let cached = locationCache[locationId] {
-                            locationName = cached.name
-                            typeId = cached.typeId
-                            if let systemInfo = await getSolarSystemInfo(solarSystemId: cached.systemId, databaseManager: databaseManager) {
-                                systemName = systemInfo.systemName
-                                regionName = systemInfo.regionName
-                                securityStatus = systemInfo.security
-                            }
-                        } else {
-                            // 获取位置信息
-                            let info = try await self.fetchLocationInfo(
-                                locationId: locationId,
-                                locationType: locationType,
-                                characterId: characterId,
-                                databaseManager: databaseManager
-                            )
-                            
-                            (locationName, typeId, systemId, systemName, regionName, securityStatus) = info
-                            
-                            // 更新缓存
-                            if let name = locationName, let tid = typeId, let sid = systemId {
-                                locationCache[locationId] = (name: name, typeId: tid, systemId: sid)
-                            }
-                        }
+                        // 获取位置信息
+                        let info = try await self.fetchLocationInfo(
+                            locationId: locationId,
+                            locationType: locationType,
+                            characterId: characterId,
+                            databaseManager: databaseManager
+                        )
+                        
+                        (locationName, typeId, systemId, systemName, regionName, securityStatus) = info
                         
                         if let tid = typeId {
                             iconName = self.getStationIcon(typeId: tid, databaseManager: databaseManager)
@@ -721,51 +629,5 @@ public class CharacterAssetsJsonAPI {
         }
         
         return rootNodes
-    }
-    
-    // 获取缓存目录
-    private func getCacheDirectory() -> URL? {
-        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        let cacheDirectory = documentsDirectory.appendingPathComponent("StructureCache", isDirectory: true)
-        
-        // 确保缓存目录存在
-        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
-        
-        return cacheDirectory
-    }
-    
-    // 获取缓存文件路径
-    private func getCacheFilePath(structureId: Int64) -> URL? {
-        guard let cacheDirectory = getCacheDirectory() else { return nil }
-        return cacheDirectory.appendingPathComponent("Structure_\(structureId).json")
-    }
-    
-    // 从缓存加载建筑物信息
-    private func loadStructureFromCache(structureId: Int64) -> StructureInfo? {
-        guard let cacheFile = getCacheFilePath(structureId: structureId),
-              let data = try? Data(contentsOf: cacheFile),
-              let cached = try? JSONDecoder().decode(StructureCacheData.self, from: data),
-              !cached.isExpired else {
-            return nil
-        }
-        
-        Logger.info("使用缓存的建筑物信息 - 建筑物ID: \(structureId)")
-        return cached.data
-    }
-    
-    // 保存建筑物信息到缓存
-    private func saveStructureToCache(_ structure: StructureInfo, structureId: Int64) {
-        guard let cacheFile = getCacheFilePath(structureId: structureId) else { return }
-        
-        let cachedData = StructureCacheData(data: structure, timestamp: Date())
-        do {
-            let encodedData = try JSONEncoder().encode(cachedData)
-            try encodedData.write(to: cacheFile)
-            Logger.info("建筑物信息已缓存到文件 - 建筑物ID: \(structureId)")
-        } catch {
-            Logger.error("保存建筑物缓存失败: \(error)")
-        }
     }
 } 
