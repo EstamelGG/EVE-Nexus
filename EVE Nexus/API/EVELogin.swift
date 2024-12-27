@@ -456,6 +456,7 @@ class EVELogin {
         Logger.info("EVELogin: 开始保存角色信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
         
         var characters = loadCharacters()
+        var isNewCharacter = false
         
         // 检查是否已存在该角色
         if let index = characters.firstIndex(where: { $0.character.CharacterID == character.CharacterID }) {
@@ -473,6 +474,7 @@ class EVELogin {
                 addedDate: Date(),
                 lastTokenUpdateTime: Date()
             ))
+            isNewCharacter = true
             Logger.info("EVELogin: 添加新角色信息")
         }
         
@@ -480,6 +482,17 @@ class EVELogin {
         if let encodedData = try? JSONEncoder().encode(characters) {
             Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
+        }
+        
+        // 如果是新角色，更新角色顺序
+        if isNewCharacter {
+            // 获取现有的角色顺序
+            var characterOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] ?? []
+            // 将新角色添加到顺序列表末尾
+            characterOrder.append(character.CharacterID)
+            // 保存更新后的顺序
+            Logger.info("正在缓存角色顺序数据, key: \(characterOrderKey), 数据大小: \(characterOrder.count) bytes")
+            UserDefaults.standard.set(characterOrder, forKey: characterOrderKey)
         }
     }
     
