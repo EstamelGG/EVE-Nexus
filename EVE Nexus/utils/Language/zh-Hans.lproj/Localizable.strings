@@ -325,8 +325,7 @@
 "Orders_Buy" = "收购";
 "Orders_Sell" = "出售";
 "Orders_Corp" = "公司";
-"Orders_No_Buy_Orders" = "无收购订单";
-"Orders_No_Sell_Orders" = "无出售订单";
+"Orders_No_Data" = "无数据";
 
 // Market Orders Time
 "Orders_Expired" = "已过期";

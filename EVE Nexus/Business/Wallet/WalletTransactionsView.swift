@@ -147,9 +147,20 @@ struct WalletTransactionsView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.transactionGroups.isEmpty {
-                Text(viewModel.errorMessage ?? NSLocalizedString("Main_Market_Transactions_No_Data", comment: ""))
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                            .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
+                    }
+                }
             } else {
                 ForEach(viewModel.transactionGroups) { group in
                     Section(header: Text(displayDateFormatter.string(from: group.date))

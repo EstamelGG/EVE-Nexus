@@ -59,9 +59,7 @@ struct CharacterOrdersView: View {
                                 Image(systemName: "doc.text")
                                     .font(.system(size: 30))
                                     .foregroundColor(.gray)
-                                Text(showBuyOrders ?
-                                     NSLocalizedString("Orders_No_Buy_Orders", comment: "") :
-                                        NSLocalizedString("Orders_No_Sell_Orders", comment: ""))
+                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
                                 .foregroundColor(.gray)
                             }
                             .padding()

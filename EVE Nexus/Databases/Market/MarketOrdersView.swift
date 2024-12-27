@@ -55,30 +55,47 @@ struct MarketOrdersView: View {
             
             // 订单列表
             List {
-                ForEach(filteredOrders, id: \.orderId) { order in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(formatPrice(order.price))
-                                    .font(.headline)
-                                Spacer()
-                                Text("Qty: \(order.volumeRemain)")
-                                    .font(.headline)
-                                    .foregroundColor(.secondary)
+                if filteredOrders.isEmpty {
+                    Section {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 8) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
                             }
-                            
-                            if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
-                                LocationInfoView(
-                                    stationName: stationInfo.stationName,
-                                    solarSystemName: stationInfo.solarSystemName,
-                                    security: stationInfo.security,
-                                    font: .caption,
-                                    textColor: .secondary
-                                )
-                            } else {
-                                Text("Unknown Station")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                            .padding()
+                            Spacer()
+                        }
+                    }
+                } else {
+                    ForEach(filteredOrders, id: \.orderId) { order in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(formatPrice(order.price))
+                                        .font(.headline)
+                                    Spacer()
+                                    Text("Qty: \(order.volumeRemain)")
+                                        .font(.headline)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
+                                    LocationInfoView(
+                                        stationName: stationInfo.stationName,
+                                        solarSystemName: stationInfo.solarSystemName,
+                                        security: stationInfo.security,
+                                        font: .caption,
+                                        textColor: .secondary
+                                    )
+                                } else {
+                                    Text("Unknown Station")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }

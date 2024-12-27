@@ -259,9 +259,20 @@ struct IncursionsView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else if viewModel.preparedIncursions.isEmpty {
-                    Text("Can not get incursions data")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
+                    Section {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 8) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
+                            }
+                            .padding()
+                            Spacer()
+                        }
+                    }
                 } else {
                     ForEach(viewModel.preparedIncursions) { incursion in
                         IncursionCell(incursion: incursion, databaseManager: viewModel.databaseManager)

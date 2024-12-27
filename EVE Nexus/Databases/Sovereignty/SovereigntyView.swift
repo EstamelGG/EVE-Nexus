@@ -226,9 +226,20 @@ struct SovereigntyView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
-                Text("Main_Setting_sovcam_No_Data")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity)
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                            .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
+                    }
+                }
             } else {
                 ForEach(Array(groupedCampaigns.keys.sorted()), id: \.self) { regionName in
                     Section(header: Text(regionName)
