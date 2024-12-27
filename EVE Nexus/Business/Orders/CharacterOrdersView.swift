@@ -312,9 +312,10 @@ struct CharacterOrdersView: View {
         for locationId in locations {
             // 先尝试从数据库获取空间站信息
             let query = """
-                SELECT s.stationName, ss.solarSystemName, s.security
+                SELECT s.stationName, ss.solarSystemName, u.system_security as security
                 FROM stations s
                 JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
+                JOIN universe u ON u.solarsystem_id = ss.solarSystemID
                 WHERE s.stationID = ?
             """
             
@@ -354,9 +355,10 @@ struct CharacterOrdersView: View {
                 
                 // 获取星系信息
                 let systemQuery = """
-                    SELECT solarSystemName, security
-                    FROM solarSystems
-                    WHERE solarSystemID = ?
+                    SELECT ss.solarSystemName, u.system_security as security
+                    FROM solarSystems ss
+                    JOIN universe u ON u.solarsystem_id = ss.solarSystemID
+                    WHERE ss.solarSystemID = ?
                 """
                 
                 if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [String(structureInfo.solar_system_id)]),
