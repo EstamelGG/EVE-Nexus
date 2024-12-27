@@ -196,6 +196,9 @@ struct WalletTransactionEntryRow: View {
     let viewModel: WalletTransactionsViewModel
     @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
+    @State private var locationName: String = "Unknown Station"
+    @State private var solarSystemName: String = ""
+    @State private var security: Double = 0.0
     @StateObject private var databaseManager = DatabaseManager()
     
     private let dateFormatter: DateFormatter = {
@@ -222,9 +225,35 @@ struct WalletTransactionEntryRow: View {
         return formatter
     }()
     
+    private func loadLocationInfo() async {
+        // 先尝试从数据库获取空间站信息
+        if let stationInfo = databaseManager.getStationInfo(stationID: entry.location_id) {
+            locationName = stationInfo.stationName
+            solarSystemName = stationInfo.solarSystemName
+            security = stationInfo.security
+            return
+        }
+        
+        // 如果不是空间站，尝试获取建筑物信息
+        do {
+            let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
+                structureId: entry.location_id,
+                characterId: entry.client_id
+            )
+            
+            if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                locationName = structureInfo.name
+                solarSystemName = systemInfo.systemName
+                security = systemInfo.security
+            }
+        } catch {
+            Logger.error("获取建筑物信息失败: \(error)")
+        }
+    }
+    
     var body: some View {
         NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: entry.type_id)) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
                 // 物品信息行
                 HStack(spacing: 12) {
                     // 物品图标
@@ -247,7 +276,15 @@ struct WalletTransactionEntryRow: View {
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
-                
+                // 交易地点
+                LocationInfoView(
+                    stationName: locationName,
+                    solarSystemName: solarSystemName,
+                    security: security,
+                    font: .caption,
+                    textColor: .secondary
+                )
+                .lineLimit(1)
                 // 交易详细信息
                 VStack(alignment: .leading, spacing: 4) {
                     // 交易时间
@@ -264,21 +301,6 @@ struct WalletTransactionEntryRow: View {
                             .foregroundColor(.gray)
                             .lineLimit(1)
                     }
-                    // 交易地点
-                    if let stationInfo = databaseManager.getStationInfo(stationID: Int64(entry.location_id)) {
-                        LocationInfoView(
-                            stationName: stationInfo.stationName,
-                            solarSystemName: stationInfo.solarSystemName,
-                            security: stationInfo.security,
-                            font: .caption,
-                            textColor: .secondary
-                        )
-                        .lineLimit(1)
-                    } else {
-                        Text("Unknown Station")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                 }
             }
             .padding(.vertical, 2)
@@ -290,6 +312,8 @@ struct WalletTransactionEntryRow: View {
             if let iconFileName = itemInfo?.iconFileName {
                 itemIcon = IconManager.shared.loadImage(for: iconFileName)
             }
+            // 加载位置信息
+            await loadLocationInfo()
         }
     }
 }
