@@ -126,6 +126,7 @@ struct PersonalContractsView: View {
 
 struct ContractRow: View {
     let contract: ContractInfo
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -143,29 +144,68 @@ struct ContractRow: View {
         return NSLocalizedString("Contract_Status_\(status)", comment: "")
     }
     
+    // 判断当前角色是否是合同发布者
+    private var isIssuer: Bool {
+        return contract.issuer_id == currentCharacterId
+    }
+    
+    // 判断当前角色是否是合同接收者
+    private var isAcceptor: Bool {
+        return contract.acceptor_id == currentCharacterId
+    }
+    
     @ViewBuilder
     private func priceView() -> some View {
         switch contract.type {
         case "item_exchange":
-            if contract.price > 0 {
-                Text("\(FormatUtil.format(contract.price)) ISK")
+            // 物品交换合同
+            if isIssuer {
+                // 发布者显示收入
+                Text("+\(FormatUtil.format(contract.price)) ISK")
+                    .foregroundColor(.green)
+                    .font(.system(.caption, design: .monospaced))
+            } else {
+                // 接收者显示支出
+                Text("-\(FormatUtil.format(contract.price)) ISK")
                     .foregroundColor(.red)
                     .font(.system(.caption, design: .monospaced))
             }
+            
         case "courier":
+            // 运输合同
             VStack(alignment: .trailing, spacing: 2) {
-                if contract.reward > 0 {
+                if isIssuer {
+                    // 发布者显示支出（报酬）和收回（保证金）
+                    Text("-\(FormatUtil.format(contract.reward)) ISK")
+                        .foregroundColor(.red)
+                        .font(.system(.caption, design: .monospaced))
+                } else {
+                    // 接收者显示收入（报酬）和冻结（保证金）
                     Text("+\(FormatUtil.format(contract.reward)) ISK")
                         .foregroundColor(.green)
                         .font(.system(.caption, design: .monospaced))
                 }
             }
+            
         case "auction":
-            if contract.price > 0 {
+            // 拍卖合同
+            if isIssuer {
+                // 发布者显示预期收入
+                Text("+\(FormatUtil.format(contract.price)) ISK")
+                    .foregroundColor(.green)
+                    .font(.system(.caption, design: .monospaced))
+            } else if isAcceptor {
+                // 当前最高出价者显示可能支出
+                Text("-\(FormatUtil.format(contract.price)) ISK")
+                    .foregroundColor(.red)
+                    .font(.system(.caption, design: .monospaced))
+            } else {
+                // 其他人显示当前价格
                 Text("\(FormatUtil.format(contract.price)) ISK")
                     .foregroundColor(.orange)
                     .font(.system(.caption, design: .monospaced))
             }
+            
         default:
             EmptyView()
         }
