@@ -159,11 +159,6 @@ struct ContractRow: View {
                         .foregroundColor(.green)
                         .font(.system(.caption, design: .monospaced))
                 }
-                if contract.collateral > 0 {
-                    Text(NSLocalizedString("Contract_Collateral", comment: "") + ": \(FormatUtil.format(contract.collateral)) ISK")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
             }
         case "auction":
             if contract.price > 0 {
