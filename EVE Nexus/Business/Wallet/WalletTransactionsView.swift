@@ -161,6 +161,7 @@ struct WalletTransactionsView: View {
                         Spacer()
                     }
                 }
+                .listSectionSpacing(.compact)
             } else {
                 ForEach(viewModel.transactionGroups) { group in
                     Section(header: Text(displayDateFormatter.string(from: group.date))
