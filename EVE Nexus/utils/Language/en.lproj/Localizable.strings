@@ -359,12 +359,6 @@
 "Contract_Status_unknown" = "Unknown";
 
 // Contract Details
+"Contract_Title" = "Title";
 "Contract_Collateral" = "Collateral";
 "Contract_Volume" = "Volume";
-"Contract_Expires" = "Expires";
-"Contract_Issued" = "Issued";
-"Contract_Accepted" = "Accepted";
-"Contract_Completed" = "Completed";
-"Contract_Days_To_Complete" = "Days to Complete";
-"Contract_Price" = "Price";
-"Contract_Reward" = "Reward";

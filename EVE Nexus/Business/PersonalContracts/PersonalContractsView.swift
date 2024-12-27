@@ -247,7 +247,7 @@ struct ContractRow: View {
             }
             
             if !contract.title.isEmpty {
-                Text(contract.title)
+                Text(NSLocalizedString("Contract_Title", comment: "") + ": \(contract.title)")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)

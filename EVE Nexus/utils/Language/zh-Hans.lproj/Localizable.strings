@@ -355,12 +355,6 @@
 "Contract_Status_unknown" = "未知";
 
 // Contract Details
+"Contract_Title" = "标题";
 "Contract_Collateral" = "保证金";
 "Contract_Volume" = "体积";
-"Contract_Expires" = "过期时间";
-"Contract_Issued" = "发布时间";
-"Contract_Accepted" = "接受时间";
-"Contract_Completed" = "完成时间";
-"Contract_Days_To_Complete" = "完成期限";
-"Contract_Price" = "价格";
-"Contract_Reward" = "报酬";
