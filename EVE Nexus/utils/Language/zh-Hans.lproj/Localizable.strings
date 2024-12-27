@@ -371,3 +371,6 @@
 "Contract_Status" = "状态";
 "Contract_Price" = "价格";
 "Contract_Reward" = "报酬";
+"Contract_Location" = "地点";
+"Contract_Start_Location" = "起点";
+"Contract_End_Location" = "终点";

@@ -380,3 +380,7 @@
 "Contract_Item_Singleton" = "Singleton";
 "Contract_Item_Included" = "Included";
 "Contract_Item_Required" = "Required";
+
+"Contract_Location" = "Location";
+"Contract_Start_Location" = "Start Location";
+"Contract_End_Location" = "End Location";
