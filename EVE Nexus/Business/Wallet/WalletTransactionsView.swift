@@ -160,6 +160,7 @@ struct WalletTransactionsView: View {
                     ) {
                         ForEach(group.entries) { entry in
                             WalletTransactionEntryRow(entry: entry, viewModel: viewModel)
+                                .listRowInsets(EdgeInsets(top: 2, leading: 18, bottom: 2, trailing: 18))
                         }
                     }
                 }
@@ -240,7 +241,6 @@ struct WalletTransactionEntryRow: View {
                 }
             }
         }
-        .frame(height: 48)
         .padding(.vertical, 2)
         .task {
             // 加载物品信息
