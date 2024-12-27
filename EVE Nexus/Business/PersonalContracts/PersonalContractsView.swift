@@ -129,7 +129,7 @@ struct ContractRow: View {
     
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.timeZone = TimeZone(identifier: "UTC")!
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
@@ -179,7 +179,7 @@ struct ContractRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(formatContractType(contract.type))
+                Text("[\(formatContractStatus(contract.status))] \(formatContractType(contract.type))")
                     .font(.body)
                     .lineLimit(1)
                 Spacer()
@@ -200,12 +200,6 @@ struct ContractRow: View {
             }
             
             HStack {
-                Text(formatContractStatus(contract.status))
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
                 Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
                     .font(.caption)
                     .foregroundColor(.gray)
