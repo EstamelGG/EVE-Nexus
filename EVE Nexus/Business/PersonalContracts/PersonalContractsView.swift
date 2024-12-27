@@ -144,6 +144,22 @@ struct ContractRow: View {
         return NSLocalizedString("Contract_Status_\(status)", comment: "")
     }
     
+    // 根据状态返回对应的颜色
+    private func getStatusColor(_ status: String) -> Color {
+        switch status {
+        case "finished", "finished_issuer", "finished_contractor", "deleted":
+            return .secondary
+        case "rejected", "failed", "reversed":
+            return .red
+        case "outstanding":
+            return .blue  // 待处理状态显示为蓝色
+        case "in_progress":
+            return .green  // 进行中状态显示为绿色
+        default:
+            return .primary  // 其他状态使用主色调
+        }
+    }
+    
     // 判断当前角色是否是合同发布者
     private var isIssuer: Bool {
         return contract.issuer_id == currentCharacterId
@@ -214,7 +230,16 @@ struct ContractRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text("[\(formatContractStatus(contract.status))] \(formatContractType(contract.type))")
+                Text(formatContractStatus(contract.status))
+                    .font(.caption)
+                    .foregroundColor(getStatusColor(contract.status))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.2))
+                    )
+                Text(formatContractType(contract.type))
                     .font(.body)
                     .lineLimit(1)
                 Spacer()
