@@ -353,7 +353,10 @@
 "Contract_Status_deleted" = "已删除";
 "Contract_Status_reversed" = "已撤销";
 "Contract_Status_unknown" = "未知";
-
+"Contract_Issuer" = "发起人";
+"Contract_Assignee" = "合同对象";
+"Contract_Acceptor" = "接收人";
+"Contract_Days_To_Complete" = "完成期限";
 // Contract Details
 "Contract_Title" = "标题";
 "Contract_Collateral" = "保证金";
