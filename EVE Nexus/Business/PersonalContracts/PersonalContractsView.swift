@@ -147,14 +147,14 @@ struct ContractRow: View {
     // 根据状态返回对应的颜色
     private func getStatusColor(_ status: String) -> Color {
         switch status {
-        case "finished", "finished_issuer", "finished_contractor", "deleted":
+        case "deleted":
             return .secondary
         case "rejected", "failed", "reversed":
             return .red
-        case "outstanding":
-            return .blue  // 待处理状态显示为蓝色
-        case "in_progress":
-            return .green  // 进行中状态显示为绿色
+        case "outstanding", "in_progress":
+            return .blue  // 进行中和待处理状态显示为蓝色
+        case "finished", "finished_issuer", "finished_contractor":
+            return .green  // 完成状态显示为绿色
         default:
             return .primary  // 其他状态使用主色调
         }
