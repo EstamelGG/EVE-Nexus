@@ -36,26 +36,13 @@ private struct LocationNameView: View {
     let location: AssetTreeNode
     
     var body: some View {
-        HStack(spacing: 4) {
-            if let systemName = location.system_name,
-               let security = location.security_status {
-                Text(formatSecurity(security))
-                    .foregroundColor(getSecurityColor(security))
-                
-                // 位置名称处理
-                if let name = location.name, name.hasPrefix(systemName) {
-                    Text(systemName)
-                        .fontWeight(.bold) +
-                    Text(name.dropFirst(systemName.count))
-                } else {
-                    Text(location.name ?? "Unknown Location")
-                }
-            } else {
-                // 对于未知位置，直接显示名称
-                Text(location.name ?? "Unknown Location")
-                    .foregroundColor(.secondary)
-            }
-        }
+        LocationInfoView(
+            stationName: location.name,
+            solarSystemName: location.system_name,
+            security: location.security_status,
+            font: .body,
+            textColor: .primary
+        )
     }
 }
 

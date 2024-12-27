@@ -67,29 +67,19 @@ struct MarketOrdersView: View {
                                     .foregroundColor(.secondary)
                             }
                             
-                            HStack(spacing: 4) {
-                                if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
-                                    Text(formatSecurity(stationInfo.security))
-                                        .foregroundColor(getSecurityColor(stationInfo.security))
-                                    
-                                    // 检查空间站名称是否以星系名开头
-                                    if stationInfo.stationName.hasPrefix(stationInfo.solarSystemName) {
-                                        // 如果是，将星系名部分加粗
-                                        Text(stationInfo.solarSystemName)
-                                            .fontWeight(.bold) +
-                                        Text(stationInfo.stationName.dropFirst(stationInfo.solarSystemName.count))
-                                    } else {
-                                        // 如果不是，正常显示空间站名称
-                                        Text(stationInfo.stationName)
-                                    }
-                                } else {
-                                    Text("0.0")
-                                        .foregroundColor(.red)
-                                    Text("Unknown Station")
-                                }
+                            if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
+                                LocationInfoView(
+                                    stationName: stationInfo.stationName,
+                                    solarSystemName: stationInfo.solarSystemName,
+                                    security: stationInfo.security,
+                                    font: .caption,
+                                    textColor: .secondary
+                                )
+                            } else {
+                                Text("Unknown Station")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                         }
                     }
                 }

@@ -195,29 +195,20 @@ struct CharacterOrdersView: View {
                 
                 // 订单详细信息
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        // 位置信息
-                        if let locationInfo = locationInfo {
-                            Text(formatSecurity(locationInfo.security))
-                                .foregroundColor(getSecurityColor(locationInfo.security))
-                            
-                            // 检查空间站名称是否以星系名开头
-                            if locationInfo.stationName.hasPrefix(locationInfo.solarSystemName) {
-                                // 如果是，将星系名部分加粗
-                                Text(locationInfo.solarSystemName)
-                                    .fontWeight(.bold) +
-                                Text(locationInfo.stationName.dropFirst(locationInfo.solarSystemName.count))
-                            } else {
-                                Text(locationInfo.stationName)
-                            }
-                        } else {
-                            Text("0.0")
-                                .foregroundColor(.red)
-                            Text("Unknown Station")
-                        }
+                    // 位置信息
+                    if let locationInfo = locationInfo {
+                        LocationInfoView(
+                            stationName: locationInfo.stationName,
+                            solarSystemName: locationInfo.solarSystemName,
+                            security: locationInfo.security
+                        )
+                    } else {
+                        LocationInfoView(
+                            stationName: nil,
+                            solarSystemName: nil,
+                            security: nil
+                        )
                     }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
                     
                     // 时间信息
                     HStack {
