@@ -11,6 +11,41 @@ actor AuthTokenManager: NSObject {
         super.init()
     }
     
+    // 验证认证状态是否有效
+    private func validateAuthState(_ authState: OIDAuthState) -> Bool {
+        guard let tokenResponse = authState.lastTokenResponse,
+              let expirationDate = tokenResponse.accessTokenExpirationDate else {
+            return false
+        }
+        
+        // 提前5分钟认为token将过期
+        let gracePeriod: TimeInterval = 5 * 60
+        return Date().addingTimeInterval(gracePeriod) < expirationDate
+    }
+    
+    // 显式刷新token
+    private func refreshToken(for characterId: Int) async throws -> String {
+        guard let authState = authStates[characterId] else {
+            throw NetworkError.authenticationError("No auth state found")
+        }
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            authState.setNeedsTokenRefresh()  // 强制刷新
+            authState.performAction { accessToken, _, error in
+                if let error = error {
+                    Logger.error("刷新 token 失败: \(error)")
+                    continuation.resume(throwing: error)
+                } else if let accessToken = accessToken {
+                    Logger.info("Token 已刷新 - 角色ID: \(characterId)")
+                    continuation.resume(returning: accessToken)
+                } else {
+                    Logger.error("刷新 token 失败: 无效数据")
+                    continuation.resume(throwing: NetworkError.invalidData)
+                }
+            }
+        }
+    }
+    
     // 获取授权URL配置
     private func getConfiguration() async throws -> OIDServiceConfiguration {
         let issuer = URL(string: "https://login.eveonline.com")!
@@ -42,7 +77,6 @@ actor AuthTokenManager: NSObject {
                     additionalParameters: nil
                 )
                 
-                // 在主线程上执行授权请求，但在 actor 上下文中设置 currentAuthorizationFlow
                 let authFlow = OIDAuthState.authState(byPresenting: request, presenting: viewController) { [] authState, error in
                     if let error = error {
                         continuation.resume(throwing: error)
@@ -56,7 +90,6 @@ actor AuthTokenManager: NSObject {
                     continuation.resume(returning: authState)
                 }
                 
-                // 在 actor 上下文中设置 currentAuthorizationFlow
                 Task {
                     await self.setCurrentAuthorizationFlow(authFlow)
                 }
@@ -64,37 +97,37 @@ actor AuthTokenManager: NSObject {
         }
     }
     
-    // 添加一个方法来设置 currentAuthorizationFlow
     private func setCurrentAuthorizationFlow(_ flow: OIDExternalUserAgentSession?) {
         self.currentAuthorizationFlow = flow
     }
     
-    // 保存认证状态
     func saveAuthState(_ authState: OIDAuthState, for characterId: Int) {
         authState.stateChangeDelegate = self
         authStates[characterId] = authState
         
-        // 保存 refresh token
         if let refreshToken = authState.refreshToken {
             try? SecureStorage.shared.saveToken(refreshToken, for: characterId)
         }
     }
     
-    // 获取访问令牌
     func getAccessToken(for characterId: Int) async throws -> String {
         let authState = try await getOrCreateAuthState(for: characterId)
+        
+        // 检查状态是否有效，如果无效则强制刷新
+        if !validateAuthState(authState) {
+            Logger.info("检测到token即将过期，主动刷新 - 角色ID: \(characterId)")
+            return try await refreshToken(for: characterId)
+        }
+        
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
                 if let error = error {
                     Logger.error("获取 access token 失败: \(error)")
                     continuation.resume(throwing: error)
                 } else if let accessToken = accessToken {
-                    // 检查是否发生了 token 刷新
                     if let lastToken = authState.lastTokenResponse?.accessToken,
                        lastToken != accessToken {
-                        Logger.info("Token 已过期并自动刷新 - 角色ID: \(characterId)")
-                        Logger.info("旧 Token: \(lastToken.prefix(32))...")
-                        Logger.info("新 Token: \(accessToken.prefix(32))...")
+                        Logger.info("Token 已自动刷新 - 角色ID: \(characterId)")
                     }
                     continuation.resume(returning: accessToken)
                 } else {
@@ -106,22 +139,18 @@ actor AuthTokenManager: NSObject {
     }
     
     private func getOrCreateAuthState(for characterId: Int) async throws -> OIDAuthState {
-        // 如果存在有效的状态，直接返回
         if let existingState = authStates[characterId] {
             return existingState
         }
         
-        // 从存储中恢复 refresh token
         guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
             throw NetworkError.authenticationError("No refresh token found")
         }
         
-        // 获取配置
         let configuration = try await getConfiguration()
         let redirectURI = URL(string: "eveauthpanel://callback/")!
         let clientId = EVELogin.shared.config?.clientId ?? ""
         
-        // 创建 token 请求
         let request = OIDTokenRequest(
             configuration: configuration,
             grantType: OIDGrantTypeRefreshToken,
@@ -135,7 +164,6 @@ actor AuthTokenManager: NSObject {
             additionalParameters: nil
         )
         
-        // 执行 token 请求
         let response: OIDTokenResponse = try await withCheckedThrowingContinuation { continuation in
             OIDAuthorizationService.perform(request) { response, error in
                 if let error = error {
@@ -148,7 +176,6 @@ actor AuthTokenManager: NSObject {
             }
         }
         
-        // 创建 auth state
         let authRequest = OIDAuthorizationRequest(
             configuration: configuration,
             clientId: clientId,
@@ -169,7 +196,6 @@ actor AuthTokenManager: NSObject {
         let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
         authState.stateChangeDelegate = self
         
-        // 保存有效的状态
         authStates[characterId] = authState
         return authState
     }
@@ -178,7 +204,6 @@ actor AuthTokenManager: NSObject {
         if let authState = authStates.removeValue(forKey: characterId) {
             authState.stateChangeDelegate = nil
         }
-        
         try? SecureStorage.shared.deleteToken(for: characterId)
     }
     
@@ -272,7 +297,6 @@ actor AuthTokenManager: NSObject {
 
 extension AuthTokenManager: OIDAuthStateChangeDelegate {
     nonisolated func didChange(_ state: OIDAuthState) {
-        // 当 auth state 发生变化时保存新的 refresh token
         Logger.info("登录状态改变，尝试刷新 refresh token")
         if let refreshToken = state.refreshToken {
             Task { @MainActor [weak self] in
