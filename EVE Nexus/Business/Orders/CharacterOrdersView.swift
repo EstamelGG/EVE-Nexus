@@ -6,6 +6,13 @@ struct OrderItemInfo {
     let iconFileName: String
 }
 
+// 位置信息模型
+struct OrderLocationInfo {
+    let stationName: String
+    let solarSystemName: String
+    let security: Double
+}
+
 struct CharacterOrdersView: View {
     let characterId: Int64
     @State private var orders: [CharacterMarketOrder] = []
@@ -14,6 +21,7 @@ struct CharacterOrdersView: View {
     @State private var showError = false
     @State private var locationNames: [Int64: String] = [:]
     @State private var itemInfoCache: [Int64: OrderItemInfo] = [:]
+    @State private var locationInfoCache: [Int64: OrderLocationInfo] = [:]
     @StateObject private var databaseManager = DatabaseManager()
     @State private var showBuyOrders = false
     @State private var isDataReady = false
@@ -21,7 +29,7 @@ struct CharacterOrdersView: View {
     private var filteredOrders: [CharacterMarketOrder] {
         orders.filter { $0.isBuyOrder ?? false == showBuyOrders }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 买卖单切换按钮
@@ -51,10 +59,10 @@ struct CharacterOrdersView: View {
                                 Image(systemName: "doc.text")
                                     .font(.system(size: 30))
                                     .foregroundColor(.gray)
-                                Text(showBuyOrders ? 
-                                    NSLocalizedString("Orders_No_Buy_Orders", comment: "") :
-                                    NSLocalizedString("Orders_No_Sell_Orders", comment: ""))
-                                    .foregroundColor(.gray)
+                                Text(showBuyOrders ?
+                                     NSLocalizedString("Orders_No_Buy_Orders", comment: "") :
+                                        NSLocalizedString("Orders_No_Sell_Orders", comment: ""))
+                                .foregroundColor(.gray)
                             }
                             .padding()
                             Spacer()
@@ -63,7 +71,11 @@ struct CharacterOrdersView: View {
                 } else {
                     Section {
                         ForEach(filteredOrders) { order in
-                            OrderRow(order: order, itemInfo: itemInfoCache[order.typeId], locationName: locationNames[order.locationId])
+                            OrderRow(
+                                order: order,
+                                itemInfo: itemInfoCache[order.typeId],
+                                locationInfo: locationInfoCache[order.locationId]
+                            )
                         }
                     }
                 }
@@ -89,7 +101,34 @@ struct CharacterOrdersView: View {
     private struct OrderRow: View {
         let order: CharacterMarketOrder
         let itemInfo: OrderItemInfo?
-        let locationName: String?
+        let locationInfo: OrderLocationInfo?
+        
+        private func formatSecurity(_ security: Double) -> String {
+            String(format: "%.1f", security)
+        }
+        
+        private let dateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            formatter.timeZone = TimeZone(identifier: "UTC")!
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            return formatter
+        }()
+        private let displayDateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: "UTC")!
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            return formatter
+        }()
+        
+        private let timeFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "HH:mm:ss"
+            formatter.timeZone = TimeZone(identifier: "UTC")!
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            return formatter
+        }()
         
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
@@ -108,9 +147,13 @@ struct CharacterOrdersView: View {
                     }
                     
                     VStack(alignment: .leading) {
-                        Text(itemInfo?.name ?? "Unknown Item")
-                            .font(.headline)
-                            .lineLimit(1)
+                        HStack {
+                            Text(itemInfo?.name ?? "Unknown Item")
+                                .font(.headline)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(order.volumeRemain)/\(order.volumeTotal)")
+                        }
                         Text(FormatUtil.format(order.price) + " ISK")
                             .font(.system(.caption, design: .monospaced))
                             .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
@@ -119,51 +162,37 @@ struct CharacterOrdersView: View {
                 
                 // 订单详细信息
                 VStack(alignment: .leading, spacing: 4) {
-                    // 数量信息
-                    HStack {
-                        Text("\(order.volumeRemain)/\(order.volumeTotal)")
-                            .font(.subheadline)
-                        Text(NSLocalizedString("Orders_Remaining", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    
-                    // 位置信息
-                    HStack {
-                        Text(locationName ?? "Unknown Location")
-                            .font(.subheadline)
-                    }
-                    
-                    // 订单类型和范围
-                    HStack {
-                        Text(order.isBuyOrder ?? false ? NSLocalizedString("Orders_Buy", comment: "") : NSLocalizedString("Orders_Sell", comment: ""))
-                            .font(.caption)
-                            .padding(4)
-                            .background(order.isBuyOrder ?? false ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-                            .cornerRadius(4)
-                        
-                        Text(order.range.capitalized)
-                            .font(.caption)
-                            .padding(4)
-                            .background(Color.gray.opacity(0.2))
-                            .cornerRadius(4)
-                        
-                        if order.isCorporation {
-                            Text(NSLocalizedString("Orders_Corp", comment: ""))
-                                .font(.caption)
-                                .padding(4)
-                                .background(Color.purple.opacity(0.2))
-                                .cornerRadius(4)
+                    HStack(spacing: 4) {
+                        // 位置信息
+                        if let locationInfo = locationInfo {
+                            Text(formatSecurity(locationInfo.security))
+                                .foregroundColor(getSecurityColor(locationInfo.security))
+                            
+                            // 检查空间站名称是否以星系名开头
+                            if locationInfo.stationName.hasPrefix(locationInfo.solarSystemName) {
+                                // 如果是，将星系名部分加粗
+                                Text(locationInfo.solarSystemName)
+                                    .fontWeight(.bold) +
+                                Text(locationInfo.stationName.dropFirst(locationInfo.solarSystemName.count))
+                            } else {
+                                Text(locationInfo.stationName)
+                            }
+                        } else {
+                            Text("0.0")
+                                .foregroundColor(.red)
+                            Text("Unknown Station")
                         }
                     }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                     
                     // 时间信息
                     HStack {
-                        Image(systemName: "clock")
-                            .foregroundColor(.gray)
-                        Text(formatDate(order.issued))
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                        if let date = dateFormatter.date(from: order.issued) {
+                            Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
                     }
                 }
             }
@@ -190,6 +219,7 @@ struct CharacterOrdersView: View {
         isDataReady = false
         locationNames.removeAll()
         itemInfoCache.removeAll()
+        locationInfoCache.removeAll()
         
         do {
             // 获取订单数据
@@ -244,15 +274,22 @@ struct CharacterOrdersView: View {
         for locationId in locations {
             // 先尝试从数据库获取空间站信息
             let query = """
-                SELECT stationName
-                FROM stations
-                WHERE stationID = ?
+                SELECT s.stationName, ss.solarSystemName, s.security
+                FROM stations s
+                JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
+                WHERE s.stationID = ?
             """
             
             if case .success(let rows) = databaseManager.executeQuery(query, parameters: [String(locationId)]),
                let row = rows.first,
-               let name = row["stationName"] as? String {
-                locationNames[locationId] = name
+               let stationName = row["stationName"] as? String,
+               let solarSystemName = row["solarSystemName"] as? String,
+               let security = row["security"] as? Double {
+                locationInfoCache[locationId] = OrderLocationInfo(
+                    stationName: stationName,
+                    solarSystemName: solarSystemName,
+                    security: security
+                )
                 continue
             }
             
@@ -276,10 +313,26 @@ struct CharacterOrdersView: View {
                 }
                 
                 let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
-                locationNames[locationId] = structureInfo.name
+                
+                // 获取星系信息
+                let systemQuery = """
+                    SELECT solarSystemName, security
+                    FROM solarSystems
+                    WHERE solarSystemID = ?
+                """
+                
+                if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [String(structureInfo.solar_system_id)]),
+                   let row = rows.first,
+                   let solarSystemName = row["solarSystemName"] as? String,
+                   let security = row["security"] as? Double {
+                    locationInfoCache[locationId] = OrderLocationInfo(
+                        stationName: structureInfo.name,
+                        solarSystemName: solarSystemName,
+                        security: security
+                    )
+                }
             } catch {
                 Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
-                locationNames[locationId] = NSLocalizedString("Assets_Unknown_Location", comment: "")
             }
         }
     }
