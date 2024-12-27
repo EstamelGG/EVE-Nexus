@@ -23,6 +23,8 @@ private struct StationInfo: Codable {
     let station_id: Int64
     let system_id: Int
     let type_id: Int
+    let region_id: Int
+    let security: Double
 }
 
 // 建筑物信息
@@ -250,17 +252,39 @@ public class CharacterAssetsJsonAPI {
     }
     
     // 获取空间站信息
-    private func fetchStationInfo(stationId: Int64) async throws -> StationInfo {
-        let urlString = "https://esi.evetech.net/latest/universe/stations/\(stationId)/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw AssetError.invalidURL
-        }
+    private func fetchStationInfo(stationId: Int64, databaseManager: DatabaseManager) async throws -> StationInfo {
+        let query = """
+            SELECT stationID, stationTypeID, stationName, regionID, solarSystemID, security
+            FROM stations
+            WHERE stationID = ?
+        """
         
-        do {
-            let data = try await NetworkManager.shared.fetchData(from: url)
-            let stationInfo = try JSONDecoder().decode(StationInfo.self, from: data)
-            return stationInfo
-        } catch {
+        // 将 stationId 转换为字符串
+        let stationIdStr = String(stationId)
+        let result = databaseManager.executeQuery(query, parameters: [stationIdStr])
+        
+        switch result {
+        case .success(let rows):
+            guard let row = rows.first,
+                  let stationName = row["stationName"] as? String,
+                  let stationTypeID = row["stationTypeID"] as? Int,
+                  let solarSystemID = row["solarSystemID"] as? Int,
+                  let regionID = row["regionID"] as? Int,
+                  let security = row["security"] as? Double else {
+                throw AssetError.locationFetchError("Failed to fetch station info from database")
+            }
+            
+            return StationInfo(
+                name: stationName,
+                station_id: stationId,
+                system_id: solarSystemID,
+                type_id: stationTypeID,
+                region_id: regionID,
+                security: security
+            )
+            
+        case .error(let error):
+            Logger.error("从数据库获取空间站信息失败: \(error)")
             throw AssetError.locationFetchError("Failed to fetch station info: \(error)")
         }
     }
@@ -500,25 +524,50 @@ public class CharacterAssetsJsonAPI {
         var securityStatus: Double? = nil
         
         if locationType == "station" {
-            if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
-                (locationName, typeId, systemId) = (stationInfo.name, stationInfo.type_id, stationInfo.system_id)
+            if let stationInfo = try? await self.fetchStationInfo(stationId: locationId, databaseManager: databaseManager) {
+                locationName = stationInfo.name
+                typeId = stationInfo.type_id
+                systemId = stationInfo.system_id
+                securityStatus = stationInfo.security
+                
+                // 获取星系和星域名称
+                if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                    systemName = systemInfo.systemName
+                    regionName = systemInfo.regionName
+                }
             } else if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                (locationName, typeId, systemId) = (structureInfo.name, structureInfo.type_id, structureInfo.solar_system_id)
+                locationName = structureInfo.name
+                typeId = structureInfo.type_id
+                systemId = structureInfo.solar_system_id
+                
+                if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                    systemName = systemInfo.systemName
+                    regionName = systemInfo.regionName
+                    securityStatus = systemInfo.security
+                }
             }
         } else {
             if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                (locationName, typeId, systemId) = (structureInfo.name, structureInfo.type_id, structureInfo.solar_system_id)
-            } else if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
-                (locationName, typeId, systemId) = (stationInfo.name, stationInfo.type_id, stationInfo.system_id)
+                locationName = structureInfo.name
+                typeId = structureInfo.type_id
+                systemId = structureInfo.solar_system_id
+                
+                if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
+                    systemName = systemInfo.systemName
+                    regionName = systemInfo.regionName
+                    securityStatus = systemInfo.security
+                }
+            } else if let stationInfo = try? await self.fetchStationInfo(stationId: locationId, databaseManager: databaseManager) {
+                locationName = stationInfo.name
+                typeId = stationInfo.type_id
+                systemId = stationInfo.system_id
+                securityStatus = stationInfo.security
+                
+                if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
+                    systemName = systemInfo.systemName
+                    regionName = systemInfo.regionName
+                }
             }
-        }
-        
-        // 获取星系信息
-        if let sysId = systemId,
-           let systemInfo = await getSolarSystemInfo(solarSystemId: sysId, databaseManager: databaseManager) {
-            systemName = systemInfo.systemName
-            regionName = systemInfo.regionName
-            securityStatus = systemInfo.security
         }
         
         return (locationName, typeId, systemId, systemName, regionName, securityStatus)
