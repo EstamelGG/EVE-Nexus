@@ -195,6 +195,7 @@ struct WalletTransactionEntryRow: View {
     let viewModel: WalletTransactionsViewModel
     @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
+    @StateObject private var databaseManager = DatabaseManager()
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -221,38 +222,40 @@ struct WalletTransactionEntryRow: View {
     }()
     
     var body: some View {
-        HStack(spacing: 12) {
-            // 物品图标
-            if let icon = itemIcon {
-                icon
-                    .resizable()
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            } else {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 36, height: 36)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                // 物品名称和交易类型
-                Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
-                    .font(.body)
-                Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
-                    .foregroundColor(entry.is_buy ? .red : .green)
-                    .font(.system(.caption, design: .monospaced))
-                // 交易类型和时间
-                if let date = dateFormatter.date(from: entry.date) {
-                    Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                    Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: entry.type_id)) {
+            HStack(spacing: 12) {
+                // 物品图标
+                if let icon = itemIcon {
+                    icon
+                        .resizable()
+                        .frame(width: 36, height: 36)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 36, height: 36)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    // 物品名称和交易类型
+                    Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
+                        .font(.body)
+                    Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
+                        .foregroundColor(entry.is_buy ? .red : .green)
+                        .font(.system(.caption, design: .monospaced))
+                    // 交易类型和时间
+                    if let date = dateFormatter.date(from: entry.date) {
+                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                        Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
+            .padding(.vertical, 2)
         }
-        .padding(.vertical, 2)
         .task {
             // 加载物品信息
             itemInfo = viewModel.getItemInfo(for: entry.type_id)
