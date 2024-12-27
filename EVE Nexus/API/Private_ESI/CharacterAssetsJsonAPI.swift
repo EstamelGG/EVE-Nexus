@@ -485,6 +485,45 @@ public class CharacterAssetsJsonAPI {
         }
     }
     
+    // 获取位置信息的辅助方法
+    private func fetchLocationInfo(
+        locationId: Int64,
+        locationType: String,
+        characterId: Int,
+        databaseManager: DatabaseManager
+    ) async throws -> (name: String?, typeId: Int?, systemId: Int?, systemName: String?, regionName: String?, securityStatus: Double?) {
+        var locationName: String? = nil
+        var typeId: Int? = nil
+        var systemId: Int? = nil
+        var systemName: String? = nil
+        var regionName: String? = nil
+        var securityStatus: Double? = nil
+        
+        if locationType == "station" {
+            if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
+                (locationName, typeId, systemId) = (stationInfo.name, stationInfo.type_id, stationInfo.system_id)
+            } else if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                (locationName, typeId, systemId) = (structureInfo.name, structureInfo.type_id, structureInfo.solar_system_id)
+            }
+        } else {
+            if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
+                (locationName, typeId, systemId) = (structureInfo.name, structureInfo.type_id, structureInfo.solar_system_id)
+            } else if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
+                (locationName, typeId, systemId) = (stationInfo.name, stationInfo.type_id, stationInfo.system_id)
+            }
+        }
+        
+        // 获取星系信息
+        if let sysId = systemId,
+           let systemInfo = await getSolarSystemInfo(solarSystemId: sysId, databaseManager: databaseManager) {
+            systemName = systemInfo.systemName
+            regionName = systemInfo.regionName
+            securityStatus = systemInfo.security
+        }
+        
+        return (locationName, typeId, systemId, systemName, regionName, securityStatus)
+    }
+    
     // 辅助函数：创建初始的根节点
     private func createInitialRootNodes(
         topLocations: Set<Int64>,
@@ -536,48 +575,15 @@ public class CharacterAssetsJsonAPI {
                                 securityStatus = systemInfo.security
                             }
                         } else {
-                            // 根据location_type决定API调用顺序
-                            if locationType == "station" {
-                                if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
-                                    locationName = stationInfo.name
-                                    typeId = stationInfo.type_id
-                                    systemId = stationInfo.system_id
-                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                                        systemName = systemInfo.systemName
-                                        regionName = systemInfo.regionName
-                                        securityStatus = systemInfo.security
-                                    }
-                                } else if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                                    locationName = structureInfo.name
-                                    typeId = structureInfo.type_id
-                                    systemId = structureInfo.solar_system_id
-                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                                        systemName = systemInfo.systemName
-                                        regionName = systemInfo.regionName
-                                        securityStatus = systemInfo.security
-                                    }
-                                }
-                            } else {
-                                if let structureInfo = try? await self.fetchStructureInfo(structureId: locationId, characterId: characterId) {
-                                    locationName = structureInfo.name
-                                    typeId = structureInfo.type_id
-                                    systemId = structureInfo.solar_system_id
-                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                                        systemName = systemInfo.systemName
-                                        regionName = systemInfo.regionName
-                                        securityStatus = systemInfo.security
-                                    }
-                                } else if let stationInfo = try? await self.fetchStationInfo(stationId: locationId) {
-                                    locationName = stationInfo.name
-                                    typeId = stationInfo.type_id
-                                    systemId = stationInfo.system_id
-                                    if let systemInfo = await getSolarSystemInfo(solarSystemId: stationInfo.system_id, databaseManager: databaseManager) {
-                                        systemName = systemInfo.systemName
-                                        regionName = systemInfo.regionName
-                                        securityStatus = systemInfo.security
-                                    }
-                                }
-                            }
+                            // 获取位置信息
+                            let info = try await self.fetchLocationInfo(
+                                locationId: locationId,
+                                locationType: locationType,
+                                characterId: characterId,
+                                databaseManager: databaseManager
+                            )
+                            
+                            (locationName, typeId, systemId, systemName, regionName, securityStatus) = info
                             
                             // 更新缓存
                             if let name = locationName, let tid = typeId, let sid = systemId {
