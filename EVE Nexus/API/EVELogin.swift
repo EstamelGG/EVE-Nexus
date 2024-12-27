@@ -660,8 +660,21 @@ class EVELogin {
     
     // 保存角色顺序
     func saveCharacterOrder(_ characterIds: [Int]) {
-        Logger.info("正在缓存角色顺序数据, key: \(charactersKey), 数据大小: \(characterIds.count) bytes")
-        UserDefaults.standard.set(characterIds, forKey: characterOrderKey)
+        // 使用 OrderedSet 去除重复的角色ID，保持原有顺序
+        var uniqueCharacterIds: [Int] = []
+        var seenCharacterIds = Set<Int>()
+        
+        for characterId in characterIds {
+            if !seenCharacterIds.contains(characterId) {
+                uniqueCharacterIds.append(characterId)
+                seenCharacterIds.insert(characterId)
+            } else {
+                Logger.warning("发现重复的角色ID在顺序列表中，已忽略: \(characterId)")
+            }
+        }
+        
+        Logger.info("正在缓存角色顺序数据, key: \(characterOrderKey), 数据大小: \(uniqueCharacterIds.count) bytes")
+        UserDefaults.standard.set(uniqueCharacterIds, forKey: characterOrderKey)
         UserDefaults.standard.synchronize()
     }
     
