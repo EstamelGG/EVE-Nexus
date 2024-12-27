@@ -63,7 +63,7 @@
 "Main_Business" = "商业";
 "Main_Assets" = "个人资产";
 "Main_Market_Orders" = "市场订单";
-"Main_Contracts" = "合同";
+"Main_Contracts" = "个人合同";
 "Main_Market_Transactions" = "交易记录";
 "Main_Wallet_Journal" = "钱包日志";
 "Main_Industry_Jobs" = "工业任务";
