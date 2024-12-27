@@ -265,6 +265,7 @@ actor AuthTokenManager: NSObject {
         )
         
         // 保存认证状态
+        Logger.info("将登陆结果保存到 SecureStorage")
         saveAuthState(authState, for: characterId)
     }
 }
@@ -272,10 +273,12 @@ actor AuthTokenManager: NSObject {
 extension AuthTokenManager: OIDAuthStateChangeDelegate {
     nonisolated func didChange(_ state: OIDAuthState) {
         // 当 auth state 发生变化时保存新的 refresh token
+        Logger.info("登录状态改变，尝试刷新 refresh token")
         if let refreshToken = state.refreshToken {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 if let characterId = await self.findCharacterId(for: state) {
+                    Logger.info("登录状态改变，保存新的 refresh token")
                     try? SecureStorage.shared.saveToken(refreshToken, for: characterId)
                 }
             }

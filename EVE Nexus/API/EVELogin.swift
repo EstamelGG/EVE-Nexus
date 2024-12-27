@@ -40,7 +40,7 @@ class SecureStorage {
                 Logger.error("SecureStorage: 更新 refresh token 失败 - 角色ID: \(characterId), 错误码: \(updateStatus)")
                 throw KeychainError.unhandledError(status: updateStatus)
             }
-            Logger.info("SecureStorage: 更新已存在的 refresh token - 角色ID: \(characterId)")
+            Logger.info("SecureStorage: 成功更新了 refresh token - 角色ID: \(characterId)")
         } else if status != errSecSuccess {
             Logger.error("SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
             throw KeychainError.unhandledError(status: status)
