@@ -285,28 +285,6 @@ struct ContractDetailView: View {
         ))
     }
     
-    @ViewBuilder
-    func locationInfoView(title: String, info: ContractDetailViewModel.LocationInfo) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(info.stationName)
-                    .foregroundColor(.secondary)
-            }
-            if let systemName = info.solarSystemName {
-                HStack {
-                    Text(NSLocalizedString("Location_System", comment: ""))
-                        .font(.footnote)
-                    Spacer()
-                    Text(systemName)
-                        .foregroundColor(.secondary)
-                        .font(.footnote)
-                }
-            }
-        }
-    }
-    
     var body: some View {
         ZStack {
             if viewModel.isLoading || viewModel.isLoadingNames {
@@ -368,14 +346,28 @@ struct ContractDetailView: View {
                         if let startInfo = viewModel.startLocationInfo {
                             if contract.start_location_id == contract.end_location_id {
                                 // 如果起点和终点相同，显示单个地点
-                                locationInfoView(title: NSLocalizedString("Contract_Location", comment: ""), info: startInfo)
+                                Text(NSLocalizedString("Contract_Location", comment: ""))
+                                LocationInfoView(
+                                    stationName: startInfo.stationName,
+                                    solarSystemName: startInfo.solarSystemName,
+                                    security: startInfo.security
+                                )
                             } else {
                                 // 显示起点
-                                locationInfoView(title: NSLocalizedString("Contract_Start_Location", comment: ""), info: startInfo)
-                                
+                                Text(NSLocalizedString("Contract_Start_Location", comment: ""))
+                                LocationInfoView(
+                                    stationName: startInfo.stationName,
+                                    solarSystemName: startInfo.solarSystemName,
+                                    security: startInfo.security
+                                )
                                 // 显示终点（如果存在）
-                                if let endInfo = viewModel.endLocationInfo {
-                                    locationInfoView(title: NSLocalizedString("Contract_End_Location", comment: ""), info: endInfo)
+                                if viewModel.endLocationInfo != nil {
+                                    Text(NSLocalizedString("Contract_End_Location", comment: ""))
+                                    LocationInfoView(
+                                        stationName: startInfo.stationName,
+                                        solarSystemName: startInfo.solarSystemName,
+                                        security: startInfo.security
+                                    )
                                 }
                             }
                         }
