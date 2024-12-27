@@ -86,10 +86,19 @@ actor AuthTokenManager: NSObject {
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
                 if let error = error {
+                    Logger.error("获取 access token 失败: \(error)")
                     continuation.resume(throwing: error)
                 } else if let accessToken = accessToken {
+                    // 检查是否发生了 token 刷新
+                    if let lastToken = authState.lastTokenResponse?.accessToken,
+                       lastToken != accessToken {
+                        Logger.info("Token 已过期并自动刷新 - 角色ID: \(characterId)")
+                        Logger.info("旧 Token: \(lastToken.prefix(32))...")
+                        Logger.info("新 Token: \(accessToken.prefix(32))...")
+                    }
                     continuation.resume(returning: accessToken)
                 } else {
+                    Logger.error("获取 access token 失败: 无效数据")
                     continuation.resume(throwing: NetworkError.invalidData)
                 }
             }

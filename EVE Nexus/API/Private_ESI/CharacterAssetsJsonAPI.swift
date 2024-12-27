@@ -84,6 +84,17 @@ public enum AssetLoadingProgress {
     case fetchingNames         // 获取名称
 }
 
+// 建筑物信息缓存结构
+private struct StructureCacheData: Codable {
+    let data: StructureInfo
+    let timestamp: Date
+    
+    var isExpired: Bool {
+        // 设置缓存有效期为24小时
+        return Date().timeIntervalSince(timestamp) > 7 * 24 * 3600
+    }
+}
+
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
     private let cacheTimeout: TimeInterval = 7200 // 120分钟缓存
@@ -291,6 +302,11 @@ public class CharacterAssetsJsonAPI {
     
     // 获取建筑物信息
     private func fetchStructureInfo(structureId: Int64, characterId: Int) async throws -> StructureInfo {
+        // 先尝试从缓存加载
+        if let cachedStructure = loadStructureFromCache(structureId: structureId) {
+            return cachedStructure
+        }
+        
         let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw AssetError.invalidURL
@@ -309,6 +325,10 @@ public class CharacterAssetsJsonAPI {
             )
             
             let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
+            
+            // 保存到缓存
+            saveStructureToCache(structureInfo, structureId: structureId)
+            
             return structureInfo
         } catch {
             Logger.error("获取建筑物信息失败: \(error)")
@@ -683,5 +703,51 @@ public class CharacterAssetsJsonAPI {
         }
         
         return rootNodes
+    }
+    
+    // 获取缓存目录
+    private func getCacheDirectory() -> URL? {
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let cacheDirectory = documentsDirectory.appendingPathComponent("StructureCache", isDirectory: true)
+        
+        // 确保缓存目录存在
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
+        
+        return cacheDirectory
+    }
+    
+    // 获取缓存文件路径
+    private func getCacheFilePath(structureId: Int64) -> URL? {
+        guard let cacheDirectory = getCacheDirectory() else { return nil }
+        return cacheDirectory.appendingPathComponent("Structure_\(structureId).json")
+    }
+    
+    // 从缓存加载建筑物信息
+    private func loadStructureFromCache(structureId: Int64) -> StructureInfo? {
+        guard let cacheFile = getCacheFilePath(structureId: structureId),
+              let data = try? Data(contentsOf: cacheFile),
+              let cached = try? JSONDecoder().decode(StructureCacheData.self, from: data),
+              !cached.isExpired else {
+            return nil
+        }
+        
+        Logger.info("使用缓存的建筑物信息 - 建筑物ID: \(structureId)")
+        return cached.data
+    }
+    
+    // 保存建筑物信息到缓存
+    private func saveStructureToCache(_ structure: StructureInfo, structureId: Int64) {
+        guard let cacheFile = getCacheFilePath(structureId: structureId) else { return }
+        
+        let cachedData = StructureCacheData(data: structure, timestamp: Date())
+        do {
+            let encodedData = try JSONEncoder().encode(cachedData)
+            try encodedData.write(to: cacheFile)
+            Logger.info("建筑物信息已缓存到文件 - 建筑物ID: \(structureId)")
+        } catch {
+            Logger.error("保存建筑物缓存失败: \(error)")
+        }
     }
 } 
