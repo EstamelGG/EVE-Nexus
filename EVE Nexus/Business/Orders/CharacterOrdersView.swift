@@ -100,6 +100,7 @@ struct CharacterOrdersView: View {
         let order: CharacterMarketOrder
         let itemInfo: OrderItemInfo?
         let locationInfo: OrderLocationInfo?
+        @StateObject private var databaseManager = DatabaseManager()
         
         private func formatSecurity(_ security: Double) -> String {
             String(format: "%.1f", security)
@@ -162,68 +163,70 @@ struct CharacterOrdersView: View {
         }()
         
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
-                // 订单标题行
-                HStack(spacing: 12) {
-                    // 物品图标
-                    if let itemInfo = itemInfo {
-                        IconManager.shared.loadImage(for: itemInfo.iconFileName)
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    } else {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 36, height: 36)
-                    }
-                    
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text(itemInfo?.name ?? "Unknown Item")
-                                .font(.headline)
-                                .lineLimit(1)
-                            Spacer()
-                            Text("\(order.volumeRemain)/\(order.volumeTotal)")
+            NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: Int(order.typeId))) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // 订单标题行
+                    HStack(spacing: 12) {
+                        // 物品图标
+                        if let itemInfo = itemInfo {
+                            IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        } else {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 36, height: 36)
                         }
-                        Text(FormatUtil.format(order.price) + " ISK")
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
-                    }
-                }
-                
-                // 订单详细信息
-                VStack(alignment: .leading, spacing: 4) {
-                    // 位置信息
-                    if let locationInfo = locationInfo {
-                        LocationInfoView(
-                            stationName: locationInfo.stationName,
-                            solarSystemName: locationInfo.solarSystemName,
-                            security: locationInfo.security
-                        )
-                    } else {
-                        LocationInfoView(
-                            stationName: nil,
-                            solarSystemName: nil,
-                            security: nil
-                        )
+                        
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text(itemInfo?.name ?? "Unknown Item")
+                                    .font(.headline)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("\(order.volumeRemain)/\(order.volumeTotal)")
+                            }
+                            Text(FormatUtil.format(order.price) + " ISK")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
+                        }
                     }
                     
-                    // 时间信息
-                    HStack {
-                        if let date = dateFormatter.date(from: order.issued) {
-                            Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                    // 订单详细信息
+                    VStack(alignment: .leading, spacing: 4) {
+                        // 位置信息
+                        if let locationInfo = locationInfo {
+                            LocationInfoView(
+                                stationName: locationInfo.stationName,
+                                solarSystemName: locationInfo.solarSystemName,
+                                security: locationInfo.security
+                            )
+                        } else {
+                            LocationInfoView(
+                                stationName: nil,
+                                solarSystemName: nil,
+                                security: nil
+                            )
+                        }
+                        
+                        // 时间信息
+                        HStack {
+                            if let date = dateFormatter.date(from: order.issued) {
+                                Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Text(calculateRemainingTime())
                                 .font(.caption)
                                 .foregroundColor(.gray)
-                                .lineLimit(1)
                         }
-                        Spacer()
-                        Text(calculateRemainingTime())
-                            .font(.caption)
-                            .foregroundColor(.gray)
                     }
                 }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
         }
         
         private func formatDate(_ dateString: String) -> String {

@@ -68,20 +68,14 @@ struct InventionProductItemView: View {
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading) {
-                    Text(NSLocalizedString("Blueprint_Invention_Product", comment: ""))
+                    Text(product.typeName)
+                        .foregroundColor(.primary)
                     if let probability = product.probability {
                         Text(String(format: NSLocalizedString("Blueprint_Success_Rate", comment: ""), Int(probability * 100)))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
-                Spacer()
-                
-                Text(product.typeName)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
