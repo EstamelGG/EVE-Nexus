@@ -240,6 +240,7 @@ struct WalletTransactionEntryRow: View {
                 }
             }
         }
+        .frame(height: 48)
         .padding(.vertical, 2)
         .task {
             // 加载物品信息

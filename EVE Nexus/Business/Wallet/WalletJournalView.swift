@@ -205,6 +205,7 @@ struct WalletJournalEntryRow: View {
                     .foregroundColor(.gray)
             }
         }
+        .frame(height: 56)
         .padding(.vertical, 2)
     }
 }
