@@ -126,7 +126,7 @@ struct WalletJournalView: View {
                     ) {
                         ForEach(group.entries, id: \.id) { entry in
                             WalletJournalEntryRow(entry: entry)
-                                .listRowInsets(EdgeInsets(top: 2, leading: 18, bottom: 2, trailing: 18))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }
