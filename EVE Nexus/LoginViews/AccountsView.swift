@@ -79,7 +79,7 @@ struct AccountsView: View {
                                 }
                             }
                             
-                            Logger.info("成功刷新角色信息(\(character.CharacterID) - \(character.CharacterName)")
+                            Logger.info("成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)")
                         } catch {
                             viewModel.errorMessage = error.localizedDescription
                             viewModel.showingError = true
