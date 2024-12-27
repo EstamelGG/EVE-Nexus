@@ -266,6 +266,74 @@ struct LoginButtonView: View {
                 }
             }
         }
+        .onChange(of: selectedCharacter) { oldValue, newValue in
+            // 清除旧的图标和信息
+            corporationInfo = nil
+            corporationLogo = nil
+            allianceInfo = nil
+            allianceLogo = nil
+            
+            // 如果有新的角色,加载新的图标
+            if let character = newValue {
+                Task {
+                    do {
+                        // 加载军团信息和图标
+                        async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: character.corporationId ?? 0)
+                        async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: character.corporationId ?? 0)
+                        
+                        let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+                        
+                        await MainActor.run {
+                            corporationInfo = corpInfo
+                            corporationLogo = corpLogo
+                        }
+                        
+                        // 如果有联盟,加载联盟信息和图标
+                        if let allianceId = character.allianceId {
+                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                            
+                            let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
+                            
+                            await MainActor.run {
+                                allianceInfo = alliInfo
+                                allianceLogo = alliLogo
+                            }
+                        }
+                    } catch {
+                        Logger.error("加载角色信息失败: \(error)")
+                    }
+                }
+            }
+        }
+        .task {
+            // 初始加载
+            if let character = selectedCharacter {
+                do {
+                    // 加载军团信息和图标
+                    async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: character.corporationId ?? 0)
+                    async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: character.corporationId ?? 0)
+                    
+                    let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+                    
+                    corporationInfo = corpInfo
+                    corporationLogo = corpLogo
+                    
+                    // 如果有联盟,加载联盟信息和图标
+                    if let allianceId = character.allianceId {
+                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                        
+                        let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
+                        
+                        allianceInfo = alliInfo
+                        allianceLogo = alliLogo
+                    }
+                } catch {
+                    Logger.error("加载角色信息失败: \(error)")
+                }
+            }
+        }
     }
     
     private func loadCharacterInfo() async {
@@ -818,7 +886,7 @@ struct ContentView: View {
         Logger.info("完成所有数据刷新")
     }
     
-    // ���加检查当前任务的方法
+    // 添加检查当前任务的方法
     private func checkCurrentTask(_ taskId: UUID) async -> Bool {
         await MainActor.run { currentTaskId == taskId }
     }
@@ -1112,7 +1180,7 @@ struct ContentView: View {
     
     // 添加加载初始数据的方法
     private func loadInitialData() async {
-        // 生成新的任务ID
+        // 生成新的任���ID
         let taskId = UUID()
         await updateUI {
             currentTaskId = taskId
