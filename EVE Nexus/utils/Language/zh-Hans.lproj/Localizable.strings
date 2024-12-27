@@ -327,3 +327,11 @@
 "Orders_Corp" = "公司";
 "Orders_No_Buy_Orders" = "无收购订单";
 "Orders_No_Sell_Orders" = "无出售订单";
+
+// Market Orders Time
+"Orders_Expired" = "已过期";
+"Orders_Remaining_Days_Hours" = "%d天%d小时后过期";
+"Orders_Remaining_Days" = "%d天后过期";
+"Orders_Remaining_Hours_Minutes" = "%d小时%d分后过期";
+"Orders_Remaining_Hours" = "%d后过期小时";
+"Orders_Remaining_Minutes" = "%d分后过期";

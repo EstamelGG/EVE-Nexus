@@ -107,6 +107,39 @@ struct CharacterOrdersView: View {
             String(format: "%.1f", security)
         }
         
+        private func calculateRemainingTime() -> String {
+            guard let issuedDate = dateFormatter.date(from: order.issued) else {
+                return ""
+            }
+            
+            let expirationDate = issuedDate.addingTimeInterval(TimeInterval(order.duration * 24 * 3600))
+            let remainingTime = expirationDate.timeIntervalSinceNow
+            
+            if remainingTime <= 0 {
+                return NSLocalizedString("Orders_Expired", comment: "")
+            }
+            
+            let days = Int(remainingTime) / (24 * 3600)
+            let hours = (Int(remainingTime) % (24 * 3600)) / 3600
+            let minutes = (Int(remainingTime) % 3600) / 60
+            
+            if days > 0 {
+                if hours > 0 {
+                    return String(format: NSLocalizedString("Orders_Remaining_Days_Hours", comment: ""), days, hours)
+                } else {
+                    return String(format: NSLocalizedString("Orders_Remaining_Days", comment: ""), days)
+                }
+            } else if hours > 0 {
+                if minutes > 0 {
+                    return String(format: NSLocalizedString("Orders_Remaining_Hours_Minutes", comment: ""), hours, minutes)
+                } else {
+                    return String(format: NSLocalizedString("Orders_Remaining_Hours", comment: ""), hours)
+                }
+            } else {
+                return String(format: NSLocalizedString("Orders_Remaining_Minutes", comment: ""), minutes)
+            }
+        }
+        
         private let dateFormatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
@@ -192,7 +225,12 @@ struct CharacterOrdersView: View {
                             Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
                                 .font(.caption)
                                 .foregroundColor(.gray)
+                                .lineLimit(1)
                         }
+                        Spacer()
+                        Text(calculateRemainingTime())
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
                 }
             }

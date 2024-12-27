@@ -330,3 +330,11 @@
 "Orders_Corp" = "Corp";
 "Orders_No_Buy_Orders" = "No Buy Orders";
 "Orders_No_Sell_Orders" = "No Sell Orders";
+
+// Market Orders Time
+"Orders_Expired" = "Expired";
+"Orders_Remaining_Days_Hours" = "Expire in %dd %dh";
+"Orders_Remaining_Days" = "Expire in %dd";
+"Orders_Remaining_Hours_Minutes" = "Expire in %dh %dm";
+"Orders_Remaining_Hours" = "Expire in %dh";
+"Orders_Remaining_Minutes" = "Expire in %dm";
