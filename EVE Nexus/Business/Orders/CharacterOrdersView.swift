@@ -35,84 +35,85 @@ struct CharacterOrdersView: View {
             
             List {
                 ForEach(filteredOrders) { order in
-                    VStack(alignment: .leading, spacing: 8) {
-                        // 订单标题行
-                        HStack(spacing: 12) {
-                            // 物品图标
-                            if let itemInfo = itemInfoCache[order.typeId] {
-                                IconManager.shared.loadImage(for: itemInfo.iconFileName)
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                            } else {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 36, height: 36)
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text(itemInfoCache[order.typeId]?.name ?? "Unknown Item")
-                                    .font(.headline)
-                                Text(FormatUtil.format(order.price) + " ISK")
-                                    .font(.subheadline)
-                                    .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
-                            }
-                        }
-                        
-                        // 订单详细信息
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 数量信息
-                            HStack {
-                                Text("\(order.volumeRemain)/\(order.volumeTotal)")
-                                    .font(.subheadline)
-                                Text(NSLocalizedString("Orders_Remaining", comment: ""))
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            // 位置信息
-                            HStack {
-                                Text(locationNames[order.locationId] ?? "Unknown Location")
-                                    .font(.subheadline)
-                            }
-                            
-                            // 订单类型和范围
-                            HStack {
-                                Text(order.isBuyOrder ?? false ? NSLocalizedString("Orders_Buy", comment: "") : NSLocalizedString("Orders_Sell", comment: ""))
-                                    .font(.caption)
-                                    .padding(4)
-                                    .background(order.isBuyOrder ?? false ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-                                    .cornerRadius(4)
+                    HStack{
+                        VStack(alignment: .leading, spacing: 8) {
+                            // 订单标题行
+                            HStack(spacing: 12) {
+                                // 物品图标
+                                if let itemInfo = itemInfoCache[order.typeId] {
+                                    IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 36, height: 36)
+                                }
                                 
-                                Text(order.range.capitalized)
-                                    .font(.caption)
-                                    .padding(4)
-                                    .background(Color.gray.opacity(0.2))
-                                    .cornerRadius(4)
-                                
-                                if order.isCorporation {
-                                    Text(NSLocalizedString("Orders_Corp", comment: ""))
-                                        .font(.caption)
-                                        .padding(4)
-                                        .background(Color.purple.opacity(0.2))
-                                        .cornerRadius(4)
+                                VStack(alignment: .leading) {
+                                    Text(itemInfoCache[order.typeId]?.name ?? "Unknown Item")
+                                        .font(.headline)
+                                    Text(FormatUtil.format(order.price) + " ISK")
+                                        .font(.subheadline)
+                                        .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
                                 }
                             }
                             
-                            // 时间信息
-                            HStack {
-                                Image(systemName: "clock")
-                                    .foregroundColor(.gray)
-                                Text(formatDate(order.issued))
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                            // 订单详细信息
+                            VStack(alignment: .leading, spacing: 4) {
+                                // 数量信息
+                                HStack {
+                                    Text("\(order.volumeRemain)/\(order.volumeTotal)")
+                                        .font(.subheadline)
+                                    Text(NSLocalizedString("Orders_Remaining", comment: ""))
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                // 位置信息
+                                HStack {
+                                    Text(locationNames[order.locationId] ?? "Unknown Location")
+                                        .font(.subheadline)
+                                }
+                                
+                                // 订单类型和范围
+                                HStack {
+                                    Text(order.isBuyOrder ?? false ? NSLocalizedString("Orders_Buy", comment: "") : NSLocalizedString("Orders_Sell", comment: ""))
+                                        .font(.caption)
+                                        .padding(4)
+                                        .background(order.isBuyOrder ?? false ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                                        .cornerRadius(4)
+                                    
+                                    Text(order.range.capitalized)
+                                        .font(.caption)
+                                        .padding(4)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(4)
+                                    
+                                    if order.isCorporation {
+                                        Text(NSLocalizedString("Orders_Corp", comment: ""))
+                                            .font(.caption)
+                                            .padding(4)
+                                            .background(Color.purple.opacity(0.2))
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                
+                                // 时间信息
+                                HStack {
+                                    Image(systemName: "clock")
+                                        .foregroundColor(.gray)
+                                    Text(formatDate(order.issued))
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
                             }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
             }
-            .listStyle(.plain)
         }
         .refreshable {
             await loadOrders(forceRefresh: true)
@@ -123,6 +124,7 @@ struct CharacterOrdersView: View {
             Text(errorMessage ?? "Unknown error")
         }
         .navigationTitle(NSLocalizedString("Main_Market_Orders", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadOrders()
         }
@@ -242,4 +244,4 @@ struct CharacterOrdersView: View {
         displayFormatter.timeStyle = .short
         return displayFormatter.string(from: date)
     }
-} 
+}
