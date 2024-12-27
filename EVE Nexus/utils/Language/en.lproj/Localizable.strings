@@ -54,8 +54,6 @@
 "Main_Database_toComplete" = "Lite";
 "Main_Database_toSimplified" = "Full";
 
-"Main_Public_Contract" = "Public Contracts";
-
 "Main_Market" = "Market";
 "Main_WH" = "Wormholes";
 "Main_Incursions" = "Incursions";
