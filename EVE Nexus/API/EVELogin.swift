@@ -632,21 +632,30 @@ class EVELogin {
     
     // 移除角色
     func removeCharacter(characterId: Int) {
-        // 从 UserDefaults 中移除角色信息
+        Logger.info("开始移除角色 (ID: \(characterId))")
+        
+        // 1. 从 UserDefaults 中移除角色信息
         var characters = loadCharacters()
         characters.removeAll { $0.character.CharacterID == characterId }
         
         if let encodedData = try? JSONEncoder().encode(characters) {
-            Logger.info("正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
+            Logger.info("正在更新角色列表缓存, key: \(charactersKey)")
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
         
-        // 清除 AuthTokenManager 中的缓存
+        // 2. 从角色顺序列表中移除
+        var characterOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] ?? []
+        characterOrder.removeAll { $0 == characterId }
+        Logger.info("正在更新角色顺序缓存, key: \(characterOrderKey)")
+        UserDefaults.standard.set(characterOrder, forKey: characterOrderKey)
+        
+        // 3. 清除 AuthTokenManager 中的缓存
         Task {
             await AuthTokenManager.shared.clearTokens(for: characterId)
         }
         
         UserDefaults.standard.synchronize()
+        Logger.info("角色移除完成 (ID: \(characterId))")
     }
     
     // 保存角色顺序
