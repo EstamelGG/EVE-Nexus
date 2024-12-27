@@ -34,8 +34,8 @@ struct CharacterOrdersView: View {
         VStack(spacing: 0) {
             // 买卖单切换按钮
             Picker("Order Type", selection: $showBuyOrders) {
-                Text(NSLocalizedString("Orders_Sell", comment: "")).tag(false)
-                Text(NSLocalizedString("Orders_Buy", comment: "")).tag(true)
+                Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !($0.isBuyOrder ?? false) }.count))").tag(false)
+                Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
