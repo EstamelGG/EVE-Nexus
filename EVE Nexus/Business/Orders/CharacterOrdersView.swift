@@ -16,6 +16,7 @@ struct CharacterOrdersView: View {
     @State private var itemInfoCache: [Int64: OrderItemInfo] = [:]
     @StateObject private var databaseManager = DatabaseManager()
     @State private var showBuyOrders = false
+    @State private var isDataReady = false
     
     private var filteredOrders: [CharacterMarketOrder] {
         orders.filter { $0.isBuyOrder ?? false == showBuyOrders }
@@ -34,7 +35,7 @@ struct CharacterOrdersView: View {
             .background(Color(.systemGroupedBackground))
             
             List {
-                if isLoading {
+                if isLoading || !isDataReady {
                     Section {
                         HStack {
                             Spacer()
@@ -109,8 +110,9 @@ struct CharacterOrdersView: View {
                     VStack(alignment: .leading) {
                         Text(itemInfo?.name ?? "Unknown Item")
                             .font(.headline)
+                            .lineLimit(1)
                         Text(FormatUtil.format(order.price) + " ISK")
-                            .font(.subheadline)
+                            .font(.system(.caption, design: .monospaced))
                             .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
                     }
                 }
@@ -128,8 +130,6 @@ struct CharacterOrdersView: View {
                     
                     // 位置信息
                     HStack {
-                        Image(systemName: "location")
-                            .foregroundColor(.gray)
                         Text(locationName ?? "Unknown Location")
                             .font(.subheadline)
                     }
@@ -187,7 +187,9 @@ struct CharacterOrdersView: View {
     
     private func loadOrders(forceRefresh: Bool = false) async {
         isLoading = true
-        defer { isLoading = false }
+        isDataReady = false
+        locationNames.removeAll()
+        itemInfoCache.removeAll()
         
         do {
             // 获取订单数据
@@ -200,21 +202,44 @@ struct CharacterOrdersView: View {
                 let decoder = JSONDecoder()
                 orders = try decoder.decode([CharacterMarketOrder].self, from: jsonData)
                 
-                // 并行加载位置名称和物品信息
-                async let locationTask = loadLocationNames()
-                async let itemInfoTask = loadItemInfo()
-                _ = await (locationTask, itemInfoTask)
+                // 同步加载所有信息
+                await loadAllInformation()
                 
+                // 所有数据加载完成
+                isDataReady = true
             } else {
                 orders = []
+                isDataReady = true
             }
         } catch {
             errorMessage = error.localizedDescription
             showError = true
+            orders = []
+            isDataReady = true
         }
+        
+        isLoading = false
     }
     
-    private func loadLocationNames() async {
+    private func loadAllInformation() async {
+        // 1. 加载所有物品信息
+        let items = Set(orders.map { $0.typeId })
+        for itemId in items {
+            let query = """
+                SELECT name, icon_filename
+                FROM types
+                WHERE type_id = ?
+            """
+            
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [String(itemId)]),
+               let row = rows.first,
+               let name = row["name"] as? String,
+               let iconFileName = row["icon_filename"] as? String {
+                itemInfoCache[itemId] = OrderItemInfo(name: name, iconFileName: iconFileName)
+            }
+        }
+        
+        // 2. 加载所有位置信息
         let locations = Set(orders.map { $0.locationId })
         for locationId in locations {
             // 先尝试从数据库获取空间站信息
@@ -227,9 +252,7 @@ struct CharacterOrdersView: View {
             if case .success(let rows) = databaseManager.executeQuery(query, parameters: [String(locationId)]),
                let row = rows.first,
                let name = row["stationName"] as? String {
-                await MainActor.run {
-                    locationNames[locationId] = name
-                }
+                locationNames[locationId] = name
                 continue
             }
             
@@ -253,35 +276,10 @@ struct CharacterOrdersView: View {
                 }
                 
                 let structureInfo = try JSONDecoder().decode(StructureInfo.self, from: data)
-                
-                await MainActor.run {
-                    locationNames[locationId] = structureInfo.name
-                }
+                locationNames[locationId] = structureInfo.name
             } catch {
                 Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
-                await MainActor.run {
-                    locationNames[locationId] = NSLocalizedString("Assets_Unknown_Location", comment: "")
-                }
-            }
-        }
-    }
-    
-    private func loadItemInfo() async {
-        let items = Set(orders.map { $0.typeId })
-        for itemId in items {
-            let query = """
-                SELECT name, icon_filename
-                FROM types
-                WHERE type_id = ?
-            """
-            
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [String(itemId)]),
-               let row = rows.first,
-               let name = row["name"] as? String,
-               let iconFileName = row["icon_filename"] as? String {
-                await MainActor.run {
-                    itemInfoCache[itemId] = OrderItemInfo(name: name, iconFileName: iconFileName)
-                }
+                locationNames[locationId] = NSLocalizedString("Assets_Unknown_Location", comment: "")
             }
         }
     }
