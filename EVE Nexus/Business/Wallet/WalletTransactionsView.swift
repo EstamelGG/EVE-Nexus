@@ -155,7 +155,7 @@ struct WalletTransactionsView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                            .foregroundColor(.gray)
+                                .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -172,7 +172,7 @@ struct WalletTransactionsView: View {
                     ) {
                         ForEach(group.entries) { entry in
                             WalletTransactionEntryRow(entry: entry, viewModel: viewModel)
-                                .listRowInsets(EdgeInsets(top: 2, leading: 18, bottom: 2, trailing: 18))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                         }
                     }
                 }
@@ -224,34 +224,40 @@ struct WalletTransactionEntryRow: View {
     
     var body: some View {
         NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: entry.type_id)) {
-            HStack(spacing: 12) {
-                // 物品图标
-                if let icon = itemIcon {
-                    icon
-                        .resizable()
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 36, height: 36)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    // 物品图标
+                    if let icon = itemIcon {
+                        icon
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } else {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 36, height: 36)
+                    }
+                    VStack(alignment: .leading) {
+                        Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
+                            .font(.body)
+                        Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
+                            .foregroundColor(entry.is_buy ? .red : .green)
+                            .font(.system(.caption, design: .monospaced))
+                    }
                 }
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    // 物品名称和交易类型
-                    Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
-                        .font(.body)
-                    Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
-                        .foregroundColor(entry.is_buy ? .red : .green)
-                        .font(.system(.caption, design: .monospaced))
+                VStack(alignment: .leading, spacing: 4) {
                     // 交易类型和时间
                     if let date = dateFormatter.date(from: entry.date) {
-                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
-                            .font(.caption2)
-                            .foregroundColor(.gray)
-                        Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack{
+                            Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
