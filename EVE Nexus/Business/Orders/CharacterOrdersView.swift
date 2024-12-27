@@ -29,6 +29,21 @@ struct CharacterOrdersView: View {
     private var filteredOrders: [CharacterMarketOrder] {
         orders.filter { $0.isBuyOrder ?? false == showBuyOrders }
     }
+    
+    // 初始化订单显示类型
+    private func initializeOrderType() {
+        let sellOrdersCount = orders.filter { !($0.isBuyOrder ?? false) }.count
+        let buyOrdersCount = orders.filter { $0.isBuyOrder ?? false }.count
+        
+        if sellOrdersCount > 0 {
+            // 如果有出售订单，优先显示出售订单
+            showBuyOrders = false
+        } else if buyOrdersCount > 0 {
+            // 如果只有收购订单，显示收购订单
+            showBuyOrders = true
+        }
+        // 如果都没有订单，默认显示出售订单（showBuyOrders = false）
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -264,6 +279,9 @@ struct CharacterOrdersView: View {
                 
                 // 同步加载所有信息
                 await loadAllInformation()
+                
+                // 初始化订单显示类型
+                initializeOrderType()
                 
                 // 所有数据加载完成
                 isDataReady = true
