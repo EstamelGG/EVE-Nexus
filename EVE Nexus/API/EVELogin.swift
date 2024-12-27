@@ -252,6 +252,13 @@ struct EVECharacterInfo: Codable {
     }
 }
 
+// 添加Equatable协议支持
+extension EVECharacterInfo: Equatable {
+    static func == (lhs: EVECharacterInfo, rhs: EVECharacterInfo) -> Bool {
+        return lhs.CharacterID == rhs.CharacterID
+    }
+}
+
 // ESI配置模型
 struct ESIConfig: Codable {
     let clientId: String
