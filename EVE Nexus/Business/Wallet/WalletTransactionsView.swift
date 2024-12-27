@@ -225,6 +225,7 @@ struct WalletTransactionEntryRow: View {
     var body: some View {
         NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: entry.type_id)) {
             VStack(alignment: .leading, spacing: 8) {
+                // 物品信息行
                 HStack(spacing: 12) {
                     // 物品图标
                     if let icon = itemIcon {
@@ -237,6 +238,7 @@ struct WalletTransactionEntryRow: View {
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 36, height: 36)
                     }
+                    
                     VStack(alignment: .leading) {
                         Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
                             .font(.body)
@@ -245,19 +247,37 @@ struct WalletTransactionEntryRow: View {
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
+                
+                // 交易详细信息
                 VStack(alignment: .leading, spacing: 4) {
-                    // 交易类型和时间
-                    if let date = dateFormatter.date(from: entry.date) {
-                        HStack{
-                            Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                            Spacer()
+                    // 交易时间
+                    HStack{
+                        if let date = dateFormatter.date(from: entry.date) {
                             Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        Spacer()
+                        // 交易类型和数量
+                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                    // 交易地点
+                    if let stationInfo = databaseManager.getStationInfo(stationID: Int64(entry.location_id)) {
+                        LocationInfoView(
+                            stationName: stationInfo.stationName,
+                            solarSystemName: stationInfo.solarSystemName,
+                            security: stationInfo.security,
+                            font: .caption,
+                            textColor: .secondary
+                        )
+                        .lineLimit(1)
+                    } else {
+                        Text("Unknown Station")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
             }

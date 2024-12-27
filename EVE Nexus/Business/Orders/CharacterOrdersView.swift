@@ -257,12 +257,14 @@ struct CharacterOrdersView: View {
                                 solarSystemName: locationInfo.solarSystemName,
                                 security: locationInfo.security
                             )
+                            .lineLimit(1)
                         } else {
                             LocationInfoView(
                                 stationName: nil,
                                 solarSystemName: nil,
                                 security: nil
                             )
+                            .lineLimit(1)
                         }
                         
                         // 时间信息

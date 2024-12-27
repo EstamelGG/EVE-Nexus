@@ -1559,9 +1559,9 @@ class DatabaseManager: ObservableObject {
         let solarSystemName: String
     }
     
-    private var stationInfoCache: [Int: StationInfo] = [:]
+    private var stationInfoCache: [Int64: StationInfo] = [:]
     
-    func getStationInfo(stationID: Int) -> StationInfo? {
+    func getStationInfo(stationID: Int64) -> StationInfo? {
         // 检查缓存
         if let cachedInfo = stationInfoCache[stationID] {
             return cachedInfo
@@ -1575,7 +1575,7 @@ class DatabaseManager: ObservableObject {
             WHERE s.stationID = ?
         """
         
-        let result = executeQuery(query, parameters: [stationID])
+        let result = executeQuery(query, parameters: [String(stationID)])
         
         switch result {
         case .success(let rows):

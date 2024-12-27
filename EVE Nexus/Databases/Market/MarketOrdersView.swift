@@ -138,7 +138,7 @@ struct MarketOrdersView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    if let stationInfo = databaseManager.getStationInfo(stationID: order.locationId) {
+                    if let stationInfo = databaseManager.getStationInfo(stationID: Int64(order.locationId)) {
                         LocationInfoView(
                             stationName: stationInfo.stationName,
                             solarSystemName: stationInfo.solarSystemName,
