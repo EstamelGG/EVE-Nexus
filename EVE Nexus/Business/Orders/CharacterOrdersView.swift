@@ -21,7 +21,7 @@ struct CharacterOrdersView: View {
                         Spacer()
                         Text(FormatUtil.format(order.price) + " ISK")
                             .font(.subheadline)
-                            .foregroundColor(order.isBuyOrder ? .blue : .green)
+                            .foregroundColor(order.isBuyOrder ?? false ? .red : .green)
                     }
                     
                     // 订单详细信息
@@ -45,10 +45,10 @@ struct CharacterOrdersView: View {
                         
                         // 订单类型和范围
                         HStack {
-                            Text(order.isBuyOrder ? NSLocalizedString("Orders_Buy", comment: "") : NSLocalizedString("Orders_Sell", comment: ""))
+                            Text(order.isBuyOrder ?? false ? NSLocalizedString("Orders_Buy", comment: "") : NSLocalizedString("Orders_Sell", comment: ""))
                                 .font(.caption)
                                 .padding(4)
-                                .background(order.isBuyOrder ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                                .background(order.isBuyOrder ?? false ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
                                 .cornerRadius(4)
                             
                             Text(order.range.capitalized)

@@ -3,7 +3,7 @@ import Foundation
 public struct CharacterMarketOrder: Identifiable, Codable {
     public let duration: Int
     public let escrow: Double?
-    public let isBuyOrder: Bool
+    public let isBuyOrder: Bool?
     public let isCorporation: Bool
     public let issued: String
     public let locationId: Int64
@@ -34,4 +34,8 @@ public struct CharacterMarketOrder: Identifiable, Codable {
     }
     
     public var id: Int64 { orderId }
+    
+    public var isSellOrder: Bool {
+        return !(isBuyOrder ?? false)
+    }
 } 
