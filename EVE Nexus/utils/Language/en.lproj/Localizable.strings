@@ -322,3 +322,9 @@
 "Main_Market_Transactions_Unit_Price" = "Unit Price";
 "Main_Market_Transactions_Quantity" = "Quantity";
 "Main_Market_Transactions_Total" = "Total";
+
+// Market Orders
+"Orders_Remaining" = "remaining";
+"Orders_Buy" = "Buy";
+"Orders_Sell" = "Sell";
+"Orders_Corp" = "Corp";

@@ -818,7 +818,7 @@ struct ContentView: View {
         Logger.info("完成所有数据刷新")
     }
     
-    // 添加检查当前任务的方法
+    // ���加检查当前任务的方法
     private func checkCurrentTask(_ taskId: UUID) async -> Bool {
         await MainActor.run { currentTaskId == taskId }
     }
@@ -1059,7 +1059,10 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Market_Orders", comment: ""),
-                        iconName: "marketdeliveries"
+                        iconName: "marketdeliveries",
+                        destination: selectedCharacter.map { character in
+                            AnyView(CharacterOrdersView(characterId: Int64(character.CharacterID)))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Contracts", comment: ""),

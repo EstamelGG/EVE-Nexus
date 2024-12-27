@@ -3,61 +3,57 @@ import Foundation
 class CharacterMarketAPI {
     static let shared = CharacterMarketAPI()
     
-    // 缓存结构
-    private struct MarketOrdersCacheEntry: Codable {
-        let jsonString: String
+    private struct CachedData: Codable {
+        let orders: [CharacterMarketOrder]
         let timestamp: Date
     }
     
-    // 缓存前缀
-    private let marketOrdersCachePrefix = "market_orders_cache_"
+    private let cachePrefix = "character_market_orders_cache_"
+    private let cacheTimeout: TimeInterval = 3 * 24 * 60 * 60 // 3天缓存
     
-    // 缓存超时时间：3天
-    private let cacheTimeout: TimeInterval = 3 * 24 * 60 * 60 // 3天，单位：秒
+    private init() {}
     
-    private init() {
-        Logger.debug("初始化 CharacterMarketAPI")
+    private func getCacheKey(characterId: Int64) -> String {
+        return "\(cachePrefix)\(characterId)"
     }
     
-    // 检查缓存是否有效
-    private func isOrdersCacheValid(_ cache: MarketOrdersCacheEntry) -> Bool {
-        let timeInterval = Date().timeIntervalSince(cache.timestamp)
-        let isValid = timeInterval < cacheTimeout
-        Logger.info("市场订单缓存时间检查 - 缓存时间: \(cache.timestamp), 当前时间: \(Date()), 时间间隔: \(timeInterval)秒, 超时时间: \(cacheTimeout)秒, 是否有效: \(isValid)")
-        return isValid
+    private func isCacheValid(_ cache: CachedData) -> Bool {
+        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
     
-    // 获取缓存键
-    private func getOrdersCacheKey(characterId: Int) -> String {
-        return marketOrdersCachePrefix + String(characterId)
-    }
-    
-    // 从缓存获取订单数据
-    private func getCachedOrders(characterId: Int) -> String? {
-        let key = getOrdersCacheKey(characterId: characterId)
+    private func getCachedOrders(characterId: Int64) -> String? {
+        let key = getCacheKey(characterId: characterId)
         guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(MarketOrdersCacheEntry.self, from: data),
-              isOrdersCacheValid(cache) else {
+              let cache = try? JSONDecoder().decode(CachedData.self, from: data),
+              isCacheValid(cache) else {
             return nil
         }
-        Logger.info("成功从缓存获取市场订单数据 - Key: \(key)")
-        return cache.jsonString
+        
+        // 将缓存的订单转换回JSON字符串
+        guard let jsonData = try? JSONEncoder().encode(cache.orders),
+              let jsonString = String(data: jsonData, encoding: .utf8) else {
+            return nil
+        }
+        
+        return jsonString
     }
     
-    // 保存订单数据到缓存
-    private func saveOrdersToCache(jsonString: String, characterId: Int) {
-        let cache = MarketOrdersCacheEntry(jsonString: jsonString, timestamp: Date())
-        let key = getOrdersCacheKey(characterId: characterId)
+    private func saveOrdersToCache(jsonString: String, characterId: Int64) {
+        // 将JSON字符串转换为订单数组
+        guard let jsonData = jsonString.data(using: .utf8),
+              let orders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: jsonData) else {
+            return
+        }
+        
+        let cache = CachedData(orders: orders, timestamp: Date())
+        let key = getCacheKey(characterId: characterId)
+        
         if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.info("保存市场订单到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
-        } else {
-            Logger.error("保存市场订单到缓存失败 - Key: \(key)")
         }
     }
     
-    // 获取市场订单（公开方法）
-    public func getMarketOrders(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
+    public func getMarketOrders(characterId: Int64, forceRefresh: Bool = false) async throws -> String? {
         // 检查缓存
         if !forceRefresh {
             if let cachedJson = getCachedOrders(characterId: characterId) {
@@ -66,16 +62,22 @@ class CharacterMarketAPI {
             }
         }
         
+        // 构建URL
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/orders/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
+        // 获取数据
         let data = try await NetworkManager.shared.fetchDataWithToken(
             from: url,
-            characterId: characterId
+            characterId: Int(characterId)
         )
         
+        // 验证返回的数据是否可以解码为订单数组
+        _ = try JSONDecoder().decode([CharacterMarketOrder].self, from: data)
+        
+        // 转换为字符串
         guard let jsonString = String(data: data, encoding: .utf8) else {
             throw NetworkError.invalidResponse
         }
