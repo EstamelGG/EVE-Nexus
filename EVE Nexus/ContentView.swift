@@ -1091,6 +1091,10 @@ struct ContentView: View {
                     destination: AnyView(MarketBrowserView(databaseManager: databaseManager))
                 ),
                 TableRowNode(
+                    title: NSLocalizedString("Main_Public_Contract", comment: ""),
+                    iconName: "contracts"
+                ),
+                TableRowNode(
                     title: "NPC",
                     iconName: "criminal",
                     destination: AnyView(NPCBrowserView(databaseManager: databaseManager))
