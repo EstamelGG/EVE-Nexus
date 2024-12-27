@@ -303,7 +303,7 @@ struct ContractItemRow: View {
                 
                 // 物品数量和包含状态
                 HStack {
-                    Text("\(item.quantity) \(NSLocalizedString("Misc_number_item", comment: ""))")
+                    Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
