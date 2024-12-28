@@ -37,8 +37,9 @@ final class WalletTransactionsViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private let characterId: Int
-    private let databaseManager: DatabaseManager
+    let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
+    private var locationInfoCache: [Int64: String] = [:]
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -83,8 +84,25 @@ final class WalletTransactionsViewModel: ObservableObject {
         return TransactionItemInfo(name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
     }
     
+    private func preloadLocationInfo(for entries: [WalletTransactionEntry]) {
+        // 收集所有唯一的位置ID
+        let uniqueLocationIds = Set(entries.map { $0.location_id })
+        
+        // 批量获取位置信息
+        for locationId in uniqueLocationIds {
+            if let stationInfo = databaseManager.getStationInfo(stationID: locationId) {
+                locationInfoCache[locationId] = "\(stationInfo.stationName) (\(stationInfo.solarSystemName))"
+            } else {
+                locationInfoCache[locationId] = "Unknown Location"
+            }
+        }
+    }
+    
+    func getLocationName(for locationId: Int64) -> String {
+        return locationInfoCache[locationId] ?? "Unknown Location"
+    }
+    
     func loadTransactionData(forceRefresh: Bool = false) async {
-        // 只有在第一次加载（没有数据）时才显示全屏加载
         let shouldShowFullscreenLoading = transactionGroups.isEmpty && !forceRefresh
         
         if shouldShowFullscreenLoading {
@@ -103,6 +121,9 @@ final class WalletTransactionsViewModel: ObservableObject {
                   let entries = try? JSONDecoder().decode([WalletTransactionEntry].self, from: jsonData) else {
                 throw NetworkError.invalidResponse
             }
+            
+            // 预加载所有位置信息
+            preloadLocationInfo(for: entries)
             
             var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
             for entry in entries {
@@ -225,10 +246,7 @@ struct WalletTransactionEntryRow: View {
     let viewModel: WalletTransactionsViewModel
     @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
-    @State private var locationName: String = "Unknown Station"
-    @State private var solarSystemName: String = ""
-    @State private var security: Double = 0.0
-    @StateObject private var databaseManager = DatabaseManager()
+    @State private var locationInfo: (stationName: String, solarSystemName: String, security: Double)?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -254,34 +272,8 @@ struct WalletTransactionEntryRow: View {
         return formatter
     }()
     
-    private func loadLocationInfo() async {
-        // 先尝试从数据库获取空间站信息
-        if let stationInfo = databaseManager.getStationInfo(stationID: entry.location_id) {
-            locationName = stationInfo.stationName
-            solarSystemName = stationInfo.solarSystemName
-            security = stationInfo.security
-            return
-        }
-        
-        // 如果不是空间站，尝试获取建筑物信息
-        do {
-            let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
-                structureId: entry.location_id,
-                characterId: entry.client_id
-            )
-            
-            if let systemInfo = await getSolarSystemInfo(solarSystemId: structureInfo.solar_system_id, databaseManager: databaseManager) {
-                locationName = structureInfo.name
-                solarSystemName = systemInfo.systemName
-                security = systemInfo.security
-            }
-        } catch {
-            Logger.error("获取建筑物信息失败: \(error)")
-        }
-    }
-    
     var body: some View {
-        NavigationLink(destination: MarketItemDetailView(databaseManager: databaseManager, itemID: entry.type_id)) {
+        NavigationLink(destination: MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: entry.type_id)) {
             VStack(alignment: .leading, spacing: 4) {
                 // 物品信息行
                 HStack(spacing: 12) {
@@ -305,19 +297,23 @@ struct WalletTransactionEntryRow: View {
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
+                
                 // 交易地点
-                LocationInfoView(
-                    stationName: locationName,
-                    solarSystemName: solarSystemName,
-                    security: security,
-                    font: .caption,
-                    textColor: .secondary
-                )
-                .lineLimit(1)
+                if let locationInfo = locationInfo {
+                    LocationInfoView(
+                        stationName: locationInfo.stationName,
+                        solarSystemName: locationInfo.solarSystemName,
+                        security: locationInfo.security,
+                        font: .caption,
+                        textColor: .secondary
+                    )
+                    .lineLimit(1)
+                }
+                
                 // 交易详细信息
                 VStack(alignment: .leading, spacing: 4) {
                     // 交易时间
-                    HStack{
+                    HStack {
                         if let date = dateFormatter.date(from: entry.date) {
                             Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
                                 .font(.caption)
@@ -338,11 +334,17 @@ struct WalletTransactionEntryRow: View {
             // 加载物品信息
             itemInfo = viewModel.getItemInfo(for: entry.type_id)
             // 加载图标
-            if let iconFileName = itemInfo?.iconFileName {
-                itemIcon = IconManager.shared.loadImage(for: iconFileName)
+            if let itemInfo = itemInfo {
+                itemIcon = IconManager.shared.loadImage(for: itemInfo.iconFileName)
             }
             // 加载位置信息
-            await loadLocationInfo()
+            if let info = viewModel.databaseManager.getStationInfo(stationID: entry.location_id) {
+                locationInfo = (
+                    stationName: info.stationName,
+                    solarSystemName: info.solarSystemName,
+                    security: info.security
+                )
+            }
         }
     }
 }
