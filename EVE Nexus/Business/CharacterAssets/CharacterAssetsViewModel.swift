@@ -7,20 +7,12 @@ struct AssetPathNode {
 }
 
 // 搜索结果
-struct AssetSearchResult {
-    let path: [AssetPathNode]  // 从根节点到目标物品的完整路径
-    let itemName: String       // 物品名称
-    let iconFileName: String   // 物品图标文件名
+struct AssetSearchResult: Identifiable {
+    let node: AssetTreeNode  // 包含item_id和位置信息
+    let itemInfo: ItemInfo   // 物品基本信息
+    let locationName: String // 位置名称
     
-    var locationName: String? {
-        path.first?.node.name
-    }
-    
-    var containerNode: AssetTreeNode? {
-        // 如果路径长度大于1，返回目标物品的直接容器
-        // 否则返回顶层位置节点
-        path.count > 1 ? path[path.count - 2].node : path.first?.node
-    }
+    var id: Int64 { node.item_id }  // 使用item_id作为唯一标识
 }
 
 @MainActor
@@ -140,14 +132,13 @@ class CharacterAssetsViewModel: ObservableObject {
             return
         }
         
-        // 获取所有type_id和对应的名称和图标
+        // 1. 先从数据库获取匹配名称的物品类型ID
         let itemQuery = """
             SELECT type_id, name, icon_filename
-            FROM types
+            FROM types 
             WHERE LOWER(name) LIKE LOWER('%\(query)%')
-            ORDER BY name
         """
-        Logger.debug("Search for \(query)")
+        
         var typeIdToInfo: [Int: (name: String, iconFileName: String)] = [:]
         if case .success(let rows) = databaseManager.executeQuery(itemQuery) {
             for row in rows {
@@ -159,48 +150,35 @@ class CharacterAssetsViewModel: ObservableObject {
             }
         }
         
+        // 2. 在资产数据中直接查找这些type_id对应的item_id
         var results: [AssetSearchResult] = []
-        
-        // 递归搜索函数
-        func searchNode(_ node: AssetTreeNode, currentPath: [AssetPathNode]) {
-            // 检查当前节点是否匹配
-            if let items = node.items {
-                for item in items {
-                    // 如果物品类型匹配搜索条件
-                    if let itemInfo = typeIdToInfo[item.type_id] {
-                        // 创建新路径，包含当前路径和目标物品
-                        var newPath = currentPath
-                        newPath.append(AssetPathNode(node: item, isTarget: true))
-                        
-                        // 创建搜索结果
-                        results.append(AssetSearchResult(
-                            path: newPath,
-                            itemName: itemInfo.name,
-                            iconFileName: itemInfo.iconFileName
-                        ))
-                    }
-                    
-                    // 如果当前物品是容器，继续搜索其内容
-                    if item.items != nil {
-                        var newPath = currentPath
-                        newPath.append(AssetPathNode(node: item, isTarget: false))
-                        searchNode(item, currentPath: newPath)
-                    }
-                }
-            }
-        }
-        
-        // 开始搜索每个顶层位置
         for location in assetLocations {
-            let rootPath = [AssetPathNode(node: location, isTarget: false)]
-            searchNode(location, currentPath: rootPath)
+            findItems(in: location, typeIdToInfo: typeIdToInfo, results: &results)
         }
         
         // 按物品名称排序结果
-        results.sort { $0.itemName < $1.itemName }
+        results.sort { $0.itemInfo.name < $1.itemInfo.name }
         
         // 更新搜索结果
         self.searchResults = results
+    }
+    
+    private func findItems(in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)], results: inout [AssetSearchResult]) {
+        // 如果当前节点的type_id在搜索结果中
+        if let itemInfo = typeIdToInfo[node.type_id] {
+            results.append(AssetSearchResult(
+                node: node,
+                itemInfo: ItemInfo(name: itemInfo.name, iconFileName: itemInfo.iconFileName),
+                locationName: node.name ?? node.system_name ?? NSLocalizedString("Unknown_System", comment: "")
+            ))
+        }
+        
+        // 递归检查子节点
+        if let items = node.items {
+            for item in items {
+                findItems(in: item, typeIdToInfo: typeIdToInfo, results: &results)
+            }
+        }
     }
 }
 

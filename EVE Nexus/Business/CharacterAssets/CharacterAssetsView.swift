@@ -54,32 +54,20 @@ private struct SearchResultRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 // 物品图标
-                IconManager.shared.loadImage(for: result.iconFileName)
+                IconManager.shared.loadImage(for: result.itemInfo.iconFileName)
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     // 物品名称
-                    Text(result.itemName)
+                    Text(result.itemInfo.name)
                         .font(.headline)
                     
-                    // 位置路径（只显示到倒数第二个项目）
-                    HStack(spacing: 4) {
-                        ForEach(Array(result.path.dropLast().enumerated()), id: \.offset) { index, pathNode in
-                            if index > 0 {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.secondary)
-                                    .imageScale(.small)
-                            }
-                            
-                            // 节点名称
-                            Text(pathNode.node.name ?? NSLocalizedString("Assets_Unknown_Location", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .lineLimit(1)
+                    // 位置信息
+                    Text(result.locationName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
         }
@@ -116,14 +104,11 @@ struct CharacterAssetsView: View {
                     }
                 }
             } else if !searchText.isEmpty {
-                ForEach(viewModel.searchResults, id: \.itemName) { result in
-                    if let containerNode = result.containerNode {
-                        NavigationLink(
-                            destination: LocationAssetsView(location: containerNode)
-                                .navigationTitle(containerNode.name ?? "Unknown Location")
-                        ) {
-                            SearchResultRowView(result: result)
-                        }
+                ForEach(viewModel.searchResults) { result in
+                    NavigationLink(
+                        destination: LocationAssetsView(location: result.node)
+                    ) {
+                        SearchResultRowView(result: result)
                     }
                 }
             } else {
