@@ -129,7 +129,12 @@ struct PersonalContractsView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.loadContractsData(forceRefresh: true)
+            // 立即触发刷新并返回，不等待加载完成
+            Task {
+                await viewModel.loadContractsData(forceRefresh: true)
+            }
+            // 立即完成下拉刷新动作
+            return
         }
         .task {
             if viewModel.contractGroups.isEmpty {
