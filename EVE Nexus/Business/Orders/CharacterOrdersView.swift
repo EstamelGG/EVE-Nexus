@@ -13,6 +13,7 @@ struct CharacterOrdersView: View {
     let characterId: Int64
     @State private var orders: [CharacterMarketOrder] = []
     @State private var isLoading = false
+    @State private var isBackgroundLoading = false
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var locationNames: [Int64: String] = [:]
@@ -32,15 +33,12 @@ struct CharacterOrdersView: View {
         let buyOrdersCount = orders.filter { $0.isBuyOrder ?? false }.count
         
         if sellOrdersCount > 0 {
-            // 如果有出售订单，优先显示出售订单
             showBuyOrders = false
         } else if buyOrdersCount > 0 {
-            // 如果只有收购订单，显示收购订单
             showBuyOrders = true
         }
-        // 如果都没有订单，默认显示出售订单（showBuyOrders = false）
     }
-
+    
     var body: some View {
         VStack(spacing: 0) {
             // 买卖单切换按钮
@@ -87,6 +85,14 @@ struct CharacterOrdersView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Market_Orders", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isBackgroundLoading {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+        }
         .task {
             await loadOrders()
         }
@@ -298,17 +304,23 @@ struct CharacterOrdersView: View {
     }
     
     private func loadOrders(forceRefresh: Bool = false) async {
-        isLoading = true
-        isDataReady = false
-        locationNames.removeAll()
-        itemInfoCache.removeAll()
-        locationInfoCache.removeAll()
+        let shouldShowFullscreenLoading = orders.isEmpty && !forceRefresh
+        
+        if shouldShowFullscreenLoading {
+            isLoading = true
+        } else if forceRefresh {
+            isBackgroundLoading = true
+        }
         
         do {
-            // 获取订单数据
             if let jsonString = try await CharacterMarketAPI.shared.getMarketOrders(
                 characterId: characterId,
-                forceRefresh: forceRefresh
+                forceRefresh: forceRefresh,
+                progressCallback: { isLoading in
+                    Task { @MainActor in
+                        isBackgroundLoading = isLoading
+                    }
+                }
             ) {
                 // 解析JSON数据
                 let jsonData = jsonString.data(using: .utf8)!
@@ -335,6 +347,7 @@ struct CharacterOrdersView: View {
         }
         
         isLoading = false
+        isBackgroundLoading = false
     }
     
     private func loadAllInformation() async {

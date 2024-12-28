@@ -24,8 +24,7 @@ class CharacterMarketAPI {
     private func getCachedOrders(characterId: Int64) -> String? {
         let key = getCacheKey(characterId: characterId)
         guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(CachedData.self, from: data),
-              isCacheValid(cache) else {
+              let cache = try? JSONDecoder().decode(CachedData.self, from: data) else {
             return nil
         }
         
@@ -50,25 +49,16 @@ class CharacterMarketAPI {
         
         if let encoded = try? JSONEncoder().encode(cache) {
             UserDefaults.standard.set(encoded, forKey: key)
+            Logger.debug("保存市场订单数据到缓存成功 - 角色ID: \(characterId)")
         }
     }
     
-    public func getMarketOrders(characterId: Int64, forceRefresh: Bool = false) async throws -> String? {
-        // 检查缓存
-        if !forceRefresh {
-            if let cachedJson = getCachedOrders(characterId: characterId) {
-                Logger.debug("使用缓存的市场订单数据")
-                return cachedJson
-            }
-        }
-        
-        // 构建URL
+    private func fetchFromNetwork(characterId: Int64) async throws -> String {
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/orders/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
-        // 获取数据
         let data = try await NetworkManager.shared.fetchDataWithToken(
             from: url,
             characterId: Int(characterId)
@@ -77,14 +67,53 @@ class CharacterMarketAPI {
         // 验证返回的数据是否可以解码为订单数组
         _ = try JSONDecoder().decode([CharacterMarketOrder].self, from: data)
         
-        // 转换为字符串
         guard let jsonString = String(data: data, encoding: .utf8) else {
             throw NetworkError.invalidResponse
         }
         
-        // 保存到缓存
-        saveOrdersToCache(jsonString: jsonString, characterId: characterId)
+        return jsonString
+    }
+    
+    public func getMarketOrders(
+        characterId: Int64,
+        forceRefresh: Bool = false,
+        progressCallback: ((Bool) -> Void)? = nil
+    ) async throws -> String? {
+        // 1. 先尝试获取缓存
+        if !forceRefresh {
+            if let cachedJson = getCachedOrders(characterId: characterId) {
+                // 检查缓存是否过期
+                let key = getCacheKey(characterId: characterId)
+                if let data = UserDefaults.standard.data(forKey: key),
+                   let cache = try? JSONDecoder().decode(CachedData.self, from: data),
+                   !isCacheValid(cache) {
+                    
+                    // 如果缓存过期，在后台刷新
+                    Logger.info("使用过期的缓存数据，将在后台刷新 - 角色ID: \(characterId)")
+                    Task {
+                        do {
+                            progressCallback?(true)
+                            let jsonString = try await fetchFromNetwork(characterId: characterId)
+                            saveOrdersToCache(jsonString: jsonString, characterId: characterId)
+                            progressCallback?(false)
+                        } catch {
+                            Logger.error("后台刷新市场订单数据失败: \(error)")
+                            progressCallback?(false)
+                        }
+                    }
+                } else {
+                    Logger.info("使用有效的缓存数据 - 角色ID: \(characterId)")
+                }
+                
+                return cachedJson
+            }
+        }
         
+        // 2. 如果没有缓存或强制刷新，从网络获取
+        progressCallback?(true)
+        let jsonString = try await fetchFromNetwork(characterId: characterId)
+        saveOrdersToCache(jsonString: jsonString, characterId: characterId)
+        progressCallback?(false)
         return jsonString
     }
 } 
