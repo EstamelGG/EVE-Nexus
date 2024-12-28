@@ -401,3 +401,11 @@
 "Industry_Status_Copying" = "Copying";
 "Industry_Status_Invention" = "Inventing";
 "Industry_Status_Reaction" = "Reacting";
+
+// Industry Activity Types (Short)
+"Industry_Type_Manufacturing" = "MFG";
+"Industry_Type_Research_Time" = "TE";
+"Industry_Type_Research_Material" = "ME";
+"Industry_Type_Copying" = "Copy";
+"Industry_Type_Invention" = "Inv";
+"Industry_Type_Reaction" = "React";

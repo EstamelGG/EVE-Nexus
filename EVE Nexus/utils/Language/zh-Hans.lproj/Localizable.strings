@@ -399,3 +399,11 @@
 "Industry_Status_Copying" = "复制中";
 "Industry_Status_Invention" = "发明中";
 "Industry_Status_Reaction" = "反应中";
+
+// 工业活动类型（简短）
+"Industry_Type_Manufacturing" = "制造";
+"Industry_Type_Research_Time" = "时效";
+"Industry_Type_Research_Material" = "材效";
+"Industry_Type_Copying" = "复制";
+"Industry_Type_Invention" = "发明";
+"Industry_Type_Reaction" = "反应";

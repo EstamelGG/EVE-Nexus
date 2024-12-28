@@ -357,6 +357,26 @@ struct IndustryJobRow: View {
         }
     }
     
+    // 获取活动类型文本
+    private func getActivityTypeText() -> String {
+        switch job.activity_id {
+        case 1:
+            return NSLocalizedString("Industry_Type_Manufacturing", comment: "")
+        case 3:
+            return NSLocalizedString("Industry_Type_Research_Time", comment: "")
+        case 4:
+            return NSLocalizedString("Industry_Type_Research_Material", comment: "")
+        case 5:
+            return NSLocalizedString("Industry_Type_Copying", comment: "")
+        case 8:
+            return NSLocalizedString("Industry_Type_Invention", comment: "")
+        case 11:
+            return NSLocalizedString("Industry_Type_Reaction", comment: "")
+        default:
+            return ""
+        }
+    }
+    
     var body: some View {
         NavigationLink(destination: ShowBluePrintInfo(blueprintID: job.blueprint_type_id, databaseManager: databaseManager)) {
             VStack(alignment: .leading, spacing: 4) {
@@ -376,9 +396,14 @@ struct IndustryJobRow: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         // 蓝图名称和状态
-                        Text(blueprintName)
-                            .font(.headline)
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text("[\(getActivityTypeText())]")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(blueprintName)
+                                .font(.headline)
+                        }
+                        .lineLimit(1)
                         
                         // 数量信息
                         Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
