@@ -226,14 +226,14 @@ struct ShowItemInfo: View {
             }
         }
         .onAppear {
-            loadItemDetails(for: itemID)
+            getItemDetails(for: itemID)
             loadAttributes(for: itemID)
         }
     }
     
     // 加载 item 详细信息
-    private func loadItemDetails(for itemID: Int) {
-        if let itemDetail = databaseManager.loadItemDetails(for: itemID) {
+    private func getItemDetails(for itemID: Int) {
+        if let itemDetail = databaseManager.getItemDetails(for: itemID) {
             // 加载 traits
             if let traitGroup = databaseManager.getTraits(for: itemID) {
                 // 构建trait文本

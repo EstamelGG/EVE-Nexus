@@ -606,7 +606,7 @@ struct MarketItemDetailView: View {
                 selectedRegionName = defaults.defaultRegionName
             }
             
-            loadItemDetails()
+            itemDetails = databaseManager.getItemDetails(for: itemID)
             loadRegions()
             
             if let region = regions.first(where: { $0.id == selectedRegionID }) {
@@ -620,10 +620,6 @@ struct MarketItemDetailView: View {
                 isFromParent = false
             }
         }
-    }
-    
-    private func loadItemDetails() {
-        itemDetails = databaseManager.loadItemDetails(for: itemID)
     }
 
     

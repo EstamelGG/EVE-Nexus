@@ -105,11 +105,6 @@ struct ShowBluePrintInfo: View {
     @State private var isInventionMaterialsExpanded = false
     @State private var isInventionSkillsExpanded = false
     
-    // 加载物品基本信息
-    private func loadItemDetails() {
-        itemDetails = databaseManager.getItemDetails(for: blueprintID)
-    }
-    
     // 加载蓝图来源
     private func loadBlueprintSource() {
         blueprintSource = databaseManager.getBlueprintSource(for: blueprintID)
@@ -785,7 +780,7 @@ struct ShowBluePrintInfo: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Blueprint_Info", comment: ""))
         .onAppear {
-            loadItemDetails()
+            itemDetails = databaseManager.getItemDetails(for: blueprintID)
             loadBlueprintData()
             loadBlueprintSource()
         }

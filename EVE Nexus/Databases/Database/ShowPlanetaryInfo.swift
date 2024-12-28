@@ -163,15 +163,10 @@ struct ShowPlanetaryInfo: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Info")
         .onAppear {
-            loadItemDetails()
+            itemDetails = databaseManager.getItemDetails(for: itemID)
             loadPlanetaryData()
             loadHarvestSources()
         }
-    }
-    
-    // MARK: - Data Loading Methods
-    private func loadItemDetails() {
-        itemDetails = databaseManager.getItemDetails(for: itemID)
     }
     
     private func loadPlanetaryData() {
