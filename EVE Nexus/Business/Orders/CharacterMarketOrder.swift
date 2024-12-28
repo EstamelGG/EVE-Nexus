@@ -1,6 +1,6 @@
 import Foundation
 
-public struct CharacterMarketOrder: Identifiable, Codable {
+public struct CharacterMarketOrder: Identifiable, Codable, Hashable {
     public let duration: Int
     public let escrow: Double?
     public let isBuyOrder: Bool?
@@ -37,5 +37,14 @@ public struct CharacterMarketOrder: Identifiable, Codable {
     
     public var isSellOrder: Bool {
         return !(isBuyOrder ?? false)
+    }
+    
+    // 实现 Hashable
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(orderId)
+    }
+    
+    public static func == (lhs: CharacterMarketOrder, rhs: CharacterMarketOrder) -> Bool {
+        return lhs.orderId == rhs.orderId
     }
 } 
