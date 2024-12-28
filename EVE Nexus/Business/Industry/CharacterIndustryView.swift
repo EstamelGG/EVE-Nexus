@@ -235,6 +235,31 @@ struct IndustryJobRow: View {
         return dateStr
     }
     
+    // 获取活动状态文本
+    private func getActivityStatus() -> String {
+        if job.status != "active" {
+            return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
+        }
+        
+        // 如果是活动状态，根据活动类型返回对应文本
+        switch job.activity_id {
+        case 1:
+            return NSLocalizedString("Industry_Status_Manufacturing", comment: "") // "制造中"
+        case 3:
+            return NSLocalizedString("Industry_Status_Research_Time", comment: "") // "时间效率研究中"
+        case 4:
+            return NSLocalizedString("Industry_Status_Research_Material", comment: "") // "材料效率研究中"
+        case 5:
+            return NSLocalizedString("Industry_Status_Copying", comment: "") // "复制中"
+        case 8:
+            return NSLocalizedString("Industry_Status_Invention", comment: "") // "发明中"
+        case 11:
+            return NSLocalizedString("Industry_Status_Reaction", comment: "") // "反应中"
+        default:
+            return NSLocalizedString("Industry_Status_active", comment: "") // "进行中"
+        }
+    }
+    
     var body: some View {
         NavigationLink(destination: ShowBluePrintInfo(blueprintID: job.blueprint_type_id, databaseManager: databaseManager)) {
             VStack(alignment: .leading, spacing: 4) {
@@ -293,7 +318,7 @@ struct IndustryJobRow: View {
                     textColor: .secondary
                 ).lineLimit(1)
                 HStack {
-                    Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
+                    Text(getActivityStatus())
                         .font(.caption)
                         .foregroundColor(job.status == "active" ? .green : .secondary)
                     Spacer()

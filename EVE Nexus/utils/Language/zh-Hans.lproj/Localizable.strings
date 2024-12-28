@@ -390,3 +390,11 @@
 "Industry_Status_paused" = "已暂停";
 "Industry_Status_ready" = "已就绪";
 "Industry_Status_reverted" = "已撤销";
+
+// 工业活动状态
+"Industry_Status_Manufacturing" = "制造中";
+"Industry_Status_Research_Time" = "时间效率研究中";
+"Industry_Status_Research_Material" = "材料效率研究中";
+"Industry_Status_Copying" = "复制中";
+"Industry_Status_Invention" = "发明中";
+"Industry_Status_Reaction" = "反应中";
