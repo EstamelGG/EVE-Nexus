@@ -5,6 +5,7 @@ typealias IndustryJob = CharacterIndustryAPI.IndustryJob
 @MainActor
 class CharacterIndustryViewModel: ObservableObject {
     @Published var jobs: [IndustryJob] = []
+    @Published var groupedJobs: [String: [IndustryJob]] = [:]  // 按日期分组的工作项目
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showError = false
@@ -20,6 +21,33 @@ class CharacterIndustryViewModel: ObservableObject {
         self.databaseManager = databaseManager
     }
     
+    // 将工作项目按日期分组
+    private func groupJobsByDate() {
+        let calendar = Calendar.current
+        var grouped = [String: [IndustryJob]]()
+        
+        for job in jobs {
+            // 获取开始日期的年月日部分
+            let date = calendar.startOfDay(for: job.start_date)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            dateFormatter.timeZone = TimeZone(identifier: "UTC")!
+            let dateKey = dateFormatter.string(from: date)
+            
+            if grouped[dateKey] == nil {
+                grouped[dateKey] = []
+            }
+            grouped[dateKey]?.append(job)
+        }
+        
+        // 对每个组内的工作项目按开始时间排序
+        for (key, value) in grouped {
+            grouped[key] = value.sorted { $0.start_date < $1.start_date }
+        }
+        
+        groupedJobs = grouped
+    }
+    
     func loadJobs(forceRefresh: Bool = false) async {
         isLoading = true
         
@@ -33,6 +61,8 @@ class CharacterIndustryViewModel: ObservableObject {
             await loadItemNames()
             // 加载地点名称
             await loadLocationNames()
+            // 对工作项目进行分组
+            groupJobsByDate()
             
         } catch {
             errorMessage = error.localizedDescription
@@ -85,12 +115,36 @@ struct CharacterIndustryView: View {
     let characterId: Int
     @StateObject private var viewModel: CharacterIndustryViewModel
     
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
         _viewModel = StateObject(wrappedValue: CharacterIndustryViewModel(
             characterId: characterId,
             databaseManager: databaseManager
         ))
+    }
+    
+    // 格式化日期显示
+    private func formatDateHeader(_ dateString: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "yyyy-MM-dd"
+        inputFormatter.timeZone = TimeZone(identifier: "UTC")!
+        
+        guard let date = inputFormatter.date(from: dateString) else {
+            return dateString
+        }
+        
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "MM月dd日"
+        outputFormatter.timeZone = TimeZone(identifier: "UTC")!
+        return "开始于" + outputFormatter.string(from: date)
     }
     
     var body: some View {
@@ -101,7 +155,7 @@ struct CharacterIndustryView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if viewModel.jobs.isEmpty {
+            } else if viewModel.groupedJobs.isEmpty {
                 HStack {
                     Spacer()
                     Text(NSLocalizedString("Industry_No_Jobs", comment: ""))
@@ -109,13 +163,23 @@ struct CharacterIndustryView: View {
                     Spacer()
                 }
             } else {
-                ForEach(viewModel.jobs) { job in
-                    IndustryJobRow(
-                        job: job,
-                        blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
-                        blueprintIcon: viewModel.itemIcons[job.blueprint_type_id],
-                        locationInfo: viewModel.locationInfoCache[job.station_id]
-                    )
+                ForEach(Array(viewModel.groupedJobs.keys).sorted(), id: \.self) { dateKey in
+                    Section(header: Text(formatDateHeader(dateKey))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(viewModel.groupedJobs[dateKey] ?? []) { job in
+                            IndustryJobRow(
+                                job: job,
+                                blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
+                                blueprintIcon: viewModel.itemIcons[job.blueprint_type_id],
+                                locationInfo: viewModel.locationInfoCache[job.station_id]
+                            )
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                        }
+                    }
                 }
             }
         }
@@ -145,9 +209,12 @@ struct IndustryJobRow: View {
     
     // 根据活动类型和状态返回颜色
     private var progressColor: Color {
-        switch job.status {
-        case "delivered", "ready": // 已完成
+        // 先检查是否已完成（根据状态或时间）
+        if job.status == "delivered" || job.status == "ready" || Date() >= job.end_date {
             return .green
+        }
+        
+        switch job.status {
         case "cancelled", "revoked", "failed": // 已取消或失败
             return .red
         case "active", "paused": // 进行中或暂停
@@ -173,9 +240,12 @@ struct IndustryJobRow: View {
     
     // 计算进度
     private var progress: Double {
-        switch job.status {
-        case "delivered", "ready": // 已完成
+        // 先检查是否已完成（根据状态或时间）
+        if job.status == "delivered" || job.status == "ready" || Date() >= job.end_date {
             return 1.0
+        }
+        
+        switch job.status {
         case "cancelled", "revoked", "failed": // 已取消或失败
             return 1.0
         default: // 进行中
@@ -199,7 +269,12 @@ struct IndustryJobRow: View {
         let remainingTime = job.end_date.timeIntervalSinceNow
         
         if remainingTime <= 0 {
-            return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
+            // 根据状态返回不同的完成状态文本
+            if job.status == "delivered" {
+                return NSLocalizedString("Industry_Status_delivered", comment: "")
+            } else {
+                return NSLocalizedString("Industry_Status_completed", comment: "")
+            }
         }
         
         let days = Int(remainingTime) / (24 * 3600)
@@ -227,6 +302,11 @@ struct IndustryJobRow: View {
     private func getTimeDisplay() -> String {
         let dateStr = formatDate(job.end_date)
         
+        // 如果已经完成，只显示完成时间
+        if job.status == "delivered" || job.status == "ready" || Date() >= job.end_date {
+            return dateStr
+        }
+        
         // 如果是活动状态，添加剩余时间
         if job.status == "active" {
             return "\(dateStr) (\(getRemainingTime()))"
@@ -237,6 +317,13 @@ struct IndustryJobRow: View {
     
     // 获取活动状态文本
     private func getActivityStatus() -> String {
+        // 先检查是否已完成（根据状态或时间）
+        if job.status == "delivered" {
+            return NSLocalizedString("Industry_Status_delivered", comment: "")
+        } else if job.status == "ready" || Date() >= job.end_date {
+            return NSLocalizedString("Industry_Status_completed", comment: "")
+        }
+        
         if job.status != "active" {
             return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
         }
