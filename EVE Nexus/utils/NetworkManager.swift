@@ -310,12 +310,12 @@ extension NetworkManager: NSCacheDelegate {
 
 // 添加 RequestRetrier 类
 class RequestRetrier {
-    private let maxAttempts: Int
+    private let timeouts: [TimeInterval]
     private let retryDelay: TimeInterval
     private var noRetryKeywords: [String]
     
-    init(maxAttempts: Int = 3, retryDelay: TimeInterval = 1.0, noRetryKeywords: [String] = []) {
-        self.maxAttempts = maxAttempts
+    init(timeouts: [TimeInterval] = [1.5, 5.0, 10.0], retryDelay: TimeInterval = 1.0, noRetryKeywords: [String] = []) {
+        self.timeouts = timeouts
         self.retryDelay = retryDelay
         self.noRetryKeywords = noRetryKeywords
     }
@@ -329,9 +329,15 @@ class RequestRetrier {
         var attempts = 0
         var lastError: Error?
         
-        while attempts < maxAttempts {
+        while attempts < timeouts.count {
             do {
-                return try await operation()
+                // 设置当前尝试的超时时间
+                let timeout = timeouts[attempts]
+                Logger.info("尝试第 \(attempts + 1) 次请求，超时时间: \(timeout)秒")
+                
+                return try await withTimeout(timeout) {
+                    try await operation()
+                }
             } catch {
                 lastError = error
                 
@@ -348,7 +354,7 @@ class RequestRetrier {
                 guard shouldRetry(error) else { throw error }
                 
                 attempts += 1
-                if attempts < maxAttempts {
+                if attempts < timeouts.count {
                     let delay = UInt64(retryDelay * pow(2.0, Double(attempts))) * 1_000_000_000
                     try await Task.sleep(nanoseconds: delay)
                 }
@@ -358,9 +364,40 @@ class RequestRetrier {
         throw lastError ?? NetworkError.maxRetriesExceeded
     }
     
+    private func withTimeout<T>(_ timeout: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            // 添加实际操作任务
+            group.addTask {
+                try await operation()
+            }
+            
+            // 添加超时任务
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                throw NetworkError.httpError(statusCode: 408, message: "请求超时")
+            }
+            
+            defer { 
+                group.cancelAll()
+            }
+            
+            // 等待第一个完成的任务
+            do {
+                let result = try await group.next() ?? {
+                    throw NetworkError.httpError(statusCode: 408, message: "请求超时")
+                }()
+                return result
+            } catch {
+                // 取消所有任务并抛出错误
+                group.cancelAll()
+                throw error
+            }
+        }
+    }
+    
     private func shouldRetry(_ error: Error) -> Bool {
         if case NetworkError.httpError(let statusCode, _) = error {
-            return [500, 502, 503, 504].contains(statusCode)
+            return [408, 500, 502, 503, 504].contains(statusCode)
         }
         return false
     }
