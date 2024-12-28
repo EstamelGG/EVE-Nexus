@@ -440,7 +440,9 @@ struct IndustryJobRow: View {
                         .lineLimit(1)
                         
                         // 数量信息
-                        Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                        Text(job.activity_id == 5 ? 
+                            "\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0)" :
+                            "\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
