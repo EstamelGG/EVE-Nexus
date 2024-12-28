@@ -7,11 +7,7 @@ struct OrderItemInfo {
 }
 
 // 位置信息模型
-struct OrderLocationInfo {
-    let stationName: String
-    let solarSystemName: String
-    let security: Double
-}
+typealias OrderLocationInfo = LocationInfoDetail
 
 struct CharacterOrdersView: View {
     let characterId: Int64
@@ -365,66 +361,10 @@ struct CharacterOrdersView: View {
             }
         }
         
-        // 2. 加载所有位置信息
+        // 2. 使用 LocationInfoLoader 加载位置信息
         let locationIds = Set(orders.map { $0.locationId })
-        if !locationIds.isEmpty {
-            let query = """
-                SELECT s.stationID, s.stationName, ss.solarSystemName, u.system_security as security
-                FROM stations s
-                JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
-                JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                WHERE s.stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
-            """
-            
-            if case .success(let rows) = databaseManager.executeQuery(query) {
-                for row in rows {
-                    if let stationIdInt = (row["stationID"] as? NSNumber)?.int64Value,
-                       let stationName = row["stationName"] as? String,
-                       let solarSystemName = row["solarSystemName"] as? String,
-                       let security = row["security"] as? Double {
-                        locationInfoCache[stationIdInt] = OrderLocationInfo(
-                            stationName: stationName,
-                            solarSystemName: solarSystemName,
-                            security: security
-                        )
-                    }
-                }
-            }
-            
-            // 找出未在数据库中找到的位置ID（可能是玩家建筑物）
-            let remainingLocationIds = locationIds.filter { !locationInfoCache.keys.contains($0) }
-            
-            // 对于玩家建筑物，通过API获取信息
-            for locationId in remainingLocationIds {
-                do {
-                    let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
-                        structureId: locationId,
-                        characterId: Int(characterId)
-                    )
-                    
-                    // 获取星系信息
-                    let systemQuery = """
-                        SELECT ss.solarSystemName, u.system_security as security
-                        FROM solarSystems ss
-                        JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                        WHERE ss.solarSystemID = ?
-                    """
-                    
-                    if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [String(structureInfo.solar_system_id)]),
-                       let row = rows.first,
-                       let solarSystemName = row["solarSystemName"] as? String,
-                       let security = row["security"] as? Double {
-                        locationInfoCache[locationId] = OrderLocationInfo(
-                            stationName: structureInfo.name,
-                            solarSystemName: solarSystemName,
-                            security: security
-                        )
-                    }
-                } catch {
-                    Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
-                }
-            }
-        }
+        let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: characterId)
+        locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
         
         // 添加调试日志
         Logger.debug("加载的物品信息数量: \(itemInfoCache.count)")
