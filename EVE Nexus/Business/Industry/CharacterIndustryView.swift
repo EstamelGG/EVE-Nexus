@@ -143,6 +143,32 @@ struct IndustryJobRow: View {
     let locationInfo: LocationInfoDetail?
     @StateObject private var databaseManager = DatabaseManager()
     
+    // 计算进度
+    private var progress: Double {
+        let totalDuration = Double(job.duration)
+        let elapsedTime = Date().timeIntervalSince(job.start_date)
+        let progress = elapsedTime / totalDuration
+        return min(max(progress, 0), 1) // 确保进度在0-1之间
+    }
+    
+    // 根据活动类型返回颜色
+    private var progressColor: Color {
+        switch job.activity_id {
+        case 1: // 制造
+            return Color.yellow.opacity(0.8)
+        case 3, 4: // 时间效率研究、材料效率研究
+            return Color.blue.opacity(0.6)
+        case 5: // 复制
+            return Color.blue.opacity(0.3)
+        case 8: // 发明
+            return Color.blue.opacity(0.6)
+        case 11: // 反应
+            return Color.yellow.opacity(0.8)
+        default:
+            return Color.gray
+        }
+    }
+    
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -169,15 +195,9 @@ struct IndustryJobRow: View {
                     
                     VStack(alignment: .leading, spacing: 4) {
                         // 蓝图名称和状态
-                        HStack {
-                            Text(blueprintName)
-                                .font(.headline)
-                                .lineLimit(1)
-                            Spacer()
-                            Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(job.status == "active" ? .green : .secondary)
-                        }
+                        Text(blueprintName)
+                            .font(.headline)
+                            .lineLimit(1)
                         
                         // 数量信息
                         Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
@@ -186,20 +206,43 @@ struct IndustryJobRow: View {
                     }
                 }
                 
+                // 进度条
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // 背景
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 4)
+                            .cornerRadius(2)
+                        
+                        // 进度
+                        Rectangle()
+                            .fill(progressColor)
+                            .frame(width: geometry.size.width * progress, height: 4)
+                            .cornerRadius(2)
+                    }
+                }
+                .frame(height: 4)
+                .padding(.vertical, 4)
+                
                 // 第二行：位置信息和结束时间
-                HStack {
-                    LocationInfoView(
-                        stationName: locationInfo?.stationName,
-                        solarSystemName: locationInfo?.solarSystemName,
-                        security: locationInfo?.security,
-                        font: .caption,
-                        textColor: .secondary
-                    )
+                LocationInfoView(
+                    stationName: locationInfo?.stationName,
+                    solarSystemName: locationInfo?.solarSystemName,
+                    security: locationInfo?.security,
+                    font: .caption,
+                    textColor: .secondary
+                ).lineLimit(1)
+                HStack{
+                    Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(job.status == "active" ? .green : .secondary)
                     Spacer()
                     Text(formatDate(job.end_date))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
+                
             }
             .padding(.vertical, 4)
         }
