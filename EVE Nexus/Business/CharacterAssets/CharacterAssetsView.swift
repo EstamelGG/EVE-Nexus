@@ -64,10 +64,11 @@ private struct SearchResultRowView: View {
                     Text(result.itemInfo.name)
                         .font(.headline)
                     
-                    // 位置信息
-                    Text(result.locationName)
+                    // 完整位置路径
+                    Text(result.formattedPath)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .lineLimit(2)
                 }
             }
         }

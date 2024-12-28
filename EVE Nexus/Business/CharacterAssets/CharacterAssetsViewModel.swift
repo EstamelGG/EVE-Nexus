@@ -10,10 +10,26 @@ struct AssetPathNode {
 struct AssetSearchResult: Identifiable {
     let node: AssetTreeNode          // 目标物品节点
     let itemInfo: ItemInfo           // 物品基本信息
-    let locationName: String         // 位置名称
-    let containerNode: AssetTreeNode // 容器节点
+    let locationPath: [AssetTreeNode] // 从顶层位置到物品的完整路径
+    let containerNode: AssetTreeNode // 直接容器节点
     
     var id: Int64 { node.item_id }
+    
+    // 格式化的位置路径字符串，只显示到倒数第二级
+    var formattedPath: String {
+        // 如果路径少于2个节点，直接返回完整路径
+        guard locationPath.count >= 2 else {
+            return locationPath.map { node in
+                node.name ?? node.system_name ?? NSLocalizedString("Unknown_System", comment: "")
+            }.joined(separator: " > ")
+        }
+        
+        // 去掉最后一个节点（当前物品），只显示到倒数第二级
+        let pathToShow = locationPath.dropLast()
+        return pathToShow.map { node in
+            node.name ?? node.system_name ?? NSLocalizedString("Unknown_System", comment: "")
+        }.joined(separator: " > ")
+    }
 }
 
 @MainActor
@@ -154,7 +170,7 @@ class CharacterAssetsViewModel: ObservableObject {
         // 2. 在资产数据中查找这些type_id对应的item_id
         var results: [AssetSearchResult] = []
         for location in assetLocations {
-            findItems(in: location, typeIdToInfo: typeIdToInfo, parentNode: nil, results: &results)
+            findItems(in: location, typeIdToInfo: typeIdToInfo, currentPath: [], results: &results)
         }
         
         // 按物品名称排序结果
@@ -164,15 +180,18 @@ class CharacterAssetsViewModel: ObservableObject {
         self.searchResults = results
     }
     
-    private func findItems(in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)], parentNode: AssetTreeNode?, results: inout [AssetSearchResult]) {
+    private func findItems(in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)], currentPath: [AssetTreeNode], results: inout [AssetSearchResult]) {
+        var path = currentPath
+        path.append(node)
+        
         // 如果当前节点的type_id在搜索结果中
         if let itemInfo = typeIdToInfo[node.type_id] {
-            // 如果有父节点，使用父节点作为容器；否则使用当前节点
-            let container = parentNode ?? node
+            // 使用路径的倒数第二个节点作为容器（如果路径长度大于1）
+            let container = path.count > 1 ? path[path.count - 2] : node
             results.append(AssetSearchResult(
                 node: node,
                 itemInfo: ItemInfo(name: itemInfo.name, iconFileName: itemInfo.iconFileName),
-                locationName: container.name ?? container.system_name ?? NSLocalizedString("Unknown_System", comment: ""),
+                locationPath: path,
                 containerNode: container
             ))
         }
@@ -180,7 +199,7 @@ class CharacterAssetsViewModel: ObservableObject {
         // 递归检查子节点
         if let items = node.items {
             for item in items {
-                findItems(in: item, typeIdToInfo: typeIdToInfo, parentNode: node, results: &results)
+                findItems(in: item, typeIdToInfo: typeIdToInfo, currentPath: path, results: &results)
             }
         }
     }
