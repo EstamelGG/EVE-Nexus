@@ -26,6 +26,7 @@ struct WalletJournalGroup: Identifiable {
 final class WalletJournalViewModel: ObservableObject {
     @Published private(set) var journalGroups: [WalletJournalGroup] = []
     @Published var isLoading = true
+    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     private let characterId: Int
@@ -49,7 +50,14 @@ final class WalletJournalViewModel: ObservableObject {
     }
     
     func loadJournalData(forceRefresh: Bool = false) async {
-        isLoading = true
+        // 只有在第一次加载（没有数据）时才显示全屏加载
+        let shouldShowFullscreenLoading = journalGroups.isEmpty && !forceRefresh
+        
+        if shouldShowFullscreenLoading {
+            isLoading = true
+        } else {
+            isBackgroundLoading = true
+        }
         errorMessage = nil
         
         do {
@@ -83,11 +91,19 @@ final class WalletJournalViewModel: ObservableObject {
             }.sorted { $0.date > $1.date }
             
             self.journalGroups = groups
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
             
         } catch {
             self.errorMessage = error.localizedDescription
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
         }
     }
 }
@@ -121,7 +137,7 @@ struct WalletJournalView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                            .foregroundColor(.gray)
+                                .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -145,7 +161,12 @@ struct WalletJournalView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.loadJournalData(forceRefresh: true)
+            // 立即触发刷新并返回，不等待加载完成
+            Task {
+                await viewModel.loadJournalData(forceRefresh: true)
+            }
+            // 立即完成下拉刷新动作
+            return
         }
         .task {
             if viewModel.journalGroups.isEmpty {
@@ -153,6 +174,14 @@ struct WalletJournalView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
+        .toolbar {
+            if viewModel.isBackgroundLoading {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+        }
     }
 }
 
