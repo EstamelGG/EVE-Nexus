@@ -83,12 +83,8 @@ class CharacterContractsAPI {
                 if shouldRefreshInBackground {
                     Task {
                         do {
-                            let newContracts = try await fetchContractsFromServer(characterId: characterId)
-                            // 合并新旧合同并去重
-                            let mergedContracts = Set(cachedContracts).union(newContracts)
-                            let finalContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
-                            // 更新缓存
-                            saveToCache(contracts: finalContracts, characterId: characterId)
+                            // fetchContractsFromServer 已经处理了合并和去重，直接使用其结果
+                            let _ = try await fetchContractsFromServer(characterId: characterId)
                             // 在主线程发送通知以刷新UI
                             await MainActor.run {
                                 NotificationCenter.default.post(name: NSNotification.Name("ContractsUpdated"), object: nil, userInfo: ["characterId": characterId])
@@ -161,6 +157,12 @@ class CharacterContractsAPI {
         
         // 按合同ID排序，确保顺序一致
         allContracts.sort { $0.contract_id > $1.contract_id }
+        
+        // 尝试加载现有缓存数据并合并
+        if let existingContracts = loadFromCache(characterId: characterId) {
+            let mergedContracts = Set(existingContracts).union(allContracts)
+            allContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
+        }
         
         // 保存到缓存
         saveToCache(contracts: allContracts, characterId: characterId)
