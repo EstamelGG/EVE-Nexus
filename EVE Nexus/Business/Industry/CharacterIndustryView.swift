@@ -141,6 +141,7 @@ struct IndustryJobRow: View {
     let blueprintName: String
     let blueprintIcon: String?
     let locationInfo: LocationInfoDetail?
+    @StateObject private var databaseManager = DatabaseManager()
     
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -150,54 +151,56 @@ struct IndustryJobRow: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // 第一行：蓝图图标、名称和状态
-            HStack(spacing: 12) {
-                // 蓝图图标
-                if let iconFileName = blueprintIcon {
-                    IconManager.shared.loadImage(for: iconFileName)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 32, height: 32)
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    // 蓝图名称和状态
-                    HStack {
-                        Text(blueprintName)
-                            .font(.headline)
-                        Spacer()
-                        Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(job.status == "active" ? .green : .secondary)
+        NavigationLink(destination: ShowBluePrintInfo(blueprintID: job.blueprint_type_id, databaseManager: databaseManager)) {
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：蓝图图标、名称和状态
+                HStack(spacing: 12) {
+                    // 蓝图图标
+                    if let iconFileName = blueprintIcon {
+                        IconManager.shared.loadImage(for: iconFileName)
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    } else {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: 32, height: 32)
                     }
                     
-                    // 数量信息
-                    Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                    VStack(alignment: .leading, spacing: 4) {
+                        // 蓝图名称和状态
+                        HStack {
+                            Text(blueprintName)
+                                .font(.headline)
+                            Spacer()
+                            Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(job.status == "active" ? .green : .secondary)
+                        }
+                        
+                        // 数量信息
+                        Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                // 第二行：位置信息和结束时间
+                HStack {
+                    LocationInfoView(
+                        stationName: locationInfo?.stationName,
+                        solarSystemName: locationInfo?.solarSystemName,
+                        security: locationInfo?.security,
+                        font: .caption,
+                        textColor: .secondary
+                    )
+                    Spacer()
+                    Text(formatDate(job.end_date))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
-            
-            // 第二行：位置信息和结束时间
-            HStack {
-                LocationInfoView(
-                    stationName: locationInfo?.stationName,
-                    solarSystemName: locationInfo?.solarSystemName,
-                    security: locationInfo?.security,
-                    font: .caption,
-                    textColor: .secondary
-                )
-                Spacer()
-                Text(formatDate(job.end_date))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 }
