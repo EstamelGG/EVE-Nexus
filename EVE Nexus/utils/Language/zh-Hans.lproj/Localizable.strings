@@ -327,6 +327,8 @@
 "Orders_Sell" = "出售";
 "Orders_Corp" = "公司";
 "Orders_No_Data" = "无数据";
+"Orders_No_Buy_Orders" = "没有收购订单";
+"Orders_No_Sell_Orders" = "没有出售订单";
 
 // Market Orders Time
 "Orders_Expired" = "已过期";
@@ -335,6 +337,10 @@
 "Orders_Remaining_Hours_Minutes" = "%d小时%d分后过期";
 "Orders_Remaining_Hours" = "%d小时后过期";
 "Orders_Remaining_Minutes" = "%d分后过期";
+
+// Market Orders Status
+"Main_Database_Loading" = "正在加载...";
+"Orders_No_Data" = "没有找到订单";
 
 // Industry Orders Time
 "Industry_Expired" = "已完成";
