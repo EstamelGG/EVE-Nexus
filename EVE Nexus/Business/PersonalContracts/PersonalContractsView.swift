@@ -13,7 +13,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     
-    private let characterId: Int
+    let characterId: Int
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -121,6 +121,15 @@ struct PersonalContractsView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ContractsUpdated"))) { notification in
+            if let characterId = notification.userInfo?["characterId"] as? Int,
+               characterId == viewModel.characterId {
+                // 重新加载数据
+                Task {
+                    await viewModel.loadContractsData()
+                }
+            }
+        }
     }
 }
 

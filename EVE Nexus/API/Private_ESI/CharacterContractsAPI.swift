@@ -23,17 +23,6 @@ class CharacterContractsAPI {
     private func loadFromCache(characterId: Int) -> [ContractInfo]? {
         let cacheFile = getCacheFilePath(for: characterId)
         
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
-              let modificationDate = attributes[.modificationDate] as? Date else {
-            return nil
-        }
-        
-        // 检查缓存是否过期
-        if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
-            Logger.debug("合同缓存已过期 - 角色ID: \(characterId)")
-            return nil
-        }
-        
         do {
             let data = try Data(contentsOf: cacheFile)
             let decoder = JSONDecoder()
@@ -77,13 +66,45 @@ class CharacterContractsAPI {
     }
     
     func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
-        // 如果不是强制刷新，尝试从缓存加载
-        if !forceRefresh {
-            if let cachedContracts = loadFromCache(characterId: characterId) {
+        var shouldRefreshInBackground = false
+        
+        // 尝试从缓存加载
+        if let cachedContracts = loadFromCache(characterId: characterId) {
+            // 检查缓存是否过期
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: getCacheFilePath(for: characterId).path),
+               let modificationDate = attributes[.modificationDate] as? Date {
+                if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
+                    shouldRefreshInBackground = true
+                }
+            }
+            
+            if !forceRefresh {
+                // 如果缓存过期，启动后台刷新
+                if shouldRefreshInBackground {
+                    Task {
+                        do {
+                            let newContracts = try await fetchContractsFromServer(characterId: characterId)
+                            // 合并新旧合同并去重
+                            var mergedContracts = Set(cachedContracts).union(newContracts)
+                            let finalContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
+                            // 更新缓存
+                            saveToCache(contracts: finalContracts, characterId: characterId)
+                            // 发送通知以刷新UI
+                            NotificationCenter.default.post(name: NSNotification.Name("ContractsUpdated"), object: nil, userInfo: ["characterId": characterId])
+                        } catch {
+                            Logger.error("后台更新合同数据失败 - 角色ID: \(characterId), 错误: \(error)")
+                        }
+                    }
+                }
                 return cachedContracts
             }
         }
         
+        // 如果没有缓存或强制刷新，直接从服务器获取
+        return try await fetchContractsFromServer(characterId: characterId)
+    }
+    
+    private func fetchContractsFromServer(characterId: Int) async throws -> [ContractInfo] {
         var allContracts: [ContractInfo] = []
         var currentPage = 1
         
@@ -180,17 +201,6 @@ class CharacterContractsAPI {
     private func loadItemsFromCache(characterId: Int, contractId: Int) -> [ContractItemInfo]? {
         let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
         
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
-              let modificationDate = attributes[.modificationDate] as? Date else {
-            return nil
-        }
-        
-        // 检查缓存是否过期
-        if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
-            Logger.debug("合同物品缓存已过期 - 角色ID: \(characterId), 合同ID: \(contractId)")
-            return nil
-        }
-        
         do {
             let data = try Data(contentsOf: cacheFile)
             let decoder = JSONDecoder()
@@ -248,7 +258,7 @@ class CharacterContractsAPI {
 }
 
 // 合同信息模型
-struct ContractInfo: Codable, Identifiable {
+struct ContractInfo: Codable, Identifiable, Hashable {
     let acceptor_id: Int?
     let assignee_id: Int?
     let availability: String
@@ -272,4 +282,13 @@ struct ContractInfo: Codable, Identifiable {
     let volume: Double
     
     var id: Int { contract_id }
+    
+    // 实现 Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(contract_id)
+    }
+    
+    static func == (lhs: ContractInfo, rhs: ContractInfo) -> Bool {
+        return lhs.contract_id == rhs.contract_id
+    }
 } 
