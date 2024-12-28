@@ -33,6 +33,7 @@ struct TransactionItemInfo {
 final class WalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [WalletTransactionGroup] = []
     @Published var isLoading = true
+    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     private let characterId: Int
@@ -83,7 +84,14 @@ final class WalletTransactionsViewModel: ObservableObject {
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
-        isLoading = true
+        // 只有在第一次加载（没有数据）时才显示全屏加载
+        let shouldShowFullscreenLoading = transactionGroups.isEmpty && !forceRefresh
+        
+        if shouldShowFullscreenLoading {
+            isLoading = true
+        } else {
+            isBackgroundLoading = true
+        }
         errorMessage = nil
         
         do {
@@ -117,11 +125,19 @@ final class WalletTransactionsViewModel: ObservableObject {
             }.sorted { $0.date > $1.date }
             
             self.transactionGroups = groups
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
             
         } catch {
             self.errorMessage = error.localizedDescription
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
         }
     }
 }
@@ -180,7 +196,12 @@ struct WalletTransactionsView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.loadTransactionData(forceRefresh: true)
+            // 立即触发刷新并返回，不等待加载完成
+            Task {
+                await viewModel.loadTransactionData(forceRefresh: true)
+            }
+            // 立即完成下拉刷新动作
+            return
         }
         .task {
             if viewModel.transactionGroups.isEmpty {
@@ -188,6 +209,14 @@ struct WalletTransactionsView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
+        .toolbar {
+            if viewModel.isBackgroundLoading {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+        }
     }
 }
 

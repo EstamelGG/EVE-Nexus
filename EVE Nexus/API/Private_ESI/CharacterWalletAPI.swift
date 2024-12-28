@@ -363,13 +363,73 @@ class CharacterWalletAPI {
         if !forceRefresh {
             let key = getTransactionsCacheKey(characterId: characterId)
             if let data = UserDefaults.standard.data(forKey: key),
-               let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data),
-               isTransactionsCacheValid(cache) {
-                Logger.debug("使用缓存的钱包交易记录")
+               let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data) {
+                Logger.info("使用缓存的钱包交易记录数据")
+                
+                // 检查缓存是否过期
+                if Date().timeIntervalSince(cache.timestamp) > cacheTimeout {
+                    // 如果缓存过期，在后台刷新
+                    Task {
+                        do {
+                            // 获取新数据
+                            let newTransactions = try await fetchTransactionsFromServer(characterId: characterId)
+                            
+                            // 解析现有缓存数据
+                            if let existingData = cache.jsonString.data(using: .utf8),
+                               let existingTransactions = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
+                                
+                                // 合并新旧数据并去重
+                                var allTransactions = existingTransactions
+                                allTransactions.append(contentsOf: newTransactions)
+                                
+                                // 根据 transaction_id 去重
+                                let uniqueTransactions = Dictionary(grouping: allTransactions) { entry in
+                                    return entry["transaction_id"] as? Int64 ?? 0
+                                }.values.compactMap { $0.first }
+                                
+                                // 按时间排序
+                                let sortedTransactions = uniqueTransactions.sorted { entry1, entry2 in
+                                    let date1 = entry1["date"] as? String ?? ""
+                                    let date2 = entry2["date"] as? String ?? ""
+                                    return date1 > date2
+                                }
+                                
+                                // 转换为JSON
+                                let jsonData = try JSONSerialization.data(withJSONObject: sortedTransactions, options: [.prettyPrinted, .sortedKeys])
+                                if let jsonString = String(data: jsonData, encoding: .utf8) {
+                                    // 保存到缓存
+                                    saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
+                                    // 在主线程发送通知
+                                    await MainActor.run {
+                                        NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionsUpdated"), object: nil, userInfo: ["characterId": characterId])
+                                    }
+                                }
+                            }
+                        } catch {
+                            Logger.error("后台更新钱包交易记录失败: \(error)")
+                        }
+                    }
+                }
                 return cache.jsonString
             }
         }
         
+        // 如果没有缓存或强制刷新，从服务器获取
+        let transactions = try await fetchTransactionsFromServer(characterId: characterId)
+        
+        // 转换为JSON
+        let jsonData = try JSONSerialization.data(withJSONObject: transactions, options: [.prettyPrinted, .sortedKeys])
+        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 保存到缓存
+        saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
+        return jsonString
+    }
+    
+    // 从服务器获取交易记录
+    private func fetchTransactionsFromServer(characterId: Int) async throws -> [[String: Any]] {
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/transactions/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
@@ -380,18 +440,23 @@ class CharacterWalletAPI {
             characterId: characterId
         )
         
-        guard let jsonString = String(data: data, encoding: .utf8) else {
+        guard let transactions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             throw NetworkError.invalidResponse
         }
         
-        // 保存到缓存
+        Logger.info("成功获取钱包交易记录，共\(transactions.count)条记录")
+        return transactions
+    }
+    
+    // 保存交易记录到缓存
+    private func saveTransactionsToCache(jsonString: String, characterId: Int) {
         let cache = WalletTransactionsCacheEntry(jsonString: jsonString, timestamp: Date())
         let key = getTransactionsCacheKey(characterId: characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.info("保存钱包交易记录到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
+        } else {
+            Logger.error("保存钱包交易记录到缓存失败 - Key: \(key)")
         }
-        
-        return jsonString
     }
 } 
