@@ -85,6 +85,7 @@ private func formatLocationFlag(_ flag: String) -> String {
     }
 }
 
+// 主资产列表视图
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
@@ -97,18 +98,27 @@ struct LocationAssetsView: View {
     var body: some View {
         List {
             ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                Section(header: Text(formatLocationFlag(group.flag))) {
+                Section(header: Text(formatLocationFlag(group.flag))
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+                ) {
                     ForEach(group.items, id: \.item_id) { node in
-                        if let items = node.items, !items.isEmpty {
-                            // 如果有子资产，使用导航链接
+                        if let items = node.items {
+                            // 容器类物品，点击显示容器内容
                             NavigationLink {
                                 SubLocationAssetsView(parentNode: node)
                             } label: {
                                 AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
                             }
                         } else {
-                            // 如果没有子资产，只显示资产信息
-                            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                            // 非容器物品，点击显示市场信息
+                            NavigationLink {
+                                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+                            } label: {
+                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                            }
                         }
                     }
                 }
@@ -177,35 +187,43 @@ struct SubLocationAssetsView: View {
     
     var body: some View {
         List {
-            if parentNode.items != nil {
-                // 添加容器本身的信息作为第一个 Section
-                Section {
+            // 容器本身的信息
+            Section {
+                NavigationLink {
+                    MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: parentNode.type_id)
+                } label: {
                     AssetItemView(node: parentNode, itemInfo: viewModel.itemInfo(for: parentNode.type_id))
                         .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                } header: {
-                    Text(NSLocalizedString("Item_Basic_Info", comment: ""))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
                 }
-                
-                // 显示容器内的物品
-                ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                    Section(header: Text(formatLocationFlag(group.flag))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                    ) {
-                        ForEach(group.items, id: \.item_id) { node in
-                            if let subitems = node.items, !subitems.isEmpty {
-                                NavigationLink {
-                                    SubLocationAssetsView(parentNode: node)
-                                } label: {
-                                    AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
-                                }
-                            } else {
+            } header: {
+                Text(NSLocalizedString("Item_Basic_Info", comment: ""))
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            }
+            
+            // 容器内的物品
+            ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+                Section(header: Text(formatLocationFlag(group.flag))
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+                ) {
+                    ForEach(group.items, id: \.item_id) { node in
+                        if let items = node.items {
+                            // 容器类物品，点击显示容器内容
+                            NavigationLink {
+                                SubLocationAssetsView(parentNode: node)
+                            } label: {
+                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                            }
+                        } else {
+                            // 非容器物品，点击显示市场信息
+                            NavigationLink {
+                                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+                            } label: {
                                 AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
                             }
                         }
@@ -225,7 +243,7 @@ struct SubLocationAssetsView: View {
 class LocationAssetsViewModel: ObservableObject {
     private let location: AssetTreeNode
     private var itemInfoCache: [Int: ItemInfo] = [:]
-    private let databaseManager: DatabaseManager
+    let databaseManager: DatabaseManager
     
     init(location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager()) {
         self.location = location
@@ -239,123 +257,105 @@ class LocationAssetsViewModel: ObservableObject {
     // 按location_flag分组的资产
     func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
         let items = location.items ?? []
+        var groups: [String: [AssetTreeNode]] = [:]
         
-        // 预处理location_flag，将相同类型的槽位合并
-        let processedItems = items.map { item -> (flag: String, node: AssetTreeNode) in
-            let flag = item.location_flag
-            let processedFlag: String
-            
-            switch flag {
-            case let f where f.hasPrefix("HiSlot"):
-                processedFlag = "HiSlots"
-            case let f where f.hasPrefix("MedSlot"):
-                processedFlag = "MedSlots"
-            case let f where f.hasPrefix("LoSlot"):
-                processedFlag = "LoSlots"
-            case let f where f.hasPrefix("RigSlot"):
-                processedFlag = "RigSlots"
-            case let f where f.hasPrefix("SubSystemSlot"):
-                processedFlag = "SubSystemSlots"
-            default:
-                processedFlag = flag
+        // 第一步：按flag分组
+        for item in items {
+            let flag = processFlag(item.location_flag)
+            if groups[flag] == nil {
+                groups[flag] = []
             }
-            
-            return (flag: processedFlag, node: item)
+            groups[flag]?.append(item)
         }
         
-        // 按处理后的flag分组
-        var groupedByFlag = Dictionary(grouping: processedItems) { $0.flag }
-        
-        // 合并相同类型的物品
-        let mergedGroups = groupedByFlag.mapValues { items -> [AssetTreeNode] in
+        // 第二步：在每个分组内合并相同类型的物品
+        var mergedGroups: [String: [AssetTreeNode]] = [:]
+        for (flag, items) in groups {
             // 按type_id分组
-            let groupedByType = Dictionary(grouping: items) { $0.node.type_id }
+            var typeGroups: [Int: [AssetTreeNode]] = [:]
+            for item in items {
+                if typeGroups[item.type_id] == nil {
+                    typeGroups[item.type_id] = []
+                }
+                typeGroups[item.type_id]?.append(item)
+            }
             
-            return groupedByType.values.map { sameItems -> AssetTreeNode in
-                let firstItem = sameItems[0].node
-                
-                // 只有在非容器且数量大于1时才合并
-                if (firstItem.items == nil || firstItem.items?.isEmpty == true) && (sameItems.count > 1 || firstItem.quantity > 1) {
-                    let totalQuantity = sameItems.reduce(0) { $0 + $1.node.quantity }
-                    return AssetTreeNode(
-                        location_id: firstItem.location_id,
-                        item_id: firstItem.item_id,
-                        type_id: firstItem.type_id,
-                        location_type: firstItem.location_type,
-                        location_flag: firstItem.location_flag,
-                        quantity: totalQuantity,
-                        name: firstItem.name,
-                        icon_name: firstItem.icon_name,
-                        is_singleton: false,
-                        is_blueprint_copy: firstItem.is_blueprint_copy,
-                        system_name: firstItem.system_name,
-                        region_name: firstItem.region_name,
-                        security_status: firstItem.security_status,
-                        items: nil
-                    )
+            // 合并每个type_id组的物品
+            var mergedItems: [AssetTreeNode] = []
+            for items in typeGroups.values {
+                if items.count == 1 {
+                    // 单个物品直接添加
+                    mergedItems.append(items[0])
                 } else {
-                    return firstItem
+                    // 多个物品需要合并
+                    let firstItem = items[0]
+                    // 只合并非容器物品
+                    if firstItem.items == nil || firstItem.items?.isEmpty == true {
+                        let totalQuantity = items.reduce(0) { $0 + $1.quantity }
+                        let mergedItem = AssetTreeNode(
+                            location_id: firstItem.location_id,
+                            item_id: firstItem.item_id,
+                            type_id: firstItem.type_id,
+                            location_type: firstItem.location_type,
+                            location_flag: firstItem.location_flag,
+                            quantity: totalQuantity,
+                            name: firstItem.name,
+                            icon_name: firstItem.icon_name,
+                            is_singleton: false,
+                            is_blueprint_copy: firstItem.is_blueprint_copy,
+                            system_name: firstItem.system_name,
+                            region_name: firstItem.region_name,
+                            security_status: firstItem.security_status,
+                            items: nil
+                        )
+                        mergedItems.append(mergedItem)
+                    } else {
+                        // 容器类物品不合并
+                        mergedItems.append(contentsOf: items)
+                    }
                 }
             }
+            mergedGroups[flag] = mergedItems
         }
         
-        // 定义flag的显示顺序
-        let order = [
-            "Hangar",
-            "ShipHangar",
-            "FleetHangar",
-            "CorpSAG1",
-            "CorpSAG2",
-            "CorpSAG3",
-            "CorpSAG4",
-            "CorpSAG5",
-            "CorpSAG6",
-            "CorpSAG7",
-            "CorpDeliveries",
-            "Deliveries",
-            "HiSlots",
-            "MedSlots",
-            "LoSlots",
-            "RigSlots",
-            "SubSystemSlots",
-            "FighterBay",
-            "FighterTubes",
-            "DroneBay",
-            "Cargo",
-            "SpecializedAmmoHold",
-            "SpecializedCommandCenterHold",
-            "SpecializedFuelBay",
-            "SpecializedGasHold",
-            "SpecializedIndustrialShipHold",
-            "SpecializedLargeShipHold",
-            "SpecializedMaterialBay",
-            "SpecializedMediumShipHold",
-            "SpecializedMineralHold",
-            "SpecializedOreHold",
-            "SpecializedPlanetaryCommoditiesHold",
-            "SpecializedSalvageHold",
-            "SpecializedShipHold",
-            "SpecializedSmallShipHold"
-        ]
-        
-        // 转换为数组并排序
-        return mergedGroups.map { (flag: $0.key, items: $0.value) }
-            .sorted { pair1, pair2 in
-                let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
-                let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
-                return index1 < index2
+        // 第三步：按预定义顺序排序
+        return flagOrder.compactMap { flag in
+            if let items = mergedGroups[flag], !items.isEmpty {
+                return (flag: flag, items: items)
             }
+            return nil
+        }
     }
     
-    // 从数据库加载物品信息
+    private func processFlag(_ flag: String) -> String {
+        switch flag {
+        case let f where f.hasPrefix("HiSlot"): return "HiSlots"
+        case let f where f.hasPrefix("MedSlot"): return "MedSlots"
+        case let f where f.hasPrefix("LoSlot"): return "LoSlots"
+        case let f where f.hasPrefix("RigSlot"): return "RigSlots"
+        case let f where f.hasPrefix("SubSystemSlot"): return "SubSystemSlots"
+        default: return flag
+        }
+    }
+    
+    private let flagOrder = [
+        "Hangar", "ShipHangar", "FleetHangar",
+        "CorpSAG1", "CorpSAG2", "CorpSAG3", "CorpSAG4", "CorpSAG5", "CorpSAG6", "CorpSAG7",
+        "CorpDeliveries", "Deliveries",
+        "HiSlots", "MedSlots", "LoSlots", "RigSlots", "SubSystemSlots",
+        "FighterBay", "FighterTubes", "DroneBay", "Cargo",
+        "SpecializedAmmoHold", "SpecializedCommandCenterHold", "SpecializedFuelBay",
+        "SpecializedGasHold", "SpecializedIndustrialShipHold", "SpecializedLargeShipHold",
+        "SpecializedMaterialBay", "SpecializedMediumShipHold", "SpecializedMineralHold",
+        "SpecializedOreHold", "SpecializedPlanetaryCommoditiesHold", "SpecializedSalvageHold",
+        "SpecializedShipHold", "SpecializedSmallShipHold"
+    ]
+    
     @MainActor
     func loadItemInfo() async {
         var typeIds = Set<Int>()
-        
-        // 添加容器本身的 type_id
         typeIds.insert(location.type_id)
         
-        // 添加所有子物品的 type_id
         if let items = location.items {
             typeIds.formUnion(items.map { $0.type_id })
         }
