@@ -89,20 +89,38 @@ public class CharacterAssetsJsonAPI {
         forceRefresh: Bool = false,
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> String? {
-        // 检查缓存
-        if !forceRefresh {
-            if let cachedJson = getCachedJson(characterId: characterId) {
-                Logger.debug("使用缓存的资产树JSON")
-                return cachedJson
+        // 1. 先尝试获取缓存
+        if !forceRefresh, let cachedJson = getCachedJson(characterId: characterId) {
+            // 如果有缓存，启动后台刷新
+            Task {
+                do {
+                    let assets = try await fetchAllAssets(characterId: characterId) { page in
+                        progressCallback?(.fetchingPage(page))
+                    }
+                    
+                    progressCallback?(.calculatingJson)
+                    if let newJsonString = try await generateAssetTreeJson(
+                        assets: assets,
+                        names: [:],
+                        characterId: characterId,
+                        databaseManager: DatabaseManager(),
+                        progressCallback: progressCallback
+                    ) {
+                        // 保存到缓存
+                        saveToCache(jsonString: newJsonString, characterId: characterId)
+                    }
+                } catch {
+                    Logger.error("后台刷新资产数据失败: \(error)")
+                }
             }
+            return cachedJson
         }
         
-        // 1. 获取所有资产
+        // 2. 获取新数据
         let assets = try await fetchAllAssets(characterId: characterId) { page in
             progressCallback?(.fetchingPage(page))
         }
         
-        // 2. 生成资产树JSON
         progressCallback?(.calculatingJson)
         if let jsonString = try await generateAssetTreeJson(
             assets: assets,
@@ -138,8 +156,7 @@ public class CharacterAssetsJsonAPI {
     private func getCachedJson(characterId: Int) -> String? {
         guard let cacheFile = getCacheFilePath(characterId: characterId),
               let data = try? Data(contentsOf: cacheFile),
-              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data),
-              isValidCache(cache) else {
+              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data) else {
             return nil
         }
         return cache.jsonString

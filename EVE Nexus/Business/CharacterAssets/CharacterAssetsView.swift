@@ -111,96 +111,85 @@ private struct SearchResultRowView: View {
 struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
-    @State private var showingSearchResults = false
-    @State private var searchTask: Task<Void, Never>?
-    @State private var isLoading = false
+    @State private var isSearching = false
     
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
     }
     
-    // 新增：加载状态的视图
-    @ViewBuilder
-    private var loadingOverlay: some View {
-        if isLoading {
-            Color(.systemBackground)
-                .ignoresSafeArea()
-                .overlay {
-                    VStack {
-                        ProgressView()
-                        Text(NSLocalizedString("Main_Database_Searching", comment: ""))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 8)
+    var body: some View {
+        List {
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            } else if !searchText.isEmpty && viewModel.searchResults.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
                     }
                 }
-        }
-    }
-    
-    var body: some View {
-        VStack {
-            if viewModel.isLoading && viewModel.assetLocations.isEmpty {
-                LoadingProgressView(progress: viewModel.loadingProgress)
             } else if !searchText.isEmpty {
-                List {
-                    if viewModel.searchResults.isEmpty && !isLoading {
-                        Section {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 4) {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.gray)
-                                    Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                    .foregroundColor(.gray)
-                                }
-                                .padding()
-                                Spacer()
-                            }
-                        }
-                        .listSectionSpacing(.compact)
-                    } else if !isLoading {
-                        ForEach(viewModel.searchResults, id: \.path.last?.node.item_id) { result in
-                            if let containerNode = result.containerNode {
-                                NavigationLink(
-                                    destination: LocationAssetsView(location: containerNode)
-                                        .navigationTitle(containerNode.name ?? "Unknown Location")
-                                ) {
-                                    SearchResultRowView(result: result)
-                                }
-                            }
+                ForEach(viewModel.searchResults, id: \.itemName) { result in
+                    if let containerNode = result.containerNode {
+                        NavigationLink(
+                            destination: LocationAssetsView(location: containerNode)
+                                .navigationTitle(containerNode.name ?? "Unknown Location")
+                        ) {
+                            SearchResultRowView(result: result)
                         }
                     }
                 }
             } else {
-                LocationsList(
-                    locationsByRegion: viewModel.locationsByRegion,
-                    searchText: ""
-                )
-            }
-        }
-        .overlay(loadingOverlay)
-        .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
-        .searchable(
-            text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
-        )
-        .onChange(of: searchText) { old, newValue in
-            searchTask?.cancel()
-            isLoading = !newValue.isEmpty
-            
-            searchTask = Task {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                
-                if !Task.isCancelled {
-                    let currentSearchText = newValue
-                    await viewModel.searchAssets(query: currentSearchText)
-                    isLoading = false
+                ForEach(viewModel.locationsByRegion, id: \.region) { group in
+                    Section(header: Text(group.region)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.locations, id: \.item_id) { location in
+                            NavigationLink(
+                                destination: LocationAssetsView(location: location)
+                            ) {
+                                LocationRowView(location: location)
+                            }
+                        }
+                    }
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .searchable(text: $searchText)
+        .onChange(of: searchText) { oldValue, newValue in
+            Task {
+                isSearching = true
+                await viewModel.searchAssets(query: newValue)
+                isSearching = false
+            }
+        }
         .refreshable {
-            await viewModel.loadAssets(forceRefresh: true)
+            Task {
+                await viewModel.loadAssets(forceRefresh: true)
+            }
+            return
+        }
+        .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
+        .toolbar {
+            if viewModel.loadingProgress != nil {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
         }
         .task {
             if viewModel.assetLocations.isEmpty {

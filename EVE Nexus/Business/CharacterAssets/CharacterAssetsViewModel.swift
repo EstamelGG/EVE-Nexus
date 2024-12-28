@@ -72,14 +72,16 @@ class CharacterAssetsViewModel: ObservableObject {
     
     // 加载资产数据
     func loadAssets(forceRefresh: Bool = false) async {
-        guard !isLoading else { return }
-        
-        isLoading = true
-        error = nil
-        loadingProgress = nil
+        if forceRefresh {
+            loadingProgress = .fetchingPage(1)
+        } else if !assetLocations.isEmpty {
+            // 如果已有数据且不是强制刷新，直接返回
+            return
+        } else {
+            isLoading = true
+        }
         
         do {
-            // 获取JSON数据（现在支持缓存）
             if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
                 characterId: characterId,
                 forceRefresh: forceRefresh,
