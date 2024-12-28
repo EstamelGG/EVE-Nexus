@@ -78,7 +78,7 @@ public enum AssetLoadingProgress {
 
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
-    private let cacheTimeout: TimeInterval = 7200 // 120分钟缓存
+    private let cacheTimeout: TimeInterval = 8 * 3600 // 8 小时缓存
     private let assetTreeCachePrefix = "asset_tree_json_cache_"
     
     private init() {}

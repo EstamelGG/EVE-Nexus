@@ -9,7 +9,7 @@ class CharacterMarketAPI {
     }
     
     private let cachePrefix = "character_market_orders_cache_"
-    private let cacheTimeout: TimeInterval = 3 * 24 * 60 * 60 // 3天缓存
+    private let cacheTimeout: TimeInterval = 3 * 24 * 60 * 60 // 3 天缓存
     
     private init() {}
     

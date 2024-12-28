@@ -8,8 +8,8 @@ class CharacterContractsAPI {
         return paths[0].appendingPathComponent("ContractsCache")
     }()
     
-    private let cacheValidityDuration: TimeInterval = 8 * 3600 // 8小时的缓存有效期
-    private let maxConcurrentPages = 3 // 最大并发页数
+    private let cacheValidityDuration: TimeInterval = 8 * 3600 // 8 小时的缓存有效期
+    private let maxConcurrentPages = 2 // 最大并发页数
     
     private init() {
         // 创建缓存目录

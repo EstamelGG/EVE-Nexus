@@ -14,7 +14,7 @@ class CharacterWalletAPI {
     
     // 内存缓存
     private var memoryCache: [Int: CacheEntry] = [:]
-    private let cacheTimeout: TimeInterval = 30 * 60 // 30分钟缓存
+    private let cacheTimeout: TimeInterval = 8 * 3600 // 8 小时缓存
     
     // UserDefaults键前缀
     private let walletCachePrefix = "wallet_cache_"
