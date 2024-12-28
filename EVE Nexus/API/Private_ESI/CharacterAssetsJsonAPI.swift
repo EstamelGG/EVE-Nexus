@@ -484,7 +484,9 @@ public class CharacterAssetsJsonAPI {
         // 合并所有名称
         var allNames = names
         for (id, name) in containerNames {
-            allNames[id] = name
+            if let name = name as? String {  // 添加类型检查
+                allNames[id] = name
+            }
         }
         
         // 使用更新后的名称重新构建树
@@ -502,7 +504,10 @@ public class CharacterAssetsJsonAPI {
         
         do {
             let jsonData = try encoder.encode(rootNodes)
-            return String(data: jsonData, encoding: .utf8)
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                return jsonString
+            }
+            return nil
         } catch {
             Logger.error("生成资产树JSON失败: \(error)")
             return nil
