@@ -45,7 +45,12 @@ class AllianceAPI {
             .cacheOriginalImage,
             .backgroundDecode,
             .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2))
+            .transition(.fade(0.2)),
+            .cacheSerializer(FormatIndicatedCacheSerializer.png), // 使用PNG格式缓存
+            .diskCacheExpiration(.days(30)),  // 磁盘缓存30天
+            .memoryCacheExpiration(.days(7)), // 内存缓存7天
+            .processor(DownsamplingImageProcessor(size: CGSize(width: size, height: size))), // 下采样处理
+            .alsoPrefetchToMemory // 预加载到内存
         ]
         
         // 如果需要强制刷新，添加相应的选项
