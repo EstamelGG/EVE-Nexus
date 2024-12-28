@@ -9,10 +9,16 @@ class CharacterIndustryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
-    @Published var locationNames: [Int64: String] = [:]
+    @Published var locationInfos: [Int64: LocationInfo] = [:]
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
+    
+    struct LocationInfo {
+        let name: String
+        let systemName: String
+        let security: Double
+    }
     
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
@@ -79,29 +85,56 @@ class CharacterIndustryViewModel: ObservableObject {
         
         // 先尝试从数据库获取空间站名称
         let query = """
-            SELECT stationID, stationName
-            FROM stations
-            WHERE stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
+            SELECT s.stationID, s.stationName, ss.solarSystemName, u.system_security as security
+            FROM stations s
+            JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
+            JOIN universe u ON u.solarsystem_id = ss.solarSystemID
+            WHERE s.stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
         """
         Logger.debug(query)
         if case .success(let rows) = databaseManager.executeQuery(query) {
+            Logger.info("Query succeed")
             for row in rows {
                 if let stationId = row["stationID"] as? Int64,
-                   let name = row["stationName"] as? String {
-                    locationNames[stationId] = name
+                   let stationName = row["stationName"] as? String,
+                   let solarSystemName = row["solarSystemName"] as? String,
+                   let security = row["security"] as? Double {
+                    locationInfos[stationId] = LocationInfo(
+                        name: stationName,
+                        systemName: solarSystemName,
+                        security: security
+                    )
                 }
             }
         }
         
         // 对于未找到的ID，尝试通过API获取建筑物信息
-        let remainingIds = locationIds.filter { locationNames[$0] == nil }
+        let remainingIds = locationIds.filter { locationInfos[$0] == nil }
         for locationId in remainingIds {
             do {
                 let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
                     structureId: locationId,
                     characterId: characterId
                 )
-                locationNames[locationId] = structureInfo.name
+                
+                // 获取星系信息
+                let systemQuery = """
+                    SELECT ss.solarSystemName, u.system_security as security
+                    FROM solarSystems ss
+                    JOIN universe u ON u.solarsystem_id = ss.solarSystemID
+                    WHERE ss.solarSystemID = ?
+                """
+                
+                if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [structureInfo.solar_system_id]),
+                   let row = rows.first,
+                   let solarSystemName = row["solarSystemName"] as? String,
+                   let security = row["security"] as? Double {
+                    locationInfos[locationId] = LocationInfo(
+                        name: structureInfo.name,
+                        systemName: solarSystemName,
+                        security: security
+                    )
+                }
             } catch {
                 Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
             }
@@ -142,7 +175,7 @@ struct CharacterIndustryView: View {
                         job: job,
                         blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
                         productName: job.product_type_id.flatMap { viewModel.itemNames[$0] } ?? "Unknown",
-                        locationName: viewModel.locationNames[job.station_id] ?? "Unknown"
+                        locationInfo: viewModel.locationInfos[job.station_id]
                     )
                 }
             }
@@ -168,13 +201,27 @@ struct IndustryJobRow: View {
     let job: IndustryJob
     let blueprintName: String
     let productName: String
-    let locationName: String
+    let locationInfo: CharacterIndustryViewModel.LocationInfo?
     
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+    
+    private func formatSecurity(_ security: Double) -> String {
+        String(format: "%.1f", security)
+    }
+    
+    private func securityColor(_ security: Double) -> Color {
+        if security >= 0.5 {
+            return .green
+        } else if security > 0.0 {
+            return .orange
+        } else {
+            return .red
+        }
     }
     
     var body: some View {
@@ -201,9 +248,24 @@ struct IndustryJobRow: View {
             
             // 第三行：地点和时间
             HStack {
-                Text(locationName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let locationInfo = locationInfo {
+                    VStack(alignment: .leading) {
+                        Text(locationInfo.name)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        HStack {
+                            Text(locationInfo.systemName)
+                            Text("(\(formatSecurity(locationInfo.security)))")
+                                .foregroundColor(securityColor(locationInfo.security))
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    }
+                } else {
+                    Text("Unknown Location")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
                 Text(formatDate(job.end_date))
                     .font(.caption)
@@ -212,4 +274,4 @@ struct IndustryJobRow: View {
         }
         .padding(.vertical, 4)
     }
-} 
+}
