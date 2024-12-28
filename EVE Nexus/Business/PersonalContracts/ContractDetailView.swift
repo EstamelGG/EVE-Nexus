@@ -385,10 +385,6 @@ struct ContractDetailView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
-                .refreshable {
-                    await viewModel.loadContractItems(forceRefresh: true)
-                    await viewModel.loadContractParties()
-                }
             }
         }
         .task {
