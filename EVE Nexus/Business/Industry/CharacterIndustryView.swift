@@ -7,6 +7,7 @@ class CharacterIndustryViewModel: ObservableObject {
     @Published var jobs: [IndustryJob] = []
     @Published var groupedJobs: [String: [IndustryJob]] = [:]  // 按日期分组的工作项目
     @Published var isLoading = false
+    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
@@ -76,16 +77,26 @@ class CharacterIndustryViewModel: ObservableObject {
     }
     
     func loadJobs(forceRefresh: Bool = false) async {
-        isLoading = true
-        stopUpdateTask()  // 加载数据时停止更新任务
+        let shouldShowFullscreenLoading = jobs.isEmpty && !forceRefresh
+        
+        if shouldShowFullscreenLoading {
+            isLoading = true
+        } else if forceRefresh {
+            isBackgroundLoading = true
+        }
         
         do {
             jobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
                 characterId: characterId,
-                forceRefresh: forceRefresh
+                forceRefresh: forceRefresh,
+                progressCallback: { [weak self] isLoading in
+                    Task { @MainActor in
+                        self?.isBackgroundLoading = isLoading
+                    }
+                }
             )
             
-            // 加载物品名称
+            // 加载物品名称和图标
             await loadItemNames()
             // 加载地点名称
             await loadLocationNames()
@@ -101,6 +112,7 @@ class CharacterIndustryViewModel: ObservableObject {
         }
         
         isLoading = false
+        isBackgroundLoading = false
     }
     
     private func loadItemNames() async {
@@ -197,7 +209,7 @@ struct CharacterIndustryView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                            .foregroundColor(.gray)
+                                .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -237,6 +249,14 @@ struct CharacterIndustryView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Industry_Jobs", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if viewModel.isBackgroundLoading {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+        }
         .task {
             await viewModel.loadJobs()
         }

@@ -88,26 +88,53 @@ class CharacterIndustryAPI {
         }
     }
     
-    func fetchIndustryJobs(characterId: Int, forceRefresh: Bool = false) async throws -> [IndustryJob] {
-        // 如果不是强制刷新，尝试从缓存加载
-        if !forceRefresh {
-            if let cachedJobs = loadFromCache(characterId: characterId) {
-                return cachedJobs
+    func fetchIndustryJobs(
+        characterId: Int,
+        forceRefresh: Bool = false,
+        progressCallback: ((Bool) -> Void)? = nil
+    ) async throws -> [IndustryJob] {
+        // 1. 先尝试获取缓存
+        if !forceRefresh, let cachedJobs = loadFromCache(characterId: characterId) {
+            // 检查缓存是否过期
+            let cacheFile = getCacheFilePath(for: characterId)
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
+               let modificationDate = attributes[.modificationDate] as? Date,
+               Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
+                
+                // 如果缓存过期，在后台刷新
+                Logger.info("使用过期的缓存数据，将在后台刷新 - 角色ID: \(characterId)")
+                Task {
+                    do {
+                        progressCallback?(true)
+                        let jobs = try await fetchFromNetwork(characterId: characterId)
+                        saveToCache(jobs: jobs, characterId: characterId)
+                        progressCallback?(false)
+                    } catch {
+                        Logger.error("后台刷新工业项目数据失败: \(error)")
+                        progressCallback?(false)
+                    }
+                }
             }
+            
+            return cachedJobs
         }
         
+        // 2. 如果没有缓存或强制刷新，从网络获取
+        progressCallback?(true)
+        let jobs = try await fetchFromNetwork(characterId: characterId)
+        saveToCache(jobs: jobs, characterId: characterId)
+        progressCallback?(false)
+        return jobs
+    }
+    
+    private func fetchFromNetwork(characterId: Int) async throws -> [IndustryJob] {
         let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/industry/jobs/?datasource=tranquility&include_completed=true")!
         
         let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let jobs = try decoder.decode([IndustryJob].self, from: data)
-        
-        // 保存到缓存
-        saveToCache(jobs: jobs, characterId: characterId)
-        
-        return jobs
+        return try decoder.decode([IndustryJob].self, from: data)
     }
     
     // 清除指定角色的缓存
