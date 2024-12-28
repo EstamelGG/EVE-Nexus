@@ -1159,6 +1159,10 @@ struct ContentView: View {
                         destination: selectedCharacter.map { character in
                             AnyView(CharacterIndustryView(characterId: character.CharacterID))
                         }
+                    ),
+                    TableRowNode(
+                        title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
+                        iconName: "miningledger"
                     )
                 ]
             ))
