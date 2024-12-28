@@ -270,11 +270,15 @@ struct IndustryJobRow: View {
         
         if remainingTime <= 0 {
             // 根据状态返回不同的完成状态文本
-            if job.status == "delivered" {
-                return NSLocalizedString("Industry_Status_delivered", comment: "")
-            } else {
-                return NSLocalizedString("Industry_Status_completed", comment: "")
+            let statusText = job.status == "delivered" ?
+                NSLocalizedString("Industry_Status_delivered", comment: "") :
+                NSLocalizedString("Industry_Status_completed", comment: "")
+            
+            // 只有在runs大于1时才显示成功比例
+            if job.runs > 1 {
+                return "\(statusText) (\(job.successful_runs)/\(job.runs))"
             }
+            return statusText
         }
         
         let days = Int(remainingTime) / (24 * 3600)
@@ -318,10 +322,16 @@ struct IndustryJobRow: View {
     // 获取活动状态文本
     private func getActivityStatus() -> String {
         // 先检查是否已完成（根据状态或时间）
-        if job.status == "delivered" {
-            return NSLocalizedString("Industry_Status_delivered", comment: "")
-        } else if job.status == "ready" || Date() >= job.end_date {
-            return NSLocalizedString("Industry_Status_completed", comment: "")
+        if job.status == "delivered" || job.status == "ready" || Date() >= job.end_date {
+            let statusText = job.status == "delivered" ?
+                NSLocalizedString("Industry_Status_delivered", comment: "") :
+                NSLocalizedString("Industry_Status_completed", comment: "")
+            
+            // 只有在runs大于1时才显示成功比例
+            if job.runs > 1 {
+                return "\(statusText) (\(job.successful_runs)/\(job.runs))"
+            }
+            return statusText
         }
         
         if job.status != "active" {
