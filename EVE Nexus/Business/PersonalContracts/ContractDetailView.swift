@@ -200,16 +200,7 @@ struct ContractDetailView: View {
                         // 合同类型
                         VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
-                            Text(NSLocalizedString("Contract_Type_\(contract.type)", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(height: 36)
-                        
-                        // 合同状态
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(NSLocalizedString("Contract_Status", comment: ""))
-                            Text(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))
+                            Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) [\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -329,15 +320,15 @@ struct ContractDetailView: View {
                         }
                         
                         // 体积
-                        if contract.volume > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(NSLocalizedString("Contract_Volume", comment: ""))
-                                Text("\(FormatUtil.format(contract.volume)) m3")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(height: 36)
-                        }
+//                        if contract.volume > 0 {
+//                            VStack(alignment: .leading, spacing: 4) {
+//                                Text(NSLocalizedString("Contract_Volume", comment: ""))
+//                                Text("\(FormatUtil.format(contract.volume)) m3")
+//                                    .font(.caption)
+//                                    .foregroundColor(.secondary)
+//                            }
+//                            .frame(height: 36)
+//                        }
                         
                         // 完成期限
                         if contract.days_to_complete > 0 {

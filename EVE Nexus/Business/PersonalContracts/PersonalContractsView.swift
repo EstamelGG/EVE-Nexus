@@ -289,18 +289,19 @@ struct ContractRow: View {
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
-                
-                if contract.volume > 0 {
-                    Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
                 HStack {
+                    if contract.volume > 0 {
+                        Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
                     Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
+                
             }
             .padding(.vertical, 2)
         }
