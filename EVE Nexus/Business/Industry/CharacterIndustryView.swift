@@ -64,9 +64,14 @@ class CharacterIndustryViewModel: ObservableObject {
             grouped[dateKey]?.append(job)
         }
         
-        // 对每个组内的工作项目按开始时间排序
+        // 对每个组内的工作项目按开始时间降序排序，相同时间按job_id降序
         for (key, value) in grouped {
-            grouped[key] = value.sorted { $0.start_date < $1.start_date }
+            grouped[key] = value.sorted {
+                if $0.start_date == $1.start_date {
+                    return $0.job_id > $1.job_id
+                }
+                return $0.start_date > $1.start_date
+            }
         }
         
         groupedJobs = grouped
@@ -297,8 +302,8 @@ struct IndustryJobRow: View {
                 NSLocalizedString("Industry_Status_delivered", comment: "") :
                 NSLocalizedString("Industry_Status_completed", comment: "")
             
-            // 只有在runs大于1时才显示成功比例
-            if job.runs > 1 {
+            // 只在概率不为1且runs大于1时显示成功比例
+            if job.probability != 1.0 && job.runs > 1 {
                 let successfulRuns = job.successful_runs ?? 0
                 return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
@@ -351,8 +356,8 @@ struct IndustryJobRow: View {
                 NSLocalizedString("Industry_Status_delivered", comment: "") :
                 NSLocalizedString("Industry_Status_completed", comment: "")
             
-            // 只有在runs大于1时才显示成功比例
-            if job.runs > 1 {
+            // 只在概率不为1且runs大于1时显示成功比例
+            if job.probability != 1.0 && job.runs > 1 {
                 let successfulRuns = job.successful_runs ?? 0
                 return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
