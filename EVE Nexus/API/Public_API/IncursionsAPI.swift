@@ -40,7 +40,7 @@ class IncursionsAPI {
     
     // 缓存相关常量
     private let cacheKey = "incursions_data"
-    private let cacheDuration: TimeInterval = 300 // 5分钟缓存
+    private let cacheDuration: TimeInterval = 30 * 60 // 30 分钟缓存
     
     struct CachedData: Codable {
         let data: [Incursion]
