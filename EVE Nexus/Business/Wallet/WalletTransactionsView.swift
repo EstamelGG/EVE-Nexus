@@ -29,21 +29,6 @@ struct TransactionItemInfo {
     let iconFileName: String
 }
 
-// 交易类型标签视图
-private struct TransactionTypeLabel: View {
-    let isBuy: Bool
-    
-    var body: some View {
-        Text(isBuy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: ""))
-            .font(.caption2)
-            .foregroundColor(.white)
-            .padding(.horizontal, 4)
-            .padding(.vertical, 1)
-            .background(isBuy ? Color.red.opacity(0.6) : Color.green.opacity(0.6))
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-}
-
 @MainActor
 final class WalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [WalletTransactionGroup] = []
@@ -326,13 +311,10 @@ struct WalletTransactionEntryRow: View {
                     // 交易时间
                     HStack {
                         // 交易类型和数量
-                        HStack(spacing: 8) {
-                            TransactionTypeLabel(isBuy: entry.is_buy)
-                            Text("\(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
-                                .font(.caption2)
-                                .foregroundColor(.gray)
-                        }
-                        .lineLimit(1)
+                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
                         Spacer()
                         if let date = dateFormatter.date(from: entry.date) {
                             Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
