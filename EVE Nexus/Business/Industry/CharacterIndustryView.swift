@@ -9,16 +9,10 @@ class CharacterIndustryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
-    @Published var locationInfos: [Int64: LocationInfo] = [:]
+    @Published var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
-    
-    struct LocationInfo {
-        let name: String
-        let systemName: String
-        let security: Double
-    }
     
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
@@ -83,62 +77,9 @@ class CharacterIndustryViewModel: ObservableObject {
             locationIds.insert(job.output_location_id)
         }
         
-        // 先尝试从数据库获取空间站信息
-        let query = """
-            SELECT s.stationID, s.stationName, ss.solarSystemName, u.system_security as security
-            FROM stations s
-            JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
-            JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-            WHERE s.stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
-        """
-        
-        var foundIds = Set<Int64>()
-        if case .success(let rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let stationId = row["stationID"] as? Int64,
-                   let stationName = row["stationName"] as? String,
-                   let solarSystemName = row["solarSystemName"] as? String,
-                   let security = row["security"] as? Double {
-                    locationInfos[stationId] = LocationInfo(
-                        name: stationName,
-                        systemName: solarSystemName,
-                        security: security
-                    )
-                }
-            }
-        }
-        
-        // 对于未找到的ID，尝试通过API获取建筑物信息
-        let remainingIds = locationIds.subtracting(foundIds)
-        for locationId in remainingIds {
-            do {
-                let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
-                    structureId: locationId,
-                    characterId: characterId
-                )
-                
-                // 获取星系信息
-                let systemQuery = """
-                    SELECT ss.solarSystemName, u.system_security as security
-                    FROM solarSystems ss
-                    JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                    WHERE ss.solarSystemID = ?
-                """
-                
-                if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [structureInfo.solar_system_id]),
-                   let row = rows.first,
-                   let solarSystemName = row["solarSystemName"] as? String,
-                   let security = row["security"] as? Double {
-                    locationInfos[locationId] = LocationInfo(
-                        name: structureInfo.name,
-                        systemName: solarSystemName,
-                        security: security
-                    )
-                }
-            } catch {
-                Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
-            }
-        }
+        // 使用LocationInfoLoader加载位置信息
+        let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
+        locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
     }
 }
 
@@ -175,7 +116,7 @@ struct CharacterIndustryView: View {
                         job: job,
                         blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
                         productName: job.product_type_id.flatMap { viewModel.itemNames[$0] } ?? "Unknown",
-                        locationInfo: viewModel.locationInfos[job.station_id]
+                        locationInfo: viewModel.locationInfoCache[job.station_id]
                     )
                 }
             }
@@ -201,27 +142,13 @@ struct IndustryJobRow: View {
     let job: IndustryJob
     let blueprintName: String
     let productName: String
-    let locationInfo: CharacterIndustryViewModel.LocationInfo?
+    let locationInfo: LocationInfoDetail?
     
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
         return formatter.string(from: date)
-    }
-    
-    private func formatSecurity(_ security: Double) -> String {
-        String(format: "%.1f", security)
-    }
-    
-    private func securityColor(_ security: Double) -> Color {
-        if security >= 0.5 {
-            return .green
-        } else if security > 0.0 {
-            return .orange
-        } else {
-            return .red
-        }
     }
     
     var body: some View {
@@ -246,26 +173,15 @@ struct IndustryJobRow: View {
                     .foregroundColor(.secondary)
             }
             
-            // 第三行：地点和时间
+            // 第三行：使用LocationInfoView显示位置信息
             HStack {
-                if let locationInfo = locationInfo {
-                    VStack(alignment: .leading) {
-                        Text(locationInfo.name)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        HStack {
-                            Text(locationInfo.systemName)
-                            Text("(\(formatSecurity(locationInfo.security)))")
-                                .foregroundColor(securityColor(locationInfo.security))
-                        }
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    }
-                } else {
-                    Text("Unknown Location")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                LocationInfoView(
+                    stationName: locationInfo?.stationName,
+                    solarSystemName: locationInfo?.solarSystemName,
+                    security: locationInfo?.security,
+                    font: .caption,
+                    textColor: .secondary
+                )
                 Spacer()
                 Text(formatDate(job.end_date))
                     .font(.caption)
