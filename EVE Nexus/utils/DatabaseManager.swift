@@ -1000,7 +1000,7 @@ class DatabaseManager: ObservableObject {
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
             SELECT t.name, t.description, t.icon_filename, t.groupID,
-                   t.volume, t.capacity, t.mass,
+                   t.volume, t.capacity, t.mass, t.marketGroupID,
                    g.name as group_name, c.name as category_name, c.category_id
             FROM types t
             LEFT JOIN groups g ON t.groupID = g.group_id
@@ -1023,6 +1023,7 @@ class DatabaseManager: ObservableObject {
             let volume = row["volume"] as? Double
             let capacity = row["capacity"] as? Double
             let mass = row["mass"] as? Double
+            let marketGroupID = row["marketGroupID"] as? Int
             
             return ItemDetails(
                 name: name,
@@ -1037,7 +1038,8 @@ class DatabaseManager: ObservableObject {
                 groupID: groupID,
                 volume: volume,
                 capacity: capacity,
-                mass: mass
+                mass: mass,
+                marketGroupID: marketGroupID
             )
         }
         return nil

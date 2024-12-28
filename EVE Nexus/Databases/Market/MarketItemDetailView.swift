@@ -166,7 +166,6 @@ struct MarketItemBasicInfoView: View {
                     .foregroundColor(.gray)
             }
         }
-        .padding(.vertical, 8)
     }
 }
 
