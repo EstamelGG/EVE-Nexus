@@ -24,7 +24,7 @@ final class ContractDetailViewModel: ObservableObject {
     
     private let characterId: Int
     private let contract: ContractInfo
-    private let databaseManager: DatabaseManager
+    let databaseManager: DatabaseManager
     private lazy var locationLoader: LocationInfoLoader = {
         LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
     }()
@@ -353,7 +353,7 @@ struct ContractDetailView: View {
                         Section {
                             ForEach(viewModel.sortedIncludedItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                                    ContractItemRow(item: item, itemDetails: itemDetails)
+                                    ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
                                         .frame(height: 36)
                                 }
                             }
@@ -371,7 +371,7 @@ struct ContractDetailView: View {
                         Section {
                             ForEach(viewModel.sortedRequiredItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                                    ContractItemRow(item: item, itemDetails: itemDetails)
+                                    ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
                                         .frame(height: 36)
                                 }
                             }
@@ -400,25 +400,29 @@ struct ContractDetailView: View {
 struct ContractItemRow: View {
     let item: ContractItemInfo
     let itemDetails: (name: String, description: String, iconFileName: String)
+    let databaseManager: DatabaseManager
     
     var body: some View {
-        HStack {
-            // 物品图标
-            IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                .resizable()
-                .frame(width: 32, height: 32)
-                .cornerRadius(4)
-            // 物品名称
-            Text("\(itemDetails.name)")
-                .font(.body)
-            Spacer()
-            // 物品数量和包含状态
+        NavigationLink {
+            MarketItemDetailView(databaseManager: databaseManager, itemID: item.type_id)
+        } label: {
             HStack {
-                Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
-                    .foregroundColor(.secondary)
+                // 物品图标
+                IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
+                // 物品名称
+                Text("\(itemDetails.name)")
+                    .font(.body)
+                Spacer()
+                // 物品数量和包含状态
+                HStack {
+                    Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                        .foregroundColor(.secondary)
+                }
             }
-            
+            .padding(.vertical, 2)
         }
-        .padding(.vertical, 2)
     }
 }
