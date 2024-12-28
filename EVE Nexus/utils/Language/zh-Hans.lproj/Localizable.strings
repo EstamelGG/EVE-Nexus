@@ -333,8 +333,16 @@
 "Orders_Remaining_Days_Hours" = "%d天%d小时后过期";
 "Orders_Remaining_Days" = "%d天后过期";
 "Orders_Remaining_Hours_Minutes" = "%d小时%d分后过期";
-"Orders_Remaining_Hours" = "%d后过期小时";
+"Orders_Remaining_Hours" = "%d小时后过期";
 "Orders_Remaining_Minutes" = "%d分后过期";
+
+// Industry Orders Time
+"Industry_Expired" = "已完成";
+"Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
+"Industry_Remaining_Days" = "%d天后完成";
+"Industry_Remaining_Hours_Minutes" = "%d小时%d分后完成";
+"Industry_Remaining_Hours" = "%d小时后完成";
+"Industry_Remaining_Minutes" = "%d分后完成";
 
 // Contract Types
 "Contract_Type_item_exchange" = "物品交换";

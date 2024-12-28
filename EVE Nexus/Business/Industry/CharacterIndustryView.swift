@@ -190,7 +190,49 @@ struct IndustryJobRow: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
-        return formatter.string(from: date)
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        return formatter.string(from: date) + " UTC"
+    }
+    
+    // 计算剩余时间
+    private func getRemainingTime() -> String {
+        let remainingTime = job.end_date.timeIntervalSinceNow
+        
+        if remainingTime <= 0 {
+            return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
+        }
+        
+        let days = Int(remainingTime) / (24 * 3600)
+        let hours = (Int(remainingTime) % (24 * 3600)) / 3600
+        let minutes = (Int(remainingTime) % 3600) / 60
+        
+        if days > 0 {
+            if hours > 0 {
+                return String(format: NSLocalizedString("Industry_Remaining_Days_Hours", comment: ""), days, hours)
+            } else {
+                return String(format: NSLocalizedString("Industry_Remaining_Days", comment: ""), days)
+            }
+        } else if hours > 0 {
+            if minutes > 0 {
+                return String(format: NSLocalizedString("Industry_Remaining_Hours_Minutes", comment: ""), hours, minutes)
+            } else {
+                return String(format: NSLocalizedString("Industry_Remaining_Hours", comment: ""), hours)
+            }
+        } else {
+            return String(format: NSLocalizedString("Industry_Remaining_Minutes", comment: ""), minutes)
+        }
+    }
+    
+    // 修改时间显示格式
+    private func getTimeDisplay() -> String {
+        let dateStr = formatDate(job.end_date)
+        
+        // 如果是活动状态，添加剩余时间
+        if job.status == "active" {
+            return "\(dateStr) (\(getRemainingTime()))"
+        }
+        
+        return dateStr
     }
     
     var body: some View {
@@ -250,16 +292,15 @@ struct IndustryJobRow: View {
                     font: .caption,
                     textColor: .secondary
                 ).lineLimit(1)
-                HStack{
+                HStack {
                     Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
                         .font(.caption)
                         .foregroundColor(job.status == "active" ? .green : .secondary)
                     Spacer()
-                    Text(formatDate(job.end_date))
+                    Text(getTimeDisplay())
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
             }
             .padding(.vertical, 4)
         }
