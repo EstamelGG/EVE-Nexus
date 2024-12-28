@@ -276,7 +276,8 @@ struct IndustryJobRow: View {
             
             // 只有在runs大于1时才显示成功比例
             if job.runs > 1 {
-                return "\(statusText) (\(job.successful_runs)/\(job.runs))"
+                let successfulRuns = job.successful_runs ?? 0
+                return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
             return statusText
         }
@@ -329,7 +330,8 @@ struct IndustryJobRow: View {
             
             // 只有在runs大于1时才显示成功比例
             if job.runs > 1 {
-                return "\(statusText) (\(job.successful_runs)/\(job.runs))"
+                let successfulRuns = job.successful_runs ?? 0
+                return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
             return statusText
         }
