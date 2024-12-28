@@ -113,25 +113,60 @@ struct CharacterAssetsView: View {
     @State private var searchText = ""
     @State private var showingSearchResults = false
     @State private var searchTask: Task<Void, Never>?
+    @State private var isLoading = false
     
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
+    }
+    
+    // 新增：加载状态的视图
+    @ViewBuilder
+    private var loadingOverlay: some View {
+        if isLoading {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+                .overlay {
+                    VStack {
+                        ProgressView()
+                        Text(NSLocalizedString("Main_Database_Searching", comment: ""))
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                    }
+                }
+        }
     }
     
     var body: some View {
         VStack {
             if viewModel.isLoading && viewModel.assetLocations.isEmpty {
                 LoadingProgressView(progress: viewModel.loadingProgress)
-            } else if !searchText.isEmpty && !viewModel.searchResults.isEmpty {
-                // 搜索结果列表
+            } else if !searchText.isEmpty {
                 List {
-                    ForEach(viewModel.searchResults, id: \.path.last?.node.item_id) { result in
-                        if let containerNode = result.containerNode {
-                            NavigationLink(
-                                destination: LocationAssetsView(location: containerNode)
-                                    .navigationTitle(containerNode.name ?? "Unknown Location")
-                            ) {
-                                SearchResultRowView(result: result)
+                    if viewModel.searchResults.isEmpty && !isLoading {
+                        Section {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 4) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.gray)
+                                    Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                    .foregroundColor(.gray)
+                                }
+                                .padding()
+                                Spacer()
+                            }
+                        }
+                        .listSectionSpacing(.compact)
+                    } else if !isLoading {
+                        ForEach(viewModel.searchResults, id: \.path.last?.node.item_id) { result in
+                            if let containerNode = result.containerNode {
+                                NavigationLink(
+                                    destination: LocationAssetsView(location: containerNode)
+                                        .navigationTitle(containerNode.name ?? "Unknown Location")
+                                ) {
+                                    SearchResultRowView(result: result)
+                                }
                             }
                         }
                     }
@@ -139,10 +174,11 @@ struct CharacterAssetsView: View {
             } else {
                 LocationsList(
                     locationsByRegion: viewModel.locationsByRegion,
-                    searchText: ""  // 不再使用searchText过滤位置列表
+                    searchText: ""
                 )
             }
         }
+        .overlay(loadingOverlay)
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
         .searchable(
             text: $searchText,
@@ -150,19 +186,16 @@ struct CharacterAssetsView: View {
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { old, newValue in
-            // 取消之前的搜索任务
             searchTask?.cancel()
+            isLoading = !newValue.isEmpty
             
-            // 创建新的搜索任务
             searchTask = Task {
-                // 等待500毫秒
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 
-                // 如果任务没有被取消，执行搜索
                 if !Task.isCancelled {
-                    // 使用闭包捕获当前的搜索文本
                     let currentSearchText = newValue
                     await viewModel.searchAssets(query: currentSearchText)
+                    isLoading = false
                 }
             }
         }
