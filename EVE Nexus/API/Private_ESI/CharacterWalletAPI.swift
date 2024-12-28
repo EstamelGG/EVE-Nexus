@@ -248,18 +248,17 @@ class CharacterWalletAPI {
                     // 如果缓存过期，在后台刷新
                     Task {
                         do {
-                            // 获取新数据
                             let newJournalData = try await fetchJournalFromServer(characterId: characterId)
                             
-                            // 解析现有缓存数据
+                            // 解析现有缓存数据并合并
                             if let existingData = cachedJson.data(using: .utf8),
                                let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
                                 
-                                // 合并新旧数据并去重
+                                // 合并新旧数据
                                 var allEntries = existingEntries
                                 allEntries.append(contentsOf: newJournalData)
                                 
-                                // 根据 journal_ref_id 去重
+                                // 根据 id 去重
                                 let uniqueEntries = Dictionary(grouping: allEntries) { entry in
                                     return entry["id"] as? Int64 ?? 0
                                 }.values.compactMap { $0.first }
@@ -271,12 +270,11 @@ class CharacterWalletAPI {
                                     return date1 > date2
                                 }
                                 
-                                // 转换为JSON
+                                // 转换为JSON并保存
                                 let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
                                 if let jsonString = String(data: jsonData, encoding: .utf8) {
-                                    // 保存到缓存
                                     saveJournalToCache(jsonString: jsonString, characterId: characterId)
-                                    // 在主线程发送通知
+                                    // 在主线程发送通知以刷新UI
                                     await MainActor.run {
                                         NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
                                     }
@@ -291,16 +289,44 @@ class CharacterWalletAPI {
             }
         }
         
-        // 如果没有缓存或强制刷新，从服务器获取
+        // 如果强制刷新或没有缓存，从服务器获取
         let journalData = try await fetchJournalFromServer(characterId: characterId)
         
-        // 转换为JSON
+        // 如果有缓存，尝试合并数据
+        if let cachedJson = getCachedJournal(characterId: characterId),
+           let existingData = cachedJson.data(using: .utf8),
+           let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
+            
+            // 合并新旧数据
+            var allEntries = existingEntries
+            allEntries.append(contentsOf: journalData)
+            
+            // 根据 id 去重
+            let uniqueEntries = Dictionary(grouping: allEntries) { entry in
+                return entry["id"] as? Int64 ?? 0
+            }.values.compactMap { $0.first }
+            
+            // 按时间排序
+            let sortedEntries = uniqueEntries.sorted { entry1, entry2 in
+                let date1 = entry1["date"] as? String ?? ""
+                let date2 = entry2["date"] as? String ?? ""
+                return date1 > date2
+            }
+            
+            // 转换为JSON
+            let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                saveJournalToCache(jsonString: jsonString, characterId: characterId)
+                return jsonString
+            }
+        }
+        
+        // 如果没有缓存或合并失败，使用新数据
         let jsonData = try JSONSerialization.data(withJSONObject: journalData, options: [.prettyPrinted, .sortedKeys])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             throw NetworkError.invalidResponse
         }
         
-        // 保存到缓存
         saveJournalToCache(jsonString: jsonString, characterId: characterId)
         return jsonString
     }
@@ -371,14 +397,13 @@ class CharacterWalletAPI {
                     // 如果缓存过期，在后台刷新
                     Task {
                         do {
-                            // 获取新数据
                             let newTransactions = try await fetchTransactionsFromServer(characterId: characterId)
                             
-                            // 解析现有缓存数据
+                            // 解析现有缓存数据并合并
                             if let existingData = cache.jsonString.data(using: .utf8),
                                let existingTransactions = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
                                 
-                                // 合并新旧数据并去重
+                                // 合并新旧数据
                                 var allTransactions = existingTransactions
                                 allTransactions.append(contentsOf: newTransactions)
                                 
@@ -394,12 +419,11 @@ class CharacterWalletAPI {
                                     return date1 > date2
                                 }
                                 
-                                // 转换为JSON
+                                // 转换为JSON并保存
                                 let jsonData = try JSONSerialization.data(withJSONObject: sortedTransactions, options: [.prettyPrinted, .sortedKeys])
                                 if let jsonString = String(data: jsonData, encoding: .utf8) {
-                                    // 保存到缓存
                                     saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
-                                    // 在主线程发送通知
+                                    // 在主线程发送通知以刷新UI
                                     await MainActor.run {
                                         NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionsUpdated"), object: nil, userInfo: ["characterId": characterId])
                                     }
@@ -414,16 +438,46 @@ class CharacterWalletAPI {
             }
         }
         
-        // 如果没有缓存或强制刷新，从服务器获取
-        let transactions = try await fetchTransactionsFromServer(characterId: characterId)
+        // 如果强制刷新或没有缓存，从服务器获取
+        let newTransactions = try await fetchTransactionsFromServer(characterId: characterId)
         
-        // 转换为JSON
-        let jsonData = try JSONSerialization.data(withJSONObject: transactions, options: [.prettyPrinted, .sortedKeys])
+        // 如果有缓存，尝试合并数据
+        let key = getTransactionsCacheKey(characterId: characterId)
+        if let data = UserDefaults.standard.data(forKey: key),
+           let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data),
+           let existingData = cache.jsonString.data(using: .utf8),
+           let existingTransactions = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
+            
+            // 合并新旧数据
+            var allTransactions = existingTransactions
+            allTransactions.append(contentsOf: newTransactions)
+            
+            // 根据 transaction_id 去重
+            let uniqueTransactions = Dictionary(grouping: allTransactions) { entry in
+                return entry["transaction_id"] as? Int64 ?? 0
+            }.values.compactMap { $0.first }
+            
+            // 按时间排序
+            let sortedTransactions = uniqueTransactions.sorted { entry1, entry2 in
+                let date1 = entry1["date"] as? String ?? ""
+                let date2 = entry2["date"] as? String ?? ""
+                return date1 > date2
+            }
+            
+            // 转换为JSON
+            let jsonData = try JSONSerialization.data(withJSONObject: sortedTransactions, options: [.prettyPrinted, .sortedKeys])
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
+                return jsonString
+            }
+        }
+        
+        // 如果没有缓存或合并失败，使用新数据
+        let jsonData = try JSONSerialization.data(withJSONObject: newTransactions, options: [.prettyPrinted, .sortedKeys])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             throw NetworkError.invalidResponse
         }
         
-        // 保存到缓存
         saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
         return jsonString
     }

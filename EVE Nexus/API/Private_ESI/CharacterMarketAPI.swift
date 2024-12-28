@@ -94,7 +94,27 @@ class CharacterMarketAPI {
                         do {
                             progressCallback?(true)
                             let jsonString = try await fetchFromNetwork(characterId: characterId)
-                            saveOrdersToCache(jsonString: jsonString, characterId: characterId)
+                            
+                            // 合并新旧数据
+                            if let existingData = cachedJson.data(using: .utf8),
+                               let existingOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: existingData),
+                               let newData = jsonString.data(using: .utf8),
+                               let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData) {
+                                
+                                // 合并并去重
+                                let allOrders = Set(existingOrders).union(newOrders)
+                                let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
+                                
+                                // 保存合并后的数据
+                                if let mergedData = try? JSONEncoder().encode(mergedOrders),
+                                   let mergedString = String(data: mergedData, encoding: .utf8) {
+                                    saveOrdersToCache(jsonString: mergedString, characterId: characterId)
+                                }
+                            } else {
+                                // 如果合并失败，至少保存新数据
+                                saveOrdersToCache(jsonString: jsonString, characterId: characterId)
+                            }
+                            
                             progressCallback?(false)
                         } catch {
                             Logger.error("后台刷新市场订单数据失败: \(error)")
@@ -109,9 +129,31 @@ class CharacterMarketAPI {
             }
         }
         
-        // 2. 如果没有缓存或强制刷新，从网络获取
+        // 2. 如果强制刷新或没有缓存，从网络获取
         progressCallback?(true)
         let jsonString = try await fetchFromNetwork(characterId: characterId)
+        
+        // 3. 如果有缓存数据，尝试合并
+        if let cachedJson = getCachedOrders(characterId: characterId),
+           let existingData = cachedJson.data(using: .utf8),
+           let existingOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: existingData),
+           let newData = jsonString.data(using: .utf8),
+           let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData) {
+            
+            // 合并并去重
+            let allOrders = Set(existingOrders).union(newOrders)
+            let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
+            
+            // 保存并返回合并后的数据
+            if let mergedData = try? JSONEncoder().encode(mergedOrders),
+               let mergedString = String(data: mergedData, encoding: .utf8) {
+                saveOrdersToCache(jsonString: mergedString, characterId: characterId)
+                progressCallback?(false)
+                return mergedString
+            }
+        }
+        
+        // 4. 如果没有缓存或合并失败，使用新数据
         saveOrdersToCache(jsonString: jsonString, characterId: characterId)
         progressCallback?(false)
         return jsonString
