@@ -25,6 +25,9 @@ final class ContractDetailViewModel: ObservableObject {
     private let characterId: Int
     private let contract: ContractInfo
     private let databaseManager: DatabaseManager
+    private lazy var locationLoader: LocationInfoLoader = {
+        LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
+    }()
     
     struct LocationInfo {
         let stationName: String
@@ -72,134 +75,6 @@ final class ContractDetailViewModel: ObservableObject {
         }
     }
     
-    // 获取空间站信息
-    private func fetchStationInfo(stationId: Int) async throws -> (name: String?, systemName: String?, regionName: String?, securityStatus: Double?) {
-        let query = """
-            SELECT stationID, stationTypeID, stationName, regionID, solarSystemID, security
-            FROM stations
-            WHERE stationID = ?
-        """
-        
-        let result = databaseManager.executeQuery(query, parameters: [stationId])
-        
-        switch result {
-        case .success(let rows):
-            guard let row = rows.first,
-                  let stationName = row["stationName"] as? String,
-                  let solarSystemID = row["solarSystemID"] as? Int,
-                  let security = row["security"] as? Double else {
-                return (nil, nil, nil, nil)
-            }
-            
-            // 获取星系和星域信息
-            if let systemInfo = await getSolarSystemInfo(solarSystemId: solarSystemID) {
-                return (stationName, systemInfo.systemName, systemInfo.regionName, security)
-            }
-            
-            return (stationName, nil, nil, security)
-            
-        case .error(let error):
-            Logger.error("从数据库获取空间站信息失败: \(error)")
-            return (nil, nil, nil, nil)
-        }
-    }
-    
-    // 获取星系信息
-    private func getSolarSystemInfo(solarSystemId: Int) async -> (systemName: String, regionName: String)? {
-        let query = """
-            SELECT s.solarSystemName, r.regionName
-            FROM solarSystems s
-            LEFT JOIN regions r ON s.regionID = r.regionID
-            WHERE s.solarSystemID = ?
-        """
-        
-        let result = databaseManager.executeQuery(query, parameters: [solarSystemId])
-        
-        if case .success(let rows) = result,
-           let row = rows.first,
-           let systemName = row["solarSystemName"] as? String,
-           let regionName = row["regionName"] as? String {
-            return (systemName: systemName, regionName: regionName)
-        }
-        return nil
-    }
-    
-    // 获取建筑物信息
-    private func fetchStructureInfo(structureId: Int) async throws -> (name: String?, systemId: Int?) {
-        let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])
-        }
-        
-        do {
-            let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
-            let structure = try JSONDecoder().decode(UniverseStructureInfo.self, from: data)
-            return (structure.name, structure.solar_system_id)
-        } catch {
-            Logger.error("获取建筑物信息失败: \(error)")
-            throw error
-        }
-    }
-    
-    private struct UniverseStructureInfo: Codable {
-        let name: String
-        let solar_system_id: Int
-    }
-    
-    private func fetchLocationInfo(locationId: Int) async -> LocationInfo? {
-        // 先尝试从数据库获取空间站信息
-        let query = """
-                SELECT s.stationName, ss.solarSystemName, u.system_security as security
-                FROM stations s
-                JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
-                JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                WHERE s.stationID = ?
-        """
-        
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [String(locationId)]),
-           let row = rows.first,
-           let stationName = row["stationName"] as? String,
-           let solarSystemName = row["solarSystemName"] as? String,
-           let security = row["security"] as? Double {
-            return LocationInfo(
-                stationName: stationName,
-                solarSystemName: solarSystemName,
-                security: security
-            )
-        }
-        
-        // 如果数据库中找不到，说明可能是玩家建筑物，通过API获取
-        do {
-            let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
-                structureId: Int64(locationId),
-                characterId: characterId
-            )
-            
-            // 获取星系信息
-            let systemQuery = """
-                    SELECT ss.solarSystemName, u.system_security as security
-                    FROM solarSystems ss
-                    JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                    WHERE ss.solarSystemID = ?
-            """
-            
-            if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [String(structureInfo.solar_system_id)]),
-               let row = rows.first,
-               let solarSystemName = row["solarSystemName"] as? String,
-               let security = row["security"] as? Double {
-                return LocationInfo(
-                    stationName: structureInfo.name,
-                    solarSystemName: solarSystemName,
-                    security: security
-                )
-            }
-        } catch {
-            Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
-        }
-        
-        return nil
-    }
-    
     func loadContractParties() async {
         isLoadingNames = true
         var ids = Set<Int>()
@@ -244,12 +119,34 @@ final class ContractDetailViewModel: ObservableObject {
         }
         
         // 获取地点信息
+        var locationIds = Set<Int64>()
         if contract.start_location_id != 0 {
-            startLocationInfo = await fetchLocationInfo(locationId: Int(contract.start_location_id))
+            locationIds.insert(Int64(contract.start_location_id))
+        }
+        if contract.end_location_id != 0 && contract.end_location_id != contract.start_location_id {
+            locationIds.insert(Int64(contract.end_location_id))
         }
         
-        if contract.end_location_id != 0 && contract.end_location_id != contract.start_location_id {
-            endLocationInfo = await fetchLocationInfo(locationId: Int(contract.end_location_id))
+        if !locationIds.isEmpty {
+            let locationInfos = await locationLoader.loadLocationInfo(locationIds: locationIds)
+            
+            if contract.start_location_id != 0,
+               let info = locationInfos[Int64(contract.start_location_id)] {
+                startLocationInfo = LocationInfo(
+                    stationName: info.stationName,
+                    solarSystemName: info.solarSystemName,
+                    security: info.security
+                )
+            }
+            
+            if contract.end_location_id != 0,
+               let info = locationInfos[Int64(contract.end_location_id)] {
+                endLocationInfo = LocationInfo(
+                    stationName: info.stationName,
+                    solarSystemName: info.solarSystemName,
+                    security: info.security
+                )
+            }
         }
         
         isLoadingNames = false
