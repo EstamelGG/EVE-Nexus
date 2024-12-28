@@ -10,6 +10,7 @@ class CharacterIndustryViewModel: ObservableObject {
     @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
     @Published var locationInfoCache: [Int64: LocationInfoDetail] = [:]
+    @Published var itemIcons: [Int: String] = [:]
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
@@ -42,18 +43,13 @@ class CharacterIndustryViewModel: ObservableObject {
     }
     
     private func loadItemNames() async {
-        // 收集所有需要查询的type_id
         var typeIds = Set<Int>()
         for job in jobs {
             typeIds.insert(job.blueprint_type_id)
-            if let productTypeId = job.product_type_id {
-                typeIds.insert(productTypeId)
-            }
         }
         
-        // 查询数据库获取名称
         let query = """
-            SELECT type_id, name
+            SELECT type_id, name, icon_filename
             FROM types
             WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
         """
@@ -63,6 +59,9 @@ class CharacterIndustryViewModel: ObservableObject {
                 if let typeId = row["type_id"] as? Int,
                    let name = row["name"] as? String {
                     itemNames[typeId] = name
+                    if let iconFileName = row["icon_filename"] as? String {
+                        itemIcons[typeId] = iconFileName
+                    }
                 }
             }
         }
@@ -114,7 +113,7 @@ struct CharacterIndustryView: View {
                     IndustryJobRow(
                         job: job,
                         blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
-                        productName: job.product_type_id.flatMap { viewModel.itemNames[$0] } ?? "Unknown",
+                        blueprintIcon: viewModel.itemIcons[job.blueprint_type_id],
                         locationInfo: viewModel.locationInfoCache[job.station_id]
                     )
                 }
@@ -140,7 +139,7 @@ struct CharacterIndustryView: View {
 struct IndustryJobRow: View {
     let job: IndustryJob
     let blueprintName: String
-    let productName: String
+    let blueprintIcon: String?
     let locationInfo: LocationInfoDetail?
     
     private func formatDate(_ date: Date) -> String {
@@ -152,27 +151,39 @@ struct IndustryJobRow: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // 第一行：蓝图名称和状态
-            HStack {
-                Text(blueprintName)
-                    .font(.headline)
-                Spacer()
-                Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
-                    .font(.caption)
-                    .foregroundColor(job.status == "active" ? .green : .secondary)
+            // 第一行：蓝图图标、名称和状态
+            HStack(spacing: 12) {
+                // 蓝图图标
+                if let iconFileName = blueprintIcon {
+                    IconManager.shared.loadImage(for: iconFileName)
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 32, height: 32)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // 蓝图名称和状态
+                    HStack {
+                        Text(blueprintName)
+                            .font(.headline)
+                        Spacer()
+                        Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(job.status == "active" ? .green : .secondary)
+                    }
+                    
+                    // 数量信息
+                    Text("\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
-            // 第二行：产品名称和数量
-            HStack {
-                Text(productName)
-                    .font(.subheadline)
-                Spacer()
-                Text("\(job.runs) \(NSLocalizedString("Misc_number_item", comment: ""))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            // 第三行：使用LocationInfoView显示位置信息
+            // 第二行：位置信息和结束时间
             HStack {
                 LocationInfoView(
                     stationName: locationInfo?.stationName,
