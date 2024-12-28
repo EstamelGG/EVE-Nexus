@@ -83,7 +83,7 @@ class CharacterIndustryViewModel: ObservableObject {
             locationIds.insert(job.output_location_id)
         }
         
-        // 先尝试从数据库获取空间站名称
+        // 先尝试从数据库获取空间站信息
         let query = """
             SELECT s.stationID, s.stationName, ss.solarSystemName, u.system_security as security
             FROM stations s
@@ -92,6 +92,7 @@ class CharacterIndustryViewModel: ObservableObject {
             WHERE s.stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
         """
         
+        var foundIds = Set<Int64>()
         if case .success(let rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let stationId = row["stationID"] as? Int64,
@@ -103,13 +104,13 @@ class CharacterIndustryViewModel: ObservableObject {
                         systemName: solarSystemName,
                         security: security
                     )
-                    locationIds.remove(stationId) // 从待查询集合中移除已找到的ID
                 }
             }
         }
         
         // 对于未找到的ID，尝试通过API获取建筑物信息
-        for locationId in locationIds {
+        let remainingIds = locationIds.subtracting(foundIds)
+        for locationId in remainingIds {
             do {
                 let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
                     structureId: locationId,
