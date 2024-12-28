@@ -91,9 +91,8 @@ class CharacterIndustryViewModel: ObservableObject {
             JOIN universe u ON u.solarsystem_id = ss.solarSystemID
             WHERE s.stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
         """
-        Logger.debug(query)
+        
         if case .success(let rows) = databaseManager.executeQuery(query) {
-            Logger.info("Query succeed")
             for row in rows {
                 if let stationId = row["stationID"] as? Int64,
                    let stationName = row["stationName"] as? String,
@@ -104,13 +103,13 @@ class CharacterIndustryViewModel: ObservableObject {
                         systemName: solarSystemName,
                         security: security
                     )
+                    locationIds.remove(stationId) // 从待查询集合中移除已找到的ID
                 }
             }
         }
         
         // 对于未找到的ID，尝试通过API获取建筑物信息
-        let remainingIds = locationIds.filter { locationInfos[$0] == nil }
-        for locationId in remainingIds {
+        for locationId in locationIds {
             do {
                 let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
                     structureId: locationId,
