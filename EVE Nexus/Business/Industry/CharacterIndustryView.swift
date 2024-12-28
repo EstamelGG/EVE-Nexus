@@ -350,7 +350,7 @@ struct IndustryJobRow: View {
         
         // 如果是活动状态，添加剩余时间
         if job.status == "active" {
-            return "\(dateStr) (\(getRemainingTime()))"
+            return "\(dateStr)"
         }
         
         return dateStr
@@ -453,11 +453,19 @@ struct IndustryJobRow: View {
                         .lineLimit(1)
                         
                         // 数量信息
-                        Text(job.activity_id == 5 ? 
-                            "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0) copies" :
-                            "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                        HStack{
+                            Text(job.activity_id == 5 ?
+                                 "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0) copies" :
+                                    "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: ""))")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            Spacer()
+                            if job.status == "active" {
+                                Text("\(getRemainingTime())")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 
@@ -493,7 +501,7 @@ struct IndustryJobRow: View {
                         .font(.caption)
                         .foregroundColor(job.status == "active" ? .green : .secondary)
                     Spacer()
-                    Text(getTimeDisplay())
+                    Text("Finish on \(getTimeDisplay())")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
