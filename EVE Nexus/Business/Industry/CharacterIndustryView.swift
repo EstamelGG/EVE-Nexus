@@ -83,7 +83,7 @@ class CharacterIndustryViewModel: ObservableObject {
             FROM stations
             WHERE stationID IN (\(locationIds.map { String($0) }.joined(separator: ",")))
         """
-        
+        Logger.debug(query)
         if case .success(let rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let stationId = row["stationID"] as? Int64,
