@@ -407,13 +407,10 @@ struct MarketItemDetailView: View {
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
-    @State private var selectedRegionID: Int = {
-        let defaults: UserDefaultsManager = UserDefaultsManager.shared
-        return defaults.selectedRegionID
-    }()
+    @State private var selectedRegionID: Int = 0
     @State private var regions: [Region] = []
     @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
-    @State private var selectedRegionName: String = UserDefaultsManager.shared.defaultRegionName
+    @State private var selectedRegionName: String = ""
     @State private var searchText = ""
     @State private var isSearching = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -604,13 +601,15 @@ struct MarketItemDetailView: View {
             }
         }
         .onAppear {
+            let defaults = UserDefaultsManager.shared
+            if selectedRegionID == 0 {
+                selectedRegionID = defaults.selectedRegionID
+                selectedRegionName = defaults.defaultRegionName
+            }
+            
             loadItemDetails()
             loadRegions()
             
-            // 加载保存的星域ID和名称
-            let defaults: UserDefaultsManager = UserDefaultsManager.shared
-            selectedRegionID = defaults.selectedRegionID
-            // 根据ID查找对应的星域名称
             if let region = regions.first(where: { $0.id == selectedRegionID }) {
                 selectedRegionName = region.name
             }

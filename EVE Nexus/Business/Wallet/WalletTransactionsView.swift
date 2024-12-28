@@ -273,7 +273,9 @@ struct WalletTransactionEntryRow: View {
     }()
     
     var body: some View {
-        NavigationLink(destination: MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: entry.type_id)) {
+        NavigationLink {
+            MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: entry.type_id)
+        } label: {
             VStack(alignment: .leading, spacing: 4) {
                 // 物品信息行
                 HStack(spacing: 12) {
