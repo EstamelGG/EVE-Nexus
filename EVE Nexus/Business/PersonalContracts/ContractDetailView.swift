@@ -15,6 +15,7 @@ final class ContractDetailViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     @Published private(set) var issuerName: String = ""
+    @Published private(set) var issuerCorpName: String = ""
     @Published private(set) var assigneeName: String = ""
     @Published private(set) var acceptorName: String = ""
     @Published private(set) var startLocationInfo: LocationInfo?
@@ -203,9 +204,12 @@ final class ContractDetailViewModel: ObservableObject {
         isLoadingNames = true
         var ids = Set<Int>()
         
-        // 添加人物ID
+        // 添加人物和军团ID
         if contract.issuer_id != 0 {
             ids.insert(contract.issuer_id)
+        }
+        if contract.issuer_corporation_id != 0 {
+            ids.insert(contract.issuer_corporation_id)
         }
         if let assigneeId = contract.assignee_id, assigneeId != 0 {
             ids.insert(assigneeId)
@@ -217,13 +221,16 @@ final class ContractDetailViewModel: ObservableObject {
             ids.insert(acceptorId)
         }
         
-        // 获取人物名称
+        // 获取名称
         if !ids.isEmpty {
             do {
                 let names = try await UniverseNameCache.shared.getNames(for: ids)
                 
                 if contract.issuer_id != 0 {
                     issuerName = names[contract.issuer_id] ?? ""
+                }
+                if contract.issuer_corporation_id != 0 {
+                    issuerCorpName = names[contract.issuer_corporation_id] ?? ""
                 }
                 if let assigneeId = contract.assignee_id, assigneeId != 0 {
                     assigneeName = names[assigneeId] ?? ""
@@ -315,9 +322,14 @@ struct ContractDetailView: View {
                         if contract.issuer_id != 0 {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Issuer", comment: ""))
-                                Text(viewModel.issuerName)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                HStack(spacing: 4) {
+                                    Text(viewModel.issuerName)
+                                    if !viewModel.issuerCorpName.isEmpty {
+                                        Text("[\(viewModel.issuerCorpName)]")
+                                    }
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                             .frame(height: 36)
                         }
