@@ -89,35 +89,46 @@ public class CharacterAssetsJsonAPI {
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> String? {
         // 1. 先尝试获取缓存
-        if !forceRefresh, let cachedJson = getCachedJson(characterId: characterId) {
-            // 如果有缓存，启动后台刷新
-            Task {
-                do {
-                    progressCallback?(.loading)
-                    let assets = try await fetchAllAssets(characterId: characterId) { _ in }
-                    
-                    if let newJsonString = try await generateAssetTreeJson(
-                        assets: assets,
-                        names: [:],
-                        characterId: characterId,
-                        databaseManager: DatabaseManager(),
-                        progressCallback: progressCallback
-                    ) {
-                        // 保存到缓存
-                        saveToCache(jsonString: newJsonString, characterId: characterId)
-                        // 通知进度完成
-                        progressCallback?(.completed)
+        if !forceRefresh {
+            if let cacheFile = getCacheFilePath(characterId: characterId),
+               let data = try? Data(contentsOf: cacheFile),
+               let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data) {
+                
+                // 检查缓存是否过期
+                let shouldRefreshInBackground = !isValidCache(cache)
+                
+                // 如果缓存过期，在后台刷新
+                if shouldRefreshInBackground {
+                    Task {
+                        do {
+                            progressCallback?(.loading)
+                            let assets = try await fetchAllAssets(characterId: characterId) { _ in }
+                            
+                            if let newJsonString = try await generateAssetTreeJson(
+                                assets: assets,
+                                names: [:],
+                                characterId: characterId,
+                                databaseManager: DatabaseManager(),
+                                progressCallback: progressCallback
+                            ) {
+                                // 保存到缓存
+                                saveToCache(jsonString: newJsonString, characterId: characterId)
+                                // 通知进度完成
+                                progressCallback?(.completed)
+                            }
+                        } catch {
+                            Logger.error("后台刷新资产数据失败: \(error)")
+                            progressCallback?(.completed)
+                        }
                     }
-                } catch {
-                    Logger.error("后台刷新资产数据失败: \(error)")
-                    // 发生错误时也要通知进度完成
-                    progressCallback?(.completed)
                 }
+                
+                // 无论是否过期，都返回缓存的数据
+                return cache.jsonString
             }
-            return cachedJson
         }
         
-        // 2. 获取新数据
+        // 2. 如果没有缓存或强制刷新，获取新数据
         progressCallback?(.loading)
         let assets = try await fetchAllAssets(characterId: characterId) { _ in }
         
@@ -134,7 +145,7 @@ public class CharacterAssetsJsonAPI {
             progressCallback?(.completed)
             return jsonString
         }
-        // 如果生成失败也要通知进度完成
+        
         progressCallback?(.completed)
         return nil
     }
@@ -159,7 +170,8 @@ public class CharacterAssetsJsonAPI {
     private func getCachedJson(characterId: Int) -> String? {
         guard let cacheFile = getCacheFilePath(characterId: characterId),
               let data = try? Data(contentsOf: cacheFile),
-              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data) else {
+              let cache = try? JSONDecoder().decode(AssetTreeCacheEntry.self, from: data),
+              isValidCache(cache) else {
             return nil
         }
         return cache.jsonString
