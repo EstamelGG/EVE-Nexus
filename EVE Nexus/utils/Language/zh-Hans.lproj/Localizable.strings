@@ -161,6 +161,7 @@
 "Blueprint_Source" = "发明来源";
 "Setting_Cache" = "缓存";
 "Item_Basic_Info" = "基础信息";
+"Container_Basic_Info" = "容器";
 "Item_Volume" = "体积";
 "Item_Capacity" = "容量";
 "Item_Mass" = "质量";

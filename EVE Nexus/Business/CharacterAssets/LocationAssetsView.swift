@@ -209,7 +209,7 @@ struct SubLocationAssetsView: View {
                             .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     }
                 } header: {
-                    Text(NSLocalizedString("Item_Basic_Info", comment: ""))
+                    Text(NSLocalizedString("Container_Basic_Info", comment: ""))
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)

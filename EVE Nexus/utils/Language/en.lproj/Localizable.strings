@@ -143,6 +143,7 @@
 "Blueprint_Source" = "Source";
 "Setting_Cache" = "Cache";
 "Item_Basic_Info" = "Basic Info";
+"Container_Basic_Info" = "Container";
 "Item_Volume" = "Volume";
 "Item_Capacity" = "Capacity";
 "Item_Mass" = "Mass";

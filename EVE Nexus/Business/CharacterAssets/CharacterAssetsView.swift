@@ -132,7 +132,11 @@ struct CharacterAssetsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .searchable(text: $searchText)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+        )
         .onChange(of: searchText) { oldValue, newValue in
             Task {
                 isSearching = true
