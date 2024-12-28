@@ -47,16 +47,14 @@ class CharacterIndustryViewModel: ObservableObject {
     
     // 将工作项目按日期分组
     private func groupJobsByDate() {
-        let calendar = Calendar.current
         var grouped = [String: [IndustryJob]]()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = TimeZone(identifier: "UTC")!
         
         for job in jobs {
-            // 获取开始日期的年月日部分
-            let date = calendar.startOfDay(for: job.start_date)
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd"
-            dateFormatter.timeZone = TimeZone(identifier: "UTC")!
-            let dateKey = dateFormatter.string(from: date)
+            // 直接格式化日期，不使用 startOfDay
+            let dateKey = dateFormatter.string(from: job.start_date)
             
             if grouped[dateKey] == nil {
                 grouped[dateKey] = []
@@ -156,6 +154,13 @@ struct CharacterIndustryView: View {
         return formatter
     }()
     
+    private let outputDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
         _viewModel = StateObject(wrappedValue: CharacterIndustryViewModel(
@@ -166,18 +171,12 @@ struct CharacterIndustryView: View {
     
     // 格式化日期显示
     private func formatDateHeader(_ dateString: String) -> String {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd"
-        inputFormatter.timeZone = TimeZone(identifier: "UTC")!
-        
-        guard let date = inputFormatter.date(from: dateString) else {
+        guard let date = displayDateFormatter.date(from: dateString) else {
             return dateString
         }
         
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
-        outputFormatter.timeZone = TimeZone(identifier: "UTC")!
-        let dateText = outputFormatter.string(from: date)
+        outputDateFormatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
+        let dateText = outputDateFormatter.string(from: date)
         return String(format: NSLocalizedString("Industry_Started_On", comment: ""), dateText)
     }
     
@@ -446,8 +445,8 @@ struct IndustryJobRow: View {
                         
                         // 数量信息
                         Text(job.activity_id == 5 ? 
-                            "\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0)" :
-                            "\(job.runs) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                            "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0) copies" :
+                            "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: ""))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
