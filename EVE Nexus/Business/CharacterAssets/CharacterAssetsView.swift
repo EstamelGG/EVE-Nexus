@@ -46,30 +46,6 @@ private struct LocationNameView: View {
     }
 }
 
-// 加载进度视图
-private struct LoadingProgressView: View {
-    let progress: AssetLoadingProgress?
-    
-    var body: some View {
-        ProgressView {
-            if let progress = progress {
-                switch progress {
-                case .fetchingPage(let page):
-                    Text(String(format: NSLocalizedString("Assets_Loading_Page", comment: ""), page))
-                case .calculatingJson:
-                    Text(NSLocalizedString("Assets_Loading_Calculating", comment: ""))
-                case .fetchingNames:
-                    Text(NSLocalizedString("Assets_Loading_Fetching_Names", comment: ""))
-                case .completed:
-                    Text(NSLocalizedString("Assets_Loading_Complete", comment: ""))
-                }
-            } else {
-                Text(NSLocalizedString("Assets_Loading", comment: ""))
-            }
-        }
-    }
-}
-
 // 搜索结果行视图
 private struct SearchResultRowView: View {
     let result: AssetSearchResult
@@ -186,7 +162,7 @@ struct CharacterAssetsView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
         .toolbar {
-            if viewModel.loadingProgress != nil {
+            if viewModel.loadingProgress == .loading {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ProgressView()
                         .scaleEffect(0.8)

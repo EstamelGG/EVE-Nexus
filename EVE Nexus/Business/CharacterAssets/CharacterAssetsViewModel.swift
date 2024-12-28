@@ -73,7 +73,7 @@ class CharacterAssetsViewModel: ObservableObject {
     // 加载资产数据
     func loadAssets(forceRefresh: Bool = false) async {
         if forceRefresh {
-            loadingProgress = .fetchingPage(1)
+            loadingProgress = .loading
         } else if !assetLocations.isEmpty {
             // 如果已有数据且不是强制刷新，直接返回
             return
@@ -90,7 +90,7 @@ class CharacterAssetsViewModel: ObservableObject {
                         if case .completed = progress {
                             self?.loadingProgress = nil
                         } else {
-                            self?.loadingProgress = progress
+                            self?.loadingProgress = .loading
                         }
                     }
                 }

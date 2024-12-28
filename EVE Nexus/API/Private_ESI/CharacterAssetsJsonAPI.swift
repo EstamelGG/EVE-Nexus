@@ -71,10 +71,8 @@ private struct AssetTreeCacheEntry: Codable {
 
 // MARK: - Progress Types
 public enum AssetLoadingProgress {
-    case fetchingPage(Int)      // 获取第几页
-    case calculatingJson        // 计算JSON
-    case fetchingNames         // 获取名称
-    case completed             // 加载完成
+    case loading    // 正在加载
+    case completed  // 加载完成
 }
 
 public class CharacterAssetsJsonAPI {
@@ -95,11 +93,9 @@ public class CharacterAssetsJsonAPI {
             // 如果有缓存，启动后台刷新
             Task {
                 do {
-                    let assets = try await fetchAllAssets(characterId: characterId) { page in
-                        progressCallback?(.fetchingPage(page))
-                    }
+                    progressCallback?(.loading)
+                    let assets = try await fetchAllAssets(characterId: characterId) { _ in }
                     
-                    progressCallback?(.calculatingJson)
                     if let newJsonString = try await generateAssetTreeJson(
                         assets: assets,
                         names: [:],
@@ -122,11 +118,9 @@ public class CharacterAssetsJsonAPI {
         }
         
         // 2. 获取新数据
-        let assets = try await fetchAllAssets(characterId: characterId) { page in
-            progressCallback?(.fetchingPage(page))
-        }
+        progressCallback?(.loading)
+        let assets = try await fetchAllAssets(characterId: characterId) { _ in }
         
-        progressCallback?(.calculatingJson)
         if let jsonString = try await generateAssetTreeJson(
             assets: assets,
             names: [:],
@@ -466,7 +460,6 @@ public class CharacterAssetsJsonAPI {
         let containerIds = collectContainerIds(from: rootNodes)
         
         // 获取容器名称
-        progressCallback?(.fetchingNames)
         let containerNames = try await fetchContainerNames(
             containerIds: Array(containerIds),
             characterId: characterId
