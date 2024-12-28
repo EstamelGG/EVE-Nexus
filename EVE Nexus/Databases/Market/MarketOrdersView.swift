@@ -7,6 +7,7 @@ struct MarketOrdersView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showBuyOrders = false
     @State private var locationInfos: [Int64: LocationInfoDetail] = [:]
+    @State private var isLoading = true
     let locationInfoLoader: LocationInfoLoader
     
     init(itemID: Int, itemName: String, orders: [MarketOrder], databaseManager: DatabaseManager) {
@@ -55,42 +56,55 @@ struct MarketOrdersView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            TabView(selection: $showBuyOrders) {
-                OrderListView(
-                    orders: orders.filter { !$0.isBuyOrder },
-                    locationInfos: locationInfos
-                )
-                .tag(false)
-                
-                OrderListView(
-                    orders: orders.filter { $0.isBuyOrder },
-                    locationInfos: locationInfos
-                )
-                .tag(true)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .safeAreaInset(edge: .top, spacing: 0) {
-                VStack(spacing: 0) {
-                    Picker("Order Type", selection: $showBuyOrders) {
-                        Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
-                        Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 4)
+        ZStack {
+            if isLoading {
+                VStack {
+                    ProgressView()
+                    Text(NSLocalizedString("Main_Database_Loading", comment: ""))
+                        .foregroundColor(.secondary)
+                        .padding(.top, 8)
                 }
-                .background(Color(.systemGroupedBackground))
+            } else {
+                VStack(spacing: 0) {
+                    TabView(selection: $showBuyOrders) {
+                        OrderListView(
+                            orders: orders.filter { !$0.isBuyOrder },
+                            locationInfos: locationInfos
+                        )
+                        .tag(false)
+                        
+                        OrderListView(
+                            orders: orders.filter { $0.isBuyOrder },
+                            locationInfos: locationInfos
+                        )
+                        .tag(true)
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        VStack(spacing: 0) {
+                            Picker("Order Type", selection: $showBuyOrders) {
+                                Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
+                                Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
+                            }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                        }
+                        .background(Color(.systemGroupedBackground))
+                    }
+                }
             }
         }
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            isLoading = true
             // 收集所有订单的位置ID并转换为 Int64
             let locationIds = Set(orders.map { Int64($0.locationId) })
             // 加载位置信息
             let infos = await locationInfoLoader.loadLocationInfo(locationIds: locationIds)
             locationInfos = infos
+            isLoading = false
         }
     }
     
