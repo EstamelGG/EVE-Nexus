@@ -38,3 +38,11 @@
 - https://esi.evetech.net/latest/status/?datasource=tranquility
 - https://esi.evetech.net/latest/sovereignty/campaigns/?datasource=tranquility
 - https://esi.evetech.net/latest/characters/xxxxxxxxx/skills/
+
+# Todo
+
+1. Zkillboard接入
+2. 行星开发
+3. 装配模拟
+4. 技能属性计算与注射器计算
+5. 技能Plan无法获取，esi没有提供有关信息

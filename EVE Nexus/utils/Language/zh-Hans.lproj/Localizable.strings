@@ -340,7 +340,7 @@
 
 // Market Orders Status
 "Main_Database_Loading" = "正在加载...";
-"Orders_No_Data" = "没有找到订单";
+"Orders_No_Data" = "没有找到数据";
 
 // Industry Orders Time
 "Industry_Expired" = "已完成";
@@ -389,7 +389,6 @@
 "Contract_Start_Location" = "起点";
 "Contract_End_Location" = "终点";
 
-"Industry_No_Jobs" = "没有找到工业项目";
 "Industry_Status_active" = "进行中";
 "Industry_Status_cancelled" = "已取消";
 "Industry_Status_delivered" = "已交付";
