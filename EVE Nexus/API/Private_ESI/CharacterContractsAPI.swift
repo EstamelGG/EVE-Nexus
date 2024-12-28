@@ -85,7 +85,7 @@ class CharacterContractsAPI {
                         do {
                             let newContracts = try await fetchContractsFromServer(characterId: characterId)
                             // 合并新旧合同并去重
-                            var mergedContracts = Set(cachedContracts).union(newContracts)
+                            let mergedContracts = Set(cachedContracts).union(newContracts)
                             let finalContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
                             // 更新缓存
                             saveToCache(contracts: finalContracts, characterId: characterId)

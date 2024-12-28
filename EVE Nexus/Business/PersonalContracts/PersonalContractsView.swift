@@ -11,6 +11,7 @@ struct ContractGroup: Identifiable {
 final class PersonalContractsViewModel: ObservableObject {
     @Published private(set) var contractGroups: [ContractGroup] = []
     @Published var isLoading = true
+    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     let characterId: Int
@@ -26,7 +27,14 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        isLoading = true
+        // 只有在第一次加载（没有数据）时才显示全屏加载
+        let shouldShowFullscreenLoading = contractGroups.isEmpty && !forceRefresh
+        
+        if shouldShowFullscreenLoading {
+            isLoading = true
+        } else {
+            isBackgroundLoading = true
+        }
         errorMessage = nil
         
         do {
@@ -51,11 +59,19 @@ final class PersonalContractsViewModel: ObservableObject {
             }.sorted { $0.date > $1.date }
             
             self.contractGroups = groups
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
             
         } catch {
             self.errorMessage = error.localizedDescription
-            self.isLoading = false
+            if shouldShowFullscreenLoading {
+                isLoading = false
+            } else {
+                isBackgroundLoading = false
+            }
         }
     }
 }
@@ -121,12 +137,19 @@ struct PersonalContractsView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
+        .toolbar {
+            if viewModel.isBackgroundLoading {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ContractsUpdated"))) { notification in
             if let characterId = notification.userInfo?["characterId"] as? Int,
                characterId == viewModel.characterId {
-                // 重新加载数据
                 Task {
-                    await viewModel.loadContractsData()
+                    await viewModel.loadContractsData(forceRefresh: true)
                 }
             }
         }
