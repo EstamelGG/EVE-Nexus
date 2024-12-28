@@ -384,3 +384,11 @@
 "Contract_Location" = "Location";
 "Contract_Start_Location" = "Start Location";
 "Contract_End_Location" = "End Location";
+
+"Industry_No_Jobs" = "No industry jobs found";
+"Industry_Status_active" = "Active";
+"Industry_Status_cancelled" = "Cancelled";
+"Industry_Status_delivered" = "Delivered";
+"Industry_Status_paused" = "Paused";
+"Industry_Status_ready" = "Ready";
+"Industry_Status_reverted" = "Reverted";

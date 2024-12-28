@@ -1155,7 +1155,10 @@ struct ContentView: View {
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
-                        iconName: "industry"
+                        iconName: "industry",
+                        destination: selectedCharacter.map { character in
+                            AnyView(CharacterIndustryView(characterId: character.CharacterID))
+                        }
                     )
                 ]
             ))
