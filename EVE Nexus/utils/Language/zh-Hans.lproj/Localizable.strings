@@ -399,8 +399,8 @@
 
 // 工业活动状态
 "Industry_Status_Manufacturing" = "制造中";
-"Industry_Status_Research_Time" = "时间效率研究中";
-"Industry_Status_Research_Material" = "材料效率研究中";
+"Industry_Status_Research_Time" = "研究中";
+"Industry_Status_Research_Material" = "研究中";
 "Industry_Status_Copying" = "复制中";
 "Industry_Status_Invention" = "发明中";
 "Industry_Status_Reaction" = "反应中";

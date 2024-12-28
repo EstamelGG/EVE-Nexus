@@ -399,8 +399,8 @@
 
 // Industry Activity Status
 "Industry_Status_Manufacturing" = "Manufacturing";
-"Industry_Status_Research_Time" = "Time Efficiency Research";
-"Industry_Status_Research_Material" = "Material Efficiency Research";
+"Industry_Status_Research_Time" = "Researching";
+"Industry_Status_Research_Material" = "Researching";
 "Industry_Status_Copying" = "Copying";
 "Industry_Status_Invention" = "Inventing";
 "Industry_Status_Reaction" = "Reacting";
