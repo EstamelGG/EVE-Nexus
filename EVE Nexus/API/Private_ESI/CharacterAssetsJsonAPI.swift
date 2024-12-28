@@ -74,6 +74,7 @@ public enum AssetLoadingProgress {
     case fetchingPage(Int)      // 获取第几页
     case calculatingJson        // 计算JSON
     case fetchingNames         // 获取名称
+    case completed             // 加载完成
 }
 
 public class CharacterAssetsJsonAPI {
@@ -108,9 +109,13 @@ public class CharacterAssetsJsonAPI {
                     ) {
                         // 保存到缓存
                         saveToCache(jsonString: newJsonString, characterId: characterId)
+                        // 通知进度完成
+                        progressCallback?(.completed)
                     }
                 } catch {
                     Logger.error("后台刷新资产数据失败: \(error)")
+                    // 发生错误时也要通知进度完成
+                    progressCallback?(.completed)
                 }
             }
             return cachedJson
@@ -131,8 +136,12 @@ public class CharacterAssetsJsonAPI {
         ) {
             // 保存到缓存
             saveToCache(jsonString: jsonString, characterId: characterId)
+            // 通知进度完成
+            progressCallback?(.completed)
             return jsonString
         }
+        // 如果生成失败也要通知进度完成
+        progressCallback?(.completed)
         return nil
     }
     

@@ -60,6 +60,8 @@ private struct LoadingProgressView: View {
                     Text(NSLocalizedString("Assets_Loading_Calculating", comment: ""))
                 case .fetchingNames:
                     Text(NSLocalizedString("Assets_Loading_Fetching_Names", comment: ""))
+                case .completed:
+                    Text(NSLocalizedString("Assets_Loading_Complete", comment: ""))
                 }
             } else {
                 Text(NSLocalizedString("Assets_Loading", comment: ""))

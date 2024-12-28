@@ -85,9 +85,13 @@ class CharacterAssetsViewModel: ObservableObject {
             if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
                 characterId: characterId,
                 forceRefresh: forceRefresh,
-                progressCallback: { progress in
+                progressCallback: { [weak self] progress in
                     Task { @MainActor in
-                        self.loadingProgress = progress
+                        if case .completed = progress {
+                            self?.loadingProgress = nil
+                        } else {
+                            self?.loadingProgress = progress
+                        }
                     }
                 }
             ) {
@@ -105,7 +109,6 @@ class CharacterAssetsViewModel: ObservableObject {
         }
         
         isLoading = false
-        loadingProgress = nil
     }
     
     // 获取物品信息
