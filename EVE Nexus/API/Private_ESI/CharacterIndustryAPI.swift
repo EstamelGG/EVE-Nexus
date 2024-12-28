@@ -16,7 +16,7 @@ class CharacterIndustryAPI {
     }
     
     // 工业项目信息模型
-    struct IndustryJob: Codable, Identifiable {
+    struct IndustryJob: Codable, Identifiable, Hashable {
         let activity_id: Int
         let blueprint_id: Int64
         let blueprint_location_id: Int64
@@ -41,6 +41,15 @@ class CharacterIndustryAPI {
         let successful_runs: Int?
         
         var id: Int { job_id }
+        
+        // 实现 Hashable
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(job_id)
+        }
+        
+        static func == (lhs: IndustryJob, rhs: IndustryJob) -> Bool {
+            return lhs.job_id == rhs.job_id
+        }
     }
     
     private func getCacheFilePath(for characterId: Int) -> URL {
@@ -49,17 +58,6 @@ class CharacterIndustryAPI {
     
     private func loadFromCache(characterId: Int) -> [IndustryJob]? {
         let cacheFile = getCacheFilePath(for: characterId)
-        
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
-              let modificationDate = attributes[.modificationDate] as? Date else {
-            return nil
-        }
-        
-        // 检查缓存是否过期
-        if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
-            Logger.debug("工业项目缓存已过期 - 角色ID: \(characterId)")
-            return nil
-        }
         
         do {
             let data = try Data(contentsOf: cacheFile)
@@ -93,38 +91,62 @@ class CharacterIndustryAPI {
         forceRefresh: Bool = false,
         progressCallback: ((Bool) -> Void)? = nil
     ) async throws -> [IndustryJob] {
-        // 1. 先尝试获取缓存
-        if !forceRefresh, let cachedJobs = loadFromCache(characterId: characterId) {
+        var shouldRefreshInBackground = false
+        
+        // 尝试从缓存加载
+        if let cachedJobs = loadFromCache(characterId: characterId) {
             // 检查缓存是否过期
-            let cacheFile = getCacheFilePath(for: characterId)
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: cacheFile.path),
-               let modificationDate = attributes[.modificationDate] as? Date,
-               Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
-                
-                // 如果缓存过期，在后台刷新
-                Logger.info("使用过期的缓存数据，将在后台刷新 - 角色ID: \(characterId)")
-                Task {
-                    do {
-                        progressCallback?(true)
-                        let jobs = try await fetchFromNetwork(characterId: characterId)
-                        saveToCache(jobs: jobs, characterId: characterId)
-                        progressCallback?(false)
-                    } catch {
-                        Logger.error("后台刷新工业项目数据失败: \(error)")
-                        progressCallback?(false)
-                    }
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: getCacheFilePath(for: characterId).path),
+               let modificationDate = attributes[.modificationDate] as? Date {
+                if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
+                    shouldRefreshInBackground = true
                 }
             }
             
-            return cachedJobs
+            if !forceRefresh {
+                // 如果缓存过期，启动后台刷新
+                if shouldRefreshInBackground {
+                    Task {
+                        do {
+                            progressCallback?(true)
+                            let newJobs = try await fetchFromNetwork(characterId: characterId)
+                            // 合并新旧工业项目并去重
+                            let mergedJobs = Set(cachedJobs).union(newJobs)
+                            let finalJobs = Array(mergedJobs).sorted { $0.start_date > $1.start_date }
+                            // 更新缓存
+                            saveToCache(jobs: finalJobs, characterId: characterId)
+                            progressCallback?(false)
+                            // 在主线程发送通知以刷新UI
+                            await MainActor.run {
+                                NotificationCenter.default.post(name: NSNotification.Name("IndustryJobsUpdated"), object: nil, userInfo: ["characterId": characterId])
+                            }
+                        } catch {
+                            Logger.error("后台更新工业项目数据失败: \(error)")
+                            progressCallback?(false)
+                        }
+                    }
+                }
+                return cachedJobs
+            }
         }
         
-        // 2. 如果没有缓存或强制刷新，从网络获取
+        // 如果没有缓存或强制刷新
         progressCallback?(true)
-        let jobs = try await fetchFromNetwork(characterId: characterId)
-        saveToCache(jobs: jobs, characterId: characterId)
+        let newJobs = try await fetchFromNetwork(characterId: characterId)
+        
+        // 如果有缓存，合并新旧数据
+        if let cachedJobs = loadFromCache(characterId: characterId) {
+            let mergedJobs = Set(cachedJobs).union(newJobs)
+            let finalJobs = Array(mergedJobs).sorted { $0.start_date > $1.start_date }
+            saveToCache(jobs: finalJobs, characterId: characterId)
+            progressCallback?(false)
+            return finalJobs
+        }
+        
+        // 如果没有缓存，直接保存新数据
+        saveToCache(jobs: newJobs, characterId: characterId)
         progressCallback?(false)
-        return jobs
+        return newJobs
     }
     
     private func fetchFromNetwork(characterId: Int) async throws -> [IndustryJob] {

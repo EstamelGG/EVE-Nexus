@@ -81,14 +81,13 @@ class CharacterIndustryViewModel: ObservableObject {
         
         if shouldShowFullscreenLoading {
             isLoading = true
-        } else if forceRefresh {
-            isBackgroundLoading = true
         }
         
         do {
-            jobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
+            // 先加载缓存数据
+            let cachedJobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
                 characterId: characterId,
-                forceRefresh: forceRefresh,
+                forceRefresh: false,
                 progressCallback: { [weak self] isLoading in
                     Task { @MainActor in
                         self?.isBackgroundLoading = isLoading
@@ -96,15 +95,31 @@ class CharacterIndustryViewModel: ObservableObject {
                 }
             )
             
-            // 加载物品名称和图标
+            // 更新UI
+            jobs = cachedJobs
             await loadItemNames()
-            // 加载地点名称
             await loadLocationNames()
-            // 对工作项目进行分组
             groupJobsByDate()
-            
-            // 启动更新任务
             startUpdateTask()
+            
+            // 如果需要强制刷新或后台刷新
+            if forceRefresh {
+                isBackgroundLoading = true
+                let refreshedJobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
+                    characterId: characterId,
+                    forceRefresh: true,
+                    progressCallback: { [weak self] isLoading in
+                        Task { @MainActor in
+                            self?.isBackgroundLoading = isLoading
+                        }
+                    }
+                )
+                
+                jobs = refreshedJobs
+                await loadItemNames()
+                await loadLocationNames()
+                groupJobsByDate()
+            }
             
         } catch {
             errorMessage = error.localizedDescription
