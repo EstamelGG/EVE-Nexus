@@ -189,12 +189,21 @@ struct CharacterIndustryView: View {
                     Spacer()
                 }
             } else if viewModel.groupedJobs.isEmpty {
-                HStack {
-                    Spacer()
-                    Text(NSLocalizedString("Industry_No_Jobs", comment: ""))
-                        .foregroundColor(.gray)
-                    Spacer()
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 4) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                            .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
+                    }
                 }
+                .listSectionSpacing(.compact)
             } else {
                 ForEach(Array(viewModel.groupedJobs.keys).sorted(), id: \.self) { dateKey in
                     Section(header: Text(formatDateHeader(dateKey))
