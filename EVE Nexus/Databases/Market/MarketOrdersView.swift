@@ -6,6 +6,19 @@ struct MarketOrdersView: View {
     let orders: [MarketOrder]
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showBuyOrders = false
+    @State private var locationInfos: [Int64: LocationInfoDetail] = [:]
+    let locationInfoLoader: LocationInfoLoader
+    
+    init(itemID: Int, itemName: String, orders: [MarketOrder], databaseManager: DatabaseManager) {
+        self.itemID = itemID
+        self.itemName = itemName
+        self.orders = orders
+        self.databaseManager = databaseManager
+        
+        // 从 UserDefaults 获取当前选择的角色ID
+        let currentCharacterId = UserDefaults.standard.integer(forKey: "currentCharacterId")
+        self.locationInfoLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(currentCharacterId))
+    }
     
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
@@ -46,13 +59,13 @@ struct MarketOrdersView: View {
             TabView(selection: $showBuyOrders) {
                 OrderListView(
                     orders: orders.filter { !$0.isBuyOrder },
-                    databaseManager: databaseManager
+                    locationInfos: locationInfos
                 )
                 .tag(false)
                 
                 OrderListView(
                     orders: orders.filter { $0.isBuyOrder },
-                    databaseManager: databaseManager
+                    locationInfos: locationInfos
                 )
                 .tag(true)
             }
@@ -72,12 +85,19 @@ struct MarketOrdersView: View {
         }
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            // 收集所有订单的位置ID并转换为 Int64
+            let locationIds = Set(orders.map { Int64($0.locationId) })
+            // 加载位置信息
+            let infos = await locationInfoLoader.loadLocationInfo(locationIds: locationIds)
+            locationInfos = infos
+        }
     }
     
     // 订单列表视图
     private struct OrderListView: View {
         let orders: [MarketOrder]
-        let databaseManager: DatabaseManager
+        let locationInfos: [Int64: LocationInfoDetail]
         
         private var sortedOrders: [MarketOrder] {
             orders.sorted { (order1, order2) -> Bool in
@@ -110,7 +130,7 @@ struct MarketOrdersView: View {
                 } else {
                     Section {
                         ForEach(sortedOrders, id: \.orderId) { order in
-                            OrderRow(order: order, databaseManager: databaseManager)
+                            OrderRow(order: order, locationInfo: locationInfos[Int64(order.locationId)])
                         }
                     }
                     .listSectionSpacing(.compact)
@@ -124,7 +144,7 @@ struct MarketOrdersView: View {
     // 订单行视图
     private struct OrderRow: View {
         let order: MarketOrder
-        let databaseManager: DatabaseManager
+        let locationInfo: LocationInfoDetail?
         
         var body: some View {
             HStack {
@@ -138,16 +158,16 @@ struct MarketOrdersView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    if let stationInfo = databaseManager.getStationInfo(stationID: Int64(order.locationId)) {
+                    if let locationInfo = locationInfo {
                         LocationInfoView(
-                            stationName: stationInfo.stationName,
-                            solarSystemName: stationInfo.solarSystemName,
-                            security: stationInfo.security,
+                            stationName: locationInfo.stationName,
+                            solarSystemName: locationInfo.solarSystemName,
+                            security: locationInfo.security,
                             font: .caption,
                             textColor: .secondary
                         )
                     } else {
-                        Text("Unknown Station")
+                        Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
