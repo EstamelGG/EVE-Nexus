@@ -97,8 +97,9 @@ public class CharacterAssetsJsonAPI {
                 // 检查缓存是否过期
                 let shouldRefreshInBackground = !isValidCache(cache)
                 
-                // 如果缓存过期，在后台刷新
                 if shouldRefreshInBackground {
+                    Logger.info("使用过期的缓存数据，将在后台刷新 - 文件: \(cacheFile.path)")
+                    // 如果缓存过期，在后台刷新
                     Task {
                         do {
                             progressCallback?(.loading)
@@ -121,6 +122,8 @@ public class CharacterAssetsJsonAPI {
                             progressCallback?(.completed)
                         }
                     }
+                } else {
+                    Logger.info("使用有效的缓存数据 - 文件: \(cacheFile.path)")
                 }
                 
                 // 无论是否过期，都返回缓存的数据
@@ -129,6 +132,7 @@ public class CharacterAssetsJsonAPI {
         }
         
         // 2. 如果没有缓存或强制刷新，获取新数据
+        Logger.info("开始获取新的资产数据 - 原因: \(forceRefresh ? "强制刷新" : "无缓存")")
         progressCallback?(.loading)
         let assets = try await fetchAllAssets(characterId: characterId) { _ in }
         
