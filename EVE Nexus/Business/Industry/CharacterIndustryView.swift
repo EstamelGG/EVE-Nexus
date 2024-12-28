@@ -143,29 +143,46 @@ struct IndustryJobRow: View {
     let locationInfo: LocationInfoDetail?
     @StateObject private var databaseManager = DatabaseManager()
     
-    // 计算进度
-    private var progress: Double {
-        let totalDuration = Double(job.duration)
-        let elapsedTime = Date().timeIntervalSince(job.start_date)
-        let progress = elapsedTime / totalDuration
-        return min(max(progress, 0), 1) // 确保进度在0-1之间
-    }
-    
-    // 根据活动类型返回颜色
+    // 根据活动类型和状态返回颜色
     private var progressColor: Color {
-        switch job.activity_id {
-        case 1: // 制造
-            return Color.yellow.opacity(0.8)
-        case 3, 4: // 时间效率研究、材料效率研究
-            return Color.blue.opacity(0.6)
-        case 5: // 复制
-            return Color.blue.opacity(0.3)
-        case 8: // 发明
-            return Color.blue.opacity(0.6)
-        case 11: // 反应
-            return Color.yellow.opacity(0.8)
+        switch job.status {
+        case "delivered", "ready": // 已完成
+            return .green
+        case "cancelled", "revoked", "failed": // 已取消或失败
+            return .red
+        case "active", "paused": // 进行中或暂停
+            // 根据活动类型返回不同颜色
+            switch job.activity_id {
+            case 1: // 制造
+                return Color.yellow.opacity(0.8)
+            case 3, 4: // 时间效率研究、材料效率研究
+                return Color.blue.opacity(0.6)
+            case 5: // 复制
+                return Color.blue.opacity(0.3)
+            case 8: // 发明
+                return Color.blue.opacity(0.6)
+            case 11: // 反应
+                return Color.yellow.opacity(0.8)
+            default:
+                return Color.gray
+            }
         default:
             return Color.gray
+        }
+    }
+    
+    // 计算进度
+    private var progress: Double {
+        switch job.status {
+        case "delivered", "ready": // 已完成
+            return 1.0
+        case "cancelled", "revoked", "failed": // 已取消或失败
+            return 1.0
+        default: // 进行中
+            let totalDuration = Double(job.duration)
+            let elapsedTime = Date().timeIntervalSince(job.start_date)
+            let progress = elapsedTime / totalDuration
+            return min(max(progress, 0), 1)
         }
     }
     
