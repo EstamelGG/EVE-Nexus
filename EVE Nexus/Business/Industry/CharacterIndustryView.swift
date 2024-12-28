@@ -142,9 +142,10 @@ struct CharacterIndustryView: View {
         }
         
         let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "MM月dd日"
+        outputFormatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
         outputFormatter.timeZone = TimeZone(identifier: "UTC")!
-        return "开始于" + outputFormatter.string(from: date)
+        let dateText = outputFormatter.string(from: date)
+        return String(format: NSLocalizedString("Industry_Started_On", comment: ""), dateText)
     }
     
     var body: some View {

@@ -409,3 +409,9 @@
 "Industry_Type_Copying" = "Copy";
 "Industry_Type_Invention" = "Inv";
 "Industry_Type_Reaction" = "React";
+
+// Industry List Headers
+"Industry_Started_On" = "Started on %@";
+
+// Date Formats
+"Date_Format_Month_Day" = "MMM d";

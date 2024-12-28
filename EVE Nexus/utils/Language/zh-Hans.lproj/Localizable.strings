@@ -407,3 +407,9 @@
 "Industry_Type_Copying" = "复制";
 "Industry_Type_Invention" = "发明";
 "Industry_Type_Reaction" = "反应";
+
+// 工业列表标题
+"Industry_Started_On" = "开始于%@";
+
+// 日期格式
+"Date_Format_Month_Day" = "MM月dd日";
