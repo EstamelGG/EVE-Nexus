@@ -89,8 +89,10 @@ class CharacterContractsAPI {
                             let finalContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
                             // 更新缓存
                             saveToCache(contracts: finalContracts, characterId: characterId)
-                            // 发送通知以刷新UI
-                            NotificationCenter.default.post(name: NSNotification.Name("ContractsUpdated"), object: nil, userInfo: ["characterId": characterId])
+                            // 在主线程发送通知以刷新UI
+                            await MainActor.run {
+                                NotificationCenter.default.post(name: NSNotification.Name("ContractsUpdated"), object: nil, userInfo: ["characterId": characterId])
+                            }
                         } catch {
                             Logger.error("后台更新合同数据失败 - 角色ID: \(characterId), 错误: \(error)")
                         }

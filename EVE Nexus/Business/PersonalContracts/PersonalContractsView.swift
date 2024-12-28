@@ -150,14 +150,6 @@ struct PersonalContractsView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ContractsUpdated"))) { notification in
-            if let characterId = notification.userInfo?["characterId"] as? Int,
-               characterId == viewModel.characterId {
-                Task {
-                    await viewModel.loadContractsData(forceRefresh: true)
-                }
-            }
-        }
     }
 }
 
