@@ -187,44 +187,44 @@ struct SubLocationAssetsView: View {
     
     var body: some View {
         List {
-            // 容器本身的信息
-            Section {
-                NavigationLink {
-                    MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: parentNode.type_id)
-                } label: {
-                    AssetItemView(node: parentNode, itemInfo: viewModel.itemInfo(for: parentNode.type_id))
-                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+            if let items = parentNode.items {
+                // 容器本身的信息
+                Section {
+                    NavigationLink {
+                        MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: parentNode.type_id)
+                    } label: {
+                        AssetItemView(node: parentNode, itemInfo: viewModel.itemInfo(for: parentNode.type_id))
+                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                    }
+                } header: {
+                    Text(NSLocalizedString("Item_Basic_Info", comment: ""))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
                 }
-            } header: {
-                Text(NSLocalizedString("Item_Basic_Info", comment: ""))
-                    .fontWeight(.bold)
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .textCase(.none)
-            }
-            
-            // 容器内的物品
-            ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                Section(header: Text(formatLocationFlag(group.flag))
-                    .fontWeight(.bold)
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .textCase(.none)
-                ) {
-                    ForEach(group.items, id: \.item_id) { node in
-                        if let items = node.items {
-                            // 容器类物品，点击显示容器内容
-                            NavigationLink {
-                                SubLocationAssetsView(parentNode: node)
-                            } label: {
-                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
-                            }
-                        } else {
-                            // 非容器物品，点击显示市场信息
-                            NavigationLink {
-                                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
-                            } label: {
-                                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                
+                // 容器内的物品
+                ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+                    Section(header: Text(formatLocationFlag(group.flag))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.items, id: \.item_id) { node in
+                            if let subitems = node.items, !subitems.isEmpty {
+                                NavigationLink {
+                                    SubLocationAssetsView(parentNode: node)
+                                } label: {
+                                    AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                                }
+                            } else {
+                                NavigationLink {
+                                    MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+                                } label: {
+                                    AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                                }
                             }
                         }
                     }
@@ -256,6 +256,7 @@ class LocationAssetsViewModel: ObservableObject {
     
     // 按location_flag分组的资产
     func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
+        // 如果是容器，使用其items属性
         let items = location.items ?? []
         var groups: [String: [AssetTreeNode]] = [:]
         
@@ -319,12 +320,19 @@ class LocationAssetsViewModel: ObservableObject {
         }
         
         // 第三步：按预定义顺序排序
-        return flagOrder.compactMap { flag in
+        let result = flagOrder.compactMap { flag in
             if let items = mergedGroups[flag], !items.isEmpty {
                 return (flag: flag, items: items)
             }
             return nil
         }
+        
+        // 如果没有预定义的分组，添加剩余的分组
+        let remainingGroups = mergedGroups.filter { !flagOrder.contains($0.key) }
+        let remainingResult = remainingGroups.map { (flag: $0.key, items: $0.value) }
+            .sorted { $0.flag < $1.flag }
+        
+        return result + remainingResult
     }
     
     private func processFlag(_ flag: String) -> String {
