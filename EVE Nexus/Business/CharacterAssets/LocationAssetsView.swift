@@ -105,7 +105,7 @@ struct LocationAssetsView: View {
                     .textCase(.none)
                 ) {
                     ForEach(group.items, id: \.item_id) { node in
-                        if let items = node.items {
+                        if node.items != nil {
                             // 容器类物品，点击显示容器内容
                             NavigationLink {
                                 SubLocationAssetsView(parentNode: node)
@@ -135,6 +135,15 @@ struct LocationAssetsView: View {
 struct AssetItemView: View {
     let node: AssetTreeNode
     let itemInfo: ItemInfo?
+    let showItemCount: Bool
+    let showCustomName: Bool
+    
+    init(node: AssetTreeNode, itemInfo: ItemInfo?, showItemCount: Bool = true, showCustomName: Bool = true) {
+        self.node = node
+        self.itemInfo = itemInfo
+        self.showItemCount = showItemCount
+        self.showCustomName = showCustomName
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -149,7 +158,7 @@ struct AssetItemView: View {
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
                             Text(itemInfo.name)
-                            if let customName = node.name {
+                            if showCustomName, let customName = node.name {
                                 Text("[\(customName)]")
                                     .foregroundColor(.secondary)
                             }
@@ -162,8 +171,8 @@ struct AssetItemView: View {
                         }
                     }
                     
-                    // 如果有子资产，显示子资产数量
-                    if let items = node.items, !items.isEmpty {
+                    // 如果有子资产且需要显示数量，显示子资产数量
+                    if showItemCount, let items = node.items, !items.isEmpty {
                         Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), items.count))
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -187,13 +196,16 @@ struct SubLocationAssetsView: View {
     
     var body: some View {
         List {
-            if let items = parentNode.items {
+            if parentNode.items != nil {
                 // 容器本身的信息
                 Section {
                     NavigationLink {
                         MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: parentNode.type_id)
                     } label: {
-                        AssetItemView(node: parentNode, itemInfo: viewModel.itemInfo(for: parentNode.type_id))
+                        AssetItemView(node: parentNode, 
+                                    itemInfo: viewModel.itemInfo(for: parentNode.type_id), 
+                                    showItemCount: false,
+                                    showCustomName: false)
                             .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                     }
                 } header: {
