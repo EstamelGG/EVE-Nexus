@@ -39,7 +39,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
-    private var locationInfoCache: [Int64: String] = [:]
+    private var locationViewCache: [Int64: LocationInfoView] = [:]  // 缓存渲染后的 LocationInfoView
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -88,18 +88,25 @@ final class WalletTransactionsViewModel: ObservableObject {
         // 收集所有唯一的位置ID
         let uniqueLocationIds = Set(entries.map { $0.location_id })
         
-        // 批量获取位置信息
+        // 批量获取位置信息并创建 LocationInfoView
         for locationId in uniqueLocationIds {
-            if let stationInfo = databaseManager.getStationInfo(stationID: locationId) {
-                locationInfoCache[locationId] = "\(stationInfo.stationName) (\(stationInfo.solarSystemName))"
-            } else {
-                locationInfoCache[locationId] = "Unknown Location"
+            if locationViewCache[locationId] == nil {  // 如果缓存中没有才创建
+                if let info = databaseManager.getStationInfo(stationID: locationId) {
+                    let locationView = LocationInfoView(
+                        stationName: info.stationName,
+                        solarSystemName: info.solarSystemName,
+                        security: info.security,
+                        font: .caption,
+                        textColor: .secondary
+                    )
+                    locationViewCache[locationId] = locationView
+                }
             }
         }
     }
     
-    func getLocationName(for locationId: Int64) -> String {
-        return locationInfoCache[locationId] ?? "Unknown Location"
+    func getLocationView(for locationId: Int64) -> LocationInfoView? {
+        return locationViewCache[locationId]
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
@@ -246,7 +253,6 @@ struct WalletTransactionEntryRow: View {
     let viewModel: WalletTransactionsViewModel
     @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
-    @State private var locationInfo: (stationName: String, solarSystemName: String, security: Double)?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -299,15 +305,9 @@ struct WalletTransactionEntryRow: View {
                 }
                 
                 // 交易地点
-                if let locationInfo = locationInfo {
-                    LocationInfoView(
-                        stationName: locationInfo.stationName,
-                        solarSystemName: locationInfo.solarSystemName,
-                        security: locationInfo.security,
-                        font: .caption,
-                        textColor: .secondary
-                    )
-                    .lineLimit(1)
+                if let locationView = viewModel.getLocationView(for: entry.location_id) {
+                    locationView
+                        .lineLimit(1)
                 }
                 
                 // 交易详细信息
@@ -336,14 +336,6 @@ struct WalletTransactionEntryRow: View {
             // 加载图标
             if let itemInfo = itemInfo {
                 itemIcon = IconManager.shared.loadImage(for: itemInfo.iconFileName)
-            }
-            // 加载位置信息
-            if let info = viewModel.databaseManager.getStationInfo(stationID: entry.location_id) {
-                locationInfo = (
-                    stationName: info.stationName,
-                    solarSystemName: info.solarSystemName,
-                    security: info.security
-                )
             }
         }
     }
