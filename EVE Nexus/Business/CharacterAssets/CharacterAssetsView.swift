@@ -106,7 +106,7 @@ struct CharacterAssetsView: View {
             } else if !searchText.isEmpty {
                 ForEach(viewModel.searchResults) { result in
                     NavigationLink(
-                        destination: LocationAssetsView(location: result.node)
+                        destination: LocationAssetsView(location: result.containerNode)
                     ) {
                         SearchResultRowView(result: result)
                     }

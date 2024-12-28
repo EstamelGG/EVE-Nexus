@@ -8,11 +8,12 @@ struct AssetPathNode {
 
 // 搜索结果
 struct AssetSearchResult: Identifiable {
-    let node: AssetTreeNode  // 包含item_id和位置信息
-    let itemInfo: ItemInfo   // 物品基本信息
-    let locationName: String // 位置名称
+    let node: AssetTreeNode          // 目标物品节点
+    let itemInfo: ItemInfo           // 物品基本信息
+    let locationName: String         // 位置名称
+    let containerNode: AssetTreeNode // 容器节点
     
-    var id: Int64 { node.item_id }  // 使用item_id作为唯一标识
+    var id: Int64 { node.item_id }
 }
 
 @MainActor
@@ -150,10 +151,10 @@ class CharacterAssetsViewModel: ObservableObject {
             }
         }
         
-        // 2. 在资产数据中直接查找这些type_id对应的item_id
+        // 2. 在资产数据中查找这些type_id对应的item_id
         var results: [AssetSearchResult] = []
         for location in assetLocations {
-            findItems(in: location, typeIdToInfo: typeIdToInfo, results: &results)
+            findItems(in: location, typeIdToInfo: typeIdToInfo, parentNode: nil, results: &results)
         }
         
         // 按物品名称排序结果
@@ -163,20 +164,23 @@ class CharacterAssetsViewModel: ObservableObject {
         self.searchResults = results
     }
     
-    private func findItems(in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)], results: inout [AssetSearchResult]) {
+    private func findItems(in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)], parentNode: AssetTreeNode?, results: inout [AssetSearchResult]) {
         // 如果当前节点的type_id在搜索结果中
         if let itemInfo = typeIdToInfo[node.type_id] {
+            // 如果有父节点，使用父节点作为容器；否则使用当前节点
+            let container = parentNode ?? node
             results.append(AssetSearchResult(
                 node: node,
                 itemInfo: ItemInfo(name: itemInfo.name, iconFileName: itemInfo.iconFileName),
-                locationName: node.name ?? node.system_name ?? NSLocalizedString("Unknown_System", comment: "")
+                locationName: container.name ?? container.system_name ?? NSLocalizedString("Unknown_System", comment: ""),
+                containerNode: container
             ))
         }
         
         // 递归检查子节点
         if let items = node.items {
             for item in items {
-                findItems(in: item, typeIdToInfo: typeIdToInfo, results: &results)
+                findItems(in: item, typeIdToInfo: typeIdToInfo, parentNode: node, results: &results)
             }
         }
     }
