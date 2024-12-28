@@ -172,6 +172,7 @@ struct IndustryJobRow: View {
                         HStack {
                             Text(blueprintName)
                                 .font(.headline)
+                                .lineLimit(1)
                             Spacer()
                             Text(NSLocalizedString("Industry_Status_\(job.status)", comment: ""))
                                 .font(.caption)
