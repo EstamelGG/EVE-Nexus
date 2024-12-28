@@ -8,7 +8,7 @@ class CharacterIndustryAPI {
         return paths[0].appendingPathComponent("IndustryCache")
     }()
     
-    private let cacheValidityDuration: TimeInterval = 5 * 60 // 5分钟的缓存有效期
+    private let cacheValidityDuration: TimeInterval = 60 * 60 // 60 分钟的缓存有效期
     
     private init() {
         // 创建缓存目录

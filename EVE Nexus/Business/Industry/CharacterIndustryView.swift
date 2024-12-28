@@ -73,8 +73,7 @@ class CharacterIndustryViewModel: ObservableObject {
         var locationIds = Set<Int64>()
         for job in jobs {
             locationIds.insert(job.station_id)
-            locationIds.insert(job.blueprint_location_id)
-            locationIds.insert(job.output_location_id)
+            locationIds.insert(job.facility_id)
         }
         
         // 使用LocationInfoLoader加载位置信息
