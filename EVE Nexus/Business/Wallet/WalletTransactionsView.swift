@@ -39,7 +39,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
-    private var locationViewCache: [Int64: LocationInfoView] = [:]  // 缓存渲染后的 LocationInfoView
+    private var locationViewCache: [Int64: LocationInfoView] = [:]
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -84,29 +84,26 @@ final class WalletTransactionsViewModel: ObservableObject {
         return TransactionItemInfo(name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
     }
     
-    private func preloadLocationInfo(for entries: [WalletTransactionEntry]) {
-        // 收集所有唯一的位置ID
-        let uniqueLocationIds = Set(entries.map { $0.location_id })
-        
-        // 批量获取位置信息并创建 LocationInfoView
-        for locationId in uniqueLocationIds {
-            if locationViewCache[locationId] == nil {  // 如果缓存中没有才创建
-                if let info = databaseManager.getStationInfo(stationID: locationId) {
-                    let locationView = LocationInfoView(
-                        stationName: info.stationName,
-                        solarSystemName: info.solarSystemName,
-                        security: info.security,
-                        font: .caption,
-                        textColor: .secondary
-                    )
-                    locationViewCache[locationId] = locationView
-                }
-            }
-        }
-    }
-    
     func getLocationView(for locationId: Int64) -> LocationInfoView? {
-        return locationViewCache[locationId]
+        // 如果缓存中已有,直接返回
+        if let cachedView = locationViewCache[locationId] {
+            return cachedView
+        }
+        
+        // 如果缓存中没有,创建并缓存
+        if let info = databaseManager.getStationInfo(stationID: locationId) {
+            let locationView = LocationInfoView(
+                stationName: info.stationName,
+                solarSystemName: info.solarSystemName,
+                security: info.security,
+                font: .caption,
+                textColor: .secondary
+            )
+            locationViewCache[locationId] = locationView
+            return locationView
+        }
+        
+        return nil
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
@@ -128,9 +125,6 @@ final class WalletTransactionsViewModel: ObservableObject {
                   let entries = try? JSONDecoder().decode([WalletTransactionEntry].self, from: jsonData) else {
                 throw NetworkError.invalidResponse
             }
-            
-            // 预加载所有位置信息
-            preloadLocationInfo(for: entries)
             
             var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
             for entry in entries {
