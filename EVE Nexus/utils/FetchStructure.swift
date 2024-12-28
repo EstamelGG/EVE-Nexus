@@ -26,6 +26,12 @@ private struct StructureCacheData: Codable {
     }
 }
 
+@globalActor public actor UniverseStructureActor {
+    public static let shared = UniverseStructureActor()
+    private init() {}
+}
+
+@UniverseStructureActor
 public class UniverseStructureAPI {
     public static let shared = UniverseStructureAPI()
     
@@ -51,6 +57,10 @@ public class UniverseStructureAPI {
         }
         
         // 3. 从API获取
+        return try await fetchFromAPI(structureId: structureId, characterId: characterId)
+    }
+    
+    private func fetchFromAPI(structureId: Int64, characterId: Int) async throws -> UniverseStructureInfo {
         let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
@@ -105,26 +115,49 @@ public class UniverseStructureAPI {
     }
     
     private func loadStructureFromCache(structureId: Int64) -> UniverseStructureInfo? {
-        guard let cacheFile = getCacheFilePath(structureId: structureId),
-              let data = try? Data(contentsOf: cacheFile),
-              let cached = try? JSONDecoder().decode(StructureCacheData.self, from: data),
-              !cached.isExpired else {
+        guard let cacheFile = getCacheFilePath(structureId: structureId) else {
+            Logger.error("获取缓存文件路径失败 - 建筑物ID: \(structureId)")
             return nil
         }
         
-        return cached.data
+        do {
+            guard FileManager.default.fileExists(atPath: cacheFile.path) else {
+                Logger.info("缓存文件不存在 - 建筑物ID: \(structureId)")
+                return nil
+            }
+            
+            let data = try Data(contentsOf: cacheFile)
+            let cached = try JSONDecoder().decode(StructureCacheData.self, from: data)
+            
+            if cached.isExpired {
+                Logger.info("缓存已过期 - 建筑物ID: \(structureId)")
+                try? FileManager.default.removeItem(at: cacheFile)
+                return nil
+            }
+            
+            Logger.info("成功从缓存加载建筑物信息 - 建筑物ID: \(structureId)")
+            return cached.data
+        } catch {
+            Logger.error("读取缓存文件失败 - 建筑物ID: \(structureId), 错误: \(error)")
+            try? FileManager.default.removeItem(at: cacheFile)
+            return nil
+        }
     }
     
     private func saveStructureToCache(_ structure: UniverseStructureInfo, structureId: Int64) {
-        guard let cacheFile = getCacheFilePath(structureId: structureId) else { return }
+        guard let cacheFile = getCacheFilePath(structureId: structureId) else {
+            Logger.error("获取缓存文件路径失败 - 建筑物ID: \(structureId)")
+            return
+        }
         
-        let cachedData = StructureCacheData(data: structure, timestamp: Date())
         do {
+            let cachedData = StructureCacheData(data: structure, timestamp: Date())
             let encodedData = try JSONEncoder().encode(cachedData)
             try encodedData.write(to: cacheFile)
             Logger.info("建筑物信息已缓存到文件 - 建筑物ID: \(structureId)")
         } catch {
             Logger.error("保存建筑物缓存失败: \(error)")
+            try? FileManager.default.removeItem(at: cacheFile)
         }
     }
     

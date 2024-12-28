@@ -243,6 +243,7 @@ struct CharacterOrdersView: View {
                                     .lineLimit(1)
                                 Spacer()
                                 Text("\(order.volumeRemain)/\(order.volumeTotal)")
+                                    .font(.caption)
                             }
                             Text(FormatUtil.format(order.price) + " ISK")
                                 .font(.system(.caption, design: .monospaced))

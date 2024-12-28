@@ -310,17 +310,17 @@ struct WalletTransactionEntryRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // 交易时间
                     HStack {
-                        if let date = dateFormatter.date(from: entry.date) {
-                            Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
                         // 交易类型和数量
                         Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .lineLimit(1)
+                        Spacer()
+                        if let date = dateFormatter.date(from: entry.date) {
+                            Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             }
