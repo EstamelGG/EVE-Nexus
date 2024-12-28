@@ -236,14 +236,12 @@ struct AccountsView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))) { _ in
-            // 强制视图刷新
-            forceUpdate.toggle()
-            // 重新加载角色列表以更新技能名称
-            Task {
-                await refreshAllCharacters()
+            // 强制视图刷新以更新技能名称
+            withAnimation {
+                forceUpdate.toggle()
             }
         }
-        .id(forceUpdate) // 添加id以强制视图刷新
+        .id(forceUpdate)
         .onChange(of: viewModel.characters.isEmpty) { oldValue, newValue in
             if newValue {
                 isEditing = false
@@ -563,6 +561,7 @@ struct CharacterRowView: View {
     let formatISK: (Double) -> String
     let formatSkillPoints: (Int) -> String
     let formatRemainingTime: (TimeInterval) -> String
+    @State private var currentSkillName: String = ""
     
     var body: some View {
         HStack {
@@ -761,7 +760,7 @@ struct CharacterRowView: View {
                                         Image(systemName: currentSkill.remainingTime != nil ? "play.fill" : "pause.fill")
                                             .font(.caption)
                                             .foregroundColor(currentSkill.remainingTime != nil ? .green : .gray)
-                                        Text("\(currentSkill.name) \(currentSkill.level)")
+                                        Text("\(SkillTreeManager.shared.getSkillName(for: currentSkill.skillId) ?? currentSkill.name) \(currentSkill.level)")
                                     }
                                     .font(.caption)
                                     .foregroundColor(.gray)
@@ -798,7 +797,7 @@ struct CharacterRowView: View {
                         }
                     }
                 }
-                .frame(height: 72) // 5行文本的固定高度 (18 * n)
+                .frame(height: 72)
             }
             .padding(.leading, 4)
             
