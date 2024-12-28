@@ -178,8 +178,26 @@ struct SubLocationAssetsView: View {
     var body: some View {
         List {
             if parentNode.items != nil {
+                // 添加容器本身的信息作为第一个 Section
+                Section {
+                    AssetItemView(node: parentNode, itemInfo: viewModel.itemInfo(for: parentNode.type_id))
+                        .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                } header: {
+                    Text(NSLocalizedString("Item_Basic_Info", comment: ""))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                }
+                
+                // 显示容器内的物品
                 ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                    Section(header: Text(formatLocationFlag(group.flag))) {
+                    Section(header: Text(formatLocationFlag(group.flag))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
                         ForEach(group.items, id: \.item_id) { node in
                             if let subitems = node.items, !subitems.isEmpty {
                                 NavigationLink {
@@ -195,6 +213,7 @@ struct SubLocationAssetsView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(parentNode.name ?? viewModel.itemInfo(for: parentNode.type_id)?.name ?? String(parentNode.type_id))
         .task {
             await viewModel.loadItemInfo()
@@ -237,8 +256,6 @@ class LocationAssetsViewModel: ObservableObject {
                 processedFlag = "RigSlots"
             case let f where f.hasPrefix("SubSystemSlot"):
                 processedFlag = "SubSystemSlots"
-            case let f where f.hasPrefix("FighterTube"):
-                processedFlag = "FighterTubes"
             default:
                 processedFlag = flag
             }
@@ -247,19 +264,14 @@ class LocationAssetsViewModel: ObservableObject {
         }
         
         // 按处理后的flag分组
-        let grouped = Dictionary(grouping: processedItems) { $0.flag }
+        var groupedByFlag = Dictionary(grouping: processedItems) { $0.flag }
         
-        // 对分组进行排序，并合并相同物品
-        return grouped.map { flag, items in
-            // 对每个分组内的物品进行合并
-            let mergedItems = Dictionary(grouping: items) { item in
-                // 如果有子物品（是容器），使用唯一标识符防止合并
-                if let items = item.node.items, !items.isEmpty {
-                    return "\(item.node.type_id)_\(item.node.name ?? "")_\(item.node.item_id)"
-                }
-                // 非容器物品使用type_id和name作为合并的key
-                return "\(item.node.type_id)_\(item.node.name ?? "")"
-            }.map { _, sameItems -> AssetTreeNode in
+        // 合并相同类型的物品
+        let mergedGroups = groupedByFlag.mapValues { items -> [AssetTreeNode] in
+            // 按type_id分组
+            let groupedByType = Dictionary(grouping: items) { $0.node.type_id }
+            
+            return groupedByType.values.map { sameItems -> AssetTreeNode in
                 let firstItem = sameItems[0].node
                 
                 // 只有在非容器且数量大于1时才合并
@@ -285,90 +297,69 @@ class LocationAssetsViewModel: ObservableObject {
                     return firstItem
                 }
             }
-            .sorted { node1, node2 in
-                // 获取物品名称
-                let name1 = itemInfo(for: node1.type_id)?.name ?? ""
-                let name2 = itemInfo(for: node2.type_id)?.name ?? ""
-                
-                // 先按名称排序
-                if name1 != name2 {
-                    return name1 < name2
-                }
-                
-                // 如果名称相同，按item_id排序
-                return node1.item_id < node2.item_id
+        }
+        
+        // 定义flag的显示顺序
+        let order = [
+            "Hangar",
+            "ShipHangar",
+            "FleetHangar",
+            "CorpSAG1",
+            "CorpSAG2",
+            "CorpSAG3",
+            "CorpSAG4",
+            "CorpSAG5",
+            "CorpSAG6",
+            "CorpSAG7",
+            "CorpDeliveries",
+            "Deliveries",
+            "HiSlots",
+            "MedSlots",
+            "LoSlots",
+            "RigSlots",
+            "SubSystemSlots",
+            "FighterBay",
+            "FighterTubes",
+            "DroneBay",
+            "Cargo",
+            "SpecializedAmmoHold",
+            "SpecializedCommandCenterHold",
+            "SpecializedFuelBay",
+            "SpecializedGasHold",
+            "SpecializedIndustrialShipHold",
+            "SpecializedLargeShipHold",
+            "SpecializedMaterialBay",
+            "SpecializedMediumShipHold",
+            "SpecializedMineralHold",
+            "SpecializedOreHold",
+            "SpecializedPlanetaryCommoditiesHold",
+            "SpecializedSalvageHold",
+            "SpecializedShipHold",
+            "SpecializedSmallShipHold"
+        ]
+        
+        // 转换为数组并排序
+        return mergedGroups.map { (flag: $0.key, items: $0.value) }
+            .sorted { pair1, pair2 in
+                let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
+                let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
+                return index1 < index2
             }
-            
-            return (flag: flag, items: mergedItems)
-        }
-        .sorted { pair1, pair2 in
-            // 自定义排序逻辑
-            let order: [String] = [
-                // 装配槽位
-                "HiSlots",
-                "MedSlots",
-                "LoSlots",
-                "RigSlots",
-                "SubSystemSlots",
-                
-                // 无人机和战斗机
-                "DroneBay",
-                "FighterBay",
-                "FighterTubes",
-                
-                // 特殊舱室
-                "SpecializedAmmoHold",
-                "SpecializedFuelBay",
-                "SpecializedOreHold",
-                "SpecializedGasHold",
-                "SpecializedMineralHold",
-                "SpecializedSalvageHold",
-                "SpecializedShipHold",
-                "SpecializedSmallShipHold",
-                "SpecializedMediumShipHold",
-                "SpecializedLargeShipHold",
-                "SpecializedIndustrialShipHold",
-                "SpecializedMaterialBay",
-                "SpecializedPlanetaryCommoditiesHold",
-                "SpecializedCommandCenterHold",
-                
-                // 基础舱室
-                "Cargo",
-                "Hangar",
-                "ShipHangar",
-                "FleetHangar",
-                "SubSystemBay",
-                
-                // 公司机库
-                "CorpSAG1", 
-                "CorpSAG2", 
-                "CorpSAG3", 
-                "CorpSAG4", 
-                "CorpSAG5", 
-                "CorpSAG6", 
-                "CorpSAG7",
-                
-                // 交付箱
-                "Deliveries",
-                "CorpDeliveries",
-                
-                // 其他
-                "AutoFit",
-                "HiddenModifiers"
-            ]
-            
-            let index1 = order.firstIndex(of: pair1.flag) ?? Int.max
-            let index2 = order.firstIndex(of: pair2.flag) ?? Int.max
-            return index1 < index2
-        }
     }
     
     // 从数据库加载物品信息
     @MainActor
     func loadItemInfo() async {
-        guard let items = location.items else { return }
+        var typeIds = Set<Int>()
         
-        let typeIds = Set(items.map { $0.type_id })
+        // 添加容器本身的 type_id
+        typeIds.insert(location.type_id)
+        
+        // 添加所有子物品的 type_id
+        if let items = location.items {
+            typeIds.formUnion(items.map { $0.type_id })
+        }
+        
         let query = """
             SELECT type_id, name, icon_filename
             FROM types
