@@ -758,7 +758,7 @@ struct ContentView: View {
                     
                     // 再次检查是否仍是当前任务
                     guard await checkCurrentTask(taskId) else {
-                        Logger.info("取消过期的联���数据刷新任务")
+                        Logger.info("取消过期的联盟数据刷新任务")
                         return
                     }
                     

@@ -389,6 +389,7 @@
 "Industry_Status_active" = "Active";
 "Industry_Status_cancelled" = "Cancelled";
 "Industry_Status_delivered" = "Delivered";
+"Industry_Status_completed" = "Completed";
 "Industry_Status_paused" = "Paused";
 "Industry_Status_ready" = "Ready";
 "Industry_Status_reverted" = "Reverted";

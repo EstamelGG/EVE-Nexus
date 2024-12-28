@@ -386,7 +386,8 @@
 "Industry_No_Jobs" = "没有找到工业项目";
 "Industry_Status_active" = "进行中";
 "Industry_Status_cancelled" = "已取消";
-"Industry_Status_delivered" = "已完成";
+"Industry_Status_delivered" = "已交付";
+"Industry_Status_completed" = "已完成";
 "Industry_Status_paused" = "已暂停";
 "Industry_Status_ready" = "已就绪";
 "Industry_Status_reverted" = "已撤销";
