@@ -643,9 +643,9 @@ class CharacterContractsAPI {
                 from: url,
                 characterId: characterId
             )
-            
-            let decoder = JSONDecoder()
-            let items = try decoder.decode([ContractItemInfo].self, from: data)
+        
+        let decoder = JSONDecoder()
+        let items = try decoder.decode([ContractItemInfo].self, from: data)
             Logger.debug("成功从服务器获取合同物品 - 合同ID: \(contractId), 物品数量: \(items.count)")
             
             // 打印每个物品的详细信息
@@ -660,8 +660,8 @@ class CharacterContractsAPI {
                     - 原始数量: \(item.raw_quantity ?? 0)
                     """)
             }
-            
-            return items
+        
+        return items
         } catch {
             Logger.error("从服务器获取合同物品失败 - 合同ID: \(contractId), 错误: \(error.localizedDescription)")
             throw error

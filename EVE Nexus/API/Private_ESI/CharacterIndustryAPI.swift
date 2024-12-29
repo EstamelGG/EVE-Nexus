@@ -66,10 +66,10 @@ class CharacterIndustryAPI {
                 }
                 
                 // 如果数据过期，启动后台刷新
-                Task {
+                    Task {
                     progressCallback?(true)
-                    do {
-                        let newJobs = try await fetchFromNetwork(characterId: characterId)
+                        do {
+                            let newJobs = try await fetchFromNetwork(characterId: characterId)
                         
                         // 获取已存在的工业项目ID
                         let existingJobIds = Set(jobs.map { $0.job_id })

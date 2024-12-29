@@ -285,7 +285,10 @@ struct ContractDetailView: View {
                         }
                         
                         // 如果接收人存在且与对象不同，显示接收人
-                        if !viewModel.acceptorName.isEmpty && viewModel.acceptorName != viewModel.assigneeName {
+                        if let acceptorId = contract.acceptor_id,
+                           acceptorId > 0,
+                           !viewModel.acceptorName.isEmpty && 
+                           viewModel.acceptorName != viewModel.assigneeName {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Acceptor", comment: ""))
                                 Text(viewModel.acceptorName)
