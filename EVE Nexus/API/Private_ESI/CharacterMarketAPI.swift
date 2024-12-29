@@ -9,7 +9,7 @@ class CharacterMarketAPI {
     }
     
     private let cachePrefix = "character_market_orders_cache_"
-    private let cacheTimeout: TimeInterval = 3 * 24 * 60 * 60 // 3 天缓存
+    private let cacheTimeout: TimeInterval = 8 * 60 * 60 // 8 小时缓存
     
     private init() {}
     
@@ -89,7 +89,7 @@ class CharacterMarketAPI {
                    !isCacheValid(cache) {
                     
                     // 如果缓存过期，在后台刷新
-                    Logger.info("使用过期的缓存数据，将在后台刷新 - 角色ID: \(characterId)")
+                    Logger.info("使用过期的市场订单缓存数据，将在后台刷新 - 角色ID: \(characterId)")
                     Task {
                         do {
                             progressCallback?(true)
@@ -122,7 +122,7 @@ class CharacterMarketAPI {
                         }
                     }
                 } else {
-                    Logger.info("使用有效的缓存数据 - 角色ID: \(characterId)")
+                    Logger.info("使用有效的市场订单缓存数据 - 角色ID: \(characterId)")
                 }
                 
                 return cachedJson
