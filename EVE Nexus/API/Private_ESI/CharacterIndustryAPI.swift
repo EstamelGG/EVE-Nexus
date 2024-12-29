@@ -323,94 +323,77 @@ class CharacterIndustryAPI {
     private func saveJobsToDB(jobs: [IndustryJob], characterId: Int) async throws {
         let dateFormatter = ISO8601DateFormatter()
         
-        // 开始一个事务
-        if case .error(let error) = databaseManager.executeQuery("BEGIN TRANSACTION") {
-            throw IndustryAPIError.transactionError("开始事务失败: \(error)")
+        // 获取已存在的工业项目ID
+        let checkQuery = "SELECT job_id FROM industry_jobs WHERE character_id = ?"
+        let existingResult = databaseManager.executeQuery(checkQuery, parameters: [characterId])
+        var existingJobIds = Set<Int>()
+        if case .success(let rows) = existingResult {
+            existingJobIds = Set(rows.compactMap { $0["job_id"] as? Int })
         }
         
-        do {
-            // 获取已存在的工业项目ID
-            let checkQuery = "SELECT job_id FROM industry_jobs WHERE character_id = ?"
-            let existingResult = databaseManager.executeQuery(checkQuery, parameters: [characterId])
-            var existingJobIds = Set<Int>()
-            if case .success(let rows) = existingResult {
-                existingJobIds = Set(rows.compactMap { $0["job_id"] as? Int })
+        // 插入新数据
+        let insertQuery = """
+            INSERT INTO industry_jobs (
+                character_id, job_id, activity_id, blueprint_id, blueprint_location_id,
+                blueprint_type_id, completed_character_id, completed_date, cost, duration,
+                end_date, facility_id, installer_id, licensed_runs, output_location_id,
+                pause_date, probability, product_type_id, runs, start_date,
+                station_id, status, successful_runs, last_updated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        """
+        
+        var insertedCount = 0
+        for job in jobs {
+            // 如果工业项目已存在，跳过
+            if existingJobIds.contains(job.job_id) {
+                Logger.debug("跳过已存在的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
+                continue
             }
             
-            // 插入新数据
-            let insertQuery = """
-                INSERT INTO industry_jobs (
-                    character_id, job_id, activity_id, blueprint_id, blueprint_location_id,
-                    blueprint_type_id, completed_character_id, completed_date, cost, duration,
-                    end_date, facility_id, installer_id, licensed_runs, output_location_id,
-                    pause_date, probability, product_type_id, runs, start_date,
-                    station_id, status, successful_runs, last_updated
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-            """
+            // 处理可选类型，将 nil 转换为 NSNull()
+            let completedCharacterId = job.completed_character_id.map { $0 as Any } ?? NSNull()
+            let completedDate = job.completed_date.map { dateFormatter.string(from: $0) as Any } ?? NSNull()
+            let licensedRuns = job.licensed_runs.map { $0 as Any } ?? NSNull()
+            let pauseDate = job.pause_date.map { dateFormatter.string(from: $0) as Any } ?? NSNull()
+            let probability = job.probability.map { Double($0) as Any } ?? NSNull()
+            let productTypeId = job.product_type_id.map { $0 as Any } ?? NSNull()
+            let successfulRuns = job.successful_runs.map { $0 as Any } ?? NSNull()
             
-            var insertedCount = 0
-            for job in jobs {
-                // 如果工业项目已存在，跳过
-                if existingJobIds.contains(job.job_id) {
-                    Logger.debug("跳过已存在的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
-                    continue
-                }
-                
-                // 处理可选类型，将 nil 转换为 NSNull()
-                let completedCharacterId = job.completed_character_id.map { $0 as Any } ?? NSNull()
-                let completedDate = job.completed_date.map { dateFormatter.string(from: $0) as Any } ?? NSNull()
-                let licensedRuns = job.licensed_runs.map { $0 as Any } ?? NSNull()
-                let pauseDate = job.pause_date.map { dateFormatter.string(from: $0) as Any } ?? NSNull()
-                let probability = job.probability.map { Double($0) as Any } ?? NSNull()
-                let productTypeId = job.product_type_id.map { $0 as Any } ?? NSNull()
-                let successfulRuns = job.successful_runs.map { $0 as Any } ?? NSNull()
-                
-                let parameters: [Any] = [
-                    characterId,
-                    job.job_id,
-                    job.activity_id,
-                    job.blueprint_id,
-                    job.blueprint_location_id,
-                    job.blueprint_type_id,
-                    completedCharacterId,
-                    completedDate,
-                    job.cost,
-                    job.duration,
-                    dateFormatter.string(from: job.end_date),
-                    job.facility_id,
-                    job.installer_id,
-                    licensedRuns,
-                    job.output_location_id,
-                    pauseDate,
-                    probability,
-                    productTypeId,
-                    job.runs,
-                    dateFormatter.string(from: job.start_date),
-                    job.station_id,
-                    job.status,
-                    successfulRuns
-                ]
-                
-                Logger.debug("正在插入新的工业项目数据: characterId=\(characterId), jobId=\(job.job_id)")
-                if case .error(let error) = databaseManager.executeQuery(insertQuery, parameters: parameters) {
-                    Logger.error("插入数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
-                    throw IndustryAPIError.databaseError("插入数据失败: \(error)")
-                }
-                insertedCount += 1
+            let parameters: [Any] = [
+                characterId,
+                job.job_id,
+                job.activity_id,
+                job.blueprint_id,
+                job.blueprint_location_id,
+                job.blueprint_type_id,
+                completedCharacterId,
+                completedDate,
+                job.cost,
+                job.duration,
+                dateFormatter.string(from: job.end_date),
+                job.facility_id,
+                job.installer_id,
+                licensedRuns,
+                job.output_location_id,
+                pauseDate,
+                probability,
+                productTypeId,
+                job.runs,
+                dateFormatter.string(from: job.start_date),
+                job.station_id,
+                job.status,
+                successfulRuns
+            ]
+            
+            Logger.debug("正在插入新的工业项目数据: characterId=\(characterId), jobId=\(job.job_id)")
+            if case .error(let error) = databaseManager.executeQuery(insertQuery, parameters: parameters) {
+                Logger.error("插入数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
+                throw IndustryAPIError.databaseError("插入数据失败: \(error)")
             }
-            
-            // 提交事务
-            if case .error(let error) = databaseManager.executeQuery("COMMIT") {
-                throw IndustryAPIError.transactionError("提交事务失败: \(error)")
-            }
-            
-            Logger.debug("成功保存工业项目数据: characterId=\(characterId), 新增数量=\(insertedCount)")
-        } catch {
-            // 如果发生任何错误，回滚事务
-            _ = databaseManager.executeQuery("ROLLBACK")
-            Logger.error("保存工业项目数据失败，已回滚: \(error)")
-            throw error
+            insertedCount += 1
         }
+        
+        Logger.debug("成功保存工业项目数据: characterId=\(characterId), 新增数量=\(insertedCount)")
     }
     
     private func fetchFromNetwork(characterId: Int) async throws -> [IndustryJob] {
