@@ -280,7 +280,7 @@ class CharacterDatabaseManager: ObservableObject {
         guard let db = db else {
             return .error("数据库未打开")
         }
-        
+        Logger.debug(query)
         var statement: OpaquePointer?
         var results: [[String: Any]] = []
         
