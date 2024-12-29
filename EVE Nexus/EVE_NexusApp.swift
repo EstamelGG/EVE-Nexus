@@ -47,6 +47,9 @@ struct EVE_NexusApp: App {
             Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
         }
         
+        // 初始化数据库
+        _ = CharacterDatabaseManager.shared  // 确保角色数据库被初始化
+        
         configureLanguage()
         validateTokens()
     }
@@ -88,37 +91,39 @@ struct EVE_NexusApp: App {
     }
 
     private func checkAndExtractIcons() async {
-        guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
-            Logger.error("icons.zip file not found in bundle")
+        // 检查图标是否已解压
+        if IconManager.shared.isExtractionComplete {
+            Logger.info("图标已解压，跳过解压步骤")
+            await initializeApp()
             return
         }
-
-        let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
-        let iconURL = URL(fileURLWithPath: iconPath)
-
-        // 检查是否已经成功解压过
-        if IconManager.shared.isExtractionComplete,
-           FileManager.default.fileExists(atPath: destinationPath.path),
-           let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
-           !contents.isEmpty {
-            Logger.debug("Icons folder exists and contains \(contents.count) files, skipping extraction.")
-            await MainActor.run {
-                databaseManager.loadDatabase()
-                isInitialized = true
+        
+        // 获取图标文件路径
+        guard let iconURL = Bundle.main.url(forResource: "icons", withExtension: "zip") else {
+            Logger.error("找不到图标文件")
+            await initializeApp()
+            return
+        }
+        
+        // 获取解压目标路径
+        let fileManager = FileManager.default
+        let destinationPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("icons")
+        
+        // 如果目标文件夹已存在，先删除
+        if fileManager.fileExists(atPath: destinationPath.path) {
+            do {
+                try fileManager.removeItem(at: destinationPath)
+            } catch {
+                Logger.error("删除旧图标文件夹失败: \(error)")
             }
-            return
         }
-
-        // 需要解压
+        
+        // 设置需要解压标志
         await MainActor.run {
             needsUnzip = true
         }
-
-        // 如果目录存在但未完全解压，删除它重新解压
-        if FileManager.default.fileExists(atPath: destinationPath.path) {
-            try? FileManager.default.removeItem(at: destinationPath)
-        }
-
+        
         do {
             try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) { progress in
                 Task { @MainActor in
@@ -128,6 +133,7 @@ struct EVE_NexusApp: App {
             
             await MainActor.run {
                 databaseManager.loadDatabase()
+                CharacterDatabaseManager.shared.loadDatabase()  // 加载角色数据库
                 loadingState = .complete
             }
         } catch {
@@ -142,7 +148,10 @@ struct EVE_NexusApp: App {
             // 在图标解压完成后加载主权数据
             _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
             await MainActor.run {
+                // 加载静态数据库
                 databaseManager.loadDatabase()
+                // 加载角色数据库
+                CharacterDatabaseManager.shared.loadDatabase()
                 isInitialized = true
             }
         } catch {
@@ -150,6 +159,7 @@ struct EVE_NexusApp: App {
             // 即使主权数据加载失败，也继续初始化应用
             await MainActor.run {
                 databaseManager.loadDatabase()
+                CharacterDatabaseManager.shared.loadDatabase()
                 isInitialized = true
             }
         }

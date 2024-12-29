@@ -8,28 +8,39 @@ class CharacterDatabaseManager: ObservableObject {
     private var db: OpaquePointer?
     
     private init() {
+        Logger.info("开始初始化角色数据库...")
         // 获取数据库文件路径
         let fileManager = FileManager.default
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dbPath = documentsPath.appendingPathComponent("character_data.db").path
+        Logger.info("角色数据库路径: \(dbPath)")
+        
+        // 检查数据库文件是否存在
+        let dbExists = fileManager.fileExists(atPath: dbPath)
+        Logger.info("角色数据库文件\(dbExists ? "已存在" : "不存在")")
         
         // 创建数据库目录（如果不存在）
         try? fileManager.createDirectory(at: documentsPath, withIntermediateDirectories: true)
         
-        // 直接打开/创建数据库
+        // 打开/创建数据库
         if sqlite3_open(dbPath, &db) == SQLITE_OK {
-            Logger.info("角色数据库已创建: \(dbPath)")
-            // 创建数据库表
-            setupBaseTables()
+            if !dbExists {
+                Logger.info("创建新的角色数据库: \(dbPath)")
+                // 创建数据库表
+                setupBaseTables()
+            } else {
+                Logger.info("打开已有的角色数据库: \(dbPath)")
+            }
         } else {
             if let db = db {
                 let errmsg = String(cString: sqlite3_errmsg(db))
-                Logger.error("角色数据库创建失败: \(errmsg)")
+                Logger.error("角色数据库打开失败: \(errmsg)")
                 sqlite3_close(db)
             } else {
-                Logger.error("角色数据库创建失败: 未知错误")
+                Logger.error("角色数据库打开失败: 未知错误")
             }
         }
+        Logger.info("角色数据库初始化完成")
     }
     
     deinit {
@@ -42,9 +53,23 @@ class CharacterDatabaseManager: ObservableObject {
     
     /// 加载数据库
     func loadDatabase() {
-        Logger.info("角色数据库已打开")
-        DispatchQueue.main.async {
-            self.databaseUpdated.toggle()
+        Logger.info("开始加载角色数据库...")
+        if let db = db {
+            // 验证数据库连接
+            var statement: OpaquePointer?
+            let query = "SELECT name FROM sqlite_master WHERE type='table' LIMIT 1"
+            if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+                Logger.info("角色数据库连接验证成功")
+                sqlite3_finalize(statement)
+                DispatchQueue.main.async {
+                    self.databaseUpdated.toggle()
+                }
+            } else {
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                Logger.error("角色数据库验证失败: \(errmsg)")
+            }
+        } else {
+            Logger.error("角色数据库未打开")
         }
     }
     
