@@ -219,11 +219,23 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (character_id, job_id)
             );
 
+            -- 挖矿记录表
+            CREATE TABLE IF NOT EXISTS mining_ledger (
+                character_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                solar_system_id INTEGER NOT NULL,
+                type_id INTEGER NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (character_id, date, type_id)
+            );
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_contracts_character_date ON contracts(character_id, date_issued);
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
+            CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
         """
         
         // 分割SQL语句并逐个执行

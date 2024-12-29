@@ -422,3 +422,9 @@
 
 "Main_Mining_Ledger" = "采矿记录";
 "Industry_In_Progress" = "进行中的任务";
+"Mining_No_Records" = "暂无采矿记录";
+"Mining_Loading" = "正在加载采矿记录...";
+"Mining_Error_Loading" = "加载失败";
+"Mining_Pull_to_Refresh" = "下拉刷新";
+"Mining_Monthly_Summary" = "%@月采矿汇总";
+"Mining_Total_Volume" = "总量";

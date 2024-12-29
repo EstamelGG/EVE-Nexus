@@ -421,4 +421,9 @@
 "Date_Format_Month_Day" = "MMM d";
 
 "Main_Mining_Ledger" = "Mining Ledger";
-"Industry_In_Progress" = "Industry in progress";
+"Mining_No_Records" = "No Mining Records";
+"Mining_Loading" = "Loading Mining Records...";
+"Mining_Error_Loading" = "Failed to Load";
+"Mining_Pull_to_Refresh" = "Pull to Refresh";
+"Mining_Monthly_Summary" = "Mining Summary for %@";
+"Mining_Total_Volume" = "Total Volume";
