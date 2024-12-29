@@ -53,7 +53,35 @@ class CharacterIndustryViewModel: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.timeZone = TimeZone(identifier: "UTC")!
         
+        // 首先筛选出进行中的任务
+        let activeJobs = jobs.filter { job in
+            // 检查任务是否处于活动状态且未完成
+            return job.status == "active" && 
+                   !["delivered", "ready", "cancelled", "revoked", "failed"].contains(job.status) &&
+                   job.end_date > Date()
+        }
+        
+        if !activeJobs.isEmpty {
+            // 将进行中的任务按开始时间排序
+            let sortedActiveJobs = activeJobs.sorted {
+                if $0.start_date == $1.start_date {
+                    return $0.job_id > $1.job_id
+                }
+                return $0.start_date > $1.start_date
+            }
+            grouped["active"] = sortedActiveJobs
+        }
+        
+        // 创建一个已处理任务的ID集合
+        let processedJobIds = Set(activeJobs.map { $0.job_id })
+        
+        // 处理其他任务
         for job in jobs {
+            // 跳过已经在进行中列表的任务
+            if processedJobIds.contains(job.job_id) {
+                continue
+            }
+            
             // 直接格式化日期，不使用 startOfDay
             let dateKey = dateFormatter.string(from: job.start_date)
             
@@ -64,7 +92,7 @@ class CharacterIndustryViewModel: ObservableObject {
         }
         
         // 对每个组内的工作项目按开始时间降序排序，相同时间按job_id降序
-        for (key, value) in grouped {
+        for (key, value) in grouped where key != "active" {
             grouped[key] = value.sorted {
                 if $0.start_date == $1.start_date {
                     return $0.job_id > $1.job_id
@@ -197,9 +225,13 @@ struct CharacterIndustryView: View {
     }
     
     // 格式化日期显示
-    private func formatDateHeader(_ dateString: String) -> String {
-        guard let date = displayDateFormatter.date(from: dateString) else {
-            return dateString
+    private func formatDateHeader(_ dateKey: String) -> String {
+        if dateKey == "active" {
+            return NSLocalizedString("Industry_In_Progress", comment: "")
+        }
+        
+        guard let date = displayDateFormatter.date(from: dateKey) else {
+            return dateKey
         }
         
         outputDateFormatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
@@ -232,14 +264,18 @@ struct CharacterIndustryView: View {
                 }
                 .listSectionSpacing(.compact)
             } else {
-                ForEach(Array(viewModel.groupedJobs.keys).sorted(), id: \.self) { dateKey in
+                ForEach(Array(viewModel.groupedJobs.keys).sorted { key1, key2 in
+                    if key1 == "active" { return true }
+                    if key2 == "active" { return false }
+                    return key1 > key2
+                }, id: \.self) { dateKey in
                     Section(header: Text(formatDateHeader(dateKey))
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
                         .textCase(.none)
                     ) {
-                        ForEach(viewModel.groupedJobs[dateKey] ?? []) { job in
+                        ForEach(viewModel.groupedJobs[dateKey] ?? [], id: \.job_id) { job in
                             IndustryJobRow(
                                 job: job,
                                 blueprintName: viewModel.itemNames[job.blueprint_type_id] ?? "Unknown",
