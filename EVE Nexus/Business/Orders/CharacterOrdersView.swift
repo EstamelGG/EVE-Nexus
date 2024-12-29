@@ -24,7 +24,9 @@ struct CharacterOrdersView: View {
     @State private var isDataReady = false
     
     private var filteredOrders: [CharacterMarketOrder] {
-        orders.filter { $0.isBuyOrder ?? false == showBuyOrders }
+        orders
+            .filter { $0.isBuyOrder ?? false == showBuyOrders }
+            .sorted { $0.orderId > $1.orderId }
     }
     
     // 初始化订单显示类型
@@ -44,7 +46,7 @@ struct CharacterOrdersView: View {
             // 买卖单切换按钮
             TabView(selection: $showBuyOrders) {
                 OrderListView(
-                    orders: orders.filter { !($0.isBuyOrder ?? false) },
+                    orders: filteredOrders.filter { !($0.isBuyOrder ?? false) },
                     itemInfoCache: itemInfoCache,
                     locationInfoCache: locationInfoCache,
                     isLoading: isLoading,
@@ -53,7 +55,7 @@ struct CharacterOrdersView: View {
                 .tag(false)
                 
                 OrderListView(
-                    orders: orders.filter { $0.isBuyOrder ?? false },
+                    orders: filteredOrders.filter { $0.isBuyOrder ?? false },
                     itemInfoCache: itemInfoCache,
                     locationInfoCache: locationInfoCache,
                     isLoading: isLoading,
