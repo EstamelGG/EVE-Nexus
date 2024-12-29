@@ -31,8 +31,14 @@ final class ContractDetailViewModel: ObservableObject {
     
     struct LocationInfo {
         let stationName: String
-        let solarSystemName: String?
-        let security: Double?
+        let solarSystemName: String
+        let security: Double
+        
+        init(stationName: String, solarSystemName: String, security: Double) {
+            self.stationName = stationName
+            self.solarSystemName = solarSystemName
+            self.security = security
+        }
     }
     
     // 添加排序后的物品列表计算属性
@@ -92,67 +98,62 @@ final class ContractDetailViewModel: ObservableObject {
         if let assigneeId = contract.assignee_id, assigneeId != 0 {
             ids.insert(assigneeId)
         }
-        if let acceptorId = contract.acceptor_id,
-           let assigneeId = contract.assignee_id,
-           acceptorId != assigneeId,
-           acceptorId != 0 {
+        if let acceptorId = contract.acceptor_id, acceptorId != 0 {
             ids.insert(acceptorId)
         }
         
-        // 获取名称
-        if !ids.isEmpty {
-            do {
-                let names = try await UniverseNameCache.shared.getNames(for: ids)
-                
-                if contract.issuer_id != 0 {
-                    issuerName = names[contract.issuer_id] ?? ""
-                }
-                if contract.issuer_corporation_id != 0 {
-                    issuerCorpName = names[contract.issuer_corporation_id] ?? ""
-                }
-                if let assigneeId = contract.assignee_id, assigneeId != 0 {
-                    assigneeName = names[assigneeId] ?? ""
-                }
-                if let acceptorId = contract.acceptor_id, acceptorId != 0 {
-                    acceptorName = names[acceptorId] ?? ""
-                }
-            } catch {
-                errorMessage = error.localizedDescription
-            }
+        // 加载位置信息
+        let locationIds = Set<Int64>([contract.start_location_id, contract.end_location_id])
+        Logger.debug("开始加载位置信息 - 位置IDs: \(locationIds)")
+        let locationInfos = await locationLoader.loadLocationInfo(locationIds: locationIds)
+        
+        // 更新位置信息
+        if let startInfo = locationInfos[contract.start_location_id] {
+            startLocationInfo = LocationInfo(
+                stationName: startInfo.stationName,
+                solarSystemName: startInfo.solarSystemName,
+                security: startInfo.security
+            )
+            Logger.debug("已加载起始位置信息: \(startInfo.stationName)")
+        } else {
+            Logger.debug("未找到起始位置信息 - ID: \(contract.start_location_id)")
         }
         
-        // 获取地点信息
-        var locationIds = Set<Int64>()
-        if contract.start_location_id != 0 {
-            locationIds.insert(Int64(contract.start_location_id))
-        }
-        if contract.end_location_id != 0 && contract.end_location_id != contract.start_location_id {
-            locationIds.insert(Int64(contract.end_location_id))
+        if let endInfo = locationInfos[contract.end_location_id] {
+            endLocationInfo = LocationInfo(
+                stationName: endInfo.stationName,
+                solarSystemName: endInfo.solarSystemName,
+                security: endInfo.security
+            )
+            Logger.debug("已加载目标位置信息: \(endInfo.stationName)")
+        } else {
+            Logger.debug("未找到目标位置信息 - ID: \(contract.end_location_id)")
         }
         
-        if !locationIds.isEmpty {
-            let locationInfos = await locationLoader.loadLocationInfo(locationIds: locationIds)
+        do {
+            let names = try await UniverseNameCache.shared.getNames(for: ids)
             
-            if contract.start_location_id != 0,
-               let info = locationInfos[Int64(contract.start_location_id)] {
-                startLocationInfo = LocationInfo(
-                    stationName: info.stationName,
-                    solarSystemName: info.solarSystemName,
-                    security: info.security
-                )
+            // 更新名称
+            if let issuerName = names[contract.issuer_id] {
+                self.issuerName = issuerName
+            }
+            if let corpName = names[contract.issuer_corporation_id] {
+                self.issuerCorpName = corpName
+            }
+            if let assigneeId = contract.assignee_id,
+               let assigneeName = names[assigneeId] {
+                self.assigneeName = assigneeName
+            }
+            if let acceptorId = contract.acceptor_id,
+               let acceptorName = names[acceptorId] {
+                self.acceptorName = acceptorName
             }
             
-            if contract.end_location_id != 0,
-               let info = locationInfos[Int64(contract.end_location_id)] {
-                endLocationInfo = LocationInfo(
-                    stationName: info.stationName,
-                    solarSystemName: info.solarSystemName,
-                    security: info.security
-                )
-            }
+            isLoadingNames = false
+        } catch {
+            Logger.error("加载合同相关方名称失败: \(error)")
+            isLoadingNames = false
         }
-        
-        isLoadingNames = false
     }
     
     func getItemDetails(for typeId: Int) -> (name: String, description: String, iconFileName: String)? {
@@ -210,6 +211,46 @@ struct ContractDetailView: View {
                         }
                         .frame(height: 36)
                         
+                        // 地点信息
+                        if let startInfo = viewModel.startLocationInfo {
+                            if contract.start_location_id == contract.end_location_id {
+                                // 如果起点和终点相同，显示单个地点
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(NSLocalizedString("Contract_Location", comment: ""))
+                                    LocationInfoView(
+                                        stationName: startInfo.stationName,
+                                        solarSystemName: startInfo.solarSystemName,
+                                        security: startInfo.security
+                                    )
+                                }
+                                .frame(height: 36)
+                            } else {
+                                // 显示起点
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(NSLocalizedString("Contract_Start_Location", comment: ""))
+                                    LocationInfoView(
+                                        stationName: startInfo.stationName,
+                                        solarSystemName: startInfo.solarSystemName,
+                                        security: startInfo.security
+                                    )
+                                }
+                                .frame(height: 36)
+                                
+                                // 显示终点（如果存在）
+                                if let endInfo = viewModel.endLocationInfo {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(NSLocalizedString("Contract_End_Location", comment: ""))
+                                        LocationInfoView(
+                                            stationName: endInfo.stationName,
+                                            solarSystemName: endInfo.solarSystemName,
+                                            security: endInfo.security
+                                        )
+                                    }
+                                    .frame(height: 36)
+                                }
+                            }
+                        }
+                        
                         // 合同发起人（如果 ID 不为 0）
                         if contract.issuer_id != 0 {
                             VStack(alignment: .leading, spacing: 4) {
@@ -249,45 +290,6 @@ struct ContractDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                             .frame(height: 36)
-                        }
-                        
-                        // 地点信息
-                        if let startInfo = viewModel.startLocationInfo {
-                            if contract.start_location_id == contract.end_location_id {
-                                // 如果起点和终点相同，显示单个地点
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("Contract_Location", comment: ""))
-                                    LocationInfoView(
-                                        stationName: startInfo.stationName,
-                                        solarSystemName: startInfo.solarSystemName,
-                                        security: startInfo.security
-                                    )
-                                }
-                                .frame(height: 36)
-                            } else {
-                                // 显示起点
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(NSLocalizedString("Contract_Start_Location", comment: ""))
-                                    LocationInfoView(
-                                        stationName: startInfo.stationName,
-                                        solarSystemName: startInfo.solarSystemName,
-                                        security: startInfo.security
-                                    )
-                                }
-                                .frame(height: 36)
-                                // 显示终点（如果存在）
-                                if let endInfo = viewModel.endLocationInfo {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(NSLocalizedString("Contract_End_Location", comment: ""))
-                                        LocationInfoView(
-                                            stationName: endInfo.stationName,
-                                            solarSystemName: endInfo.solarSystemName,
-                                            security: endInfo.security
-                                        )
-                                    }
-                                    .frame(height: 36)
-                                }
-                            }
                         }
                         
                         // 合同价格（如果有）

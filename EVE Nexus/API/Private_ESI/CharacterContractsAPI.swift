@@ -156,6 +156,40 @@ class CharacterContractsAPI {
                 let acceptorId = row["acceptor_id"] as? Int64
                 let assigneeId = row["assignee_id"] as? Int64
                 
+                // 获取位置ID
+                let startLocationId: Int64
+                let endLocationId: Int64
+                
+                if let startId = row["start_location_id"] as? Int64 {
+                    startLocationId = startId
+                    Logger.debug("从数据库获取到 start_location_id (Int64): \(startId)")
+                } else if let startId = row["start_location_id"] as? Int {
+                    startLocationId = Int64(startId)
+                    Logger.debug("从数据库获取到 start_location_id (Int): \(startId)")
+                } else {
+                    if let rawValue = row["start_location_id"] {
+                        Logger.error("start_location_id 类型不匹配 - 原始值: \(rawValue), 类型: \(type(of: rawValue))")
+                    } else {
+                        Logger.error("start_location_id 为空")
+                    }
+                    return nil
+                }
+                
+                if let endId = row["end_location_id"] as? Int64 {
+                    endLocationId = endId
+                    Logger.debug("从数据库获取到 end_location_id (Int64): \(endId)")
+                } else if let endId = row["end_location_id"] as? Int {
+                    endLocationId = Int64(endId)
+                    Logger.debug("从数据库获取到 end_location_id (Int): \(endId)")
+                } else {
+                    if let rawValue = row["end_location_id"] {
+                        Logger.error("end_location_id 类型不匹配 - 原始值: \(rawValue), 类型: \(type(of: rawValue))")
+                    } else {
+                        Logger.error("end_location_id 为空")
+                    }
+                    return nil
+                }
+                
                 return ContractInfo(
                     acceptor_id: acceptorId.map(Int.init),
                     assignee_id: assigneeId.map(Int.init),
@@ -167,13 +201,13 @@ class CharacterContractsAPI {
                     date_expired: dateExpired,
                     date_issued: dateIssued,
                     days_to_complete: row["days_to_complete"] as? Int ?? 0,
-                    end_location_id: Int64(row["end_location_id"] as? Int ?? 0),
+                    end_location_id: endLocationId,
                     for_corporation: (row["for_corporation"] as? Int ?? 0) != 0,
                     issuer_corporation_id: row["issuer_corporation_id"] as? Int ?? 0,
                     issuer_id: row["issuer_id"] as? Int ?? 0,
                     price: row["price"] as? Double ?? 0.0,
                     reward: row["reward"] as? Double ?? 0.0,
-                    start_location_id: Int64(row["start_location_id"] as? Int ?? 0),
+                    start_location_id: startLocationId,
                     status: row["status"] as? String ?? "",
                     title: row["title"] as? String ?? "",
                     type: row["type"] as? String ?? "",
