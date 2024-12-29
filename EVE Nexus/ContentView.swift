@@ -538,7 +538,26 @@ struct ContentView: View {
         }
         .frame(height: 36)
     }
-
+    private func logout() {
+        
+        // 生成新的任务ID来取消当前任务
+        currentTaskId = UUID()
+        
+        // 清空 currentCharacterId
+        currentCharacterId = 0
+        
+        // 重置登录状态和选中角色
+        isLoggedIn = false
+        selectedCharacter = nil
+        selectedCharacterPortrait = nil
+        
+        // 刷新表格数据以显示默认值
+        withAnimation {
+            tables = generateTables()
+        }
+        
+        Logger.info("角色登出完成")
+    }
     
     // 添加重置角色信息的方法
     private func resetCharacterInfo() {
@@ -589,24 +608,7 @@ struct ContentView: View {
                         if let character = selectedCharacter {
                             Logger.info("用户登出角色 - 角色: \(character.CharacterName) (ID: \(character.CharacterID))")
                         }
-                        
-                        // 生成新的任务ID来取消当前任务
-                        currentTaskId = UUID()
-                        
-                        // 清空 currentCharacterId
-                        currentCharacterId = 0
-                        
-                        // 重置登录状态和选中角色
-                        isLoggedIn = false
-                        selectedCharacter = nil
-                        selectedCharacterPortrait = nil
-                        
-                        // 刷新表格数据以显示默认值
-                        withAnimation {
-                            tables = generateTables()
-                        }
-                        
-                        Logger.info("角色登出完成")
+                        logout()
                     } label: {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .resizable()
