@@ -660,17 +660,17 @@ class CharacterContractsAPI {
             Logger.debug("成功从服务器获取合同物品 - 合同ID: \(contractId), 物品数量: \(items.count)")
             
             // 打印每个物品的详细信息
-            for item in items {
-                Logger.debug("""
-                    物品详情:
-                    - 记录ID: \(item.record_id)
-                    - 类型ID: \(item.type_id)
-                    - 数量: \(item.quantity)
-                    - 是否包含: \(item.is_included)
-                    - 是否单例: \(item.is_singleton)
-                    - 原始数量: \(item.raw_quantity ?? 0)
-                    """)
-            }
+//            for item in items {
+//                Logger.debug("""
+//                    物品详情:
+//                    - 记录ID: \(item.record_id)
+//                    - 类型ID: \(item.type_id)
+//                    - 数量: \(item.quantity)
+//                    - 是否包含: \(item.is_included)
+//                    - 是否单例: \(item.is_singleton)
+//                    - 原始数量: \(item.raw_quantity ?? 0)
+//                    """)
+//            }
         
         return items
         } catch {

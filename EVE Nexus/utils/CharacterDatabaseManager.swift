@@ -24,13 +24,14 @@ class CharacterDatabaseManager: ObservableObject {
         
         // 打开/创建数据库
         if sqlite3_open(dbPath, &db) == SQLITE_OK {
-            if !dbExists {
-                Logger.info("创建新的角色数据库: \(dbPath)")
-                // 创建数据库表
-                setupBaseTables()
-            } else {
-                Logger.info("打开已有的角色数据库: \(dbPath)")
-            }
+            // if !dbExists {
+            //     Logger.info("创建新的角色数据库: \(dbPath)")
+            //     // 创建数据库表
+            //     setupBaseTables()
+            // } else {
+            //     Logger.info("打开已有的角色数据库: \(dbPath)")
+            // }
+            setupBaseTables()
         } else {
             if let db = db {
                 let errmsg = String(cString: sqlite3_errmsg(db))
@@ -96,6 +97,18 @@ class CharacterDatabaseManager: ObservableObject {
     
     private func setupBaseTables() {
         let createTablesSQL = """
+            -- 通用名称缓存表
+            CREATE TABLE IF NOT EXISTS universe_names (
+                id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                name TEXT NOT NULL,
+                update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
+            CREATE INDEX IF NOT EXISTS idx_universe_names_update_time ON universe_names(update_time);
+
             -- 钱包日志表
             CREATE TABLE IF NOT EXISTS wallet_journal (
                 id INTEGER,
@@ -281,7 +294,7 @@ class CharacterDatabaseManager: ObservableObject {
         guard let db = db else {
             return .error("数据库未打开")
         }
-        Logger.debug(query)
+        
         var statement: OpaquePointer?
         var results: [[String: Any]] = []
         
@@ -358,7 +371,7 @@ class CharacterDatabaseManager: ObservableObject {
                              query.lowercased().hasPrefix("delete")) {
             return .success([[:]])
         }
-        
+        Logger.debug("成功执行: \(query)")
         return .success(results)
     }
 } 
