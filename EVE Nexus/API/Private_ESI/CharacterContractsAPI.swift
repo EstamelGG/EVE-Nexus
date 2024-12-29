@@ -3,17 +3,20 @@ import Foundation
 class CharacterContractsAPI {
     static let shared = CharacterContractsAPI()
     
+    // 通知名称常量
+    static let contractsUpdatedNotification = "ContractsUpdatedNotification"
+    static let contractsUpdatedCharacterIdKey = "CharacterId"
+    
     private let cacheDirectory: URL = {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0].appendingPathComponent("ContractsCache")
     }()
     
-    private let cacheValidityDuration: TimeInterval = 8 * 3600 // 8 小时的缓存有效期
     private let maxConcurrentPages = 2 // 最大并发页数
+    private let cacheTimeout: TimeInterval = 8 * 3600 // 8小时缓存有效期
     
     private let lastContractsQueryKey = "LastContractsQuery_"
     private let lastContractItemsQueryKey = "LastContractItemsQuery_"
-    private let queryInterval: TimeInterval = 3600 // 1小时的查询间隔
     
     private init() {
         // 创建缓存目录
@@ -82,15 +85,42 @@ class CharacterContractsAPI {
     }
     
     // 检查是否需要刷新数据
-    private func shouldRefreshData(characterId: Int, isItems: Bool = false) -> Bool {
-        guard let lastQuery = getLastQueryTime(characterId: characterId, isItems: isItems) else {
-            return true // 如果没有查询记录，需要刷新
+    private func shouldRefreshData(characterId: Int) -> Bool {
+        guard let lastQueryTime = getLastQueryTime(characterId: characterId) else {
+            return true
         }
-        return Date().timeIntervalSince(lastQuery) > queryInterval
+        return Date().timeIntervalSince(lastQueryTime) >= cacheTimeout
     }
     
-    // 从数据库获取合同列表
-    private func getContractsFromDB(characterId: Int) -> [ContractInfo]? {
+    // 从数据库获取合同列表，如果数据过期则在后台刷新
+    func getContractsFromDB(characterId: Int) async -> [ContractInfo]? {
+        let contracts = getContractsFromDBSync(characterId: characterId)
+        
+        // 检查是否需要在后台刷新数据
+        if shouldRefreshData(characterId: characterId) {
+            Logger.info("合同数据已过期，在后台刷新 - 角色ID: \(characterId)")
+            
+            // 在后台刷新数据
+            Task {
+                do {
+                    let _ = try await fetchContractsFromServer(characterId: characterId)
+                    Logger.info("后台刷新合同数据完成 - 角色ID: \(characterId)")
+                } catch {
+                    Logger.error("后台刷新合同数据失败 - 角色ID: \(characterId), 错误: \(error)")
+                }
+            }
+        } else if let lastQueryTime = getLastQueryTime(characterId: characterId) {
+            let remainingTime = cacheTimeout - Date().timeIntervalSince(lastQueryTime)
+            let remainingHours = Int(remainingTime / 3600)
+            let remainingMinutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
+            Logger.info("使用有效的合同缓存数据 - 剩余有效期: \(remainingHours)小时\(remainingMinutes)分钟")
+        }
+        
+        return contracts
+    }
+    
+    // 同步方法：从数据库获取合同列表
+    private func getContractsFromDBSync(characterId: Int) -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
                    collateral, date_accepted, date_completed, date_expired,
@@ -472,7 +502,7 @@ class CharacterContractsAPI {
         }
         
         // 从数据库获取数据并返回
-        if let contracts = getContractsFromDB(characterId: characterId) {
+        if let contracts = await getContractsFromDB(characterId: characterId) {
             return contracts
         }
         return []
@@ -535,49 +565,46 @@ class CharacterContractsAPI {
     private func fetchContractsFromServer(characterId: Int) async throws -> [ContractInfo] {
         var allContracts: [ContractInfo] = []
         var currentPage = 1
+        var shouldContinue = true
         
-        while true {
+        while shouldContinue {
             do {
-                // 创建并发任务组
-                var tasks: [Task<[ContractInfo], Error>] = []
-                
-                // 创建最多maxConcurrentPages个并发任务
-                for page in currentPage...(currentPage + maxConcurrentPages - 1) {
-                    let task = Task {
-                        try await fetchContractsPage(characterId: characterId, page: page)
-                    }
-                    tasks.append(task)
+                let pageContracts = try await fetchContractsPage(characterId: characterId, page: currentPage)
+                if pageContracts.isEmpty {
+                    shouldContinue = false
+                } else {
+                    allContracts.append(contentsOf: pageContracts)
+                    currentPage += 1
                 }
-                
-                // 等待所有任务完成或出错
-                var shouldBreak = false
-                for task in tasks {
-                    do {
-                        let contracts = try await task.value
-                        if contracts.isEmpty {
-                            shouldBreak = true
-                            break
-                        }
-                        allContracts.append(contentsOf: contracts)
-                    } catch let error as NetworkError {
-                        if case .httpError(_, let message) = error,
-                           message?.contains("Requested page does not exist") == true {
-                            shouldBreak = true
-                            break
-                        }
-                        throw error
-                    }
+            } catch let error as NetworkError {
+                if case .httpError(let statusCode, let message) = error,
+                   statusCode == 404,
+                   message?.contains("Requested page does not exist") == true {
+                    shouldContinue = false
+                } else {
+                    throw error
                 }
-                
-                if shouldBreak {
-                    break
-                }
-                
-                currentPage += maxConcurrentPages
-            } catch {
-                throw error
             }
         }
+        
+        // 更新最后查询时间
+        updateLastQueryTime(characterId: characterId)
+        
+        // 保存到数据库
+        if !saveContractsToDB(characterId: characterId, contracts: allContracts) {
+            Logger.error("保存合同到数据库失败")
+        } else {
+            // 发送数据更新通知
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: Notification.Name(CharacterContractsAPI.contractsUpdatedNotification),
+                    object: nil,
+                    userInfo: [CharacterContractsAPI.contractsUpdatedCharacterIdKey: characterId]
+                )
+            }
+        }
+        
+        Logger.debug("成功从服务器获取合同数据 - 角色ID: \(characterId), 合同数量: \(allContracts.count)")
         
         return allContracts
     }
