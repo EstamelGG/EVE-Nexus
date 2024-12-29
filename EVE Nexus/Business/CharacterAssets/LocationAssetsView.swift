@@ -281,54 +281,54 @@ class LocationAssetsViewModel: ObservableObject {
             groups[flag]?.append(item)
         }
         
-        // 第二步：在每个分组内合并相同类型的物品
+        // 第二步：在每个分组内处理物品
         var mergedGroups: [String: [AssetTreeNode]] = [:]
         for (flag, items) in groups {
-            // 按type_id分组
+            // 将物品分为容器和非容器两类
+            let containers = items.filter { $0.items != nil && !$0.items!.isEmpty }
+            let normalItems = items.filter { $0.items == nil || $0.items!.isEmpty }
+            
+            // 处理非容器物品：按type_id分组并合并
             var typeGroups: [Int: [AssetTreeNode]] = [:]
-            for item in items {
+            for item in normalItems {
                 if typeGroups[item.type_id] == nil {
                     typeGroups[item.type_id] = []
                 }
                 typeGroups[item.type_id]?.append(item)
             }
             
-            // 合并每个type_id组的物品
-            var mergedItems: [AssetTreeNode] = []
+            // 合并相同类型的非容器物品
+            var mergedNormalItems: [AssetTreeNode] = []
             for items in typeGroups.values {
                 if items.count == 1 {
-                    // 单个物品直接添加
-                    mergedItems.append(items[0])
+                    mergedNormalItems.append(items[0])
                 } else {
-                    // 多个物品需要合并
                     let firstItem = items[0]
-                    // 只合并非容器物品
-                    if firstItem.items == nil || firstItem.items?.isEmpty == true {
-                        let totalQuantity = items.reduce(0) { $0 + $1.quantity }
-                        let mergedItem = AssetTreeNode(
-                            location_id: firstItem.location_id,
-                            item_id: firstItem.item_id,
-                            type_id: firstItem.type_id,
-                            location_type: firstItem.location_type,
-                            location_flag: firstItem.location_flag,
-                            quantity: totalQuantity,
-                            name: firstItem.name,
-                            icon_name: firstItem.icon_name,
-                            is_singleton: false,
-                            is_blueprint_copy: firstItem.is_blueprint_copy,
-                            system_name: firstItem.system_name,
-                            region_name: firstItem.region_name,
-                            security_status: firstItem.security_status,
-                            items: nil
-                        )
-                        mergedItems.append(mergedItem)
-                    } else {
-                        // 容器类物品不合并
-                        mergedItems.append(contentsOf: items)
-                    }
+                    let totalQuantity = items.reduce(0) { $0 + $1.quantity }
+                    let mergedItem = AssetTreeNode(
+                        location_id: firstItem.location_id,
+                        item_id: firstItem.item_id,
+                        type_id: firstItem.type_id,
+                        location_type: firstItem.location_type,
+                        location_flag: firstItem.location_flag,
+                        quantity: totalQuantity,
+                        name: firstItem.name,
+                        icon_name: firstItem.icon_name,
+                        is_singleton: false,
+                        is_blueprint_copy: firstItem.is_blueprint_copy,
+                        system_name: firstItem.system_name,
+                        region_name: firstItem.region_name,
+                        security_status: firstItem.security_status,
+                        items: nil
+                    )
+                    mergedNormalItems.append(mergedItem)
                 }
             }
-            mergedGroups[flag] = mergedItems
+            
+            // 将容器和合并后的普通物品组合，并按location_id排序
+            var allItems = containers + mergedNormalItems
+            allItems.sort { $0.location_id < $1.location_id }
+            mergedGroups[flag] = allItems
         }
         
         // 第三步：按预定义顺序排序
