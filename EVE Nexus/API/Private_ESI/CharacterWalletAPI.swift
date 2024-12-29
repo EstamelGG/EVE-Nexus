@@ -233,101 +233,103 @@ class CharacterWalletAPI {
         }
     }
     
+    // 从数据库获取钱包日志
+    private func getWalletJournalFromDB(characterId: Int) -> [[String: Any]]? {
+        let query = """
+            SELECT id, amount, balance, context_id, context_id_type,
+                   date, description, first_party_id, reason, ref_type,
+                   second_party_id, last_updated
+            FROM wallet_journal 
+            WHERE character_id = ? 
+            ORDER BY date DESC 
+            LIMIT 1000
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]) {
+            return results
+        }
+        return nil
+    }
+    
+    // 保存钱包日志到数据库
+    private func saveWalletJournalToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
+        let insertSQL = """
+            INSERT OR REPLACE INTO wallet_journal (
+                id, character_id, amount, balance, context_id, context_id_type,
+                date, description, first_party_id, reason, ref_type,
+                second_party_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        for entry in entries {
+            let parameters: [Any] = [
+                entry["id"] as? Int64 ?? 0,
+                characterId,
+                entry["amount"] as? Double ?? 0.0,
+                entry["balance"] as? Double ?? 0.0,
+                entry["context_id"] as? Int ?? 0,
+                entry["context_id_type"] as? String ?? "",
+                entry["date"] as? String ?? "",
+                entry["description"] as? String ?? "",
+                entry["first_party_id"] as? Int ?? 0,
+                entry["reason"] as? String ?? "",
+                entry["ref_type"] as? String ?? "",
+                entry["second_party_id"] as? Int ?? 0
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存钱包日志到数据库失败: \(message)")
+                return false
+            }
+        }
+        return true
+    }
+    
     // 获取钱包日志（公开方法）
     public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查缓存
+        // 如果不是强制刷新，从数据库获取
         if !forceRefresh {
-            if let cachedJson = getCachedJournal(characterId: characterId) {
-                Logger.info("使用缓存的钱包日志数据")
-                
-                // 检查缓存是否过期
-                let key = getJournalCacheKey(characterId: characterId)
-                if let data = UserDefaults.standard.data(forKey: key),
-                   let cache = try? JSONDecoder().decode(WalletJournalCacheEntry.self, from: data),
-                   Date().timeIntervalSince(cache.timestamp) > cacheTimeout {
-                    // 如果缓存过期，在后台刷新
-                    Task {
-                        do {
-                            let newJournalData = try await fetchJournalFromServer(characterId: characterId)
-                            
-                            // 解析现有缓存数据并合并
-                            if let existingData = cachedJson.data(using: .utf8),
-                               let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-                                
-                                // 合并新旧数据
-                                var allEntries = existingEntries
-                                allEntries.append(contentsOf: newJournalData)
-                                
-                                // 根据 id 去重
-                                let uniqueEntries = Dictionary(grouping: allEntries) { entry in
-                                    return entry["id"] as? Int64 ?? 0
-                                }.values.compactMap { $0.first }
-                                
-                                // 按时间排序
-                                let sortedEntries = uniqueEntries.sorted { entry1, entry2 in
-                                    let date1 = entry1["date"] as? String ?? ""
-                                    let date2 = entry2["date"] as? String ?? ""
-                                    return date1 > date2
-                                }
-                                
-                                // 转换为JSON并保存
-                                let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
-                                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                                    saveJournalToCache(jsonString: jsonString, characterId: characterId)
-                                    // 在主线程发送通知以刷新UI
-                                    await MainActor.run {
-                                        NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
-                                    }
-                                }
+            if let results = getWalletJournalFromDB(characterId: characterId) {
+                // 将数据库结果转换为JSON
+                let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+                if let jsonString = String(data: jsonData, encoding: .utf8) {
+                    // 如果缓存超过8小时，在后台刷新
+                    if let firstEntry = results.first,
+                       let dateString = firstEntry["last_updated"] as? String,
+                       let lastUpdated = ISO8601DateFormatter().date(from: dateString),
+                       Date().timeIntervalSince(lastUpdated) > cacheTimeout {
+                        Task {
+                            do {
+                                _ = try await self.getWalletJournal(characterId: characterId, forceRefresh: true)
+                            } catch {
+                                Logger.error("后台更新钱包日志失败: \(error)")
                             }
-                        } catch {
-                            Logger.error("后台更新钱包日志失败: \(error)")
                         }
                     }
+                    return jsonString
                 }
-                return cachedJson
             }
         }
         
-        // 如果强制刷新或没有缓存，从服务器获取
+        // 从服务器获取新数据
         let journalData = try await fetchJournalFromServer(characterId: characterId)
         
-        // 如果有缓存，尝试合并数据
-        if let cachedJson = getCachedJournal(characterId: characterId),
-           let existingData = cachedJson.data(using: .utf8),
-           let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-            
-            // 合并新旧数据
-            var allEntries = existingEntries
-            allEntries.append(contentsOf: journalData)
-            
-            // 根据 id 去重
-            let uniqueEntries = Dictionary(grouping: allEntries) { entry in
-                return entry["id"] as? Int64 ?? 0
-            }.values.compactMap { $0.first }
-            
-            // 按时间排序
-            let sortedEntries = uniqueEntries.sorted { entry1, entry2 in
-                let date1 = entry1["date"] as? String ?? ""
-                let date2 = entry2["date"] as? String ?? ""
-                return date1 > date2
-            }
-            
-            // 转换为JSON
-            let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                saveJournalToCache(jsonString: jsonString, characterId: characterId)
-                return jsonString
-            }
+        // 保存到数据库
+        if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
+            Logger.error("保存钱包日志到数据库失败")
         }
         
-        // 如果没有缓存或合并失败，使用新数据
+        // 转换为JSON返回
         let jsonData = try JSONSerialization.data(withJSONObject: journalData, options: [.prettyPrinted, .sortedKeys])
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
             throw NetworkError.invalidResponse
         }
         
-        saveJournalToCache(jsonString: jsonString, characterId: characterId)
+        // 发送通知以刷新UI
+        await MainActor.run {
+            NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
+        }
+        
         return jsonString
     }
     

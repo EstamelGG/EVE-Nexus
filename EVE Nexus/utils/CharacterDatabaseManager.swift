@@ -102,14 +102,16 @@ class CharacterDatabaseManager: ObservableObject {
                 character_id INTEGER,
                 amount REAL,
                 balance REAL,
+                context_id INTEGER,
+                context_id_type TEXT,
                 date TEXT,
                 description TEXT,
                 first_party_id INTEGER,
                 reason TEXT,
                 ref_type TEXT,
                 second_party_id INTEGER,
-                context_id INTEGER,
-                context_id_type TEXT,
+                tax REAL,
+                tax_receiver_id INTEGER,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (character_id, id)
             );
@@ -295,6 +297,8 @@ class CharacterDatabaseManager: ObservableObject {
             switch parameter {
             case let value as Int:
                 sqlite3_bind_int64(statement, parameterIndex, Int64(value))
+            case let value as Int64:
+                sqlite3_bind_int64(statement, parameterIndex, value)
             case let value as Double:
                 sqlite3_bind_double(statement, parameterIndex, value)
             case let value as String:
@@ -346,6 +350,14 @@ class CharacterDatabaseManager: ObservableObject {
         
         // 释放语句
         sqlite3_finalize(statement)
+        
+        // 如果是INSERT/UPDATE/DELETE语句，返回成功
+        if results.isEmpty && (query.lowercased().hasPrefix("insert") || 
+                             query.lowercased().hasPrefix("update") || 
+                             query.lowercased().hasPrefix("delete")) {
+            return .success([[:]])
+        }
+        
         return .success(results)
     }
 } 

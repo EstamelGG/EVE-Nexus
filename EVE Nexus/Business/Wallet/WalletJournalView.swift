@@ -73,13 +73,13 @@ final class WalletJournalViewModel: ObservableObject {
             var groupedEntries: [Date: [WalletJournalEntry]] = [:]
             for entry in entries {
                 guard let date = dateFormatter.date(from: entry.date) else {
-                    print("Failed to parse date: \(entry.date)")
+                    Logger.error("Failed to parse date: \(entry.date)")
                     continue
                 }
                 
                 let components = calendar.dateComponents([.year, .month, .day], from: date)
                 guard let dayDate = calendar.date(from: components) else {
-                    print("Failed to create date from components for: \(entry.date)")
+                    Logger.error("Failed to create date from components for: \(entry.date)")
                     continue
                 }
                 
@@ -90,19 +90,23 @@ final class WalletJournalViewModel: ObservableObject {
                 WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
             }.sorted { $0.date > $1.date }
             
-            self.journalGroups = groups
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
+            await MainActor.run {
+                self.journalGroups = groups
+                if shouldShowFullscreenLoading {
+                    isLoading = false
+                } else {
+                    isBackgroundLoading = false
+                }
             }
             
         } catch {
-            self.errorMessage = error.localizedDescription
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                if shouldShowFullscreenLoading {
+                    isLoading = false
+                } else {
+                    isBackgroundLoading = false
+                }
             }
         }
     }
