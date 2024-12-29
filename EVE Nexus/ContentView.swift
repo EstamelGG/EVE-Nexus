@@ -855,6 +855,10 @@ struct ContentView: View {
                     corporationLogo = newCorpLogo
                     allianceInfo = newAllianceInfo
                     allianceLogo = newAllianceLogo
+                }
+                
+                // 确保状态更新后再生成表格
+                await updateUI {
                     tables = generateTables()
                 }
                 
