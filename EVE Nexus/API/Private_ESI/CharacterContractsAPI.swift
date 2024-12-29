@@ -11,6 +11,10 @@ class CharacterContractsAPI {
     private let cacheValidityDuration: TimeInterval = 8 * 3600 // 8 小时的缓存有效期
     private let maxConcurrentPages = 2 // 最大并发页数
     
+    private let lastContractsQueryKey = "LastContractsQuery_"
+    private let lastContractItemsQueryKey = "LastContractItemsQuery_"
+    private let queryInterval: TimeInterval = 3600 // 1小时的查询间隔
+    
     private init() {
         // 创建缓存目录
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -65,41 +69,382 @@ class CharacterContractsAPI {
         return try decoder.decode([ContractInfo].self, from: data)
     }
     
-    func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
-        var shouldRefreshInBackground = false
+    // 获取最后查询时间
+    private func getLastQueryTime(characterId: Int, isItems: Bool = false) -> Date? {
+        let key = isItems ? lastContractItemsQueryKey + String(characterId) : lastContractsQueryKey + String(characterId)
+        return UserDefaults.standard.object(forKey: key) as? Date
+    }
+    
+    // 更新最后查询时间
+    private func updateLastQueryTime(characterId: Int, isItems: Bool = false) {
+        let key = isItems ? lastContractItemsQueryKey + String(characterId) : lastContractsQueryKey + String(characterId)
+        UserDefaults.standard.set(Date(), forKey: key)
+    }
+    
+    // 检查是否需要刷新数据
+    private func shouldRefreshData(characterId: Int, isItems: Bool = false) -> Bool {
+        guard let lastQuery = getLastQueryTime(characterId: characterId, isItems: isItems) else {
+            return true // 如果没有查询记录，需要刷新
+        }
+        return Date().timeIntervalSince(lastQuery) > queryInterval
+    }
+    
+    // 从数据库获取合同列表
+    private func getContractsFromDB(characterId: Int) -> [ContractInfo]? {
+        let query = """
+            SELECT contract_id, acceptor_id, assignee_id, availability,
+                   collateral, date_accepted, date_completed, date_expired,
+                   date_issued, days_to_complete, end_location_id,
+                   for_corporation, issuer_corporation_id, issuer_id,
+                   price, reward, start_location_id, status, title,
+                   type, volume, last_updated
+            FROM contracts 
+            WHERE character_id = ? 
+            ORDER BY date_issued DESC
+        """
         
-        // 尝试从缓存加载
-        if let cachedContracts = loadFromCache(characterId: characterId) {
-            // 检查缓存是否过期
-            if let attributes = try? FileManager.default.attributesOfItem(atPath: getCacheFilePath(for: characterId).path),
-               let modificationDate = attributes[.modificationDate] as? Date {
-                if Date().timeIntervalSince(modificationDate) > cacheValidityDuration {
-                    shouldRefreshInBackground = true
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]) {
+            Logger.debug("数据库查询成功，获取到\(results.count)行数据")
+            
+            let contracts = results.compactMap { row -> ContractInfo? in
+                let dateFormatter = ISO8601DateFormatter()
+                
+                // 记录原始数据
+                if let rawContractId = row["contract_id"] {
+                    Logger.debug("处理合同数据 - contract_id原始值: \(rawContractId), 类型: \(type(of: rawContractId))")
                 }
+                
+                // 获取contract_id
+                let contractId: Int
+                if let id = row["contract_id"] as? Int64 {
+                    contractId = Int(id)
+                } else if let id = row["contract_id"] as? Int {
+                    contractId = id
+                } else {
+                    Logger.error("contract_id 无效或类型不匹配")
+                    return nil
+                }
+                
+                // 检查必需的日期字段
+                guard let dateIssuedStr = row["date_issued"] as? String else {
+                    Logger.error("date_issued 为空")
+                    return nil
+                }
+                guard let dateExpiredStr = row["date_expired"] as? String else {
+                    Logger.error("date_expired 为空")
+                    return nil
+                }
+                guard let dateIssued = dateFormatter.date(from: dateIssuedStr) else {
+                    Logger.error("无法解析 date_issued: \(dateIssuedStr)")
+                    return nil
+                }
+                guard let dateExpired = dateFormatter.date(from: dateExpiredStr) else {
+                    Logger.error("无法解析 date_expired: \(dateExpiredStr)")
+                    return nil
+                }
+                
+                // 处理可选日期
+                let dateAccepted = (row["date_accepted"] as? String)
+                    .flatMap { str in str.isEmpty ? nil : str }
+                    .flatMap { dateFormatter.date(from: $0) }
+                
+                let dateCompleted = (row["date_completed"] as? String)
+                    .flatMap { str in str.isEmpty ? nil : str }
+                    .flatMap { dateFormatter.date(from: $0) }
+                
+                // 处理可能为null的整数字段
+                let acceptorId = row["acceptor_id"] as? Int64
+                let assigneeId = row["assignee_id"] as? Int64
+                
+                return ContractInfo(
+                    acceptor_id: acceptorId.map(Int.init),
+                    assignee_id: assigneeId.map(Int.init),
+                    availability: row["availability"] as? String ?? "",
+                    collateral: row["collateral"] as? Double ?? 0.0,
+                    contract_id: contractId,
+                    date_accepted: dateAccepted,
+                    date_completed: dateCompleted,
+                    date_expired: dateExpired,
+                    date_issued: dateIssued,
+                    days_to_complete: row["days_to_complete"] as? Int ?? 0,
+                    end_location_id: Int64(row["end_location_id"] as? Int ?? 0),
+                    for_corporation: (row["for_corporation"] as? Int ?? 0) != 0,
+                    issuer_corporation_id: row["issuer_corporation_id"] as? Int ?? 0,
+                    issuer_id: row["issuer_id"] as? Int ?? 0,
+                    price: row["price"] as? Double ?? 0.0,
+                    reward: row["reward"] as? Double ?? 0.0,
+                    start_location_id: Int64(row["start_location_id"] as? Int ?? 0),
+                    status: row["status"] as? String ?? "",
+                    title: row["title"] as? String ?? "",
+                    type: row["type"] as? String ?? "",
+                    volume: row["volume"] as? Double ?? 0.0
+                )
             }
             
-            if !forceRefresh {
-                // 如果缓存过期，启动后台刷新
-                if shouldRefreshInBackground {
-                    Task {
-                        do {
-                            // fetchContractsFromServer 已经处理了合并和去重，直接使用其结果
-                            let _ = try await fetchContractsFromServer(characterId: characterId)
-                            // 在主线程发送通知以刷新UI
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: NSNotification.Name("ContractsUpdated"), object: nil, userInfo: ["characterId": characterId])
-                            }
-                        } catch {
-                            Logger.error("后台更新合同数据失败 - 角色ID: \(characterId), 错误: \(error)")
-                        }
-                    }
-                }
-                return cachedContracts
-            }
+            Logger.debug("成功转换\(contracts.count)个合同数据")
+            return contracts
+        }
+        Logger.error("数据库查询失败")
+        return nil
+    }
+    
+    // 保存合同列表到数据库
+    private func saveContractsToDB(characterId: Int, contracts: [ContractInfo]) -> Bool {
+        // 首先获取已存在的合同ID
+        let checkQuery = "SELECT contract_id FROM contracts WHERE character_id = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId]) else {
+            Logger.error("查询现有合同失败")
+            return false
         }
         
-        // 如果没有缓存或强制刷新，直接从服务器获取
-        return try await fetchContractsFromServer(characterId: characterId)
+        let existingIds = Set(existingResults.compactMap { ($0["contract_id"] as? Int) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO contracts (
+                contract_id, character_id, acceptor_id, assignee_id,
+                availability, collateral, date_accepted, date_completed,
+                date_expired, date_issued, days_to_complete,
+                end_location_id, for_corporation, issuer_corporation_id,
+                issuer_id, price, reward, start_location_id, status,
+                title, type, volume
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        let dateFormatter = ISO8601DateFormatter()
+        var newCount = 0
+        
+        for contract in contracts {
+            let contractId = contract.contract_id
+            // 如果合同ID已存在，跳过
+            if existingIds.contains(contractId) {
+                continue
+            }
+            
+            // 处理可选日期
+            let dateAccepted = contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
+            let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
+            
+            let parameters: [Any] = [
+                contractId,
+                characterId,
+                contract.acceptor_id ?? 0,
+                contract.assignee_id ?? 0,
+                contract.availability,
+                contract.collateral,
+                dateAccepted,
+                dateCompleted,
+                dateFormatter.string(from: contract.date_expired),
+                dateFormatter.string(from: contract.date_issued),
+                contract.days_to_complete,
+                Int(contract.end_location_id),
+                contract.for_corporation ? 1 : 0,
+                contract.issuer_corporation_id,
+                contract.issuer_id,
+                contract.price,
+                contract.reward,
+                Int(contract.start_location_id),
+                contract.status,
+                contract.title,
+                contract.type,
+                contract.volume
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存合同到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)个合同到数据库")
+        }
+        return true
+    }
+    
+    // 从数据库获取合同物品
+    private func getContractItemsFromDB(characterId: Int, contractId: Int) -> [ContractItemInfo]? {
+        let query = """
+            SELECT record_id, is_included, is_singleton,
+                   quantity, type_id, raw_quantity
+            FROM contract_items 
+            WHERE character_id = ? AND contract_id = ?
+            ORDER BY record_id ASC
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId, contractId]) {
+            return results.compactMap { row in
+                return ContractItemInfo(
+                    is_included: (row["is_included"] as? Int ?? 0) != 0,
+                    is_singleton: (row["is_singleton"] as? Int ?? 0) != 0,
+                    quantity: row["quantity"] as? Int ?? 0,
+                    record_id: row["record_id"] as? Int64 ?? 0,
+                    type_id: row["type_id"] as? Int ?? 0,
+                    raw_quantity: row["raw_quantity"] as? Int
+                )
+            }
+        }
+        return nil
+    }
+    
+    // 保存合同物品到数据库
+    private func saveContractItemsToDB(characterId: Int, contractId: Int, items: [ContractItemInfo]) -> Bool {
+        // 首先获取已存在的记录ID
+        let checkQuery = "SELECT record_id FROM contract_items WHERE character_id = ? AND contract_id = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contractId]) else {
+            Logger.error("查询现有合同物品失败")
+            return false
+        }
+        
+        let existingIds = Set(existingResults.compactMap { ($0["record_id"] as? Int64) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO contract_items (
+                record_id, contract_id, character_id,
+                is_included, is_singleton, quantity,
+                type_id, raw_quantity
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var newCount = 0
+        for item in items {
+            let recordId = item.record_id
+            // 如果记录ID已存在，跳过
+            if existingIds.contains(recordId) {
+                continue
+            }
+            
+            let parameters: [Any] = [
+                recordId,
+                contractId,
+                characterId,
+                item.is_included ? 1 : 0,
+                item.is_singleton ? 1 : 0,
+                item.quantity,
+                item.type_id,
+                item.raw_quantity as Any
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存合同物品到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)个合同物品到数据库")
+        }
+        return true
+    }
+    
+    // 获取合同列表（公开方法）
+    public func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
+        // 检查是否需要刷新
+        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId)
+        Logger.debug("获取合同列表 - 角色ID: \(characterId), 强制刷新: \(forceRefresh), 需要刷新: \(needsRefresh)")
+        
+        // 先尝试从数据库获取数据
+        if let contracts = getContractsFromDB(characterId: characterId) {
+            Logger.debug("从数据库获取到\(contracts.count)个合同")
+            
+            // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
+            if needsRefresh {
+                Task {
+                    do {
+                        Logger.debug("开始后台刷新合同数据")
+                        let newContracts = try await fetchContractsFromServer(characterId: characterId)
+                        Logger.debug("从服务器获取到\(newContracts.count)个合同")
+                        
+                        // 保存到数据库
+                        if !saveContractsToDB(characterId: characterId, contracts: newContracts) {
+                            Logger.error("保存合同到数据库失败")
+                        } else {
+                            Logger.debug("成功保存合同到数据库")
+                        }
+                        
+                        // 更新查询时间
+                        updateLastQueryTime(characterId: characterId)
+                        
+                        // 发送通知以刷新UI
+                        await MainActor.run {
+                            Logger.debug("发送合同更新通知")
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("ContractsUpdated"),
+                                object: nil,
+                                userInfo: ["characterId": characterId]
+                            )
+                        }
+                    } catch {
+                        Logger.error("后台刷新合同列表失败: \(error.localizedDescription)")
+                    }
+                }
+            }
+            return contracts
+        }
+        
+        Logger.debug("数据库中没有数据，从服务器获取")
+        // 如果没有缓存数据，从服务器获取
+        let contracts = try await fetchContractsFromServer(characterId: characterId)
+        Logger.debug("从服务器获取到\(contracts.count)个合同")
+        
+        // 保存到数据库
+        if !saveContractsToDB(characterId: characterId, contracts: contracts) {
+            Logger.error("保存合同到数据库失败")
+        } else {
+            Logger.debug("成功保存合同到数据库")
+        }
+        
+        // 更新查询时间
+        updateLastQueryTime(characterId: characterId)
+        
+        return contracts
+    }
+    
+    // 获取合同物品（公开方法）
+    public func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
+        // 检查是否需要刷新
+        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId, isItems: true)
+        
+        // 先尝试从数据库获取数据
+        if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
+            // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
+            if needsRefresh {
+                Task {
+                    do {
+                        let newItems = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
+                        if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: newItems) {
+                            Logger.error("保存合同物品到数据库失败")
+                        }
+                        updateLastQueryTime(characterId: characterId, isItems: true)
+                        
+                        await MainActor.run {
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("ContractItemsUpdated"),
+                                object: nil,
+                                userInfo: ["characterId": characterId, "contractId": contractId]
+                            )
+                        }
+                    } catch {
+                        Logger.error("后台刷新合同物品失败: \(error.localizedDescription)")
+                    }
+                }
+            }
+            return items
+        }
+        
+        // 如果没有缓存数据，从服务器获取
+        let items = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
+        
+        // 保存到数据库
+        if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: items) {
+            Logger.error("保存合同物品到数据库失败")
+        }
+        
+        // 更新查询时间
+        updateLastQueryTime(characterId: characterId, isItems: true)
+        
+        return items
     }
     
     private func fetchContractsFromServer(characterId: Int) async throws -> [ContractInfo] {
@@ -124,16 +469,17 @@ class CharacterContractsAPI {
                 for task in tasks {
                     do {
                         let contracts = try await task.value
+                        if contracts.isEmpty {
+                            shouldBreak = true
+                            break
+                        }
                         allContracts.append(contentsOf: contracts)
-                    } catch {
-                        // 如果是页面不存在错误，标记退出循环
-                        if let networkError = error as? NetworkError,
-                           case .httpError(_, let message) = networkError,
+                    } catch let error as NetworkError {
+                        if case .httpError(_, let message) = error,
                            message?.contains("Requested page does not exist") == true {
                             shouldBreak = true
                             break
                         }
-                        // 其他错误则抛出
                         throw error
                     }
                 }
@@ -143,29 +489,10 @@ class CharacterContractsAPI {
                 }
                 
                 currentPage += maxConcurrentPages
-                
             } catch {
-                // 如果是页面不存在错误，结束循环
-                if let networkError = error as? NetworkError,
-                   case .httpError(_, let message) = networkError,
-                   message?.contains("Requested page does not exist") == true {
-                    break
-                }
                 throw error
             }
         }
-        
-        // 按合同ID排序，确保顺序一致
-        allContracts.sort { $0.contract_id > $1.contract_id }
-        
-        // 尝试加载现有缓存数据并合并
-        if let existingContracts = loadFromCache(characterId: characterId) {
-            let mergedContracts = Set(existingContracts).union(allContracts)
-            allContracts = Array(mergedContracts).sorted { $0.contract_id > $1.contract_id }
-        }
-        
-        // 保存到缓存
-        saveToCache(contracts: allContracts, characterId: characterId)
         
         return allContracts
     }
@@ -231,26 +558,17 @@ class CharacterContractsAPI {
         }
     }
     
-    // 获取合同物品列表
-    func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
-        // 如果不是强制刷新，尝试从缓存加载
-        if !forceRefresh {
-            if let cachedItems = loadItemsFromCache(characterId: characterId, contractId: contractId) {
-                return cachedItems
-            }
-        }
-        
+    // 从服务器获取合同物品
+    private func fetchContractItemsFromServer(characterId: Int, contractId: Int) async throws -> [ContractItemInfo] {
         let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/contracts/\(contractId)/items/?datasource=tranquility")!
         
-        let data = try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
         
         let decoder = JSONDecoder()
-        let items = try decoder.decode([ContractItemInfo].self, from: data)
-        
-        // 保存到缓存
-        saveItemsToCache(items: items, characterId: characterId, contractId: contractId)
-        
-        return items
+        return try decoder.decode([ContractItemInfo].self, from: data)
     }
     
     // 清除指定合同的物品缓存
