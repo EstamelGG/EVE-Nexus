@@ -123,7 +123,10 @@ public class CharacterAssetsJsonAPI {
                         }
                     }
                 } else {
-                    Logger.info("使用有效的缓存数据 - 文件: \(cacheFile.path)")
+                    let remainingTime = cacheTimeout - Date().timeIntervalSince(cache.timestamp)
+                    let remainingHours = Int(remainingTime / 3600)
+                    let remainingMinutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
+                    Logger.info("使用有效的缓存数据 - 剩余有效期: \(remainingHours)小时\(remainingMinutes)分钟 - 文件: \(cacheFile.path)")
                 }
                 
                 // 无论是否过期，都返回缓存的数据
