@@ -482,53 +482,54 @@ class CharacterContractsAPI {
     
     // 获取合同物品（公开方法）
     public func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
-        // 检查是否需要刷新
-        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId, isItems: true)
-        Logger.debug("获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId), 强制刷新: \(forceRefresh), 需要刷新: \(needsRefresh)")
+        Logger.debug("获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
         
-        // 先尝试从数据库获取数据
-        if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
-            Logger.debug("从数据库获取到\(items.count)个合同物品")
-            
-            // 如果数据库中没有数据或需要刷新，从服务器获取
-            if items.isEmpty || needsRefresh {
-                Logger.debug("数据库中没有数据或需要刷新，从服务器获取")
-                do {
-                    let newItems = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
-                    Logger.debug("从服务器获取到\(newItems.count)个合同物品")
-                    
-                    if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: newItems) {
-                        Logger.error("保存合同物品到数据库失败")
-                    } else {
-                        Logger.debug("成功保存合同物品到数据库")
-                    }
-                    
-                    updateLastQueryTime(characterId: characterId, isItems: true)
-                    return newItems
-                } catch {
-                    Logger.error("从服务器获取合同物品失败: \(error.localizedDescription)")
-                    throw error
-                }
+        // 检查合同是否已经获取过内容
+        let checkQuery = """
+            SELECT detail_update FROM contracts 
+            WHERE character_id = ? AND contract_id = ?
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contractId]),
+           let row = results.first,
+           let detailUpdate = row["detail_update"] as? String,  // 确保 detail_update 不为 null 且能转换为 String
+           !detailUpdate.isEmpty,
+           !forceRefresh {
+            Logger.debug("合同内容已经获取过，尝试从数据库获取")
+            // 如果已经获取过内容，直接从数据库获取
+            if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
+                return items
             }
-            
-            // 如果数据库有数据且不需要刷新，直接返回
-            return items
+            // 即使数据库中没有物品，也说明这个合同本来就是空的
+            return []
         }
         
-        Logger.debug("数据库中没有数据，从服务器获取")
-        // 如果没有缓存数据，从服务器获取
+        // 从服务器获取数据
+        Logger.debug("从服务器获取合同物品")
         let items = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
         Logger.debug("从服务器获取到\(items.count)个合同物品")
         
         // 保存到数据库
         if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: items) {
             Logger.error("保存合同物品到数据库失败")
-        } else {
-            Logger.debug("成功保存合同物品到数据库")
+            // 如果保存失败，不更新 detail_update 字段
+            return items
         }
         
-        // 更新查询时间
-        updateLastQueryTime(characterId: characterId, isItems: true)
+        Logger.debug("成功保存合同物品到数据库")
+        
+        // 只有在成功获取并保存数据后，才更新 detail_update 字段
+        let updateSQL = """
+            UPDATE contracts 
+            SET detail_update = CURRENT_TIMESTAMP 
+            WHERE character_id = ? AND contract_id = ?
+        """
+        
+        if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(updateSQL, parameters: [characterId, contractId]) {
+            Logger.error("更新合同 detail_update 失败: \(message)")
+        } else {
+            Logger.debug("成功更新合同 detail_update 字段")
+        }
         
         return items
     }

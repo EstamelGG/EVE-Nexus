@@ -396,8 +396,8 @@ struct ContractDetailView: View {
         .task {
             Logger.debug("ContractDetailView.task 开始执行")
             // 并行加载数据
-            async let itemsTask: () = viewModel.loadContractItems()
-            async let namesTask: () = viewModel.loadContractParties()
+            async let itemsTask = viewModel.loadContractItems()
+            async let namesTask = viewModel.loadContractParties()
             await (_, _) = (itemsTask, namesTask)
             Logger.debug("ContractDetailView.task 执行完成")
         }

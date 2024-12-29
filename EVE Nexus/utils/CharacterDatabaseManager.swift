@@ -157,6 +157,7 @@ class CharacterDatabaseManager: ObservableObject {
                 title TEXT,
                 type TEXT,
                 volume REAL,
+                detail_update TEXT,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (character_id, contract_id)
             );
