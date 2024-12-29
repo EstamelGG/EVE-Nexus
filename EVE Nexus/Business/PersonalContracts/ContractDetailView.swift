@@ -152,7 +152,7 @@ final class ContractDetailViewModel: ObservableObject {
                 self.assigneeName = assigneeName
             }
             
-            if let acceptorId = contract.acceptor_id,
+            if let acceptorId = contract.acceptor_id, acceptorId > 0,
                let acceptorName = names[acceptorId] {
                 Logger.debug("获取到接受人名称: \(acceptorName)")
                 self.acceptorName = acceptorName

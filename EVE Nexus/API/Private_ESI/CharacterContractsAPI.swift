@@ -110,9 +110,9 @@ class CharacterContractsAPI {
                 let dateFormatter = ISO8601DateFormatter()
                 
                 // 记录原始数据
-                if let rawContractId = row["contract_id"] {
-                    Logger.debug("处理合同数据 - contract_id原始值: \(rawContractId), 类型: \(type(of: rawContractId))")
-                }
+                //if let rawContractId = row["contract_id"] {
+                    // Logger.debug("处理合同数据 - contract_id原始值: \(rawContractId), 类型: \(type(of: rawContractId))")
+                //}
                 
                 // 获取contract_id
                 let contractId: Int
@@ -328,12 +328,12 @@ class CharacterContractsAPI {
             Logger.debug("数据库查询成功，获取到\(results.count)行数据")
             return results.compactMap { row -> ContractItemInfo? in
                 // 记录原始数据
-                if let rawTypeId = row["type_id"] {
-                    Logger.debug("处理物品数据 - type_id原始值: \(rawTypeId), 类型: \(type(of: rawTypeId))")
-                }
-                if let rawQuantity = row["quantity"] {
-                    Logger.debug("处理物品数据 - quantity原始值: \(rawQuantity), 类型: \(type(of: rawQuantity))")
-                }
+//                if let rawTypeId = row["type_id"] {
+//                    Logger.debug("处理物品数据 - type_id原始值: \(rawTypeId), 类型: \(type(of: rawTypeId))")
+//                }
+//                if let rawQuantity = row["quantity"] {
+//                    Logger.debug("处理物品数据 - quantity原始值: \(rawQuantity), 类型: \(type(of: rawQuantity))")
+//                }
                 
                 // 获取type_id
                 let typeId: Int
