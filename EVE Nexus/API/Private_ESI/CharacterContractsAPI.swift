@@ -191,13 +191,9 @@ class CharacterContractsAPI {
     // 保存合同列表到数据库
     private func saveContractsToDB(characterId: Int, contracts: [ContractInfo]) -> Bool {
         // 首先获取已存在的合同ID
-        let checkQuery = "SELECT contract_id FROM contracts WHERE character_id = ?"
-        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId]) else {
-            Logger.error("查询现有合同失败")
-            return false
-        }
-        
-        let existingIds = Set(existingResults.compactMap { ($0["contract_id"] as? Int) })
+        let checkQuery = "SELECT contract_id FROM contracts WHERE character_id = ? AND contract_id = ?"
+        var newCount = 0
+        let dateFormatter = ISO8601DateFormatter()
         
         let insertSQL = """
             INSERT OR REPLACE INTO contracts (
@@ -210,13 +206,11 @@ class CharacterContractsAPI {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
-        let dateFormatter = ISO8601DateFormatter()
-        var newCount = 0
-        
         for contract in contracts {
-            let contractId = contract.contract_id
-            // 如果合同ID已存在，跳过
-            if existingIds.contains(contractId) {
+            // 检查合同是否已存在
+            if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contract.contract_id]),
+               !results.isEmpty {
+                Logger.debug("跳过已存在的合同 - ID: \(contract.contract_id)")
                 continue
             }
             
@@ -225,7 +219,7 @@ class CharacterContractsAPI {
             let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
             
             let parameters: [Any] = [
-                contractId,
+                contract.contract_id,
                 characterId,
                 contract.acceptor_id ?? 0,
                 contract.assignee_id ?? 0,
@@ -254,10 +248,13 @@ class CharacterContractsAPI {
                 return false
             }
             newCount += 1
+            Logger.debug("成功插入新合同 - ID: \(contract.contract_id)")
         }
         
         if newCount > 0 {
             Logger.info("新增\(newCount)个合同到数据库")
+        } else {
+            Logger.debug("没有新的合同需要插入")
         }
         return true
     }
@@ -273,13 +270,50 @@ class CharacterContractsAPI {
         """
         
         if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId, contractId]) {
-            return results.compactMap { row in
+            Logger.debug("数据库查询成功，获取到\(results.count)行数据")
+            return results.compactMap { row -> ContractItemInfo? in
+                // 记录原始数据
+                if let rawTypeId = row["type_id"] {
+                    Logger.debug("处理物品数据 - type_id原始值: \(rawTypeId), 类型: \(type(of: rawTypeId))")
+                }
+                if let rawQuantity = row["quantity"] {
+                    Logger.debug("处理物品数据 - quantity原始值: \(rawQuantity), 类型: \(type(of: rawQuantity))")
+                }
+                
+                // 获取type_id
+                let typeId: Int
+                if let id = row["type_id"] as? Int64 {
+                    typeId = Int(id)
+                } else if let id = row["type_id"] as? Int {
+                    typeId = id
+                } else {
+                    Logger.error("type_id 无效或类型不匹配")
+                    return nil
+                }
+                
+                // 获取quantity
+                let quantity: Int
+                if let q = row["quantity"] as? Int64 {
+                    quantity = Int(q)
+                } else if let q = row["quantity"] as? Int {
+                    quantity = q
+                } else {
+                    Logger.error("quantity 无效或类型不匹配")
+                    return nil
+                }
+                
+                // 获取record_id
+                guard let recordId = row["record_id"] as? Int64 else {
+                    Logger.error("record_id 无效或类型不匹配")
+                    return nil
+                }
+                
                 return ContractItemInfo(
                     is_included: (row["is_included"] as? Int ?? 0) != 0,
                     is_singleton: (row["is_singleton"] as? Int ?? 0) != 0,
-                    quantity: row["quantity"] as? Int ?? 0,
-                    record_id: row["record_id"] as? Int64 ?? 0,
-                    type_id: row["type_id"] as? Int ?? 0,
+                    quantity: quantity,
+                    record_id: recordId,
+                    type_id: typeId,
                     raw_quantity: row["raw_quantity"] as? Int
                 )
             }
@@ -289,6 +323,8 @@ class CharacterContractsAPI {
     
     // 保存合同物品到数据库
     private func saveContractItemsToDB(characterId: Int, contractId: Int, items: [ContractItemInfo]) -> Bool {
+        Logger.debug("开始保存合同物品 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
+        
         // 首先获取已存在的记录ID
         let checkQuery = "SELECT record_id FROM contract_items WHERE character_id = ? AND contract_id = ?"
         guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contractId]) else {
@@ -297,6 +333,7 @@ class CharacterContractsAPI {
         }
         
         let existingIds = Set(existingResults.compactMap { ($0["record_id"] as? Int64) })
+        Logger.debug("数据库中已存在\(existingIds.count)个物品记录")
         
         let insertSQL = """
             INSERT OR REPLACE INTO contract_items (
@@ -311,29 +348,37 @@ class CharacterContractsAPI {
             let recordId = item.record_id
             // 如果记录ID已存在，跳过
             if existingIds.contains(recordId) {
+                Logger.debug("跳过已存在的合同物品 - 记录ID: \(recordId), 合同ID: \(contractId)")
                 continue
             }
             
+            // 处理raw_quantity的可选值
+            let rawQuantity = item.raw_quantity ?? 0
+            
             let parameters: [Any] = [
                 recordId,
-                contractId,
+                contractId,  // 确保存储合同ID
                 characterId,
                 item.is_included ? 1 : 0,
                 item.is_singleton ? 1 : 0,
                 item.quantity,
                 item.type_id,
-                item.raw_quantity as Any
+                rawQuantity
             ]
             
+            Logger.debug("准备插入物品 - 记录ID: \(recordId), 合同ID: \(contractId), 类型ID: \(item.type_id), 数量: \(item.quantity)")
             if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
-                Logger.error("保存合同物品到数据库失败: \(message)")
+                Logger.error("保存合同物品到数据库失败: \(message), 参数: \(parameters)")
                 return false
             }
             newCount += 1
+            Logger.debug("成功插入新合同物品 - 记录ID: \(recordId), 合同ID: \(contractId)")
         }
         
         if newCount > 0 {
-            Logger.info("新增\(newCount)个合同物品到数据库")
+            Logger.info("新增\(newCount)个合同物品到数据库，合同ID: \(contractId)")
+        } else {
+            Logger.debug("没有新的合同物品需要插入，合同ID: \(contractId)")
         }
         return true
     }
@@ -405,40 +450,47 @@ class CharacterContractsAPI {
     public func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
         // 检查是否需要刷新
         let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId, isItems: true)
+        Logger.debug("获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId), 强制刷新: \(forceRefresh), 需要刷新: \(needsRefresh)")
         
         // 先尝试从数据库获取数据
         if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
-            // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
-            if needsRefresh {
-                Task {
-                    do {
-                        let newItems = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
-                        if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: newItems) {
-                            Logger.error("保存合同物品到数据库失败")
-                        }
-                        updateLastQueryTime(characterId: characterId, isItems: true)
-                        
-                        await MainActor.run {
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("ContractItemsUpdated"),
-                                object: nil,
-                                userInfo: ["characterId": characterId, "contractId": contractId]
-                            )
-                        }
-                    } catch {
-                        Logger.error("后台刷新合同物品失败: \(error.localizedDescription)")
+            Logger.debug("从数据库获取到\(items.count)个合同物品")
+            
+            // 如果数据库中没有数据或需要刷新，从服务器获取
+            if items.isEmpty || needsRefresh {
+                Logger.debug("数据库中没有数据或需要刷新，从服务器获取")
+                do {
+                    let newItems = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
+                    Logger.debug("从服务器获取到\(newItems.count)个合同物品")
+                    
+                    if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: newItems) {
+                        Logger.error("保存合同物品到数据库失败")
+                    } else {
+                        Logger.debug("成功保存合同物品到数据库")
                     }
+                    
+                    updateLastQueryTime(characterId: characterId, isItems: true)
+                    return newItems
+                } catch {
+                    Logger.error("从服务器获取合同物品失败: \(error.localizedDescription)")
+                    throw error
                 }
             }
+            
+            // 如果数据库有数据且不需要刷新，直接返回
             return items
         }
         
+        Logger.debug("数据库中没有数据，从服务器获取")
         // 如果没有缓存数据，从服务器获取
         let items = try await fetchContractItemsFromServer(characterId: characterId, contractId: contractId)
+        Logger.debug("从服务器获取到\(items.count)个合同物品")
         
         // 保存到数据库
         if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: items) {
             Logger.error("保存合同物品到数据库失败")
+        } else {
+            Logger.debug("成功保存合同物品到数据库")
         }
         
         // 更新查询时间
@@ -560,15 +612,38 @@ class CharacterContractsAPI {
     
     // 从服务器获取合同物品
     private func fetchContractItemsFromServer(characterId: Int, contractId: Int) async throws -> [ContractItemInfo] {
+        Logger.debug("开始从服务器获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
         let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/contracts/\(contractId)/items/?datasource=tranquility")!
+        Logger.debug("请求URL: \(url.absoluteString)")
         
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
-            characterId: characterId
-        )
-        
-        let decoder = JSONDecoder()
-        return try decoder.decode([ContractItemInfo].self, from: data)
+        do {
+            let data = try await NetworkManager.shared.fetchDataWithToken(
+                from: url,
+                characterId: characterId
+            )
+            
+            let decoder = JSONDecoder()
+            let items = try decoder.decode([ContractItemInfo].self, from: data)
+            Logger.debug("成功从服务器获取合同物品 - 合同ID: \(contractId), 物品数量: \(items.count)")
+            
+            // 打印每个物品的详细信息
+            for item in items {
+                Logger.debug("""
+                    物品详情:
+                    - 记录ID: \(item.record_id)
+                    - 类型ID: \(item.type_id)
+                    - 数量: \(item.quantity)
+                    - 是否包含: \(item.is_included)
+                    - 是否单例: \(item.is_singleton)
+                    - 原始数量: \(item.raw_quantity ?? 0)
+                    """)
+            }
+            
+            return items
+        } catch {
+            Logger.error("从服务器获取合同物品失败 - 合同ID: \(contractId), 错误: \(error.localizedDescription)")
+            throw error
+        }
     }
     
     // 清除指定合同的物品缓存

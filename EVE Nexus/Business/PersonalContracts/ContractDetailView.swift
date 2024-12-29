@@ -59,6 +59,7 @@ final class ContractDetailViewModel: ObservableObject {
     }
     
     func loadContractItems(forceRefresh: Bool = false) async {
+        Logger.debug("开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh)")
         isLoading = true
         errorMessage = nil
         
@@ -68,8 +69,10 @@ final class ContractDetailViewModel: ObservableObject {
                 contractId: contract.contract_id,
                 forceRefresh: forceRefresh
             )
+            Logger.debug("成功加载合同物品 - 数量: \(items.count)")
             isLoading = false
         } catch {
+            Logger.error("加载合同物品失败: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             isLoading = false
         }
@@ -181,6 +184,7 @@ struct ContractDetailView: View {
     @StateObject private var viewModel: ContractDetailViewModel
     
     init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
+        Logger.debug("初始化ContractDetailView - 角色ID: \(characterId), 合同ID: \(contract.contract_id)")
         self.contract = contract
         _viewModel = StateObject(wrappedValue: ContractDetailViewModel(
             characterId: characterId,
@@ -388,10 +392,12 @@ struct ContractDetailView: View {
             }
         }
         .task {
+            Logger.debug("ContractDetailView.task 开始执行")
             // 并行加载数据
             async let itemsTask: () = viewModel.loadContractItems()
             async let namesTask: () = viewModel.loadContractParties()
             await (_, _) = (itemsTask, namesTask)
+            Logger.debug("ContractDetailView.task 执行完成")
         }
         .navigationTitle(contract.title.isEmpty ? NSLocalizedString("Contract_Details", comment: "") : contract.title)
     }
