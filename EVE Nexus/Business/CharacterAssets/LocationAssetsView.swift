@@ -327,11 +327,13 @@ class LocationAssetsViewModel: ObservableObject {
                 }
             }
             
-            // 将容器和合并后的普通物品组合，并按type_id和item_id排序
+            // 将容器和合并后的普通物品组合，并按物品名称和item_id排序
             var allItems = containers + mergedNormalItems
             allItems.sort { item1, item2 in
-                if item1.type_id != item2.type_id {
-                    return item1.type_id < item2.type_id
+                let name1 = itemInfo(for: item1.type_id)?.name ?? ""
+                let name2 = itemInfo(for: item2.type_id)?.name ?? ""
+                if name1 != name2 {
+                    return name1.localizedCompare(name2) == .orderedAscending
                 }
                 return item1.item_id < item2.item_id
             }
