@@ -617,6 +617,20 @@ struct ContentView: View {
                     }
                 }
             }
+            .onAppear {
+                Logger.info("ContentView 出现 - 当前角色ID: \(currentCharacterId)")
+                if currentCharacterId != 0 {
+                    if let character = EVELogin.shared.getCharacterByID(currentCharacterId)?.character {
+                        Logger.info("当前选中角色: \(character.CharacterName)")
+                    } else {
+                        Logger.warning("找不到ID为 \(currentCharacterId) 的角色信息")
+                        logout()
+                    }
+                } else {
+                    Logger.info("当前未选择角色")
+                    logout()
+                }
+            }
         }
         .task {
             await loadInitialData()
