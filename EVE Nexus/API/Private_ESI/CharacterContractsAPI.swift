@@ -190,6 +190,27 @@ class CharacterContractsAPI {
                     return nil
                 }
                 
+                // 获取 issuer_id 和 issuer_corporation_id
+                let issuerId: Int
+                if let id = row["issuer_id"] as? Int64 {
+                    issuerId = Int(id)
+                } else if let id = row["issuer_id"] as? Int {
+                    issuerId = id
+                } else {
+                    Logger.error("issuer_id 无效或类型不匹配")
+                    return nil
+                }
+                
+                let issuerCorpId: Int
+                if let id = row["issuer_corporation_id"] as? Int64 {
+                    issuerCorpId = Int(id)
+                } else if let id = row["issuer_corporation_id"] as? Int {
+                    issuerCorpId = id
+                } else {
+                    Logger.error("issuer_corporation_id 无效或类型不匹配")
+                    return nil
+                }
+                
                 return ContractInfo(
                     acceptor_id: acceptorId.map(Int.init),
                     assignee_id: assigneeId.map(Int.init),
@@ -203,8 +224,8 @@ class CharacterContractsAPI {
                     days_to_complete: row["days_to_complete"] as? Int ?? 0,
                     end_location_id: endLocationId,
                     for_corporation: (row["for_corporation"] as? Int ?? 0) != 0,
-                    issuer_corporation_id: row["issuer_corporation_id"] as? Int ?? 0,
-                    issuer_id: row["issuer_id"] as? Int ?? 0,
+                    issuer_corporation_id: issuerCorpId,
+                    issuer_id: issuerId,
                     price: row["price"] as? Double ?? 0.0,
                     reward: row["reward"] as? Double ?? 0.0,
                     start_location_id: startLocationId,

@@ -89,16 +89,17 @@ final class ContractDetailViewModel: ObservableObject {
         var ids = Set<Int>()
         
         // 添加人物和军团ID
-        if contract.issuer_id != 0 {
-            ids.insert(contract.issuer_id)
-        }
-        if contract.issuer_corporation_id != 0 {
-            ids.insert(contract.issuer_corporation_id)
-        }
-        if let assigneeId = contract.assignee_id, assigneeId != 0 {
+        Logger.debug("开始加载合同相关方信息 - 发起人ID: \(contract.issuer_id), 军团ID: \(contract.issuer_corporation_id)")
+        
+        // 添加发起人ID
+        ids.insert(contract.issuer_id)
+        ids.insert(contract.issuer_corporation_id)
+        
+        // 添加其他相关方ID
+        if let assigneeId = contract.assignee_id {
             ids.insert(assigneeId)
         }
-        if let acceptorId = contract.acceptor_id, acceptorId != 0 {
+        if let acceptorId = contract.acceptor_id {
             ids.insert(acceptorId)
         }
         
@@ -115,8 +116,6 @@ final class ContractDetailViewModel: ObservableObject {
                 security: startInfo.security
             )
             Logger.debug("已加载起始位置信息: \(startInfo.stationName)")
-        } else {
-            Logger.debug("未找到起始位置信息 - ID: \(contract.start_location_id)")
         }
         
         if let endInfo = locationInfos[contract.end_location_id] {
@@ -126,26 +125,36 @@ final class ContractDetailViewModel: ObservableObject {
                 security: endInfo.security
             )
             Logger.debug("已加载目标位置信息: \(endInfo.stationName)")
-        } else {
-            Logger.debug("未找到目标位置信息 - ID: \(contract.end_location_id)")
         }
         
         do {
+            Logger.debug("开始获取名称信息，IDs: \(ids)")
             let names = try await UniverseNameCache.shared.getNames(for: ids)
             
             // 更新名称
-            if let issuerName = names[contract.issuer_id] {
-                self.issuerName = issuerName
+            if let name = names[contract.issuer_id] {
+                Logger.debug("获取到发起人名称: \(name)")
+                self.issuerName = name
+            } else {
+                Logger.error("未找到发起人名称 - ID: \(contract.issuer_id)")
             }
+            
             if let corpName = names[contract.issuer_corporation_id] {
+                Logger.debug("获取到军团名称: \(corpName)")
                 self.issuerCorpName = corpName
+            } else {
+                Logger.error("未找到军团名称 - ID: \(contract.issuer_corporation_id)")
             }
+            
             if let assigneeId = contract.assignee_id,
                let assigneeName = names[assigneeId] {
+                Logger.debug("获取到指定人名称: \(assigneeName)")
                 self.assigneeName = assigneeName
             }
+            
             if let acceptorId = contract.acceptor_id,
                let acceptorName = names[acceptorId] {
+                Logger.debug("获取到接受人名称: \(acceptorName)")
                 self.acceptorName = acceptorName
             }
             
@@ -251,24 +260,22 @@ struct ContractDetailView: View {
                             }
                         }
                         
-                        // 合同发起人（如果 ID 不为 0）
-                        if contract.issuer_id != 0 {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(NSLocalizedString("Contract_Issuer", comment: ""))
-                                HStack(spacing: 4) {
-                                    Text(viewModel.issuerName)
-                                    if !viewModel.issuerCorpName.isEmpty {
-                                        Text("[\(viewModel.issuerCorpName)]")
-                                    }
+                        // 合同发起人
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(NSLocalizedString("Contract_Issuer", comment: ""))
+                            HStack(spacing: 4) {
+                                Text(viewModel.issuerName.isEmpty ? "Unknown" : viewModel.issuerName)
+                                if !viewModel.issuerCorpName.isEmpty {
+                                    Text("[\(viewModel.issuerCorpName)]")
                                 }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
+                        .frame(height: 36)
                         
-                        // 合同对象（如果存在且 ID 不为 0）
-                        if let assigneeId = contract.assignee_id, assigneeId != 0 {
+                        // 合同对象（如果存在）
+                        if !viewModel.assigneeName.isEmpty {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Assignee", comment: ""))
                                 Text(viewModel.assigneeName)
@@ -278,11 +285,8 @@ struct ContractDetailView: View {
                             .frame(height: 36)
                         }
                         
-                        // 如果接收人存在且与对象不同，且 ID 不为 0，显示接收人
-                        if let acceptorId = contract.acceptor_id,
-                           let assigneeId = contract.assignee_id,
-                           acceptorId != assigneeId,
-                           acceptorId != 0 {
+                        // 如果接收人存在且与对象不同，显示接收人
+                        if !viewModel.acceptorName.isEmpty && viewModel.acceptorName != viewModel.assigneeName {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Contract_Acceptor", comment: ""))
                                 Text(viewModel.acceptorName)
