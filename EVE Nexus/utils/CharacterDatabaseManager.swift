@@ -1,0 +1,377 @@
+import Foundation
+import SwiftUI
+import SQLite3
+
+class CharacterDatabaseManager: ObservableObject {
+    static let shared = CharacterDatabaseManager()
+    @Published var databaseUpdated = false
+    private var db: OpaquePointer?
+    
+    private init() {
+        Logger.info("开始初始化角色数据库...")
+        // 获取数据库文件路径
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dbPath = documentsPath.appendingPathComponent("character_data.db").path
+        Logger.info("角色数据库路径: \(dbPath)")
+        
+        // 检查数据库文件是否存在
+        let dbExists = fileManager.fileExists(atPath: dbPath)
+        Logger.info("角色数据库文件\(dbExists ? "已存在" : "不存在")")
+        
+        // 创建数据库目录（如果不存在）
+        try? fileManager.createDirectory(at: documentsPath, withIntermediateDirectories: true)
+        
+        // 打开/创建数据库
+        if sqlite3_open(dbPath, &db) == SQLITE_OK {
+            // if !dbExists {
+            //     Logger.info("创建新的角色数据库: \(dbPath)")
+            //     // 创建数据库表
+            //     setupBaseTables()
+            // } else {
+            //     Logger.info("打开已有的角色数据库: \(dbPath)")
+            // }
+            setupBaseTables()
+        } else {
+            if let db = db {
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                Logger.error("角色数据库打开失败: \(errmsg)")
+                sqlite3_close(db)
+            } else {
+                Logger.error("角色数据库打开失败: 未知错误")
+            }
+        }
+        Logger.info("角色数据库初始化完成")
+    }
+    
+    deinit {
+        if let db = db {
+            sqlite3_close(db)
+        }
+    }
+    
+    // MARK: - Database Management
+    
+    /// 加载数据库
+    func loadDatabase() {
+        Logger.info("开始加载角色数据库...")
+        if let db = db {
+            // 验证数据库连接
+            var statement: OpaquePointer?
+            let query = "SELECT name FROM sqlite_master WHERE type='table' LIMIT 1"
+            if sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK {
+                Logger.info("角色数据库连接验证成功")
+                sqlite3_finalize(statement)
+                DispatchQueue.main.async {
+                    self.databaseUpdated.toggle()
+                }
+            } else {
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                Logger.error("角色数据库验证失败: \(errmsg)")
+            }
+        } else {
+            Logger.error("角色数据库未打开")
+        }
+    }
+    
+    /// 关闭数据库
+    func closeDatabase() {
+        if let db = db {
+            sqlite3_close(db)
+            self.db = nil
+        }
+    }
+    
+    /// 清除查询缓存
+    func clearCache() {
+        // 不再需要缓存管理
+    }
+    
+    /// 获取查询日志
+    func getQueryLogs() -> [(query: String, parameters: [Any], timestamp: Date)] {
+        // 如果需要查询日志，可以自己实现
+        return []
+    }
+    
+    // MARK: - Private Methods
+    
+    private func setupBaseTables() {
+        let createTablesSQL = """
+            -- 通用名称缓存表
+            CREATE TABLE IF NOT EXISTS universe_names (
+                id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                name TEXT NOT NULL,
+                update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
+            CREATE INDEX IF NOT EXISTS idx_universe_names_update_time ON universe_names(update_time);
+
+            -- 钱包日志表
+            CREATE TABLE IF NOT EXISTS wallet_journal (
+                id INTEGER,
+                character_id INTEGER,
+                amount REAL,
+                balance REAL,
+                context_id INTEGER,
+                context_id_type TEXT,
+                date TEXT,
+                description TEXT,
+                first_party_id INTEGER,
+                reason TEXT,
+                ref_type TEXT,
+                second_party_id INTEGER,
+                tax REAL,
+                tax_receiver_id INTEGER,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (character_id, id)
+            );
+
+            -- 钱包交易记录表
+            CREATE TABLE IF NOT EXISTS wallet_transactions (
+                transaction_id INTEGER,
+                character_id INTEGER,
+                client_id INTEGER,
+                date TEXT,
+                is_buy BOOLEAN,
+                is_personal BOOLEAN,
+                journal_ref_id INTEGER,
+                location_id INTEGER,
+                quantity INTEGER,
+                type_id INTEGER,
+                unit_price REAL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (character_id, transaction_id)
+            );
+
+            -- 合同表
+            CREATE TABLE IF NOT EXISTS contracts (
+                contract_id INTEGER,
+                character_id INTEGER,
+                acceptor_id INTEGER,
+                assignee_id INTEGER,
+                availability TEXT,
+                collateral REAL,
+                date_accepted TEXT,
+                date_completed TEXT,
+                date_expired TEXT,
+                date_issued TEXT,
+                days_to_complete INTEGER,
+                end_location_id INTEGER,
+                for_corporation BOOLEAN,
+                issuer_corporation_id INTEGER,
+                issuer_id INTEGER,
+                price REAL,
+                reward REAL,
+                start_location_id INTEGER,
+                status TEXT,
+                title TEXT,
+                type TEXT,
+                volume REAL,
+                detail_update TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (character_id, contract_id)
+            );
+
+            -- 合同物品表
+            CREATE TABLE IF NOT EXISTS contract_items (
+                record_id INTEGER,
+                contract_id INTEGER,
+                character_id INTEGER,
+                is_included BOOLEAN,
+                is_singleton BOOLEAN,
+                quantity INTEGER,
+                type_id INTEGER,
+                raw_quantity INTEGER,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (character_id, contract_id, record_id),
+                FOREIGN KEY (character_id, contract_id) REFERENCES contracts(character_id, contract_id)
+            );
+
+            -- 工业制造表
+            CREATE TABLE IF NOT EXISTS industry_jobs (
+                character_id INTEGER NOT NULL,
+                job_id INTEGER NOT NULL,
+                activity_id INTEGER NOT NULL,
+                blueprint_id INTEGER NOT NULL,
+                blueprint_location_id INTEGER NOT NULL,
+                blueprint_type_id INTEGER NOT NULL,
+                completed_character_id INTEGER,
+                completed_date TEXT,
+                cost REAL NOT NULL,
+                duration INTEGER NOT NULL,
+                end_date TEXT NOT NULL,
+                facility_id INTEGER NOT NULL,
+                installer_id INTEGER NOT NULL,
+                licensed_runs INTEGER,
+                output_location_id INTEGER NOT NULL,
+                pause_date TEXT,
+                probability REAL,
+                product_type_id INTEGER,
+                runs INTEGER NOT NULL,
+                start_date TEXT NOT NULL,
+                station_id INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                successful_runs INTEGER,
+                last_updated TEXT NOT NULL,
+                PRIMARY KEY (character_id, job_id)
+            );
+
+            -- 创建索引以提高查询性能
+            CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_contracts_character_date ON contracts(character_id, date_issued);
+            CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
+        """
+        
+        // 分割SQL语句并逐个执行
+        let statements = createTablesSQL.components(separatedBy: ";")
+        for statement in statements {
+            let trimmed = statement.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                if case .error(let error) = executeQuery(trimmed) {
+                    Logger.error("创建表失败: \(error)\nSQL: \(trimmed)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Public Methods
+    
+    /// 检查数据库是否已初始化
+    func isDatabaseInitialized() -> Bool {
+        return true
+    }
+    
+    // MARK: - Character Methods
+    
+    /// 保存或更新角色信息
+    func saveCharacter(character: CharacterAuth) {
+        // 暂时不实现
+    }
+    
+    /// 获取所有角色信息
+    func getAllCharacters() -> [EVECharacterInfo] {
+        // 暂时返回空数组
+        return []
+    }
+    
+    /// 获取指定角色信息
+    func getCharacter(id: Int) -> CharacterAuth? {
+        // 暂时返回nil
+        return nil
+    }
+    
+    /// 删除角色信息
+    func deleteCharacter(id: Int) {
+        // 暂时不实现
+    }
+    
+    /// 更新角色的钱包余额
+    func updateWalletBalance(characterId: Int, balance: Double) {
+        // 暂时不实现
+    }
+    
+    /// 更新角色的技能点信息
+    func updateSkillPoints(characterId: Int, totalSP: Int, queueLength: Int) {
+        // 暂时不实现
+    }
+    
+    /// 更新角色的位置信息
+    func updateLocation(characterId: Int, locationId: Int) {
+        // 暂时不实现
+    }
+    
+    /// 更新角色显示顺序
+    func updateCharacterOrder(characterIds: [Int]) {
+        // 暂时不实现
+    }
+    
+    /// 执行查询
+    func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
+        guard let db = db else {
+            return .error("数据库未打开")
+        }
+        
+        var statement: OpaquePointer?
+        var results: [[String: Any]] = []
+        
+        // 准备语句
+        if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
+            let errmsg = String(cString: sqlite3_errmsg(db))
+            Logger.error("准备语句失败: \(errmsg)")
+            return .error("准备语句失败: \(errmsg)")
+        }
+        
+        // 绑定参数
+        for (index, parameter) in parameters.enumerated() {
+            let parameterIndex = Int32(index + 1)
+            switch parameter {
+            case let value as Int:
+                sqlite3_bind_int64(statement, parameterIndex, Int64(value))
+            case let value as Int64:
+                sqlite3_bind_int64(statement, parameterIndex, value)
+            case let value as Double:
+                sqlite3_bind_double(statement, parameterIndex, value)
+            case let value as String:
+                sqlite3_bind_text(statement, parameterIndex, (value as NSString).utf8String, -1, nil)
+            case let value as Data:
+                value.withUnsafeBytes { bytes in
+                    _ = sqlite3_bind_blob(statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil)
+                }
+            case is NSNull:
+                sqlite3_bind_null(statement, parameterIndex)
+            default:
+                sqlite3_finalize(statement)
+                return .error("不支持的参数类型: \(type(of: parameter))")
+            }
+        }
+        
+        // 执行查询
+        while sqlite3_step(statement) == SQLITE_ROW {
+            var row: [String: Any] = [:]
+            let columnCount = sqlite3_column_count(statement)
+            
+            for i in 0..<columnCount {
+                let columnName = String(cString: sqlite3_column_name(statement, i))
+                let type = sqlite3_column_type(statement, i)
+                
+                switch type {
+                case SQLITE_INTEGER:
+                    row[columnName] = sqlite3_column_int64(statement, i)
+                case SQLITE_FLOAT:
+                    row[columnName] = sqlite3_column_double(statement, i)
+                case SQLITE_TEXT:
+                    if let cString = sqlite3_column_text(statement, i) {
+                        row[columnName] = String(cString: cString)
+                    }
+                case SQLITE_NULL:
+                    row[columnName] = NSNull()
+                case SQLITE_BLOB:
+                    if let blob = sqlite3_column_blob(statement, i) {
+                        let size = Int(sqlite3_column_bytes(statement, i))
+                        row[columnName] = Data(bytes: blob, count: size)
+                    }
+                default:
+                    break
+                }
+            }
+            
+            results.append(row)
+        }
+        
+        // 释放语句
+        sqlite3_finalize(statement)
+        
+        // 如果是INSERT/UPDATE/DELETE语句，返回成功
+        if results.isEmpty && (query.lowercased().hasPrefix("insert") || 
+                             query.lowercased().hasPrefix("update") || 
+                             query.lowercased().hasPrefix("delete")) {
+            return .success([[:]])
+        }
+        Logger.debug("成功执行: \(query)")
+        return .success(results)
+    }
+} 

@@ -773,7 +773,7 @@ struct CharacterRowView: View {
                                             .foregroundColor(.gray)
                                             .lineLimit(1)
                                     } else {
-                                        Text("Pause")
+                                        Text("Paused")
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                             .lineLimit(1)

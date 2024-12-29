@@ -39,7 +39,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
-    private var locationViewCache: [Int64: LocationInfoView] = [:]
+    private var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -85,24 +85,16 @@ final class WalletTransactionsViewModel: ObservableObject {
     }
     
     func getLocationView(for locationId: Int64) -> LocationInfoView? {
-        // 如果缓存中已有,直接返回
-        if let cachedView = locationViewCache[locationId] {
-            return cachedView
-        }
-        
-        // 如果缓存中没有,创建并缓存
-        if let info = databaseManager.getStationInfo(stationID: locationId) {
-            let locationView = LocationInfoView(
+        // 如果缓存中已有，直接返回
+        if let info = locationInfoCache[locationId] {
+            return LocationInfoView(
                 stationName: info.stationName,
                 solarSystemName: info.solarSystemName,
                 security: info.security,
                 font: .caption,
                 textColor: .secondary
             )
-            locationViewCache[locationId] = locationView
-            return locationView
         }
-        
         return nil
     }
     
@@ -125,6 +117,13 @@ final class WalletTransactionsViewModel: ObservableObject {
                   let entries = try? JSONDecoder().decode([WalletTransactionEntry].self, from: jsonData) else {
                 throw NetworkError.invalidResponse
             }
+            
+            // 收集所有位置ID
+            let locationIds = Set(entries.map { $0.location_id })
+            
+            // 使用 LocationInfoLoader 加载位置信息
+            let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
+            locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
             
             var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
             for entry in entries {

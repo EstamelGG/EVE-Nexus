@@ -47,6 +47,9 @@ struct EVE_NexusApp: App {
             Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
         }
         
+        // 初始化数据库
+        _ = CharacterDatabaseManager.shared  // 确保角色数据库被初始化
+        
         configureLanguage()
         validateTokens()
     }
@@ -92,7 +95,7 @@ struct EVE_NexusApp: App {
             Logger.error("icons.zip file not found in bundle")
             return
         }
-
+        
         let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
         let iconURL = URL(fileURLWithPath: iconPath)
 
@@ -108,7 +111,7 @@ struct EVE_NexusApp: App {
             }
             return
         }
-
+        
         // 需要解压
         await MainActor.run {
             needsUnzip = true
@@ -118,7 +121,7 @@ struct EVE_NexusApp: App {
         if FileManager.default.fileExists(atPath: destinationPath.path) {
             try? FileManager.default.removeItem(at: destinationPath)
         }
-
+        
         do {
             try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) { progress in
                 Task { @MainActor in
@@ -137,12 +140,20 @@ struct EVE_NexusApp: App {
         }
     }
 
+    private func initializeDatabases() {
+        // 初始化静态数据库
+        databaseManager.loadDatabase()
+        // 初始化角色数据库
+        CharacterDatabaseManager.shared.loadDatabase()
+    }
+
     private func initializeApp() async {
         do {
             // 在图标解压完成后加载主权数据
             _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
             await MainActor.run {
                 databaseManager.loadDatabase()
+                CharacterDatabaseManager.shared.loadDatabase()
                 isInitialized = true
             }
         } catch {
@@ -150,6 +161,7 @@ struct EVE_NexusApp: App {
             // 即使主权数据加载失败，也继续初始化应用
             await MainActor.run {
                 databaseManager.loadDatabase()
+                CharacterDatabaseManager.shared.loadDatabase()
                 isInitialized = true
             }
         }

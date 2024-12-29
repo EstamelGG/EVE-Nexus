@@ -39,6 +39,30 @@ class CharacterWalletAPI {
         let timestamp: Date
     }
     
+    private let lastJournalQueryKey = "LastWalletJournalQuery_"
+    private let lastTransactionQueryKey = "LastWalletTransactionQuery_"
+    private let queryInterval: TimeInterval = 3600 // 1小时的查询间隔
+    
+    // 获取最后查询时间
+    private func getLastQueryTime(characterId: Int, isJournal: Bool) -> Date? {
+        let key = isJournal ? lastJournalQueryKey + String(characterId) : lastTransactionQueryKey + String(characterId)
+        return UserDefaults.standard.object(forKey: key) as? Date
+    }
+    
+    // 更新最后查询时间
+    private func updateLastQueryTime(characterId: Int, isJournal: Bool) {
+        let key = isJournal ? lastJournalQueryKey + String(characterId) : lastTransactionQueryKey + String(characterId)
+        UserDefaults.standard.set(Date(), forKey: key)
+    }
+    
+    // 检查是否需要刷新数据
+    private func shouldRefreshData(characterId: Int, isJournal: Bool) -> Bool {
+        guard let lastQuery = getLastQueryTime(characterId: characterId, isJournal: isJournal) else {
+            return true // 如果没有查询记录，需要刷新
+        }
+        return Date().timeIntervalSince(lastQuery) > queryInterval
+    }
+    
     private init() {
         // 从 UserDefaults 恢复缓存
         let defaults = UserDefaults.standard
@@ -233,102 +257,107 @@ class CharacterWalletAPI {
         }
     }
     
+    // 从数据库获取钱包日志
+    private func getWalletJournalFromDB(characterId: Int) -> [[String: Any]]? {
+        let query = """
+            SELECT id, amount, balance, context_id, context_id_type,
+                   date, description, first_party_id, reason, ref_type,
+                   second_party_id, last_updated
+            FROM wallet_journal 
+            WHERE character_id = ? 
+            ORDER BY date DESC 
+            LIMIT 1000
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]) {
+            return results
+        }
+        return nil
+    }
+    
+    // 保存钱包日志到数据库
+    private func saveWalletJournalToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
+        // 首先获取已存在的日志ID
+        let checkQuery = "SELECT id FROM wallet_journal WHERE character_id = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId]) else {
+            Logger.error("查询现有钱包日志失败")
+            return false
+        }
+        
+        let existingIds = Set(existingResults.compactMap { ($0["id"] as? Int64) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO wallet_journal (
+                id, character_id, amount, balance, context_id, context_id_type,
+                date, description, first_party_id, reason, ref_type,
+                second_party_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var newCount = 0
+        for entry in entries {
+            let journalId = entry["id"] as? Int64 ?? 0
+            // 如果日志ID已存在，跳过
+            if existingIds.contains(journalId) {
+                continue
+            }
+            
+            let parameters: [Any] = [
+                journalId,
+                characterId,
+                entry["amount"] as? Double ?? 0.0,
+                entry["balance"] as? Double ?? 0.0,
+                entry["context_id"] as? Int ?? 0,
+                entry["context_id_type"] as? String ?? "",
+                entry["date"] as? String ?? "",
+                entry["description"] as? String ?? "",
+                entry["first_party_id"] as? Int ?? 0,
+                entry["reason"] as? String ?? "",
+                entry["ref_type"] as? String ?? "",
+                entry["second_party_id"] as? Int ?? 0
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存钱包日志到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)条钱包日志到数据库")
+        }
+        return true
+    }
+    
     // 获取钱包日志（公开方法）
     public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查缓存
-        if !forceRefresh {
-            if let cachedJson = getCachedJournal(characterId: characterId) {
-                Logger.info("使用缓存的钱包日志数据")
-                
-                // 检查缓存是否过期
-                let key = getJournalCacheKey(characterId: characterId)
-                if let data = UserDefaults.standard.data(forKey: key),
-                   let cache = try? JSONDecoder().decode(WalletJournalCacheEntry.self, from: data),
-                   Date().timeIntervalSince(cache.timestamp) > cacheTimeout {
-                    // 如果缓存过期，在后台刷新
-                    Task {
-                        do {
-                            let newJournalData = try await fetchJournalFromServer(characterId: characterId)
-                            
-                            // 解析现有缓存数据并合并
-                            if let existingData = cachedJson.data(using: .utf8),
-                               let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-                                
-                                // 合并新旧数据
-                                var allEntries = existingEntries
-                                allEntries.append(contentsOf: newJournalData)
-                                
-                                // 根据 id 去重
-                                let uniqueEntries = Dictionary(grouping: allEntries) { entry in
-                                    return entry["id"] as? Int64 ?? 0
-                                }.values.compactMap { $0.first }
-                                
-                                // 按时间排序
-                                let sortedEntries = uniqueEntries.sorted { entry1, entry2 in
-                                    let date1 = entry1["date"] as? String ?? ""
-                                    let date2 = entry2["date"] as? String ?? ""
-                                    return date1 > date2
-                                }
-                                
-                                // 转换为JSON并保存
-                                let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
-                                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                                    saveJournalToCache(jsonString: jsonString, characterId: characterId)
-                                    // 在主线程发送通知以刷新UI
-                                    await MainActor.run {
-                                        NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
-                                    }
-                                }
-                            }
-                        } catch {
-                            Logger.error("后台更新钱包日志失败: \(error)")
-                        }
-                    }
-                }
-                return cachedJson
+        // 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM wallet_journal WHERE character_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
+        
+        // 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("钱包日志为空或强制刷新，从网络获取数据")
+            let journalData = try await fetchJournalFromServer(characterId: characterId)
+            if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
+                Logger.error("保存钱包日志到数据库失败")
             }
         }
         
-        // 如果强制刷新或没有缓存，从服务器获取
-        let journalData = try await fetchJournalFromServer(characterId: characterId)
-        
-        // 如果有缓存，尝试合并数据
-        if let cachedJson = getCachedJournal(characterId: characterId),
-           let existingData = cachedJson.data(using: .utf8),
-           let existingEntries = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-            
-            // 合并新旧数据
-            var allEntries = existingEntries
-            allEntries.append(contentsOf: journalData)
-            
-            // 根据 id 去重
-            let uniqueEntries = Dictionary(grouping: allEntries) { entry in
-                return entry["id"] as? Int64 ?? 0
-            }.values.compactMap { $0.first }
-            
-            // 按时间排序
-            let sortedEntries = uniqueEntries.sorted { entry1, entry2 in
-                let date1 = entry1["date"] as? String ?? ""
-                let date2 = entry2["date"] as? String ?? ""
-                return date1 > date2
-            }
-            
-            // 转换为JSON
-            let jsonData = try JSONSerialization.data(withJSONObject: sortedEntries, options: [.prettyPrinted, .sortedKeys])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                saveJournalToCache(jsonString: jsonString, characterId: characterId)
-                return jsonString
-            }
+        // 从数据库获取数据并返回
+        if let results = getWalletJournalFromDB(characterId: characterId) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
         }
-        
-        // 如果没有缓存或合并失败，使用新数据
-        let jsonData = try JSONSerialization.data(withJSONObject: journalData, options: [.prettyPrinted, .sortedKeys])
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw NetworkError.invalidResponse
-        }
-        
-        saveJournalToCache(jsonString: jsonString, characterId: characterId)
-        return jsonString
+        return nil
     }
     
     // 从服务器获取钱包日志
@@ -383,103 +412,120 @@ class CharacterWalletAPI {
         return walletTransactionsCachePrefix + String(characterId)
     }
     
+    // 从数据库获取钱包交易记录
+    private func getWalletTransactionsFromDB(characterId: Int) -> [[String: Any]]? {
+        let query = """
+            SELECT transaction_id, client_id, date, is_buy, is_personal,
+                   journal_ref_id, location_id, quantity, type_id,
+                   unit_price, last_updated
+            FROM wallet_transactions 
+            WHERE character_id = ? 
+            ORDER BY date DESC 
+            LIMIT 1000
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]) {
+            // 将整数转换回布尔值
+            return results.map { row in
+                var mutableRow = row
+                if let isBuy = row["is_buy"] as? Int64 {
+                    mutableRow["is_buy"] = isBuy != 0
+                }
+                if let isPersonal = row["is_personal"] as? Int64 {
+                    mutableRow["is_personal"] = isPersonal != 0
+                }
+                return mutableRow
+            }
+        }
+        return nil
+    }
+    
+    // 保存钱包交易记录到数据库
+    private func saveWalletTransactionsToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
+        // 首先获取已存在的交易ID
+        let checkQuery = "SELECT transaction_id FROM wallet_transactions WHERE character_id = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId]) else {
+            Logger.error("查询现有交易记录失败")
+            return false
+        }
+        
+        let existingIds = Set(existingResults.compactMap { ($0["transaction_id"] as? Int64) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO wallet_transactions (
+                transaction_id, character_id, client_id, date, is_buy,
+                is_personal, journal_ref_id, location_id, quantity,
+                type_id, unit_price
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var newCount = 0
+        for entry in entries {
+            let transactionId = entry["transaction_id"] as? Int64 ?? 0
+            // 如果交易ID已存在，跳过
+            if existingIds.contains(transactionId) {
+                continue
+            }
+            
+            // 将布尔值转换为整数
+            let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
+            let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
+            
+            let parameters: [Any] = [
+                transactionId,
+                characterId,
+                entry["client_id"] as? Int ?? 0,
+                entry["date"] as? String ?? "",
+                isBuy,
+                isPersonal,
+                entry["journal_ref_id"] as? Int64 ?? 0,
+                entry["location_id"] as? Int64 ?? 0,
+                entry["quantity"] as? Int ?? 0,
+                entry["type_id"] as? Int ?? 0,
+                entry["unit_price"] as? Double ?? 0.0
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存钱包交易记录到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)条钱包交易记录到数据库")
+        }
+        return true
+    }
+    
     // 获取钱包交易记录（公开方法）
     public func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查缓存
-        if !forceRefresh {
-            let key = getTransactionsCacheKey(characterId: characterId)
-            if let data = UserDefaults.standard.data(forKey: key),
-               let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data) {
-                Logger.info("使用缓存的钱包交易记录数据")
-                
-                // 检查缓存是否过期
-                if Date().timeIntervalSince(cache.timestamp) > cacheTimeout {
-                    // 如果缓存过期，在后台刷新
-                    Task {
-                        do {
-                            let newTransactions = try await fetchTransactionsFromServer(characterId: characterId)
-                            
-                            // 解析现有缓存数据并合并
-                            if let existingData = cache.jsonString.data(using: .utf8),
-                               let existingTransactions = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-                                
-                                // 合并新旧数据
-                                var allTransactions = existingTransactions
-                                allTransactions.append(contentsOf: newTransactions)
-                                
-                                // 根据 transaction_id 去重
-                                let uniqueTransactions = Dictionary(grouping: allTransactions) { entry in
-                                    return entry["transaction_id"] as? Int64 ?? 0
-                                }.values.compactMap { $0.first }
-                                
-                                // 按时间排序
-                                let sortedTransactions = uniqueTransactions.sorted { entry1, entry2 in
-                                    let date1 = entry1["date"] as? String ?? ""
-                                    let date2 = entry2["date"] as? String ?? ""
-                                    return date1 > date2
-                                }
-                                
-                                // 转换为JSON并保存
-                                let jsonData = try JSONSerialization.data(withJSONObject: sortedTransactions, options: [.prettyPrinted, .sortedKeys])
-                                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                                    saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
-                                    // 在主线程发送通知以刷新UI
-                                    await MainActor.run {
-                                        NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionsUpdated"), object: nil, userInfo: ["characterId": characterId])
-                                    }
-                                }
-                            }
-                        } catch {
-                            Logger.error("后台更新钱包交易记录失败: \(error)")
-                        }
-                    }
-                }
-                return cache.jsonString
+        // 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM wallet_transactions WHERE character_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
+        
+        // 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("钱包交易记录为空或强制刷新，从网络获取数据")
+            let transactionData = try await fetchTransactionsFromServer(characterId: characterId)
+            if !saveWalletTransactionsToDB(characterId: characterId, entries: transactionData) {
+                Logger.error("保存钱包交易记录到数据库失败")
             }
         }
         
-        // 如果强制刷新或没有缓存，从服务器获取
-        let newTransactions = try await fetchTransactionsFromServer(characterId: characterId)
-        
-        // 如果有缓存，尝试合并数据
-        let key = getTransactionsCacheKey(characterId: characterId)
-        if let data = UserDefaults.standard.data(forKey: key),
-           let cache = try? JSONDecoder().decode(WalletTransactionsCacheEntry.self, from: data),
-           let existingData = cache.jsonString.data(using: .utf8),
-           let existingTransactions = try? JSONSerialization.jsonObject(with: existingData) as? [[String: Any]] {
-            
-            // 合并新旧数据
-            var allTransactions = existingTransactions
-            allTransactions.append(contentsOf: newTransactions)
-            
-            // 根据 transaction_id 去重
-            let uniqueTransactions = Dictionary(grouping: allTransactions) { entry in
-                return entry["transaction_id"] as? Int64 ?? 0
-            }.values.compactMap { $0.first }
-            
-            // 按时间排序
-            let sortedTransactions = uniqueTransactions.sorted { entry1, entry2 in
-                let date1 = entry1["date"] as? String ?? ""
-                let date2 = entry2["date"] as? String ?? ""
-                return date1 > date2
-            }
-            
-            // 转换为JSON
-            let jsonData = try JSONSerialization.data(withJSONObject: sortedTransactions, options: [.prettyPrinted, .sortedKeys])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
-                return jsonString
-            }
+        // 从数据库获取数据并返回
+        if let results = getWalletTransactionsFromDB(characterId: characterId) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
         }
-        
-        // 如果没有缓存或合并失败，使用新数据
-        let jsonData = try JSONSerialization.data(withJSONObject: newTransactions, options: [.prettyPrinted, .sortedKeys])
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw NetworkError.invalidResponse
-        }
-        
-        saveTransactionsToCache(jsonString: jsonString, characterId: characterId)
-        return jsonString
+        return nil
     }
     
     // 从服务器获取交易记录

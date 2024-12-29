@@ -24,11 +24,35 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
+        
+        // 设置通知监听
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleContractsUpdated(_:)),
+            name: NSNotification.Name("ContractsUpdated"),
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    @objc private func handleContractsUpdated(_ notification: Notification) {
+        guard let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
+              updatedCharacterId == characterId else {
+            return
+        }
+        
+        Task {
+            await loadContractsData()
+        }
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
         // 只有在第一次加载（没有数据）时才显示全屏加载
         let shouldShowFullscreenLoading = contractGroups.isEmpty && !forceRefresh
+        Logger.debug("开始加载合同数据 - 角色ID: \(characterId), 强制刷新: \(forceRefresh)")
         
         if shouldShowFullscreenLoading {
             isLoading = true
@@ -42,12 +66,13 @@ final class PersonalContractsViewModel: ObservableObject {
                 characterId: characterId,
                 forceRefresh: forceRefresh
             )
+            Logger.debug("获取到\(contracts.count)个合同")
             
             var groupedContracts: [Date: [ContractInfo]] = [:]
             for contract in contracts {
                 let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
                 guard let dayDate = calendar.date(from: components) else {
-                    print("Failed to create date from components for contract: \(contract.contract_id)")
+                    Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
                     continue
                 }
                 
@@ -58,19 +83,28 @@ final class PersonalContractsViewModel: ObservableObject {
                 ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
             }.sorted { $0.date > $1.date }
             
-            self.contractGroups = groups
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
+            Logger.debug("合同分组完成，共\(groups.count)个分组")
+            
+            await MainActor.run {
+                self.contractGroups = groups
+                Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
+                
+                if shouldShowFullscreenLoading {
+                    isLoading = false
+                } else {
+                    isBackgroundLoading = false
+                }
             }
             
         } catch {
-            self.errorMessage = error.localizedDescription
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
+            Logger.error("加载合同数据失败: \(error.localizedDescription)")
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                if shouldShowFullscreenLoading {
+                    isLoading = false
+                } else {
+                    isBackgroundLoading = false
+                }
             }
         }
     }
@@ -88,6 +122,7 @@ struct PersonalContractsView: View {
     }()
     
     init(characterId: Int) {
+        Logger.debug("初始化PersonalContractsView - 角色ID: \(characterId)")
         _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
     }
     
@@ -129,6 +164,7 @@ struct PersonalContractsView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
+            Logger.debug("执行下拉刷新")
             // 立即触发刷新并返回，不等待加载完成
             Task {
                 await viewModel.loadContractsData(forceRefresh: true)
@@ -137,9 +173,9 @@ struct PersonalContractsView: View {
             return
         }
         .task {
-            if viewModel.contractGroups.isEmpty {
-                await viewModel.loadContractsData()
-            }
+            Logger.debug("PersonalContractsView.task 开始执行")
+            await viewModel.loadContractsData()
+            Logger.debug("PersonalContractsView.task 执行完成")
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
         .toolbar {
