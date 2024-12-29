@@ -16,6 +16,23 @@ class CharacterMiningAPI {
         let type_id: Int
     }
     
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"  // 修改为与数据库匹配的格式
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    // 用于API响应的日期格式化器
+    private let apiDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
     private init() {}
     
     // 获取最后查询时间
@@ -65,12 +82,21 @@ class CharacterMiningAPI {
             LIMIT 1000
         """
         
-        if case .success(let results) = databaseManager.executeQuery(query, parameters: [characterId]) {
-            return results.compactMap { row -> MiningLedgerEntry? in
+        let result = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId])
+        
+        switch result {
+        case .success(let rows):
+            Logger.debug("从数据库获取到原始数据：\(rows.count)行")
+            
+            let entries = rows.compactMap { row -> MiningLedgerEntry? in
+                Logger.debug("正在处理行：\(row)")
+                
+                // 尝试类型转换
                 guard let date = row["date"] as? String,
-                      let quantity = row["quantity"] as? Int,
-                      let solarSystemId = row["solar_system_id"] as? Int,
-                      let typeId = row["type_id"] as? Int else {
+                      let quantity = (row["quantity"] as? Int64).map(Int.init) ?? (row["quantity"] as? Int),
+                      let solarSystemId = (row["solar_system_id"] as? Int64).map(Int.init) ?? (row["solar_system_id"] as? Int),
+                      let typeId = (row["type_id"] as? Int64).map(Int.init) ?? (row["type_id"] as? Int) else {
+                    Logger.error("转换挖矿记录失败：\(row)")
                     return nil
                 }
                 
@@ -81,8 +107,14 @@ class CharacterMiningAPI {
                     type_id: typeId
                 )
             }
+            
+            Logger.debug("成功转换记录数：\(entries.count)")
+            return entries
+            
+        case .error(let message):
+            Logger.error("查询挖矿记录失败：\(message)")
+            return nil
         }
-        return nil
     }
     
     // 保存挖矿记录到数据库
@@ -101,11 +133,11 @@ class CharacterMiningAPI {
         
         // 创建一个Set来存储已存在的记录的唯一标识（日期+类型ID）
         let existingRecords = Set(existingResults.compactMap { row -> String? in
-            guard let date = row["date"] as? String,
-                  let typeId = row["type_id"] as? Int else {
-                return nil
+            if let date = row["date"] as? String,
+               let typeId = (row["type_id"] as? Int64).map(Int.init) ?? (row["type_id"] as? Int) {
+                return "\(date)_\(typeId)"
             }
-            return "\(date)_\(typeId)"
+            return nil
         })
         
         let insertSQL = """
@@ -166,11 +198,25 @@ class CharacterMiningAPI {
                     break
                 }
                 
-                allEntries.append(contentsOf: pageEntries)
+                // 转换API返回的日期格式为数据库格式
+                let convertedEntries = pageEntries.map { entry -> MiningLedgerEntry in
+                    if let date = apiDateFormatter.date(from: entry.date) {
+                        let convertedDate = dateFormatter.string(from: date)
+                        return MiningLedgerEntry(
+                            date: convertedDate,
+                            quantity: entry.quantity,
+                            solar_system_id: entry.solar_system_id,
+                            type_id: entry.type_id
+                        )
+                    }
+                    return entry
+                }
+                
+                allEntries.append(contentsOf: convertedEntries)
                 Logger.info("成功获取第\(page)页挖矿记录，本页包含\(pageEntries.count)条记录")
                 
                 page += 1
-                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
+                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
                 
             } catch let error as NetworkError {
                 if case .httpError(let statusCode, let message) = error,
