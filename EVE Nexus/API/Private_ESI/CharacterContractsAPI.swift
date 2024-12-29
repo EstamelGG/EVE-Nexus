@@ -363,8 +363,19 @@ class CharacterContractsAPI {
                     return nil
                 }
                 
+                // 获取 is_included
+                let isIncluded: Bool
+                if let included = row["is_included"] as? Int64 {
+                    isIncluded = included != 0
+                } else if let included = row["is_included"] as? Int {
+                    isIncluded = included != 0
+                } else {
+                    Logger.error("is_included 无效或类型不匹配")
+                    isIncluded = false
+                }
+                
                 return ContractItemInfo(
-                    is_included: (row["is_included"] as? Int ?? 0) != 0,
+                    is_included: isIncluded,
                     is_singleton: (row["is_singleton"] as? Int ?? 0) != 0,
                     quantity: quantity,
                     record_id: recordId,

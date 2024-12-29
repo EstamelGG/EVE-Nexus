@@ -75,7 +75,28 @@ final class ContractDetailViewModel: ObservableObject {
                 contractId: contract.contract_id,
                 forceRefresh: forceRefresh
             )
-            Logger.debug("成功加载合同物品 - 数量: \(items.count)")
+            
+            // 添加详细的日志
+            Logger.debug("""
+                成功加载合同物品:
+                - 总数量: \(items.count)
+                - 提供的物品: \(items.filter { $0.is_included }.count)
+                - 需求的物品: \(items.filter { !$0.is_included }.count)
+                """)
+            
+            // 打印每个物品的详细信息
+            for item in items {
+                if let itemDetails = getItemDetails(for: item.type_id) {
+                    Logger.debug("""
+                        物品详情:
+                        - 类型ID: \(item.type_id)
+                        - 名称: \(itemDetails.name)
+                        - 是否包含: \(item.is_included)
+                        - 数量: \(item.quantity)
+                        """)
+                }
+            }
+            
             isLoading = false
         } catch {
             Logger.error("加载合同物品失败: \(error.localizedDescription)")
