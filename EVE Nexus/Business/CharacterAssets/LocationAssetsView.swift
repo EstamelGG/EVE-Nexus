@@ -303,8 +303,10 @@ class LocationAssetsViewModel: ObservableObject {
                 if items.count == 1 {
                     mergedNormalItems.append(items[0])
                 } else {
-                    let firstItem = items[0]
-                    let totalQuantity = items.reduce(0) { $0 + $1.quantity }
+                    // 对相同type_id的物品按item_id排序
+                    let sortedItems = items.sorted { $0.item_id < $1.item_id }
+                    let firstItem = sortedItems[0]
+                    let totalQuantity = sortedItems.reduce(0) { $0 + $1.quantity }
                     let mergedItem = AssetTreeNode(
                         location_id: firstItem.location_id,
                         item_id: firstItem.item_id,
@@ -325,9 +327,14 @@ class LocationAssetsViewModel: ObservableObject {
                 }
             }
             
-            // 将容器和合并后的普通物品组合，并按location_id排序
+            // 将容器和合并后的普通物品组合，并按type_id和item_id排序
             var allItems = containers + mergedNormalItems
-            allItems.sort { $0.location_id < $1.location_id }
+            allItems.sort { item1, item2 in
+                if item1.type_id != item2.type_id {
+                    return item1.type_id < item2.type_id
+                }
+                return item1.item_id < item2.item_id
+            }
             mergedGroups[flag] = allItems
         }
         
