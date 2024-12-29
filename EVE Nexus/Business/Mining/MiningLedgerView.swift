@@ -82,9 +82,8 @@ final class MiningLedgerViewModel: ObservableObject {
         
         if shouldShowFullscreenLoading {
             isLoading = true
-        } else if !forceRefresh {
-            isBackgroundLoading = true
         }
+        isBackgroundLoading = true
         errorMessage = nil
         
         do {
@@ -141,9 +140,8 @@ final class MiningLedgerViewModel: ObservableObject {
                 Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
                 if shouldShowFullscreenLoading {
                     isLoading = false
-                } else {
-                    isBackgroundLoading = false
                 }
+                isBackgroundLoading = false
             }
             
         } catch {
@@ -152,9 +150,8 @@ final class MiningLedgerViewModel: ObservableObject {
                 self.errorMessage = error.localizedDescription
                 if shouldShowFullscreenLoading {
                     isLoading = false
-                } else {
-                    isBackgroundLoading = false
                 }
+                isBackgroundLoading = false
             }
         }
     }
@@ -214,7 +211,10 @@ struct MiningLedgerView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.loadMiningData(forceRefresh: true)
+            // 立即启动后台刷新
+            Task {
+                await viewModel.loadMiningData(forceRefresh: true)
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
         .toolbar {
