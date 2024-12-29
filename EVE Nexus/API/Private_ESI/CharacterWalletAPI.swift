@@ -14,7 +14,7 @@ class CharacterWalletAPI {
     
     // 内存缓存
     private var memoryCache: [Int: CacheEntry] = [:]
-    private let cacheTimeout: TimeInterval = 8 * 3600 // 8 小时缓存
+    private let cacheTimeout: TimeInterval = 20 * 60 // 20分钟缓存，钱包余额使用
     
     // UserDefaults键前缀
     private let walletCachePrefix = "wallet_cache_"
@@ -58,9 +58,19 @@ class CharacterWalletAPI {
     // 检查是否需要刷新数据
     private func shouldRefreshData(characterId: Int, isJournal: Bool) -> Bool {
         guard let lastQuery = getLastQueryTime(characterId: characterId, isJournal: isJournal) else {
+            Logger.debug("没有找到上次查询时间记录，需要刷新数据")
             return true // 如果没有查询记录，需要刷新
         }
-        return Date().timeIntervalSince(lastQuery) > queryInterval
+        
+        let timeInterval = Date().timeIntervalSince(lastQuery)
+        let remainingTime = queryInterval - timeInterval
+        let remainingMinutes = Int(remainingTime / 60)
+        let remainingSeconds = Int(remainingTime.truncatingRemainder(dividingBy: 60))
+        
+        let dataType = isJournal ? "钱包日志" : "钱包交易记录"
+        Logger.debug("\(dataType)下次刷新剩余时间: \(remainingMinutes)分\(remainingSeconds)秒")
+        
+        return timeInterval > queryInterval
     }
     
     private init() {
@@ -332,7 +342,7 @@ class CharacterWalletAPI {
     
     // 获取钱包日志（公开方法）
     public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查数据库中是否有数据
+        // 检查数据库中是否有数据，以及是否需要刷新
         let checkQuery = "SELECT COUNT(*) as count FROM wallet_journal WHERE character_id = ?"
         let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
         let isEmpty = if case .success(let rows) = result,
@@ -343,13 +353,17 @@ class CharacterWalletAPI {
             true
         }
         
-        // 如果数据为空或强制刷新，则从网络获取
-        if isEmpty || forceRefresh {
-            Logger.debug("钱包日志为空或强制刷新，从网络获取数据")
+        // 如果数据为空、强制刷新或达到查询间隔，则从网络获取
+        if isEmpty || forceRefresh || shouldRefreshData(characterId: characterId, isJournal: true) {
+            Logger.debug("钱包日志为空或需要刷新，从网络获取数据")
             let journalData = try await fetchJournalFromServer(characterId: characterId)
             if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
                 Logger.error("保存钱包日志到数据库失败")
             }
+            // 更新最后查询时间
+            updateLastQueryTime(characterId: characterId, isJournal: true)
+        } else {
+            Logger.debug("使用数据库中的钱包日志数据")
         }
         
         // 从数据库获取数据并返回
@@ -500,7 +514,7 @@ class CharacterWalletAPI {
     
     // 获取钱包交易记录（公开方法）
     public func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查数据库中是否有数据
+        // 检查数据库中是否有数据，以及是否需要刷新
         let checkQuery = "SELECT COUNT(*) as count FROM wallet_transactions WHERE character_id = ?"
         let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
         let isEmpty = if case .success(let rows) = result,
@@ -511,13 +525,17 @@ class CharacterWalletAPI {
             true
         }
         
-        // 如果数据为空或强制刷新，则从网络获取
-        if isEmpty || forceRefresh {
-            Logger.debug("钱包交易记录为空或强制刷新，从网络获取数据")
+        // 如果数据为空、强制刷新或达到查询间隔，则从网络获取
+        if isEmpty || forceRefresh || shouldRefreshData(characterId: characterId, isJournal: false) {
+            Logger.debug("钱包交易记录为空或需要刷新，从网络获取数据")
             let transactionData = try await fetchTransactionsFromServer(characterId: characterId)
             if !saveWalletTransactionsToDB(characterId: characterId, entries: transactionData) {
                 Logger.error("保存钱包交易记录到数据库失败")
             }
+            // 更新最后查询时间
+            updateLastQueryTime(characterId: characterId, isJournal: false)
+        } else {
+            Logger.debug("使用数据库中的钱包交易记录数据")
         }
         
         // 从数据库获取数据并返回
