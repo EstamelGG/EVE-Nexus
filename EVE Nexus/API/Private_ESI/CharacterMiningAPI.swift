@@ -119,41 +119,14 @@ class CharacterMiningAPI {
     
     // 保存挖矿记录到数据库
     private func saveMiningLedgerToDB(characterId: Int, entries: [MiningLedgerEntry]) -> Bool {
-        // 首先获取已存在的记录
-        let checkQuery = """
-            SELECT date, type_id 
-            FROM mining_ledger 
-            WHERE character_id = ?
-        """
-        
-        guard case .success(let existingResults) = databaseManager.executeQuery(checkQuery, parameters: [characterId]) else {
-            Logger.error("查询现有挖矿记录失败")
-            return false
-        }
-        
-        // 创建一个Set来存储已存在的记录的唯一标识（日期+类型ID）
-        let existingRecords = Set(existingResults.compactMap { row -> String? in
-            if let date = row["date"] as? String,
-               let typeId = (row["type_id"] as? Int64).map(Int.init) ?? (row["type_id"] as? Int) {
-                return "\(date)_\(typeId)"
-            }
-            return nil
-        })
-        
         let insertSQL = """
             INSERT OR REPLACE INTO mining_ledger (
                 character_id, date, quantity, solar_system_id, type_id
             ) VALUES (?, ?, ?, ?, ?)
         """
         
-        var newCount = 0
+        var updateCount = 0
         for entry in entries {
-            // 检查记录是否已存在
-            let recordKey = "\(entry.date)_\(entry.type_id)"
-            if existingRecords.contains(recordKey) {
-                continue
-            }
-            
             let parameters: [Any] = [
                 characterId,
                 entry.date,
@@ -166,12 +139,10 @@ class CharacterMiningAPI {
                 Logger.error("保存挖矿记录到数据库失败: \(message)")
                 return false
             }
-            newCount += 1
+            updateCount += 1
         }
         
-        if newCount > 0 {
-            Logger.info("新增\(newCount)条挖矿记录到数据库")
-        }
+        Logger.info("更新了\(updateCount)条挖矿记录")
         return true
     }
     

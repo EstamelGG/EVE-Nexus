@@ -227,7 +227,7 @@ class CharacterDatabaseManager: ObservableObject {
                 solar_system_id INTEGER NOT NULL,
                 type_id INTEGER NOT NULL,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (character_id, date, type_id)
+                PRIMARY KEY (character_id, date, type_id, solar_system_id)
             );
 
             -- 创建索引以提高查询性能
