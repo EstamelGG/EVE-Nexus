@@ -332,64 +332,32 @@ class CharacterWalletAPI {
     
     // 获取钱包日志（公开方法）
     public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查是否需要刷新
-        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId, isJournal: true)
+        // 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM wallet_journal WHERE character_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
         
-        // 先尝试从数据库获取数据（无论是否需要刷新）
-        if let results = getWalletJournalFromDB(characterId: characterId) {
-            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
-                if needsRefresh {
-                    Task {
-                        do {
-                            // 从服务器获取新数据
-                            let journalData = try await fetchJournalFromServer(characterId: characterId)
-                            
-                            // 保存到数据库
-                            if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
-                                Logger.error("保存钱包日志到数据库失败")
-                            }
-                            
-                            // 更新查询时间
-                            updateLastQueryTime(characterId: characterId, isJournal: true)
-                            
-                            // 发送通知以刷新UI
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
-                            }
-                        } catch {
-                            Logger.error("后台刷新钱包日志失败: \(error)")
-                        }
-                    }
-                }
-                return jsonString
+        // 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("钱包日志为空或强制刷新，从网络获取数据")
+            let journalData = try await fetchJournalFromServer(characterId: characterId)
+            if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
+                Logger.error("保存钱包日志到数据库失败")
             }
         }
         
-        // 如果没有缓存数据，或者转换JSON失败，则直接从服务器获取
-        let journalData = try await fetchJournalFromServer(characterId: characterId)
-        
-        // 保存到数据库
-        if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
-            Logger.error("保存钱包日志到数据库失败")
+        // 从数据库获取数据并返回
+        if let results = getWalletJournalFromDB(characterId: characterId) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
         }
-        
-        // 更新查询时间
-        updateLastQueryTime(characterId: characterId, isJournal: true)
-        
-        // 转换为JSON返回
-        let jsonData = try JSONSerialization.data(withJSONObject: journalData, options: [.prettyPrinted, .sortedKeys])
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw NetworkError.invalidResponse
-        }
-        
-        // 发送通知以刷新UI
-        await MainActor.run {
-            NotificationCenter.default.post(name: NSNotification.Name("WalletJournalUpdated"), object: nil, userInfo: ["characterId": characterId])
-        }
-        
-        return jsonString
+        return nil
     }
     
     // 从服务器获取钱包日志
@@ -532,64 +500,32 @@ class CharacterWalletAPI {
     
     // 获取钱包交易记录（公开方法）
     public func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
-        // 检查是否需要刷新
-        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId, isJournal: false)
+        // 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM wallet_transactions WHERE character_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
         
-        // 先尝试从数据库获取数据（无论是否需要刷新）
-        if let results = getWalletTransactionsFromDB(characterId: characterId) {
-            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
-                if needsRefresh {
-                    Task {
-                        do {
-                            // 从服务器获取新数据
-                            let transactionData = try await fetchTransactionsFromServer(characterId: characterId)
-                            
-                            // 保存到数据库
-                            if !saveWalletTransactionsToDB(characterId: characterId, entries: transactionData) {
-                                Logger.error("保存钱包交易记录到数据库失败")
-                            }
-                            
-                            // 更新查询时间
-                            updateLastQueryTime(characterId: characterId, isJournal: false)
-                            
-                            // 发送通知以刷新UI
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionsUpdated"), object: nil, userInfo: ["characterId": characterId])
-                            }
-                        } catch {
-                            Logger.error("后台刷新钱包交易记录失败: \(error)")
-                        }
-                    }
-                }
-                return jsonString
+        // 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("钱包交易记录为空或强制刷新，从网络获取数据")
+            let transactionData = try await fetchTransactionsFromServer(characterId: characterId)
+            if !saveWalletTransactionsToDB(characterId: characterId, entries: transactionData) {
+                Logger.error("保存钱包交易记录到数据库失败")
             }
         }
         
-        // 如果没有缓存数据，或者转换JSON失败，则直接从服务器获取
-        let transactionData = try await fetchTransactionsFromServer(characterId: characterId)
-        
-        // 保存到数据库
-        if !saveWalletTransactionsToDB(characterId: characterId, entries: transactionData) {
-            Logger.error("保存钱包交易记录到数据库失败")
+        // 从数据库获取数据并返回
+        if let results = getWalletTransactionsFromDB(characterId: characterId) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
         }
-        
-        // 更新查询时间
-        updateLastQueryTime(characterId: characterId, isJournal: false)
-        
-        // 转换为JSON返回
-        let jsonData = try JSONSerialization.data(withJSONObject: transactionData, options: [.prettyPrinted, .sortedKeys])
-        guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw NetworkError.invalidResponse
-        }
-        
-        // 发送通知以刷新UI
-        await MainActor.run {
-            NotificationCenter.default.post(name: NSNotification.Name("WalletTransactionsUpdated"), object: nil, userInfo: ["characterId": characterId])
-        }
-        
-        return jsonString
+        return nil
     }
     
     // 从服务器获取交易记录

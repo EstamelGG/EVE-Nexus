@@ -419,65 +419,31 @@ class CharacterContractsAPI {
     
     // 获取合同列表（公开方法）
     public func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
-        // 检查是否需要刷新
-        let needsRefresh = forceRefresh || shouldRefreshData(characterId: characterId)
-        Logger.debug("获取合同列表 - 角色ID: \(characterId), 强制刷新: \(forceRefresh), 需要刷新: \(needsRefresh)")
+        // 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM contracts WHERE character_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
         
-        // 先尝试从数据库获取数据
-        if let contracts = getContractsFromDB(characterId: characterId) {
-            Logger.debug("从数据库获取到\(contracts.count)个合同")
-            
-            // 如果需要刷新，在返回缓存数据的同时，启动后台刷新
-            if needsRefresh {
-                Task {
-                    do {
-                        Logger.debug("开始后台刷新合同数据")
-                        let newContracts = try await fetchContractsFromServer(characterId: characterId)
-                        Logger.debug("从服务器获取到\(newContracts.count)个合同")
-                        
-                        // 保存到数据库
-                        if !saveContractsToDB(characterId: characterId, contracts: newContracts) {
-                            Logger.error("保存合同到数据库失败")
-                        } else {
-                            Logger.debug("成功保存合同到数据库")
-                        }
-                        
-                        // 更新查询时间
-                        updateLastQueryTime(characterId: characterId)
-                        
-                        // 发送通知以刷新UI
-                        await MainActor.run {
-                            Logger.debug("发送合同更新通知")
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("ContractsUpdated"),
-                                object: nil,
-                                userInfo: ["characterId": characterId]
-                            )
-                        }
-                    } catch {
-                        Logger.error("后台刷新合同列表失败: \(error.localizedDescription)")
-                    }
-                }
+        // 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("合同数据为空或强制刷新，从网络获取数据")
+            let contracts = try await fetchContractsFromServer(characterId: characterId)
+            if !saveContractsToDB(characterId: characterId, contracts: contracts) {
+                Logger.error("保存合同到数据库失败")
             }
+        }
+        
+        // 从数据库获取数据并返回
+        if let contracts = getContractsFromDB(characterId: characterId) {
             return contracts
         }
-        
-        Logger.debug("数据库中没有数据，从服务器获取")
-        // 如果没有缓存数据，从服务器获取
-        let contracts = try await fetchContractsFromServer(characterId: characterId)
-        Logger.debug("从服务器获取到\(contracts.count)个合同")
-        
-        // 保存到数据库
-        if !saveContractsToDB(characterId: characterId, contracts: contracts) {
-            Logger.error("保存合同到数据库失败")
-        } else {
-            Logger.debug("成功保存合同到数据库")
-        }
-        
-        // 更新查询时间
-        updateLastQueryTime(characterId: characterId)
-        
-        return contracts
+        return []
     }
     
     // 获取合同物品（公开方法）
