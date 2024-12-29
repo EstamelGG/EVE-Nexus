@@ -263,7 +263,7 @@ struct MiningItemRow: View {
                 VStack(alignment: .leading) {
                     Text(entry.name)
                         .font(.body)
-                    Text("\(FormatUtil.format(Double(entry.totalQuantity))) ×")
+                    Text("× \(FormatUtil.format(Double(entry.totalQuantity)))")
                         .font(.system(.caption, design: .monospaced))
                         .foregroundColor(.secondary)
                 }
