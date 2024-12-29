@@ -401,7 +401,6 @@ struct ContractDetailView: View {
             await (_, _) = (itemsTask, namesTask)
             Logger.debug("ContractDetailView.task 执行完成")
         }
-        .navigationTitle(contract.title.isEmpty ? NSLocalizedString("Contract_Details", comment: "") : contract.title)
     }
 }
 
