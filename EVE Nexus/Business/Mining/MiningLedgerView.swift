@@ -82,7 +82,7 @@ final class MiningLedgerViewModel: ObservableObject {
         
         if shouldShowFullscreenLoading {
             isLoading = true
-        } else {
+        } else if !forceRefresh {
             isBackgroundLoading = true
         }
         errorMessage = nil
@@ -93,14 +93,22 @@ final class MiningLedgerViewModel: ObservableObject {
                 forceRefresh: forceRefresh
             )
             
+            Logger.debug("获取到挖矿记录：\(entries.count)条")
+            
             // 按月份和矿石类型分组
             var groupedByMonth: [Date: [Int: Int]] = [:]  // [月份: [type_id: 总数量]]
             
             for entry in entries {
-                guard let date = dateFormatter.date(from: entry.date) else { continue }
+                guard let date = dateFormatter.date(from: entry.date) else {
+                    Logger.error("日期格式错误：\(entry.date)")
+                    continue
+                }
                 
                 let components = calendar.dateComponents([.year, .month], from: date)
-                guard let monthDate = calendar.date(from: components) else { continue }
+                guard let monthDate = calendar.date(from: components) else {
+                    Logger.error("无法创建月份日期")
+                    continue
+                }
                 
                 if groupedByMonth[monthDate] == nil {
                     groupedByMonth[monthDate] = [:]
@@ -108,6 +116,8 @@ final class MiningLedgerViewModel: ObservableObject {
                 
                 groupedByMonth[monthDate]?[entry.type_id, default: 0] += entry.quantity
             }
+            
+            Logger.debug("分组后的月份数：\(groupedByMonth.count)")
             
             // 转换为视图模型
             let groups = groupedByMonth.map { (date, itemQuantities) -> MiningMonthGroup in
@@ -124,8 +134,11 @@ final class MiningLedgerViewModel: ObservableObject {
                 return MiningMonthGroup(yearMonth: date, entries: summaries)
             }.sorted { $0.yearMonth > $1.yearMonth }
             
+            Logger.debug("最终生成的月份组数：\(groups.count)")
+            
             await MainActor.run {
                 self.monthGroups = groups
+                Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
                 if shouldShowFullscreenLoading {
                     isLoading = false
                 } else {
@@ -134,6 +147,7 @@ final class MiningLedgerViewModel: ObservableObject {
             }
             
         } catch {
+            Logger.error("加载挖矿记录失败：\(error.localizedDescription)")
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
                 if shouldShowFullscreenLoading {
@@ -170,12 +184,12 @@ struct MiningLedgerView: View {
                 Section {
                     HStack {
                         Spacer()
-                        VStack(spacing: 8) {
+                        VStack(spacing: 4) {
                             Image(systemName: "doc.text")
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
+                            .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -187,26 +201,28 @@ struct MiningLedgerView: View {
                     Section {
                         ForEach(group.entries) { entry in
                             MiningItemRow(entry: entry, databaseManager: viewModel.databaseManager)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                         }
                     } header: {
                         Text(String(format: NSLocalizedString("Mining_Monthly_Summary", comment: ""), monthFormatter.string(from: group.yearMonth)))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .textCase(nil)
                     }
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadMiningData(forceRefresh: true)
         }
-        .overlay {
+        .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
+        .toolbar {
             if viewModel.isBackgroundLoading {
-                VStack {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     ProgressView()
-                        .padding()
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .scaleEffect(0.8)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top)
             }
         }
         .alert(NSLocalizedString("Mining_Error_Loading", comment: ""), isPresented: .constant(viewModel.errorMessage != nil)) {
@@ -216,7 +232,6 @@ struct MiningLedgerView: View {
                 Text(errorMessage)
             }
         }
-        .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
         .task {
             await viewModel.loadMiningData()
         }
