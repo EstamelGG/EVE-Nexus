@@ -48,7 +48,7 @@ class CharacterLocationAPI {
     
     // 内存缓存
     private var locationMemoryCache: [Int: LocationCacheEntry] = [:]
-    private let cacheTimeout: TimeInterval = 60 // 1分钟缓存
+    private let cacheTimeout: TimeInterval = 20 * 60 // 20 分钟缓存
     
     // UserDefaults键前缀
     private let locationCachePrefix = "location_cache_"
