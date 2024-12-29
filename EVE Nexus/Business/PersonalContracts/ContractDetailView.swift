@@ -194,7 +194,6 @@ struct ContractDetailView: View {
     @StateObject private var viewModel: ContractDetailViewModel
     
     init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
-        Logger.debug("初始化ContractDetailView - 角色ID: \(characterId), 合同ID: \(contract.contract_id)")
         self.contract = contract
         _viewModel = StateObject(wrappedValue: ContractDetailViewModel(
             characterId: characterId,

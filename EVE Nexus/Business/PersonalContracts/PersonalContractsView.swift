@@ -77,7 +77,6 @@ final class PersonalContractsViewModel: ObservableObject {
                 }
                 
                 groupedContracts[dayDate, default: []].append(contract)
-                Logger.debug("添加合同到分组 - 日期: \(dayDate), 合同ID: \(contract.contract_id)")
             }
             
             let groups = groupedContracts.map { (date, contracts) -> ContractGroup in

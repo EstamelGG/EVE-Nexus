@@ -162,10 +162,10 @@ class CharacterContractsAPI {
                 
                 if let startId = row["start_location_id"] as? Int64 {
                     startLocationId = startId
-                    Logger.debug("从数据库获取到 start_location_id (Int64): \(startId)")
+                    // Logger.debug("从数据库获取到 start_location_id (Int64): \(startId)")
                 } else if let startId = row["start_location_id"] as? Int {
                     startLocationId = Int64(startId)
-                    Logger.debug("从数据库获取到 start_location_id (Int): \(startId)")
+                    // Logger.debug("从数据库获取到 start_location_id (Int): \(startId)")
                 } else {
                     if let rawValue = row["start_location_id"] {
                         Logger.error("start_location_id 类型不匹配 - 原始值: \(rawValue), 类型: \(type(of: rawValue))")
@@ -177,10 +177,10 @@ class CharacterContractsAPI {
                 
                 if let endId = row["end_location_id"] as? Int64 {
                     endLocationId = endId
-                    Logger.debug("从数据库获取到 end_location_id (Int64): \(endId)")
+                    // Logger.debug("从数据库获取到 end_location_id (Int64): \(endId)")
                 } else if let endId = row["end_location_id"] as? Int {
                     endLocationId = Int64(endId)
-                    Logger.debug("从数据库获取到 end_location_id (Int): \(endId)")
+                    // Logger.debug("从数据库获取到 end_location_id (Int): \(endId)")
                 } else {
                     if let rawValue = row["end_location_id"] {
                         Logger.error("end_location_id 类型不匹配 - 原始值: \(rawValue), 类型: \(type(of: rawValue))")
