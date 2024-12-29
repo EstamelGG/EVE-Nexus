@@ -11,6 +11,47 @@ class CharacterIndustryAPI {
     static let shared = CharacterIndustryAPI()
     private let databaseManager = CharacterDatabaseManager.shared
     
+    // 缓存相关常量
+    private let lastIndustryQueryKey = "LastIndustryJobsQuery_"
+    private let queryInterval: TimeInterval = 3600 // 1小时的查询间隔
+    
+    // 获取最后查询时间
+    private func getLastQueryTime(characterId: Int) -> Date? {
+        let key = lastIndustryQueryKey + String(characterId)
+        let lastQuery = UserDefaults.standard.object(forKey: key) as? Date
+        
+        if let lastQuery = lastQuery {
+            let timeInterval = Date().timeIntervalSince(lastQuery)
+            let remainingTime = queryInterval - timeInterval
+            let remainingMinutes = Int(remainingTime / 60)
+            let remainingSeconds = Int(remainingTime.truncatingRemainder(dividingBy: 60))
+            
+            if remainingTime > 0 {
+                Logger.debug("工业项目数据下次刷新剩余时间: \(remainingMinutes)分\(remainingSeconds)秒")
+            } else {
+                Logger.debug("工业项目数据已过期，需要刷新")
+            }
+        } else {
+            Logger.debug("没有找到工业项目的最后更新时间记录")
+        }
+        
+        return lastQuery
+    }
+    
+    // 更新最后查询时间
+    private func updateLastQueryTime(characterId: Int) {
+        let key = lastIndustryQueryKey + String(characterId)
+        UserDefaults.standard.set(Date(), forKey: key)
+    }
+    
+    // 检查是否需要刷新数据
+    private func shouldRefreshData(characterId: Int) -> Bool {
+        guard let lastQuery = getLastQueryTime(characterId: characterId) else {
+            return true
+        }
+        return Date().timeIntervalSince(lastQuery) >= queryInterval
+    }
+    
     // 工业项目信息模型
     struct IndustryJob: Codable, Identifiable, Hashable {
         let activity_id: Int
@@ -60,16 +101,15 @@ class CharacterIndustryAPI {
             let jobs = try await loadJobsFromDB(characterId: characterId)
             if !jobs.isEmpty {
                 // 检查是否需要后台刷新
-                if let lastUpdated = getLastUpdateTime(characterId: characterId),
-                   Date().timeIntervalSince(lastUpdated) < 3600 { // 1小时的缓存有效期
+                if !shouldRefreshData(characterId: characterId) {
                     return jobs
                 }
                 
                 // 如果数据过期，启动后台刷新
-                    Task {
+                Task {
                     progressCallback?(true)
-                        do {
-                            let newJobs = try await fetchFromNetwork(characterId: characterId)
+                    do {
+                        let newJobs = try await fetchFromNetwork(characterId: characterId)
                         
                         // 获取已存在的工业项目ID
                         let existingJobIds = Set(jobs.map { $0.job_id })
@@ -88,6 +128,8 @@ class CharacterIndustryAPI {
                                 )
                             }
                         }
+                        // 更新最后查询时间
+                        updateLastQueryTime(characterId: characterId)
                     } catch {
                         Logger.error("后台更新工业项目数据失败: \(error)")
                     }
@@ -115,6 +157,8 @@ class CharacterIndustryAPI {
             try await saveJobsToDB(jobs: newJobs, characterId: characterId)
         }
         
+        // 更新最后查询时间
+        updateLastQueryTime(characterId: characterId)
         progressCallback?(false)
         return try await loadJobsFromDB(characterId: characterId)
     }
@@ -369,25 +413,6 @@ class CharacterIndustryAPI {
         }
     }
     
-    private func getLastUpdateTime(characterId: Int) -> Date? {
-        let query = """
-            SELECT last_updated 
-            FROM industry_jobs 
-            WHERE character_id = ? 
-            ORDER BY last_updated DESC 
-            LIMIT 1
-        """
-        
-        let result = databaseManager.executeQuery(query, parameters: [characterId])
-        if case .success(let rows) = result,
-           let row = rows.first,
-           let lastUpdatedStr = row["last_updated"] as? String {
-            let dateFormatter = ISO8601DateFormatter()
-            return dateFormatter.date(from: lastUpdatedStr)
-        }
-        return nil
-    }
-    
     private func fetchFromNetwork(characterId: Int) async throws -> [IndustryJob] {
         let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/industry/jobs/?datasource=tranquility&include_completed=true")!
         
@@ -400,8 +425,14 @@ class CharacterIndustryAPI {
     
     // 清除所有缓存
     func clearAllCache() {
-        let query = "DELETE FROM industry_jobs;"
-        _ = databaseManager.executeQuery(query)
-        Logger.debug("清除所有工业项目缓存")
+        // 只清除 UserDefaults 中的查询时间记录
+        let defaults = UserDefaults.standard
+        for key in defaults.dictionaryRepresentation().keys {
+            if key.hasPrefix(lastIndustryQueryKey) {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        
+        Logger.debug("清除工业项目查询时间记录")
     }
 } 
