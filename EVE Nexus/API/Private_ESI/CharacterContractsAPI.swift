@@ -557,6 +557,8 @@ class CharacterContractsAPI {
             Logger.error("更新合同 detail_update 失败: \(message)")
         } else {
             Logger.debug("成功更新合同 detail_update 字段")
+            // 更新最后查询时间
+            updateLastQueryTime(characterId: characterId, isItems: true)
         }
         
         return items
@@ -578,7 +580,7 @@ class CharacterContractsAPI {
                 }
             } catch let error as NetworkError {
                 if case .httpError(let statusCode, let message) = error,
-                   statusCode == 404,
+                   [404, 500].contains(statusCode) ,
                    message?.contains("Requested page does not exist") == true {
                     shouldContinue = false
                 } else {

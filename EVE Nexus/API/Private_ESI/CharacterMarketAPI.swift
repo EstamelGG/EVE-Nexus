@@ -28,6 +28,12 @@ class CharacterMarketAPI {
             return nil
         }
         
+        // 计算并打印缓存剩余有效期
+        let remainingTime = cacheTimeout - Date().timeIntervalSince(cache.timestamp)
+        let remainingHours = Int(remainingTime / 3600)
+        let remainingMinutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
+        Logger.debug("市场订单缓存剩余有效期: \(remainingHours)小时 \(remainingMinutes)分钟 - 角色ID: \(characterId)")
+        
         // 将缓存的订单转换回JSON字符串
         guard let jsonData = try? JSONEncoder().encode(cache.orders),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
