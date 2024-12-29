@@ -89,7 +89,7 @@ class CharacterMiningAPI {
             Logger.debug("从数据库获取到原始数据：\(rows.count)行")
             
             let entries = rows.compactMap { row -> MiningLedgerEntry? in
-                Logger.debug("正在处理行：\(row)")
+                // Logger.debug("正在处理行：\(row)")
                 
                 // 尝试类型转换
                 guard let date = row["date"] as? String,
