@@ -195,7 +195,7 @@ final class CharacterAPI: @unchecked Sendable {
         }
         
         return try await withCheckedThrowingContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
+            let task = KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
                 switch result {
                 case .success(let imageResult):
                     // 保存到 UserDefaults
@@ -207,6 +207,16 @@ final class CharacterAPI: @unchecked Sendable {
                 case .failure(let error):
                     Logger.error("获取角色头像失败 - 角色ID: \(characterId), 错误: \(error)")
                     continuation.resume(throwing: NetworkError.invalidImageData)
+                }
+            }
+            
+            // 设置任务取消处理
+            if let downloadTask = task {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1)  // 给予足够的时间让任务开始
+                    if Task.isCancelled {
+                        downloadTask.cancel()
+                    }
                 }
             }
         }
