@@ -197,6 +197,7 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
+                .frame(height: 36)
                 
                 // 当前飞船信息
                 if let ship = currentShip {
@@ -218,6 +219,7 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
+                    .frame(height: 36)
                 }
                 
                 // 安全等级信息
@@ -238,6 +240,7 @@ struct CharacterSheetView: View {
                                 .foregroundColor(getSecurityStatusColor(security))
                         }
                     }
+                    .frame(height: 36)
                 }
             } header: {
                 Text(NSLocalizedString("Common_info", comment: ""))
