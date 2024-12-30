@@ -387,13 +387,7 @@ struct CharacterSheetView: View {
         
         // 3. 获取位置和飞船信息
         Task {
-            // 尝试从数据库加载缓存的状态
-            let hasRecentData = loadCharacterStateFromDatabase()
-            
-            // 如果没有近期数据，则从API加载位置和飞船信息
-            if !hasRecentData {
-                await loadCharacterInfo()
-            }
+            await loadCharacterInfo(forceRefresh: false)
         }
         
         // 4. 获取军团和联盟信息
@@ -439,12 +433,22 @@ struct CharacterSheetView: View {
         }
     }
     
-    private func loadCharacterInfo() async {
+    private func loadCharacterInfo(forceRefresh: Bool = false) async {
+        // 如果不是强制刷新，先检查缓存
+        if !forceRefresh {
+            let hasRecentData = loadCharacterStateFromDatabase()
+            if hasRecentData {
+                return
+            }
+        }
+        
         do {
             // 获取位置信息
+            Logger.info("开始从API获取位置信息")
             let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
                 characterId: character.CharacterID
             )
+            Logger.info("成功获取位置信息: \(location)")
             
             // 根据位置类型获取详细信息
             if let structureId = location.structure_id {
@@ -713,33 +717,92 @@ struct CharacterSheetView: View {
 
     // 下拉刷新时重新获取所有网络数据
     private func refreshAllData() async {
-        // 1. 获取位置和飞船信息
-        await loadCharacterInfo()
+        Logger.info("开始刷新所有数据")
         
-        // 2. 获取跳跃疲劳信息
-        if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
-            characterId: character.CharacterID
-        ) {
+        // 并行执行所有网络请求
+        async let locationTask = CharacterLocationAPI.shared.fetchCharacterLocation(characterId: character.CharacterID, forceRefresh: true)
+        async let shipTask = CharacterLocationAPI.shared.fetchCharacterShip(characterId: character.CharacterID)
+        async let fatigueTask = CharacterFatigueAPI.shared.fetchCharacterFatigue(characterId: character.CharacterID)
+        async let onlineTask = CharacterLocationAPI.shared.fetchCharacterOnlineStatus(characterId: character.CharacterID, forceRefresh: true)
+        async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID, forceRefresh: true)
+        
+        do {
+            // 等待位置和飞船信息
+            let (location, shipInfo) = try await (locationTask, shipTask)
+            Logger.info("成功获取位置信息: \(location)")
+            
+            // 处理位置信息
+            if let structureId = location.structure_id {
+                // 建筑物
+                let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+                    structureId: Int64(structureId),
+                    characterId: character.CharacterID
+                )
+                if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
+                    await MainActor.run {
+                        self.locationDetail = info
+                        self.locationStatus = location.locationStatus
+                        self.locationTypeId = structureInfo?.type_id
+                    }
+                }
+            } else if let stationId = location.station_id {
+                // 空间站
+                let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [stationId]),
+                   let row = rows.first,
+                   let typeId = row["stationTypeID"] as? Int {
+                    if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
+                        await MainActor.run {
+                            self.locationDetail = info
+                            self.locationStatus = location.locationStatus
+                            self.locationTypeId = typeId
+                        }
+                    }
+                }
+            } else {
+                // 太空中
+                if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
+                    await MainActor.run {
+                        self.currentLocation = info
+                        self.locationStatus = location.locationStatus
+                        self.locationTypeId = nil
+                    }
+                }
+            }
+            
+            // 处理飞船信息
+            let query = "SELECT name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [shipInfo.ship_type_id]),
+               let row = rows.first,
+               let typeName = row["name"] as? String {
+                await MainActor.run {
+                    self.currentShip = shipInfo
+                    self.shipTypeName = typeName
+                }
+            }
+            
+            // 保存状态到数据库
+            await saveCharacterState(location: location, ship: shipInfo)
+        } catch {
+            Logger.error("刷新位置和飞船信息失败: \(error)")
+        }
+        
+        // 处理其他并行请求的结果
+        if let fatigue = try? await fatigueTask {
             await MainActor.run {
                 self.fatigue = fatigue
                 self.isLoadingFatigue = false
             }
         }
         
-        // 3. 获取在线状态
-        if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
-            characterId: character.CharacterID
-        ) {
+        if let status = try? await onlineTask {
             await MainActor.run {
                 self.onlineStatus = status
                 self.isLoadingOnlineStatus = false
             }
         }
         
-        // 4. 获取角色公开信息（军团、联盟等）
-        if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: character.CharacterID
-        ) {
+        if let publicInfo = try? await publicInfoTask {
             // 获取军团信息
             async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
                 corporationId: publicInfo.corporation_id
@@ -773,5 +836,7 @@ struct CharacterSheetView: View {
                 self.securityStatus = publicInfo.security_status
             }
         }
+        
+        Logger.info("所有数据刷新完成")
     }
 } 
