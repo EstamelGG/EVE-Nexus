@@ -145,6 +145,19 @@ class CharacterDatabaseManager: ObservableObject {
     
     private func setupBaseTables() {
         let createTablesSQL = """
+            -- 角色当前状态表
+            CREATE TABLE IF NOT EXISTS character_current_state (
+                character_id INTEGER PRIMARY KEY,
+                solar_system_id INTEGER,
+                station_id INTEGER,
+                structure_id INTEGER,
+                location_status TEXT,
+                ship_item_id INTEGER,
+                ship_type_id INTEGER,
+                ship_name TEXT,
+                last_update INTEGER
+            );
+            
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
                 id INTEGER NOT NULL,
@@ -312,6 +325,9 @@ class CharacterDatabaseManager: ObservableObject {
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
             CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
+
+            -- 创建索引
+            CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
         """
         
         // 分割SQL语句并逐个执行

@@ -131,6 +131,7 @@ struct CharacterSheetView: View {
             
             // 位置信息 Section
             Section {
+                // 位置信息
                 HStack {
                     // 位置图标
                     if locationDetail != nil {
@@ -196,13 +197,9 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-            } header: {
-                Text(NSLocalizedString("Character_Location", comment: ""))
-            }
-            
-            // 当前飞船信息 Section
-            if let ship = currentShip {
-                Section {
+                
+                // 当前飞船信息
+                if let ship = currentShip {
                     HStack {
                         // 飞船图标
                         IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
@@ -221,13 +218,16 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
-                } header: {
-                    Text(NSLocalizedString("Character_Current_Ship", comment: ""))
                 }
+            } header: {
+                Text(NSLocalizedString("Character_Location", comment: ""))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
+            // 首先尝试从数据库加载缓存的状态
+            loadCharacterStateFromDatabase()
+            // 然后加载最新数据
             await loadCharacterInfo()
         }
     }
@@ -300,6 +300,15 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
+                    
+                    // 获取当前飞船信息
+                    let shipInfo = try await CharacterLocationAPI.shared.fetchCharacterShip(
+                        characterId: character.CharacterID
+                    )
+                    
+                    // 保存状态到数据库
+                    await saveCharacterState(location: location, ship: shipInfo)
+                    
                 } catch {
                     Logger.error("获取角色位置信息失败: \(error)")
                 }
@@ -387,5 +396,84 @@ struct CharacterSheetView: View {
             return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
         }
         return DatabaseConfig.defaultItemIcon
+    }
+
+    private func saveCharacterState(location: CharacterLocation, ship: CharacterShipInfo?) async {
+        let query = """
+            INSERT OR REPLACE INTO character_current_state (
+                character_id, solar_system_id, station_id, structure_id,
+                location_status, ship_item_id, ship_type_id, ship_name, last_update
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        let parameters: [Any] = [
+            Int64(character.CharacterID),
+            Int64(location.solar_system_id),
+            location.station_id != nil ? Int64(location.station_id!) : NSNull(),
+            location.structure_id != nil ? Int64(location.structure_id!) : NSNull(),
+            location.locationStatus.rawValue,
+            ship?.ship_item_id != nil ? Int64(ship!.ship_item_id) : NSNull(),
+            ship?.ship_type_id != nil ? Int64(ship!.ship_type_id) : NSNull(),
+            ship?.ship_name ?? NSNull(),
+            Int64(Date().timeIntervalSince1970)
+        ]
+        
+        if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(query, parameters: parameters) {
+            Logger.error("保存角色状态失败: \(error)")
+        }
+    }
+
+    private func loadCharacterStateFromDatabase() {
+        let query = """
+            SELECT * FROM character_current_state 
+            WHERE character_id = ? AND last_update > ?
+        """
+        
+        // 只加载30分钟内的缓存数据
+        let thirtyMinutesAgo = Int(Date().timeIntervalSince1970) - 1800
+        
+        let result = CharacterDatabaseManager.shared.executeQuery(
+            query, 
+            parameters: [Int64(character.CharacterID), thirtyMinutesAgo]
+        )
+        
+        if case .success(let rows) = result,
+           let row = rows.first {
+            // 加载位置信息
+            if let solarSystemId = row["solar_system_id"] as? Int64 {
+                Task {
+                    if let info = await getSolarSystemInfo(solarSystemId: Int(solarSystemId), databaseManager: databaseManager) {
+                        await MainActor.run {
+                            self.currentLocation = info
+                            if let statusStr = row["location_status"] as? String {
+                                self.locationStatus = CharacterLocation.LocationStatus(rawValue: statusStr)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 加载飞船信息
+            if let shipTypeId = row["ship_type_id"] as? Int64,
+               let shipItemId = row["ship_item_id"] as? Int64,
+               let shipName = row["ship_name"] as? String {
+                let shipInfo = CharacterShipInfo(
+                    ship_item_id: Int64(shipItemId),
+                    ship_name: shipName,
+                    ship_type_id: Int(shipTypeId)
+                )
+                
+                // 获取飞船类型名称
+                let typeQuery = "SELECT name FROM types WHERE type_id = ?"
+                if case .success(let typeRows) = CharacterDatabaseManager.shared.executeQuery(typeQuery, parameters: [Int64(shipTypeId)]),
+                   let typeRow = typeRows.first,
+                   let typeName = typeRow["name"] as? String {
+                    Task { @MainActor in
+                        self.currentShip = shipInfo
+                        self.shipTypeName = typeName
+                    }
+                }
+            }
+        }
     }
 } 
