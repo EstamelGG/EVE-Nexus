@@ -318,41 +318,86 @@ struct CharacterSheetView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
-            // 首先尝试从数据库加载缓存的状态
-            let hasRecentData = loadCharacterStateFromDatabase()
+            // 1. 首先加载本地数据库中的数据
+            loadLocalData()
             
-            // 无论是否有缓存数据，都重新获取在线状态和其他信息
-            Task {
-                // 获取在线状态
-                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        self.onlineStatus = status
-                        self.isLoadingOnlineStatus = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.isLoadingOnlineStatus = false
-                    }
+            // 2. 异步加载需要网络请求的数据
+            await loadNetworkData()
+        }
+        .refreshable {
+            // 用户下拉刷新时，强制从API获取最新数据
+            await loadCharacterInfo()
+        }
+    }
+    
+    // 加载本地数据（数据库中的数据）
+    private func loadLocalData() {
+        // 获取角色出生日期
+        let birthdayQuery = "SELECT birthday FROM character_info WHERE character_id = ?"
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(birthdayQuery, parameters: [character.CharacterID]),
+           let row = rows.first,
+           let birthdayStr = row["birthday"] as? String {
+            self.birthday = birthdayStr
+        }
+        
+        // 获取安全等级
+        let securityQuery = "SELECT security_status FROM character_info WHERE character_id = ?"
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(securityQuery, parameters: [character.CharacterID]),
+           let row = rows.first,
+           let security = row["security_status"] as? Double {
+            self.securityStatus = security
+        }
+    }
+    
+    // 加载需要网络请求的数据
+    private func loadNetworkData() async {
+        // 使用多个独立的Task，避免相互阻塞
+        
+        // 1. 获取在线状态
+        Task {
+            if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    self.onlineStatus = status
+                    self.isLoadingOnlineStatus = false
                 }
-                
-                // 获取跳跃疲劳信息
-                if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        self.fatigue = fatigue
-                        self.isLoadingFatigue = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.isLoadingFatigue = false
-                    }
+            } else {
+                await MainActor.run {
+                    self.isLoadingOnlineStatus = false
                 }
             }
+        }
+        
+        // 2. 获取跳跃疲劳信息
+        Task {
+            if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    self.fatigue = fatigue
+                    self.isLoadingFatigue = false
+                }
+            } else {
+                await MainActor.run {
+                    self.isLoadingFatigue = false
+                }
+            }
+        }
+        
+        // 3. 获取位置和飞船信息
+        Task {
+            // 尝试从数据库加载缓存的状态
+            let hasRecentData = loadCharacterStateFromDatabase()
             
-            // 获取角色公开信息
+            // 如果没有近期数据，则从API加载位置和飞船信息
+            if !hasRecentData {
+                await loadCharacterInfo()
+            }
+        }
+        
+        // 4. 获取军团和联盟信息
+        Task {
             if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
                 characterId: character.CharacterID
             ) {
@@ -384,19 +429,13 @@ struct CharacterSheetView: View {
                     }
                 }
                 
-                await MainActor.run {
-                    self.securityStatus = publicInfo.security_status
+                // 更新安全等级（如果数据库中没有）
+                if self.securityStatus == nil {
+                    await MainActor.run {
+                        self.securityStatus = publicInfo.security_status
+                    }
                 }
             }
-            
-            // 如果没有近期数据，则从API加载位置和飞船信息
-            if !hasRecentData {
-                await loadCharacterInfo()
-            }
-        }
-        .refreshable {
-            // 用户下拉刷新时，强制从API获取最新数据
-            await loadCharacterInfo()
         }
     }
     
