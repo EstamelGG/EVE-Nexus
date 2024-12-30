@@ -214,9 +214,9 @@ struct CharacterSheetView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("Character_Current_Location", comment: ""))
                         if let locationDetail = locationDetail {
                             // 空间站或建筑物信息
-                            Text(NSLocalizedString("Character_Current_Location", comment: ""))
                             LocationInfoView(
                                 stationName: locationDetail.stationName,
                                 solarSystemName: locationDetail.solarSystemName,
@@ -231,14 +231,15 @@ struct CharacterSheetView: View {
                                     Text(formatSecurity(location.security))
                                         .foregroundColor(getSecurityColor(location.security))
                                     Text("\(location.systemName) / \(location.regionName)")
-                                }.font(.body)
-                                
-                                if let status = locationStatus {
-                                    Text(status.description)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
+                                    if let status = locationStatus {
+                                        Text(status.description)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                         } else {
                             Text(NSLocalizedString("Location_Unknown", comment: ""))
@@ -731,9 +732,18 @@ struct CharacterSheetView: View {
             let (location, shipInfo) = try await (locationTask, shipTask)
             Logger.info("成功获取位置信息: \(location)")
             
+            // 先清除旧的位置信息
+            await MainActor.run {
+                self.locationDetail = nil
+                self.currentLocation = nil
+                self.locationStatus = nil
+                self.locationTypeId = nil
+            }
+            
             // 处理位置信息
             if let structureId = location.structure_id {
                 // 建筑物
+                Logger.info("角色在建筑物中 - 建筑物ID: \(structureId)")
                 let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
                     structureId: Int64(structureId),
                     characterId: character.CharacterID
@@ -743,10 +753,12 @@ struct CharacterSheetView: View {
                         self.locationDetail = info
                         self.locationStatus = location.locationStatus
                         self.locationTypeId = structureInfo?.type_id
+                        Logger.info("更新建筑物信息 - 名称: \(info.stationName), 类型ID: \(String(describing: structureInfo?.type_id))")
                     }
                 }
             } else if let stationId = location.station_id {
                 // 空间站
+                Logger.info("角色在空间站中 - 空间站ID: \(stationId)")
                 let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
                 if case .success(let rows) = databaseManager.executeQuery(query, parameters: [stationId]),
                    let row = rows.first,
@@ -756,16 +768,19 @@ struct CharacterSheetView: View {
                             self.locationDetail = info
                             self.locationStatus = location.locationStatus
                             self.locationTypeId = typeId
+                            Logger.info("更新空间站信息 - 名称: \(info.stationName), 类型ID: \(typeId)")
                         }
                     }
                 }
             } else {
                 // 太空中
+                Logger.info("角色在太空中 - 星系ID: \(location.solar_system_id)")
                 if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
                     await MainActor.run {
                         self.currentLocation = info
                         self.locationStatus = location.locationStatus
                         self.locationTypeId = nil
+                        Logger.info("更新星系信息 - 名称: \(info.systemName)")
                     }
                 }
             }
