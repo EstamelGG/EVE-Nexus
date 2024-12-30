@@ -725,9 +725,9 @@ struct ContentView: View {
     
     // 刷新所有数据
     private func refreshAllData(forceRefresh: Bool = false) async {
-        // 生成新的任务ID
+        // 创建新的任务ID
         let taskId = UUID()
-        await updateUI {
+        await MainActor.run {
             currentTaskId = taskId
         }
         
@@ -745,8 +745,14 @@ struct ContentView: View {
                 var updatedCharacter = character
                 
                 // 获取角色公开信息和头像
-                async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID)
-                async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: character.CharacterID)
+                async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                )
+                async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                )
                 
                 let (publicInfo, portrait) = try await (publicInfoTask, portraitTask)
                 
@@ -757,110 +763,108 @@ struct ContentView: View {
                 }
                 
                 // 并行刷新军团和联盟信息
-                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: publicInfo.corporation_id)
-                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: publicInfo.corporation_id)
+                async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                    corporationId: publicInfo.corporation_id,
+                    forceRefresh: forceRefresh
+                )
+                async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: publicInfo.corporation_id,
+                    forceRefresh: forceRefresh
+                )
                 
                 var newCorpInfo: CorporationInfo?
                 var newCorpLogo: UIImage?
                 var newAllianceInfo: AllianceInfo?
                 var newAllianceLogo: UIImage?
                 
+                let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+                newCorpInfo = corpInfo
+                newCorpLogo = corpLogo
+                
+                // 如果有联盟ID，获取联盟信息
                 if let allianceId = publicInfo.alliance_id {
-                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
+                        allianceId: allianceId,
+                        forceRefresh: forceRefresh
+                    )
+                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
+                        allianceID: allianceId,
+                        forceRefresh: forceRefresh
+                    )
                     
-                    // 等待所有任务完成
-                    let (corpInfo, corpLogo, allianceInfo, allianceLogo) = try await (corporationInfoTask, corporationLogoTask, allianceInfoTask, allianceLogoTask)
-                    
-                    // 再次检查是否仍是当前任务
-                    guard await checkCurrentTask(taskId) else {
-                        Logger.info("取消过期的联盟数据刷新任务")
-                        return
-                    }
-                    
-                    newCorpInfo = corpInfo
-                    newCorpLogo = corpLogo
+                    let (allianceInfo, allianceLogo) = try await (allianceInfoTask, allianceLogoTask)
                     newAllianceInfo = allianceInfo
                     newAllianceLogo = allianceLogo
-                } else {
-                    // 等待军团相关任务完成
-                    let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
-                    
-                    // 再次检查是否仍是当前任务
-                    guard await checkCurrentTask(taskId) else {
-                        Logger.info("取消过期的军团数据刷新任务")
-                        return
-                    }
-                    
-                    newCorpInfo = corpInfo
-                    newCorpLogo = corpLogo
                 }
                 
-                // 并行执行所有数据获取任务
-                async let skillsTask = CharacterSkillsAPI.shared.fetchCharacterSkills(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                )
-                async let walletTask = CharacterWalletAPI.shared.getWalletBalance(
-                    characterId: character.CharacterID
-                )
-                async let locationTask = CharacterLocationAPI.shared.fetchCharacterLocation(
-                    characterId: character.CharacterID
-                )
-                async let queueTask = CharacterSkillsAPI.shared.fetchSkillQueue(
-                    characterId: character.CharacterID
-                )
-                
-                // 等待所有任务完成
-                let (skills, balance, location, queue) = try await (
-                    skillsTask,
-                    walletTask,
-                    locationTask,
-                    queueTask
-                )
-                
-                // 最终检查是否仍是当前任务
+                // 检查是否仍是当前任务
                 guard await checkCurrentTask(taskId) else {
-                    Logger.info("取消过期的角色状态刷新任务")
+                    Logger.info("取消过期的联盟数据刷新任务")
                     return
                 }
                 
-                // 更新技能信息
-                updatedCharacter.totalSkillPoints = skills.total_sp
-                updatedCharacter.unallocatedSkillPoints = skills.unallocated_sp
-                
-                // 更新钱包余额
-                updatedCharacter.walletBalance = balance
-                
-                // 更新位置信息
-                updatedCharacter.locationStatus = location.locationStatus
-                if let locationInfo = await getSolarSystemInfo(
-                    solarSystemId: location.solar_system_id,
-                    databaseManager: databaseManager
+                // 获取技能信息
+                if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
                 ) {
-                    updatedCharacter.location = locationInfo
+                    updatedCharacter.totalSkillPoints = skills.total_sp
+                    updatedCharacter.unallocatedSkillPoints = skills.unallocated_sp
                 }
                 
-                // 更新技能队列
-                updatedCharacter.skillQueueLength = queue.count
-                if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }),
-                   let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
-                    updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                        skillId: currentSkill.skill_id,
-                        name: skillName,
-                        level: currentSkill.skillLevel,
-                        progress: currentSkill.progress,
-                        remainingTime: currentSkill.remainingTime
+                // 获取钱包余额
+                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    updatedCharacter.walletBalance = balance
+                }
+                
+                // 获取位置信息
+                if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    updatedCharacter.locationStatus = location.locationStatus
+                    
+                    // 获取位置详细信息
+                    let locationInfo = await getSolarSystemInfo(
+                        solarSystemId: location.solar_system_id,
+                        databaseManager: databaseManager
                     )
-                } else if let firstSkill = queue.first,
-                          let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
-                    updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                        skillId: firstSkill.skill_id,
-                        name: skillName,
-                        level: firstSkill.skillLevel,
-                        progress: firstSkill.progress,
-                        remainingTime: nil
-                    )
+                    if let locationInfo = locationInfo {
+                        updatedCharacter.location = locationInfo
+                    }
+                }
+                
+                // 获取技能队列
+                if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    updatedCharacter.skillQueueLength = queue.count
+                    
+                    // 查找正在训练的技能
+                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }),
+                       let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                        updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                            skillId: currentSkill.skill_id,
+                            name: skillName,
+                            level: currentSkill.skillLevel,
+                            progress: currentSkill.progress,
+                            remainingTime: currentSkill.remainingTime
+                        )
+                    } else if let firstSkill = queue.first,
+                              let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
+                        // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
+                        updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                            skillId: firstSkill.skill_id,
+                            name: skillName,
+                            level: firstSkill.skillLevel,
+                            progress: firstSkill.progress,
+                            remainingTime: nil
+                        )
+                    }
                 }
                 
                 // 一次性更新所有UI
