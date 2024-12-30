@@ -94,6 +94,53 @@ class CharacterDatabaseManager: ObservableObject {
         return []
     }
     
+    /// 重置数据库
+    func resetDatabase() {
+        Logger.info("开始重置角色数据库...")
+        
+        // 关闭当前数据库连接
+        if let db = db {
+            sqlite3_close(db)
+            self.db = nil
+        }
+        
+        // 获取数据库文件路径
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dbPath = documentsPath.appendingPathComponent("character_data.db").path
+        
+        // 删除现有数据库文件
+        do {
+            if fileManager.fileExists(atPath: dbPath) {
+                try fileManager.removeItem(atPath: dbPath)
+                Logger.info("已删除现有数据库文件")
+            }
+        } catch {
+            Logger.error("删除数据库文件失败: \(error)")
+        }
+        
+        // 重新打开/创建数据库
+        if sqlite3_open(dbPath, &db) == SQLITE_OK {
+            Logger.info("创建新的角色数据库: \(dbPath)")
+            // 重新创建数据库表
+            setupBaseTables()
+            
+            // 通知UI更新
+            DispatchQueue.main.async {
+                self.databaseUpdated.toggle()
+            }
+            Logger.info("数据库重置完成")
+        } else {
+            if let db = db {
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                Logger.error("重置数据库失败: \(errmsg)")
+                sqlite3_close(db)
+            } else {
+                Logger.error("重置数据库失败: 未知错误")
+            }
+        }
+    }
+    
     // MARK: - Private Methods
     
     private func setupBaseTables() {

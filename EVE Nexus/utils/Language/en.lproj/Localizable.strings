@@ -427,3 +427,10 @@
 "Mining_Pull_to_Refresh" = "Pull to Refresh";
 "Mining_Monthly_Summary" = "Mining Summary for %@";
 "Mining_Total_Volume" = "Total Volume";
+
+"Main_Setting_Reset_Database" = "Reset Database";
+"Main_Setting_Reset_Database_Detail" = "Delete and reinitialize character database";
+"Main_Setting_Reset_Database_Title" = "Reset Database";
+"Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
+"Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
+"Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";

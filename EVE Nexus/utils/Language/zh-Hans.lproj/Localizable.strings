@@ -428,3 +428,10 @@
 "Mining_Pull_to_Refresh" = "下拉刷新";
 "Mining_Monthly_Summary" = "%@月采矿汇总";
 "Mining_Total_Volume" = "总量";
+
+"Main_Setting_Reset_Database" = "重置数据库";
+"Main_Setting_Reset_Database_Detail" = "删除并重新初始化角色数据库";
+"Main_Setting_Reset_Database_Title" = "重置数据库";
+"Main_Setting_Reset_Database_Message" = "这将删除所有角色数据库内容并重新初始化。此操作无法撤销，是否继续？";
+"Main_Setting_Reset_Database_Success_Title" = "重置完成";
+"Main_Setting_Reset_Database_Success_Message" = "数据库已成功重置。";

@@ -231,6 +231,9 @@ struct SettingView: View {
     @State private var settingGroups: [SettingGroup] = []
     @State private var resourceInfoCache: [String: String] = [:]
     @State private var showingLogViewer = false
+    @State private var showResetIconsAlert = false
+    @State private var showResetDatabaseAlert = false
+    @State private var showResetDatabaseSuccessAlert = false
     
     // MARK: - 时间处理工具
     private func getRelativeTimeString(from date: Date) -> String {
@@ -358,6 +361,13 @@ struct SettingView: View {
                 icon: isReextractingIcons ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
                 iconColor: .red,
                 action: { showingDeleteIconsAlert = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Reset_Database", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Reset_Database_Detail", comment: ""),
+                icon: "arrow.triangle.2.circlepath",
+                iconColor: .red,
+                action: { showResetDatabaseAlert = true }
             )
         ])
     }
@@ -486,6 +496,20 @@ struct SettingView: View {
             }
         } message: {
             Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
+        }
+        .alert(NSLocalizedString("Main_Setting_Reset_Database_Title", comment: ""), isPresented: $showResetDatabaseAlert) {
+            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
+                CharacterDatabaseManager.shared.resetDatabase()
+                showResetDatabaseSuccessAlert = true
+            }
+        } message: {
+            Text(NSLocalizedString("Main_Setting_Reset_Database_Message", comment: ""))
+        }
+        .alert(NSLocalizedString("Main_Setting_Reset_Database_Success_Title", comment: ""), isPresented: $showResetDatabaseSuccessAlert) {
+            Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("Main_Setting_Reset_Database_Success_Message", comment: ""))
         }
         .onAppear {
             updateAllData() // 首次加载时异步计算并更新缓存大小
