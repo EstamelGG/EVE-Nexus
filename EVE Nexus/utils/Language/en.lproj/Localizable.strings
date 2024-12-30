@@ -454,3 +454,6 @@
 // Character Info
 "Character_Birthday" = "Birthday";
 "Character_Age" = "%dy %dm %dd";
+
+// Medals
+"Character_Medals" = "Medals";

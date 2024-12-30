@@ -21,6 +21,8 @@ struct CharacterSheetView: View {
     @State private var fatigue: CharacterFatigue?
     @State private var isLoadingFatigue = true
     @State private var birthday: String?
+    @State private var medals: [CharacterMedal]?
+    @State private var isLoadingMedals = true
     
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -316,6 +318,48 @@ struct CharacterSheetView: View {
                     .frame(height: 44)
                 }
             }
+            
+            // 奖章信息 Section
+            if let medals = medals, !medals.isEmpty {
+                Section {
+                    ForEach(medals, id: \.title) { medal in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Image("certificates")
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack{
+                                        Text(medal.title)
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        if let date = dateFormatter.date(from: medal.date) {
+                                            Text("[\(formatMedalDate(date))]")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Text(medal.description)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    if let reason = medal.reason {
+                                        Text(reason)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                        .frame(height: 44)
+                    }
+                } header: {
+                    Text(NSLocalizedString("Character_Medals", comment: ""))
+                }
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
@@ -324,6 +368,22 @@ struct CharacterSheetView: View {
             
             // 2. 异步加载需要网络请求的数据
             await loadNetworkData()
+            
+            // 5. 获取奖章信息
+            Task {
+                if let medals = try? await CharacterMedalsAPI.shared.fetchCharacterMedals(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        self.medals = medals
+                        self.isLoadingMedals = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isLoadingMedals = false
+                    }
+                }
+            }
         }
         .refreshable {
             // 用户下拉刷新时，强制从API获取最新数据
@@ -726,6 +786,7 @@ struct CharacterSheetView: View {
         async let fatigueTask = CharacterFatigueAPI.shared.fetchCharacterFatigue(characterId: character.CharacterID)
         async let onlineTask = CharacterLocationAPI.shared.fetchCharacterOnlineStatus(characterId: character.CharacterID, forceRefresh: true)
         async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: character.CharacterID, forceRefresh: true)
+        async let medalsTask = CharacterMedalsAPI.shared.fetchCharacterMedals(characterId: character.CharacterID)
         
         do {
             // 等待位置和飞船信息
@@ -852,6 +913,22 @@ struct CharacterSheetView: View {
             }
         }
         
+        // 处理奖章信息
+        if let medals = try? await medalsTask {
+            await MainActor.run {
+                self.medals = medals
+                self.isLoadingMedals = false
+            }
+        }
+        
         Logger.info("所有数据刷新完成")
+    }
+
+    private func formatMedalDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: date)
     }
 } 

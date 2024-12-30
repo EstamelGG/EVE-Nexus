@@ -454,3 +454,6 @@
 // 角色信息
 "Character_Birthday" = "出生日期";
 "Character_Age" = "%d年%d月%d天";
+
+// 奖章相关
+"Character_Medals" = "奖章";
