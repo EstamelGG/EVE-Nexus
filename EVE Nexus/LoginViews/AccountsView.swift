@@ -415,19 +415,11 @@ struct AccountsView: View {
                             
                             async let walletTask = {
                                 do {
-                                    if await characterAuth.character.CharacterID == mainViewModel.selectedCharacter?.CharacterID {
-                                        if let cachedBalance = await mainViewModel.walletBalance {
-                                            await updateUI {
-                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                    self.viewModel.characters[index].walletBalance = cachedBalance
-                                                }
-                                            }
-                                            return
-                                        }
-                                    }
-                                    
-                                    // 如果没有缓存或不是当前选中角色，从API获取
-                                    let balance = try await CharacterWalletAPI.shared.getWalletBalance(characterId: characterAuth.character.CharacterID)
+                                    // 直接从API获取最新数据
+                                    let balance = try await CharacterWalletAPI.shared.getWalletBalance(
+                                        characterId: characterAuth.character.CharacterID,
+                                        forceRefresh: true  // 强制刷新
+                                    )
                                     await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].walletBalance = balance
