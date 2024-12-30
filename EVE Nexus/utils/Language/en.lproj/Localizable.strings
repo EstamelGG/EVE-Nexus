@@ -450,3 +450,7 @@
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+
+// Character Info
+"Character_Birthday" = "Birthday";
+"Character_Age" = "%dy %dm %dd";

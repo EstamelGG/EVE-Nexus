@@ -450,3 +450,7 @@
 "Time_Days_Hours_Minutes" = "%d天%d小时%d分钟";
 "Time_Hours_Minutes" = "%d小时%d分钟";
 "Time_Minutes" = "%d分钟";
+
+// 角色信息
+"Character_Birthday" = "出生日期";
+"Character_Age" = "%d年%d月%d天";

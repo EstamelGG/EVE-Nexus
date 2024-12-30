@@ -20,6 +20,7 @@ struct CharacterSheetView: View {
     @State private var securityStatus: Double?
     @State private var fatigue: CharacterFatigue?
     @State private var isLoadingFatigue = true
+    @State private var birthday: String?
     
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -136,10 +137,30 @@ struct CharacterSheetView: View {
                     .padding(.leading, 4)
                 }
                 .frame(height: 72)
-            }
-            
-            // 位置信息 Section
-            Section {
+                
+                // 出生日期信息
+                if let birthday = birthday {
+                    HStack {
+                        // 出生日期图标
+                        Image("channeloperator")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("Character_Birthday", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            if let date = dateFormatter.date(from: birthday) {
+                                Text("\(formatBirthday(date)) (\(calculateAge(from: date)))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .frame(height: 36)
+                }
+                
                 // 位置信息
                 HStack {
                     // 位置图标
@@ -656,6 +677,16 @@ struct CharacterSheetView: View {
                 }
             }
             
+            // 获取角色出生日期
+            let birthdayQuery = "SELECT birthday FROM character_info WHERE character_id = ?"
+            if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(birthdayQuery, parameters: [character.CharacterID]),
+               let row = rows.first,
+               let birthdayStr = row["birthday"] as? String {
+                Task { @MainActor in
+                    self.birthday = birthdayStr
+                }
+            }
+            
             return true
         }
         
@@ -692,5 +723,28 @@ struct CharacterSheetView: View {
         formatter.timeStyle = .short
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
+    }
+    
+    private func formatBirthday(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: date)
+    }
+
+    private func calculateAge(from birthday: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        
+        let now = Date()
+        let components = calendar.dateComponents([.year, .month, .day], from: birthday, to: now)
+        
+        if let years = components.year,
+           let months = components.month,
+           let days = components.day {
+            return String(format: NSLocalizedString("Character_Age", comment: ""), years, months, days)
+        }
+        return ""
     }
 } 
