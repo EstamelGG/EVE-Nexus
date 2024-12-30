@@ -40,6 +40,7 @@ private struct LocationNameView: View {
             stationName: location.name,
             solarSystemName: location.system_name,
             security: location.security_status,
+            locationId: location.location_id,
             font: .body,
             textColor: .primary
         )

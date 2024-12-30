@@ -124,7 +124,7 @@ struct LocationAssetsView: View {
                 }
             }
         }
-        .navigationTitle(location.name ?? location.system_name ?? NSLocalizedString("Unknown_System", comment: ""))
+        .navigationTitle(location.name ?? location.system_name ?? "\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(location.location_id))")
         .task {
             await viewModel.loadItemInfo()
         }

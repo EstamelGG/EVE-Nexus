@@ -5,6 +5,7 @@ struct LocationInfoView: View {
     let stationName: String?
     let solarSystemName: String?
     let security: Double?
+    let locationId: Int64?
     let font: Font
     let textColor: Color
     
@@ -12,12 +13,14 @@ struct LocationInfoView: View {
         stationName: String?,
         solarSystemName: String?,
         security: Double?,
+        locationId: Int64? = nil,
         font: Font = .caption,
         textColor: Color = .secondary
     ) {
         self.stationName = stationName
         self.solarSystemName = solarSystemName
         self.security = security
+        self.locationId = locationId
         self.font = font
         self.textColor = textColor
     }
@@ -47,6 +50,8 @@ struct LocationInfoView: View {
                 } else {
                     Text(stationName)
                 }
+            } else if let locationId = locationId {
+                Text("\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))")
             } else {
                 Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
             }
