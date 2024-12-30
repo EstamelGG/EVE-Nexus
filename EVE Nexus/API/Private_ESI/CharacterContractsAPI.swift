@@ -127,9 +127,9 @@ class CharacterContractsAPI {
                    date_issued, days_to_complete, end_location_id,
                    for_corporation, issuer_corporation_id, issuer_id,
                    price, reward, start_location_id, status, title,
-                   type, volume, last_updated
+                   type, volume
             FROM contracts 
-            WHERE character_id = ? 
+            WHERE character_id = ?
             ORDER BY date_issued DESC
         """
         
@@ -276,26 +276,29 @@ class CharacterContractsAPI {
     // 保存合同列表到数据库
     private func saveContractsToDB(characterId: Int, contracts: [ContractInfo]) -> Bool {
         // 首先获取已存在的合同ID
-        let checkQuery = "SELECT contract_id FROM contracts WHERE character_id = ? AND contract_id = ?"
+        let checkQuery = "SELECT contract_id FROM contracts WHERE contract_id = ? AND character_id = ? AND status = ?"
         var newCount = 0
         let dateFormatter = ISO8601DateFormatter()
         
         let insertSQL = """
             INSERT OR REPLACE INTO contracts (
-                contract_id, character_id, acceptor_id, assignee_id,
+                contract_id, character_id, status, acceptor_id, assignee_id,
                 availability, collateral, date_accepted, date_completed,
                 date_expired, date_issued, days_to_complete,
                 end_location_id, for_corporation, issuer_corporation_id,
-                issuer_id, price, reward, start_location_id, status,
+                issuer_id, price, reward, start_location_id,
                 title, type, volume
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         for contract in contracts {
-            // 检查合同是否已存在
-            if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contract.contract_id]),
-               !results.isEmpty {
-                Logger.debug("跳过已存在的合同 - ID: \(contract.contract_id)")
+            // 检查合同状态是否已存在
+            if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(
+                checkQuery, 
+                parameters: [contract.contract_id, characterId, contract.status]
+            ),
+            !results.isEmpty {
+                Logger.debug("跳过已存在的合同状态记录 - ID: \(contract.contract_id), 状态: \(contract.status)")
                 continue
             }
             
@@ -306,6 +309,7 @@ class CharacterContractsAPI {
             let parameters: [Any] = [
                 contract.contract_id,
                 characterId,
+                contract.status,
                 contract.acceptor_id ?? 0,
                 contract.assignee_id ?? 0,
                 contract.availability,
@@ -322,7 +326,6 @@ class CharacterContractsAPI {
                 contract.price,
                 contract.reward,
                 Int(contract.start_location_id),
-                contract.status,
                 contract.title,
                 contract.type,
                 contract.volume
@@ -333,13 +336,13 @@ class CharacterContractsAPI {
                 return false
             }
             newCount += 1
-            Logger.debug("成功插入新合同 - ID: \(contract.contract_id)")
+            Logger.debug("成功插入新合同状态记录 - ID: \(contract.contract_id), 状态: \(contract.status)")
         }
         
         if newCount > 0 {
-            Logger.info("新增\(newCount)个合同到数据库")
+            Logger.info("新增\(newCount)个合同状态记录到数据库")
         } else {
-            Logger.debug("没有新的合同需要插入")
+            Logger.debug("没有新的合同状态记录需要插入")
         }
         return true
     }
@@ -350,11 +353,11 @@ class CharacterContractsAPI {
             SELECT record_id, is_included, is_singleton,
                    quantity, type_id, raw_quantity
             FROM contract_items 
-            WHERE character_id = ? AND contract_id = ?
+            WHERE contract_id = ?
             ORDER BY record_id ASC
         """
         
-        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId, contractId]) {
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [contractId]) {
             Logger.debug("数据库查询成功，获取到\(results.count)行数据")
             return results.compactMap { row -> ContractItemInfo? in
                 // 记录原始数据
@@ -514,14 +517,12 @@ class CharacterContractsAPI {
         
         // 检查合同是否已经获取过内容
         let checkQuery = """
-            SELECT detail_update FROM contracts 
-            WHERE character_id = ? AND contract_id = ?
+            SELECT status FROM contracts 
+            WHERE contract_id = ?
         """
         
-        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contractId]),
-           let row = results.first,
-           let detailUpdate = row["detail_update"] as? String,  // 确保 detail_update 不为 null 且能转换为 String
-           !detailUpdate.isEmpty,
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [contractId]),
+           !results.isEmpty,
            !forceRefresh {
             Logger.debug("合同内容已经获取过，尝试从数据库获取")
             // 如果已经获取过内容，直接从数据库获取
@@ -540,27 +541,10 @@ class CharacterContractsAPI {
         // 保存到数据库
         if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: items) {
             Logger.error("保存合同物品到数据库失败")
-            // 如果保存失败，不更新 detail_update 字段
             return items
         }
         
         Logger.debug("成功保存合同物品到数据库")
-        
-        // 只有在成功获取并保存数据后，才更新 detail_update 字段
-        let updateSQL = """
-            UPDATE contracts 
-            SET detail_update = CURRENT_TIMESTAMP 
-            WHERE character_id = ? AND contract_id = ?
-        """
-        
-        if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(updateSQL, parameters: [characterId, contractId]) {
-            Logger.error("更新合同 detail_update 失败: \(message)")
-        } else {
-            Logger.debug("成功更新合同 detail_update 字段")
-            // 更新最后查询时间
-            updateLastQueryTime(characterId: characterId, isItems: true)
-        }
-        
         return items
     }
     

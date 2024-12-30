@@ -148,6 +148,7 @@ class CharacterDatabaseManager: ObservableObject {
             -- 合同表
             CREATE TABLE IF NOT EXISTS contracts (
                 contract_id INTEGER,
+                character_id INTEGER,
                 status TEXT,
                 acceptor_id INTEGER,
                 assignee_id INTEGER,
@@ -168,22 +169,20 @@ class CharacterDatabaseManager: ObservableObject {
                 title TEXT,
                 type TEXT,
                 volume REAL,
-                PRIMARY KEY (contract_id, status)
+                PRIMARY KEY (contract_id, character_id, status)
             );
 
             -- 合同物品表
             CREATE TABLE IF NOT EXISTS contract_items (
                 record_id INTEGER,
                 contract_id INTEGER,
-                character_id INTEGER,
                 is_included BOOLEAN,
                 is_singleton BOOLEAN,
                 quantity INTEGER,
                 type_id INTEGER,
                 raw_quantity INTEGER,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (character_id, contract_id, record_id),
-                FOREIGN KEY (character_id, contract_id) REFERENCES contracts(character_id, contract_id)
+                PRIMARY KEY (contract_id, record_id),
+                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id)
             );
 
             -- 工业制造表
@@ -229,7 +228,7 @@ class CharacterDatabaseManager: ObservableObject {
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
-            CREATE INDEX IF NOT EXISTS idx_contracts_character_date ON contracts(character_id, date_issued);
+            CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts(date_issued);
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
         """
