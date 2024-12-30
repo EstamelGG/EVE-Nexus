@@ -284,6 +284,8 @@ class CharacterDatabaseManager: ObservableObject {
             CREATE TABLE IF NOT EXISTS character_skills (
                 character_id INTEGER PRIMARY KEY,
                 skills_data TEXT,
+                unallocated_sp INTEGER NOT NULL DEFAULT 0,
+                total_sp INTEGER NOT NULL DEFAULT 0,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
 

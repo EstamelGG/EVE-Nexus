@@ -144,13 +144,13 @@ public class CharacterSkillsAPI {
             
             let query = """
                 INSERT OR REPLACE INTO character_skills (
-                    character_id, skills_data, last_updated
-                ) VALUES (?, ?, CURRENT_TIMESTAMP)
+                    character_id, skills_data, unallocated_sp, total_sp, last_updated
+                ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             
             if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(
                 query,
-                parameters: [characterId, jsonString]
+                parameters: [characterId, jsonString, skills.unallocated_sp, skills.total_sp]
             ) {
                 Logger.error("保存技能数据失败: \(error)")
                 return false
