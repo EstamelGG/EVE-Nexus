@@ -439,4 +439,54 @@ class CharacterDatabaseManager: ObservableObject {
         
         return result
     }
+    
+    // MARK: - Contract Methods
+    
+    /// 删除指定合同的所有物品
+    func deleteContractItems(contractId: Int) -> Bool {
+        Logger.debug("开始删除合同物品 - 合同ID: \(contractId)")
+        let query = "DELETE FROM contract_items WHERE contract_id = ?"
+        
+        let result = executeQuery(query, parameters: [contractId])
+        switch result {
+        case .success(_):
+            Logger.debug("成功删除合同物品 - 合同ID: \(contractId)")
+            return true
+        case .error(let error):
+            Logger.error("删除合同物品失败 - 合同ID: \(contractId), 错误: \(error)")
+            return false
+        }
+    }
+    
+    /// 保存合同物品
+    func saveContractItems(contractId: Int, items: [ContractItemInfo]) -> Bool {
+        Logger.debug("开始保存合同物品 - 合同ID: \(contractId), 物品数量: \(items.count)")
+        
+        let query = """
+            INSERT OR REPLACE INTO contract_items (
+                contract_id, record_id, is_included, is_singleton,
+                quantity, type_id, raw_quantity
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var success = true
+        for item in items {
+            let result = executeQuery(query, parameters: [
+                contractId,
+                item.record_id,
+                item.is_included,
+                item.is_singleton,
+                item.quantity,
+                item.type_id,
+                item.raw_quantity ?? 0
+            ])
+            
+            if case .error(let error) = result {
+                Logger.error("保存合同物品失败 - 合同ID: \(contractId), 物品ID: \(item.record_id), 错误: \(error)")
+                success = false
+            }
+        }
+        
+        return success
+    }
 } 

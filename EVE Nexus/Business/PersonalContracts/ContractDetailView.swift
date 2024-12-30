@@ -70,32 +70,26 @@ final class ContractDetailViewModel: ObservableObject {
         errorMessage = nil
         
         do {
+            // 从API获取最新数据
             items = try await CharacterContractsAPI.shared.fetchContractItems(
                 characterId: characterId,
                 contractId: contract.contract_id,
                 forceRefresh: forceRefresh
             )
             
-            // 添加详细的日志
-//            Logger.debug("""
-//                成功加载合同物品:
-//                - 总数量: \(items.count)
-//                - 提供的物品: \(items.filter { $0.is_included }.count)
-//                - 需求的物品: \(items.filter { !$0.is_included }.count)
-//                """)
-            
-            // 打印每个物品的详细信息
-//            for item in items {
-//                if let itemDetails = getItemDetails(for: item.type_id) {
-//                    Logger.debug("""
-//                        物品详情:
-//                        - 类型ID: \(item.type_id)
-//                        - 名称: \(itemDetails.name)
-//                        - 是否包含: \(item.is_included)
-//                        - 数量: \(item.quantity)
-//                        """)
-//                }
-//            }
+            // 如果是强制刷新，更新数据库
+            if forceRefresh {
+                Logger.debug("强制刷新，更新数据库中的合同物品")
+                // 删除旧数据
+                if CharacterDatabaseManager.shared.deleteContractItems(contractId: contract.contract_id) {
+                    // 保存新数据
+                    if !CharacterDatabaseManager.shared.saveContractItems(contractId: contract.contract_id, items: items) {
+                        Logger.error("保存新的合同物品数据失败")
+                    }
+                } else {
+                    Logger.error("删除旧的合同物品数据失败")
+                }
+            }
             
             isLoading = false
         } catch {
@@ -213,6 +207,7 @@ final class ContractDetailViewModel: ObservableObject {
 struct ContractDetailView: View {
     let contract: ContractInfo
     @StateObject private var viewModel: ContractDetailViewModel
+    @State private var isRefreshing = false
     
     init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
         self.contract = contract
@@ -418,6 +413,12 @@ struct ContractDetailView: View {
                                 .textCase(.none)
                         }
                     }
+                }
+                .refreshable {
+                    Logger.debug("开始下拉刷新合同物品")
+                    isRefreshing = true
+                    await viewModel.loadContractItems(forceRefresh: true)
+                    isRefreshing = false
                 }
                 .listStyle(.insetGrouped)
             }
