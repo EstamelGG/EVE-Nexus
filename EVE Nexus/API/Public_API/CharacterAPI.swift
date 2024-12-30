@@ -195,7 +195,7 @@ final class CharacterAPI: @unchecked Sendable {
         }
         
         return try await withCheckedThrowingContinuation { continuation in
-            let taskQueue = DispatchQueue(label: "com.eve-nexus.portrait-download")
+            _ = DispatchQueue(label: "com.eve-nexus.portrait-download")
             let taskLock = NSLock()
             var downloadTask: DownloadTask?
             

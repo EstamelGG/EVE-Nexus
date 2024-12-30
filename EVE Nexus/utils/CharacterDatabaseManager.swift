@@ -103,8 +103,6 @@ class CharacterDatabaseManager: ObservableObject {
                 id INTEGER NOT NULL,
                 category TEXT NOT NULL,
                 name TEXT NOT NULL,
-                update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id)
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
