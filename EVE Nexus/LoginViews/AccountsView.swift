@@ -4,6 +4,7 @@ import WebKit
 
 struct AccountsView: View {
     @StateObject private var viewModel: EVELoginViewModel
+    let mainViewModel: MainViewModel
     @State private var showingWebView = false
     @State private var isEditing = false
     @State private var characterToRemove: EVECharacterInfo? = nil
@@ -17,8 +18,13 @@ struct AccountsView: View {
     // 添加角色选择回调
     var onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)?
     
-    init(databaseManager: DatabaseManager = DatabaseManager(), onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)? = nil) {
+    init(
+        databaseManager: DatabaseManager = DatabaseManager(),
+        mainViewModel: MainViewModel,
+        onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)? = nil
+    ) {
         _viewModel = StateObject(wrappedValue: EVELoginViewModel(databaseManager: databaseManager))
+        self.mainViewModel = mainViewModel
         self.onCharacterSelect = onCharacterSelect
     }
     
@@ -241,9 +247,72 @@ struct AccountsView: View {
             viewModel.loadCharacters()
             // 初始化过期token状态
             let characterAuths = EVELogin.shared.loadCharacters()
-            for auth in characterAuths {
-                if auth.character.tokenExpired {
-                    expiredTokenCharacters.insert(auth.character.CharacterID)
+            
+            // 从缓存更新所有角色的数据
+            Task { @MainActor in
+                for auth in characterAuths {
+                    if auth.character.tokenExpired {
+                        expiredTokenCharacters.insert(auth.character.CharacterID)
+                    }
+                    
+                    if let index = viewModel.characters.firstIndex(where: { $0.CharacterID == auth.character.CharacterID }) {
+                        // 尝试从缓存获取钱包余额
+                        let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: auth.character.CharacterID)
+                        if let balance = Double(cachedBalance) {
+                            viewModel.characters[index].walletBalance = balance
+                        }
+                        
+                        // 尝试从缓存获取技能点数据
+                        if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                            characterId: auth.character.CharacterID,
+                            forceRefresh: false
+                        ) {
+                            viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
+                            viewModel.characters[index].unallocatedSkillPoints = skillsInfo.unallocated_sp
+                        }
+                        
+                        // 尝试从缓存获取技能队列
+                        if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                            characterId: auth.character.CharacterID,
+                            forceRefresh: false
+                        ) {
+                            viewModel.characters[index].skillQueueLength = queue.count
+                            if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                                if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                    viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                        skillId: currentSkill.skill_id,
+                                        name: skillName,
+                                        level: currentSkill.skillLevel,
+                                        progress: currentSkill.progress,
+                                        remainingTime: currentSkill.remainingTime
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // 尝试从缓存获取位置信息
+                        if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
+                            characterId: auth.character.CharacterID,
+                            forceRefresh: false
+                        ) {
+                            viewModel.characters[index].locationStatus = location.locationStatus
+                            let locationInfo = await getSolarSystemInfo(
+                                solarSystemId: location.solar_system_id,
+                                databaseManager: viewModel.databaseManager
+                            )
+                            if let locationInfo = locationInfo {
+                                viewModel.characters[index].location = locationInfo
+                            }
+                        }
+                        
+                        // 尝试从缓存获取头像
+                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                            characterId: auth.character.CharacterID,
+                            forceRefresh: false
+                        ) {
+                            viewModel.characterPortraits[auth.character.CharacterID] = portrait
+                        }
+                    }
                 }
             }
         }
@@ -333,27 +402,29 @@ struct AccountsView: View {
                             Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
                             
                             // 并行执行所有更新任务
-                            async let portraitTask: Void = {
+                            async let portraitTask = {
                                 if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
                                     await updateUI {
                                         self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
                                 }
-                            }()
+                            }
                             
-                            async let walletTask: Void = {
+                            async let walletTask = {
                                 do {
-                                    // 先显示缓存的余额
-                                    let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: characterAuth.character.CharacterID)
-                                    if let balance = Double(cachedBalance) {
-                                        await updateUI {
-                                            if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                self.viewModel.characters[index].walletBalance = balance
+                                    // 检查主视图模型中是否有缓存的钱包余额
+                                    if await characterAuth.character.CharacterID == mainViewModel.selectedCharacter?.CharacterID {
+                                        if let cachedBalance = await mainViewModel.walletBalance {
+                                            await updateUI {
+                                                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                    self.viewModel.characters[index].walletBalance = cachedBalance
+                                                }
                                             }
+                                            return
                                         }
                                     }
                                     
-                                    // 后台刷新
+                                    // 如果没有缓存或不是当前选中角色，从API获取
                                     let balance = try await CharacterWalletAPI.shared.getWalletBalance(characterId: characterAuth.character.CharacterID)
                                     await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
@@ -363,9 +434,23 @@ struct AccountsView: View {
                                 } catch {
                                     Logger.error("获取钱包余额失败: \(error)")
                                 }
-                            }()
+                            }
                             
-                            async let skillsTask: Void = {
+                            async let skillsTask = {
+                                // 检查主视图模型中是否有缓存的技能数据
+                                if await characterAuth.character.CharacterID == mainViewModel.selectedCharacter?.CharacterID {
+                                    if let cachedSkills = await mainViewModel.skills {
+                                        await updateUI {
+                                            if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                                self.viewModel.characters[index].totalSkillPoints = cachedSkills.total_sp
+                                                self.viewModel.characters[index].unallocatedSkillPoints = cachedSkills.unallocated_sp
+                                            }
+                                        }
+                                        return
+                                    }
+                                }
+                                
+                                // 如果没有缓存或不是当前选中角色，从API获取
                                 if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterAuth.character.CharacterID) {
                                     await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
@@ -374,9 +459,9 @@ struct AccountsView: View {
                                         }
                                     }
                                 }
-                            }()
+                            }
                             
-                            async let locationTask: Void = {
+                            async let locationTask = {
                                 do {
                                     let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(characterId: characterAuth.character.CharacterID)
                                     
@@ -397,40 +482,19 @@ struct AccountsView: View {
                                 } catch {
                                     Logger.error("获取位置信息失败: \(error)")
                                 }
-                            }()
-                            
-                            async let skillQueueTask: Void = {
-                                await updateCharacterSkillQueue(character: characterAuth.character)
-                            }()
-                            
-                            // 等待所有任务完成
-                            await _ = (portraitTask, walletTask, skillsTask, locationTask, skillQueueTask)
-                            
-                            // 保存更新后的角色信息到UserDefaults
-                            if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) }) {
-                                let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
-                                do {
-                                    // 获取 access token
-                                    let accessToken = try await AuthTokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID)
-                                    // 创建 EVEAuthToken 对象
-                                    let token = EVEAuthToken(
-                                        access_token: accessToken,
-                                        expires_in: 1200, // 20分钟过期
-                                        token_type: "Bearer",
-                                        refresh_token: try SecureStorage.shared.loadToken(for: updatedCharacter.CharacterID) ?? ""
-                                    )
-                                    // 保存认证信息
-                                    try await EVELogin.shared.saveAuthInfo(
-                                        token: token,
-                                        character: updatedCharacter
-                                    )
-                                    Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
-                                } catch {
-                                    Logger.error("保存认证信息失败: \(error)")
-                                }
                             }
                             
-                            Logger.info("成功刷新角色信息\(characterAuth.character.CharacterID) - \(characterAuth.character.CharacterName)")
+                            async let skillQueueTask = {
+                                await updateCharacterSkillQueue(character: characterAuth.character)
+                            }
+                            
+                            // 等待所有任务完成
+                            await portraitTask()
+                            await walletTask()
+                            await skillsTask()
+                            await locationTask()
+                            await skillQueueTask()
+                            
                         } catch {
                             if case NetworkError.tokenExpired = error {
                                 await updateUI {

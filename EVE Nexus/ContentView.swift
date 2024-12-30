@@ -406,7 +406,7 @@ struct ContentView: View {
                 loginSection
                 
                 // 角色功能部分
-                if currentCharacterId != 0 {
+        if currentCharacterId != 0 {
                     characterSection
                 }
                 
@@ -451,7 +451,10 @@ struct ContentView: View {
     private var loginSection: some View {
         Section {
             NavigationLink {
-                AccountsView(databaseManager: databaseManager) { character, portrait in
+                AccountsView(
+                    databaseManager: databaseManager,
+                    mainViewModel: viewModel
+                ) { character, portrait in
                     viewModel.resetCharacterInfo()
                     viewModel.selectedCharacter = character
                     viewModel.characterPortrait = portrait

@@ -1,4 +1,20 @@
 import SwiftUI
+import Foundation
+
+// 定义 CharacterSkills 结构体
+struct CharacterSkills {
+    let total_sp: Int
+    let unallocated_sp: Int
+}
+
+// 定义 QueuedSkill 结构体
+struct QueuedSkill {
+    let skill_id: Int
+    let skillLevel: Int
+    let remainingTime: TimeInterval?
+    let progress: Double
+    let isCurrentlyTraining: Bool
+}
 
 @MainActor
 class MainViewModel: ObservableObject {
@@ -13,6 +29,16 @@ class MainViewModel: ObservableObject {
     @Published var isLoadingQueue = false
     @Published var isLoadingServerStatus = false
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    
+    // 缓存最新的数据
+    private var cachedSkills: CharacterSkills?
+    private var cachedWalletBalance: Double?
+    private var cachedSkillQueue: [QueuedSkill]?
+    
+    // 提供访问缓存数据的方法
+    var skills: CharacterSkills? { cachedSkills }
+    var walletBalance: Double? { cachedWalletBalance }
+    var skillQueue: [QueuedSkill]? { cachedSkillQueue }
     
     init() {
         loadSavedCharacter()
@@ -125,12 +151,17 @@ class MainViewModel: ObservableObject {
             // 技能信息请求
             Task {
                 await MainActor.run { self.isLoadingSkills = true }
-                if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                if let skillsResponse = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
                     characterId: character.CharacterID,
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
-                        self.updateSkillPoints(skills.total_sp)
+                        // 转换为我们的 CharacterSkills 类型
+                        self.cachedSkills = CharacterSkills(
+                            total_sp: skillsResponse.total_sp,
+                            unallocated_sp: skillsResponse.unallocated_sp
+                        )
+                        self.updateSkillPoints(skillsResponse.total_sp)
                         self.isLoadingSkills = false
                     }
                 } else {
@@ -146,6 +177,7 @@ class MainViewModel: ObservableObject {
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
+                        self.cachedWalletBalance = balance
                         self.updateWalletBalance(balance)
                         self.isLoadingWallet = false
                     }
@@ -157,14 +189,24 @@ class MainViewModel: ObservableObject {
             // 技能队列请求
             Task {
                 await MainActor.run { self.isLoadingQueue = true }
-                if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                if let queueResponse = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
                     characterId: character.CharacterID,
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
+                        // 转换为我们的 QueuedSkill 类型
+                        self.cachedSkillQueue = queueResponse.map { skill in
+                            QueuedSkill(
+                                skill_id: skill.skill_id,
+                                skillLevel: skill.finished_level,
+                                remainingTime: skill.remainingTime,
+                                progress: skill.progress,
+                                isCurrentlyTraining: skill.isCurrentlyTraining
+                            )
+                        }
                         self.updateQueueStatus(
-                            length: queue.count,
-                            finishTime: queue.last?.remainingTime
+                            length: queueResponse.count,
+                            finishTime: queueResponse.last?.remainingTime
                         )
                         self.isLoadingQueue = false
                     }
@@ -208,5 +250,10 @@ class MainViewModel: ObservableObject {
         isLoadingQueue = false
         isLoadingServerStatus = false
         currentCharacterId = 0
+        
+        // 清除缓存的数据
+        cachedSkills = nil
+        cachedWalletBalance = nil
+        cachedSkillQueue = nil
     }
 } 
