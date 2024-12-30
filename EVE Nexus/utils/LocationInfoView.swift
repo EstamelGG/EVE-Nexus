@@ -30,33 +30,37 @@ struct LocationInfoView: View {
     }
     
     var body: some View {
-        HStack(spacing: 4) {
-            if let security = security {
-                Text(formatSecurity(security))
-                    .foregroundColor(getSecurityColor(security))
+        if let stationName = stationName,
+           let solarSystemName = solarSystemName {
+            // 检查空间站名称是否以星系名开头
+            if stationName.hasPrefix(solarSystemName) {
+                // 如果是，将星系名部分加粗
+                (Text(security != nil ? "\(formatSecurity(security!)) " : "0.0 ")
+                    .foregroundColor(security != nil ? getSecurityColor(security!) : .red) +
+                Text(solarSystemName)
+                    .fontWeight(.bold) +
+                Text(stationName.dropFirst(solarSystemName.count)))
+                    .font(font)
+                    .foregroundColor(textColor)
             } else {
-                Text("0.0")
-                    .foregroundColor(.red)
+                (Text(security != nil ? "\(formatSecurity(security!)) " : "0.0 ")
+                    .foregroundColor(security != nil ? getSecurityColor(security!) : .red) +
+                Text(stationName))
+                    .font(font)
+                    .foregroundColor(textColor)
             }
-            
-            if let stationName = stationName,
-               let solarSystemName = solarSystemName {
-                // 检查空间站名称是否以星系名开头
-                if stationName.hasPrefix(solarSystemName) {
-                    // 如果是，将星系名部分加粗
-                    Text(solarSystemName)
-                        .fontWeight(.bold) +
-                    Text(stationName.dropFirst(solarSystemName.count))
-                } else {
-                    Text(stationName)
-                }
-            } else if let locationId = locationId {
-                Text("\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))")
-            } else {
-                Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
-            }
+        } else if let locationId = locationId {
+            (Text(security != nil ? "\(formatSecurity(security!)) " : "0.0 ")
+                .foregroundColor(security != nil ? getSecurityColor(security!) : .red) +
+            Text("\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))"))
+                .font(font)
+                .foregroundColor(textColor)
+        } else {
+            (Text(security != nil ? "\(formatSecurity(security!)) " : "0.0 ")
+                .foregroundColor(security != nil ? getSecurityColor(security!) : .red) +
+            Text(NSLocalizedString("Assets_Unknown_Location", comment: "")))
+                .font(font)
+                .foregroundColor(textColor)
         }
-        .font(font)
-        .foregroundColor(textColor)
     }
 }

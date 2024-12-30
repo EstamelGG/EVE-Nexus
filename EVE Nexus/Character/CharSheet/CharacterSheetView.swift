@@ -159,7 +159,7 @@ struct CharacterSheetView: View {
                             .foregroundColor(.gray)
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 2) {
                         if let locationDetail = locationDetail {
                             // 空间站或建筑物信息
                             LocationInfoView(
