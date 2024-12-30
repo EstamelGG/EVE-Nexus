@@ -166,7 +166,7 @@ struct CharacterSheetView: View {
                                 stationName: locationDetail.stationName,
                                 solarSystemName: locationDetail.solarSystemName,
                                 security: locationDetail.security,
-                                font: .body,
+                                font: .headline,
                                 textColor: .primary
                             )
                         } else if let location = currentLocation {
@@ -176,7 +176,7 @@ struct CharacterSheetView: View {
                                 solarSystemName: location.systemName,
                                 security: location.security,
                                 locationId: Int64(location.systemId),
-                                font: .body,
+                                font: .headline,
                                 textColor: .primary
                             )
                         } else {
