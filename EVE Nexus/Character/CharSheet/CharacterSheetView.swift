@@ -3,12 +3,24 @@ import SwiftUI
 struct CharacterSheetView: View {
     let character: EVECharacterInfo
     let characterPortrait: UIImage?
+    @ObservedObject var databaseManager: DatabaseManager
     @State private var corporationInfo: CorporationInfo?
     @State private var corporationLogo: UIImage?
     @State private var allianceInfo: AllianceInfo?
     @State private var allianceLogo: UIImage?
     @State private var onlineStatus: CharacterOnlineStatus?
     @State private var isLoadingOnlineStatus = true
+    @State private var currentLocation: SolarSystemInfo?
+    @State private var locationStatus: CharacterLocation.LocationStatus?
+    @State private var locationDetail: LocationInfoDetail?
+    @State private var locationLoader: LocationInfoLoader?
+    
+    init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
+        self.character = character
+        self.characterPortrait = characterPortrait
+        self.databaseManager = databaseManager
+        self._locationLoader = State(initialValue: LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(character.CharacterID)))
+    }
     
     var body: some View {
         List {
@@ -113,6 +125,60 @@ struct CharacterSheetView: View {
                 }
                 .frame(height: 72)
             }
+            
+            // 位置信息 Section
+            Section {
+                HStack {
+                    // 位置图标
+                    if locationDetail != nil || currentLocation != nil {
+                        IconManager.shared.loadImage(for: "icon_0_64.png")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                    } else {
+                        Image(systemName: "location.slash")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let locationDetail = locationDetail {
+                            // 空间站或建筑物信息
+                            LocationInfoView(
+                                stationName: locationDetail.stationName,
+                                solarSystemName: locationDetail.solarSystemName,
+                                security: locationDetail.security,
+                                font: .body,
+                                textColor: .primary
+                            )
+                        } else if let location = currentLocation {
+                            // 星系信息（在太空中）
+                            LocationInfoView(
+                                stationName: nil,
+                                solarSystemName: location.systemName,
+                                security: location.security,
+                                locationId: Int64(location.systemId),
+                                font: .body,
+                                textColor: .primary
+                            )
+                        } else {
+                            Text(NSLocalizedString("Location_Unknown", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        // 位置状态（空间站/建筑物/太空中）
+                        if let status = locationStatus {
+                            Text(status.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text(NSLocalizedString("Character_Location", comment: ""))
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
@@ -140,6 +206,44 @@ struct CharacterSheetView: View {
                     await MainActor.run {
                         self.isLoadingOnlineStatus = false
                     }
+                }
+            }
+            
+            // 获取位置信息
+            Task {
+                do {
+                    let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
+                        characterId: character.CharacterID
+                    )
+                    
+                    // 根据位置类型获取详细信息
+                    if let structureId = location.structure_id {
+                        // 建筑物
+                        if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
+                            await MainActor.run {
+                                self.locationDetail = info
+                                self.locationStatus = location.locationStatus
+                            }
+                        }
+                    } else if let stationId = location.station_id {
+                        // 空间站
+                        if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
+                            await MainActor.run {
+                                self.locationDetail = info
+                                self.locationStatus = location.locationStatus
+                            }
+                        }
+                    } else {
+                        // 太空中（solar_system_id 是非可选类型）
+                        if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
+                            await MainActor.run {
+                                self.currentLocation = info
+                                self.locationStatus = location.locationStatus
+                            }
+                        }
+                    }
+                } catch {
+                    Logger.error("获取角色位置信息失败: \(error)")
                 }
             }
             
