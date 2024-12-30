@@ -239,27 +239,27 @@ struct CharacterSheetView: View {
     }
     
     private func loadCharacterInfo() async {
+        // 在单独的任务中获取在线状态
+        Task {
+            if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+                characterId: character.CharacterID
+            ) {
+                await MainActor.run {
+                    self.onlineStatus = status
+                    self.isLoadingOnlineStatus = false
+                }
+            } else {
+                await MainActor.run {
+                    self.isLoadingOnlineStatus = false
+                }
+            }
+        }
+        
         do {
             // 获取角色公开信息
             let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
                 characterId: character.CharacterID
             )
-            
-            // 在单独的任务中获取在线状态
-            Task {
-                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        self.onlineStatus = status
-                        self.isLoadingOnlineStatus = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.isLoadingOnlineStatus = false
-                    }
-                }
-            }
             
             // 获取位置信息
             Task {
@@ -478,22 +478,6 @@ struct CharacterSheetView: View {
                     Task { @MainActor in
                         self.currentShip = shipInfo
                         self.shipTypeName = typeName
-                    }
-                }
-            }
-            
-            // 从 API 获取在线状态
-            Task {
-                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        self.onlineStatus = status
-                        self.isLoadingOnlineStatus = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.isLoadingOnlineStatus = false
                     }
                 }
             }
