@@ -108,94 +108,91 @@ class MainViewModel: ObservableObject {
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
         
-        // 创建一个任务组来管理并行请求
-        await withTaskGroup(of: Void.self) { group in
-            // 添加服务器状态请求
-            group.addTask {
-                await MainActor.run { self.isLoadingServerStatus = true }
-                if let status = try? await ServerStatusAPI.shared.fetchServerStatus() {
+        // 服务器状态请求
+        Task {
+            await MainActor.run { self.isLoadingServerStatus = true }
+            if let status = try? await ServerStatusAPI.shared.fetchServerStatus() {
+                await MainActor.run {
+                    self.serverStatus = status
+                    self.isLoadingServerStatus = false
+                }
+            } else {
+                await MainActor.run { self.isLoadingServerStatus = false }
+            }
+        }
+        
+        if let character = selectedCharacter {
+            // 技能信息请求
+            Task {
+                await MainActor.run { self.isLoadingSkills = true }
+                if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
                     await MainActor.run {
-                        self.serverStatus = status
-                        self.isLoadingServerStatus = false
+                        self.updateSkillPoints(skills.total_sp)
+                        self.isLoadingSkills = false
                     }
                 } else {
-                    await MainActor.run { self.isLoadingServerStatus = false }
+                    await MainActor.run { self.isLoadingSkills = false }
                 }
             }
             
-            if let character = selectedCharacter {
-                // 添加技能信息请求
-                group.addTask {
-                    await MainActor.run { self.isLoadingSkills = true }
-                    if let skills = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+            // 钱包余额请求
+            Task {
+                await MainActor.run { self.isLoadingWallet = true }
+                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    await MainActor.run {
+                        self.updateWalletBalance(balance)
+                        self.isLoadingWallet = false
+                    }
+                } else {
+                    await MainActor.run { self.isLoadingWallet = false }
+                }
+            }
+            
+            // 技能队列请求
+            Task {
+                await MainActor.run { self.isLoadingQueue = true }
+                if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    await MainActor.run {
+                        self.updateQueueStatus(
+                            length: queue.count,
+                            finishTime: queue.last?.remainingTime
+                        )
+                        self.isLoadingQueue = false
+                    }
+                } else {
+                    await MainActor.run { self.isLoadingQueue = false }
+                }
+            }
+            
+            // 如果没有头像，请求头像
+            if characterPortrait == nil {
+                Task {
+                    await MainActor.run { self.isLoadingPortrait = true }
+                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
                         characterId: character.CharacterID,
                         forceRefresh: forceRefresh
                     ) {
                         await MainActor.run {
-                            self.updateSkillPoints(skills.total_sp)
-                            self.isLoadingSkills = false
+                            self.characterPortrait = portrait
+                            self.isLoadingPortrait = false
                         }
                     } else {
-                        await MainActor.run { self.isLoadingSkills = false }
-                    }
-                }
-                
-                // 添加钱包余额请求
-                group.addTask {
-                    await MainActor.run { self.isLoadingWallet = true }
-                    if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                        characterId: character.CharacterID,
-                        forceRefresh: forceRefresh
-                    ) {
-                        await MainActor.run {
-                            self.updateWalletBalance(balance)
-                            self.isLoadingWallet = false
-                        }
-                    } else {
-                        await MainActor.run { self.isLoadingWallet = false }
-                    }
-                }
-                
-                // 添加技能队列请求
-                group.addTask {
-                    await MainActor.run { self.isLoadingQueue = true }
-                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                        characterId: character.CharacterID,
-                        forceRefresh: forceRefresh
-                    ) {
-                        await MainActor.run {
-                            self.updateQueueStatus(
-                                length: queue.count,
-                                finishTime: queue.last?.remainingTime
-                            )
-                            self.isLoadingQueue = false
-                        }
-                    } else {
-                        await MainActor.run { self.isLoadingQueue = false }
-                    }
-                }
-                
-                // 如果没有头像，添加头像请求
-                if characterPortrait == nil {
-                    group.addTask {
-                        await MainActor.run { self.isLoadingPortrait = true }
-                        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                            characterId: character.CharacterID,
-                            forceRefresh: forceRefresh
-                        ) {
-                            await MainActor.run {
-                                self.characterPortrait = portrait
-                                self.isLoadingPortrait = false
-                            }
-                        } else {
-                            await MainActor.run { self.isLoadingPortrait = false }
-                        }
+                        await MainActor.run { self.isLoadingPortrait = false }
                     }
                 }
             }
         }
         
-        // 完成所有刷新
+        // 立即结束全局刷新状态
         await MainActor.run { self.isRefreshing = false }
     }
     
