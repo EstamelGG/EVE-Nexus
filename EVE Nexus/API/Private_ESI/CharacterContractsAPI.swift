@@ -275,10 +275,26 @@ class CharacterContractsAPI {
     
     // 保存合同列表到数据库
     private func saveContractsToDB(characterId: Int, contracts: [ContractInfo]) -> Bool {
-        // 首先获取已存在的合同ID
-        let checkQuery = "SELECT contract_id FROM contracts WHERE contract_id = ? AND character_id = ? AND status = ?"
+        // 首先获取已存在的合同ID和状态
+        let checkQuery = "SELECT contract_id, status FROM contracts WHERE character_id = ?"
         var newCount = 0
+        var updateCount = 0
         let dateFormatter = ISO8601DateFormatter()
+        
+        // 获取数据库中现有的合同状态
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId]) else {
+            Logger.error("查询现有合同失败")
+            return false
+        }
+        
+        // 构建现有合同状态的字典，方便查找
+        var existingContracts: [Int: String] = [:]
+        for row in existingResults {
+            if let contractId = row["contract_id"] as? Int64,
+               let status = row["status"] as? String {
+                existingContracts[Int(contractId)] = status
+            }
+        }
         
         let insertSQL = """
             INSERT OR REPLACE INTO contracts (
@@ -287,19 +303,23 @@ class CharacterContractsAPI {
                 date_expired, date_issued, days_to_complete,
                 end_location_id, for_corporation, issuer_corporation_id,
                 issuer_id, price, reward, start_location_id,
-                title, type, volume
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                title, type, volume, items_fetched
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         for contract in contracts {
-            // 检查合同状态是否已存在
-            if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(
-                checkQuery, 
-                parameters: [contract.contract_id, characterId, contract.status]
-            ),
-            !results.isEmpty {
-                Logger.debug("跳过已存在的合同状态记录 - ID: \(contract.contract_id), 状态: \(contract.status)")
-                continue
+            // 检查合同是否存在及其状态
+            if let existingStatus = existingContracts[contract.contract_id] {
+                // 如果状态没有变化，跳过
+                if existingStatus == contract.status {
+                    Logger.debug("跳过状态未变化的合同 - ID: \(contract.contract_id), 状态: \(contract.status)")
+                    continue
+                }
+                Logger.debug("合同状态已更新 - ID: \(contract.contract_id), 旧状态: \(existingStatus), 新状态: \(contract.status)")
+                updateCount += 1
+            } else {
+                // 新合同
+                newCount += 1
             }
             
             // 处理可选日期
@@ -328,21 +348,21 @@ class CharacterContractsAPI {
                 Int(contract.start_location_id),
                 contract.title,
                 contract.type,
-                contract.volume
+                contract.volume,
+                0  // 状态变化时重置items_fetched
             ]
             
             if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
                 Logger.error("保存合同到数据库失败: \(message)")
                 return false
             }
-            newCount += 1
-            Logger.debug("成功插入新合同状态记录 - ID: \(contract.contract_id), 状态: \(contract.status)")
+            Logger.debug("成功\(newCount > 0 ? "插入" : "更新")合同 - ID: \(contract.contract_id), 状态: \(contract.status)")
         }
         
-        if newCount > 0 {
-            Logger.info("新增\(newCount)个合同状态记录到数据库")
+        if newCount > 0 || updateCount > 0 {
+            Logger.info("数据库更新：新增\(newCount)个合同，更新\(updateCount)个合同状态")
         } else {
-            Logger.debug("没有新的合同状态记录需要插入")
+            Logger.debug("没有需要更新的合同数据")
         }
         return true
     }

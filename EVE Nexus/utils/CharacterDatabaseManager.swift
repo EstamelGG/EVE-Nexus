@@ -170,7 +170,7 @@ class CharacterDatabaseManager: ObservableObject {
                 type TEXT,
                 volume REAL,
                 items_fetched BOOLEAN DEFAULT 0,
-                PRIMARY KEY (contract_id, character_id, status)
+                PRIMARY KEY (contract_id, character_id)
             );
 
             -- 合同物品表
