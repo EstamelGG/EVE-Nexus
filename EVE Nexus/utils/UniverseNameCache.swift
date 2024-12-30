@@ -65,7 +65,7 @@ actor UniverseNameCache {
         if !uncachedIds.isEmpty {
             let idList = uncachedIds.map { String($0) }.joined(separator: ",")
             let query = """
-                SELECT id, name, last_updated 
+                SELECT id, name 
                 FROM universe_names 
                 WHERE id IN (\(idList))
             """
@@ -75,22 +75,6 @@ actor UniverseNameCache {
                 Logger.debug("查询结果: \(rows.count) 行")
                 for row in rows {
                     Logger.debug("处理行: \(row)")
-                    
-                    // 检查是否过期
-                    let isExpired: Bool
-                    if let lastUpdated = row["last_updated"] as? String {
-                        let query = "SELECT datetime('\(lastUpdated)') < datetime('now', '-24 hours') as is_expired"
-                        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query),
-                           let result = results.first,
-                           let expired = result["is_expired"] as? Int64 {
-                            isExpired = expired != 0
-                        } else {
-                            isExpired = true // 如果无法确定，认为已过期
-                        }
-                    } else {
-                        isExpired = true // 如果没有更新时间，认为已过期
-                    }
-                    
                     // 处理多种可能的类型
                     let id: Int?
                     if let intId = row["id"] as? Int {
@@ -103,8 +87,7 @@ actor UniverseNameCache {
                     }
                     
                     if let validId = id,
-                       let name = row["name"] as? String,
-                       !isExpired {
+                       let name = row["name"] as? String {
                         result[validId] = name
                         memoryCache[validId] = name
                         uncachedIds.remove(validId)
