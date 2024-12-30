@@ -91,29 +91,6 @@ public class UniverseStructureAPI {
             return structureInfo
             
         } catch {
-            // 检查是否是 403 错误，且响应体为 {"error":"Forbidden"}
-            if let networkError = error as? NetworkError,
-               case .httpError(let statusCode, let message) = networkError,
-               statusCode == 403,
-               message == #"{"error":"Forbidden"}"# {
-                
-                let defaultStructure = UniverseStructureInfo(
-                    name: "Unknown Structure",
-                    owner_id: 0,
-                    solar_system_id: 0,
-                    type_id: 0
-                )
-                
-                // 保存到文件缓存
-                saveStructureToCache(defaultStructure, structureId: structureId)
-                
-                // 保存到内存缓存
-                structureInfoCache[structureId] = defaultStructure
-                
-                Logger.info("建筑物访问被禁止(403 Forbidden)，使用默认信息 - 建筑物ID: \(structureId)")
-                return defaultStructure
-            }
-            
             Logger.error("获取建筑物信息失败 - 建筑物ID: \(structureId), 错误: \(error)")
             throw error
         }
