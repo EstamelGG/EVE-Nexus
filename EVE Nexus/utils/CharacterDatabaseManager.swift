@@ -169,6 +169,7 @@ class CharacterDatabaseManager: ObservableObject {
                 title TEXT,
                 type TEXT,
                 volume REAL,
+                items_fetched BOOLEAN DEFAULT 0,
                 PRIMARY KEY (contract_id, character_id, status)
             );
 

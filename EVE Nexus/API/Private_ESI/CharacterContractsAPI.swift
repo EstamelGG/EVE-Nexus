@@ -425,8 +425,8 @@ class CharacterContractsAPI {
         Logger.debug("开始保存合同物品 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
         
         // 首先获取已存在的记录ID
-        let checkQuery = "SELECT record_id FROM contract_items WHERE character_id = ? AND contract_id = ?"
-        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId, contractId]) else {
+        let checkQuery = "SELECT record_id FROM contract_items WHERE contract_id = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [contractId]) else {
             Logger.error("查询现有合同物品失败")
             return false
         }
@@ -436,10 +436,10 @@ class CharacterContractsAPI {
         
         let insertSQL = """
             INSERT OR REPLACE INTO contract_items (
-                record_id, contract_id, character_id,
+                record_id, contract_id,
                 is_included, is_singleton, quantity,
                 type_id, raw_quantity
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """
         
         var newCount = 0
@@ -457,7 +457,6 @@ class CharacterContractsAPI {
             let parameters: [Any] = [
                 recordId,
                 contractId,  // 确保存储合同ID
-                characterId,
                 item.is_included ? 1 : 0,
                 item.is_singleton ? 1 : 0,
                 item.quantity,
@@ -515,23 +514,29 @@ class CharacterContractsAPI {
     public func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
         Logger.debug("获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
         
-        // 检查合同是否存在
+        // 检查合同是否存在且是否已尝试获取过物品
         let checkQuery = """
-            SELECT status FROM contracts 
-            WHERE contract_id = ?
+            SELECT status, items_fetched FROM contracts 
+            WHERE contract_id = ? AND character_id = ?
         """
         
-        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [contractId]),
-           !results.isEmpty,
-           !forceRefresh {
-            Logger.debug("合同存在，尝试从数据库获取物品")
-            // 尝试从数据库获取物品
-            if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
-                if !items.isEmpty {
-                    Logger.debug("从数据库成功获取到\(items.count)个合同物品")
-                    return items
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [contractId, characterId]),
+           let row = results.first {
+            let itemsFetched = (row["items_fetched"] as? Int64 ?? 0) != 0
+            
+            if !forceRefresh {
+                // 如果已经尝试获取过物品
+                if itemsFetched {
+                    Logger.debug("已经尝试获取过合同物品，检查数据库")
+                    if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
+                        if !items.isEmpty {
+                            Logger.debug("从数据库成功获取到\(items.count)个合同物品")
+                            return items
+                        }
+                        Logger.debug("该合同没有物品内容")
+                        return []
+                    }
                 }
-                Logger.debug("数据库中没有找到合同物品，尝试从网络获取")
             }
         }
         
@@ -545,6 +550,17 @@ class CharacterContractsAPI {
             Logger.error("保存合同物品到数据库失败")
         } else {
             Logger.debug("成功保存合同物品到数据库")
+            
+            // 更新items_fetched标记
+            let updateSQL = """
+                UPDATE contracts 
+                SET items_fetched = 1
+                WHERE contract_id = ? AND character_id = ?
+            """
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(updateSQL, parameters: [contractId, characterId]) {
+                Logger.error("更新合同items_fetched标记失败: \(message)")
+            }
         }
         
         return items
