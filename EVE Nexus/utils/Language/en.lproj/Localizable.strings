@@ -249,6 +249,7 @@
 "Character_in_station" = "in Station";
 "Character_in_structure" = "in Structure";
 "Character_in_space" = "in Space";
+"Character_Location" = "Location";
 
 // Logs
 "Main_Setting_Logs" = "App Logs";
