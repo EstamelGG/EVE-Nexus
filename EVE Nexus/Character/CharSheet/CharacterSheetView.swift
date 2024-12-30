@@ -7,6 +7,8 @@ struct CharacterSheetView: View {
     @State private var corporationLogo: UIImage?
     @State private var allianceInfo: AllianceInfo?
     @State private var allianceLogo: UIImage?
+    @State private var onlineStatus: CharacterOnlineStatus?
+    @State private var isLoadingOnlineStatus = true
     
     var body: some View {
         List {
@@ -38,10 +40,30 @@ struct CharacterSheetView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        // 角色名称
-                        Text(character.CharacterName)
-                            .font(.headline)
-                            .lineLimit(1)
+                        // 角色名称和在线状态
+                        HStack(spacing: 4) {
+                            // 在线状态指示器容器，与下方图标宽度相同
+                            HStack {
+                                if isLoadingOnlineStatus {
+                                    OnlineStatusIndicator(
+                                        isOnline: true,
+                                        size: 8,
+                                        isLoading: true
+                                    )
+                                } else if let status = onlineStatus {
+                                    OnlineStatusIndicator(
+                                        isOnline: status.online,
+                                        size: 8,
+                                        isLoading: false
+                                    )
+                                }
+                            }
+                            .frame(width: 18, alignment: .center)
+                            
+                            Text(character.CharacterName)
+                                .font(.headline)
+                                .lineLimit(1)
+                        }
                         
                         // 联盟信息
                         HStack(spacing: 4) {
@@ -105,10 +127,29 @@ struct CharacterSheetView: View {
                 characterId: character.CharacterID
             )
             
+            // 在单独的任务中获取在线状态
+            Task {
+                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        self.onlineStatus = status
+                        self.isLoadingOnlineStatus = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isLoadingOnlineStatus = false
+                    }
+                }
+            }
+            
             // 获取军团信息
-            let corporationId = publicInfo.corporation_id
-            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: corporationId)
-            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
+            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: publicInfo.corporation_id
+            )
+            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                corporationId: publicInfo.corporation_id
+            )
             
             do {
                 let (info, logo) = try await (corpInfoTask, corpLogoTask)
@@ -138,6 +179,9 @@ struct CharacterSheetView: View {
             
         } catch {
             Logger.error("获取角色信息失败: \(error)")
+            await MainActor.run {
+                self.isLoadingOnlineStatus = false
+            }
         }
     }
 } 
