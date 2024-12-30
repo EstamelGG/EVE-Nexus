@@ -130,6 +130,14 @@ class MainViewModel: ObservableObject {
         }
     }
     
+    // 从缓存获取钱包余额
+    private func getCachedWalletBalance(characterId: Int) -> Double? {
+        if let balanceString = UserDefaults.standard.string(forKey: "wallet_balance_\(characterId)") {
+            return Double(balanceString)
+        }
+        return nil
+    }
+    
     // 刷新数据
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
@@ -156,12 +164,36 @@ class MainViewModel: ObservableObject {
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
-                        // 转换为我们的 CharacterSkills 类型
+                        // 更新内存缓存
                         self.cachedSkills = CharacterSkills(
                             total_sp: skillsResponse.total_sp,
                             unallocated_sp: skillsResponse.unallocated_sp
                         )
                         self.updateSkillPoints(skillsResponse.total_sp)
+                        
+                        // 更新数据库缓存
+                        let skillsJson = try? JSONEncoder().encode(skillsResponse)
+                        if let skillsData = skillsJson {
+                            let query = """
+                                INSERT OR REPLACE INTO character_skills 
+                                (character_id, skills_data, total_sp, unallocated_sp, last_updated) 
+                                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                            """
+                            let result = CharacterDatabaseManager.shared.executeQuery(
+                                query,
+                                parameters: [
+                                    character.CharacterID,
+                                    String(data: skillsData, encoding: .utf8) ?? "",
+                                    skillsResponse.total_sp,
+                                    skillsResponse.unallocated_sp
+                                ]
+                            )
+                            
+                            if case .error(let error) = result {
+                                Logger.error("保存技能数据到数据库失败: \(error)")
+                            }
+                        }
+                        
                         self.isLoadingSkills = false
                     }
                 } else {
@@ -177,8 +209,16 @@ class MainViewModel: ObservableObject {
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
+                        // 更新内存缓存
                         self.cachedWalletBalance = balance
                         self.updateWalletBalance(balance)
+                        
+                        // 更新 UserDefaults 缓存
+                        UserDefaults.standard.set(
+                            String(balance),
+                            forKey: "wallet_balance_\(character.CharacterID)"
+                        )
+                        
                         self.isLoadingWallet = false
                     }
                 } else {
@@ -194,7 +234,7 @@ class MainViewModel: ObservableObject {
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
-                        // 转换为我们的 QueuedSkill 类型
+                        // 更新内存缓存
                         self.cachedSkillQueue = queueResponse.map { skill in
                             QueuedSkill(
                                 skill_id: skill.skill_id,
@@ -208,6 +248,28 @@ class MainViewModel: ObservableObject {
                             length: queueResponse.count,
                             finishTime: queueResponse.last?.remainingTime
                         )
+                        
+                        // 更新数据库缓存
+                        let queueJson = try? JSONEncoder().encode(queueResponse)
+                        if let queueData = queueJson {
+                            let query = """
+                                INSERT OR REPLACE INTO character_skill_queue 
+                                (character_id, queue_data, last_updated) 
+                                VALUES (?, ?, CURRENT_TIMESTAMP)
+                            """
+                            let result = CharacterDatabaseManager.shared.executeQuery(
+                                query,
+                                parameters: [
+                                    character.CharacterID,
+                                    String(data: queueData, encoding: .utf8) ?? ""
+                                ]
+                            )
+                            
+                            if case .error(let error) = result {
+                                Logger.error("保存技能队列到数据库失败: \(error)")
+                            }
+                        }
+                        
                         self.isLoadingQueue = false
                     }
                 } else {
@@ -229,6 +291,20 @@ class MainViewModel: ObservableObject {
                         }
                     } else {
                         await MainActor.run { self.isLoadingPortrait = false }
+                    }
+                }
+            }
+            
+            // 位置信息请求
+            Task {
+                if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
+                    characterId: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    // 更新 UserDefaults 缓存
+                    let locationData = try? JSONEncoder().encode(location)
+                    if let data = locationData {
+                        UserDefaults.standard.set(data, forKey: "location_\(character.CharacterID)")
                     }
                 }
             }
