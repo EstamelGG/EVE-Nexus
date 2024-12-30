@@ -44,6 +44,13 @@ struct AccountsView: View {
                                 authState: authState
                             )
                             
+                            // 获取并保存角色公开信息到数据库
+                            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                                characterId: character.CharacterID,
+                                forceRefresh: true
+                            )
+                            Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
+                            
                             // UI 更新已经在 MainActor 上下文中
                             viewModel.characterInfo = character
                             viewModel.isLoggedIn = true
@@ -301,6 +308,14 @@ struct AccountsView: View {
                             // 使用 TokenManager 获取有效的 token
                             let current_access_token = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
                             Logger.info("获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) : \(current_access_token)")
+                            
+                            // 获取并保存角色公开信息
+                            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                                characterId: characterAuth.character.CharacterID,
+                                forceRefresh: true
+                            )
+                            Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
+                            
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {
                                 if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
