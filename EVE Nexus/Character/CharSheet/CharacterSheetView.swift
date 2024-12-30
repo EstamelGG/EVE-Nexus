@@ -234,7 +234,7 @@ struct CharacterSheetView: View {
                                 .foregroundColor(.primary)
                             Text(formatSecurity(security))
                                 .font(.caption)
-                                .foregroundColor(getSecurityColor(security))
+                                .foregroundColor(getSecurityStatusColor(security))
                         }
                     }
                 }
@@ -593,5 +593,15 @@ struct CharacterSheetView: View {
         }
         
         return false
+    }
+
+    private func getSecurityStatusColor(_ security: Double) -> Color {
+        if security <= 0 {
+            return .red
+        } else if security <= 4 {
+            return .green
+        } else {
+            return .blue
+        }
     }
 } 

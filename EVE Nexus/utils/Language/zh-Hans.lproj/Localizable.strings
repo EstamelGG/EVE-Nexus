@@ -439,3 +439,4 @@
 "Main_Setting_Reset_Database_Success_Title" = "重置完成";
 "Main_Setting_Reset_Database_Success_Message" = "数据库已成功重置。";
 "Common_info" = "基本信息";
+"Character_Security_Status" = "安全等级";
