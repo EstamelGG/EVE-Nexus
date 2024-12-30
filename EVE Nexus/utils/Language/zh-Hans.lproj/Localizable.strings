@@ -442,3 +442,11 @@
 "Character_Security_Status" = "安全等级";
 "Character_Current_Ship" = "当前飞船";
 "Character_Current_Location" = "当前位置";
+
+// 跳跃疲劳相关
+"Character_Jump_Fatigue" = "跳跃疲劳";
+"Character_No_Jump_Fatigue" = "无跳跃疲劳";
+"Character_Last_Jump" = "上次跳跃时间：%@";
+"Time_Days_Hours_Minutes" = "%d天%d小时%d分钟";
+"Time_Hours_Minutes" = "%d小时%d分钟";
+"Time_Minutes" = "%d分钟";

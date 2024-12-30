@@ -442,3 +442,11 @@
 "Character_Security_Status" = "Security Status";
 "Character_Current_Ship" = "Current Ship";
 "Character_Current_Location" = "Current Location";
+
+// Jump Fatigue
+"Character_Jump_Fatigue" = "Jump Fatigue";
+"Character_No_Jump_Fatigue" = "No Jump Fatigue";
+"Character_Last_Jump" = "Last Jump: %@";
+"Time_Days_Hours_Minutes" = "%dd %dh %dm";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";

@@ -18,6 +18,14 @@ struct CharacterSheetView: View {
     @State private var currentShip: CharacterShipInfo?
     @State private var shipTypeName: String?
     @State private var securityStatus: Double?
+    @State private var fatigue: CharacterFatigue?
+    @State private var isLoadingFatigue = true
+    
+    private let dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
     
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
@@ -245,6 +253,47 @@ struct CharacterSheetView: View {
             } header: {
                 Text(NSLocalizedString("Common_info", comment: ""))
             }
+            
+            // 跳跃疲劳信息 Section
+            if let fatigue = fatigue,
+               let jumpFatigueExpireDate = fatigue.jump_fatigue_expire_date,
+               let lastJumpDate = fatigue.last_jump_date {
+                Section {
+                    HStack {
+                        // 跳跃疲劳图标
+                        Image("capitalnavigation")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("Character_Jump_Fatigue", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            
+                            if let expireDate = dateFormatter.date(from: jumpFatigueExpireDate) {
+                                let remainingTime = expireDate.timeIntervalSince(Date())
+                                if remainingTime > 0 {
+                                    Text(formatRemainingTime(remainingTime))
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                } else {
+                                    Text(NSLocalizedString("Character_No_Jump_Fatigue", comment: ""))
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
+                            }
+                            
+                            if let jumpDate = dateFormatter.date(from: lastJumpDate) {
+                                Text(String(format: NSLocalizedString("Character_Last_Jump", comment: ""), formatDate(jumpDate)))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .frame(height: 44)
+                }
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
@@ -264,6 +313,20 @@ struct CharacterSheetView: View {
                 } else {
                     await MainActor.run {
                         self.isLoadingOnlineStatus = false
+                    }
+                }
+                
+                // 获取跳跃疲劳信息
+                if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        self.fatigue = fatigue
+                        self.isLoadingFatigue = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isLoadingFatigue = false
                     }
                 }
             }
@@ -607,5 +670,27 @@ struct CharacterSheetView: View {
         } else {
             return .blue
         }
+    }
+
+    private func formatRemainingTime(_ seconds: TimeInterval) -> String {
+        let days = Int(seconds) / 86400
+        let hours = (Int(seconds) % 86400) / 3600
+        let minutes = (Int(seconds) % 3600) / 60
+        
+        if days > 0 {
+            return String(format: NSLocalizedString("Time_Days_Hours_Minutes", comment: ""), days, hours, minutes)
+        } else if hours > 0 {
+            return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes)
+        } else {
+            return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: date)
     }
 } 
