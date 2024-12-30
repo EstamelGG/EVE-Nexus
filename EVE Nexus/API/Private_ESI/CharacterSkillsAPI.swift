@@ -126,150 +126,81 @@ public struct SkillQueueItem: Codable {
 public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
     
-    // 缓存结构
-    private struct SkillsCacheEntry: Codable {
-        let value: CharacterSkillsResponse
-        let timestamp: Date
-    }
-    
-    private struct QueueCacheEntry: Codable {
-        let value: [SkillQueueItem]
-        let timestamp: Date
-    }
-    
-    // 添加并发队列用于同步访问
-    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.cache", attributes: .concurrent)
-    
-    // 内存缓存
-    private var skillsMemoryCache: [Int: SkillsCacheEntry] = [:]
-    private var queueMemoryCache: [Int: QueueCacheEntry] = [:]
-    
     // 缓存超时时间
     private let cacheTimeout: TimeInterval = 1800 // 30分钟缓存
     
-    // UserDefaults键前缀
-    private let skillsCachePrefix = "skills_cache_"
-    private let queueCachePrefix = "queue_cache_"
-    
-    // 检查缓存是否有效
-    private func isSkillsCacheValid(_ cache: SkillsCacheEntry?) -> Bool {
-        guard let cache = cache else { return false }
-        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
-    }
-    
-    private func isQueueCacheValid(_ cache: QueueCacheEntry?) -> Bool {
-        guard let cache = cache else { return false }
-        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
-    }
-    
-    // 从UserDefaults获取技能缓存
-    private func getSkillsDiskCache(characterId: Int) -> SkillsCacheEntry? {
-        let key = skillsCachePrefix + String(characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(SkillsCacheEntry.self, from: data) else {
-            return nil
-        }
-        return cache
-    }
-    
-    // 从UserDefaults获取技能队列缓存
-    private func getQueueDiskCache(characterId: Int) -> QueueCacheEntry? {
-        let key = queueCachePrefix + String(characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(QueueCacheEntry.self, from: data) else {
-            return nil
-        }
-        return cache
-    }
-    
-    // 保存技能缓存到UserDefaults
-    private func saveSkillsToDiskCache(characterId: Int, cache: SkillsCacheEntry) {
-        let key = skillsCachePrefix + String(characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
-        }
-    }
-    
-    // 保存技能队列缓存到UserDefaults
-    private func saveQueueToDiskCache(characterId: Int, cache: QueueCacheEntry) {
-        let key = queueCachePrefix + String(characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
-        }
-    }
-    
-    // 安全地获取队列缓存
-    private func getQueueMemoryCache(characterId: Int) -> QueueCacheEntry? {
-        var result: QueueCacheEntry?
-        cacheQueue.sync {
-            result = queueMemoryCache[characterId]
-        }
-        return result
-    }
-    
-    // 安全地设置队列缓存
-    private func setQueueMemoryCache(characterId: Int, cache: QueueCacheEntry) {
-        cacheQueue.async(flags: .barrier) {
-            self.queueMemoryCache[characterId] = cache
-        }
-    }
-    
-    // 安全地获取技能缓存
-    private func getSkillsMemoryCache(characterId: Int) -> SkillsCacheEntry? {
-        var result: SkillsCacheEntry?
-        cacheQueue.sync {
-            result = skillsMemoryCache[characterId]
-        }
-        return result
-    }
-    
-    // 安全地设置技能缓存
-    private func setSkillsMemoryCache(characterId: Int, cache: SkillsCacheEntry) {
-        cacheQueue.async(flags: .barrier) {
-            self.skillsMemoryCache[characterId] = cache
-        }
-    }
-    
-    // 清除缓存
-    private func clearCache(characterId: Int) {
-        cacheQueue.async(flags: .barrier) {
-            // 清除内存缓存
-            self.skillsMemoryCache.removeValue(forKey: characterId)
-            self.queueMemoryCache.removeValue(forKey: characterId)
-            
-            // 清除磁盘缓存
-            let skillsKey = self.skillsCachePrefix + String(characterId)
-            let queueKey = self.queueCachePrefix + String(characterId)
-            UserDefaults.standard.removeObject(forKey: skillsKey)
-            UserDefaults.standard.removeObject(forKey: queueKey)
-        }
-    }
-    
     private init() {}
+    
+    // 保存技能数据到数据库
+    private func saveSkillsToCache(characterId: Int, skills: CharacterSkillsResponse) -> Bool {
+        do {
+            let encoder = JSONEncoder()
+            let jsonData = try encoder.encode(skills)
+            
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                Logger.error("技能数据JSON编码失败")
+                return false
+            }
+            
+            let query = """
+                INSERT OR REPLACE INTO character_skills (
+                    character_id, skills_data, last_updated
+                ) VALUES (?, ?, CURRENT_TIMESTAMP)
+            """
+            
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(
+                query,
+                parameters: [characterId, jsonString]
+            ) {
+                Logger.error("保存技能数据失败: \(error)")
+                return false
+            }
+            
+            Logger.debug("成功保存技能数据 - 角色ID: \(characterId)")
+            return true
+        } catch {
+            Logger.error("技能数据序列化失败: \(error)")
+            return false
+        }
+    }
+    
+    // 从数据库读取技能数据
+    private func loadSkillsFromCache(characterId: Int) -> CharacterSkillsResponse? {
+        let query = """
+            SELECT skills_data, last_updated 
+            FROM character_skills 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-30 minutes')
+        """
+        
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+           let row = rows.first,
+           let jsonString = row["skills_data"] as? String {
+            
+            do {
+                let decoder = JSONDecoder()
+                let jsonData = jsonString.data(using: .utf8)!
+                let skills = try decoder.decode(CharacterSkillsResponse.self, from: jsonData)
+                
+                if let lastUpdated = row["last_updated"] as? String {
+                    Logger.debug("从缓存加载技能数据 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
+                }
+                
+                return skills
+            } catch {
+                Logger.error("技能数据解析失败: \(error)")
+            }
+        }
+        return nil
+    }
     
     // 获取角色技能信息
     public func fetchCharacterSkills(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterSkillsResponse {
-        // 如果不是强制刷新，先尝试使用缓存
+        // 如果不是强制刷新，尝试从缓存加载
         if !forceRefresh {
-            // 1. 先检查内存缓存
-            if let memoryCached = getSkillsMemoryCache(characterId: characterId),
-               isSkillsCacheValid(memoryCached) {
-                Logger.info("使用内存缓存的技能数据 - 角色ID: \(characterId)")
-                return memoryCached.value
+            if let cachedSkills = loadSkillsFromCache(characterId: characterId) {
+                return cachedSkills
             }
-            
-            // 2. 如果内存缓存不可用，检查磁盘缓存
-            if let diskCached = getSkillsDiskCache(characterId: characterId),
-               isSkillsCacheValid(diskCached) {
-                Logger.info("使用磁盘缓存的技能数据 - 角色ID: \(characterId)")
-                // 更新内存缓存
-                setSkillsMemoryCache(characterId: characterId, cache: diskCached)
-                return diskCached.value
-            }
-            
-            Logger.info("缓存未命中或已过期,需要从服务器获取技能数据 - 角色ID: \(characterId)")
         }
         
         // 从网络获取数据
@@ -286,16 +217,10 @@ public class CharacterSkillsAPI {
         do {
             let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
             
-            // 创建新的缓存条目
-            let cacheEntry = SkillsCacheEntry(value: skills, timestamp: Date())
-            
-            // 更新内存缓存
-            setSkillsMemoryCache(characterId: characterId, cache: cacheEntry)
-            
-            // 更新磁盘缓存
-            saveSkillsToDiskCache(characterId: characterId, cache: cacheEntry)
-            
-            Logger.info("已更新技能数据缓存 - 角色ID: \(characterId)")
+            // 保存到数据库
+            if saveSkillsToCache(characterId: characterId, skills: skills) {
+                Logger.debug("成功缓存技能数据")
+            }
             
             return skills
         } catch {

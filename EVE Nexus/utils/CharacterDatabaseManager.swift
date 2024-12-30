@@ -280,6 +280,13 @@ class CharacterDatabaseManager: ObservableObject {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- 技能数据缓存表
+            CREATE TABLE IF NOT EXISTS character_skills (
+                character_id INTEGER PRIMARY KEY,
+                skills_data TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
@@ -287,6 +294,7 @@ class CharacterDatabaseManager: ObservableObject {
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
+            CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
         """
         
         // 分割SQL语句并逐个执行
