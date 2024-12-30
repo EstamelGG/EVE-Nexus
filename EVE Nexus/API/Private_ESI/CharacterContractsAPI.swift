@@ -515,7 +515,7 @@ class CharacterContractsAPI {
     public func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false) async throws -> [ContractItemInfo] {
         Logger.debug("获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
         
-        // 检查合同是否已经获取过内容
+        // 检查合同是否存在
         let checkQuery = """
             SELECT status FROM contracts 
             WHERE contract_id = ?
@@ -524,13 +524,15 @@ class CharacterContractsAPI {
         if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [contractId]),
            !results.isEmpty,
            !forceRefresh {
-            Logger.debug("合同内容已经获取过，尝试从数据库获取")
-            // 如果已经获取过内容，直接从数据库获取
+            Logger.debug("合同存在，尝试从数据库获取物品")
+            // 尝试从数据库获取物品
             if let items = getContractItemsFromDB(characterId: characterId, contractId: contractId) {
-                return items
+                if !items.isEmpty {
+                    Logger.debug("从数据库成功获取到\(items.count)个合同物品")
+                    return items
+                }
+                Logger.debug("数据库中没有找到合同物品，尝试从网络获取")
             }
-            // 即使数据库中没有物品，也说明这个合同本来就是空的
-            return []
         }
         
         // 从服务器获取数据
@@ -541,10 +543,10 @@ class CharacterContractsAPI {
         // 保存到数据库
         if !saveContractItemsToDB(characterId: characterId, contractId: contractId, items: items) {
             Logger.error("保存合同物品到数据库失败")
-            return items
+        } else {
+            Logger.debug("成功保存合同物品到数据库")
         }
         
-        Logger.debug("成功保存合同物品到数据库")
         return items
     }
     
