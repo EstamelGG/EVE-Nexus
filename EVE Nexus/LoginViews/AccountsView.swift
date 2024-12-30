@@ -403,7 +403,10 @@ struct AccountsView: View {
                             
                             // 并行执行所有更新任务
                             async let portraitTask = {
-                                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {
+                                if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                                    characterId: characterAuth.character.CharacterID,
+                                    forceRefresh: true  // 强制刷新
+                                ) {
                                     await updateUI {
                                         self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
                                     }
@@ -412,7 +415,6 @@ struct AccountsView: View {
                             
                             async let walletTask = {
                                 do {
-                                    // 检查主视图模型中是否有缓存的钱包余额
                                     if await characterAuth.character.CharacterID == mainViewModel.selectedCharacter?.CharacterID {
                                         if let cachedBalance = await mainViewModel.walletBalance {
                                             await updateUI {
@@ -437,21 +439,11 @@ struct AccountsView: View {
                             }
                             
                             async let skillsTask = {
-                                // 检查主视图模型中是否有缓存的技能数据
-                                if await characterAuth.character.CharacterID == mainViewModel.selectedCharacter?.CharacterID {
-                                    if let cachedSkills = await mainViewModel.skills {
-                                        await updateUI {
-                                            if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
-                                                self.viewModel.characters[index].totalSkillPoints = cachedSkills.total_sp
-                                                self.viewModel.characters[index].unallocatedSkillPoints = cachedSkills.unallocated_sp
-                                            }
-                                        }
-                                        return
-                                    }
-                                }
-                                
-                                // 如果没有缓存或不是当前选中角色，从API获取
-                                if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterAuth.character.CharacterID) {
+                                // 直接从API获取最新数据
+                                if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                                    characterId: characterAuth.character.CharacterID,
+                                    forceRefresh: true  // 强制刷新
+                                ) {
                                     await updateUI {
                                         if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
                                             self.viewModel.characters[index].totalSkillPoints = skillsInfo.total_sp
@@ -463,7 +455,10 @@ struct AccountsView: View {
                             
                             async let locationTask = {
                                 do {
-                                    let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(characterId: characterAuth.character.CharacterID)
+                                    let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
+                                        characterId: characterAuth.character.CharacterID,
+                                        forceRefresh: true  // 强制刷新
+                                    )
                                     
                                     // 获取位置详细信息
                                     let locationInfo = await getSolarSystemInfo(
