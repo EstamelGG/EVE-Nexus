@@ -7,6 +7,11 @@ class MainViewModel: ObservableObject {
     @Published var selectedCharacter: EVECharacterInfo?
     @Published var characterPortrait: UIImage?
     @Published var isRefreshing = false
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    
+    init() {
+        loadSavedCharacter()
+    }
     
     struct CharacterStats {
         var skillPoints: String = "--"
@@ -16,6 +21,39 @@ class MainViewModel: ObservableObject {
         
         static func empty() -> CharacterStats {
             CharacterStats()
+        }
+    }
+    
+    // 加载保存的角色信息
+    private func loadSavedCharacter() {
+        Logger.info("正在加载保存的角色信息...")
+        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
+        
+        if currentCharacterId != 0 {
+            if let auth = EVELogin.shared.getCharacterByID(currentCharacterId) {
+                selectedCharacter = auth.character
+                Logger.info("成功加载保存的角色信息: \(auth.character.CharacterName)")
+                
+                // 异步加载头像和其他数据
+                Task {
+                    await refreshAllData()
+                }
+            } else {
+                Logger.warning("找不到保存的角色（ID: \(currentCharacterId)），重置选择")
+                resetCharacterInfo()
+            }
+        }
+    }
+    
+    // 设置当前角色
+    func setCurrentCharacter(_ character: EVECharacterInfo, portrait: UIImage?) {
+        resetCharacterInfo()
+        selectedCharacter = character
+        characterPortrait = portrait
+        currentCharacterId = character.CharacterID
+        
+        Task {
+            await refreshAllData()
         }
     }
     
@@ -117,5 +155,6 @@ class MainViewModel: ObservableObject {
         selectedCharacter = nil
         characterPortrait = nil
         isRefreshing = false
+        currentCharacterId = 0
     }
 } 
