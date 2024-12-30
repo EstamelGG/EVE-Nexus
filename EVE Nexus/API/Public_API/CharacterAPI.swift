@@ -195,8 +195,24 @@ final class CharacterAPI: @unchecked Sendable {
         }
         
         return try await withCheckedThrowingContinuation { continuation in
+            let taskQueue = DispatchQueue(label: "com.eve-nexus.portrait-download")
+            let taskLock = NSLock()
             var downloadTask: DownloadTask?
-            downloadTask = KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
+            
+            let setTask: (DownloadTask?) -> Void = { task in
+                taskLock.lock()
+                downloadTask = task
+                taskLock.unlock()
+            }
+            
+            let getAndCancelTask: () -> Void = {
+                taskLock.lock()
+                downloadTask?.cancel()
+                downloadTask = nil
+                taskLock.unlock()
+            }
+            
+            let task = KingfisherManager.shared.retrieveImage(with: portraitURL, options: options) { result in
                 switch result {
                 case .success(let imageResult):
                     // 保存到 UserDefaults
@@ -204,19 +220,22 @@ final class CharacterAPI: @unchecked Sendable {
                         Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(imageData.count) bytes")
                         UserDefaults.standard.set(imageData, forKey: cacheKey)
                     }
+                    setTask(nil)
                     continuation.resume(returning: imageResult.image)
                 case .failure(let error):
                     Logger.error("获取角色头像失败 - 角色ID: \(characterId), 错误: \(error)")
+                    setTask(nil)
                     continuation.resume(throwing: NetworkError.invalidImageData)
                 }
-                downloadTask = nil
             }
+            
+            setTask(task)
             
             // 设置任务取消处理
             Task {
                 try? await Task.sleep(nanoseconds: 1)  // 给予足够的时间让任务开始
                 if Task.isCancelled {
-                    downloadTask?.cancel()
+                    getAndCancelTask()
                     continuation.resume(throwing: CancellationError())
                 }
             }
