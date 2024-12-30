@@ -96,8 +96,8 @@ class CharacterContractsAPI {
     func getContractsFromDB(characterId: Int) async -> [ContractInfo]? {
         let contracts = getContractsFromDBSync(characterId: characterId)
         
-        // 检查是否需要在后台刷新数据
-        if shouldRefreshData(characterId: characterId) {
+        // 只有在有数据且数据过期的情况下才在后台刷新
+        if let contracts = contracts, !contracts.isEmpty, shouldRefreshData(characterId: characterId) {
             Logger.info("合同数据已过期，在后台刷新 - 角色ID: \(characterId)")
             
             // 在后台刷新数据
