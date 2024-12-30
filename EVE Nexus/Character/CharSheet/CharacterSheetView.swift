@@ -227,8 +227,59 @@ struct CharacterSheetView: View {
         .task {
             // 首先尝试从数据库加载缓存的状态
             let hasRecentData = loadCharacterStateFromDatabase()
+            
+            // 无论是否有缓存数据，都重新获取在线状态和其他信息
+            Task {
+                // 获取在线状态
+                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        self.onlineStatus = status
+                        self.isLoadingOnlineStatus = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isLoadingOnlineStatus = false
+                    }
+                }
+            }
+            
+            // 获取角色公开信息
+            if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
+                characterId: character.CharacterID
+            ) {
+                // 获取军团信息
+                async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                    corporationId: publicInfo.corporation_id
+                )
+                async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: publicInfo.corporation_id
+                )
+                
+                if let (info, logo) = try? await (corpInfoTask, corpLogoTask) {
+                    await MainActor.run {
+                        self.corporationInfo = info
+                        self.corporationLogo = logo
+                    }
+                }
+                
+                // 获取联盟信息（如果有）
+                if let allianceId = publicInfo.alliance_id {
+                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                    
+                    if let (info, logo) = try? await (allianceInfoTask, allianceLogoTask) {
+                        await MainActor.run {
+                            self.allianceInfo = info
+                            self.allianceLogo = logo
+                        }
+                    }
+                }
+            }
+            
+            // 如果没有近期数据，则从API加载位置和飞船信息
             if !hasRecentData {
-                // 如果没有近期数据，则从API加载
                 await loadCharacterInfo()
             }
         }
