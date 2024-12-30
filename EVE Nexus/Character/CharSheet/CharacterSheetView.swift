@@ -175,13 +175,11 @@ struct CharacterSheetView: View {
                         } else if let location = currentLocation {
                             // 星系信息（在太空中）
                             VStack(alignment: .leading, spacing: 2) {
-                                LocationInfoView(
-                                    stationName: nil,
-                                    solarSystemName: location.systemName,
-                                    security: location.security,
-                                    font: .body,
-                                    textColor: .primary
-                                )
+                                HStack(spacing: 4) {
+                                    Text(formatSecurity(location.security))
+                                        .foregroundColor(getSecurityColor(location.security))
+                                    Text("\(location.systemName) / \(location.regionName)")
+                                }.font(.body)
                                 
                                 if let status = locationStatus {
                                     Text(status.description)
