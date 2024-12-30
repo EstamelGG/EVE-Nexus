@@ -14,6 +14,7 @@ struct CharacterSheetView: View {
     @State private var locationStatus: CharacterLocation.LocationStatus?
     @State private var locationDetail: LocationInfoDetail?
     @State private var locationLoader: LocationInfoLoader?
+    @State private var locationTypeId: Int?
     
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
@@ -130,7 +131,23 @@ struct CharacterSheetView: View {
             Section {
                 HStack {
                     // 位置图标
-                    if locationDetail != nil || currentLocation != nil {
+                    if locationDetail != nil {
+                        if let typeId = locationTypeId,
+                           let iconFileName = getStationIcon(typeId: typeId, databaseManager: databaseManager) {
+                            // 显示空间站或建筑物的图标
+                            IconManager.shared.loadImage(for: iconFileName)
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                        } else {
+                            // 找不到图标时显示默认图标
+                            IconManager.shared.loadImage(for: "icon_0_64.png")
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                        }
+                    } else if currentLocation != nil {
+                        // 在星系中时显示默认图标
                         IconManager.shared.loadImage(for: "icon_0_64.png")
                             .resizable()
                             .frame(width: 36, height: 36)
@@ -219,26 +236,38 @@ struct CharacterSheetView: View {
                     // 根据位置类型获取详细信息
                     if let structureId = location.structure_id {
                         // 建筑物
+                        let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+                            structureId: Int64(structureId),
+                            characterId: character.CharacterID
+                        )
                         if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
                             await MainActor.run {
                                 self.locationDetail = info
                                 self.locationStatus = location.locationStatus
+                                self.locationTypeId = structureInfo?.type_id
                             }
                         }
                     } else if let stationId = location.station_id {
                         // 空间站
-                        if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
-                            await MainActor.run {
-                                self.locationDetail = info
-                                self.locationStatus = location.locationStatus
+                        let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+                        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [stationId]),
+                           let row = rows.first,
+                           let typeId = row["stationTypeID"] as? Int {
+                            if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
+                                await MainActor.run {
+                                    self.locationDetail = info
+                                    self.locationStatus = location.locationStatus
+                                    self.locationTypeId = typeId
+                                }
                             }
                         }
                     } else {
-                        // 太空中（solar_system_id 是非可选类型）
+                        // 太空中
                         if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
                             await MainActor.run {
                                 self.currentLocation = info
                                 self.locationStatus = location.locationStatus
+                                self.locationTypeId = nil
                             }
                         }
                     }
@@ -287,5 +316,15 @@ struct CharacterSheetView: View {
                 self.isLoadingOnlineStatus = false
             }
         }
+    }
+
+    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
+        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let iconFile = row["icon_filename"] as? String {
+            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
+        }
+        return DatabaseConfig.defaultItemIcon
     }
 } 
