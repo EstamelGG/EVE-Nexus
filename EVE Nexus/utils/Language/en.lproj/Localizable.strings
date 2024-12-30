@@ -438,3 +438,5 @@
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
 "Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
 "Common_info" = "Basic info";
+
+"Character_Security_Status" = "Security Status";

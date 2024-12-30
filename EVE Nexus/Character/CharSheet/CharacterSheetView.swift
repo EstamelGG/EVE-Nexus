@@ -17,6 +17,7 @@ struct CharacterSheetView: View {
     @State private var locationTypeId: Int?
     @State private var currentShip: CharacterShipInfo?
     @State private var shipTypeName: String?
+    @State private var securityStatus: Double?
     
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
@@ -217,6 +218,26 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
+                
+                // 安全等级信息
+                if let security = securityStatus {
+                    HStack {
+                        // 安全等级图标
+                        Image("securitystatus")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("Character_Security_Status", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            Text(formatSecurity(security))
+                                .font(.caption)
+                                .foregroundColor(getSecurityColor(security))
+                        }
+                    }
+                }
             } header: {
                 Text(NSLocalizedString("Common_info", comment: ""))
             }
@@ -273,6 +294,10 @@ struct CharacterSheetView: View {
                             self.allianceLogo = logo
                         }
                     }
+                }
+                
+                await MainActor.run {
+                    self.securityStatus = publicInfo.security_status
                 }
             }
             
