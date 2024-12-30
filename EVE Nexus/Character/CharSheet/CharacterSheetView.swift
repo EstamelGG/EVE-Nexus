@@ -148,15 +148,15 @@ struct CharacterSheetView: View {
                         }
                     } else if currentLocation != nil {
                         // 在星系中时显示默认图标
-                        IconManager.shared.loadImage(for: "icon_0_64.png")
+                        IconManager.shared.loadImage(for: "icon_9_64.png")
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
                     } else {
-                        Image(systemName: "location.slash")
+                        IconManager.shared.loadImage(for: "icon_0_64.png")
                             .resizable()
                             .frame(width: 36, height: 36)
-                            .foregroundColor(.gray)
+                            .cornerRadius(6)
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
