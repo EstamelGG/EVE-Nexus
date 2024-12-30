@@ -70,26 +70,12 @@ final class ContractDetailViewModel: ObservableObject {
         errorMessage = nil
         
         do {
-            // 从API获取最新数据
+            // 从API获取最新数据（API内部会处理数据库的保存）
             items = try await CharacterContractsAPI.shared.fetchContractItems(
                 characterId: characterId,
                 contractId: contract.contract_id,
                 forceRefresh: forceRefresh
             )
-            
-            // 如果是强制刷新，更新数据库
-            if forceRefresh {
-                Logger.debug("强制刷新，更新数据库中的合同物品")
-                // 删除旧数据
-                if CharacterDatabaseManager.shared.deleteContractItems(contractId: contract.contract_id) {
-                    // 保存新数据
-                    if !CharacterDatabaseManager.shared.saveContractItems(contractId: contract.contract_id, items: items) {
-                        Logger.error("保存新的合同物品数据失败")
-                    }
-                } else {
-                    Logger.error("删除旧的合同物品数据失败")
-                }
-            }
             
             isLoading = false
         } catch {
