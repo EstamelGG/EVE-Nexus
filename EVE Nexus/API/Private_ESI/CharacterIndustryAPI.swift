@@ -112,10 +112,18 @@ class CharacterIndustryAPI {
                         let newJobs = try await fetchFromNetwork(characterId: characterId)
                         
                         // 获取已存在的工业项目ID
-                        let existingJobIds = Set(jobs.map { $0.job_id })
+                        let existingJobs = try await loadJobsFromDB(characterId: characterId)
+                        let existingJobsMap = Dictionary(uniqueKeysWithValues: existingJobs.map { ($0.job_id, $0.completed_date) })
                         
-                        // 过滤出新的工业项目
-                        let newJobsToSave = newJobs.filter { !existingJobIds.contains($0.job_id) }
+                        // 过滤出需要保存的工业项目：新的项目或已存在但未完成的项目
+                        let newJobsToSave = newJobs.filter { job in
+                            if let existingCompletedDate = existingJobsMap[job.job_id] {
+                                // 如果已存在此项目，只有当它之前未完成时才需要更新
+                                return existingCompletedDate == nil
+                            }
+                            // 新项目需要保存
+                            return true
+                        }
                         
                         if !newJobsToSave.isEmpty {
                             try await saveJobsToDB(jobs: newJobsToSave, characterId: characterId)
@@ -143,18 +151,22 @@ class CharacterIndustryAPI {
         progressCallback?(true)
         let newJobs = try await fetchFromNetwork(characterId: characterId)
         
-        // 如果是强制刷新，也要检查是否有重复数据
-        if forceRefresh {
-            let existingJobs = try await loadJobsFromDB(characterId: characterId)
-            let existingJobIds = Set(existingJobs.map { $0.job_id })
-            let newJobsToSave = newJobs.filter { !existingJobIds.contains($0.job_id) }
-            
-            if !newJobsToSave.isEmpty {
-                try await saveJobsToDB(jobs: newJobsToSave, characterId: characterId)
+        // 检查已存在的工业项目
+        let existingJobs = try await loadJobsFromDB(characterId: characterId)
+        let existingJobsMap = Dictionary(uniqueKeysWithValues: existingJobs.map { ($0.job_id, $0.completed_date) })
+        
+        // 过滤出需要保存的工业项目：新的项目或已存在但未完成的项目
+        let newJobsToSave = newJobs.filter { job in
+            if let existingCompletedDate = existingJobsMap[job.job_id] {
+                // 如果已存在此项目，只有当它之前未完成时才需要更新
+                return existingCompletedDate == nil
             }
-        } else {
-            // 如果是首次加载，直接保存所有数据
-            try await saveJobsToDB(jobs: newJobs, characterId: characterId)
+            // 新项目需要保存
+            return true
+        }
+        
+        if !newJobsToSave.isEmpty {
+            try await saveJobsToDB(jobs: newJobsToSave, characterId: characterId)
         }
         
         // 更新最后查询时间
@@ -345,8 +357,8 @@ class CharacterIndustryAPI {
         var insertedCount = 0
         for job in jobs {
             // 如果工业项目已存在，跳过
-            if existingJobIds.contains(job.job_id) {
-                Logger.debug("跳过已存在的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
+            if existingJobIds.contains(job.job_id) && job.completed_date != nil {
+                Logger.debug("跳过已存在且已完成的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
                 continue
             }
             
@@ -386,7 +398,7 @@ class CharacterIndustryAPI {
             ]
             
             Logger.debug("正在插入新的工业项目数据: characterId=\(characterId), jobId=\(job.job_id)")
-            if case .error(let error) = databaseManager.executeQuery(insertQuery, parameters: parameters) {
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
                 Logger.error("插入数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
                 throw IndustryAPIError.databaseError("插入数据失败: \(error)")
             }
