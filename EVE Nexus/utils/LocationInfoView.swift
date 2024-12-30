@@ -54,7 +54,7 @@ struct LocationInfoView: View {
             // 在太空中的场景
             (Text(security != nil ? "\(formatSecurity(security!)) " : "0.0 ")
                 .foregroundColor(security != nil ? getSecurityColor(security!) : .red) +
-            Text(solarSystemName))
+            Text("\(solarSystemName)"))
                 .font(font)
                 .foregroundColor(textColor)
         } else if let locationId = locationId {

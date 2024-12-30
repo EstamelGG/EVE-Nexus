@@ -166,30 +166,29 @@ struct CharacterSheetView: View {
                                 stationName: locationDetail.stationName,
                                 solarSystemName: locationDetail.solarSystemName,
                                 security: locationDetail.security,
-                                font: .headline,
+                                font: .body,
                                 textColor: .primary
                             )
                         } else if let location = currentLocation {
                             // 星系信息（在太空中）
-                            LocationInfoView(
-                                stationName: nil,
-                                solarSystemName: location.systemName,
-                                security: location.security,
-                                locationId: Int64(location.systemId),
-                                font: .headline,
-                                textColor: .primary
-                            )
+                            HStack(spacing: 4) {
+                                Text(formatSecurity(location.security))
+                                    .foregroundColor(getSecurityColor(location.security))
+                                Text("\(location.systemName) / \(location.regionName)")
+                            }.font(.body)
                         } else {
                             Text(NSLocalizedString("Location_Unknown", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.gray)
+                                .lineLimit(1)
                         }
                         
                         // 位置状态（空间站/建筑物/太空中）
                         if let status = locationStatus {
                             Text(status.description)
-                                .font(.caption)
+                                .font(.body)
                                 .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
                     }
                 }
