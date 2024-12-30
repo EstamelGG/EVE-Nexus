@@ -445,6 +445,30 @@ struct AccountsView: View {
                                 }
                             }
                             
+                            async let skillQueueTask = {
+                                if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+                                    characterId: characterAuth.character.CharacterID,
+                                    forceRefresh: true  // 强制刷新
+                                ) {
+                                    await updateUI {
+                                        if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == characterAuth.character.CharacterID }) {
+                                            self.viewModel.characters[index].skillQueueLength = queue.count
+                                            if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                                                if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                                                    self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                                        skillId: currentSkill.skill_id,
+                                                        name: skillName,
+                                                        level: currentSkill.skillLevel,
+                                                        progress: currentSkill.progress,
+                                                        remainingTime: currentSkill.remainingTime
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
                             async let locationTask = {
                                 do {
                                     let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
@@ -469,10 +493,6 @@ struct AccountsView: View {
                                 } catch {
                                     Logger.error("获取位置信息失败: \(error)")
                                 }
-                            }
-                            
-                            async let skillQueueTask = {
-                                await updateCharacterSkillQueue(character: characterAuth.character)
                             }
                             
                             // 等待所有任务完成
