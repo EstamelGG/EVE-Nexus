@@ -1060,7 +1060,13 @@ struct ContentView: View {
                     TableRowNode(
                         title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                         iconName: "charactersheet",
-                        note: spText
+                        note: spText,
+                        destination: selectedCharacter.map { character in
+                            AnyView(CharacterSheetView(
+                                character: character,
+                                characterPortrait: selectedCharacterPortrait
+                            ))
+                        }
                     ),
                     TableRowNode(
                         title: NSLocalizedString("Main_Jump_Clones", comment: ""),

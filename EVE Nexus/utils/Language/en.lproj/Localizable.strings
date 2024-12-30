@@ -226,6 +226,7 @@
 // Account Management
 "Account_Management" = "Character Management";
 "Account_Add_Character" = "Add Character";
+"Account_Logging_In" = "Logging in...";
 "Account_Logged_Characters" = "Logged Characters";
 "Account_Cannot_Get_Auth_URL" = "Cannot get authorization URL";
 "Account_Login_Failed" = "Login Failed";
@@ -248,6 +249,8 @@
 "Character_in_station" = "in Station";
 "Character_in_structure" = "in Structure";
 "Character_in_space" = "in Space";
+"Character_Location" = "Location";
+"Character_Current_Ship" = "Current Ship";
 
 // Logs
 "Main_Setting_Logs" = "App Logs";
@@ -434,3 +437,23 @@
 "Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
 "Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
+"Common_info" = "Basic info";
+
+"Character_Security_Status" = "Security Status";
+"Character_Current_Ship" = "Current Ship";
+"Character_Current_Location" = "Current Location";
+
+// Jump Fatigue
+"Character_Jump_Fatigue" = "Jump Fatigue";
+"Character_No_Jump_Fatigue" = "No Jump Fatigue";
+"Character_Last_Jump" = "Last Jump: %@";
+"Time_Days_Hours_Minutes" = "%dd %dh %dm";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";
+
+// Character Info
+"Character_Birthday" = "Birthday";
+"Character_Age" = "%dy %dm %dd";
+
+// Medals
+"Character_Medals" = "Medals";

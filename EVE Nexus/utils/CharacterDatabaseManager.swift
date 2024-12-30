@@ -145,6 +145,20 @@ class CharacterDatabaseManager: ObservableObject {
     
     private func setupBaseTables() {
         let createTablesSQL = """
+            -- 角色当前状态表
+            CREATE TABLE IF NOT EXISTS character_current_state (
+                character_id INTEGER PRIMARY KEY,
+                solar_system_id INTEGER,
+                station_id INTEGER,
+                structure_id INTEGER,
+                location_status TEXT,
+                ship_item_id INTEGER,
+                ship_type_id INTEGER,
+                ship_name TEXT,
+                online_status INTEGER DEFAULT 0,
+                last_update INTEGER
+            );
+            
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
                 id INTEGER NOT NULL,
@@ -273,12 +287,48 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (character_id, date, type_id, solar_system_id)
             );
 
+            -- 技能队列缓存表
+            CREATE TABLE IF NOT EXISTS character_skill_queue (
+                character_id INTEGER PRIMARY KEY,
+                queue_data TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- 技能数据缓存表
+            CREATE TABLE IF NOT EXISTS character_skills (
+                character_id INTEGER PRIMARY KEY,
+                skills_data TEXT,
+                unallocated_sp INTEGER NOT NULL DEFAULT 0,
+                total_sp INTEGER NOT NULL DEFAULT 0,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- 角色信息缓存表
+            CREATE TABLE IF NOT EXISTS character_info (
+                character_id INTEGER PRIMARY KEY,
+                alliance_id INTEGER,
+                birthday TEXT NOT NULL,
+                bloodline_id INTEGER NOT NULL,
+                corporation_id INTEGER NOT NULL,
+                faction_id INTEGER,
+                gender TEXT NOT NULL,
+                name TEXT NOT NULL,
+                race_id INTEGER NOT NULL,
+                security_status REAL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts(date_issued);
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
+            CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
+
+            -- 创建索引
+            CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
         """
         
         // 分割SQL语句并逐个执行

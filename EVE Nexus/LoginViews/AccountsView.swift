@@ -11,6 +11,7 @@ struct AccountsView: View {
     @State private var isRefreshing = false
     @State private var refreshingCharacters: Set<Int> = []
     @State private var expiredTokenCharacters: Set<Int> = []
+    @State private var isLoggingIn = false
     @Environment(\.dismiss) private var dismiss
     
     // 添加角色选择回调
@@ -27,6 +28,14 @@ struct AccountsView: View {
             Section {
                 Button(action: {
                     Task { @MainActor in
+                        // 设置登录状态为true
+                        isLoggingIn = true
+                        
+                        defer {
+                            // 确保在任务结束时重置登录状态
+                            isLoggingIn = false
+                        }
+                        
                         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                               let viewController = scene.windows.first?.rootViewController else {
                             return
@@ -43,6 +52,13 @@ struct AccountsView: View {
                             let character = try await EVELogin.shared.processLogin(
                                 authState: authState
                             )
+                            
+                            // 获取并保存角色公开信息到数据库
+                            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                                characterId: character.CharacterID,
+                                forceRefresh: true
+                            )
+                            Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
                             
                             // UI 更新已经在 MainActor 上下文中
                             viewModel.characterInfo = character
@@ -88,13 +104,20 @@ struct AccountsView: View {
                     }
                 }) {
                     HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
-                        Text(NSLocalizedString("Account_Add_Character", comment: ""))
+                        if isLoggingIn {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .padding(.trailing, 5)
+                        } else {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+                        Text(NSLocalizedString(isLoggingIn ? "Account_Logging_In" : "Account_Add_Character", comment: ""))
                             .foregroundColor(isEditing ? .primary : .blue)
                         Spacer()
                     }
                 }
+                .disabled(isLoggingIn)
             }
             
             // 已登录角色列表
@@ -301,6 +324,14 @@ struct AccountsView: View {
                             // 使用 TokenManager 获取有效的 token
                             let current_access_token = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
                             Logger.info("获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) : \(current_access_token)")
+                            
+                            // 获取并保存角色公开信息
+                            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                                characterId: characterAuth.character.CharacterID,
+                                forceRefresh: true
+                            )
+                            Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
+                            
                             // 并行执行所有更新任务
                             async let portraitTask: Void = {
                                 if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterAuth.character.CharacterID) {

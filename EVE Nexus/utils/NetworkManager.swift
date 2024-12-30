@@ -314,7 +314,7 @@ class RequestRetrier {
     private let retryDelay: TimeInterval
     private var noRetryKeywords: [String]
     
-    init(timeouts: [TimeInterval] = [1.5, 5.0, 10.0], retryDelay: TimeInterval = 1.0, noRetryKeywords: [String] = []) {
+    init(timeouts: [TimeInterval] = [0.5, 2, 2, 3, 3, 5], retryDelay: TimeInterval = 0.3, noRetryKeywords: [String] = []) {
         self.timeouts = timeouts
         self.retryDelay = retryDelay
         self.noRetryKeywords = noRetryKeywords
