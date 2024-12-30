@@ -148,7 +148,7 @@ class CharacterDatabaseManager: ObservableObject {
             -- 合同表
             CREATE TABLE IF NOT EXISTS contracts (
                 contract_id INTEGER,
-                character_id INTEGER,
+                status TEXT,
                 acceptor_id INTEGER,
                 assignee_id INTEGER,
                 availability TEXT,
@@ -165,13 +165,10 @@ class CharacterDatabaseManager: ObservableObject {
                 price REAL,
                 reward REAL,
                 start_location_id INTEGER,
-                status TEXT,
                 title TEXT,
                 type TEXT,
                 volume REAL,
-                detail_update TEXT,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (character_id, contract_id)
+                PRIMARY KEY (contract_id, status)
             );
 
             -- 合同物品表
