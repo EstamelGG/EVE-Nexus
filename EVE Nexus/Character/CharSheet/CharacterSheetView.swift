@@ -113,7 +113,7 @@ struct CharacterSheetView: View {
                                     .lineLimit(1)
                             }
                         }
-
+                        
                         // 军团信息
                         HStack(spacing: 4) {
                             if let corporation = corporationInfo, let logo = corporationLogo {
@@ -291,20 +291,22 @@ struct CharacterSheetView: View {
                             .cornerRadius(6)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("Character_Jump_Fatigue", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            
-                            if let expireDate = dateFormatter.date(from: jumpFatigueExpireDate) {
-                                let remainingTime = expireDate.timeIntervalSince(Date())
-                                if remainingTime > 0 {
-                                    Text(formatRemainingTime(remainingTime))
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                } else {
-                                    Text(NSLocalizedString("Character_No_Jump_Fatigue", comment: ""))
-                                        .font(.caption)
-                                        .foregroundColor(.green)
+                            HStack{
+                                Text(NSLocalizedString("Character_Jump_Fatigue", comment: ""))
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                
+                                if let expireDate = dateFormatter.date(from: jumpFatigueExpireDate) {
+                                    let remainingTime = expireDate.timeIntervalSince(Date())
+                                    if remainingTime > 0 {
+                                        Text(formatRemainingTime(remainingTime))
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                    } else {
+                                        Text(NSLocalizedString("Character_No_Jump_Fatigue", comment: ""))
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                    }
                                 }
                             }
                             
@@ -315,7 +317,7 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
-                    .frame(height: 44)
+                    .frame(height: 36)
                 }
             }
             
@@ -325,36 +327,37 @@ struct CharacterSheetView: View {
                     ForEach(medals, id: \.title) { medal in
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
-                                Image("certificates")
+                                Image("achievements")
                                     .resizable()
                                     .frame(width: 36, height: 36)
                                     .cornerRadius(6)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    HStack{
-                                        Text(medal.title)
-                                            .font(.body)
-                                            .foregroundColor(.primary)
-                                        if let date = dateFormatter.date(from: medal.date) {
-                                            Text("[\(formatMedalDate(date))]")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
+                                    if let date = dateFormatter.date(from: medal.date) {
+                                        Text(formatMedalDate(date))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
                                     }
+                                    
+                                    Text(medal.title)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                    
                                     Text(medal.description)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
                                     
                                     if let reason = medal.reason {
                                         Text(reason)
                                             .font(.caption)
                                             .foregroundColor(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
                                     }
                                 }
                             }
                         }
                         .padding(.vertical, 2)
-                        .frame(height: 44)
                     }
                 } header: {
                     Text(NSLocalizedString("Character_Medals", comment: ""))
@@ -573,7 +576,7 @@ struct CharacterSheetView: View {
             Logger.error("获取角色位置信息失败: \(error)")
         }
     }
-
+    
     private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
         let query = "SELECT icon_filename FROM types WHERE type_id = ?"
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
@@ -593,7 +596,7 @@ struct CharacterSheetView: View {
         }
         return DatabaseConfig.defaultItemIcon
     }
-
+    
     private func saveCharacterState(location: CharacterLocation, ship: CharacterShipInfo?) async {
         let query = """
             INSERT OR REPLACE INTO character_current_state (
@@ -619,7 +622,7 @@ struct CharacterSheetView: View {
             Logger.error("保存角色状态失败: \(error)")
         }
     }
-
+    
     private func loadCharacterStateFromDatabase() -> Bool {
         let query = """
             SELECT * FROM character_current_state 
@@ -630,7 +633,7 @@ struct CharacterSheetView: View {
         let oneHourAgo = Int(Date().timeIntervalSince1970) - 3600
         
         let result = CharacterDatabaseManager.shared.executeQuery(
-            query, 
+            query,
             parameters: [Int64(character.CharacterID), oneHourAgo]
         )
         
@@ -720,7 +723,7 @@ struct CharacterSheetView: View {
         
         return false
     }
-
+    
     private func getSecurityStatusColor(_ security: Double) -> Color {
         if security <= 0 {
             return .red
@@ -730,7 +733,7 @@ struct CharacterSheetView: View {
             return .blue
         }
     }
-
+    
     private func formatRemainingTime(_ seconds: TimeInterval) -> String {
         let days = Int(seconds) / 86400
         let hours = (Int(seconds) % 86400) / 3600
@@ -760,7 +763,7 @@ struct CharacterSheetView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
-
+    
     private func calculateAge(from birthday: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -775,7 +778,7 @@ struct CharacterSheetView: View {
         }
         return ""
     }
-
+    
     // 下拉刷新时重新获取所有网络数据
     private func refreshAllData() async {
         Logger.info("开始刷新所有数据")
@@ -923,7 +926,7 @@ struct CharacterSheetView: View {
         
         Logger.info("所有数据刷新完成")
     }
-
+    
     private func formatMedalDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -931,4 +934,4 @@ struct CharacterSheetView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
-} 
+}
