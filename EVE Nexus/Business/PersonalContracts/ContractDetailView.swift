@@ -69,20 +69,31 @@ final class ContractDetailViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        do {
-            // 从API获取最新数据（API内部会处理数据库的保存）
-            items = try await CharacterContractsAPI.shared.fetchContractItems(
-                characterId: characterId,
-                contractId: contract.contract_id,
-                forceRefresh: forceRefresh
-            )
-            
-            isLoading = false
-        } catch {
-            Logger.error("加载合同物品失败: \(error.localizedDescription)")
-            errorMessage = error.localizedDescription
-            isLoading = false
-        }
+        // 使用withTaskCancellationHandler来处理任务取消
+        await withTaskCancellationHandler(operation: {
+            do {
+                // 从API获取最新数据（API内部会处理数据库的保存）
+                items = try await CharacterContractsAPI.shared.fetchContractItems(
+                    characterId: characterId,
+                    contractId: contract.contract_id,
+                    forceRefresh: forceRefresh
+                )
+                
+                isLoading = false
+            } catch is CancellationError {
+                Logger.debug("合同物品加载任务被取消 - 合同ID: \(contract.contract_id)")
+                // 对于取消的任务，我们不显示错误信息
+            } catch {
+                Logger.error("加载合同物品失败: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+            }
+        }, onCancel: {
+            // 任务取消时的清理工作
+            Task { @MainActor in
+                isLoading = false
+                Logger.debug("合同物品加载任务被取消，清理状态 - 合同ID: \(contract.contract_id)")
+            }
+        })
     }
     
     func loadContractParties() async {
@@ -194,6 +205,7 @@ struct ContractDetailView: View {
     let contract: ContractInfo
     @StateObject private var viewModel: ContractDetailViewModel
     @State private var isRefreshing = false
+    @Environment(\.dismiss) private var dismiss
     
     init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
         self.contract = contract
@@ -403,7 +415,10 @@ struct ContractDetailView: View {
                 .refreshable {
                     Logger.debug("开始下拉刷新合同物品")
                     isRefreshing = true
-                    await viewModel.loadContractItems(forceRefresh: true)
+                    // 使用Task来管理刷新操作
+                    await Task {
+                        await viewModel.loadContractItems(forceRefresh: true)
+                    }.value
                     isRefreshing = false
                 }
                 .listStyle(.insetGrouped)
@@ -411,10 +426,11 @@ struct ContractDetailView: View {
         }
         .task {
             Logger.debug("ContractDetailView.task 开始执行")
-            // 并行加载数据
-            async let itemsTask: () = viewModel.loadContractItems()
-            async let namesTask: () = viewModel.loadContractParties()
-            await (_, _) = (itemsTask, namesTask)
+            // 使用withTaskGroup来更好地管理并发任务
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await viewModel.loadContractItems() }
+                group.addTask { await viewModel.loadContractParties() }
+            }
             Logger.debug("ContractDetailView.task 执行完成")
         }
     }
