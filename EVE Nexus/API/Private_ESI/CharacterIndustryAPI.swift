@@ -340,7 +340,18 @@ class CharacterIndustryAPI {
         let existingResult = databaseManager.executeQuery(checkQuery, parameters: [characterId])
         var existingJobIds = Set<Int>()
         if case .success(let rows) = existingResult {
-            existingJobIds = Set(rows.compactMap { $0["job_id"] as? Int })
+            Logger.debug("查询已存在工业项目SQL: \(checkQuery), characterId: \(characterId)")
+            Logger.debug("查询结果行数: \(rows.count)")
+            existingJobIds = Set(rows.compactMap { row -> Int? in
+                if let jobId = row["job_id"] as? Int {
+                    return jobId
+                }
+                if let jobId = row["job_id"] as? Int64 {
+                    return Int(jobId)
+                }
+                return nil
+            })
+            Logger.debug("数据库中已存在的工业项目ID数量: \(existingJobIds.count)")
         }
         
         // 插入新数据
@@ -355,8 +366,11 @@ class CharacterIndustryAPI {
         """
         
         var insertedCount = 0
+        var updatedCount = 0
         for job in jobs {
-            // 如果工业项目已存在，跳过
+            Logger.debug("处理工业项目: jobId=\(job.job_id), completed_date=\(String(describing: job.completed_date))")
+            
+            // 如果工业项目已存在且已完成，跳过
             if existingJobIds.contains(job.job_id) && job.completed_date != nil {
                 Logger.debug("跳过已存在且已完成的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
                 continue
@@ -397,15 +411,43 @@ class CharacterIndustryAPI {
                 successfulRuns
             ]
             
-            Logger.debug("正在插入新的工业项目数据: characterId=\(characterId), jobId=\(job.job_id)")
-            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
-                Logger.error("插入数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
-                throw IndustryAPIError.databaseError("插入数据失败: \(error)")
+            if existingJobIds.contains(job.job_id) {
+                // 如果项目已存在但未完成，更新它
+                let updateQuery = """
+                    UPDATE industry_jobs SET
+                        activity_id = ?, blueprint_id = ?, blueprint_location_id = ?,
+                        blueprint_type_id = ?, completed_character_id = ?, completed_date = ?,
+                        cost = ?, duration = ?, end_date = ?, facility_id = ?,
+                        installer_id = ?, licensed_runs = ?, output_location_id = ?,
+                        pause_date = ?, probability = ?, product_type_id = ?,
+                        runs = ?, start_date = ?, station_id = ?, status = ?,
+                        successful_runs = ?, last_updated = datetime('now')
+                    WHERE character_id = ? AND job_id = ?
+                """
+                
+                // 重新排列参数以匹配 UPDATE 语句
+                var updateParameters = Array(parameters[2...22]) // 跳过 characterId 和 job_id
+                updateParameters.append(characterId)
+                updateParameters.append(job.job_id)
+                
+                Logger.debug("正在更新工业项目: characterId=\(characterId), jobId=\(job.job_id)")
+                if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(updateQuery, parameters: updateParameters) {
+                    Logger.error("更新数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
+                    throw IndustryAPIError.databaseError("更新数据失败: \(error)")
+                }
+                updatedCount += 1
+            } else {
+                // 如果项目不存在，插入它
+                Logger.debug("正在插入新的工业项目数据: characterId=\(characterId), jobId=\(job.job_id)")
+                if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
+                    Logger.error("插入数据失败: characterId=\(characterId), jobId=\(job.job_id), error=\(error)")
+                    throw IndustryAPIError.databaseError("插入数据失败: \(error)")
+                }
+                insertedCount += 1
             }
-            insertedCount += 1
         }
         
-        Logger.debug("成功保存工业项目数据: characterId=\(characterId), 新增数量=\(insertedCount)")
+        Logger.debug("成功保存工业项目数据: characterId=\(characterId), 新增数量=\(insertedCount), 更新数量=\(updatedCount)")
     }
     
     private func fetchFromNetwork(characterId: Int) async throws -> [IndustryJob] {
@@ -415,7 +457,14 @@ class CharacterIndustryAPI {
         
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([IndustryJob].self, from: data)
+        let jobs = try decoder.decode([IndustryJob].self, from: data)
+        
+        Logger.debug("从 API 获取到 \(jobs.count) 个工业项目")
+        for job in jobs {
+            Logger.debug("API 工业项目: jobId=\(job.job_id), status=\(job.status), completed_date=\(String(describing: job.completed_date))")
+        }
+        
+        return jobs
     }
     
     // 清除所有缓存
