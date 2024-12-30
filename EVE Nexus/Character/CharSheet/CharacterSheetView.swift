@@ -203,41 +203,21 @@ struct CharacterSheetView: View {
             // 当前飞船信息 Section
             if let ship = currentShip {
                 Section {
-                    NavigationLink {
-                        let shipNode = AssetTreeNode(
-                            location_id: ship.ship_item_id,
-                            item_id: ship.ship_item_id,
-                            type_id: ship.ship_type_id,
-                            location_type: "item",
-                            location_flag: "root",
-                            quantity: 1,
-                            name: ship.ship_name,
-                            icon_name: getShipIcon(typeId: ship.ship_type_id),
-                            is_singleton: true,
-                            is_blueprint_copy: nil,
-                            system_name: nil,
-                            region_name: nil,
-                            security_status: nil,
-                            items: []
-                        )
-                        LocationAssetsView(location: shipNode)
-                    } label: {
-                        HStack {
-                            // 飞船图标
-                            IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(ship.ship_name)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                if let typeName = shipTypeName {
-                                    Text(typeName)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                    HStack {
+                        // 飞船图标
+                        IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(ship.ship_name)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            if let typeName = shipTypeName {
+                                Text(typeName)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
