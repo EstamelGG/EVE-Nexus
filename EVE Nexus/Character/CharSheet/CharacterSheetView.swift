@@ -500,11 +500,44 @@ struct CharacterSheetView: View {
             // 加载位置信息
             if let solarSystemId = row["solar_system_id"] as? Int64 {
                 Task {
-                    if let info = await getSolarSystemInfo(solarSystemId: Int(solarSystemId), databaseManager: databaseManager) {
-                        await MainActor.run {
-                            self.currentLocation = info
-                            if let statusStr = row["location_status"] as? String {
-                                self.locationStatus = CharacterLocation.LocationStatus(rawValue: statusStr)
+                    // 检查是否在建筑物中
+                    if let structureId = row["structure_id"] as? Int64 {
+                        // 建筑物
+                        let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+                            structureId: structureId,
+                            characterId: character.CharacterID
+                        )
+                        if let info = await locationLoader?.loadLocationInfo(locationIds: [structureId]).first?.value {
+                            await MainActor.run {
+                                self.locationDetail = info
+                                self.locationStatus = CharacterLocation.LocationStatus(rawValue: row["location_status"] as? String ?? "")
+                                self.locationTypeId = structureInfo?.type_id
+                            }
+                        }
+                    }
+                    // 检查是否在空间站中
+                    else if let stationId = row["station_id"] as? Int64 {
+                        // 空间站
+                        let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+                        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [Int(stationId)]),
+                           let row = rows.first,
+                           let typeId = row["stationTypeID"] as? Int {
+                            if let info = await locationLoader?.loadLocationInfo(locationIds: [stationId]).first?.value {
+                                await MainActor.run {
+                                    self.locationDetail = info
+                                    self.locationStatus = CharacterLocation.LocationStatus(rawValue: row["location_status"] as? String ?? "")
+                                    self.locationTypeId = typeId
+                                }
+                            }
+                        }
+                    }
+                    // 在太空中
+                    else {
+                        if let info = await getSolarSystemInfo(solarSystemId: Int(solarSystemId), databaseManager: databaseManager) {
+                            await MainActor.run {
+                                self.currentLocation = info
+                                self.locationStatus = CharacterLocation.LocationStatus(rawValue: row["location_status"] as? String ?? "")
+                                self.locationTypeId = nil
                             }
                         }
                     }
