@@ -370,12 +370,6 @@ class CharacterIndustryAPI {
         for job in jobs {
             Logger.debug("处理工业项目: jobId=\(job.job_id), completed_date=\(String(describing: job.completed_date))")
             
-            // 如果工业项目已存在且已完成，跳过
-            if existingJobIds.contains(job.job_id) && job.completed_date != nil {
-                Logger.debug("跳过已存在且已完成的工业项目: characterId=\(characterId), jobId=\(job.job_id)")
-                continue
-            }
-            
             // 处理可选类型，将 nil 转换为 NSNull()
             let completedCharacterId = job.completed_character_id.map { $0 as Any } ?? NSNull()
             let completedDate = job.completed_date.map { dateFormatter.string(from: $0) as Any } ?? NSNull()
