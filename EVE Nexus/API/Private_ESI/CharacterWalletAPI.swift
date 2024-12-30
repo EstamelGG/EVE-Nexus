@@ -508,6 +508,8 @@ class CharacterWalletAPI {
         
         if newCount > 0 {
             Logger.info("新增\(newCount)条钱包交易记录到数据库")
+        } else {
+            Logger.info("无需新增交易记录")
         }
         return true
     }
