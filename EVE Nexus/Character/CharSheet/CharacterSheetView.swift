@@ -15,6 +15,8 @@ struct CharacterSheetView: View {
     @State private var locationDetail: LocationInfoDetail?
     @State private var locationLoader: LocationInfoLoader?
     @State private var locationTypeId: Int?
+    @State private var currentShip: CharacterShipInfo?
+    @State private var shipTypeName: String?
     
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
@@ -172,11 +174,13 @@ struct CharacterSheetView: View {
                         } else if let location = currentLocation {
                             // 星系信息（在太空中）
                             VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Text(formatSecurity(location.security))
-                                        .foregroundColor(getSecurityColor(location.security))
-                                    Text("\(location.systemName) / \(location.regionName)")
-                                }.font(.body)
+                                LocationInfoView(
+                                    stationName: nil,
+                                    solarSystemName: location.systemName,
+                                    security: location.security,
+                                    font: .body,
+                                    textColor: .primary
+                                )
                                 
                                 if let status = locationStatus {
                                     Text(status.description)
@@ -194,6 +198,52 @@ struct CharacterSheetView: View {
                 }
             } header: {
                 Text(NSLocalizedString("Character_Location", comment: ""))
+            }
+            
+            // 当前飞船信息 Section
+            if let ship = currentShip {
+                Section {
+                    NavigationLink {
+                        let shipNode = AssetTreeNode(
+                            location_id: ship.ship_item_id,
+                            item_id: ship.ship_item_id,
+                            type_id: ship.ship_type_id,
+                            location_type: "item",
+                            location_flag: "root",
+                            quantity: 1,
+                            name: ship.ship_name,
+                            icon_name: getShipIcon(typeId: ship.ship_type_id),
+                            is_singleton: true,
+                            is_blueprint_copy: nil,
+                            system_name: nil,
+                            region_name: nil,
+                            security_status: nil,
+                            items: []
+                        )
+                        LocationAssetsView(location: shipNode)
+                    } label: {
+                        HStack {
+                            // 飞船图标
+                            IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ship.ship_name)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                if let typeName = shipTypeName {
+                                    Text(typeName)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("Character_Current_Ship", comment: ""))
+                }
             }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
@@ -309,6 +359,28 @@ struct CharacterSheetView: View {
                 }
             }
             
+            // 获取当前飞船信息
+            Task {
+                do {
+                    let shipInfo = try await CharacterLocationAPI.shared.fetchCharacterShip(
+                        characterId: character.CharacterID
+                    )
+                    
+                    // 获取飞船类型名称
+                    let query = "SELECT name FROM types WHERE type_id = ?"
+                    if case .success(let rows) = databaseManager.executeQuery(query, parameters: [shipInfo.ship_type_id]),
+                       let row = rows.first,
+                       let typeName = row["name"] as? String {
+                        await MainActor.run {
+                            self.currentShip = shipInfo
+                            self.shipTypeName = typeName
+                        }
+                    }
+                } catch {
+                    Logger.error("获取角色飞船信息失败: \(error)")
+                }
+            }
+            
         } catch {
             Logger.error("获取角色信息失败: \(error)")
             await MainActor.run {
@@ -318,6 +390,16 @@ struct CharacterSheetView: View {
     }
 
     private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
+        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let iconFile = row["icon_filename"] as? String {
+            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
+        }
+        return DatabaseConfig.defaultItemIcon
+    }
+    
+    private func getShipIcon(typeId: Int) -> String {
         let query = "SELECT icon_filename FROM types WHERE type_id = ?"
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
            let row = rows.first,

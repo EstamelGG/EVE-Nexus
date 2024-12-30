@@ -42,6 +42,13 @@ struct CharacterOnlineStatus: Codable {
     let online: Bool
 }
 
+// 当前飞船信息模型
+struct CharacterShipInfo: Codable {
+    let ship_item_id: Int64  // 飞船的item_id，用于查询装备
+    let ship_name: String    // 飞船名称
+    let ship_type_id: Int    // 飞船类型ID
+}
+
 class CharacterLocationAPI {
     static let shared = CharacterLocationAPI()
     
@@ -278,6 +285,28 @@ class CharacterLocationAPI {
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.debug("正在写入在线状态到 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
             UserDefaults.standard.set(encoded, forKey: key)
+        }
+    }
+    
+    // 获取当前飞船信息
+    func fetchCharacterShip(characterId: Int) async throws -> CharacterShipInfo {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/ship/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        do {
+            let decoder = JSONDecoder()
+            let shipInfo = try decoder.decode(CharacterShipInfo.self, from: data)
+            return shipInfo
+        } catch {
+            Logger.error("解析角色飞船信息失败: \(error)")
+            throw NetworkError.decodingError(error)
         }
     }
 } 
