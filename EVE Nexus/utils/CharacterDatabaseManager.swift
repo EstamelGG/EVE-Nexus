@@ -273,12 +273,20 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (character_id, date, type_id, solar_system_id)
             );
 
+            -- 技能队列缓存表
+            CREATE TABLE IF NOT EXISTS character_skill_queue (
+                character_id INTEGER PRIMARY KEY,
+                queue_data TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts(date_issued);
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
         """
         
         // 分割SQL语句并逐个执行

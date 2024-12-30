@@ -27,40 +27,21 @@ public struct CharacterSkillsResponse: Codable {
     }
 }
 
-// 技能队列数据模型
+// 技能队列项目
 public struct SkillQueueItem: Codable {
-    public let finish_date: String?
-    public let start_date: String?
-    public let finished_level: Int
-    public let level_end_sp: Int
-    public let level_start_sp: Int
-    public let queue_position: Int
     public let skill_id: Int
-    public let training_start_sp: Int
-    
-    public init(finish_date: String?, start_date: String?, finished_level: Int, level_end_sp: Int, level_start_sp: Int, queue_position: Int, skill_id: Int, training_start_sp: Int) {
-        self.finish_date = finish_date
-        self.start_date = start_date
-        self.finished_level = finished_level
-        self.level_end_sp = level_end_sp
-        self.level_start_sp = level_start_sp
-        self.queue_position = queue_position
-        self.skill_id = skill_id
-        self.training_start_sp = training_start_sp
-    }
+    public let finished_level: Int
+    public let queue_position: Int
+    public let start_date: Date?
+    public let finish_date: Date?
+    public let level_start_sp: Int?
+    public let level_end_sp: Int?
+    public let training_start_sp: Int?
     
     // 判断当前时间点是否在训练这个技能
     public var isCurrentlyTraining: Bool {
-        guard let finishDateString = finish_date,
-              let startDateString = start_date else {
-            return false
-        }
-        
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime]
-        
-        guard let finishDate = dateFormatter.date(from: finishDateString),
-              let startDate = dateFormatter.date(from: startDateString) else {
+        guard let startDate = start_date,
+              let finishDate = finish_date else {
             return false
         }
         
@@ -68,25 +49,21 @@ public struct SkillQueueItem: Codable {
         return now >= startDate && now <= finishDate
     }
     
+    // 计算剩余时间
+    public var remainingTime: TimeInterval? {
+        guard let finishDate = finish_date else { return nil }
+        return finishDate.timeIntervalSince(Date())
+    }
+    
     // 计算训练进度
     public var progress: Double {
-        guard let finishDateString = finish_date,
-              let startDateString = start_date else {
-            // 暂停状态：使用技能点计算进度
-            let totalLevelSP = level_end_sp - level_start_sp
-            let currentTrainedSP = training_start_sp - level_start_sp
-            return Double(currentTrainedSP) / Double(totalLevelSP)
-        }
-        
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime]
-        
-        guard let finishDate = dateFormatter.date(from: finishDateString),
-              let startDate = dateFormatter.date(from: startDateString) else {
-            // 日期解析失败：使用技能点计算进度
-            let totalLevelSP = level_end_sp - level_start_sp
-            let currentTrainedSP = training_start_sp - level_start_sp
-            return Double(currentTrainedSP) / Double(totalLevelSP)
+        // 如果没有时间信息，使用技能点计算进度
+        guard let startDate = start_date,
+              let finishDate = finish_date,
+              let levelStartSp = level_start_sp,
+              let levelEndSp = level_end_sp,
+              let trainingStartSp = training_start_sp else {
+            return 0
         }
         
         let now = Date()
@@ -102,36 +79,47 @@ public struct SkillQueueItem: Codable {
         }
         
         // 正在训练：使用基于时间的进度计算
-        // 计算时间进度比例
         let totalTrainingTime = finishDate.timeIntervalSince(startDate)
         let trainedTime = now.timeIntervalSince(startDate)
         let timeProgress = trainedTime / totalTrainingTime
         
         // 计算剩余需要训练的技能点
-        let remainingSP = level_end_sp - training_start_sp
+        let remainingSP = levelEndSp - trainingStartSp
         
         // 计算当前已训练的技能点
         let trainedSP = Double(remainingSP) * timeProgress
         
         // 计算总进度
-        let totalLevelSP = level_end_sp - level_start_sp
-        let currentTotalTrainedSP = Double(training_start_sp - level_start_sp) + trainedSP
+        let totalLevelSP = levelEndSp - levelStartSp
+        let currentTotalTrainedSP = Double(trainingStartSp - levelStartSp) + trainedSP
         
         return currentTotalTrainedSP / Double(totalLevelSP)
     }
     
-    public var remainingTime: TimeInterval? {
-        guard let finishDateString = finish_date else { return nil }
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime]
-        
-        guard let finishDate = dateFormatter.date(from: finishDateString) else { return nil }
-        return finishDate.timeIntervalSince(Date())
-    }
-    
+    // 获取技能等级的罗马数字表示
     public var skillLevel: String {
         let romanNumerals = ["I", "II", "III", "IV", "V"]
         return romanNumerals[finished_level - 1]
+    }
+    
+    public init(
+        skill_id: Int,
+        finished_level: Int,
+        queue_position: Int,
+        start_date: Date?,
+        finish_date: Date?,
+        level_start_sp: Int?,
+        level_end_sp: Int?,
+        training_start_sp: Int?
+    ) {
+        self.skill_id = skill_id
+        self.finished_level = finished_level
+        self.queue_position = queue_position
+        self.start_date = start_date
+        self.finish_date = finish_date
+        self.level_start_sp = level_start_sp
+        self.level_end_sp = level_end_sp
+        self.training_start_sp = training_start_sp
     }
 }
 
@@ -316,56 +304,118 @@ public class CharacterSkillsAPI {
         }
     }
     
-    // 获取技能队列信息
-    public func fetchSkillQueue(characterId: Int, forceRefresh: Bool = false) async throws -> [SkillQueueItem] {
-        // 如果不是强制刷新，先尝试使用缓存
-        if !forceRefresh {
-            // 1. 先检查内存缓存
-            if let memoryCached = getQueueMemoryCache(characterId: characterId),
-               isQueueCacheValid(memoryCached) {
-                Logger.info("使用内存缓存的技能队列数据 - 角色ID: \(characterId)")
-                return memoryCached.value
-            }
-            
-            // 2. 如果内存缓存不可用，检查磁盘缓存
-            if let diskCached = getQueueDiskCache(characterId: characterId),
-               isQueueCacheValid(diskCached) {
-                Logger.info("使用磁盘缓存的技能队列数据 - 角色ID: \(characterId)")
-                // 更新内存缓存
-                setQueueMemoryCache(characterId: characterId, cache: diskCached)
-                return diskCached.value
-            }
-            
-            Logger.info("缓存未命中或已过期,需要从服务器获取技能队列数据 - 角色ID: \(characterId)")
-        }
+    // 创建技能队列表
+    private func setupSkillQueueTable() {
+        let createTableSQL = """
+            CREATE TABLE IF NOT EXISTS skill_queue_cache (
+                character_id INTEGER PRIMARY KEY,
+                queue_data TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+        """
         
-        // 从网络获取数据
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skillqueue/"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
+        if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(createTableSQL) {
+            Logger.error("创建技能队列表失败: \(error)")
         }
+    }
+    
+    // 保存技能队列到数据库
+    private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let jsonData = try encoder.encode(queue)
+            
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                Logger.error("技能队列JSON编码失败")
+                return false
+            }
+            
+            let query = """
+                INSERT OR REPLACE INTO character_skill_queue (
+                    character_id, queue_data, last_updated
+                ) VALUES (?, ?, CURRENT_TIMESTAMP)
+            """
+            
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(
+                query,
+                parameters: [characterId, jsonString]
+            ) {
+                Logger.error("保存技能队列失败: \(error)")
+                return false
+            }
+            
+            Logger.debug("成功保存技能队列 - 角色ID: \(characterId), 队列长度: \(queue.count)")
+            return true
+        } catch {
+            Logger.error("技能队列序列化失败: \(error)")
+            return false
+        }
+    }
+    
+    // 从数据库读取技能队列
+    private func loadSkillQueue(characterId: Int) -> [SkillQueueItem]? {
+        let query = """
+            SELECT queue_data, last_updated 
+            FROM character_skill_queue 
+            WHERE character_id = ?
+        """
+        
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+           let row = rows.first,
+           let jsonString = row["queue_data"] as? String {
+            
+            do {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let jsonData = jsonString.data(using: .utf8)!
+                let queue = try decoder.decode([SkillQueueItem].self, from: jsonData)
+                
+                // 获取上次更新时间
+                if let lastUpdated = row["last_updated"] as? String {
+                    Logger.debug("从缓存加载技能队列 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
+                }
+                
+                return queue
+            } catch {
+                Logger.error("技能队列解析失败: \(error)")
+            }
+        }
+        return nil
+    }
+    
+    // 从服务器获取技能队列
+    private func fetchSkillQueueFromServer(characterId: Int) async throws -> [SkillQueueItem] {
+        let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/skillqueue/?datasource=tranquility")!
         
         let data = try await NetworkManager.shared.fetchDataWithToken(
             from: url,
             characterId: characterId
         )
         
-        do {
-            let queue = try JSONDecoder().decode([SkillQueueItem].self, from: data)
-            
-            // 创建新的缓存条目
-            let cacheEntry = QueueCacheEntry(value: queue, timestamp: Date())
-            
-            // 更新内存缓存
-            setQueueMemoryCache(characterId: characterId, cache: cacheEntry)
-            
-            // 更新磁盘缓存
-            saveQueueToDiskCache(characterId: characterId, cache: cacheEntry)
-            
-            return queue
-        } catch {
-            Logger.error("解析技能队列数据失败: \(error)")
-            throw NetworkError.decodingError(error)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode([SkillQueueItem].self, from: data)
+    }
+    
+    // 公开方法：获取技能队列
+    public func fetchSkillQueue(characterId: Int, forceRefresh: Bool = false) async throws -> [SkillQueueItem] {
+        // 如果不是强制刷新，尝试从缓存加载
+        if !forceRefresh {
+            if let cachedQueue = loadSkillQueue(characterId: characterId) {
+                return cachedQueue
+            }
         }
+        
+        // 从服务器获取新数据
+        Logger.debug("从服务器获取技能队列 - 角色ID: \(characterId)")
+        let queue = try await fetchSkillQueueFromServer(characterId: characterId)
+        
+        // 保存到数据库
+        if saveSkillQueue(characterId: characterId, queue: queue) {
+            Logger.debug("成功缓存技能队列")
+        }
+        
+        return queue
     }
 } 
