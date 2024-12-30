@@ -226,8 +226,14 @@ struct CharacterSheetView: View {
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .task {
             // 首先尝试从数据库加载缓存的状态
-            loadCharacterStateFromDatabase()
-            // 然后加载最新数据
+            let hasRecentData = loadCharacterStateFromDatabase()
+            if !hasRecentData {
+                // 如果没有近期数据，则从API加载
+                await loadCharacterInfo()
+            }
+        }
+        .refreshable {
+            // 用户下拉刷新时，强制从API获取最新数据
             await loadCharacterInfo()
         }
     }
@@ -402,7 +408,8 @@ struct CharacterSheetView: View {
         let query = """
             INSERT OR REPLACE INTO character_current_state (
                 character_id, solar_system_id, station_id, structure_id,
-                location_status, ship_item_id, ship_type_id, ship_name, last_update
+                location_status, ship_item_id, ship_type_id, ship_name,
+                last_update
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
@@ -423,18 +430,18 @@ struct CharacterSheetView: View {
         }
     }
 
-    private func loadCharacterStateFromDatabase() {
+    private func loadCharacterStateFromDatabase() -> Bool {
         let query = """
             SELECT * FROM character_current_state 
             WHERE character_id = ? AND last_update > ?
         """
         
-        // 只加载30分钟内的缓存数据
-        let thirtyMinutesAgo = Int(Date().timeIntervalSince1970) - 1800
+        // 只加载1小时内的缓存数据
+        let oneHourAgo = Int(Date().timeIntervalSince1970) - 3600
         
         let result = CharacterDatabaseManager.shared.executeQuery(
             query, 
-            parameters: [Int64(character.CharacterID), thirtyMinutesAgo]
+            parameters: [Int64(character.CharacterID), oneHourAgo]
         )
         
         if case .success(let rows) = result,
@@ -458,14 +465,14 @@ struct CharacterSheetView: View {
                let shipItemId = row["ship_item_id"] as? Int64,
                let shipName = row["ship_name"] as? String {
                 let shipInfo = CharacterShipInfo(
-                    ship_item_id: Int64(shipItemId),
+                    ship_item_id: shipItemId,
                     ship_name: shipName,
                     ship_type_id: Int(shipTypeId)
                 )
                 
-                // 获取飞船类型名称
+                // 获取飞船类型名称（从主数据库获取）
                 let typeQuery = "SELECT name FROM types WHERE type_id = ?"
-                if case .success(let typeRows) = CharacterDatabaseManager.shared.executeQuery(typeQuery, parameters: [Int64(shipTypeId)]),
+                if case .success(let typeRows) = databaseManager.executeQuery(typeQuery, parameters: [Int(shipTypeId)]),
                    let typeRow = typeRows.first,
                    let typeName = typeRow["name"] as? String {
                     Task { @MainActor in
@@ -474,6 +481,26 @@ struct CharacterSheetView: View {
                     }
                 }
             }
+            
+            // 从 API 获取在线状态
+            Task {
+                if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        self.onlineStatus = status
+                        self.isLoadingOnlineStatus = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.isLoadingOnlineStatus = false
+                    }
+                }
+            }
+            
+            return true
         }
+        
+        return false
     }
 } 

@@ -155,6 +155,7 @@ class CharacterDatabaseManager: ObservableObject {
                 ship_item_id INTEGER,
                 ship_type_id INTEGER,
                 ship_name TEXT,
+                online_status INTEGER DEFAULT 0,
                 last_update INTEGER
             );
             
