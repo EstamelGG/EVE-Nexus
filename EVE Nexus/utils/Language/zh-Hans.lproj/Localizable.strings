@@ -441,3 +441,4 @@
 "Common_info" = "基本信息";
 "Character_Security_Status" = "安全等级";
 "Character_Current_Ship" = "当前飞船";
+"Character_Current_Location" = "当前位置";

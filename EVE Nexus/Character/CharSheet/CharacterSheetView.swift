@@ -166,12 +166,13 @@ struct CharacterSheetView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         if let locationDetail = locationDetail {
                             // 空间站或建筑物信息
+                            Text(NSLocalizedString("Character_Current_Location", comment: ""))
                             LocationInfoView(
                                 stationName: locationDetail.stationName,
                                 solarSystemName: locationDetail.solarSystemName,
                                 security: locationDetail.security,
-                                font: .body,
-                                textColor: .primary
+                                font: .caption,
+                                textColor: .secondary
                             )
                         } else if let location = currentLocation {
                             // 星系信息（在太空中）
