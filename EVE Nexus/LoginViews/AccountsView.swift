@@ -11,6 +11,7 @@ struct AccountsView: View {
     @State private var isRefreshing = false
     @State private var refreshingCharacters: Set<Int> = []
     @State private var expiredTokenCharacters: Set<Int> = []
+    @State private var isLoggingIn = false
     @Environment(\.dismiss) private var dismiss
     
     // 添加角色选择回调
@@ -27,6 +28,14 @@ struct AccountsView: View {
             Section {
                 Button(action: {
                     Task { @MainActor in
+                        // 设置登录状态为true
+                        isLoggingIn = true
+                        
+                        defer {
+                            // 确保在任务结束时重置登录状态
+                            isLoggingIn = false
+                        }
+                        
                         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                               let viewController = scene.windows.first?.rootViewController else {
                             return
@@ -95,13 +104,20 @@ struct AccountsView: View {
                     }
                 }) {
                     HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
-                        Text(NSLocalizedString("Account_Add_Character", comment: ""))
+                        if isLoggingIn {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .padding(.trailing, 5)
+                        } else {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.blue)
+                        }
+                        Text(NSLocalizedString(isLoggingIn ? "Account_Logging_In" : "Account_Add_Character", comment: ""))
                             .foregroundColor(isEditing ? .primary : .blue)
                         Spacer()
                     }
                 }
+                .disabled(isLoggingIn)
             }
             
             // 已登录角色列表

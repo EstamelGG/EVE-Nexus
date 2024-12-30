@@ -218,6 +218,7 @@
 // Account Management
 "Account_Management" = "角色管理";
 "Account_Add_Character" = "添加角色";
+"Account_Logging_In" = "正在登录...";
 "Account_Logged_Characters" = "已登录角色";
 "Account_Cannot_Get_Auth_URL" = "无法获取授权链接";
 "Account_Login_Failed" = "登录失败";

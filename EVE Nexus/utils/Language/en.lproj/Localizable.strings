@@ -226,6 +226,7 @@
 // Account Management
 "Account_Management" = "Character Management";
 "Account_Add_Character" = "Add Character";
+"Account_Logging_In" = "Logging in...";
 "Account_Logged_Characters" = "Logged Characters";
 "Account_Cannot_Get_Auth_URL" = "Cannot get authorization URL";
 "Account_Login_Failed" = "Login Failed";
