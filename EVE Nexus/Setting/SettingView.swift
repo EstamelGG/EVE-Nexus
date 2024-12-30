@@ -175,6 +175,9 @@ class CacheManager {
             Logger.error("Error clearing static data: \(error)")
         }
         
+        // 6. 清理建筑物缓存
+        await UniverseStructureAPI.shared.clearCache()
+        
         Logger.info("所有缓存清理完成")
     }
     
