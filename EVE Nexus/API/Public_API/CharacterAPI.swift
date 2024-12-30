@@ -8,34 +8,31 @@ struct CharacterPublicInfo: Codable {
     let birthday: String
     let bloodline_id: Int
     let corporation_id: Int
-    let description: String?
+    let faction_id: Int?
     let gender: String
     let name: String
     let race_id: Int
     let security_status: Double?
-    let title: String?
+    
+    // 添加CodingKeys来忽略API返回的description和title字段
+    private enum CodingKeys: String, CodingKey {
+        case alliance_id
+        case birthday
+        case bloodline_id
+        case corporation_id
+        case faction_id
+        case gender
+        case name
+        case race_id
+        case security_status
+    }
 }
 
 final class CharacterAPI: @unchecked Sendable {
     static let shared = CharacterAPI()
     
-    // 缓存结构
-    private struct PublicInfoCacheEntry: Codable {
-        let value: CharacterPublicInfo
-        let timestamp: Date
-    }
-    
-    // 添加并发队列用于同步访问
-    private let cacheQueue = DispatchQueue(label: "com.eve-nexus.character-cache", attributes: .concurrent)
-    
-    // 内存缓存
-    private var publicInfoMemoryCache: [Int: PublicInfoCacheEntry] = [:]
-    
     // 缓存超时时间
     private let publicInfoCacheTimeout: TimeInterval = 3600 // 1小时
-    
-    // UserDefaults键前缀
-    private let publicInfoCachePrefix = "character_public_info_"
     
     private init() {
         // 配置 Kingfisher 的全局设置
@@ -49,99 +46,106 @@ final class CharacterAPI: @unchecked Sendable {
         downloader.downloadTimeout = 15.0 // 15秒超时
     }
     
-    // 安全地获取公开信息缓存
-    private func getPublicInfoMemoryCache(characterId: Int) -> PublicInfoCacheEntry? {
-        var result: PublicInfoCacheEntry?
-        cacheQueue.sync { [publicInfoMemoryCache] in
-            result = publicInfoMemoryCache[characterId]
-        }
-        return result
-    }
-    
-    // 安全地设置公开信息缓存
-    private func setPublicInfoMemoryCache(characterId: Int, cache: PublicInfoCacheEntry) {
-        let cacheQueue = self.cacheQueue
-        Task { @MainActor in
-            cacheQueue.async(flags: .barrier) { [weak self] in
-                self?.publicInfoMemoryCache[characterId] = cache
-            }
-        }
-    }
-    
-    // 检查公开信息缓存是否有效
-    private func isPublicInfoCacheValid(_ cache: PublicInfoCacheEntry?) -> Bool {
-        guard let cache = cache else { return false }
-        return Date().timeIntervalSince(cache.timestamp) < publicInfoCacheTimeout
-    }
-    
-    // 从UserDefaults获取公开信息缓存
-    private func getPublicInfoDiskCache(characterId: Int) -> PublicInfoCacheEntry? {
-        let key = publicInfoCachePrefix + String(characterId)
-        Logger.debug("正在从 UserDefaults 读取键: \(key)")
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let cache = try? JSONDecoder().decode(PublicInfoCacheEntry.self, from: data) else {
-            return nil
-        }
-        return cache
-    }
-    
-    // 保存公开信息缓存到UserDefaults
-    private func savePublicInfoToDiskCache(characterId: Int, cache: PublicInfoCacheEntry) {
-        let key = publicInfoCachePrefix + String(characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
-        }
-    }
-    
-    // 清除指定角色的所有缓存
-    private func clearCache(characterId: Int) async throws {
-        let cacheQueue = self.cacheQueue
-        let publicInfoKey = publicInfoCachePrefix + String(characterId)
+    // 保存角色信息到数据库
+    private func saveCharacterInfoToCache(_ info: CharacterPublicInfo, characterId: Int) -> Bool {
+        let query = """
+            INSERT OR REPLACE INTO character_info (
+                character_id, alliance_id, birthday, bloodline_id, corporation_id,
+                faction_id, gender, name, race_id, security_status,
+                last_updated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """
         
-        await withCheckedContinuation { continuation in
-            cacheQueue.async(flags: .barrier) { [weak self] in
-                self?.publicInfoMemoryCache.removeValue(forKey: characterId)
-                Logger.debug("正在从 UserDefaults 删除键: \(publicInfoKey)")
-                UserDefaults.standard.removeObject(forKey: publicInfoKey)
-                continuation.resume()
+        let parameters: [Any] = [
+            characterId,
+            info.alliance_id as Any? ?? NSNull(),
+            info.birthday,
+            info.bloodline_id,
+            info.corporation_id,
+            info.faction_id as Any? ?? NSNull(),
+            info.gender,
+            info.name,
+            info.race_id,
+            info.security_status as Any? ?? NSNull()
+        ]
+        
+        // 字段名称数组，与参数数组顺序对应
+        let fieldNames = [
+            "character_id",
+            "alliance_id",
+            "birthday",
+            "bloodline_id",
+            "corporation_id",
+            "faction_id",
+            "gender",
+            "name",
+            "race_id",
+            "security_status"
+        ]
+        
+        if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(query, parameters: parameters) {
+            Logger.error("保存角色信息失败: \(error)")
+            // 打印每个参数的字段名、值和类型
+            for (index, value) in parameters.enumerated() {
+                Logger.error("字段 '\(fieldNames[index])': 值 = \(value), 类型 = \(type(of: value))")
             }
+            return false
         }
         
-        // 清除所有尺寸的头像缓存
-        let sizes = [32, 64, 128, 256, 512]
-        for size in sizes {
-            let portraitURL = getPortraitURL(characterId: characterId, size: size)
-            try await ImageCache.default.removeImage(forKey: portraitURL.absoluteString)
-        }
+        Logger.debug("成功保存角色信息到数据库 - 角色ID: \(characterId)")
+        return true
     }
     
-    // 获取角色头像URL
-    private func getPortraitURL(characterId: Int, size: Int) -> URL {
-        return URL(string: "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)")!
+    // 从数据库读取角色信息
+    private func loadCharacterInfoFromCache(characterId: Int) -> CharacterPublicInfo? {
+        let query = """
+            SELECT * FROM character_info 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-1 hour')
+        """
+        
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+           let row = rows.first {
+            
+            // 安全地处理数值类型转换
+            guard let bloodlineId = (row["bloodline_id"] as? Int64).map({ Int($0) }),
+                  let corporationId = (row["corporation_id"] as? Int64).map({ Int($0) }),
+                  let raceId = (row["race_id"] as? Int64).map({ Int($0) }),
+                  let gender = row["gender"] as? String,
+                  let name = row["name"] as? String,
+                  let birthday = row["birthday"] as? String else {
+                Logger.error("从数据库加载角色信息失败 - 必需字段类型转换失败")
+                return nil
+            }
+            
+            // 处理可选字段
+            let allianceId = (row["alliance_id"] as? Int64).map({ Int($0) })
+            let factionId = (row["faction_id"] as? Int64).map({ Int($0) })
+            let securityStatus = row["security_status"] as? Double
+            
+            return CharacterPublicInfo(
+                alliance_id: allianceId,
+                birthday: birthday,
+                bloodline_id: bloodlineId,
+                corporation_id: corporationId,
+                faction_id: factionId,
+                gender: gender,
+                name: name,
+                race_id: raceId,
+                security_status: securityStatus
+            )
+        }
+        return nil
     }
     
     // 获取角色公开信息
     func fetchCharacterPublicInfo(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterPublicInfo {
-        // 如果不是强制刷新，先尝试使用缓存
+        // 如果不是强制刷新，先尝试从数据库加载
         if !forceRefresh {
-            // 1. 先检查内存缓存
-            if let memoryCached = getPublicInfoMemoryCache(characterId: characterId),
-               isPublicInfoCacheValid(memoryCached) {
-                Logger.info("使用内存缓存的角色公开信息 - 角色ID: \(characterId)")
-                return memoryCached.value
+            if let cachedInfo = loadCharacterInfoFromCache(characterId: characterId) {
+                Logger.info("使用缓存的角色信息 - 角色ID: \(characterId)")
+                return cachedInfo
             }
-            
-            // 2. 如果内存缓存不可用，检查磁盘缓存
-            if let diskCached = getPublicInfoDiskCache(characterId: characterId),
-               isPublicInfoCacheValid(diskCached) {
-                Logger.info("使用磁盘缓存的角色公开信息 - 角色ID: \(characterId)")
-                // 更新内存缓存
-                setPublicInfoMemoryCache(characterId: characterId, cache: diskCached)
-                return diskCached.value
-            }
-            
-            Logger.info("缓存未命中或已过期,需要从服务器获取角色公开信息 - 角色ID: \(characterId)")
         }
         
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
@@ -152,17 +156,17 @@ final class CharacterAPI: @unchecked Sendable {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let info = try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
         
-        // 创建新的缓存条目
-        let cacheEntry = PublicInfoCacheEntry(value: info, timestamp: Date())
+        // 保存到数据库
+        if saveCharacterInfoToCache(info, characterId: characterId) {
+            Logger.info("成功缓存角色信息 - 角色ID: \(characterId)")
+        }
         
-        // 更新内存缓存
-        setPublicInfoMemoryCache(characterId: characterId, cache: cacheEntry)
-        
-        // 更新磁盘缓存
-        savePublicInfoToDiskCache(characterId: characterId, cache: cacheEntry)
-        
-        Logger.info("成功获取角色公开信息 - 角色ID: \(characterId)")
         return info
+    }
+    
+    // 获取角色头像URL
+    private func getPortraitURL(characterId: Int, size: Int) -> URL {
+        return URL(string: "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)")!
     }
     
     // 获取角色头像

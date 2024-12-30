@@ -289,6 +289,21 @@ class CharacterDatabaseManager: ObservableObject {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- 角色信息缓存表
+            CREATE TABLE IF NOT EXISTS character_info (
+                character_id INTEGER PRIMARY KEY,
+                alliance_id INTEGER,
+                birthday TEXT NOT NULL,
+                bloodline_id INTEGER NOT NULL,
+                corporation_id INTEGER NOT NULL,
+                faction_id INTEGER,
+                gender TEXT NOT NULL,
+                name TEXT NOT NULL,
+                race_id INTEGER NOT NULL,
+                security_status REAL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
