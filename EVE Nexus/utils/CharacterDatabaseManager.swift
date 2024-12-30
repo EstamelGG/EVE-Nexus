@@ -6,6 +6,7 @@ class CharacterDatabaseManager: ObservableObject {
     static let shared = CharacterDatabaseManager()
     @Published var databaseUpdated = false
     private var db: OpaquePointer?
+    private let dbQueue = DispatchQueue(label: "com.eve.nexus.character.database")
     
     private init() {
         Logger.info("开始初始化角色数据库...")
@@ -303,87 +304,97 @@ class CharacterDatabaseManager: ObservableObject {
     
     /// 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
-        guard let db = db else {
-            return .error("数据库未打开")
-        }
+        var result: SQLiteResult = .error("未知错误")
         
-        var statement: OpaquePointer?
-        var results: [[String: Any]] = []
-        
-        // 准备语句
-        if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
-            let errmsg = String(cString: sqlite3_errmsg(db))
-            Logger.error("准备语句失败: \(errmsg)")
-            return .error("准备语句失败: \(errmsg)")
-        }
-        
-        // 绑定参数
-        for (index, parameter) in parameters.enumerated() {
-            let parameterIndex = Int32(index + 1)
-            switch parameter {
-            case let value as Int:
-                sqlite3_bind_int64(statement, parameterIndex, Int64(value))
-            case let value as Int64:
-                sqlite3_bind_int64(statement, parameterIndex, value)
-            case let value as Double:
-                sqlite3_bind_double(statement, parameterIndex, value)
-            case let value as String:
-                sqlite3_bind_text(statement, parameterIndex, (value as NSString).utf8String, -1, nil)
-            case let value as Data:
-                value.withUnsafeBytes { bytes in
-                    _ = sqlite3_bind_blob(statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil)
-                }
-            case is NSNull:
-                sqlite3_bind_null(statement, parameterIndex)
-            default:
-                sqlite3_finalize(statement)
-                return .error("不支持的参数类型: \(type(of: parameter))")
+        dbQueue.sync {
+            guard let db = db else {
+                result = .error("数据库未打开")
+                return
             }
-        }
-        
-        // 执行查询
-        while sqlite3_step(statement) == SQLITE_ROW {
-            var row: [String: Any] = [:]
-            let columnCount = sqlite3_column_count(statement)
             
-            for i in 0..<columnCount {
-                let columnName = String(cString: sqlite3_column_name(statement, i))
-                let type = sqlite3_column_type(statement, i)
-                
-                switch type {
-                case SQLITE_INTEGER:
-                    row[columnName] = sqlite3_column_int64(statement, i)
-                case SQLITE_FLOAT:
-                    row[columnName] = sqlite3_column_double(statement, i)
-                case SQLITE_TEXT:
-                    if let cString = sqlite3_column_text(statement, i) {
-                        row[columnName] = String(cString: cString)
+            var statement: OpaquePointer?
+            var results: [[String: Any]] = []
+            
+            // 准备语句
+            if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
+                let errmsg = String(cString: sqlite3_errmsg(db))
+                Logger.error("准备语句失败: \(errmsg)")
+                result = .error("准备语句失败: \(errmsg)")
+                return
+            }
+            
+            // 绑定参数
+            for (index, parameter) in parameters.enumerated() {
+                let parameterIndex = Int32(index + 1)
+                switch parameter {
+                case let value as Int:
+                    sqlite3_bind_int64(statement, parameterIndex, Int64(value))
+                case let value as Int64:
+                    sqlite3_bind_int64(statement, parameterIndex, value)
+                case let value as Double:
+                    sqlite3_bind_double(statement, parameterIndex, value)
+                case let value as String:
+                    sqlite3_bind_text(statement, parameterIndex, (value as NSString).utf8String, -1, nil)
+                case let value as Data:
+                    value.withUnsafeBytes { bytes in
+                        _ = sqlite3_bind_blob(statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil)
                     }
-                case SQLITE_NULL:
-                    row[columnName] = NSNull()
-                case SQLITE_BLOB:
-                    if let blob = sqlite3_column_blob(statement, i) {
-                        let size = Int(sqlite3_column_bytes(statement, i))
-                        row[columnName] = Data(bytes: blob, count: size)
-                    }
+                case is NSNull:
+                    sqlite3_bind_null(statement, parameterIndex)
                 default:
-                    break
+                    sqlite3_finalize(statement)
+                    result = .error("不支持的参数类型: \(type(of: parameter))")
+                    return
                 }
             }
             
-            results.append(row)
+            // 执行查询
+            while sqlite3_step(statement) == SQLITE_ROW {
+                var row: [String: Any] = [:]
+                let columnCount = sqlite3_column_count(statement)
+                
+                for i in 0..<columnCount {
+                    let columnName = String(cString: sqlite3_column_name(statement, i))
+                    let type = sqlite3_column_type(statement, i)
+                    
+                    switch type {
+                    case SQLITE_INTEGER:
+                        row[columnName] = sqlite3_column_int64(statement, i)
+                    case SQLITE_FLOAT:
+                        row[columnName] = sqlite3_column_double(statement, i)
+                    case SQLITE_TEXT:
+                        if let cString = sqlite3_column_text(statement, i) {
+                            row[columnName] = String(cString: cString)
+                        }
+                    case SQLITE_NULL:
+                        row[columnName] = NSNull()
+                    case SQLITE_BLOB:
+                        if let blob = sqlite3_column_blob(statement, i) {
+                            let size = Int(sqlite3_column_bytes(statement, i))
+                            row[columnName] = Data(bytes: blob, count: size)
+                        }
+                    default:
+                        break
+                    }
+                }
+                
+                results.append(row)
+            }
+            
+            // 释放语句
+            sqlite3_finalize(statement)
+            
+            // 如果是INSERT/UPDATE/DELETE语句，返回成功
+            if results.isEmpty && (query.lowercased().hasPrefix("insert") || 
+                                 query.lowercased().hasPrefix("update") || 
+                                 query.lowercased().hasPrefix("delete")) {
+                result = .success([[:]])
+            } else {
+                result = .success(results)
+            }
+            Logger.debug("成功执行: \(query)")
         }
         
-        // 释放语句
-        sqlite3_finalize(statement)
-        
-        // 如果是INSERT/UPDATE/DELETE语句，返回成功
-        if results.isEmpty && (query.lowercased().hasPrefix("insert") || 
-                             query.lowercased().hasPrefix("update") || 
-                             query.lowercased().hasPrefix("delete")) {
-            return .success([[:]])
-        }
-        Logger.debug("成功执行: \(query)")
-        return .success(results)
+        return result
     }
 } 
