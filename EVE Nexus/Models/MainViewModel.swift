@@ -332,4 +332,75 @@ class MainViewModel: ObservableObject {
         cachedWalletBalance = nil
         cachedSkillQueue = nil
     }
+    
+    // 从本地快速更新数据（缓存+数据库）
+    func quickRefreshFromLocal() async {
+        guard let character = selectedCharacter else { return }
+        
+        // 从数据库读取技能信息
+        let query = """
+            SELECT skills_data, total_sp, unallocated_sp 
+            FROM character_skills 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-1 hour')
+        """
+        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [character.CharacterID]),
+           let row = result.first,
+           let totalSp = row["total_sp"] as? Int,
+           let unallocatedSp = row["unallocated_sp"] as? Int {
+            await MainActor.run {
+                self.cachedSkills = CharacterSkills(
+                    total_sp: totalSp,
+                    unallocated_sp: unallocatedSp
+                )
+                self.updateSkillPoints(totalSp)
+            }
+        }
+        
+        // 从 UserDefaults 读取钱包余额
+        if let balanceString = UserDefaults.standard.string(forKey: "wallet_balance_\(character.CharacterID)"),
+           let balance = Double(balanceString) {
+            await MainActor.run {
+                self.cachedWalletBalance = balance
+                self.updateWalletBalance(balance)
+            }
+        }
+        
+        // 从数据库读取技能队列
+        let queueQuery = """
+            SELECT queue_data 
+            FROM character_skill_queue 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-1 hour')
+        """
+        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(queueQuery, parameters: [character.CharacterID]),
+           let row = result.first,
+           let queueData = row["queue_data"] as? String,
+           let queueResponse = try? JSONDecoder().decode([SkillQueueItem].self, from: queueData.data(using: .utf8) ?? Data()) {
+            await MainActor.run {
+                self.cachedSkillQueue = queueResponse.map { skill in
+                    QueuedSkill(
+                        skill_id: skill.skill_id,
+                        skillLevel: skill.finished_level,
+                        remainingTime: skill.remainingTime,
+                        progress: skill.progress,
+                        isCurrentlyTraining: skill.isCurrentlyTraining
+                    )
+                }
+                self.updateQueueStatus(
+                    length: queueResponse.count,
+                    finishTime: queueResponse.last?.remainingTime
+                )
+            }
+        }
+        
+        // 从 UserDefaults 读取位置信息
+        if let locationData = UserDefaults.standard.data(forKey: "location_\(character.CharacterID)"),
+           let location = try? JSONDecoder().decode(CharacterLocation.self, from: locationData) {
+            // 更新位置信息
+            await MainActor.run {
+                self.characterStats.location = location.locationStatus.description
+            }
+        }
+    }
 } 

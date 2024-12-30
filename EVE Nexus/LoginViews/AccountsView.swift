@@ -339,6 +339,12 @@ struct AccountsView: View {
                 isEditing = false
             }
         }
+        .onDisappear {
+            // 当视图消失时，从本地快速更新数据
+            Task {
+                await mainViewModel.quickRefreshFromLocal()
+            }
+        }
     }
     
     // 添加一个帮助函数来处理 MainActor.run 的返回值
