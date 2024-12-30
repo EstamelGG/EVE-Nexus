@@ -171,24 +171,24 @@ struct CharacterSheetView: View {
                             )
                         } else if let location = currentLocation {
                             // 星系信息（在太空中）
-                            HStack(spacing: 4) {
-                                Text(formatSecurity(location.security))
-                                    .foregroundColor(getSecurityColor(location.security))
-                                Text("\(location.systemName) / \(location.regionName)")
-                            }.font(.body)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Text(formatSecurity(location.security))
+                                        .foregroundColor(getSecurityColor(location.security))
+                                    Text("\(location.systemName) / \(location.regionName)")
+                                }.font(.body)
+                                
+                                if let status = locationStatus {
+                                    Text(status.description)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
                         } else {
                             Text(NSLocalizedString("Location_Unknown", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.gray)
-                                .lineLimit(1)
-                        }
-                        
-                        // 位置状态（空间站/建筑物/太空中）
-                        if let status = locationStatus {
-                            Text(status.description)
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
                         }
                     }
                 }
