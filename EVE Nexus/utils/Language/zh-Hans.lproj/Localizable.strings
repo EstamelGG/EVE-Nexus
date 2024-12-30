@@ -438,3 +438,4 @@
 "Main_Setting_Reset_Database_Message" = "这将删除所有角色数据库内容并重新初始化。此操作无法撤销，是否继续？";
 "Main_Setting_Reset_Database_Success_Title" = "重置完成";
 "Main_Setting_Reset_Database_Success_Message" = "数据库已成功重置。";
+"Common_info" = "基本信息";

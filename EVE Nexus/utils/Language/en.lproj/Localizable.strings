@@ -437,3 +437,4 @@
 "Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
 "Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
+"Common_info" = "Basic info";

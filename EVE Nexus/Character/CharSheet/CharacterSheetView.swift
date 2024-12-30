@@ -218,7 +218,7 @@ struct CharacterSheetView: View {
                     }
                 }
             } header: {
-                Text(NSLocalizedString("Character_Location", comment: ""))
+                Text(NSLocalizedString("Common_info", comment: ""))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
