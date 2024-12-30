@@ -161,6 +161,27 @@ struct CharacterSheetView: View {
                     .frame(height: 36)
                 }
                 
+                // 安全等级信息
+                if let security = securityStatus {
+                    HStack {
+                        // 安全等级图标
+                        Image("securitystatus")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("Character_Security_Status", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            Text(formatSecurity(security))
+                                .font(.caption)
+                                .foregroundColor(getSecurityStatusColor(security))
+                        }
+                    }
+                    .frame(height: 36)
+                }
+                
                 // 位置信息
                 HStack {
                     // 位置图标
@@ -246,27 +267,6 @@ struct CharacterSheetView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                        }
-                    }
-                    .frame(height: 36)
-                }
-                
-                // 安全等级信息
-                if let security = securityStatus {
-                    HStack {
-                        // 安全等级图标
-                        Image("securitystatus")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("Character_Security_Status", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            Text(formatSecurity(security))
-                                .font(.caption)
-                                .foregroundColor(getSecurityStatusColor(security))
                         }
                     }
                     .frame(height: 36)
