@@ -232,7 +232,7 @@ struct ContractDetailView: View {
                     // 合同基本信息
                     Section {
                         // 合同类型
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
                             Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) [\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
                                 .font(.caption)
@@ -244,7 +244,7 @@ struct ContractDetailView: View {
                         if let startInfo = viewModel.startLocationInfo {
                             if contract.start_location_id == contract.end_location_id {
                                 // 如果起点和终点相同，显示单个地点
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(NSLocalizedString("Contract_Location", comment: ""))
                                     LocationInfoView(
                                         stationName: startInfo.stationName,
@@ -255,7 +255,7 @@ struct ContractDetailView: View {
                                 .frame(height: 36)
                             } else {
                                 // 显示起点
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(NSLocalizedString("Contract_Start_Location", comment: ""))
                                     LocationInfoView(
                                         stationName: startInfo.stationName,
@@ -267,7 +267,7 @@ struct ContractDetailView: View {
                                 
                                 // 显示终点（如果存在）
                                 if let endInfo = viewModel.endLocationInfo {
-                                    VStack(alignment: .leading, spacing: 4) {
+                                    VStack(alignment: .leading, spacing: 2) {
                                         Text(NSLocalizedString("Contract_End_Location", comment: ""))
                                         LocationInfoView(
                                             stationName: endInfo.stationName,
@@ -281,7 +281,7 @@ struct ContractDetailView: View {
                         }
                         
                         // 合同发起人
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Contract_Issuer", comment: ""))
                             HStack(spacing: 4) {
                                 Text(viewModel.issuerName.isEmpty ? "Unknown" : viewModel.issuerName)
@@ -298,7 +298,7 @@ struct ContractDetailView: View {
                         if let assigneeId = contract.assignee_id,
                            assigneeId > 0,
                            !viewModel.assigneeName.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Assignee", comment: ""))
                                 Text(viewModel.assigneeName)
                                     .font(.caption)
@@ -312,7 +312,7 @@ struct ContractDetailView: View {
                            acceptorId > 0,
                            !viewModel.acceptorName.isEmpty && 
                            viewModel.acceptorName != viewModel.assigneeName {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Acceptor", comment: ""))
                                 Text(viewModel.acceptorName)
                                     .font(.caption)
@@ -323,7 +323,7 @@ struct ContractDetailView: View {
                         
                         // 合同价格（如果有）
                         if contract.price > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Price", comment: ""))
                                 Text("\(FormatUtil.format(contract.price)) ISK")
                                     .font(.caption)
@@ -334,7 +334,7 @@ struct ContractDetailView: View {
                         
                         // 合同报酬（如果有）
                         if contract.reward > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
                                 Text("\(FormatUtil.format(contract.reward)) ISK")
                                     .font(.caption)
@@ -345,7 +345,7 @@ struct ContractDetailView: View {
                         
                         // 保证金（如果有）
                         if contract.collateral > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
                                 Text("\(FormatUtil.format(contract.collateral)) ISK")
                                     .font(.caption)
@@ -367,7 +367,7 @@ struct ContractDetailView: View {
                         
                         // 完成期限
                         if contract.days_to_complete > 0 {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Days_To_Complete", comment: ""))
                                 Text("\(contract.days_to_complete)")
                                     .font(.caption)
