@@ -132,7 +132,7 @@ class MainViewModel: ObservableObject {
     
     // 从缓存获取钱包余额
     private func getCachedWalletBalance(characterId: Int) -> Double? {
-        if let balanceString = UserDefaults.standard.string(forKey: "wallet_balance_\(characterId)") {
+        if let balanceString = UserDefaults.standard.string(forKey: "wallet_cache_\(characterId)") {
             return Double(balanceString)
         }
         return nil
@@ -216,7 +216,7 @@ class MainViewModel: ObservableObject {
                         // 更新 UserDefaults 缓存
                         UserDefaults.standard.set(
                             String(balance),
-                            forKey: "wallet_balance_\(character.CharacterID)"
+                            forKey: "wallet_cache_\(character.CharacterID)"
                         )
                         
                         self.isLoadingWallet = false
@@ -357,13 +357,21 @@ class MainViewModel: ObservableObject {
             }
         }
         
-        // 从 UserDefaults 读取钱包余额
-        if let balanceString = UserDefaults.standard.string(forKey: "wallet_balance_\(character.CharacterID)"),
-           let balance = Double(balanceString) {
-            await MainActor.run {
-                self.cachedWalletBalance = balance
-                self.updateWalletBalance(balance)
+        // 从缓存读取钱包余额
+        let balanceString = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
+        if !balanceString.isEmpty {
+            Logger.info("尝试读取钱包余额缓存 - 角色ID: \(character.CharacterID)")
+            if let balance = Double(balanceString) {
+                Logger.info("成功读取钱包余额缓存: \(balance) ISK")
+                await MainActor.run {
+                    self.cachedWalletBalance = balance
+                    self.updateWalletBalance(balance)
+                }
+            } else {
+                Logger.warning("钱包余额缓存格式错误: \(balanceString)")
             }
+        } else {
+            Logger.warning("未找到钱包余额缓存 - 角色ID: \(character.CharacterID)")
         }
         
         // 从数据库读取技能队列
