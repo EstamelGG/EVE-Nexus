@@ -207,7 +207,7 @@ struct CharacterSheetView: View {
                             .cornerRadius(6)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(ship.ship_name)
+                            Text(NSLocalizedString("Character_Current_Ship", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.primary)
                             if let typeName = shipTypeName {
