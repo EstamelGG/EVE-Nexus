@@ -132,11 +132,12 @@ class MainViewModel: ObservableObject {
     // 刷新数据
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
+        let service = CharacterDataService.shared
         
         // 服务器状态请求
         Task {
             await MainActor.run { self.isLoadingServerStatus = true }
-            if let status = try? await ServerStatusAPI.shared.fetchServerStatus() {
+            if let status = try? await service.getServerStatus(forceRefresh: forceRefresh) {
                 await MainActor.run {
                     self.serverStatus = status
                     self.isLoadingServerStatus = false
@@ -150,8 +151,8 @@ class MainViewModel: ObservableObject {
             // 技能信息请求
             Task {
                 await MainActor.run { self.isLoadingSkills = true }
-                if let skillsResponse = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                    characterId: character.CharacterID,
+                if let (skillsResponse, queue) = try? await service.getSkillInfo(
+                    id: character.CharacterID,
                     forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
@@ -162,71 +163,8 @@ class MainViewModel: ObservableObject {
                         )
                         self.updateSkillPoints(skillsResponse.total_sp)
                         
-                        // 更新数据库缓存
-                        let skillsJson = try? JSONEncoder().encode(skillsResponse)
-                        if let skillsData = skillsJson {
-                            let query = """
-                                INSERT OR REPLACE INTO character_skills 
-                                (character_id, skills_data, total_sp, unallocated_sp, last_updated) 
-                                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                            """
-                            let result = CharacterDatabaseManager.shared.executeQuery(
-                                query,
-                                parameters: [
-                                    character.CharacterID,
-                                    String(data: skillsData, encoding: .utf8) ?? "",
-                                    skillsResponse.total_sp,
-                                    skillsResponse.unallocated_sp
-                                ]
-                            )
-                            
-                            if case .error(let error) = result {
-                                Logger.error("保存技能数据到数据库失败: \(error)")
-                            }
-                        }
-                        
-                        self.isLoadingSkills = false
-                    }
-                } else {
-                    await MainActor.run { self.isLoadingSkills = false }
-                }
-            }
-            
-            // 钱包余额请求
-            Task {
-                await MainActor.run { self.isLoadingWallet = true }
-                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedWalletBalance = balance
-                        self.updateWalletBalance(balance)
-                        
-                        // 更新 UserDefaults 缓存
-                        UserDefaults.standard.set(
-                            String(balance),
-                            forKey: "wallet_cache_\(character.CharacterID)"
-                        )
-                        
-                        self.isLoadingWallet = false
-                    }
-                } else {
-                    await MainActor.run { self.isLoadingWallet = false }
-                }
-            }
-            
-            // 技能队列请求
-            Task {
-                await MainActor.run { self.isLoadingQueue = true }
-                if let queueResponse = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedSkillQueue = queueResponse.map { skill in
+                        // 更新技能队列
+                        self.cachedSkillQueue = queue.map { skill in
                             QueuedSkill(
                                 skill_id: skill.skill_id,
                                 skillLevel: skill.finished_level,
@@ -236,35 +174,36 @@ class MainViewModel: ObservableObject {
                             )
                         }
                         self.updateQueueStatus(
-                            length: queueResponse.count,
-                            finishTime: queueResponse.last?.remainingTime
+                            length: queue.count,
+                            finishTime: queue.last?.remainingTime
                         )
                         
-                        // 更新数据库缓存
-                        let queueJson = try? JSONEncoder().encode(queueResponse)
-                        if let queueData = queueJson {
-                            let query = """
-                                INSERT OR REPLACE INTO character_skill_queue 
-                                (character_id, queue_data, last_updated) 
-                                VALUES (?, ?, CURRENT_TIMESTAMP)
-                            """
-                            let result = CharacterDatabaseManager.shared.executeQuery(
-                                query,
-                                parameters: [
-                                    character.CharacterID,
-                                    String(data: queueData, encoding: .utf8) ?? ""
-                                ]
-                            )
-                            
-                            if case .error(let error) = result {
-                                Logger.error("保存技能队列到数据库失败: \(error)")
-                            }
-                        }
-                        
+                        self.isLoadingSkills = false
                         self.isLoadingQueue = false
                     }
                 } else {
-                    await MainActor.run { self.isLoadingQueue = false }
+                    await MainActor.run { 
+                        self.isLoadingSkills = false
+                        self.isLoadingQueue = false
+                    }
+                }
+            }
+            
+            // 钱包余额请求
+            Task {
+                await MainActor.run { self.isLoadingWallet = true }
+                if let balance = try? await service.getWalletBalance(
+                    id: character.CharacterID,
+                    forceRefresh: forceRefresh
+                ) {
+                    await MainActor.run {
+                        // 更新内存缓存
+                        self.cachedWalletBalance = balance
+                        self.updateWalletBalance(balance)
+                        self.isLoadingWallet = false
+                    }
+                } else {
+                    await MainActor.run { self.isLoadingWallet = false }
                 }
             }
             
@@ -272,8 +211,8 @@ class MainViewModel: ObservableObject {
             if characterPortrait == nil {
                 Task {
                     await MainActor.run { self.isLoadingPortrait = true }
-                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: character.CharacterID,
+                    if let portrait = try? await service.getCharacterPortrait(
+                        id: character.CharacterID,
                         forceRefresh: forceRefresh
                     ) {
                         await MainActor.run {
@@ -288,14 +227,12 @@ class MainViewModel: ObservableObject {
             
             // 位置信息请求
             Task {
-                if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
-                    characterId: character.CharacterID,
+                if let location = try? await service.getLocation(
+                    id: character.CharacterID,
                     forceRefresh: forceRefresh
                 ) {
-                    // 更新 UserDefaults 缓存
-                    let locationData = try? JSONEncoder().encode(location)
-                    if let data = locationData {
-                        UserDefaults.standard.set(data, forKey: "location_\(character.CharacterID)")
+                    await MainActor.run {
+                        self.characterStats.location = location.locationStatus.description
                     }
                 }
             }
@@ -303,20 +240,30 @@ class MainViewModel: ObservableObject {
             // 克隆体状态请求
             Task {
                 await MainActor.run { self.isLoadingCloneStatus = true }
-                if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(
-                    characterId: character.CharacterID
+                if let cloneInfo = try? await service.getCloneStatus(
+                    id: character.CharacterID,
+                    forceRefresh: forceRefresh
                 ) {
                     await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedCloneJumpHours = remainingHours
-                        
-                        if remainingHours <= 0 {
-                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                        if let lastJumpDate = cloneInfo.last_clone_jump_date {
+                            let dateFormatter = ISO8601DateFormatter()
+                            dateFormatter.formatOptions = [.withInternetDateTime]
+                            
+                            if let jumpDate = dateFormatter.date(from: lastJumpDate) {
+                                let now = Date()
+                                let timeSinceLastJump = now.timeIntervalSince(jumpDate)
+                                let cooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
+                                
+                                if timeSinceLastJump >= cooldownPeriod {
+                                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                                } else {
+                                    let remainingHours = Int(ceil((cooldownPeriod - timeSinceLastJump) / 3600))
+                                    self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
+                                }
+                            }
                         } else {
-                            let hours = Int(ceil(remainingHours))
-                            self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
                         }
-                        
                         self.isLoadingCloneStatus = false
                     }
                 } else {
