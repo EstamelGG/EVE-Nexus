@@ -324,9 +324,18 @@ class CharacterDatabaseManager: ObservableObject {
                 clones_data TEXT NOT NULL,
                 home_location_id INTEGER NOT NULL,
                 last_clone_jump_date TEXT,
+                last_station_change_date TEXT,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_clones_last_updated ON clones(last_updated);
+
+            -- 植入体状态表
+            CREATE TABLE IF NOT EXISTS implants (
+                character_id INTEGER PRIMARY KEY,
+                implants_data TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_implants_last_updated ON implants(last_updated);
 
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
