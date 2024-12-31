@@ -457,3 +457,21 @@
 
 // Medals
 "Character_Medals" = "Medals";
+
+// Clone related
+"Character_Home_Station" = "Home Station";
+"Character_Home_Location" = "Home Location";
+"Character_Last_Clone_Jump" = "Last Clone Jump";
+"Character_Last_Station_Change" = "Last Station Change";
+"Character_Current_Implants" = "Current Implants";
+"Character_Jump_Clones" = "Jump Clones";
+"Character_Clone_Count" = "%d Clone(s)";
+"Character_View_Implants" = "View Implants";
+"Character_Clone_Details" = "Clone Details";
+"Character_Clone_Implants" = "Implants";
+"Character_No_Implants" = "No Implants";
+"Character_Clone_ID" = "Clone #%d";
+"Main_Jump_Clones" = "Clone Status";
+"Main_Jump_Clones_Available" = "Available Clones";
+"Main_Jump_Clones_Ready" = "Next Jump: Now";
+"Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";

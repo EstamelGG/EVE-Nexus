@@ -457,3 +457,21 @@
 
 // 奖章相关
 "Character_Medals" = "奖章";
+
+// 克隆体相关
+"Character_Home_Station" = "基地空间站";
+"Character_Home_Location" = "基地位置";
+"Character_Last_Clone_Jump" = "最后克隆体跳跃";
+"Character_Last_Station_Change" = "最后空间站变更";
+"Character_Current_Implants" = "当前植入体";
+"Character_Jump_Clones" = "跳跃克隆体";
+"Character_Clone_Count" = "%d 个克隆体";
+"Character_View_Implants" = "查看植入体";
+"Character_Clone_Details" = "克隆体详情";
+"Character_Clone_Implants" = "植入体";
+"Character_No_Implants" = "无植入体";
+"Character_Clone_ID" = "克隆体 #%d";
+"Main_Jump_Clones" = "克隆体状态";
+"Main_Jump_Clones_Available" = "可用克隆体";
+"Main_Jump_Clones_Ready" = "下次跳跃：现在";
+"Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";

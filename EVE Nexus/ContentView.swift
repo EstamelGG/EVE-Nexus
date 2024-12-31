@@ -493,12 +493,14 @@ struct ContentView: View {
             }
             
             NavigationLink {
-                Text("Jump Clones View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterClonesView(character: character)
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_Jump_Clones", comment: ""),
                     icon: "jumpclones",
-                    note: NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+                    note: viewModel.cloneJumpStatus
                 )
             }
             
