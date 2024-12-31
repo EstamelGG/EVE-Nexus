@@ -54,53 +54,61 @@ struct CharacterSkillsView: View {
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(activeSkills) { item in
-                        VStack(alignment: .leading) {
-                            HStack {
-                                Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                    .font(.headline).lineLimit(1)
-                                Spacer()
-                                // 添加等级指示器
-                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                    .foregroundColor(.secondary)
-                                SkillLevelIndicator(
-                                    currentLevel: getCurrentLevel(for: item.skill_id),
-                                    trainingLevel: item.finished_level,
-                                    isTraining: item.isCurrentlyTraining
-                                )
-                                .padding(.trailing, 4)
-                            }
-                            
-                            if let progress = calculateProgress(item) {
+                        NavigationLink {
+                            // 跳转到物品信息页面
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: item.skill_id
+                            )
+                        } label: {
+                            VStack(alignment: .leading) {
                                 HStack {
-                                    Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                              Int(progress.current), progress.total))
-                                        .font(.caption)
+                                    Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                                        .font(.headline).lineLimit(1)
                                     Spacer()
-                                    if item.isCurrentlyTraining {
-                                        if let remainingTime = item.remainingTime {
-                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
-                                                      formatTimeInterval(remainingTime)))
+                                    // 添加等级指示器
+                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                        .foregroundColor(.secondary)
+                                    SkillLevelIndicator(
+                                        currentLevel: getCurrentLevel(for: item.skill_id),
+                                        trainingLevel: item.finished_level,
+                                        isTraining: item.isCurrentlyTraining
+                                    )
+                                    .padding(.trailing, 4)
+                                }
+                                
+                                if let progress = calculateProgress(item) {
+                                    HStack {
+                                        Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
+                                                  Int(progress.current), progress.total))
+                                            .font(.caption)
+                                        Spacer()
+                                        if item.isCurrentlyTraining {
+                                            if let remainingTime = item.remainingTime {
+                                                Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
+                                                          formatTimeInterval(remainingTime)))
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        } else if let startDate = item.start_date,
+                                                  let finishDate = item.finish_date {
+                                            let trainingTime = finishDate.timeIntervalSince(startDate)
+                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                      formatTimeInterval(trainingTime)))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                         }
-                                    } else if let startDate = item.start_date,
-                                              let finishDate = item.finish_date {
-                                        let trainingTime = finishDate.timeIntervalSince(startDate)
-                                        Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                  formatTimeInterval(trainingTime)))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    // 只对正在训练的技能显示进度条
+                                    if item.isCurrentlyTraining {
+                                        ProgressView(value: progress.percentage)
+                                            .progressViewStyle(LinearProgressViewStyle())
                                     }
                                 }
-                                
-                                // 只对正在训练的技能显示进度条
-                                if item.isCurrentlyTraining {
-                                    ProgressView(value: progress.percentage)
-                                        .progressViewStyle(LinearProgressViewStyle())
-                                }
                             }
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
             } header: {
