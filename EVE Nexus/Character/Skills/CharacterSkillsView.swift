@@ -43,7 +43,7 @@ struct CharacterSkillsView: View {
             // 第一个列表 - 两个可点击单元格
             Section {
                 NavigationLink {
-                    Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    CharacterAttributesView(characterId: characterId)
                 } label: {
                     Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
                 }

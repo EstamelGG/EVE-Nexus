@@ -495,3 +495,17 @@
 "Time_Hours" = "%dh";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+
+// Character Attributes
+"Character_Attributes_Title" = "人物属性";
+"Character_Attributes_Basic" = "基础属性";
+"Character_Attributes_Remap" = "属性重映射";
+"Character_Attribute_Perception" = "感知";
+"Character_Attribute_Memory" = "记忆";
+"Character_Attribute_Willpower" = "意志";
+"Character_Attribute_Intelligence" = "智力";
+"Character_Attribute_Charisma" = "魅力";
+"Character_Attributes_Bonus_Remaps" = "可用重映射次数";
+"Character_Attributes_Last_Remap" = "上次重映射时间";
+"Character_Attributes_Next_Remap" = "下次可重映射时间";
+"Character_Attributes_Load_Failed" = "加载属性失败";
