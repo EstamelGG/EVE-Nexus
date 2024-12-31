@@ -9,8 +9,8 @@ struct SkillLevelIndicator: View {
     @State private var isBlinking = false
     
     // 常量定义
-    private let frameWidth: CGFloat = 36
-    private let frameHeight: CGFloat = 5
+    private let frameWidth: CGFloat = 37
+    private let frameHeight: CGFloat = 6
     private let blockWidth: CGFloat = 6
     private let blockHeight: CGFloat = 4
     private let blockSpacing: CGFloat = 1
@@ -18,24 +18,26 @@ struct SkillLevelIndicator: View {
     // 颜色定义
     private let darkGray = Color.gray.opacity(0.8)
     private let lightGray = Color.gray.opacity(0.4)
-    private let borderColor = Color.gray.opacity(0.6)
+    private let borderColor = Color.gray.opacity(0.8)
     
     var body: some View {
-        ZStack(alignment: .leading) {
-            // 外框
-            RoundedRectangle(cornerRadius: 1)
+        ZStack(alignment: Alignment(horizontal: .leading, vertical: .center)) {
+            // 外框 - 使用方形边框
+            Rectangle()
                 .stroke(borderColor, lineWidth: 0.5)
                 .frame(width: frameWidth, height: frameHeight)
             
+            // 使用固定偏移来放置方块组
             HStack(spacing: blockSpacing) {
                 ForEach(0..<5) { index in
-                    // 方块
+                    // 方块 - 使用方形
                     Rectangle()
                         .frame(width: blockWidth, height: blockHeight)
                         .foregroundColor(blockColor(for: index))
                         .opacity(blockOpacity(for: index))
                 }
             }
+            .offset(x: blockSpacing + 0.5) // 0.5是边框宽度，加上1像素间距
         }
         .onAppear {
             if isTraining {
@@ -72,6 +74,7 @@ struct SkillLevelIndicator: View {
     VStack(spacing: 20) {
         // 预览不同状态
         SkillLevelIndicator(currentLevel: 2, trainingLevel: 2, isTraining: false)
+        SkillLevelIndicator(currentLevel: 2, trainingLevel: 3, isTraining: false)
         SkillLevelIndicator(currentLevel: 2, trainingLevel: 3, isTraining: true)
         SkillLevelIndicator(currentLevel: 3, trainingLevel: 4, isTraining: true)
         SkillLevelIndicator(currentLevel: 4, trainingLevel: 5, isTraining: true)
