@@ -478,7 +478,7 @@
 "Character_Never" = "Never";
 
 // Skills View
-"Main_Skills_Details" = "Skills Details";
+"Main_Skills_Attribute" = "Attributes";
 "Main_Skills_Groups" = "Skill Groups";
 "Main_Skills_Queue_Count" = "Skill Queue (%d)";
 "Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
@@ -494,3 +494,4 @@
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+"Main_Skills_Categories" = "Categories";
