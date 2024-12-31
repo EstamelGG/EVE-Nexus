@@ -482,6 +482,7 @@
 "Main_Skills_Groups" = "Skill Groups";
 "Main_Skills_Queue_Count" = "Skill Queue (%d)";
 "Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
+"Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
 "Main_Skills_Queue_Empty" = "No skills in training queue";
 "Main_Skills_Level" = "Lv %d";
 "Main_Skills_Points_Progress" = "%d / %d SP";

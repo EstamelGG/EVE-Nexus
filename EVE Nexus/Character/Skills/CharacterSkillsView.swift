@@ -7,14 +7,21 @@ struct CharacterSkillsView: View {
     @State private var skillNames: [Int: String] = [:]
     
     private var activeSkills: [SkillQueueItem] {
-        skillQueue
-            .filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
-            .sorted { $0.queue_position < $1.queue_position }
+        skillQueue.sorted { $0.queue_position < $1.queue_position }
+    }
+    
+    private var isQueuePaused: Bool {
+        guard let firstSkill = activeSkills.first,
+              firstSkill.isCurrentlyTraining else {
+            return true
+        }
+        return false
     }
     
     private var totalRemainingTime: TimeInterval? {
         guard let lastSkill = activeSkills.last,
-              let finishDate = lastSkill.finish_date else {
+              let finishDate = lastSkill.finish_date,
+              finishDate.timeIntervalSinceNow > 0 else {
             return nil
         }
         return finishDate.timeIntervalSinceNow
@@ -112,7 +119,12 @@ struct CharacterSkillsView: View {
                     }
                 }
             } header: {
-                if let totalTime = totalRemainingTime {
+                if skillQueue.isEmpty {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""), 0))
+                } else if isQueuePaused {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
+                              activeSkills.count))
+                } else if let totalTime = totalRemainingTime {
                     Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
                               activeSkills.count,
                               formatTimeInterval(totalTime)))
