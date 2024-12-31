@@ -40,7 +40,7 @@ struct CharacterSkillsView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                    .font(.headline)
+                                    .font(.headline).lineLimit(1)
                                 Spacer()
                                 Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
                                     .foregroundColor(.secondary)
