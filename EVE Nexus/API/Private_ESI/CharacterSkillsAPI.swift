@@ -319,7 +319,7 @@ public class CharacterSkillsAPI {
         )
         
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
+        decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([SkillQueueItem].self, from: data)
     }
     
