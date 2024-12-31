@@ -156,7 +156,7 @@ struct CharacterClonesView: View {
             // 当前植入体信息
             Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
                 ForEach(implantDetails, id: \.typeId) { implant in
-                    HStack {
+                    HStack(alignment: .center, spacing: 8) {
                         IconManager.shared.loadImage(for: implant.icon)
                             .resizable()
                             .frame(width: 36, height: 36)
@@ -164,6 +164,12 @@ struct CharacterClonesView: View {
                         
                         Text(implant.name)
                             .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(2)
+                        
+                        Spacer(minLength: 0)
                     }
                     .frame(height: 36)
                 }
@@ -416,13 +422,17 @@ struct CloneLocationDetailView: View {
                                 .foregroundColor(.secondary)
                             Text(name)
                                 .font(.headline)
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.leading)
                         }
                         .listRowBackground(Color.clear)
+                        .padding(.vertical, 4)
                     }
                     
                     if let implants = implantDetailsMap[clone.jump_clone_id], !implants.isEmpty {
                         ForEach(implants, id: \.typeId) { implant in
-                            HStack {
+                            HStack(alignment: .center, spacing: 8) {
                                 IconManager.shared.loadImage(for: implant.icon)
                                     .resizable()
                                     .frame(width: 36, height: 36)
@@ -430,6 +440,12 @@ struct CloneLocationDetailView: View {
                                 
                                 Text(implant.name)
                                     .font(.body)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .multilineTextAlignment(.leading)
+                                    .minimumScaleFactor(0.5)
+                                    .lineLimit(2)
+                                
+                                Spacer(minLength: 0)
                             }
                             .frame(height: 36)
                         }
@@ -440,6 +456,9 @@ struct CloneLocationDetailView: View {
                 } header: {
                     if let name = clone.name {
                         Text(name)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
                     } else {
                         Text(String(format: NSLocalizedString("Character_Clone_ID", comment: ""), clone.jump_clone_id))
                     }
