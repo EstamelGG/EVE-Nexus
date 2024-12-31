@@ -60,14 +60,14 @@ struct CharacterSkillsView: View {
                                     .font(.headline).lineLimit(1)
                                 Spacer()
                                 // 添加等级指示器
+                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                    .foregroundColor(.secondary)
                                 SkillLevelIndicator(
                                     currentLevel: getCurrentLevel(for: item.skill_id),
                                     trainingLevel: item.finished_level,
                                     isTraining: item.isCurrentlyTraining
                                 )
                                 .padding(.trailing, 4)
-                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                    .foregroundColor(.secondary)
                             }
                             
                             if let progress = calculateProgress(item) {
@@ -207,8 +207,4 @@ struct CharacterSkillsView: View {
                         components.minutes)
         }
     }
-}
-
-#Preview {
-    CharacterSkillsView(characterId: 0, databaseManager: DatabaseManager())
 }
