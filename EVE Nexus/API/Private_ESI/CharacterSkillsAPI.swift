@@ -38,6 +38,44 @@ public struct SkillQueueItem: Codable {
     public let level_end_sp: Int?
     public let training_start_sp: Int?
     
+    enum CodingKeys: String, CodingKey {
+        case skill_id
+        case finished_level
+        case queue_position
+        case start_date
+        case finish_date
+        case level_start_sp
+        case level_end_sp
+        case training_start_sp
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        skill_id = try container.decode(Int.self, forKey: .skill_id)
+        finished_level = try container.decode(Int.self, forKey: .finished_level)
+        queue_position = try container.decode(Int.self, forKey: .queue_position)
+        
+        // 处理可能缺失的日期字段
+        if let dateString = try container.decodeIfPresent(String.self, forKey: .start_date),
+           let date = ISO8601DateFormatter().date(from: dateString) {
+            start_date = date
+        } else {
+            start_date = nil
+        }
+        
+        if let dateString = try container.decodeIfPresent(String.self, forKey: .finish_date),
+           let date = ISO8601DateFormatter().date(from: dateString) {
+            finish_date = date
+        } else {
+            finish_date = nil
+        }
+        
+        level_start_sp = try container.decodeIfPresent(Int.self, forKey: .level_start_sp)
+        level_end_sp = try container.decodeIfPresent(Int.self, forKey: .level_end_sp)
+        training_start_sp = try container.decodeIfPresent(Int.self, forKey: .training_start_sp)
+    }
+    
     // 判断当前时间点是否在训练这个技能
     public var isCurrentlyTraining: Bool {
         guard let startDate = start_date,
