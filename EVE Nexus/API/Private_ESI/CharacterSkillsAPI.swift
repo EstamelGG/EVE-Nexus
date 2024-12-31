@@ -28,41 +28,50 @@ public struct CharacterSkillsResponse: Codable {
 }
 
 // 技能队列项目
-public struct SkillQueueItem: Codable {
+public struct SkillQueueItem: Codable, Identifiable {
+    public let queue_position: Int
     public let skill_id: Int
     public let finished_level: Int
-    public let queue_position: Int
+    public let training_start_sp: Int?
+    public let level_end_sp: Int?
     public let start_date: Date?
     public let finish_date: Date?
-    public let level_start_sp: Int?
-    public let level_end_sp: Int?
-    public let training_start_sp: Int?
     
-    // 判断当前时间点是否在训练这个技能
+    public var id: Int { queue_position }
+    
+    // 训练开始等级（当前等级）
+    public var training_start_level: Int {
+        finished_level - 1
+    }
+    
     public var isCurrentlyTraining: Bool {
         guard let startDate = start_date,
               let finishDate = finish_date else {
             return false
         }
-        
         let now = Date()
         return now >= startDate && now <= finishDate
     }
     
-    // 计算剩余时间
     public var remainingTime: TimeInterval? {
-        guard let finishDate = finish_date else { return nil }
-        return finishDate.timeIntervalSince(Date())
+        guard let finishDate = finish_date else {
+            return nil
+        }
+        return finishDate.timeIntervalSinceNow
+    }
+    
+    // 获取技能等级的罗马数字表示
+    public var skillLevel: String {
+        let romanNumerals = ["I", "II", "III", "IV", "V"]
+        return romanNumerals[finished_level - 1]
     }
     
     // 计算训练进度
     public var progress: Double {
-        // 如果没有时间信息，使用技能点计算进度
         guard let startDate = start_date,
               let finishDate = finish_date,
-              let levelStartSp = level_start_sp,
-              let levelEndSp = level_end_sp,
-              let trainingStartSp = training_start_sp else {
+              let trainingStartSp = training_start_sp,
+              let levelEndSp = level_end_sp else {
             return 0
         }
         
@@ -78,7 +87,7 @@ public struct SkillQueueItem: Codable {
             return 1
         }
         
-        // 正在训练：使用基于时间的进度计算
+        // 正在训练中：使用基于时间的进度计算
         let totalTrainingTime = finishDate.timeIntervalSince(startDate)
         let trainedTime = now.timeIntervalSince(startDate)
         let timeProgress = trainedTime / totalTrainingTime
@@ -88,38 +97,9 @@ public struct SkillQueueItem: Codable {
         
         // 计算当前已训练的技能点
         let trainedSP = Double(remainingSP) * timeProgress
+        let currentSP = Double(trainingStartSp) + trainedSP
         
-        // 计算总进度
-        let totalLevelSP = levelEndSp - levelStartSp
-        let currentTotalTrainedSP = Double(trainingStartSp - levelStartSp) + trainedSP
-        
-        return currentTotalTrainedSP / Double(totalLevelSP)
-    }
-    
-    // 获取技能等级的罗马数字表示
-    public var skillLevel: String {
-        let romanNumerals = ["I", "II", "III", "IV", "V"]
-        return romanNumerals[finished_level - 1]
-    }
-    
-    public init(
-        skill_id: Int,
-        finished_level: Int,
-        queue_position: Int,
-        start_date: Date?,
-        finish_date: Date?,
-        level_start_sp: Int?,
-        level_end_sp: Int?,
-        training_start_sp: Int?
-    ) {
-        self.skill_id = skill_id
-        self.finished_level = finished_level
-        self.queue_position = queue_position
-        self.start_date = start_date
-        self.finish_date = finish_date
-        self.level_start_sp = level_start_sp
-        self.level_end_sp = level_end_sp
-        self.training_start_sp = training_start_sp
+        return currentSP / Double(levelEndSp)
     }
 }
 

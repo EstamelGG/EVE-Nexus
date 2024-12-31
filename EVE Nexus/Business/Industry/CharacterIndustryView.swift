@@ -53,17 +53,30 @@ class CharacterIndustryViewModel: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.timeZone = TimeZone(identifier: "UTC")!
         
-        // 首先筛选出进行中的任务
+        // 首先筛选出进行中和未交付的任务
         let activeJobs = jobs.filter { job in
-            // 检查任务是否处于活动状态且未完成
-            return job.status == "active" && 
-                   !["delivered", "ready", "cancelled", "revoked", "failed"].contains(job.status) &&
-                   job.end_date > Date()
+            // 检查任务是否：
+            // 1. 正在进行中（status == "active" 且未到结束时间）
+            // 2. 已完成但未交付（status == "ready"）
+            // 3. 已完成但状态还是active（status == "active" 且已过结束时间）
+            return (job.status == "active" && job.end_date > Date()) || // 正在进行中
+                   job.status == "ready" || // 已完成但未交付
+                   (job.status == "active" && job.end_date <= Date()) // 已完成但状态未更新
         }
         
         if !activeJobs.isEmpty {
-            // 将进行中的任务按开始时间排序
+            // 将任务按状态和时间排序：
+            // 1. 正在进行的任务优先
+            // 2. 然后是已完成未交付的任务
             let sortedActiveJobs = activeJobs.sorted {
+                // 如果一个是进行中，一个是已完成，进行中的排在前面
+                let isActive1 = $0.status == "active" && $0.end_date > Date()
+                let isActive2 = $1.status == "active" && $1.end_date > Date()
+                if isActive1 != isActive2 {
+                    return isActive1
+                }
+                
+                // 如果状态相同，按开始时间降序排序
                 if $0.start_date == $1.start_date {
                     return $0.job_id > $1.job_id
                 }
@@ -342,14 +355,12 @@ struct IndustryJobRow: View {
     
     // 根据活动类型和状态返回颜色
     private var progressColor: Color {
-        // 先检查是否已完成（根据状态或时间）
-        if job.status == "delivered" || job.status == "ready" || currentTime >= job.end_date {
-            return .green
-        }
-        
+        // 先检查特殊状态
         switch job.status {
         case "cancelled", "revoked", "failed": // 已取消或失败
             return .red
+        case "delivered", "ready": // 已完成
+            return .green
         case "active", "paused": // 进行中或暂停
             // 根据活动类型返回不同颜色
             switch job.activity_id {
@@ -429,40 +440,70 @@ struct IndustryJobRow: View {
     
     // 获取活动状态文本
     private func getActivityStatus() -> String {
-        // 先检查是否已完成（根据状态或时间）
-        if job.status == "delivered" || job.status == "ready" || currentTime >= job.end_date {
-            let statusText = job.status == "delivered" ?
-                NSLocalizedString("Industry_Status_delivered", comment: "") :
-                NSLocalizedString("Industry_Status_completed", comment: "")
-            
+        // 先检查特殊状态
+        switch job.status {
+        case "cancelled":
+            return NSLocalizedString("Industry_Status_cancelled", comment: "")
+        case "revoked":
+            return NSLocalizedString("Industry_Status_revoked", comment: "")
+        case "failed":
+            return NSLocalizedString("Industry_Status_failed", comment: "")
+        case "delivered":
+            let statusText = NSLocalizedString("Industry_Status_delivered", comment: "")
             // 只在概率不为1且runs大于1时显示成功比例
             if job.probability != 1.0 && job.runs > 1 {
                 let successfulRuns = job.successful_runs ?? 0
                 return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
             return statusText
-        }
-        
-        if job.status != "active" {
-            return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
-        }
-        
-        // 如果是活动状态，根据活动类型返回对应文本
-        switch job.activity_id {
-        case 1:
-            return NSLocalizedString("Industry_Status_Manufacturing", comment: "")
-        case 3:
-            return NSLocalizedString("Industry_Status_Research_Time", comment: "")
-        case 4:
-            return NSLocalizedString("Industry_Status_Research_Material", comment: "")
-        case 5:
-            return NSLocalizedString("Industry_Status_Copying", comment: "")
-        case 8:
-            return NSLocalizedString("Industry_Status_Invention", comment: "")
-        case 11:
-            return NSLocalizedString("Industry_Status_Reaction", comment: "")
+        case "ready":
+            return NSLocalizedString("Industry_Status_ready", comment: "")
         default:
-            return NSLocalizedString("Industry_Status_active", comment: "")
+            // 检查是否已完成但未交付
+            if currentTime >= job.end_date {
+                return NSLocalizedString("Industry_Status_ready", comment: "")
+            }
+            
+            if job.status != "active" {
+                return NSLocalizedString("Industry_Status_\(job.status)", comment: "")
+            }
+            
+            // 如果是活动状态，根据活动类型返回对应文本
+            switch job.activity_id {
+            case 1:
+                return NSLocalizedString("Industry_Type_Manufacturing", comment: "")
+            case 3:
+                return NSLocalizedString("Industry_Type_Research_Time", comment: "")
+            case 4:
+                return NSLocalizedString("Industry_Type_Research_Material", comment: "")
+            case 5:
+                return NSLocalizedString("Industry_Type_Copying", comment: "")
+            case 8:
+                return NSLocalizedString("Industry_Type_Invention", comment: "")
+            case 11:
+                return NSLocalizedString("Industry_Type_Reaction", comment: "")
+            default:
+                return NSLocalizedString("Industry_Status_active", comment: "")
+            }
+        }
+    }
+    
+    // 获取状态文本颜色
+    private func getStatusColor() -> Color {
+        switch job.status {
+        case "cancelled", "revoked", "failed":
+            return .red
+        case "delivered":
+            return .secondary
+        case "ready":
+            return .yellow
+        case "active":
+            if currentTime >= job.end_date {
+                return .yellow // 已完成但未交付
+            }
+            return .green
+        default:
+            return .secondary
         }
     }
     
@@ -570,7 +611,7 @@ struct IndustryJobRow: View {
                 HStack {
                     Text(getActivityStatus())
                         .font(.caption)
-                        .foregroundColor(job.status == "active" ? .green : .secondary)
+                        .foregroundColor(getStatusColor())
                     Spacer()
                     Text("Finish on \(getTimeDisplay())")
                         .font(.caption)

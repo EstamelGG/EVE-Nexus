@@ -476,3 +476,22 @@
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
 "Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
 "Character_Never" = "从未";
+
+// Skills View
+"Main_Skills_Attribute" = "属性点";
+"Main_Skills_Groups" = "技能组详情";
+"Main_Skills_Queue_Count" = "技能队列 (%d)";
+"Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
+"Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
+"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Points_Progress" = "%d / %d SP";
+"Main_Skills_Time_Remaining" = "剩余: %@";
+"Main_Skills_Time_Required" = "需要: %@";
+"Main_Skills_Categories" = "技能目录";
+
+// 时间显示
+"Time_Days_Hours" = "%dd %dh";
+"Time_Days" = "%dd";
+"Time_Hours" = "%dh";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";

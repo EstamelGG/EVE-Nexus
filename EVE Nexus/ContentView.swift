@@ -406,7 +406,7 @@ struct ContentView: View {
                 loginSection
                 
                 // 角色功能部分
-        if currentCharacterId != 0 {
+                if currentCharacterId != 0 {
                     characterSection
                 }
                 
@@ -476,7 +476,7 @@ struct ContentView: View {
     }
     
     private var characterSection: some View {
-        Section(NSLocalizedString("Main_Character", comment: "")) {
+        Section {
             NavigationLink {
                 if let character = viewModel.selectedCharacter {
                     CharacterSheetView(
@@ -505,7 +505,12 @@ struct ContentView: View {
             }
             
             NavigationLink {
-                Text("Skills View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterSkillsView(
+                        characterId: character.CharacterID,
+                        databaseManager: databaseManager
+                    )
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_Skills", comment: ""),
@@ -550,11 +555,17 @@ struct ContentView: View {
                     icon: "lpstore"
                 )
             }
+        } header: {
+            Text(NSLocalizedString("Main_Character", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
         }
     }
     
     private var databaseSection: some View {
-        Section(NSLocalizedString("Main_Databases", comment: "")) {
+        Section {
             NavigationLink {
                 DatabaseBrowserView(
                     databaseManager: databaseManager,
@@ -611,11 +622,17 @@ struct ContentView: View {
                     icon: "sovereignty"
                 )
             }
+        } header: {
+            Text(NSLocalizedString("Main_Databases", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
         }
     }
     
     private var businessSection: some View {
-        Section(NSLocalizedString("Main_Business", comment: "")) {
+        Section {
             NavigationLink {
                 if let character = viewModel.selectedCharacter {
                     CharacterAssetsView(characterId: character.CharacterID)
@@ -692,11 +709,17 @@ struct ContentView: View {
                     icon: "miningledger"
                 )
             }
+        } header: {
+            Text(NSLocalizedString("Main_Business", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
         }
     }
     
     private var otherSection: some View {
-        Section(NSLocalizedString("Main_Other", comment: "")) {
+        Section {
             NavigationLink {
                 SettingView(databaseManager: databaseManager)
             } label: {
@@ -714,6 +737,12 @@ struct ContentView: View {
                     icon: "info"
                 )
             }
+        } header: {
+            Text(NSLocalizedString("Main_Other", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
         }
     }
     

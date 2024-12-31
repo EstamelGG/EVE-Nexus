@@ -195,6 +195,11 @@
 "Time_Hours_Ago" = "%d hours ago";
 "Time_Minutes_Ago" = "%d minutes ago";
 "Time_Just_Now" = "just now";
+"Time_Days_Hours" = "%dd %dh";
+"Time_Days" = "%dd";
+"Time_Hours" = "%dh";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";
 
 // Network Errors
 "Network_Error_Invalid_URL" = "Invalid URL";
@@ -476,3 +481,22 @@
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
 "Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
 "Character_Never" = "Never";
+
+// Skills View
+"Main_Skills_Attribute" = "Attributes";
+"Main_Skills_Groups" = "Skill Groups";
+"Main_Skills_Queue_Count" = "Skill Queue (%d)";
+"Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
+"Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
+"Main_Skills_Queue_Empty" = "No skills in training queue";
+"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Points_Progress" = "%d / %d SP";
+"Main_Skills_Time_Remaining" = "Remaining: %@";
+"Main_Skills_Time_Required" = "Required: %@";
+"Main_Database_Loading" = "Loading...";
+
+// Time Format
+"Time_Days_Hours_Minutes" = "%dd %dh %dm";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";
+"Main_Skills_Categories" = "Categories";
