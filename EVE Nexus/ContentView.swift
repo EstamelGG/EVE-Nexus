@@ -406,7 +406,7 @@ struct ContentView: View {
                 loginSection
                 
                 // 角色功能部分
-        if currentCharacterId != 0 {
+                if currentCharacterId != 0 {
                     characterSection
                 }
                 
@@ -505,7 +505,9 @@ struct ContentView: View {
             }
             
             NavigationLink {
-                Text("Skills View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterSkillsView(characterId: character.CharacterID)
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_Skills", comment: ""),
