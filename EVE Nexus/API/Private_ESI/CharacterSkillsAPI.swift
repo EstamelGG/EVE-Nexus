@@ -347,13 +347,21 @@ public class CharacterSkillsAPI {
         
         if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
            let row = rows.first {
+            // 使用 NSNumber 转换来处理不同的数字类型
+            let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 0
+            let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 0
+            let memory = (row["memory"] as? NSNumber)?.intValue ?? 0
+            let perception = (row["perception"] as? NSNumber)?.intValue ?? 0
+            let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 0
+            let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue
+            
             return CharacterAttributes(
-                charisma: row["charisma"] as? Int ?? 0,
-                intelligence: row["intelligence"] as? Int ?? 0,
-                memory: row["memory"] as? Int ?? 0,
-                perception: row["perception"] as? Int ?? 0,
-                willpower: row["willpower"] as? Int ?? 0,
-                bonus_remaps: row["bonus_remaps"] as? Int,
+                charisma: charisma,
+                intelligence: intelligence,
+                memory: memory,
+                perception: perception,
+                willpower: willpower,
+                bonus_remaps: bonusRemaps,
                 accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
                 last_remap_date: row["last_remap_date"] as? String
             )
