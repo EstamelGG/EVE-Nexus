@@ -5,6 +5,7 @@ struct SkillGroup: Identifiable {
     let id: Int  // groupID
     let name: String  // group_name
     var skills: [CharacterSkill]
+    let totalSkillsInGroup: Int  // 该组中的总技能数
     
     var totalSkillPoints: Int {
         skills.reduce(0) { $0 + $1.skillpoints_in_skill }
@@ -43,9 +44,7 @@ struct SkillCategoryView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.name)
                                 .font(.headline)
-                            Text(String(format: NSLocalizedString("Main_Skills_Group_Count", comment: ""), 
-                                      group.skills.count,
-                                      formatNumber(group.totalSkillPoints)))
+                            Text("\(group.skills.count)/\(group.totalSkillsInGroup) - \(formatNumber(group.totalSkillPoints)) SP")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -81,20 +80,23 @@ struct SkillCategoryView: View {
             
             // 2. 获取所有技能的详细信息
             var skillInfoDict: [Int: SkillInfo] = [:]
-            var groupDict: [Int: String] = [:]
+            var groupDict: [Int: (name: String, totalSkills: Int)] = [:]
             
+            // 先获取所有技能组的总技能数
             for skill in skillsResponse.skills {
                 let query = """
-                    SELECT name, groupID, group_name
-                    FROM types
-                    WHERE type_id = ?
+                    SELECT t1.name, t1.groupID, t1.group_name,
+                           (SELECT COUNT(*) FROM types t2 WHERE t2.groupID = t1.groupID AND t2.published = 1) as total_skills
+                    FROM types t1
+                    WHERE t1.type_id = ?
                 """
                 
                 if case .success(let typeRows) = databaseManager.executeQuery(query, parameters: [skill.skill_id]),
                    let typeRow = typeRows.first,
                    let name = typeRow["name"] as? String,
                    let groupId = typeRow["groupID"] as? Int,
-                   let groupName = typeRow["group_name"] as? String {
+                   let groupName = typeRow["group_name"] as? String,
+                   let totalSkills = typeRow["total_skills"] as? Int {
                     
                     skillInfoDict[skill.skill_id] = SkillInfo(
                         id: skill.skill_id,
@@ -104,13 +106,13 @@ struct SkillCategoryView: View {
                         trained_skill_level: skill.trained_skill_level
                     )
                     
-                    groupDict[groupId] = groupName
+                    groupDict[groupId] = (name: groupName, totalSkills: totalSkills)
                 }
             }
             
             // 3. 按技能组组织数据
             var groups: [SkillGroup] = []
-            for (groupId, groupName) in groupDict {
+            for (groupId, groupInfo) in groupDict {
                 let groupSkills = skillsResponse.skills.filter { skill in
                     skillInfoDict[skill.skill_id]?.groupID == groupId
                 }
@@ -118,8 +120,9 @@ struct SkillCategoryView: View {
                 if !groupSkills.isEmpty {
                     groups.append(SkillGroup(
                         id: groupId,
-                        name: groupName,
-                        skills: groupSkills
+                        name: groupInfo.name,
+                        skills: groupSkills,
+                        totalSkillsInGroup: groupInfo.totalSkills
                     ))
                 }
             }
