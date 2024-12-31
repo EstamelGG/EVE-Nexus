@@ -39,7 +39,7 @@ struct SkillCategoryView: View {
             } else {
                 ForEach(skillGroups.sorted(by: { $0.name < $1.name })) { group in
                     NavigationLink {
-                        SkillGroupDetailView(group: group)
+                        SkillGroupDetailView(group: group, databaseManager: databaseManager)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.name)
@@ -145,11 +145,63 @@ struct SkillCategoryView: View {
     }
 }
 
-// 技能组详情视图（稍后实现）
+// 技能组详情视图
 struct SkillGroupDetailView: View {
     let group: SkillGroup
+    let databaseManager: DatabaseManager
+    @State private var skillNames: [Int: String] = [:]
+    @State private var isLoading = true
     
     var body: some View {
-        Text(group.name)
+        List {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else {
+                ForEach(group.skills, id: \.skill_id) { skill in
+                    HStack {
+                        Text(skillNames[skill.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                            .lineLimit(1)
+                        Spacer()
+                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), skill.trained_skill_level))
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .padding(.trailing, 2)
+                        SkillLevelIndicator(
+                            currentLevel: skill.trained_skill_level,
+                            trainingLevel: skill.trained_skill_level,
+                            isTraining: false
+                        )
+                        .padding(.trailing, 4)
+                    }
+                    .frame(height: 36)
+                }
+            }
+        }
+        .navigationTitle(group.name)
+        .onAppear {
+            Task {
+                await loadSkillNames()
+            }
+        }
+    }
+    
+    private func loadSkillNames() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        var names: [Int: String] = [:]
+        for skill in group.skills {
+            let query = "SELECT name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skill.skill_id]),
+               let row = rows.first,
+               let name = row["name"] as? String {
+                names[skill.skill_id] = name
+            }
+        }
+        
+        await MainActor.run {
+            self.skillNames = names
+        }
     }
 } 
