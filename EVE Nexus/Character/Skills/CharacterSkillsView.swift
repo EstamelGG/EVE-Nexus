@@ -6,6 +6,7 @@ struct CharacterSkillsView: View {
     @State private var skillQueue: [SkillQueueItem] = []
     @State private var skillNames: [Int: String] = [:]
     @State private var isRefreshing = false
+    @State private var skillIcon: Image?
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -67,17 +68,18 @@ struct CharacterSkillsView: View {
                 } else {
                     ForEach(activeSkills) { item in
                         NavigationLink {
-                            // 跳转到物品信息页面
                             ShowItemInfo(
                                 databaseManager: databaseManager,
                                 itemID: item.skill_id
                             )
                         } label: {
                             HStack(spacing: 8) {
-                                IconManager.shared.loadImage(for: "icon_2403_64.png")
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
+                                if let icon = skillIcon {
+                                    icon
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                }
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 2) {
@@ -159,6 +161,8 @@ struct CharacterSkillsView: View {
             Task {
                 await loadSkillQueue()
             }
+            // 加载技能图标
+            skillIcon = IconManager.shared.loadImage(for: "icon_2403_64.png")
         }
     }
     
