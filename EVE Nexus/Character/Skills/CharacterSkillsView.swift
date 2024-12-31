@@ -5,6 +5,7 @@ struct CharacterSkillsView: View {
     let databaseManager: DatabaseManager
     @State private var skillQueue: [SkillQueueItem] = []
     @State private var skillNames: [Int: String] = [:]
+    @State private var isRefreshing = false
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -151,8 +152,13 @@ struct CharacterSkillsView: View {
                 }
             }
         }
+        .refreshable {
+            await refreshSkillQueue()
+        }
         .onAppear {
-            loadSkillQueue()
+            Task {
+                await loadSkillQueue()
+            }
         }
     }
     
@@ -163,24 +169,28 @@ struct CharacterSkillsView: View {
         return (days, hours, minutes)
     }
     
-    private func loadSkillQueue() {
-        Task {
-            do {
-                // 加载技能队列
-                skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId)
-                
-                // 加载技能名称
-                for item in skillQueue {
-                    let query = "SELECT name FROM types WHERE type_id = ?"
-                    if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
-                       let row = rows.first,
-                       let name = row["name"] as? String {
-                        skillNames[item.skill_id] = name
-                    }
+    private func refreshSkillQueue() async {
+        isRefreshing = true
+        await loadSkillQueue(forceRefresh: true)
+        isRefreshing = false
+    }
+    
+    private func loadSkillQueue(forceRefresh: Bool = false) async {
+        do {
+            // 加载技能队列
+            skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
+            
+            // 加载技能名称
+            for item in skillQueue {
+                let query = "SELECT name FROM types WHERE type_id = ?"
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
+                   let row = rows.first,
+                   let name = row["name"] as? String {
+                    skillNames[item.skill_id] = name
                 }
-            } catch {
-                Logger.error("加载技能队列失败: \(error)")
             }
+        } catch {
+            Logger.error("加载技能队列失败: \(error)")
         }
     }
     
