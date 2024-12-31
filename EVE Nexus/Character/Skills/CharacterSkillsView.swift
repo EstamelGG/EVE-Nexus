@@ -20,6 +20,15 @@ struct CharacterSkillsView: View {
         return finishDate.timeIntervalSinceNow
     }
     
+    // 获取技能的当前等级（队列中最低等级-1）
+    private func getCurrentLevel(for skillId: Int) -> Int {
+        let minLevel = activeSkills
+            .filter { $0.skill_id == skillId }
+            .map { $0.finished_level }
+            .min() ?? 1
+        return minLevel - 1
+    }
+    
     var body: some View {
         List {
             // 第一个列表 - 两个可点击单元格
@@ -52,7 +61,7 @@ struct CharacterSkillsView: View {
                                 Spacer()
                                 // 添加等级指示器
                                 SkillLevelIndicator(
-                                    currentLevel: item.training_start_level,
+                                    currentLevel: getCurrentLevel(for: item.skill_id),
                                     trainingLevel: item.finished_level,
                                     isTraining: item.isCurrentlyTraining
                                 )
