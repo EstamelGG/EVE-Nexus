@@ -237,44 +237,52 @@ class MainViewModel: ObservableObject {
         lastError = nil
         let service = CharacterDataService.shared
         
-        // 并发执行所有请求
-        async let serverStatusTask = retryOperation(named: "获取服务器状态") {
-            try await service.getServerStatus(forceRefresh: forceRefresh)
+        // 创建一个独立的任务来处理服务器状态
+        Task {
+            do {
+                self.serverStatus = try await service.getServerStatus(forceRefresh: forceRefresh)
+            } catch {
+                lastError = .serverStatusFailed
+                Logger.error("获取服务器状态失败: \(error)")
+            }
         }
         
+        // 如果有选中的角色，立即开始加载角色数据
         if let character = selectedCharacter {
-            async let skillInfoTask = retryOperation(named: "获取技能信息") {
-                try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
-            }
-            async let walletTask = retryOperation(named: "获取钱包余额") {
-                try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
-            }
-            async let locationTask = retryOperation(named: "获取位置信息") {
-                try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
-            }
-            async let cloneTask = retryOperation(named: "获取克隆状态") {
-                try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
-            }
-            
             do {
-                // 处理服务器状态
-                self.serverStatus = try await serverStatusTask
+                // 并发执行所有请求
+                async let skillInfoTask = retryOperation(named: "获取技能信息") {
+                    try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
+                }
+                async let walletTask = retryOperation(named: "获取钱包余额") {
+                    try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
+                }
+                async let locationTask = retryOperation(named: "获取位置信息") {
+                    try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
+                }
+                async let cloneTask = retryOperation(named: "获取克隆状态") {
+                    try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
+                }
+                
+                // 等待所有角色数据请求完成
+                let ((skillsResponse, queue), balance, location, cloneInfo) = try await (
+                    skillInfoTask,
+                    walletTask,
+                    locationTask,
+                    cloneTask
+                )
                 
                 // 处理技能信息
-                let (skillsResponse, queue) = try await skillInfoTask
                 processSkillInfo(skillsResponse: skillsResponse, queue: queue)
                 
                 // 处理钱包余额
-                let balance = try await walletTask
                 self.cache.walletBalance = balance
                 self.updateWalletBalance(balance)
                 
                 // 处理位置信息
-                let location = try await locationTask
                 self.characterStats.location = location.locationStatus.description
                 
                 // 处理克隆状态
-                let cloneInfo = try await cloneTask
                 self.updateCloneStatus(from: cloneInfo)
                 
                 // 如果没有头像，请求头像
@@ -291,14 +299,6 @@ class MainViewModel: ObservableObject {
             } catch {
                 lastError = error as? RefreshError ?? .serverStatusFailed
                 Logger.error("刷新数据失败: \(error)")
-            }
-        } else {
-            // 如果没有选中角色，只更新服务器状态
-            do {
-                self.serverStatus = try await serverStatusTask
-            } catch {
-                lastError = .serverStatusFailed
-                Logger.error("获取服务器状态失败: \(error)")
             }
         }
         
