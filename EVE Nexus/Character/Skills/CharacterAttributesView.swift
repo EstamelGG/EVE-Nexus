@@ -26,26 +26,24 @@ struct CharacterAttributesView: View {
             }
             
             if let attributes = attributes {
-                if let bonusRemaps = attributes.bonus_remaps {
-                    Section {
+                Section {
+                    if let bonusRemaps = attributes.bonus_remaps {
                         HStack {
                             Text(NSLocalizedString("Character_Attributes_Bonus_Remaps", comment: ""))
                             Spacer()
                             Text("\(bonusRemaps)")
                         }
                     }
-                }
-                
-                if let cooldownDate = attributes.accrued_remap_cooldown_date {
-                    Section {
+                    
+                    if let cooldownDate = attributes.accrued_remap_cooldown_date {
                         HStack {
                             Text(NSLocalizedString("Character_Attributes_Next_Remap", comment: ""))
                             Spacer()
                             Text(formatNextRemapTime(cooldownDate))
                         }
-                    } header: {
-                        Text(NSLocalizedString("Character_Attributes_Remap", comment: ""))
                     }
+                } header: {
+                    Text(NSLocalizedString("Character_Attributes_Remap", comment: ""))
                 }
             }
         }
