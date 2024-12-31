@@ -473,5 +473,5 @@
 "Character_Clone_ID" = "克隆体 #%d";
 "Main_Jump_Clones" = "克隆体状态";
 "Main_Jump_Clones_Available" = "可用克隆体";
-"Main_Jump_Clones_Ready" = "可以跳跃";
-"Main_Jump_Clones_Cooldown" = "剩余%d小时";
+"Main_Jump_Clones_Ready" = "下次跳跃：现在";
+"Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
