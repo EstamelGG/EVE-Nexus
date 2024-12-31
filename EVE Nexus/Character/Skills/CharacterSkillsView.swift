@@ -6,26 +6,37 @@ struct CharacterSkillsView: View {
     @State private var skillQueue: [SkillQueueItem] = []
     @State private var skillNames: [Int: String] = [:]
     
+    private var activeSkills: [SkillQueueItem] {
+        skillQueue
+            .filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
+            .sorted { $0.queue_position < $1.queue_position }
+    }
+    
     var body: some View {
         List {
             // 第一个列表 - 两个可点击单元格
             Section {
-                NavigationLink(destination: Text(NSLocalizedString("Main_Skills_Details", comment: ""))) {
+                NavigationLink {
+                    Text(NSLocalizedString("Main_Skills_Details", comment: ""))
+                } label: {
                     Text(NSLocalizedString("Main_Skills_Details", comment: ""))
                 }
-                NavigationLink(destination: Text(NSLocalizedString("Main_Skills_Groups", comment: ""))) {
+                NavigationLink {
+                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
+                } label: {
                     Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
                 }
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
             }
             
             // 第二个列表 - 技能队列
-            Section(header: Text(NSLocalizedString("Main_Skills_Queue", comment: ""))) {
+            Section {
                 if skillQueue.isEmpty {
                     Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: ""))
                         .foregroundColor(.secondary)
                 } else {
-                    ForEach(skillQueue.filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
-                        .sorted { $0.queue_position < $1.queue_position }, id: \.queue_position) { item in
+                    ForEach(activeSkills) { item in
                         VStack(alignment: .leading) {
                             HStack {
                                 Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
@@ -33,6 +44,13 @@ struct CharacterSkillsView: View {
                                 Spacer()
                                 Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
                                     .foregroundColor(.secondary)
+                                // 添加等级指示器
+                                SkillLevelIndicator(
+                                    currentLevel: item.training_start_level,
+                                    trainingLevel: item.finished_level,
+                                    isTraining: item.isCurrentlyTraining
+                                )
+                                .padding(.trailing, 4)
                             }
                             
                             if let progress = calculateProgress(item) {
@@ -68,6 +86,8 @@ struct CharacterSkillsView: View {
                         .padding(.vertical, 4)
                     }
                 }
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Queue", comment: ""))
             }
         }
         .onAppear {
