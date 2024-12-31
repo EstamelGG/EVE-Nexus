@@ -45,7 +45,14 @@ struct CharacterSkillsView: View {
                 NavigationLink {
                     CharacterAttributesView(characterId: characterId)
                 } label: {
-                    Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    HStack {
+                        Image("attributes")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    }
                 }
                 .frame(height: 36)
                 
