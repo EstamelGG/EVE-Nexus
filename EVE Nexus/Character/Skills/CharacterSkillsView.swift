@@ -57,9 +57,14 @@ struct CharacterSkillsView: View {
                 .frame(height: 36)
                 
                 NavigationLink {
-                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
+                    Text(NSLocalizedString("Main_Skills_Category", comment: ""))
                 } label: {
-                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
+                    Image("skills")
+                        .resizable()
+                        .frame(width: 36, height: 36)
+                        .cornerRadius(6)
+                        .drawingGroup()
+                    Text(NSLocalizedString("Main_Skills_Category", comment: ""))
                 }
                 .frame(height: 36)
             } header: {

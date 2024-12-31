@@ -484,7 +484,7 @@
 
 // Skills View
 "Main_Skills_Attribute" = "Attributes";
-"Main_Skills_Groups" = "Skill Groups";
+"Main_Skills_Category" = "Skill Category";
 "Main_Skills_Queue_Count" = "Skill Queue (%d)";
 "Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
 "Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";

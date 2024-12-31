@@ -479,7 +479,7 @@
 
 // Skills View
 "Main_Skills_Attribute" = "属性点";
-"Main_Skills_Groups" = "技能组详情";
+"Main_Skills_Category" = "技能目录详情";
 "Main_Skills_Queue_Count" = "技能队列 (%d)";
 "Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
 "Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
