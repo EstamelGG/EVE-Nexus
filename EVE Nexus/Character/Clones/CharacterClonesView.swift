@@ -315,7 +315,7 @@ struct CloneLocationRow: View {
                 ProgressView()
             }
         }
-        .frame(height: 44) // 增加高度以适应新的文本行
+        .frame(height: 36) // 增加高度以适应新的文本行
         .task {
             await loadLocationInfo()
         }
@@ -365,6 +365,7 @@ struct CloneLocationRow: View {
 struct CloneLocationDetailView: View {
     let clones: [JumpClone]
     let databaseManager: DatabaseManager
+    @State private var implantDetailsMap: [Int: [(Int, String, String)]] = [:] // [clone_id: [(type_id, name, icon)]]
     
     var body: some View {
         List {
@@ -375,78 +376,59 @@ struct CloneLocationDetailView: View {
                             Image(systemName: "tag")
                                 .foregroundColor(.secondary)
                             Text(name)
+                                .font(.headline)
                         }
+                        .listRowBackground(Color.clear)
                     }
                     
-                    NavigationLink {
-                        CloneImplantsView(
-                            clone: clone,
-                            databaseManager: databaseManager
-                        )
-                    } label: {
-                        HStack {
-                            Image(systemName: "brain")
-                                .foregroundColor(.secondary)
-                            Text(NSLocalizedString("Character_View_Implants", comment: ""))
+                    if let implants = implantDetailsMap[clone.jump_clone_id], !implants.isEmpty {
+                        ForEach(implants, id: \.0) { implant in
+                            HStack {
+                                IconManager.shared.loadImage(for: implant.2)
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                
+                                Text(implant.1)
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
                         }
+                    } else {
+                        Text(NSLocalizedString("Character_No_Implants", comment: ""))
+                            .foregroundColor(.secondary)
                     }
-                }
-            }
-        }
-        .navigationTitle(NSLocalizedString("Character_Clone_Details", comment: ""))
-    }
-}
-
-// 克隆体植入体详情视图
-struct CloneImplantsView: View {
-    let clone: JumpClone
-    let databaseManager: DatabaseManager
-    @State private var implantDetails: [(Int, String, String)] = [] // (type_id, name, icon)
-    
-    var body: some View {
-        List {
-            if !implantDetails.isEmpty {
-                Section(NSLocalizedString("Character_Clone_Implants", comment: "")) {
-                    ForEach(implantDetails, id: \.0) { implant in
-                        HStack {
-                            IconManager.shared.loadImage(for: implant.2)
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                            
-                            Text(implant.1)
-                                .font(.body)
-                        }
-                        .frame(height: 36)
+                } header: {
+                    if let name = clone.name {
+                        Text(name)
+                    } else {
+                        Text(String(format: NSLocalizedString("Character_Clone_ID", comment: ""), clone.jump_clone_id))
                     }
-                }
-            } else {
-                Section {
-                    Text(NSLocalizedString("Character_No_Implants", comment: ""))
-                        .foregroundColor(.secondary)
                 }
             }
         }
         .navigationTitle(NSLocalizedString("Character_Clone_Details", comment: ""))
         .task {
-            await loadImplantDetails()
+            await loadAllImplantDetails()
         }
     }
     
-    private func loadImplantDetails() async {
-        if !clone.implants.isEmpty {
-            let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(clone.implants.map { String($0) }.joined(separator: ",")))"
-            if case .success(let rows) = databaseManager.executeQuery(query) {
-                var details: [(Int, String, String)] = []
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String,
-                       let iconFile = row["icon_filename"] as? String {
-                        details.append((typeId, name, iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile))
+    private func loadAllImplantDetails() async {
+        for clone in clones {
+            if !clone.implants.isEmpty {
+                let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(clone.implants.map { String($0) }.joined(separator: ",")))"
+                if case .success(let rows) = databaseManager.executeQuery(query) {
+                    var details: [(Int, String, String)] = []
+                    for row in rows {
+                        if let typeId = row["type_id"] as? Int,
+                           let name = row["name"] as? String,
+                           let iconFile = row["icon_filename"] as? String {
+                            details.append((typeId, name, iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile))
+                        }
                     }
-                }
-                await MainActor.run {
-                    self.implantDetails = details.sorted(by: { $0.0 < $1.0 })
+                    await MainActor.run {
+                        self.implantDetailsMap[clone.jump_clone_id] = details.sorted(by: { $0.0 < $1.0 })
+                    }
                 }
             }
         }

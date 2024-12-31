@@ -470,5 +470,6 @@
 "Character_Clone_Details" = "克隆体详情";
 "Character_Clone_Implants" = "植入体";
 "Character_No_Implants" = "无植入体";
+"Character_Clone_ID" = "克隆体 #%d";
 "Main_Jump_Clones" = "克隆体状态";
 "Main_Jump_Clones_Available" = "可用克隆体";
