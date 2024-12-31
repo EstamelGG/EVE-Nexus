@@ -195,6 +195,11 @@
 "Time_Hours_Ago" = "%d hours ago";
 "Time_Minutes_Ago" = "%d minutes ago";
 "Time_Just_Now" = "just now";
+"Time_Days_Hours" = "%dd %dh";
+"Time_Days" = "%dd";
+"Time_Hours" = "%dh";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";
 
 // Network Errors
 "Network_Error_Invalid_URL" = "Invalid URL";

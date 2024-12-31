@@ -72,54 +72,61 @@ struct CharacterSkillsView: View {
                                 itemID: item.skill_id
                             )
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 2) {
-                                    Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                        .font(.headline)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    // 添加等级指示器
-                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .padding(.trailing, 2)
-                                    SkillLevelIndicator(
-                                        currentLevel: getCurrentLevel(for: item.skill_id),
-                                        trainingLevel: item.finished_level,
-                                        isTraining: item.isCurrentlyTraining
-                                    )
-                                    .padding(.trailing, 4)
-                                }
+                            HStack(spacing: 8) {
+                                IconManager.shared.loadImage(for: "icon_2403_64.png")
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
                                 
-                                if let progress = calculateProgress(item) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 2) {
-                                        Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                                  Int(progress.current), progress.total))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                                            .font(.headline)
+                                            .lineLimit(1)
                                         Spacer()
-                                        if item.isCurrentlyTraining {
-                                            if let remainingTime = item.remainingTime {
-                                                Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
-                                                          formatTimeInterval(remainingTime)))
+                                        // 添加等级指示器
+                                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                            .foregroundColor(.secondary)
+                                            .font(.caption)
+                                            .padding(.trailing, 2)
+                                        SkillLevelIndicator(
+                                            currentLevel: getCurrentLevel(for: item.skill_id),
+                                            trainingLevel: item.finished_level,
+                                            isTraining: item.isCurrentlyTraining
+                                        )
+                                        .padding(.trailing, 4)
+                                    }
+                                    
+                                    if let progress = calculateProgress(item) {
+                                        HStack(spacing: 2) {
+                                            Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
+                                                      Int(progress.current), progress.total))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Spacer()
+                                            if item.isCurrentlyTraining {
+                                                if let remainingTime = item.remainingTime {
+                                                    Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
+                                                              formatTimeInterval(remainingTime)))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            } else if let startDate = item.start_date,
+                                                      let finishDate = item.finish_date {
+                                                let trainingTime = finishDate.timeIntervalSince(startDate)
+                                                Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                          formatTimeInterval(trainingTime)))
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
                                             }
-                                        } else if let startDate = item.start_date,
-                                                  let finishDate = item.finish_date {
-                                            let trainingTime = finishDate.timeIntervalSince(startDate)
-                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                      formatTimeInterval(trainingTime)))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                         }
-                                    }
-                                    
-                                    // 只对正在训练的技能显示进度条
-                                    if item.isCurrentlyTraining {
-                                        ProgressView(value: progress.percentage)
-                                            .progressViewStyle(LinearProgressViewStyle())
-                                            .padding(.top, 1)
+                                        
+                                        // 只对正在训练的技能显示进度条
+                                        if item.isCurrentlyTraining {
+                                            ProgressView(value: progress.percentage)
+                                                .progressViewStyle(LinearProgressViewStyle())
+                                                .padding(.top, 1)
+                                        }
                                     }
                                 }
                             }
@@ -226,11 +233,21 @@ struct CharacterSkillsView: View {
         let components = formatTimeComponents(interval)
         
         if components.days > 0 {
-            return String(format: NSLocalizedString("Time_Days_Hours_Minutes", comment: ""), 
-                        components.days, components.hours, components.minutes)
+            if components.hours > 0 {
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                            components.days, components.hours)
+            } else {
+                return String(format: NSLocalizedString("Time_Days", comment: ""), 
+                            components.days)
+            }
         } else if components.hours > 0 {
-            return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
-                        components.hours, components.minutes)
+            if components.minutes > 0 {
+                return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                            components.hours, components.minutes)
+            } else {
+                return String(format: NSLocalizedString("Time_Hours", comment: ""), 
+                            components.hours)
+            }
         } else {
             return String(format: NSLocalizedString("Time_Minutes", comment: ""), 
                         components.minutes)
