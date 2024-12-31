@@ -37,6 +37,50 @@ class MainViewModel: ObservableObject {
         static let secondsInDay = 86400
         static let secondsInHour = 3600
         static let secondsInMinute = 60
+        static let maxRetryCount = 3
+        static let retryDelay: TimeInterval = 1.0
+    }
+    
+    // MARK: - Loading State
+    enum LoadingState: String {
+        case idle
+        case loadingPortrait
+        case loadingSkills
+        case loadingWallet
+        case loadingQueue
+        case loadingServerStatus
+        case loadingCloneStatus
+        
+        var isLoading: Bool {
+            self != .idle
+        }
+    }
+    
+    // MARK: - Error Handling
+    enum RefreshError: Error {
+        case skillInfoFailed
+        case walletFailed
+        case locationFailed
+        case cloneFailed
+        case serverStatusFailed
+        case portraitFailed
+        
+        var localizedDescription: String {
+            switch self {
+            case .skillInfoFailed:
+                return NSLocalizedString("Error_Skill_Info_Failed", comment: "")
+            case .walletFailed:
+                return NSLocalizedString("Error_Wallet_Failed", comment: "")
+            case .locationFailed:
+                return NSLocalizedString("Error_Location_Failed", comment: "")
+            case .cloneFailed:
+                return NSLocalizedString("Error_Clone_Failed", comment: "")
+            case .serverStatusFailed:
+                return NSLocalizedString("Error_Server_Status_Failed", comment: "")
+            case .portraitFailed:
+                return NSLocalizedString("Error_Portrait_Failed", comment: "")
+            }
+        }
     }
     
     // MARK: - Published Properties
@@ -45,21 +89,27 @@ class MainViewModel: ObservableObject {
     @Published var selectedCharacter: EVECharacterInfo?
     @Published var characterPortrait: UIImage?
     @Published var cloneJumpStatus: String = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-    
-    // MARK: - Loading States
     @Published var isRefreshing = false
-    @Published var isLoadingPortrait = false
-    @Published var isLoadingSkills = false
-    @Published var isLoadingWallet = false
-    @Published var isLoadingQueue = false
-    @Published var isLoadingServerStatus = false
-    @Published var isLoadingCloneStatus = false
+    @Published var loadingState: LoadingState = .idle
+    @Published var lastError: RefreshError?
     
     // MARK: - Private Properties
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-    private var cachedSkills: CharacterSkills?
-    private var cachedWalletBalance: Double?
-    private var cachedSkillQueue: [QueuedSkill]?
+    
+    // MARK: - Cache Management
+    private struct Cache {
+        var skills: CharacterSkills?
+        var walletBalance: Double?
+        var skillQueue: [QueuedSkill]?
+        
+        mutating func clear() {
+            skills = nil
+            walletBalance = nil
+            skillQueue = nil
+        }
+    }
+    
+    private var cache = Cache()
     
     // MARK: - Initialization
     init() {
@@ -135,13 +185,13 @@ class MainViewModel: ObservableObject {
     }
     
     private func processSkillInfo(skillsResponse: CharacterSkillsResponse, queue: [SkillQueueItem]) {
-        self.cachedSkills = CharacterSkills(
+        self.cache.skills = CharacterSkills(
             total_sp: skillsResponse.total_sp,
             unallocated_sp: skillsResponse.unallocated_sp
         )
         self.updateSkillPoints(skillsResponse.total_sp)
         
-        self.cachedSkillQueue = queue.map { skill in
+        self.cache.skillQueue = queue.map { skill in
             QueuedSkill(
                 skill_id: skill.skill_id,
                 skillLevel: skill.finished_level,
@@ -156,97 +206,104 @@ class MainViewModel: ObservableObject {
         )
     }
     
-    // MARK: - Public Methods
-    // 从本地快速更新数据（缓存+数据库）
-    func quickRefreshFromLocal() async {
-        guard let character = selectedCharacter else { return }
-        let service = CharacterDataService.shared
+    private func retryOperation<T>(
+        named operationName: String,
+        maxRetries: Int = Constants.maxRetryCount,
+        operation: () async throws -> T
+    ) async throws -> T {
+        var retryCount = 0
+        var lastError: Error?
         
-        // 并发执行所有请求
-        async let skillInfoTask = service.getSkillInfo(id: character.CharacterID)
-        async let walletTask = service.getWalletBalance(id: character.CharacterID)
-        async let locationTask = service.getLocation(id: character.CharacterID)
-        async let cloneTask = service.getCloneStatus(id: character.CharacterID)
-        
-        // 处理技能信息
-        if let (skillsResponse, queue) = try? await skillInfoTask {
-            processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+        while retryCount < maxRetries {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                retryCount += 1
+                if retryCount < maxRetries {
+                    Logger.warning("操作失败: \(operationName) (尝试 \(retryCount)/\(maxRetries)) - 错误: \(error)")
+                    try await Task.sleep(nanoseconds: UInt64(Constants.retryDelay * 1_000_000_000))
+                }
+            }
         }
         
-        // 处理钱包余额
-        if let balance = try? await walletTask {
-            self.cachedWalletBalance = balance
-            self.updateWalletBalance(balance)
-        }
-        
-        // 处理位置信息
-        if let location = try? await locationTask {
-            self.characterStats.location = location.locationStatus.description
-        }
-        
-        // 处理克隆状态
-        if let cloneInfo = try? await cloneTask {
-            self.updateCloneStatus(from: cloneInfo)
-        }
+        Logger.error("操作最终失败: \(operationName) - 错误: \(lastError?.localizedDescription ?? "未知错误")")
+        throw lastError ?? RefreshError.serverStatusFailed
     }
     
-    // 刷新所有数据
+    // MARK: - Public Methods
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
+        lastError = nil
         let service = CharacterDataService.shared
         
         // 并发执行所有请求
-        async let serverStatusTask = service.getServerStatus(forceRefresh: forceRefresh)
+        async let serverStatusTask = retryOperation(named: "获取服务器状态") {
+            try await service.getServerStatus(forceRefresh: forceRefresh)
+        }
         
         if let character = selectedCharacter {
-            async let skillInfoTask = service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
-            async let walletTask = service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
-            async let locationTask = service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
-            async let cloneTask = service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
-            
-            // 处理服务器状态
-            if let status = try? await serverStatusTask {
-                self.serverStatus = status
+            async let skillInfoTask = retryOperation(named: "获取技能信息") {
+                try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let walletTask = retryOperation(named: "获取钱包余额") {
+                try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let locationTask = retryOperation(named: "获取位置信息") {
+                try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let cloneTask = retryOperation(named: "获取克隆状态") {
+                try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
             }
             
-            // 处理技能信息
-            if let (skillsResponse, queue) = try? await skillInfoTask {
+            do {
+                // 处理服务器状态
+                self.serverStatus = try await serverStatusTask
+                
+                // 处理技能信息
+                let (skillsResponse, queue) = try await skillInfoTask
                 processSkillInfo(skillsResponse: skillsResponse, queue: queue)
-            }
-            
-            // 处理钱包余额
-            if let balance = try? await walletTask {
-                self.cachedWalletBalance = balance
+                
+                // 处理钱包余额
+                let balance = try await walletTask
+                self.cache.walletBalance = balance
                 self.updateWalletBalance(balance)
-            }
-            
-            // 处理位置信息
-            if let location = try? await locationTask {
+                
+                // 处理位置信息
+                let location = try await locationTask
                 self.characterStats.location = location.locationStatus.description
-            }
-            
-            // 处理克隆状态
-            if let cloneInfo = try? await cloneTask {
+                
+                // 处理克隆状态
+                let cloneInfo = try await cloneTask
                 self.updateCloneStatus(from: cloneInfo)
-            }
-            
-            // 如果没有头像，请求头像
-            if characterPortrait == nil {
-                if let portrait = try? await service.getCharacterPortrait(
-                    id: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    self.characterPortrait = portrait
+                
+                // 如果没有头像，请求头像
+                if characterPortrait == nil {
+                    loadingState = .loadingPortrait
+                    if let portrait = try? await service.getCharacterPortrait(
+                        id: character.CharacterID,
+                        forceRefresh: forceRefresh
+                    ) {
+                        self.characterPortrait = portrait
+                    }
+                    loadingState = .idle
                 }
+            } catch {
+                lastError = error as? RefreshError ?? .serverStatusFailed
+                Logger.error("刷新数据失败: \(error)")
             }
         } else {
             // 如果没有选中角色，只更新服务器状态
-            if let status = try? await serverStatusTask {
-                self.serverStatus = status
+            do {
+                self.serverStatus = try await serverStatusTask
+            } catch {
+                lastError = .serverStatusFailed
+                Logger.error("获取服务器状态失败: \(error)")
             }
         }
         
         isRefreshing = false
+        loadingState = .idle
     }
     
     // 加载保存的角色信息
@@ -276,18 +333,54 @@ class MainViewModel: ObservableObject {
         selectedCharacter = nil
         characterPortrait = nil
         isRefreshing = false
-        isLoadingPortrait = false
-        isLoadingSkills = false
-        isLoadingWallet = false
-        isLoadingQueue = false
-        isLoadingServerStatus = false
+        loadingState = .idle
         currentCharacterId = 0
+        lastError = nil
         
         // 清除缓存的数据
-        cachedSkills = nil
-        cachedWalletBalance = nil
-        cachedSkillQueue = nil
+        cache.clear()
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-        isLoadingCloneStatus = false
+    }
+    
+    // 从本地快速更新数据（缓存+数据库）
+    func quickRefreshFromLocal() async {
+        guard let character = selectedCharacter else { return }
+        let service = CharacterDataService.shared
+        
+        // 并发执行所有请求，不强制刷新
+        async let skillInfoTask = retryOperation(named: "快速获取技能信息") {
+            try await service.getSkillInfo(id: character.CharacterID)
+        }
+        async let walletTask = retryOperation(named: "快速获取钱包余额") {
+            try await service.getWalletBalance(id: character.CharacterID)
+        }
+        async let locationTask = retryOperation(named: "快速获取位置信息") {
+            try await service.getLocation(id: character.CharacterID)
+        }
+        async let cloneTask = retryOperation(named: "快速获取克隆状态") {
+            try await service.getCloneStatus(id: character.CharacterID)
+        }
+        
+        do {
+            // 处理技能信息
+            let (skillsResponse, queue) = try await skillInfoTask
+            processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+            
+            // 处理钱包余额
+            let balance = try await walletTask
+            self.cache.walletBalance = balance
+            self.updateWalletBalance(balance)
+            
+            // 处理位置信息
+            let location = try await locationTask
+            self.characterStats.location = location.locationStatus.description
+            
+            // 处理克隆状态
+            let cloneInfo = try await cloneTask
+            self.updateCloneStatus(from: cloneInfo)
+        } catch {
+            Logger.error("快速刷新数据失败: \(error)")
+            // 快速刷新失败不设置错误状态，因为这是一个静默的后台操作
+        }
     }
 } 
