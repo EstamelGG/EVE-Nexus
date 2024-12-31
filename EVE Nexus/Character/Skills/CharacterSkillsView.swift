@@ -100,7 +100,8 @@ struct CharacterSkillsView: View {
                                     if let progress = calculateProgress(item) {
                                         HStack(spacing: 2) {
                                             Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                                      Int(progress.current), progress.total))
+                                                      formatNumber(Int(progress.current)), 
+                                                      formatNumber(progress.total)))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                             Spacer()
@@ -252,5 +253,12 @@ struct CharacterSkillsView: View {
             return String(format: NSLocalizedString("Time_Minutes", comment: ""), 
                         components.minutes)
         }
+    }
+    
+    private func formatNumber(_ number: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: number)) ?? String(number)
     }
 }

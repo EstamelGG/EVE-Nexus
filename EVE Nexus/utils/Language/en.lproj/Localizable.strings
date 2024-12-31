@@ -490,7 +490,7 @@
 "Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
 "Main_Skills_Queue_Empty" = "No skills in training queue";
 "Main_Skills_Level" = "Lv %d";
-"Main_Skills_Points_Progress" = "%d / %d SP";
+"Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "Remaining: %@";
 "Main_Skills_Time_Required" = "Required: %@";
 "Main_Database_Loading" = "Loading...";
