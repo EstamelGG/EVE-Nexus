@@ -506,7 +506,10 @@ struct ContentView: View {
             
             NavigationLink {
                 if let character = viewModel.selectedCharacter {
-                    CharacterSkillsView(characterId: character.CharacterID)
+                    CharacterSkillsView(
+                        characterId: character.CharacterID,
+                        databaseManager: databaseManager
+                    )
                 }
             } label: {
                 RowView(

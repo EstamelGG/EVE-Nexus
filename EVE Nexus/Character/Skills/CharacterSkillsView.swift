@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CharacterSkillsView: View {
     let characterId: Int
+    let databaseManager: DatabaseManager
     @State private var skillQueue: [SkillQueueItem] = []
     @State private var skillNames: [Int: String] = [:]
     
@@ -30,24 +31,31 @@ struct CharacterSkillsView: View {
                                 .foregroundColor(.secondary)
                         }
                         
-                        HStack {
-                            // 显示技能点进度
+                        // 只有当技能正在训练时才显示进度信息
+                        if item.isCurrentlyTraining {
                             if let progress = calculateProgress(item) {
-                                Text("\(Int(progress.current))SP/\(progress.total)SP")
-                                    .font(.caption)
-                                Spacer()
-                                if let remainingTime = item.remainingTime {
-                                    Text(formatTimeInterval(remainingTime))
+                                HStack {
+                                    Text("\(Int(progress.current))SP/\(progress.total)SP")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    if let remainingTime = item.remainingTime {
+                                        Text(formatTimeInterval(remainingTime))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+                                
+                                // 进度条
+                                ProgressView(value: progress.percentage)
+                                    .progressViewStyle(LinearProgressViewStyle())
                             }
-                        }
-                        
-                        // 进度条
-                        if let progress = calculateProgress(item) {
-                            ProgressView(value: progress.percentage)
-                                .progressViewStyle(LinearProgressViewStyle())
+                        } else {
+                            // 对于未开始训练的技能，只显示开始时间
+                            if let startDate = item.start_date {
+                                Text("开始时间: \(formatDate(startDate))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .padding(.vertical, 4)
@@ -59,6 +67,12 @@ struct CharacterSkillsView: View {
         }
     }
     
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm"
+        return formatter.string(from: date)
+    }
+    
     private func loadSkillQueue() {
         Task {
             do {
@@ -67,10 +81,10 @@ struct CharacterSkillsView: View {
                 
                 // 加载技能名称
                 for item in skillQueue {
-                    let query = "SELECT itemName FROM invTypes WHERE typeID = ?"
-                    if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [item.skill_id]),
+                    let query = "SELECT name FROM types WHERE type_id = ?"
+                    if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
                        let row = rows.first,
-                       let name = row["itemName"] as? String {
+                       let name = row["name"] as? String {
                         skillNames[item.skill_id] = name
                     }
                 }
@@ -87,22 +101,37 @@ struct CharacterSkillsView: View {
     }
     
     private func calculateProgress(_ item: SkillQueueItem) -> ProgressInfo? {
-        guard let startDate = item.start_date,
-              let finishDate = item.finish_date,
-              let levelStartSp = item.level_start_sp,
-              let levelEndSp = item.level_end_sp,
+        guard let levelEndSp = item.level_end_sp,
               let trainingStartSp = item.training_start_sp else {
             return nil
         }
         
-        let now = Date()
-        let totalTrainingTime = finishDate.timeIntervalSince(startDate)
-        let trainedTime = now.timeIntervalSince(startDate)
-        let timeProgress = trainedTime / totalTrainingTime
+        var currentSP = Double(trainingStartSp)
         
-        let remainingSP = levelEndSp - trainingStartSp
-        let trainedSP = Double(remainingSP) * timeProgress
-        let currentSP = Double(trainingStartSp) + trainedSP
+        // 如果技能正在训练中，计算当前进度
+        if let startDate = item.start_date,
+           let finishDate = item.finish_date {
+            let now = Date()
+            
+            // 如果还没开始训练
+            if now < startDate {
+                currentSP = Double(trainingStartSp)
+            }
+            // 如果已经完成训练
+            else if now > finishDate {
+                currentSP = Double(levelEndSp)
+            }
+            // 正在训练中
+            else {
+                let totalTrainingTime = finishDate.timeIntervalSince(startDate)
+                let trainedTime = now.timeIntervalSince(startDate)
+                let timeProgress = trainedTime / totalTrainingTime
+                
+                let remainingSP = levelEndSp - trainingStartSp
+                let trainedSP = Double(remainingSP) * timeProgress
+                currentSP = Double(trainingStartSp) + trainedSP
+            }
+        }
         
         return ProgressInfo(
             current: currentSP,
@@ -124,4 +153,8 @@ struct CharacterSkillsView: View {
             return "\(minutes)分"
         }
     }
+}
+
+#Preview {
+    CharacterSkillsView(characterId: 0, databaseManager: DatabaseManager())
 }
