@@ -80,119 +80,127 @@ struct CharacterClonesView: View {
     
     var body: some View {
         List {
-            // 基地空间站信息
-            Section(NSLocalizedString("Character_Home_Station", comment: "")) {
-                if let cloneInfo = cloneInfo {
-                    // 基地位置信息
-                    if let locationDetail = homeLocationDetail {
-                        HStack {
-                            if let typeId = locationTypeId,
-                               let iconFileName = getStationIcon(typeId: typeId, databaseManager: databaseManager) {
-                                IconManager.shared.loadImage(for: iconFileName)
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
-                            } else {
-                                IconManager.shared.loadImage(for: "icon_0_64.png")
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else {
+                // 基地空间站信息
+                Section(NSLocalizedString("Character_Home_Station", comment: "")) {
+                    if let cloneInfo = cloneInfo {
+                        // 基地位置信息
+                        if let locationDetail = homeLocationDetail {
+                            HStack {
+                                if let typeId = locationTypeId,
+                                   let iconFileName = getStationIcon(typeId: typeId, databaseManager: databaseManager) {
+                                    IconManager.shared.loadImage(for: iconFileName)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                } else {
+                                    IconManager.shared.loadImage(for: "icon_0_64.png")
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("Character_Home_Location", comment: ""))
+                                    LocationInfoView(
+                                        stationName: locationDetail.stationName,
+                                        solarSystemName: locationDetail.solarSystemName,
+                                        security: locationDetail.security,
+                                        font: .caption,
+                                        textColor: .secondary
+                                    )
+                                }
                             }
+                            .frame(height: 36)
+                        }
+                        
+                        // 最后跳跃时间
+                        if let lastJumpDate = cloneInfo.last_clone_jump_date,
+                           let date = dateFormatter.date(from: lastJumpDate) {
+                            HStack {
+                                Image("jumpclones")
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("Character_Last_Clone_Jump", comment: ""))
+                                    Text(formatDate(date))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(height: 36)
+                        }
+                        
+                        // 最后空间站变更时间
+                        if let lastStationDate = cloneInfo.last_station_change_date,
+                           let date = dateFormatter.date(from: lastStationDate) {
+                            HStack {
+                                Image("station")
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(NSLocalizedString("Character_Last_Station_Change", comment: ""))
+                                    Text(formatDate(date))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .frame(height: 36)
+                        }
+                    }
+                }
+                
+                // 当前植入体信息
+                Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
+                    ForEach(implantDetails, id: \.typeId) { implant in
+                        HStack(alignment: .center, spacing: 8) {
+                            IconManager.shared.loadImage(for: implant.icon)
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
                             
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Character_Home_Location", comment: ""))
-                                LocationInfoView(
-                                    stationName: locationDetail.stationName,
-                                    solarSystemName: locationDetail.solarSystemName,
-                                    security: locationDetail.security,
-                                    font: .caption,
-                                    textColor: .secondary
+                            Text(implant.name)
+                                .font(.body)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.leading)
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(2)
+                            
+                            Spacer(minLength: 0)
+                        }
+                        .frame(height: 36)
+                    }
+                }
+                
+                // 克隆体列表
+                Section(NSLocalizedString("Character_Jump_Clones", comment: "")) {
+                    if cloneInfo != nil {
+                        ForEach(mergedCloneLocations) { location in
+                            NavigationLink {
+                                CloneLocationDetailView(
+                                    clones: location.clones,
+                                    databaseManager: databaseManager
+                                )
+                            } label: {
+                                CloneLocationRow(
+                                    locationId: location.locationId,
+                                    locationType: location.locationType,
+                                    databaseManager: databaseManager,
+                                    locationLoader: locationLoader,
+                                    characterId: character.CharacterID,
+                                    cloneCount: location.cloneCount
                                 )
                             }
-                        }
-                        .frame(height: 36)
-                    }
-                    
-                    // 最后跳跃时间
-                    if let lastJumpDate = cloneInfo.last_clone_jump_date,
-                       let date = dateFormatter.date(from: lastJumpDate) {
-                        HStack {
-                            Image("jumpclones")
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Character_Last_Clone_Jump", comment: ""))
-                                Text(formatDate(date))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .frame(height: 36)
-                    }
-                    
-                    // 最后空间站变更时间
-                    if let lastStationDate = cloneInfo.last_station_change_date,
-                       let date = dateFormatter.date(from: lastStationDate) {
-                        HStack {
-                            Image("station")
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Character_Last_Station_Change", comment: ""))
-                                Text(formatDate(date))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .frame(height: 36)
-                    }
-                }
-            }
-            
-            // 当前植入体信息
-            Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
-                ForEach(implantDetails, id: \.typeId) { implant in
-                    HStack(alignment: .center, spacing: 8) {
-                        IconManager.shared.loadImage(for: implant.icon)
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                        
-                        Text(implant.name)
-                            .font(.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .multilineTextAlignment(.leading)
-                            .minimumScaleFactor(0.5)
-                            .lineLimit(2)
-                        
-                        Spacer(minLength: 0)
-                    }
-                    .frame(height: 36)
-                }
-            }
-            
-            // 克隆体列表
-            Section(NSLocalizedString("Character_Jump_Clones", comment: "")) {
-                if cloneInfo != nil {
-                    ForEach(mergedCloneLocations) { location in
-                        NavigationLink {
-                            CloneLocationDetailView(
-                                clones: location.clones,
-                                databaseManager: databaseManager
-                            )
-                        } label: {
-                            CloneLocationRow(
-                                locationId: location.locationId,
-                                locationType: location.locationType,
-                                databaseManager: databaseManager,
-                                locationLoader: locationLoader,
-                                characterId: character.CharacterID,
-                                cloneCount: location.cloneCount
-                            )
                         }
                     }
                 }
