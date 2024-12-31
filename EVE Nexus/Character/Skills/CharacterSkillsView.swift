@@ -19,12 +19,12 @@ struct CharacterSkillsView: View {
             }
             
             // 第二个列表 - 技能队列
-            Section(header: Text("技能队列")) {
+            Section(header: Text(NSLocalizedString("Main_Skills_Queue", comment: ""))) {
                 ForEach(skillQueue.filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
                     .sorted { $0.queue_position < $1.queue_position }, id: \.queue_position) { item in
                     VStack(alignment: .leading) {
                         HStack {
-                            Text(skillNames[item.skill_id] ?? "未知技能")
+                            Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
                                 .font(.headline)
                             Spacer()
                             Text("Lv\(item.finished_level)")
@@ -45,7 +45,9 @@ struct CharacterSkillsView: View {
                                 } else if let startDate = item.start_date,
                                           let finishDate = item.finish_date {
                                     let trainingTime = finishDate.timeIntervalSince(startDate)
-                                    Text("需要: \(formatTimeInterval(trainingTime))")
+                                    Text(String(format: NSLocalizedString("Industry_Remaining_Days_Hours", comment: ""), 
+                                              formatTimeComponents(trainingTime).days,
+                                              formatTimeComponents(trainingTime).hours))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -67,10 +69,11 @@ struct CharacterSkillsView: View {
         }
     }
     
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm"
-        return formatter.string(from: date)
+    private func formatTimeComponents(_ interval: TimeInterval) -> (days: Int, hours: Int, minutes: Int) {
+        let days = Int(interval) / (24 * 3600)
+        let hours = Int(interval) / 3600 % 24
+        let minutes = Int(interval) / 60 % 60
+        return (days, hours, minutes)
     }
     
     private func loadSkillQueue() {
@@ -141,16 +144,17 @@ struct CharacterSkillsView: View {
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let days = Int(interval) / (24 * 3600)
-        let hours = Int(interval) / 3600 % 24
-        let minutes = Int(interval) / 60 % 60
+        let components = formatTimeComponents(interval)
         
-        if days > 0 {
-            return "\(days)天 \(hours)小时"
-        } else if hours > 0 {
-            return "\(hours)小时 \(minutes)分"
+        if components.days > 0 {
+            return String(format: NSLocalizedString("Time_Days_Hours_Minutes", comment: ""), 
+                        components.days, components.hours, components.minutes)
+        } else if components.hours > 0 {
+            return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                        components.hours, components.minutes)
         } else {
-            return "\(minutes)分"
+            return String(format: NSLocalizedString("Time_Minutes", comment: ""), 
+                        components.minutes)
         }
     }
 }
