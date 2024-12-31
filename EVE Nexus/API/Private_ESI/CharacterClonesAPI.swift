@@ -106,6 +106,40 @@ class CharacterClonesAPI {
         return nil
     }
     
+    // 获取克隆体跳跃剩余时间（小时）
+    func getJumpCooldownHours(characterId: Int) async -> Double? {
+        let query = """
+            SELECT last_clone_jump_date 
+            FROM clones 
+            WHERE character_id = ?
+            ORDER BY last_updated DESC
+            LIMIT 1
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [characterId]),
+           let row = rows.first,
+           let lastJumpDateStr = row["last_clone_jump_date"] as? String {
+            
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            
+            if let lastJumpDate = dateFormatter.date(from: lastJumpDateStr) {
+                let now = Date()
+                let timeSinceLastJump = now.timeIntervalSince(lastJumpDate)
+                let cooldownPeriod: TimeInterval = 24 * 3600 // 24小时的冷却时间
+                
+                if timeSinceLastJump >= cooldownPeriod {
+                    return 0 // 可以跳跃
+                } else {
+                    let remainingTime = cooldownPeriod - timeSinceLastJump
+                    return remainingTime / 3600 // 转换为小时
+                }
+            }
+        }
+        
+        return nil // 没有找到上次跳跃记录，说明可以跳跃
+    }
+    
     // 获取克隆体信息
     func fetchCharacterClones(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterCloneInfo {
         // 如果不是强制刷新，先尝试从数据库加载

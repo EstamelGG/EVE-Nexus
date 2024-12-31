@@ -473,3 +473,5 @@
 "Character_Clone_ID" = "Clone #%d";
 "Main_Jump_Clones" = "Clone Status";
 "Main_Jump_Clones_Available" = "Available Clones";
+"Main_Jump_Clones_Ready" = "Ready to Jump";
+"Main_Jump_Clones_Cooldown" = "%d hours remaining";
