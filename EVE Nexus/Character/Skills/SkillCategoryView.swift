@@ -50,7 +50,6 @@ struct SkillCategoryView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.name)
-                                .font(.headline)
                             Text("\(group.skills.count)/\(group.totalSkillsInGroup)个技能 - \(formatNumber(group.totalSkillPoints))SP")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -198,8 +197,6 @@ struct SkillGroupDetailView: View {
                                 .lineLimit(1)
                             if skill.timeMultiplier >= 1 {
                                 Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
                             }
                             Spacer()
                             Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), skill.currentLevel ?? 0))

@@ -505,9 +505,9 @@
 "Character_Attribute_Willpower" = "意志";
 "Character_Attribute_Intelligence" = "智力";
 "Character_Attribute_Charisma" = "魅力";
-"Character_Attributes_Bonus_Remaps" = "可用重映射次数";
-"Character_Attributes_Last_Remap" = "上次重映射时间";
-"Character_Attributes_Next_Remap" = "下次可重映射时间";
+"Character_Attributes_Bonus_Remaps" = "可用重置次数";
+"Character_Attributes_Last_Remap" = "上次重置时间";
+"Character_Attributes_Next_Remap" = "下次可重置时间";
 "Character_Attributes_Load_Failed" = "加载属性失败";
 
 // Character Attributes Time
