@@ -113,7 +113,7 @@ struct AttributeRow: View {
         HStack {
             Image(icon)
                 .resizable()
-                .frame(width: 36, height: 36)
+                .frame(width: 32, height: 32)
                 .cornerRadius(6)
                 .drawingGroup()
             Text(name)
