@@ -488,6 +488,7 @@
 "Main_Skills_Time_Remaining" = "剩余: %@";
 "Main_Skills_Time_Required" = "需要: %@";
 "Main_Skills_Categories" = "技能目录";
+"Main_Skills_Not_Injected" = "未吸收";
 
 // 时间显示
 "Time_Days_Hours" = "%dd %dh";

@@ -199,16 +199,23 @@ struct SkillGroupDetailView: View {
                                 Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
                             }
                             Spacer()
-                            Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), skill.currentLevel ?? 0))
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                                .padding(.trailing, 2)
-                            SkillLevelIndicator(
-                                currentLevel: skill.currentLevel ?? 0,
-                                trainingLevel: skill.currentLevel ?? 0,
-                                isTraining: false
-                            )
-                            .padding(.trailing, 4)
+                            if let currentLevel = skill.currentLevel {
+                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                    .padding(.trailing, 2)
+                                SkillLevelIndicator(
+                                    currentLevel: currentLevel,
+                                    trainingLevel: currentLevel,
+                                    isTraining: false
+                                )
+                                .padding(.trailing, 4)
+                            } else {
+                                Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                                    .padding(.trailing, 4)
+                            }
                         }
                         
                         let maxSkillPoints = Int(256000 * skill.timeMultiplier)
