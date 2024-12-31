@@ -28,12 +28,15 @@ class MainViewModel: ObservableObject {
     @Published var isLoadingWallet = false
     @Published var isLoadingQueue = false
     @Published var isLoadingServerStatus = false
+    @Published var isLoadingCloneStatus = false
+    @Published var cloneJumpStatus: String = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     
     // 缓存最新的数据
     private var cachedSkills: CharacterSkills?
     private var cachedWalletBalance: Double?
     private var cachedSkillQueue: [QueuedSkill]?
+    private var cachedCloneJumpHours: Double?
     
     // 提供访问缓存数据的方法
     var skills: CharacterSkills? { cachedSkills }
@@ -308,6 +311,33 @@ class MainViewModel: ObservableObject {
                     }
                 }
             }
+            
+            // 克隆体状态请求
+            Task {
+                await MainActor.run { self.isLoadingCloneStatus = true }
+                if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(
+                    characterId: character.CharacterID
+                ) {
+                    await MainActor.run {
+                        // 更新内存缓存
+                        self.cachedCloneJumpHours = remainingHours
+                        
+                        if remainingHours <= 0 {
+                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                        } else {
+                            let hours = Int(ceil(remainingHours))
+                            self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+                        }
+                        
+                        self.isLoadingCloneStatus = false
+                    }
+                } else {
+                    await MainActor.run {
+                        self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                        self.isLoadingCloneStatus = false
+                    }
+                }
+            }
         }
         
         // 立即结束全局刷新状态
@@ -331,6 +361,9 @@ class MainViewModel: ObservableObject {
         cachedSkills = nil
         cachedWalletBalance = nil
         cachedSkillQueue = nil
+        cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+        isLoadingCloneStatus = false
+        cachedCloneJumpHours = nil
     }
     
     // 从本地快速更新数据（缓存+数据库）
@@ -408,6 +441,23 @@ class MainViewModel: ObservableObject {
             // 更新位置信息
             await MainActor.run {
                 self.characterStats.location = location.locationStatus.description
+            }
+        }
+        
+        // 从数据库读取克隆体状态
+        if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(characterId: character.CharacterID) {
+            await MainActor.run {
+                self.cachedCloneJumpHours = remainingHours
+                if remainingHours <= 0 {
+                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                } else {
+                    let hours = Int(ceil(remainingHours))
+                    self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+                }
+            }
+        } else {
+            await MainActor.run {
+                self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
             }
         }
     }
