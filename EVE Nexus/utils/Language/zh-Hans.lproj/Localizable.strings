@@ -480,7 +480,7 @@
 // Skills View
 "Main_Skills_Details" = "技能详情";
 "Main_Skills_Groups" = "技能组详情";
-"Main_Skills_Level" = "等级 %d";
-"Main_Skills_Points_Progress" = "%dSP/%dSP";
+"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Points_Progress" = "%dSP/%d SP";
 "Main_Skills_Time_Remaining" = "剩余: %@";
 "Main_Skills_Time_Required" = "需要: %@";

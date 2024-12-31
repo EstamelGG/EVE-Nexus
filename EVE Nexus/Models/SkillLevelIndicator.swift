@@ -9,11 +9,11 @@ struct SkillLevelIndicator: View {
     @State private var isBlinking = false
     
     // 常量定义
-    private let frameWidth: CGFloat = 37
-    private let frameHeight: CGFloat = 6
-    private let blockWidth: CGFloat = 6
-    private let blockHeight: CGFloat = 4
-    private let blockSpacing: CGFloat = 1
+    private let frameWidth: CGFloat = 55.5  // 37 * 1.5
+    private let frameHeight: CGFloat = 9    // 6 * 1.5
+    private let blockWidth: CGFloat = 9     // 6 * 1.5
+    private let blockHeight: CGFloat = 6    // 4 * 1.5
+    private let blockSpacing: CGFloat = 1.5 // 1 * 1.5
     
     // 颜色定义
     private let darkGray = Color.gray.opacity(0.8)
@@ -37,7 +37,7 @@ struct SkillLevelIndicator: View {
                         .opacity(blockOpacity(for: index))
                 }
             }
-            .offset(x: blockSpacing + 0.5) // 0.5是边框宽度，加上1像素间距
+            .offset(x: blockSpacing + 0.5) // 0.5是边框宽度，加上1.5像素间距
         }
         .onAppear {
             if isTraining {
