@@ -45,11 +45,14 @@ struct CharacterSkillsView: View {
                 } label: {
                     Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
                 }
+                .frame(height: 36)
+                
                 NavigationLink {
                     Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
                 } label: {
                     Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
                 }
+                .frame(height: 36)
             } header: {
                 Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
             }
@@ -59,6 +62,7 @@ struct CharacterSkillsView: View {
                 if skillQueue.isEmpty {
                     Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: ""))
                         .foregroundColor(.secondary)
+                        .frame(height: 36)
                 } else {
                     ForEach(activeSkills) { item in
                         NavigationLink {
@@ -68,14 +72,17 @@ struct CharacterSkillsView: View {
                                 itemID: item.skill_id
                             )
                         } label: {
-                            VStack(alignment: .leading) {
-                                HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 2) {
                                     Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                        .font(.headline).lineLimit(1)
+                                        .font(.headline)
+                                        .lineLimit(1)
                                     Spacer()
                                     // 添加等级指示器
                                     Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
                                         .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .padding(.trailing, 2)
                                     SkillLevelIndicator(
                                         currentLevel: getCurrentLevel(for: item.skill_id),
                                         trainingLevel: item.finished_level,
@@ -85,10 +92,11 @@ struct CharacterSkillsView: View {
                                 }
                                 
                                 if let progress = calculateProgress(item) {
-                                    HStack {
+                                    HStack(spacing: 2) {
                                         Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
                                                   Int(progress.current), progress.total))
                                             .font(.caption)
+                                            .foregroundColor(.secondary)
                                         Spacer()
                                         if item.isCurrentlyTraining {
                                             if let remainingTime = item.remainingTime {
@@ -111,11 +119,12 @@ struct CharacterSkillsView: View {
                                     if item.isCurrentlyTraining {
                                         ProgressView(value: progress.percentage)
                                             .progressViewStyle(LinearProgressViewStyle())
+                                            .padding(.top, 1)
                                     }
                                 }
                             }
-                            .padding(.vertical, 4)
                         }
+                        .frame(height: item.isCurrentlyTraining ? 44 : 36)
                     }
                 }
             } header: {
