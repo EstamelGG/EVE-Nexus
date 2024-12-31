@@ -304,57 +304,18 @@ class MainViewModel: ObservableObject {
     // 从本地快速更新数据（缓存+数据库）
     func quickRefreshFromLocal() async {
         guard let character = selectedCharacter else { return }
+        let service = CharacterDataService.shared
         
-        // 从数据库读取技能信息
-        let query = """
-            SELECT skills_data, total_sp, unallocated_sp 
-            FROM character_skills 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-        """
-        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [character.CharacterID]),
-           let row = result.first,
-           let totalSp = row["total_sp"] as? Int,
-           let unallocatedSp = row["unallocated_sp"] as? Int {
+        // 技能信息和队列
+        if let (skillsResponse, queue) = try? await service.getSkillInfo(id: character.CharacterID) {
             await MainActor.run {
                 self.cachedSkills = CharacterSkills(
-                    total_sp: totalSp,
-                    unallocated_sp: unallocatedSp
+                    total_sp: skillsResponse.total_sp,
+                    unallocated_sp: skillsResponse.unallocated_sp
                 )
-                self.updateSkillPoints(totalSp)
-            }
-        }
-        
-        // 从缓存读取钱包余额
-        let balanceString = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
-        if !balanceString.isEmpty {
-            Logger.info("尝试读取钱包余额缓存 - 角色ID: \(character.CharacterID)")
-            if let balance = Double(balanceString) {
-                Logger.info("成功读取钱包余额缓存: \(balance) ISK")
-                await MainActor.run {
-                    self.cachedWalletBalance = balance
-                    self.updateWalletBalance(balance)
-                }
-            } else {
-                Logger.warning("钱包余额缓存格式错误: \(balanceString)")
-            }
-        } else {
-            Logger.warning("未找到钱包余额缓存 - 角色ID: \(character.CharacterID)")
-        }
-        
-        // 从数据库读取技能队列
-        let queueQuery = """
-            SELECT queue_data 
-            FROM character_skill_queue 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-        """
-        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(queueQuery, parameters: [character.CharacterID]),
-           let row = result.first,
-           let queueData = row["queue_data"] as? String,
-           let queueResponse = try? JSONDecoder().decode([SkillQueueItem].self, from: queueData.data(using: .utf8) ?? Data()) {
-            await MainActor.run {
-                self.cachedSkillQueue = queueResponse.map { skill in
+                self.updateSkillPoints(skillsResponse.total_sp)
+                
+                self.cachedSkillQueue = queue.map { skill in
                     QueuedSkill(
                         skill_id: skill.skill_id,
                         skillLevel: skill.finished_level,
@@ -364,35 +325,49 @@ class MainViewModel: ObservableObject {
                     )
                 }
                 self.updateQueueStatus(
-                    length: queueResponse.count,
-                    finishTime: queueResponse.last?.remainingTime
+                    length: queue.count,
+                    finishTime: queue.last?.remainingTime
                 )
             }
         }
         
-        // 从 UserDefaults 读取位置信息
-        if let locationData = UserDefaults.standard.data(forKey: "location_\(character.CharacterID)"),
-           let location = try? JSONDecoder().decode(CharacterLocation.self, from: locationData) {
-            // 更新位置信息
+        // 钱包余额
+        if let balance = try? await service.getWalletBalance(id: character.CharacterID) {
+            await MainActor.run {
+                self.cachedWalletBalance = balance
+                self.updateWalletBalance(balance)
+            }
+        }
+        
+        // 位置信息
+        if let location = try? await service.getLocation(id: character.CharacterID) {
             await MainActor.run {
                 self.characterStats.location = location.locationStatus.description
             }
         }
         
-        // 从数据库读取克隆体状态
-        if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(characterId: character.CharacterID) {
+        // 克隆状态
+        if let cloneInfo = try? await service.getCloneStatus(id: character.CharacterID) {
             await MainActor.run {
-                self.cachedCloneJumpHours = remainingHours
-                if remainingHours <= 0 {
-                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                if let lastJumpDate = cloneInfo.last_clone_jump_date {
+                    let dateFormatter = ISO8601DateFormatter()
+                    dateFormatter.formatOptions = [.withInternetDateTime]
+                    
+                    if let jumpDate = dateFormatter.date(from: lastJumpDate) {
+                        let now = Date()
+                        let timeSinceLastJump = now.timeIntervalSince(jumpDate)
+                        let cooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
+                        
+                        if timeSinceLastJump >= cooldownPeriod {
+                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                        } else {
+                            let remainingHours = Int(ceil((cooldownPeriod - timeSinceLastJump) / 3600))
+                            self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
+                        }
+                    }
                 } else {
-                    let hours = Int(ceil(remainingHours))
-                    self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
                 }
-            }
-        } else {
-            await MainActor.run {
-                self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
             }
         }
     }
