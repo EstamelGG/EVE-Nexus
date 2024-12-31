@@ -476,3 +476,11 @@
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
 "Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
 "Character_Never" = "从未";
+
+// Skills View
+"Main_Skills_Details" = "技能详情";
+"Main_Skills_Groups" = "技能组详情";
+"Main_Skills_Level" = "等级 %d";
+"Main_Skills_Points_Progress" = "%dSP/%dSP";
+"Main_Skills_Time_Remaining" = "剩余: %@";
+"Main_Skills_Time_Required" = "需要: %@";

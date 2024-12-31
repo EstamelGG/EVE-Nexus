@@ -476,3 +476,19 @@
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
 "Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
 "Character_Never" = "Never";
+
+// Skills View
+"Main_Skills_Details" = "Skills Details";
+"Main_Skills_Groups" = "Skill Groups";
+"Main_Skills_Queue" = "Skill Queue";
+"Main_Skills_Queue_Empty" = "No skills in training queue";
+"Main_Skills_Level" = "Level %d";
+"Main_Skills_Points_Progress" = "%dSP/%dSP";
+"Main_Skills_Time_Remaining" = "Remaining: %@";
+"Main_Skills_Time_Required" = "Required: %@";
+"Main_Database_Loading" = "Loading...";
+
+// Time Format
+"Time_Days_Hours_Minutes" = "%dd %dh %dm";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";

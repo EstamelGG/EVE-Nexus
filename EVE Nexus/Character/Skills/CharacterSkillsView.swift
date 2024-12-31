@@ -10,57 +10,63 @@ struct CharacterSkillsView: View {
         List {
             // 第一个列表 - 两个可点击单元格
             Section {
-                NavigationLink(destination: Text("技能详情")) {
-                    Text("技能详情")
+                NavigationLink(destination: Text(NSLocalizedString("Main_Skills_Details", comment: ""))) {
+                    Text(NSLocalizedString("Main_Skills_Details", comment: ""))
                 }
-                NavigationLink(destination: Text("技能组详情")) {
-                    Text("技能组详情")
+                NavigationLink(destination: Text(NSLocalizedString("Main_Skills_Groups", comment: ""))) {
+                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
                 }
             }
             
             // 第二个列表 - 技能队列
             Section(header: Text(NSLocalizedString("Main_Skills_Queue", comment: ""))) {
-                ForEach(skillQueue.filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
-                    .sorted { $0.queue_position < $1.queue_position }, id: \.queue_position) { item in
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                .font(.headline)
-                            Spacer()
-                            Text("Lv\(item.finished_level)")
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        if let progress = calculateProgress(item) {
+                if skillQueue.isEmpty {
+                    Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: ""))
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(skillQueue.filter { $0.finish_date?.timeIntervalSinceNow ?? -1 > 0 }
+                        .sorted { $0.queue_position < $1.queue_position }, id: \.queue_position) { item in
+                        VStack(alignment: .leading) {
                             HStack {
-                                Text("\(Int(progress.current))SP/\(progress.total)SP")
-                                    .font(.caption)
+                                Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                                    .font(.headline)
                                 Spacer()
-                                if item.isCurrentlyTraining {
-                                    if let remainingTime = item.remainingTime {
-                                        Text(formatTimeInterval(remainingTime))
+                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            if let progress = calculateProgress(item) {
+                                HStack {
+                                    Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
+                                              Int(progress.current), progress.total))
+                                        .font(.caption)
+                                    Spacer()
+                                    if item.isCurrentlyTraining {
+                                        if let remainingTime = item.remainingTime {
+                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
+                                                      formatTimeInterval(remainingTime)))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    } else if let startDate = item.start_date,
+                                              let finishDate = item.finish_date {
+                                        let trainingTime = finishDate.timeIntervalSince(startDate)
+                                        Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                  formatTimeInterval(trainingTime)))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
-                                } else if let startDate = item.start_date,
-                                          let finishDate = item.finish_date {
-                                    let trainingTime = finishDate.timeIntervalSince(startDate)
-                                    Text(String(format: NSLocalizedString("Industry_Remaining_Days_Hours", comment: ""), 
-                                              formatTimeComponents(trainingTime).days,
-                                              formatTimeComponents(trainingTime).hours))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                }
+                                
+                                // 只对正在训练的技能显示进度条
+                                if item.isCurrentlyTraining {
+                                    ProgressView(value: progress.percentage)
+                                        .progressViewStyle(LinearProgressViewStyle())
                                 }
                             }
-                            
-                            // 只对正在训练的技能显示进度条
-                            if item.isCurrentlyTraining {
-                                ProgressView(value: progress.percentage)
-                                    .progressViewStyle(LinearProgressViewStyle())
-                            }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
             }
         }
