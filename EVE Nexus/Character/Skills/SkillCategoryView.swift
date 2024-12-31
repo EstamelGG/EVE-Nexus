@@ -49,6 +49,7 @@ struct SkillCategoryView: View {
                                 .foregroundColor(.secondary)
                         }
                     }
+                    .frame(height: 36)
                 }
             }
         }
