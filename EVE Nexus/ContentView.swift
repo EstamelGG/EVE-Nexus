@@ -500,7 +500,7 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Jump_Clones", comment: ""),
                     icon: "jumpclones",
-                    note: NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+                    note: viewModel.cloneJumpStatus
                 )
             }
             
