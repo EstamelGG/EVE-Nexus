@@ -96,7 +96,6 @@ struct CharacterSkillsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 2) {
                                         Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                            .font(.headline)
                                             .lineLimit(1)
                                         Spacer()
                                         // 添加等级指示器
