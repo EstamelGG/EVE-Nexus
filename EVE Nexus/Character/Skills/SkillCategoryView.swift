@@ -191,41 +191,48 @@ struct SkillGroupDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 ForEach(allSkills, id: \.typeId) { skill in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(skill.name)
-                                .lineLimit(1)
-                            if skill.timeMultiplier >= 1 {
-                                Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
-                            }
-                            Spacer()
-                            if let currentLevel = skill.currentLevel {
-                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
-                                    .padding(.trailing, 2)
-                                SkillLevelIndicator(
-                                    currentLevel: currentLevel,
-                                    trainingLevel: currentLevel,
-                                    isTraining: false
-                                )
-                                .padding(.trailing, 4)
-                            } else {
-                                Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
-                                    .foregroundColor(.secondary)
-                                    .font(.caption)
+                    NavigationLink {
+                        ShowItemInfo(
+                            databaseManager: databaseManager,
+                            itemID: skill.typeId
+                        )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(skill.name)
+                                    .lineLimit(1)
+                                if skill.timeMultiplier >= 1 {
+                                    Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
+                                }
+                                Spacer()
+                                if let currentLevel = skill.currentLevel {
+                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .padding(.trailing, 2)
+                                    SkillLevelIndicator(
+                                        currentLevel: currentLevel,
+                                        trainingLevel: currentLevel,
+                                        isTraining: false
+                                    )
                                     .padding(.trailing, 4)
+                                } else {
+                                    Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .padding(.trailing, 4)
+                                }
                             }
+                            
+                            let maxSkillPoints = Int(256000 * skill.timeMultiplier)
+                            Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
+                                      formatNumber(skill.currentSkillPoints ?? 0),
+                                      formatNumber(maxSkillPoints)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        let maxSkillPoints = Int(256000 * skill.timeMultiplier)
-                        Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                  formatNumber(skill.currentSkillPoints ?? 0),
-                                  formatNumber(maxSkillPoints)))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        .frame(height: 36)
                     }
-                    .frame(height: 36)
                 }
             }
         }
