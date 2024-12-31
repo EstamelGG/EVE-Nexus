@@ -10,6 +10,50 @@ private struct MergedCloneLocation: Identifiable {
     var cloneCount: Int { clones.count }
 }
 
+// 植入体信息结构
+private struct ImplantInfo {
+    let typeId: Int
+    let name: String
+    let icon: String
+    let attributeValue: Double
+    
+    static func loadImplantInfo(typeIds: [Int], databaseManager: DatabaseManager) async -> [ImplantInfo] {
+        var implantInfos: [ImplantInfo] = []
+        
+        // 获取基本信息
+        let query = """
+            SELECT t.type_id, t.name, t.icon_filename, COALESCE(ta.value, 0) as attribute_value
+            FROM types t
+            LEFT JOIN typeAttributes ta ON t.type_id = ta.type_id AND ta.attribute_id = 331
+            WHERE t.type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String {
+                    let iconFile = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    let attributeValue = (row["attribute_value"] as? Double) ?? 0.0
+                    implantInfos.append(ImplantInfo(
+                        typeId: typeId,
+                        name: name,
+                        icon: iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile,
+                        attributeValue: attributeValue
+                    ))
+                }
+            }
+        }
+        
+        // 按属性值和ID排序
+        return implantInfos.sorted { first, second in
+            if first.attributeValue == second.attributeValue {
+                return first.typeId < second.typeId
+            }
+            return first.attributeValue < second.attributeValue
+        }
+    }
+}
+
 struct CharacterClonesView: View {
     let character: EVECharacterInfo
     @ObservedObject var databaseManager: DatabaseManager
@@ -19,7 +63,7 @@ struct CharacterClonesView: View {
     @State private var homeLocationDetail: LocationInfoDetail?
     @State private var locationLoader: LocationInfoLoader?
     @State private var locationTypeId: Int?
-    @State private var implantDetails: [(Int, String, String)] = [] // (type_id, name, icon)
+    @State private var implantDetails: [ImplantInfo] = [] // 修改类型
     @State private var mergedCloneLocations: [MergedCloneLocation] = []
     
     private let dateFormatter: ISO8601DateFormatter = {
@@ -111,14 +155,14 @@ struct CharacterClonesView: View {
             
             // 当前植入体信息
             Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
-                ForEach(implantDetails, id: \.0) { implant in
+                ForEach(implantDetails, id: \.typeId) { implant in
                     HStack {
-                        IconManager.shared.loadImage(for: implant.2)
+                        IconManager.shared.loadImage(for: implant.icon)
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
                         
-                        Text(implant.1)
+                        Text(implant.name)
                             .font(.body)
                     }
                     .frame(height: 36)
@@ -218,24 +262,19 @@ struct CharacterClonesView: View {
             }
             
             // 获取植入体详细信息
-            var implantDetails: [(Int, String, String)] = []
-            let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(implants.map { String($0) }.joined(separator: ",")))"
-            if case .success(let rows) = databaseManager.executeQuery(query) {
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String,
-                       let iconFile = row["icon_filename"] as? String {
-                        implantDetails.append((typeId, name, iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile))
-                    }
+            if !implants.isEmpty {
+                let implantDetails = await ImplantInfo.loadImplantInfo(
+                    typeIds: implants,
+                    databaseManager: databaseManager
+                )
+                
+                // 更新UI
+                await MainActor.run {
+                    self.cloneInfo = cloneInfo
+                    self.implants = implants
+                    self.implantDetails = implantDetails
+                    self.mergedCloneLocations = mergedLocations
                 }
-            }
-            
-            // 更新UI
-            await MainActor.run {
-                self.cloneInfo = cloneInfo
-                self.implants = implants
-                self.implantDetails = implantDetails.sorted(by: { $0.0 < $1.0 })
-                self.mergedCloneLocations = mergedLocations
             }
             
         } catch {
@@ -365,7 +404,7 @@ struct CloneLocationRow: View {
 struct CloneLocationDetailView: View {
     let clones: [JumpClone]
     let databaseManager: DatabaseManager
-    @State private var implantDetailsMap: [Int: [(Int, String, String)]] = [:] // [clone_id: [(type_id, name, icon)]]
+    @State private var implantDetailsMap: [Int: [ImplantInfo]] = [:] // 修改类型
     
     var body: some View {
         List {
@@ -382,14 +421,14 @@ struct CloneLocationDetailView: View {
                     }
                     
                     if let implants = implantDetailsMap[clone.jump_clone_id], !implants.isEmpty {
-                        ForEach(implants, id: \.0) { implant in
+                        ForEach(implants, id: \.typeId) { implant in
                             HStack {
-                                IconManager.shared.loadImage(for: implant.2)
+                                IconManager.shared.loadImage(for: implant.icon)
                                     .resizable()
                                     .frame(width: 36, height: 36)
                                     .cornerRadius(6)
                                 
-                                Text(implant.1)
+                                Text(implant.name)
                                     .font(.body)
                             }
                             .frame(height: 36)
@@ -416,19 +455,12 @@ struct CloneLocationDetailView: View {
     private func loadAllImplantDetails() async {
         for clone in clones {
             if !clone.implants.isEmpty {
-                let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(clone.implants.map { String($0) }.joined(separator: ",")))"
-                if case .success(let rows) = databaseManager.executeQuery(query) {
-                    var details: [(Int, String, String)] = []
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let name = row["name"] as? String,
-                           let iconFile = row["icon_filename"] as? String {
-                            details.append((typeId, name, iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile))
-                        }
-                    }
-                    await MainActor.run {
-                        self.implantDetailsMap[clone.jump_clone_id] = details.sorted(by: { $0.0 < $1.0 })
-                    }
+                let implantDetails = await ImplantInfo.loadImplantInfo(
+                    typeIds: clone.implants,
+                    databaseManager: databaseManager
+                )
+                await MainActor.run {
+                    self.implantDetailsMap[clone.jump_clone_id] = implantDetails
                 }
             }
         }
