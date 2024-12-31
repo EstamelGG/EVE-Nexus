@@ -9,11 +9,11 @@ struct CharacterAttributesView: View {
         List {
             Section {
                 if let attributes = attributes {
-                    AttributeRow(name: NSLocalizedString("Character_Attribute_Perception", comment: ""), value: attributes.perception)
-                    AttributeRow(name: NSLocalizedString("Character_Attribute_Memory", comment: ""), value: attributes.memory)
-                    AttributeRow(name: NSLocalizedString("Character_Attribute_Willpower", comment: ""), value: attributes.willpower)
-                    AttributeRow(name: NSLocalizedString("Character_Attribute_Intelligence", comment: ""), value: attributes.intelligence)
-                    AttributeRow(name: NSLocalizedString("Character_Attribute_Charisma", comment: ""), value: attributes.charisma)
+                    AttributeRow(name: NSLocalizedString("Character_Attribute_Perception", comment: ""), icon: "perception", value: attributes.perception)
+                    AttributeRow(name: NSLocalizedString("Character_Attribute_Memory", comment: ""), icon: "memory", value: attributes.memory)
+                    AttributeRow(name: NSLocalizedString("Character_Attribute_Willpower", comment: ""), icon: "willpower", value: attributes.willpower)
+                    AttributeRow(name: NSLocalizedString("Character_Attribute_Intelligence", comment: ""), icon: "intelligence", value: attributes.intelligence)
+                    AttributeRow(name: NSLocalizedString("Character_Attribute_Charisma", comment: ""), icon: "charisma", value: attributes.charisma)
                 } else if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -106,13 +106,19 @@ struct CharacterAttributesView: View {
 
 struct AttributeRow: View {
     let name: String
+    let icon: String
     let value: Int
     
     var body: some View {
         HStack {
+            Image(icon)
+                .resizable()
+                .frame(width: 36, height: 36)
+                .cornerRadius(6)
+                .drawingGroup()
             Text(name)
             Spacer()
             Text("\(value)")
         }
     }
-} 
+}
