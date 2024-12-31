@@ -276,19 +276,20 @@ struct CharacterClonesView: View {
             }
             
             // 获取植入体详细信息
+            var implantDetails: [ImplantInfo] = []
             if !implants.isEmpty {
-                let implantDetails = await ImplantInfo.loadImplantInfo(
+                implantDetails = await ImplantInfo.loadImplantInfo(
                     typeIds: implants,
                     databaseManager: databaseManager
                 )
-                
-                // 更新UI
-                await MainActor.run {
-                    self.cloneInfo = cloneInfo
-                    self.implants = implants
-                    self.implantDetails = implantDetails
-                    self.mergedCloneLocations = mergedLocations
-                }
+            }
+            
+            // 更新UI
+            await MainActor.run {
+                self.cloneInfo = cloneInfo
+                self.implants = implants
+                self.implantDetails = implantDetails
+                self.mergedCloneLocations = mergedLocations
             }
             
         } catch {
