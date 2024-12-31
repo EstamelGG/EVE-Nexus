@@ -500,3 +500,8 @@
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
 "Main_Skills_Categories" = "Categories";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "Now";
+"Time_Months_Days" = "%dM %dD";
+"Time_Months" = "%dM";

@@ -509,3 +509,8 @@
 "Character_Attributes_Last_Remap" = "上次重映射时间";
 "Character_Attributes_Next_Remap" = "下次可重映射时间";
 "Character_Attributes_Load_Failed" = "加载属性失败";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "现在";
+"Time_Months_Days" = "%d月%d日";
+"Time_Months" = "%d月";

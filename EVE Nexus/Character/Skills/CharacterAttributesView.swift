@@ -26,32 +26,26 @@ struct CharacterAttributesView: View {
             }
             
             if let attributes = attributes {
-                Section {
-                    if let bonusRemaps = attributes.bonus_remaps {
+                if let bonusRemaps = attributes.bonus_remaps {
+                    Section {
                         HStack {
                             Text(NSLocalizedString("Character_Attributes_Bonus_Remaps", comment: ""))
                             Spacer()
                             Text("\(bonusRemaps)")
                         }
                     }
-                    
-                    if let lastRemapDate = attributes.last_remap_date {
-                        HStack {
-                            Text(NSLocalizedString("Character_Attributes_Last_Remap", comment: ""))
-                            Spacer()
-                            Text(lastRemapDate)
-                        }
-                    }
-                    
-                    if let cooldownDate = attributes.accrued_remap_cooldown_date {
+                }
+                
+                if let cooldownDate = attributes.accrued_remap_cooldown_date {
+                    Section {
                         HStack {
                             Text(NSLocalizedString("Character_Attributes_Next_Remap", comment: ""))
                             Spacer()
-                            Text(cooldownDate)
+                            Text(formatNextRemapTime(cooldownDate))
                         }
+                    } header: {
+                        Text(NSLocalizedString("Character_Attributes_Remap", comment: ""))
                     }
-                } header: {
-                    Text(NSLocalizedString("Character_Attributes_Remap", comment: ""))
                 }
             }
         }
@@ -61,6 +55,43 @@ struct CharacterAttributesView: View {
                 await fetchAttributes()
             }
         }
+    }
+    
+    private func formatNextRemapTime(_ dateString: String) -> String {
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime]
+        
+        guard let date = dateFormatter.date(from: dateString) else {
+            return NSLocalizedString("Character_Never", comment: "")
+        }
+        
+        let now = Date()
+        if now > date {
+            return NSLocalizedString("Character_Attributes_Ready_Now", comment: "")
+        }
+        
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.month, .day, .hour], from: now, to: date)
+        
+        if let months = components.month, months > 0 {
+            if let days = components.day, days > 0 {
+                return String(format: NSLocalizedString("Time_Months_Days", comment: ""), months, days)
+            }
+            return String(format: NSLocalizedString("Time_Months", comment: ""), months)
+        }
+        
+        if let days = components.day, days > 0 {
+            if let hours = components.hour, hours > 0 {
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours)
+            }
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        }
+        
+        if let hours = components.hour, hours > 0 {
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        }
+        
+        return NSLocalizedString("Character_Attributes_Ready_Now", comment: "")
     }
     
     private func fetchAttributes() async {
