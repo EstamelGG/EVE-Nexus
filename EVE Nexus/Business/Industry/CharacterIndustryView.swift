@@ -448,20 +448,20 @@ struct IndustryJobRow: View {
             return NSLocalizedString("Industry_Status_revoked", comment: "")
         case "failed":
             return NSLocalizedString("Industry_Status_failed", comment: "")
-        case "delivered", "ready":
-            let statusText = job.status == "delivered" ?
-                NSLocalizedString("Industry_Status_delivered", comment: "") :
-                NSLocalizedString("Industry_Status_completed", comment: "")
-            
+        case "delivered":
+            let statusText = NSLocalizedString("Industry_Status_delivered", comment: "")
             // 只在概率不为1且runs大于1时显示成功比例
             if job.probability != 1.0 && job.runs > 1 {
                 let successfulRuns = job.successful_runs ?? 0
                 return "\(statusText) (\(successfulRuns)/\(job.runs))"
             }
             return statusText
+        case "ready":
+            return NSLocalizedString("Industry_Status_ready", comment: "")
         default:
+            // 检查是否已完成但未交付
             if currentTime >= job.end_date {
-                return NSLocalizedString("Industry_Status_completed", comment: "")
+                return NSLocalizedString("Industry_Status_ready", comment: "")
             }
             
             if job.status != "active" {
@@ -493,9 +493,14 @@ struct IndustryJobRow: View {
         switch job.status {
         case "cancelled", "revoked", "failed":
             return .red
-        case "delivered", "ready":
-            return .green
+        case "delivered":
+            return .secondary
+        case "ready":
+            return .yellow
         case "active":
+            if currentTime >= job.end_date {
+                return .yellow // 已完成但未交付
+            }
             return .green
         default:
             return .secondary
