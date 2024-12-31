@@ -183,7 +183,7 @@ public class CharacterSkillsAPI {
                 let skills = try decoder.decode(CharacterSkillsResponse.self, from: jsonData)
                 
                 if let lastUpdated = row["last_updated"] as? String {
-                    Logger.debug("从缓存加载技能数据 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
+                    Logger.debug("从缓存加载总技能数据 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
                 }
                 
                 return skills
@@ -298,7 +298,7 @@ public class CharacterSkillsAPI {
                 
                 // 获取上次更新时间
                 if let lastUpdated = row["last_updated"] as? String {
-                    Logger.debug("从缓存加载技能队列 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
+                    Logger.debug("从缓存加载当前技能队列 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
                 }
                 
                 return queue
@@ -319,7 +319,7 @@ public class CharacterSkillsAPI {
         )
         
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .secondsSince1970
+        decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode([SkillQueueItem].self, from: data)
     }
     

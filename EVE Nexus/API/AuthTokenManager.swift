@@ -6,6 +6,7 @@ actor AuthTokenManager: NSObject {
     private var authStates: [Int: OIDAuthState] = [:]
     private var currentAuthorizationFlow: OIDExternalUserAgentSession?
     private let redirectURI = URL(string: "eveauthpanel://callback/")!
+    private var refreshingTokens: [Int: Task<String, Error>] = [:]
     
     private override init() {
         super.init()
@@ -25,25 +26,44 @@ actor AuthTokenManager: NSObject {
     
     // 显式刷新token
     private func refreshToken(for characterId: Int) async throws -> String {
-        guard let authState = authStates[characterId] else {
-            throw NetworkError.authenticationError("No auth state found")
+        // 如果已经有正在进行的刷新任务，等待其完成
+        if let existingTask = refreshingTokens[characterId] {
+            Logger.info("等待现有的token刷新任务完成 - 角色ID: \(characterId)")
+            return try await existingTask.value
         }
         
-        return try await withCheckedThrowingContinuation { continuation in
-            authState.setNeedsTokenRefresh()  // 强制刷新
-            authState.performAction { accessToken, _, error in
-                if let error = error {
-                    Logger.error("刷新 token 失败: \(error)")
-                    continuation.resume(throwing: error)
-                } else if let accessToken = accessToken {
-                    Logger.info("Token 已刷新 - 角色ID: \(characterId)")
-                    continuation.resume(returning: accessToken)
-                } else {
-                    Logger.error("刷新 token 失败: 无效数据")
-                    continuation.resume(throwing: NetworkError.invalidData)
+        // 创建新的刷新任务
+        let task = Task<String, Error> {
+            defer {
+                refreshingTokens[characterId] = nil
+            }
+            
+            guard let authState = authStates[characterId] else {
+                throw NetworkError.authenticationError("No auth state found")
+            }
+            
+            return try await withCheckedThrowingContinuation { continuation in
+                authState.setNeedsTokenRefresh()  // 强制刷新
+                authState.performAction { accessToken, _, error in
+                    if let error = error {
+                        Logger.error("刷新 token 失败: \(error)")
+                        continuation.resume(throwing: error)
+                    } else if let accessToken = accessToken {
+                        Logger.info("Token 已刷新 - 角色ID: \(characterId)")
+                        continuation.resume(returning: accessToken)
+                    } else {
+                        Logger.error("刷新 token 失败: 无效数据")
+                        continuation.resume(throwing: NetworkError.invalidData)
+                    }
                 }
             }
         }
+        
+        // 保存刷新任务
+        refreshingTokens[characterId] = task
+        
+        // 等待任务完成并返回结果
+        return try await task.value
     }
     
     // 获取授权URL配置

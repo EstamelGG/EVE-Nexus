@@ -167,7 +167,6 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (id)
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
-            CREATE INDEX IF NOT EXISTS idx_universe_names_update_time ON universe_names(update_time);
 
             -- 钱包日志表
             CREATE TABLE IF NOT EXISTS wallet_journal (

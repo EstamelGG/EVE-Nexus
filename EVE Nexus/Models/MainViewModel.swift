@@ -16,103 +16,154 @@ struct QueuedSkill {
     let isCurrentlyTraining: Bool
 }
 
+// 定义 CharacterStats 结构体
+struct CharacterStats {
+    var skillPoints: String = "--"
+    var queueStatus: String = "--"
+    var walletBalance: String = "--"
+    var location: String = "--"
+    
+    static func empty() -> CharacterStats {
+        CharacterStats()
+    }
+}
+
 @MainActor
 class MainViewModel: ObservableObject {
-    @Published var characterStats = CharacterStats()
-    @Published var serverStatus: ServerStatus?
-    @Published var selectedCharacter: EVECharacterInfo?
-    @Published var characterPortrait: UIImage?
-    @Published var isRefreshing = false
-    @Published var isLoadingPortrait = false
-    @Published var isLoadingSkills = false
-    @Published var isLoadingWallet = false
-    @Published var isLoadingQueue = false
-    @Published var isLoadingServerStatus = false
-    @Published var isLoadingCloneStatus = false
-    @Published var cloneJumpStatus: String = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-    
-    // 缓存最新的数据
-    private var cachedSkills: CharacterSkills?
-    private var cachedWalletBalance: Double?
-    private var cachedSkillQueue: [QueuedSkill]?
-    private var cachedCloneJumpHours: Double?
-    
-    // 提供访问缓存数据的方法
-    var skills: CharacterSkills? { cachedSkills }
-    var walletBalance: Double? { cachedWalletBalance }
-    var skillQueue: [QueuedSkill]? { cachedSkillQueue }
-    
-    init() {
-        loadSavedCharacter()
+    // MARK: - Constants
+    private enum Constants {
+        static let cloneCooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
+        static let emptyValue = "--"
+        static let secondsInDay = 86400
+        static let secondsInHour = 3600
+        static let secondsInMinute = 60
+        static let maxRetryCount = 3
+        static let retryDelay: TimeInterval = 1.0
     }
     
-    struct CharacterStats {
-        var skillPoints: String = "--"
-        var queueStatus: String = "--"
-        var walletBalance: String = "--"
-        var location: String = "--"
+    // MARK: - Loading State
+    enum LoadingState: String {
+        case idle
+        case loadingPortrait
+        case loadingSkills
+        case loadingWallet
+        case loadingQueue
+        case loadingServerStatus
+        case loadingCloneStatus
         
-        static func empty() -> CharacterStats {
-            CharacterStats()
+        var isLoading: Bool {
+            self != .idle
         }
     }
     
-    // 加载保存的角色信息
-    private func loadSavedCharacter() {
-        Logger.info("正在加载保存的角色信息...")
-        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
+    // MARK: - Error Handling
+    enum RefreshError: Error {
+        case skillInfoFailed
+        case walletFailed
+        case locationFailed
+        case cloneFailed
+        case serverStatusFailed
+        case portraitFailed
         
-        if currentCharacterId != 0 {
-            if let auth = EVELogin.shared.getCharacterByID(currentCharacterId) {
-                selectedCharacter = auth.character
-                Logger.info("成功加载保存的角色信息: \(auth.character.CharacterName)")
-                
-                // 异步加载头像和其他数据
-                Task {
-                    await refreshAllData()
-                }
-            } else {
-                Logger.warning("找不到保存的角色（ID: \(currentCharacterId)），重置选择")
-                resetCharacterInfo()
+        var localizedDescription: String {
+            switch self {
+            case .skillInfoFailed:
+                return NSLocalizedString("Error_Skill_Info_Failed", comment: "")
+            case .walletFailed:
+                return NSLocalizedString("Error_Wallet_Failed", comment: "")
+            case .locationFailed:
+                return NSLocalizedString("Error_Location_Failed", comment: "")
+            case .cloneFailed:
+                return NSLocalizedString("Error_Clone_Failed", comment: "")
+            case .serverStatusFailed:
+                return NSLocalizedString("Error_Server_Status_Failed", comment: "")
+            case .portraitFailed:
+                return NSLocalizedString("Error_Portrait_Failed", comment: "")
             }
         }
     }
     
-    // 设置当前角色
-    func setCurrentCharacter(_ character: EVECharacterInfo, portrait: UIImage?) {
-        resetCharacterInfo()
-        selectedCharacter = character
-        characterPortrait = portrait
-        currentCharacterId = character.CharacterID
+    // MARK: - Published Properties
+    @Published var characterStats = CharacterStats()
+    @Published var serverStatus: ServerStatus?
+    @Published var selectedCharacter: EVECharacterInfo?
+    @Published var characterPortrait: UIImage?
+    @Published var cloneJumpStatus: String = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+    @Published var isRefreshing = false
+    @Published var loadingState: LoadingState = .idle
+    @Published var lastError: RefreshError?
+    
+    // MARK: - Private Properties
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    
+    // MARK: - Cache Management
+    private struct Cache {
+        var skills: CharacterSkills?
+        var walletBalance: Double?
+        var skillQueue: [QueuedSkill]?
         
-        Task {
-            await refreshAllData()
+        mutating func clear() {
+            skills = nil
+            walletBalance = nil
+            skillQueue = nil
         }
     }
     
-    // 更新方法
+    private var cache = Cache()
+    
+    // MARK: - Initialization
+    init() {
+        loadSavedCharacter()
+    }
+    
+    // MARK: - Private Methods
+    private func updateCloneStatus(from cloneInfo: CharacterCloneInfo) {
+        if let lastJumpDate = cloneInfo.last_clone_jump_date {
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withInternetDateTime]
+            
+            if let jumpDate = dateFormatter.date(from: lastJumpDate) {
+                let now = Date()
+                let timeSinceLastJump = now.timeIntervalSince(jumpDate)
+                
+                if timeSinceLastJump >= Constants.cloneCooldownPeriod {
+                    cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                } else {
+                    let remainingHours = Int(ceil((Constants.cloneCooldownPeriod - timeSinceLastJump) / 3600))
+                    cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
+                }
+            }
+        } else {
+            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+        }
+    }
+    
     private func updateSkillPoints(_ totalSP: Int?) {
         if let sp = totalSP {
             characterStats.skillPoints = NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(sp)))
         } else {
             characterStats.skillPoints = NSLocalizedString("Main_Skills_Ponits", comment: "")
-                .replacingOccurrences(of: "$num", with: "--")
+                .replacingOccurrences(of: "$num", with: Constants.emptyValue)
         }
+    }
+    
+    private func formatTimeComponents(seconds: Int) -> (days: Int, hours: Int, minutes: Int) {
+        let days = seconds / Constants.secondsInDay
+        let hours = (seconds % Constants.secondsInDay) / Constants.secondsInHour
+        let minutes = (seconds % Constants.secondsInHour) / Constants.secondsInMinute
+        return (days, hours, minutes)
     }
     
     private func updateQueueStatus(length: Int?, finishTime: TimeInterval?) {
         if let qLength = length {
             if let time = finishTime {
-                let days = Int(time) / 86400
-                let hours = (Int(time) % 86400) / 3600
-                let minutes = (Int(time) % 3600) / 60
+                let components = formatTimeComponents(seconds: Int(time))
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Training", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
-                    .replacingOccurrences(of: "$day", with: "\(days)")
-                    .replacingOccurrences(of: "$hour", with: "\(hours)")
-                    .replacingOccurrences(of: "$minutes", with: "\(minutes)")
+                    .replacingOccurrences(of: "$day", with: "\(components.days)")
+                    .replacingOccurrences(of: "$hour", with: "\(components.hours)")
+                    .replacingOccurrences(of: "$minutes", with: "\(components.minutes)")
             } else {
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
@@ -129,219 +180,151 @@ class MainViewModel: ObservableObject {
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(bal))
         } else {
             characterStats.walletBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")
-                .replacingOccurrences(of: "$num", with: "--")
+                .replacingOccurrences(of: "$num", with: Constants.emptyValue)
         }
     }
     
-    // 从缓存获取钱包余额
-    private func getCachedWalletBalance(characterId: Int) -> Double? {
-        if let balanceString = UserDefaults.standard.string(forKey: "wallet_cache_\(characterId)") {
-            return Double(balanceString)
+    private func processSkillInfo(skillsResponse: CharacterSkillsResponse, queue: [SkillQueueItem]) {
+        self.cache.skills = CharacterSkills(
+            total_sp: skillsResponse.total_sp,
+            unallocated_sp: skillsResponse.unallocated_sp
+        )
+        self.updateSkillPoints(skillsResponse.total_sp)
+        
+        self.cache.skillQueue = queue.map { skill in
+            QueuedSkill(
+                skill_id: skill.skill_id,
+                skillLevel: skill.finished_level,
+                remainingTime: skill.remainingTime,
+                progress: skill.progress,
+                isCurrentlyTraining: skill.isCurrentlyTraining
+            )
         }
-        return nil
+        self.updateQueueStatus(
+            length: queue.count,
+            finishTime: queue.last?.remainingTime
+        )
     }
     
-    // 刷新数据
+    private func retryOperation<T>(
+        named operationName: String,
+        maxRetries: Int = Constants.maxRetryCount,
+        operation: () async throws -> T
+    ) async throws -> T {
+        var retryCount = 0
+        var lastError: Error?
+        
+        while retryCount < maxRetries {
+            do {
+                return try await operation()
+            } catch {
+                lastError = error
+                retryCount += 1
+                if retryCount < maxRetries {
+                    Logger.warning("操作失败: \(operationName) (尝试 \(retryCount)/\(maxRetries)) - 错误: \(error)")
+                    try await Task.sleep(nanoseconds: UInt64(Constants.retryDelay * 1_000_000_000))
+                }
+            }
+        }
+        
+        Logger.error("操作最终失败: \(operationName) - 错误: \(lastError?.localizedDescription ?? "未知错误")")
+        throw lastError ?? RefreshError.serverStatusFailed
+    }
+    
+    // MARK: - Public Methods
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
+        lastError = nil
+        let service = CharacterDataService.shared
         
-        // 服务器状态请求
-        Task {
-            await MainActor.run { self.isLoadingServerStatus = true }
-            if let status = try? await ServerStatusAPI.shared.fetchServerStatus() {
-                await MainActor.run {
-                    self.serverStatus = status
-                    self.isLoadingServerStatus = false
-                }
-            } else {
-                await MainActor.run { self.isLoadingServerStatus = false }
-            }
+        // 并发执行所有请求
+        async let serverStatusTask = retryOperation(named: "获取服务器状态") {
+            try await service.getServerStatus(forceRefresh: forceRefresh)
         }
         
         if let character = selectedCharacter {
-            // 技能信息请求
-            Task {
-                await MainActor.run { self.isLoadingSkills = true }
-                if let skillsResponse = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedSkills = CharacterSkills(
-                            total_sp: skillsResponse.total_sp,
-                            unallocated_sp: skillsResponse.unallocated_sp
-                        )
-                        self.updateSkillPoints(skillsResponse.total_sp)
-                        
-                        // 更新数据库缓存
-                        let skillsJson = try? JSONEncoder().encode(skillsResponse)
-                        if let skillsData = skillsJson {
-                            let query = """
-                                INSERT OR REPLACE INTO character_skills 
-                                (character_id, skills_data, total_sp, unallocated_sp, last_updated) 
-                                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                            """
-                            let result = CharacterDatabaseManager.shared.executeQuery(
-                                query,
-                                parameters: [
-                                    character.CharacterID,
-                                    String(data: skillsData, encoding: .utf8) ?? "",
-                                    skillsResponse.total_sp,
-                                    skillsResponse.unallocated_sp
-                                ]
-                            )
-                            
-                            if case .error(let error) = result {
-                                Logger.error("保存技能数据到数据库失败: \(error)")
-                            }
-                        }
-                        
-                        self.isLoadingSkills = false
-                    }
-                } else {
-                    await MainActor.run { self.isLoadingSkills = false }
-                }
+            async let skillInfoTask = retryOperation(named: "获取技能信息") {
+                try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let walletTask = retryOperation(named: "获取钱包余额") {
+                try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let locationTask = retryOperation(named: "获取位置信息") {
+                try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
+            }
+            async let cloneTask = retryOperation(named: "获取克隆状态") {
+                try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
             }
             
-            // 钱包余额请求
-            Task {
-                await MainActor.run { self.isLoadingWallet = true }
-                if let balance = try? await CharacterWalletAPI.shared.getWalletBalance(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedWalletBalance = balance
-                        self.updateWalletBalance(balance)
-                        
-                        // 更新 UserDefaults 缓存
-                        UserDefaults.standard.set(
-                            String(balance),
-                            forKey: "wallet_cache_\(character.CharacterID)"
-                        )
-                        
-                        self.isLoadingWallet = false
-                    }
-                } else {
-                    await MainActor.run { self.isLoadingWallet = false }
-                }
-            }
-            
-            // 技能队列请求
-            Task {
-                await MainActor.run { self.isLoadingQueue = true }
-                if let queueResponse = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedSkillQueue = queueResponse.map { skill in
-                            QueuedSkill(
-                                skill_id: skill.skill_id,
-                                skillLevel: skill.finished_level,
-                                remainingTime: skill.remainingTime,
-                                progress: skill.progress,
-                                isCurrentlyTraining: skill.isCurrentlyTraining
-                            )
-                        }
-                        self.updateQueueStatus(
-                            length: queueResponse.count,
-                            finishTime: queueResponse.last?.remainingTime
-                        )
-                        
-                        // 更新数据库缓存
-                        let queueJson = try? JSONEncoder().encode(queueResponse)
-                        if let queueData = queueJson {
-                            let query = """
-                                INSERT OR REPLACE INTO character_skill_queue 
-                                (character_id, queue_data, last_updated) 
-                                VALUES (?, ?, CURRENT_TIMESTAMP)
-                            """
-                            let result = CharacterDatabaseManager.shared.executeQuery(
-                                query,
-                                parameters: [
-                                    character.CharacterID,
-                                    String(data: queueData, encoding: .utf8) ?? ""
-                                ]
-                            )
-                            
-                            if case .error(let error) = result {
-                                Logger.error("保存技能队列到数据库失败: \(error)")
-                            }
-                        }
-                        
-                        self.isLoadingQueue = false
-                    }
-                } else {
-                    await MainActor.run { self.isLoadingQueue = false }
-                }
-            }
-            
-            // 如果没有头像，请求头像
-            if characterPortrait == nil {
-                Task {
-                    await MainActor.run { self.isLoadingPortrait = true }
-                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: character.CharacterID,
+            do {
+                // 处理服务器状态
+                self.serverStatus = try await serverStatusTask
+                
+                // 处理技能信息
+                let (skillsResponse, queue) = try await skillInfoTask
+                processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+                
+                // 处理钱包余额
+                let balance = try await walletTask
+                self.cache.walletBalance = balance
+                self.updateWalletBalance(balance)
+                
+                // 处理位置信息
+                let location = try await locationTask
+                self.characterStats.location = location.locationStatus.description
+                
+                // 处理克隆状态
+                let cloneInfo = try await cloneTask
+                self.updateCloneStatus(from: cloneInfo)
+                
+                // 如果没有头像，请求头像
+                if characterPortrait == nil {
+                    loadingState = .loadingPortrait
+                    if let portrait = try? await service.getCharacterPortrait(
+                        id: character.CharacterID,
                         forceRefresh: forceRefresh
                     ) {
-                        await MainActor.run {
-                            self.characterPortrait = portrait
-                            self.isLoadingPortrait = false
-                        }
-                    } else {
-                        await MainActor.run { self.isLoadingPortrait = false }
+                        self.characterPortrait = portrait
                     }
+                    loadingState = .idle
                 }
+            } catch {
+                lastError = error as? RefreshError ?? .serverStatusFailed
+                Logger.error("刷新数据失败: \(error)")
             }
-            
-            // 位置信息请求
-            Task {
-                if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
-                    characterId: character.CharacterID,
-                    forceRefresh: forceRefresh
-                ) {
-                    // 更新 UserDefaults 缓存
-                    let locationData = try? JSONEncoder().encode(location)
-                    if let data = locationData {
-                        UserDefaults.standard.set(data, forKey: "location_\(character.CharacterID)")
-                    }
-                }
-            }
-            
-            // 克隆体状态请求
-            Task {
-                await MainActor.run { self.isLoadingCloneStatus = true }
-                if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        // 更新内存缓存
-                        self.cachedCloneJumpHours = remainingHours
-                        
-                        if remainingHours <= 0 {
-                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                        } else {
-                            let hours = Int(ceil(remainingHours))
-                            self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
-                        }
-                        
-                        self.isLoadingCloneStatus = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                        self.isLoadingCloneStatus = false
-                    }
-                }
+        } else {
+            // 如果没有选中角色，只更新服务器状态
+            do {
+                self.serverStatus = try await serverStatusTask
+            } catch {
+                lastError = .serverStatusFailed
+                Logger.error("获取服务器状态失败: \(error)")
             }
         }
         
-        // 立即结束全局刷新状态
-        await MainActor.run { self.isRefreshing = false }
+        isRefreshing = false
+        loadingState = .idle
+    }
+    
+    // 加载保存的角色信息
+    private func loadSavedCharacter() {
+        Logger.info("正在加载保存的角色信息...")
+        Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
+        
+        if currentCharacterId != 0 {
+            if let auth = EVELogin.shared.getCharacterByID(currentCharacterId) {
+                selectedCharacter = auth.character
+                Logger.info("成功加载保存的角色信息: \(auth.character.CharacterName)")
+                
+                // 异步加载头像和其他数据
+//                Task {
+//                    await refreshAllData()
+//                }
+            } else {
+                Logger.warning("找不到保存的角色（ID: \(currentCharacterId)），重置选择")
+                resetCharacterInfo()
+            }
+        }
     }
     
     // 重置角色信息
@@ -350,115 +333,54 @@ class MainViewModel: ObservableObject {
         selectedCharacter = nil
         characterPortrait = nil
         isRefreshing = false
-        isLoadingPortrait = false
-        isLoadingSkills = false
-        isLoadingWallet = false
-        isLoadingQueue = false
-        isLoadingServerStatus = false
+        loadingState = .idle
         currentCharacterId = 0
+        lastError = nil
         
         // 清除缓存的数据
-        cachedSkills = nil
-        cachedWalletBalance = nil
-        cachedSkillQueue = nil
+        cache.clear()
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-        isLoadingCloneStatus = false
-        cachedCloneJumpHours = nil
     }
     
     // 从本地快速更新数据（缓存+数据库）
     func quickRefreshFromLocal() async {
         guard let character = selectedCharacter else { return }
+        let service = CharacterDataService.shared
         
-        // 从数据库读取技能信息
-        let query = """
-            SELECT skills_data, total_sp, unallocated_sp 
-            FROM character_skills 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-        """
-        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [character.CharacterID]),
-           let row = result.first,
-           let totalSp = row["total_sp"] as? Int,
-           let unallocatedSp = row["unallocated_sp"] as? Int {
-            await MainActor.run {
-                self.cachedSkills = CharacterSkills(
-                    total_sp: totalSp,
-                    unallocated_sp: unallocatedSp
-                )
-                self.updateSkillPoints(totalSp)
-            }
+        // 并发执行所有请求，不强制刷新
+        async let skillInfoTask = retryOperation(named: "快速获取技能信息") {
+            try await service.getSkillInfo(id: character.CharacterID)
+        }
+        async let walletTask = retryOperation(named: "快速获取钱包余额") {
+            try await service.getWalletBalance(id: character.CharacterID)
+        }
+        async let locationTask = retryOperation(named: "快速获取位置信息") {
+            try await service.getLocation(id: character.CharacterID)
+        }
+        async let cloneTask = retryOperation(named: "快速获取克隆状态") {
+            try await service.getCloneStatus(id: character.CharacterID)
         }
         
-        // 从缓存读取钱包余额
-        let balanceString = await CharacterWalletAPI.shared.getCachedWalletBalance(characterId: character.CharacterID)
-        if !balanceString.isEmpty {
-            Logger.info("尝试读取钱包余额缓存 - 角色ID: \(character.CharacterID)")
-            if let balance = Double(balanceString) {
-                Logger.info("成功读取钱包余额缓存: \(balance) ISK")
-                await MainActor.run {
-                    self.cachedWalletBalance = balance
-                    self.updateWalletBalance(balance)
-                }
-            } else {
-                Logger.warning("钱包余额缓存格式错误: \(balanceString)")
-            }
-        } else {
-            Logger.warning("未找到钱包余额缓存 - 角色ID: \(character.CharacterID)")
-        }
-        
-        // 从数据库读取技能队列
-        let queueQuery = """
-            SELECT queue_data 
-            FROM character_skill_queue 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-        """
-        if case .success(let result) = CharacterDatabaseManager.shared.executeQuery(queueQuery, parameters: [character.CharacterID]),
-           let row = result.first,
-           let queueData = row["queue_data"] as? String,
-           let queueResponse = try? JSONDecoder().decode([SkillQueueItem].self, from: queueData.data(using: .utf8) ?? Data()) {
-            await MainActor.run {
-                self.cachedSkillQueue = queueResponse.map { skill in
-                    QueuedSkill(
-                        skill_id: skill.skill_id,
-                        skillLevel: skill.finished_level,
-                        remainingTime: skill.remainingTime,
-                        progress: skill.progress,
-                        isCurrentlyTraining: skill.isCurrentlyTraining
-                    )
-                }
-                self.updateQueueStatus(
-                    length: queueResponse.count,
-                    finishTime: queueResponse.last?.remainingTime
-                )
-            }
-        }
-        
-        // 从 UserDefaults 读取位置信息
-        if let locationData = UserDefaults.standard.data(forKey: "location_\(character.CharacterID)"),
-           let location = try? JSONDecoder().decode(CharacterLocation.self, from: locationData) {
-            // 更新位置信息
-            await MainActor.run {
-                self.characterStats.location = location.locationStatus.description
-            }
-        }
-        
-        // 从数据库读取克隆体状态
-        if let remainingHours = await CharacterClonesAPI.shared.getJumpCooldownHours(characterId: character.CharacterID) {
-            await MainActor.run {
-                self.cachedCloneJumpHours = remainingHours
-                if remainingHours <= 0 {
-                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                } else {
-                    let hours = Int(ceil(remainingHours))
-                    self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
-                }
-            }
-        } else {
-            await MainActor.run {
-                self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-            }
+        do {
+            // 处理技能信息
+            let (skillsResponse, queue) = try await skillInfoTask
+            processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+            
+            // 处理钱包余额
+            let balance = try await walletTask
+            self.cache.walletBalance = balance
+            self.updateWalletBalance(balance)
+            
+            // 处理位置信息
+            let location = try await locationTask
+            self.characterStats.location = location.locationStatus.description
+            
+            // 处理克隆状态
+            let cloneInfo = try await cloneTask
+            self.updateCloneStatus(from: cloneInfo)
+        } catch {
+            Logger.error("快速刷新数据失败: \(error)")
+            // 快速刷新失败不设置错误状态，因为这是一个静默的后台操作
         }
     }
 } 

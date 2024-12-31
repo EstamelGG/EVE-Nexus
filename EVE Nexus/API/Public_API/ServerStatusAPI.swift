@@ -60,18 +60,58 @@ enum ServerStatusAPIError: LocalizedError {
 class ServerStatusAPI {
     static let shared = ServerStatusAPI()
     
+    private var lastStatus: ServerStatus?
+    private var lastFetchTime: Date?
+    
+    // 缓存时间常量
+    private let normalCacheInterval: TimeInterval = 30 * 60 // 30分钟
+    private let maintenanceCacheInterval: TimeInterval = 60 // 1分钟
+    
     private init() {}
+    
+    // 检查是否在维护时间窗口内
+    private func isInMaintenanceWindow(_ date: Date = Date()) -> Bool {
+        let calendar = Calendar.current
+        let utc = TimeZone(identifier: "UTC")!
+        let components = calendar.dateComponents(in: utc, from: date)
+        
+        guard let hour = components.hour else { return false }
+        return hour >= 11 && hour < 24 // 11AM - 12AM UTC
+    }
+    
+    // 检查是否需要刷新缓存
+    private func shouldRefreshCache() -> Bool {
+        guard let lastFetch = lastFetchTime else { return true }
+        
+        let currentTime = Date()
+        let wasInMaintenanceWindow = isInMaintenanceWindow(lastFetch)
+        let isNowInMaintenanceWindow = isInMaintenanceWindow(currentTime)
+        
+        // 如果刚进入维护时间窗口，立即刷新
+        if !wasInMaintenanceWindow && isNowInMaintenanceWindow {
+            return true
+        }
+        
+        // 根据时间窗口决定缓存间隔
+        let cacheInterval = isNowInMaintenanceWindow ? maintenanceCacheInterval : normalCacheInterval
+        return currentTime.timeIntervalSince(lastFetch) > cacheInterval
+    }
     
     // MARK: - 公共方法
     
-    /// 获取服务器状态（不使用任何缓存）
+    /// 获取服务器状态（使用智能缓存）
+    /// - Parameter forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 服务器状态
-    func fetchServerStatus() async throws -> ServerStatus {
+    func fetchServerStatus(forceRefresh: Bool = false) async throws -> ServerStatus {
+        // 检查是否需要刷新缓存
+        if !forceRefresh && !shouldRefreshCache(), let cachedStatus = lastStatus {
+            return cachedStatus
+        }
+        
         let baseURL = "https://esi.evetech.net/latest/status/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "datasource", value: "tranquility"),
-            // 添加随机参数以避免任何可能的缓存
             URLQueryItem(name: "t", value: "\(Date().timeIntervalSince1970)")
         ]
         
@@ -80,30 +120,41 @@ class ServerStatusAPI {
         }
         
         do {
-            // 直接从网络获取最新状态，设置3秒超时
             let data = try await NetworkManager.shared.fetchData(from: url, timeout: 3.0)
             let status = try JSONDecoder().decode(ServerStatus.self, from: data)
             
             // 如果响应中包含 error 字段，返回离线状态
             if status.error != nil {
-                return ServerStatus(
+                let offlineStatus = ServerStatus(
                     players: 0,
                     serverVersion: "",
                     startTime: "",
                     error: "Server is offline",
                     timeout: nil
                 )
+                // 更新缓存
+                lastStatus = offlineStatus
+                lastFetchTime = Date()
+                return offlineStatus
             }
+            
+            // 更新缓存
+            lastStatus = status
+            lastFetchTime = Date()
             return status
         } catch {
             if (error as NSError).code == NSURLErrorTimedOut {
-                return ServerStatus(
+                let timeoutStatus = ServerStatus(
                     players: 0,
                     serverVersion: "",
                     startTime: "",
                     error: "Unknown",
                     timeout: nil
                 )
+                // 更新缓存
+                lastStatus = timeoutStatus
+                lastFetchTime = Date()
+                return timeoutStatus
             }
             throw error
         }

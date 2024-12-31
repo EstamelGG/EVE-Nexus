@@ -15,7 +15,7 @@ struct EVE_NexusApp: App {
         // 打印 UserDefaults 中的所有键值
         let defaults = UserDefaults.standard
         let dictionary = defaults.dictionaryRepresentation()
-        Logger.info("UserDefaults 内容:")
+        // Logger.info("UserDefaults 内容:")
         
         // 使用 PropertyListSerialization 来获取实际的序列化大小
         var sizeMap: [(key: String, size: Int)] = []
@@ -35,10 +35,10 @@ struct EVE_NexusApp: App {
         }
         
         // 按大小排序并打印
-        sizeMap.sort { $0.size > $1.size }
-        for item in sizeMap {
-            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
-        }
+//        sizeMap.sort { $0.size > $1.size }
+//        for item in sizeMap {
+//            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
+//        }
         
         Logger.info("UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))")
         

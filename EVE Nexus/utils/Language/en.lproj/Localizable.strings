@@ -475,3 +475,4 @@
 "Main_Jump_Clones_Available" = "Available Clones";
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
 "Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
+"Character_Never" = "Never";
