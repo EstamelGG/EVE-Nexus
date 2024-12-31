@@ -34,6 +34,9 @@ class MainViewModel: ObservableObject {
     private enum Constants {
         static let cloneCooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
         static let emptyValue = "--"
+        static let secondsInDay = 86400
+        static let secondsInHour = 3600
+        static let secondsInMinute = 60
     }
     
     // MARK: - Published Properties
@@ -95,17 +98,22 @@ class MainViewModel: ObservableObject {
         }
     }
     
+    private func formatTimeComponents(seconds: Int) -> (days: Int, hours: Int, minutes: Int) {
+        let days = seconds / Constants.secondsInDay
+        let hours = (seconds % Constants.secondsInDay) / Constants.secondsInHour
+        let minutes = (seconds % Constants.secondsInHour) / Constants.secondsInMinute
+        return (days, hours, minutes)
+    }
+    
     private func updateQueueStatus(length: Int?, finishTime: TimeInterval?) {
         if let qLength = length {
             if let time = finishTime {
-                let days = Int(time) / 86400
-                let hours = (Int(time) % 86400) / 3600
-                let minutes = (Int(time) % 3600) / 60
+                let components = formatTimeComponents(seconds: Int(time))
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Training", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
-                    .replacingOccurrences(of: "$day", with: "\(days)")
-                    .replacingOccurrences(of: "$hour", with: "\(hours)")
-                    .replacingOccurrences(of: "$minutes", with: "\(minutes)")
+                    .replacingOccurrences(of: "$day", with: "\(components.days)")
+                    .replacingOccurrences(of: "$hour", with: "\(components.hours)")
+                    .replacingOccurrences(of: "$minutes", with: "\(components.minutes)")
             } else {
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
@@ -126,7 +134,63 @@ class MainViewModel: ObservableObject {
         }
     }
     
+    private func processSkillInfo(skillsResponse: CharacterSkillsResponse, queue: [SkillQueueItem]) {
+        self.cachedSkills = CharacterSkills(
+            total_sp: skillsResponse.total_sp,
+            unallocated_sp: skillsResponse.unallocated_sp
+        )
+        self.updateSkillPoints(skillsResponse.total_sp)
+        
+        self.cachedSkillQueue = queue.map { skill in
+            QueuedSkill(
+                skill_id: skill.skill_id,
+                skillLevel: skill.finished_level,
+                remainingTime: skill.remainingTime,
+                progress: skill.progress,
+                isCurrentlyTraining: skill.isCurrentlyTraining
+            )
+        }
+        self.updateQueueStatus(
+            length: queue.count,
+            finishTime: queue.last?.remainingTime
+        )
+    }
+    
     // MARK: - Public Methods
+    // 从本地快速更新数据（缓存+数据库）
+    func quickRefreshFromLocal() async {
+        guard let character = selectedCharacter else { return }
+        let service = CharacterDataService.shared
+        
+        // 并发执行所有请求
+        async let skillInfoTask = service.getSkillInfo(id: character.CharacterID)
+        async let walletTask = service.getWalletBalance(id: character.CharacterID)
+        async let locationTask = service.getLocation(id: character.CharacterID)
+        async let cloneTask = service.getCloneStatus(id: character.CharacterID)
+        
+        // 处理技能信息
+        if let (skillsResponse, queue) = try? await skillInfoTask {
+            processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+        }
+        
+        // 处理钱包余额
+        if let balance = try? await walletTask {
+            self.cachedWalletBalance = balance
+            self.updateWalletBalance(balance)
+        }
+        
+        // 处理位置信息
+        if let location = try? await locationTask {
+            self.characterStats.location = location.locationStatus.description
+        }
+        
+        // 处理克隆状态
+        if let cloneInfo = try? await cloneTask {
+            self.updateCloneStatus(from: cloneInfo)
+        }
+    }
+    
+    // 刷新所有数据
     func refreshAllData(forceRefresh: Bool = false) async {
         isRefreshing = true
         let service = CharacterDataService.shared
@@ -147,25 +211,7 @@ class MainViewModel: ObservableObject {
             
             // 处理技能信息
             if let (skillsResponse, queue) = try? await skillInfoTask {
-                self.cachedSkills = CharacterSkills(
-                    total_sp: skillsResponse.total_sp,
-                    unallocated_sp: skillsResponse.unallocated_sp
-                )
-                self.updateSkillPoints(skillsResponse.total_sp)
-                
-                self.cachedSkillQueue = queue.map { skill in
-                    QueuedSkill(
-                        skill_id: skill.skill_id,
-                        skillLevel: skill.finished_level,
-                        remainingTime: skill.remainingTime,
-                        progress: skill.progress,
-                        isCurrentlyTraining: skill.isCurrentlyTraining
-                    )
-                }
-                self.updateQueueStatus(
-                    length: queue.count,
-                    finishTime: queue.last?.remainingTime
-                )
+                processSkillInfo(skillsResponse: skillsResponse, queue: queue)
             }
             
             // 处理钱包余额
@@ -243,76 +289,5 @@ class MainViewModel: ObservableObject {
         cachedSkillQueue = nil
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
         isLoadingCloneStatus = false
-    }
-    
-    // 从本地快速更新数据（缓存+数据库）
-    func quickRefreshFromLocal() async {
-        guard let character = selectedCharacter else { return }
-        let service = CharacterDataService.shared
-        
-        // 技能信息和队列
-        if let (skillsResponse, queue) = try? await service.getSkillInfo(id: character.CharacterID) {
-            await MainActor.run {
-                self.cachedSkills = CharacterSkills(
-                    total_sp: skillsResponse.total_sp,
-                    unallocated_sp: skillsResponse.unallocated_sp
-                )
-                self.updateSkillPoints(skillsResponse.total_sp)
-                
-                self.cachedSkillQueue = queue.map { skill in
-                    QueuedSkill(
-                        skill_id: skill.skill_id,
-                        skillLevel: skill.finished_level,
-                        remainingTime: skill.remainingTime,
-                        progress: skill.progress,
-                        isCurrentlyTraining: skill.isCurrentlyTraining
-                    )
-                }
-                self.updateQueueStatus(
-                    length: queue.count,
-                    finishTime: queue.last?.remainingTime
-                )
-            }
-        }
-        
-        // 钱包余额
-        if let balance = try? await service.getWalletBalance(id: character.CharacterID) {
-            await MainActor.run {
-                self.cachedWalletBalance = balance
-                self.updateWalletBalance(balance)
-            }
-        }
-        
-        // 位置信息
-        if let location = try? await service.getLocation(id: character.CharacterID) {
-            await MainActor.run {
-                self.characterStats.location = location.locationStatus.description
-            }
-        }
-        
-        // 克隆状态
-        if let cloneInfo = try? await service.getCloneStatus(id: character.CharacterID) {
-            await MainActor.run {
-                if let lastJumpDate = cloneInfo.last_clone_jump_date {
-                    let dateFormatter = ISO8601DateFormatter()
-                    dateFormatter.formatOptions = [.withInternetDateTime]
-                    
-                    if let jumpDate = dateFormatter.date(from: lastJumpDate) {
-                        let now = Date()
-                        let timeSinceLastJump = now.timeIntervalSince(jumpDate)
-                        let cooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
-                        
-                        if timeSinceLastJump >= cooldownPeriod {
-                            self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                        } else {
-                            let remainingHours = Int(ceil((cooldownPeriod - timeSinceLastJump) / 3600))
-                            self.cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
-                        }
-                    }
-                } else {
-                    self.cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                }
-            }
-        }
     }
 } 
