@@ -140,45 +140,54 @@ struct CharacterClonesView: View {
                         }
                         
                         // 最后空间站变更时间
-                        if let lastStationDate = cloneInfo.last_station_change_date,
-                           let date = dateFormatter.date(from: lastStationDate) {
-                            HStack {
-                                Image("station")
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("Character_Last_Station_Change", comment: ""))
+                        HStack {
+                            Image("station")
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(NSLocalizedString("Character_Last_Station_Change", comment: ""))
+                                if let lastStationDate = cloneInfo.last_station_change_date,
+                                   let date = dateFormatter.date(from: lastStationDate) {
                                     Text(formatDate(date))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text(NSLocalizedString("Character_Never", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .frame(height: 36)
                         }
+                        .frame(height: 36)
                     }
                 }
                 
                 // 当前植入体信息
                 Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
-                    ForEach(implantDetails, id: \.typeId) { implant in
-                        HStack(alignment: .center, spacing: 8) {
-                            IconManager.shared.loadImage(for: implant.icon)
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                            
-                            Text(implant.name)
-                                .font(.body)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .multilineTextAlignment(.leading)
-                                .minimumScaleFactor(0.5)
-                                .lineLimit(2)
-                            
-                            Spacer(minLength: 0)
+                    if !implantDetails.isEmpty {
+                        ForEach(implantDetails, id: \.typeId) { implant in
+                            HStack(alignment: .center, spacing: 8) {
+                                IconManager.shared.loadImage(for: implant.icon)
+                                    .resizable()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                
+                                Text(implant.name)
+                                    .font(.body)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .multilineTextAlignment(.leading)
+                                    .minimumScaleFactor(0.5)
+                                    .lineLimit(2)
+                                
+                                Spacer(minLength: 0)
+                            }
+                            .frame(height: 36)
                         }
-                        .frame(height: 36)
+                    } else {
+                        Text(NSLocalizedString("Character_No_Implants", comment: ""))
+                            .foregroundColor(.secondary)
                     }
                 }
                 
