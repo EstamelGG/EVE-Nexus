@@ -12,6 +12,14 @@ struct CharacterSkillsView: View {
             .sorted { $0.queue_position < $1.queue_position }
     }
     
+    private var totalRemainingTime: TimeInterval? {
+        guard let lastSkill = activeSkills.last,
+              let finishDate = lastSkill.finish_date else {
+            return nil
+        }
+        return finishDate.timeIntervalSinceNow
+    }
+    
     var body: some View {
         List {
             // 第一个列表 - 两个可点击单元格
@@ -42,8 +50,6 @@ struct CharacterSkillsView: View {
                                 Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
                                     .font(.headline).lineLimit(1)
                                 Spacer()
-                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                    .foregroundColor(.secondary)
                                 // 添加等级指示器
                                 SkillLevelIndicator(
                                     currentLevel: item.training_start_level,
@@ -51,6 +57,8 @@ struct CharacterSkillsView: View {
                                     isTraining: item.isCurrentlyTraining
                                 )
                                 .padding(.trailing, 4)
+                                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                    .foregroundColor(.secondary)
                             }
                             
                             if let progress = calculateProgress(item) {
@@ -87,7 +95,14 @@ struct CharacterSkillsView: View {
                     }
                 }
             } header: {
-                Text(NSLocalizedString("Main_Skills_Queue", comment: ""))
+                if let totalTime = totalRemainingTime {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
+                              activeSkills.count,
+                              formatTimeInterval(totalTime)))
+                } else {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
+                              activeSkills.count))
+                }
             }
         }
         .onAppear {

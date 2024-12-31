@@ -480,6 +480,8 @@
 // Skills View
 "Main_Skills_Details" = "技能详情";
 "Main_Skills_Groups" = "技能组详情";
+"Main_Skills_Queue_Count" = "技能队列 (%d)";
+"Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
 "Main_Skills_Level" = "Lv %d";
 "Main_Skills_Points_Progress" = "%d / %d SP";
 "Main_Skills_Time_Remaining" = "剩余: %@";
