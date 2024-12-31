@@ -1,5 +1,15 @@
 import SwiftUI
 
+// 合并的克隆体信息
+private struct MergedCloneLocation: Identifiable {
+    let id: Int
+    let locationType: String
+    let locationId: Int
+    let clones: [JumpClone]
+    
+    var cloneCount: Int { clones.count }
+}
+
 struct CharacterClonesView: View {
     let character: EVECharacterInfo
     @ObservedObject var databaseManager: DatabaseManager
@@ -10,6 +20,7 @@ struct CharacterClonesView: View {
     @State private var locationLoader: LocationInfoLoader?
     @State private var locationTypeId: Int?
     @State private var implantDetails: [(Int, String, String)] = [] // (type_id, name, icon)
+    @State private var mergedCloneLocations: [MergedCloneLocation] = []
     
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -116,20 +127,21 @@ struct CharacterClonesView: View {
             
             // 克隆体列表
             Section(NSLocalizedString("Character_Jump_Clones", comment: "")) {
-                if let cloneInfo = cloneInfo {
-                    ForEach(cloneInfo.jump_clones.sorted(by: { $0.jump_clone_id < $1.jump_clone_id }), id: \.jump_clone_id) { clone in
+                if cloneInfo != nil {
+                    ForEach(mergedCloneLocations) { location in
                         NavigationLink {
-                            CloneImplantsView(
-                                clone: clone,
+                            CloneLocationDetailView(
+                                clones: location.clones,
                                 databaseManager: databaseManager
                             )
                         } label: {
                             CloneLocationRow(
-                                locationId: clone.location_id,
-                                locationType: clone.location_type,
+                                locationId: location.locationId,
+                                locationType: location.locationType,
                                 databaseManager: databaseManager,
                                 locationLoader: locationLoader,
-                                characterId: character.CharacterID
+                                characterId: character.CharacterID,
+                                cloneCount: location.cloneCount
                             )
                         }
                     }
@@ -155,6 +167,21 @@ struct CharacterClonesView: View {
                 characterId: character.CharacterID,
                 forceRefresh: forceRefresh
             )
+            
+            // 合并相同位置的克隆体
+            let groupedClones = Dictionary(grouping: cloneInfo.jump_clones) { clone in
+                "\(clone.location_type)_\(clone.location_id)"
+            }
+            
+            let mergedLocations = groupedClones.map { key, clones in
+                let firstClone = clones[0]
+                return MergedCloneLocation(
+                    id: firstClone.location_id,
+                    locationType: firstClone.location_type,
+                    locationId: firstClone.location_id,
+                    clones: clones
+                )
+            }.sorted { $0.locationId < $1.locationId }
             
             // 获取植入体信息
             let implants = try await CharacterImplantsAPI.shared.fetchCharacterImplants(
@@ -208,6 +235,7 @@ struct CharacterClonesView: View {
                 self.cloneInfo = cloneInfo
                 self.implants = implants
                 self.implantDetails = implantDetails.sorted(by: { $0.0 < $1.0 })
+                self.mergedCloneLocations = mergedLocations
             }
             
         } catch {
@@ -241,15 +269,17 @@ struct CloneLocationRow: View {
     let databaseManager: DatabaseManager
     let locationLoader: LocationInfoLoader?
     let characterId: Int
+    let cloneCount: Int
     @State private var locationDetail: LocationInfoDetail?
     @State private var locationTypeId: Int?
     
-    init(locationId: Int, locationType: String, databaseManager: DatabaseManager, locationLoader: LocationInfoLoader?, characterId: Int) {
+    init(locationId: Int, locationType: String, databaseManager: DatabaseManager, locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1) {
         self.locationId = locationId
         self.locationType = locationType
         self.databaseManager = databaseManager
         self.locationLoader = locationLoader
         self.characterId = characterId
+        self.cloneCount = cloneCount
     }
     
     var body: some View {
@@ -268,18 +298,24 @@ struct CloneLocationRow: View {
                         .cornerRadius(6)
                 }
                 
-                LocationInfoView(
-                    stationName: locationDetail.stationName,
-                    solarSystemName: locationDetail.solarSystemName,
-                    security: locationDetail.security,
-                    font: .body,
-                    textColor: .primary
-                )
+                VStack(alignment: .leading, spacing: 2) {
+                    LocationInfoView(
+                        stationName: locationDetail.stationName,
+                        solarSystemName: locationDetail.solarSystemName,
+                        security: locationDetail.security,
+                        font: .body,
+                        textColor: .primary
+                    )
+                    
+                    Text(String(format: NSLocalizedString("Character_Clone_Count", comment: ""), cloneCount))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             } else {
                 ProgressView()
             }
         }
-        .frame(height: 36)
+        .frame(height: 44) // 增加高度以适应新的文本行
         .task {
             await loadLocationInfo()
         }
@@ -322,6 +358,42 @@ struct CloneLocationRow: View {
             return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
         }
         return DatabaseConfig.defaultItemIcon
+    }
+}
+
+// 克隆体位置详情视图
+struct CloneLocationDetailView: View {
+    let clones: [JumpClone]
+    let databaseManager: DatabaseManager
+    
+    var body: some View {
+        List {
+            ForEach(clones, id: \.jump_clone_id) { clone in
+                Section {
+                    if let name = clone.name {
+                        HStack {
+                            Image(systemName: "tag")
+                                .foregroundColor(.secondary)
+                            Text(name)
+                        }
+                    }
+                    
+                    NavigationLink {
+                        CloneImplantsView(
+                            clone: clone,
+                            databaseManager: databaseManager
+                        )
+                    } label: {
+                        HStack {
+                            Image(systemName: "brain")
+                                .foregroundColor(.secondary)
+                            Text(NSLocalizedString("Character_View_Implants", comment: ""))
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("Character_Clone_Details", comment: ""))
     }
 }
 
