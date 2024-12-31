@@ -31,30 +31,30 @@ struct CharacterSkillsView: View {
                                 .foregroundColor(.secondary)
                         }
                         
-                        // 只有当技能正在训练时才显示进度信息
-                        if item.isCurrentlyTraining {
-                            if let progress = calculateProgress(item) {
-                                HStack {
-                                    Text("\(Int(progress.current))SP/\(progress.total)SP")
-                                        .font(.caption)
-                                    Spacer()
+                        if let progress = calculateProgress(item) {
+                            HStack {
+                                Text("\(Int(progress.current))SP/\(progress.total)SP")
+                                    .font(.caption)
+                                Spacer()
+                                if item.isCurrentlyTraining {
                                     if let remainingTime = item.remainingTime {
                                         Text(formatTimeInterval(remainingTime))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
+                                } else if let startDate = item.start_date,
+                                          let finishDate = item.finish_date {
+                                    let trainingTime = finishDate.timeIntervalSince(startDate)
+                                    Text("需要: \(formatTimeInterval(trainingTime))")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
-                                
-                                // 进度条
+                            }
+                            
+                            // 只对正在训练的技能显示进度条
+                            if item.isCurrentlyTraining {
                                 ProgressView(value: progress.percentage)
                                     .progressViewStyle(LinearProgressViewStyle())
-                            }
-                        } else {
-                            // 对于未开始训练的技能，只显示开始时间
-                            if let startDate = item.start_date {
-                                Text("开始时间: \(formatDate(startDate))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
                             }
                         }
                     }
