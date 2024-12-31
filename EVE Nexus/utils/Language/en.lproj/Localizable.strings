@@ -505,3 +505,16 @@
 "Character_Attributes_Ready_Now" = "Now";
 "Time_Months_Days" = "%dM %dD";
 "Time_Months" = "%dM";
+
+// Character Attributes
+"Character_Attributes_Title" = "Character Attributes";
+"Character_Attributes_Basic" = "Basic Attributes";
+"Character_Attributes_Remap" = "Attribute Remap";
+"Character_Attribute_Perception" = "Perception";
+"Character_Attribute_Memory" = "Memory";
+"Character_Attribute_Willpower" = "Willpower";
+"Character_Attribute_Intelligence" = "Intelligence";
+"Character_Attribute_Charisma" = "Charisma";
+"Character_Attributes_Bonus_Remaps" = "Available Remaps";
+"Character_Attributes_Next_Remap" = "Next Remap Available";
+"Character_Attributes_Load_Failed" = "Failed to load attributes";
