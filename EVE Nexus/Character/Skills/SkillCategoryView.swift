@@ -221,7 +221,7 @@ struct SkillGroupDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    .frame(height: 44)
+                    .frame(height: 36)
                 }
             }
         }
