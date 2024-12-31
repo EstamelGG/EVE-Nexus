@@ -59,4 +59,9 @@ class CharacterDataService {
     func getCloneStatus(id: Int, forceRefresh: Bool = false) async throws -> CharacterCloneInfo {
         return try await CharacterClonesAPI.shared.fetchCharacterClones(characterId: id, forceRefresh: forceRefresh)
     }
+    
+    /// 获取角色属性点
+    func getAttributes(id: Int, forceRefresh: Bool = false) async throws -> CharacterAttributes {
+        return try await CharacterSkillsAPI.shared.fetchAttributes(characterId: id, forceRefresh: forceRefresh)
+    }
 } 

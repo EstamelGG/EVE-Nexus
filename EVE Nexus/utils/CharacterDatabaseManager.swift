@@ -336,6 +336,21 @@ class CharacterDatabaseManager: ObservableObject {
             );
             CREATE INDEX IF NOT EXISTS idx_implants_last_updated ON implants(last_updated);
 
+            -- 角色属性点表
+            CREATE TABLE IF NOT EXISTS character_attributes (
+                character_id INTEGER PRIMARY KEY,
+                charisma INTEGER NOT NULL,
+                intelligence INTEGER NOT NULL,
+                memory INTEGER NOT NULL,
+                perception INTEGER NOT NULL,
+                willpower INTEGER NOT NULL,
+                bonus_remaps INTEGER,
+                accrued_remap_cooldown_date TEXT,
+                last_remap_date TEXT,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_character_attributes_last_updated ON character_attributes(last_updated);
+
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
