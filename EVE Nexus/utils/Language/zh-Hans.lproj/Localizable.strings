@@ -514,3 +514,7 @@
 "Character_Attributes_Ready_Now" = "现在";
 "Time_Months_Days" = "%d月%d日";
 "Time_Months" = "%d月";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "暂无技能";
+"Main_Skills_Group_Count" = "%d个技能 - %@SP";

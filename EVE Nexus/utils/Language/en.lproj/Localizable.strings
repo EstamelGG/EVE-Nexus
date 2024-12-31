@@ -518,3 +518,7 @@
 "Character_Attributes_Bonus_Remaps" = "Available Remaps";
 "Character_Attributes_Next_Remap" = "Next Remap Available";
 "Character_Attributes_Load_Failed" = "Failed to load attributes";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "No skills found";
+"Main_Skills_Group_Count" = "%d skills - %@SP";
