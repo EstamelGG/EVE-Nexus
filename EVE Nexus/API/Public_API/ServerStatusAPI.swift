@@ -100,10 +100,11 @@ class ServerStatusAPI {
     // MARK: - 公共方法
     
     /// 获取服务器状态（使用智能缓存）
+    /// - Parameter forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 服务器状态
-    func fetchServerStatus() async throws -> ServerStatus {
+    func fetchServerStatus(forceRefresh: Bool = false) async throws -> ServerStatus {
         // 检查是否需要刷新缓存
-        if !shouldRefreshCache(), let cachedStatus = lastStatus {
+        if !forceRefresh && !shouldRefreshCache(), let cachedStatus = lastStatus {
             return cachedStatus
         }
         

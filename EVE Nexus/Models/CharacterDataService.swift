@@ -8,8 +8,8 @@ class CharacterDataService {
     
     // MARK: - 基础信息
     /// 获取服务器状态
-    func getServerStatus() async throws -> ServerStatus {
-        return try await ServerStatusAPI.shared.fetchServerStatus()
+    func getServerStatus(forceRefresh: Bool = false) async throws -> ServerStatus {
+        return try await ServerStatusAPI.shared.fetchServerStatus(forceRefresh: forceRefresh)
     }
     
     /// 获取角色基本信息
