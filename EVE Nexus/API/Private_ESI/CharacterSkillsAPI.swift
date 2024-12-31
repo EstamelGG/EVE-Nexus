@@ -248,7 +248,7 @@ public class CharacterSkillsAPI {
     private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
         do {
             let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
+            encoder.dateEncodingStrategy = .secondsSince1970
             let jsonData = try encoder.encode(queue)
             
             guard let jsonString = String(data: jsonData, encoding: .utf8) else {
@@ -292,7 +292,7 @@ public class CharacterSkillsAPI {
             
             do {
                 let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
+                decoder.dateDecodingStrategy = .secondsSince1970
                 let jsonData = jsonString.data(using: .utf8)!
                 let queue = try decoder.decode([SkillQueueItem].self, from: jsonData)
                 
@@ -319,7 +319,7 @@ public class CharacterSkillsAPI {
         )
         
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = .secondsSince1970
         return try decoder.decode([SkillQueueItem].self, from: data)
     }
     
