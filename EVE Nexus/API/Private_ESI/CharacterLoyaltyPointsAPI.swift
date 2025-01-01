@@ -10,13 +10,14 @@ public class CharacterLoyaltyPointsAPI {
     
     private init() {}
     
-    public func fetchLoyaltyPoints(characterId: Int) async throws -> [LoyaltyPoint] {
-        // 首先检查数据库缓存
-        if let cachedData = try checkCache(characterId: characterId) {
-            return cachedData
+    public func fetchLoyaltyPoints(characterId: Int, forceRefresh: Bool = false) async throws -> [LoyaltyPoint] {
+        // 如果不是强制刷新，先检查缓存
+        if !forceRefresh {
+            if let cachedData = try checkCache(characterId: characterId) {
+                return cachedData
+            }
         }
         
-        // 如果没有缓存或缓存已过期，从API获取
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/loyalty/points/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL

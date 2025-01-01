@@ -15,33 +15,43 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: Error?
     
-    func fetchLoyaltyPoints(characterId: Int) {
+    func fetchLoyaltyPoints(characterId: Int, forceRefresh: Bool = false) {
         isLoading = true
         error = nil
         
         Task {
-            do {
-                let points = try await CharacterLoyaltyPointsAPI.shared.fetchLoyaltyPoints(characterId: characterId)
-                var corporationInfo: [CorporationLoyaltyInfo] = []
-                
-                for point in points {
-                    if let corpInfo = try await getCorporationInfo(corporationId: point.corporation_id) {
-                        corporationInfo.append(CorporationLoyaltyInfo(
-                            id: point.corporation_id,
-                            corporationId: point.corporation_id,
-                            loyaltyPoints: point.loyalty_points,
-                            corporationName: corpInfo.name,
-                            iconFileName: corpInfo.iconFileName
-                        ))
-                    }
+            await loadLoyaltyPoints(characterId: characterId, forceRefresh: forceRefresh)
+        }
+    }
+    
+    func refreshLoyaltyPoints(characterId: Int) async {
+        isLoading = true
+        error = nil
+        await loadLoyaltyPoints(characterId: characterId, forceRefresh: true)
+    }
+    
+    private func loadLoyaltyPoints(characterId: Int, forceRefresh: Bool) async {
+        do {
+            let points = try await CharacterLoyaltyPointsAPI.shared.fetchLoyaltyPoints(characterId: characterId, forceRefresh: forceRefresh)
+            var corporationInfo: [CorporationLoyaltyInfo] = []
+            
+            for point in points {
+                if let corpInfo = try await getCorporationInfo(corporationId: point.corporation_id) {
+                    corporationInfo.append(CorporationLoyaltyInfo(
+                        id: point.corporation_id,
+                        corporationId: point.corporation_id,
+                        loyaltyPoints: point.loyalty_points,
+                        corporationName: corpInfo.name,
+                        iconFileName: corpInfo.iconFileName
+                    ))
                 }
-                
-                loyaltyPoints = corporationInfo.sorted(by: { $0.corporationId < $1.corporationId })
-                isLoading = false
-            } catch {
-                self.error = error
-                isLoading = false
             }
+            
+            loyaltyPoints = corporationInfo.sorted(by: { $0.corporationId < $1.corporationId })
+            isLoading = false
+        } catch {
+            self.error = error
+            isLoading = false
         }
     }
     

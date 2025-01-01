@@ -6,7 +6,7 @@ struct CharacterLoyaltyPointsView: View {
     
     var body: some View {
         List {
-            if viewModel.isLoading {
+            if viewModel.isLoading && viewModel.loyaltyPoints.isEmpty {
                 HStack {
                     Spacer()
                     ProgressView()
@@ -57,6 +57,9 @@ struct CharacterLoyaltyPointsView: View {
                     .frame(height: 36)
                 }
             }
+        }
+        .refreshable {
+            await viewModel.refreshLoyaltyPoints(characterId: characterId)
         }
         .navigationTitle(NSLocalizedString("Main_Loyalty_Points", comment: ""))
         .onAppear {
