@@ -73,7 +73,13 @@ struct CharacterLoyaltyPointsView: View {
             
             Section {
                 NavigationLink(destination: EmptyView()) {
-                    Text(NSLocalizedString("Main_LP_Store", comment: ""))
+                    HStack {
+                        Image("lpstore")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 36, height: 36)
+                        Text(NSLocalizedString("Main_LP_Store", comment: ""))
+                    }
                 }
             }
         }

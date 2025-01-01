@@ -517,7 +517,7 @@
 "Character_Attribute_Willpower" = "Willpower";
 "Character_Attribute_Intelligence" = "Intelligence";
 "Character_Attribute_Charisma" = "Charisma";
-"Character_Attributes_Bonus_Remaps" = "Available Remaps";
+"Character_Attributes_Bonus_Remaps" = "Available Bonus Remaps";
 "Character_Attributes_Next_Remap" = "Next Remap Available";
 "Character_Attributes_Load_Failed" = "Failed to load attributes";
 
