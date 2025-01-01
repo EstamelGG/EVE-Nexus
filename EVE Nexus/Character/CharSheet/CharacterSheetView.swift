@@ -942,6 +942,7 @@ struct CharacterSheetView: View {
             SELECT t.icon_filename 
             FROM universe u 
             JOIN types t ON u.system_type = t.type_id 
+            WHERE u.solarsystem_id = ?
         """
         
         guard case .success(let rows) = databaseManager.executeQuery(query, parameters: [solarSystemId]),
