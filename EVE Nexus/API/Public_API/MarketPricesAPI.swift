@@ -113,16 +113,25 @@ class MarketPricesAPI {
                 VALUES \(placeholders)
             """
             
-            // 准备参数数组
+            // 准备参数数组，处理可选值
             var parameters: [Any] = []
             for price in currentBatch {
                 parameters.append(price.type_id)
-                parameters.append(price.adjusted_price as Any)
-                parameters.append(price.average_price as Any)
+                // 使用 NSNull() 替代 nil
+                parameters.append(price.adjusted_price ?? NSNull())
+                parameters.append(price.average_price ?? NSNull())
             }
             
+            Logger.debug("执行批量插入，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            
             // 执行批量插入
-            if case .error = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
+                Logger.error("批量插入失败: \(error)")
+                Logger.error("SQL: \(insertQuery)")
+                Logger.error("参数数量: \(parameters.count)")
+                if !parameters.isEmpty {
+                    Logger.error("第一条记录参数: type_id=\(parameters[0]), adjusted_price=\(parameters[1]), average_price=\(parameters[2])")
+                }
                 success = false
                 break
             }
@@ -136,7 +145,7 @@ class MarketPricesAPI {
             Logger.info("市场价格数据已保存到数据库，共 \(prices.count) 条记录")
         } else {
             _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
-            Logger.error("保存市场价格数据失败")
+            Logger.error("保存市场价格数据失败，执行回滚")
         }
     }
     

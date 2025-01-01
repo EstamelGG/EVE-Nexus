@@ -364,10 +364,8 @@ class CharacterDatabaseManager: ObservableObject {
             CREATE TABLE IF NOT EXISTS market_prices (
                 type_id INTEGER PRIMARY KEY,
                 adjusted_price REAL,
-                average_price REAL,
-                last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                average_price REAL
             );
-            CREATE INDEX IF NOT EXISTS idx_market_prices_last_updated ON market_prices(last_updated);
 
             -- 创建索引
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);

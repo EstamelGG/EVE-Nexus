@@ -353,8 +353,34 @@ struct CharacterSkillsView: View {
                 if let calc = injectorCalculation {
                     Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
                 }
+                
+                // 获取注入器价格
+                Task {
+                    await loadInjectorPrices()
+                }
             } else {
-                Logger.error("未能从数据库获取角色技能点数据")
+                // 如果无法从数据库获取技能点数据，尝试重新获取
+                Logger.debug("无法从数据库获取技能点数据，尝试重新获取")
+                do {
+                    let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterId, forceRefresh: true)
+                    let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
+                    Logger.debug("从API获取角色总技能点: \(characterTotalSP)")
+                    
+                    injectorCalculation = SkillInjectorCalculator.calculate(
+                        requiredSkillPoints: totalRequiredSP,
+                        characterTotalSP: characterTotalSP
+                    )
+                    if let calc = injectorCalculation {
+                        Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
+                    }
+                    
+                    // 获取注入器价格
+                    Task {
+                        await loadInjectorPrices()
+                    }
+                } catch {
+                    Logger.error("获取技能点数据失败: \(error)")
+                }
             }
         } catch {
             Logger.error("加载技能队列失败: \(error)")
