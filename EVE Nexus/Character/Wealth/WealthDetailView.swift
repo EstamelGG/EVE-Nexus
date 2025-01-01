@@ -72,7 +72,7 @@ struct WealthDetailView: View {
                 }
             }
         }
-        .navigationTitle(title)
+        .navigationTitle("\(title) top20")
         .task {
             // 加载所有物品的信息
             let typeIds = valuedItems.map { $0.typeId }
