@@ -178,7 +178,7 @@ class CharacterLocationAPI {
             
             // 更新磁盘缓存
             saveToDiskCache(characterId: characterId, cache: cacheEntry)
-            
+            Logger.debug("Location: \(location)")
             return location
         } catch {
             Logger.error("解析角色位置信息失败: \(error)")

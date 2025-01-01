@@ -32,13 +32,13 @@ struct CharacterStats {
 class MainViewModel: ObservableObject {
     // MARK: - Constants
     private enum Constants {
-        static let cloneCooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
-        static let emptyValue = "--"
+        static let baseCloneCooldown: TimeInterval = 24 * 3600 // 基础24小时冷却
         static let secondsInDay = 86400
         static let secondsInHour = 3600
         static let secondsInMinute = 60
         static let maxRetryCount = 3
         static let retryDelay: TimeInterval = 1.0
+        static let emptyValue = "--"
     }
     
     // MARK: - Loading State
@@ -95,6 +95,31 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Private Properties
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    private var cloneCooldownEndDate: Date? // 缓存冷却结束时间
+    private var refreshTimer: Timer? // 定时器
+    private var cloneCooldownPeriod: TimeInterval {
+        guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
+        
+        // 从character_skills表获取技能数据
+        let query = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        guard case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [character.CharacterID]),
+              let row = rows.first,
+              let skillsJson = row["skills_data"] as? String,
+              let data = skillsJson.data(using: .utf8),
+              let skillsResponse = try? JSONDecoder().decode(CharacterSkillsResponse.self, from: data) else {
+            return Constants.baseCloneCooldown
+        }
+        
+        // 查找 Advanced Infomorph Psychology 技能等级
+        if let infomorphSkill = skillsResponse.skills.first(where: { $0.skill_id == 33399 }) {
+            // 每级减少1小时，从24小时开始
+            let reductionHours = infomorphSkill.trained_skill_level
+            let remainingHours = max(24 - reductionHours, 1) // 最少保留1小时冷却时间
+            return Double(remainingHours * Constants.secondsInHour)
+        }
+        
+        return Constants.baseCloneCooldown
+    }
     
     // MARK: - Cache Management
     private struct Cache {
@@ -117,6 +142,7 @@ class MainViewModel: ObservableObject {
     }
     
     // MARK: - Private Methods
+    @MainActor
     private func updateCloneStatus(from cloneInfo: CharacterCloneInfo) {
         if let lastJumpDate = cloneInfo.last_clone_jump_date {
             let dateFormatter = ISO8601DateFormatter()
@@ -126,16 +152,73 @@ class MainViewModel: ObservableObject {
                 let now = Date()
                 let timeSinceLastJump = now.timeIntervalSince(jumpDate)
                 
-                if timeSinceLastJump >= Constants.cloneCooldownPeriod {
+                if timeSinceLastJump >= cloneCooldownPeriod {
                     cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                    stopTimer()
                 } else {
-                    let remainingHours = Int(ceil((Constants.cloneCooldownPeriod - timeSinceLastJump) / 3600))
-                    cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
+                    // 计算并缓存冷却完成时间
+                    cloneCooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
+                    updateCloneStatusDisplay()
+                    startTimer()
                 }
             }
         } else {
             cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            stopTimer()
         }
+    }
+    
+    @MainActor
+    private func updateCloneStatusDisplay() {
+        guard let endDate = cloneCooldownEndDate else {
+            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            return
+        }
+        
+        let now = Date()
+        let remainingTime = endDate.timeIntervalSince(now)
+        
+        if remainingTime <= 0 {
+            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            stopTimer()
+            return
+        }
+        
+        // 转换为小时和分钟
+        let hours = Int(remainingTime) / 3600
+        let minutes = (Int(remainingTime) % 3600) / 60
+        
+        if hours > 0 {
+            if minutes > 0 {
+                cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Hours_Minutes", comment: ""), hours, minutes)
+            } else {
+                cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+            }
+        } else {
+            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Minutes", comment: ""), minutes)
+        }
+    }
+    
+    @MainActor
+    private func startTimer() {
+        stopTimer()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateCloneStatusDisplay()
+            }
+        }
+    }
+    
+    @MainActor
+    private func stopTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+    
+    deinit {
+        // 直接在deinit中停止定时器，不使用异步调用
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
     
     private func updateSkillPoints(_ totalSP: Int?) {
@@ -247,46 +330,11 @@ class MainViewModel: ObservableObject {
             }
         }
         
-        // 如果有选中的角色，立即开始加载角色数据
+        // 如果有选中的角色，开始加载所有数据
         if let character = selectedCharacter {
-            do {
-                // 并发执行所有请求
-                async let skillInfoTask = retryOperation(named: "获取技能信息") {
-                    try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let walletTask = retryOperation(named: "获取钱包余额") {
-                    try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let locationTask = retryOperation(named: "获取位置信息") {
-                    try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let cloneTask = retryOperation(named: "获取克隆状态") {
-                    try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                
-                // 等待所有角色数据请求完成
-                let ((skillsResponse, queue), balance, location, cloneInfo) = try await (
-                    skillInfoTask,
-                    walletTask,
-                    locationTask,
-                    cloneTask
-                )
-                
-                // 处理技能信息
-                processSkillInfo(skillsResponse: skillsResponse, queue: queue)
-                
-                // 处理钱包余额
-                self.cache.walletBalance = balance
-                self.updateWalletBalance(balance)
-                
-                // 处理位置信息
-                self.characterStats.location = location.locationStatus.description
-                
-                // 处理克隆状态
-                self.updateCloneStatus(from: cloneInfo)
-                
-                // 如果没有头像，请求头像
-                if characterPortrait == nil {
+            // 优先加载头像
+            if characterPortrait == nil {
+                Task {
                     loadingState = .loadingPortrait
                     if let portrait = try? await service.getCharacterPortrait(
                         id: character.CharacterID,
@@ -296,9 +344,55 @@ class MainViewModel: ObservableObject {
                     }
                     loadingState = .idle
                 }
-            } catch {
-                lastError = error as? RefreshError ?? .serverStatusFailed
-                Logger.error("刷新数据失败: \(error)")
+            }
+            
+            // 加载技能信息
+            Task {
+                do {
+                    let (skillsResponse, queue) = try await retryOperation(named: "获取技能信息") {
+                        try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+                } catch {
+                    Logger.error("获取技能信息失败: \(error)")
+                }
+            }
+            
+            // 加载钱包余额
+            Task {
+                do {
+                    let balance = try await retryOperation(named: "获取钱包余额") {
+                        try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.cache.walletBalance = balance
+                    self.updateWalletBalance(balance)
+                } catch {
+                    Logger.error("获取钱包余额失败: \(error)")
+                }
+            }
+            
+            // 加载位置信息
+            Task {
+                do {
+                    let location = try await retryOperation(named: "获取位置信息") {
+                        try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.characterStats.location = location.locationStatus.description
+                } catch {
+                    Logger.error("获取位置信息失败: \(error)")
+                }
+            }
+            
+            // 加载克隆状态
+            Task {
+                do {
+                    let cloneInfo = try await retryOperation(named: "获取克隆状态") {
+                        try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.updateCloneStatus(from: cloneInfo)
+                } catch {
+                    Logger.error("获取克隆状态失败: \(error)")
+                }
             }
         }
         

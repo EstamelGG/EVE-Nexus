@@ -397,9 +397,10 @@ struct AccountsView: View {
                             async let skillInfoTask = service.getSkillInfo(id: characterAuth.character.CharacterID, forceRefresh: true)
                             async let walletTask = service.getWalletBalance(id: characterAuth.character.CharacterID, forceRefresh: true)
                             async let portraitTask = service.getCharacterPortrait(id: characterAuth.character.CharacterID, forceRefresh: true)
+                            async let locationTask = service.getLocation(id: characterAuth.character.CharacterID, forceRefresh: true)
                             
                             // 等待所有数据获取完成
-                            let ((skillsResponse, queue), balance, portrait) = try await (skillInfoTask, walletTask, portraitTask)
+                            let ((skillsResponse, queue), balance, portrait, location) = try await (skillInfoTask, walletTask, portraitTask, locationTask)
                             
                             // 更新UI
                             await updateUI {
@@ -427,6 +428,19 @@ struct AccountsView: View {
                                     
                                     // 更新头像
                                     self.viewModel.characterPortraits[characterAuth.character.CharacterID] = portrait
+                                    
+                                    // 更新位置信息
+                                    self.viewModel.characters[index].locationStatus = location.locationStatus
+                                    Task {
+                                        if let locationInfo = await getSolarSystemInfo(
+                                            solarSystemId: location.solar_system_id,
+                                            databaseManager: self.viewModel.databaseManager
+                                        ) {
+                                            await MainActor.run {
+                                                self.viewModel.characters[index].location = locationInfo
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             

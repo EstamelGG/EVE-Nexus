@@ -171,10 +171,6 @@ struct CharacterOrdersView: View {
         let locationInfo: OrderLocationInfo?
         @StateObject private var databaseManager = DatabaseManager()
         
-        private func formatSecurity(_ security: Double) -> String {
-            String(format: "%.1f", security)
-        }
-        
         private func calculateRemainingTime() -> String {
             guard let issuedDate = dateFormatter.date(from: order.issued) else {
                 return ""

@@ -103,6 +103,17 @@ public struct SkillQueueItem: Codable, Identifiable {
     }
 }
 
+struct CharacterAttributes: Codable {
+    let charisma: Int
+    let intelligence: Int
+    let memory: Int
+    let perception: Int
+    let willpower: Int
+    let bonus_remaps: Int?
+    let accrued_remap_cooldown_date: String?
+    let last_remap_date: String?
+}
+
 public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
     
@@ -322,5 +333,98 @@ public class CharacterSkillsAPI {
         }
         
         return queue
+    }
+    
+    // 从数据库读取属性数据
+    private func loadAttributesFromCache(characterId: Int) -> CharacterAttributes? {
+        let query = """
+            SELECT charisma, intelligence, memory, perception, willpower,
+                   bonus_remaps, accrued_remap_cooldown_date, last_remap_date, last_updated
+            FROM character_attributes 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-8 hours')
+        """
+        
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+           let row = rows.first {
+            // 使用 NSNumber 转换来处理不同的数字类型
+            let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 0
+            let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 0
+            let memory = (row["memory"] as? NSNumber)?.intValue ?? 0
+            let perception = (row["perception"] as? NSNumber)?.intValue ?? 0
+            let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 0
+            let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue
+            
+            return CharacterAttributes(
+                charisma: charisma,
+                intelligence: intelligence,
+                memory: memory,
+                perception: perception,
+                willpower: willpower,
+                bonus_remaps: bonusRemaps,
+                accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
+                last_remap_date: row["last_remap_date"] as? String
+            )
+        }
+        return nil
+    }
+    
+    /// 获取角色属性点
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - forceRefresh: 是否强制刷新，默认为false
+    /// - Returns: 角色属性数据
+    func fetchAttributes(characterId: Int, forceRefresh: Bool = false) async throws -> CharacterAttributes {
+        // 如果不是强制刷新，尝试从缓存加载
+        if !forceRefresh {
+            if let cachedAttributes = loadAttributesFromCache(characterId: characterId) {
+                Logger.debug("从缓存加载角色属性 - 角色ID: \(characterId)")
+                return cachedAttributes
+            }
+        }
+        
+        Logger.debug("从服务器获取角色属性 - 角色ID: \(characterId)")
+        let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/attributes/?datasource=tranquility")!
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        do {
+            let decoder = JSONDecoder()
+            let response = try decoder.decode(CharacterAttributes.self, from: data)
+            
+            // 保存到数据库
+            let query = """
+                INSERT OR REPLACE INTO character_attributes (
+                    character_id, charisma, intelligence, memory, perception, willpower,
+                    bonus_remaps, accrued_remap_cooldown_date, last_remap_date, last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """
+            
+            let parameters: [Any] = [
+                characterId,
+                response.charisma,
+                response.intelligence,
+                response.memory,
+                response.perception,
+                response.willpower,
+                response.bonus_remaps as Any,
+                response.accrued_remap_cooldown_date as Any,
+                response.last_remap_date as Any
+            ]
+            
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(query, parameters: parameters) {
+                Logger.error("保存角色属性失败: \(error)")
+            } else {
+                Logger.debug("成功缓存角色属性数据")
+            }
+            
+            return response
+        } catch {
+            Logger.error("解析角色属性数据失败: \(error)")
+            throw NetworkError.decodingError(error)
+        }
     }
 } 

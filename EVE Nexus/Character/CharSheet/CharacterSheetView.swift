@@ -498,19 +498,12 @@ struct CharacterSheetView: View {
     }
     
     private func loadCharacterInfo(forceRefresh: Bool = false) async {
-        // 如果不是强制刷新，先检查缓存
-        if !forceRefresh {
-            let hasRecentData = loadCharacterStateFromDatabase()
-            if hasRecentData {
-                return
-            }
-        }
-        
         do {
-            // 获取位置信息
-            Logger.info("开始从API获取位置信息")
+            // 获取位置信息，使用CharacterLocationAPI的缓存机制
+            Logger.info("开始获取位置信息")
             let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
-                characterId: character.CharacterID
+                characterId: character.CharacterID,
+                forceRefresh: forceRefresh
             )
             Logger.info("成功获取位置信息: \(location)")
             
@@ -569,7 +562,7 @@ struct CharacterSheetView: View {
                 }
             }
             
-            // 保存状态到数据库
+            // 保存状态到数据库（作为备份）
             await saveCharacterState(location: location, ship: shipInfo)
             
         } catch {

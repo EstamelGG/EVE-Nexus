@@ -5,6 +5,10 @@ struct CharacterSkillsView: View {
     let databaseManager: DatabaseManager
     @State private var skillQueue: [SkillQueueItem] = []
     @State private var skillNames: [Int: String] = [:]
+    @State private var isRefreshing = false
+    @State private var skillIcon: Image?
+    @State private var injectorCalculation: InjectorCalculation?
+    @State private var characterTotalSP: Int = 0
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -41,16 +45,30 @@ struct CharacterSkillsView: View {
             // 第一个列表 - 两个可点击单元格
             Section {
                 NavigationLink {
-                    Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    CharacterAttributesView(characterId: characterId)
                 } label: {
-                    Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    HStack {
+                        Image("attributes")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    }
                 }
                 .frame(height: 36)
                 
                 NavigationLink {
-                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
+                    SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
                 } label: {
-                    Text(NSLocalizedString("Main_Skills_Groups", comment: ""))
+                    HStack {
+                        Image("skills")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Category", comment: ""))
+                    }
                 }
                 .frame(height: 36)
             } header: {
@@ -66,22 +84,22 @@ struct CharacterSkillsView: View {
                 } else {
                     ForEach(activeSkills) { item in
                         NavigationLink {
-                            // 跳转到物品信息页面
                             ShowItemInfo(
                                 databaseManager: databaseManager,
                                 itemID: item.skill_id
                             )
                         } label: {
                             HStack(spacing: 8) {
-                                IconManager.shared.loadImage(for: "icon_2403_64.png")
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
+                                if let icon = skillIcon {
+                                    icon
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                }
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 2) {
                                         Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                            .font(.headline)
                                             .lineLimit(1)
                                         Spacer()
                                         // 添加等级指示器
@@ -100,7 +118,8 @@ struct CharacterSkillsView: View {
                                     if let progress = calculateProgress(item) {
                                         HStack(spacing: 2) {
                                             Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                                      Int(progress.current), progress.total))
+                                                      formatNumber(Int(progress.current)), 
+                                                      formatNumber(progress.total)))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
                                             Spacer()
@@ -149,9 +168,68 @@ struct CharacterSkillsView: View {
                               activeSkills.count))
                 }
             }
+            
+            // 第三个列表 - 注入器需求（只在有技能队列时显示）
+            if !skillQueue.isEmpty, let calculation = injectorCalculation {
+                Section {
+                    // 大型注入器
+                    if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.largeInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: largeInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(largeInfo.name)
+                                Spacer()
+                                Text("\(calculation.largeInjectorCount)")
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
+                        }
+                    }
+                    
+                    // 小型注入器
+                    if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.smallInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: smallInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(smallInfo.name)
+                                Spacer()
+                                Text("\(calculation.smallInjectorCount)")
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
+                        }
+                    }
+                    
+                    // 总计所需技能点
+                    Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), FormatUtil.format(Double(calculation.totalSkillPoints))))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+                }
+            }
         }
-        .onAppear {
-            loadSkillQueue()
+        .refreshable {
+            await refreshSkillQueue()
+        }
+        .task {
+            await loadSkillQueue()
         }
     }
     
@@ -162,25 +240,124 @@ struct CharacterSkillsView: View {
         return (days, hours, minutes)
     }
     
-    private func loadSkillQueue() {
-        Task {
-            do {
-                // 加载技能队列
-                skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId)
-                
-                // 加载技能名称
-                for item in skillQueue {
-                    let query = "SELECT name FROM types WHERE type_id = ?"
-                    if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
-                       let row = rows.first,
-                       let name = row["name"] as? String {
-                        skillNames[item.skill_id] = name
+    private func refreshSkillQueue() async {
+        isRefreshing = true
+        await loadSkillQueue(forceRefresh: true)
+        isRefreshing = false
+    }
+    
+    private func loadSkillQueue(forceRefresh: Bool = false) async {
+        do {
+            Logger.debug("开始加载技能队列...")
+            // 加载技能队列
+            skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
+            Logger.debug("获取到技能队列，数量: \(skillQueue.count)")
+            
+            // 加载技能名称
+            for item in skillQueue {
+                let query = "SELECT name FROM types WHERE type_id = ?"
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
+                   let row = rows.first,
+                   let name = row["name"] as? String {
+                    skillNames[item.skill_id] = name
+                }
+            }
+            
+            // 计算队列中所需的总技能点数
+            var totalRequiredSP = 0
+            for item in skillQueue {
+                if let endSP = item.level_end_sp,
+                   let startSP = item.training_start_sp {
+                    if item.isCurrentlyTraining {
+                        // 对于正在训练的技能，从当前训练进度开始计算
+                        if let finishDate = item.finish_date,
+                           let startDate = item.start_date {
+                            let now = Date()
+                            let totalTrainingTime = finishDate.timeIntervalSince(startDate)
+                            let trainedTime = now.timeIntervalSince(startDate)
+                            let progress = trainedTime / totalTrainingTime
+                            let totalSP = endSP - startSP
+                            let trainedSP = Int(Double(totalSP) * progress)
+                            let remainingSP = totalSP - trainedSP
+                            totalRequiredSP += remainingSP
+                            Logger.debug("正在训练的技能 \(item.skill_id) - 总需求: \(totalSP), 已训练: \(trainedSP), 剩余: \(remainingSP)")
+                        }
+                    } else {
+                        // 对于未开始训练的技能，计算全部所需点数
+                        let requiredSP = endSP - startSP
+                        totalRequiredSP += requiredSP
+                        Logger.debug("未训练的技能 \(item.skill_id) - 需要: \(requiredSP)")
                     }
                 }
-            } catch {
-                Logger.error("加载技能队列失败: \(error)")
             }
+            Logger.debug("队列总需求技能点: \(totalRequiredSP)")
+            
+            // 从数据库获取角色当前的总技能点数
+            let query = """
+                SELECT total_sp, unallocated_sp
+                FROM character_skills
+                WHERE character_id = ?
+            """
+            if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+               let row = rows.first {
+                // 处理total_sp
+                let totalSP: Int
+                if let value = row["total_sp"] as? Int {
+                    totalSP = value
+                } else if let value = row["total_sp"] as? Int64 {
+                    totalSP = Int(value)
+                } else {
+                    totalSP = 0
+                    Logger.error("无法解析total_sp")
+                }
+                
+                // 处理unallocated_sp
+                let unallocatedSP: Int
+                if let value = row["unallocated_sp"] as? Int {
+                    unallocatedSP = value
+                } else if let value = row["unallocated_sp"] as? Int64 {
+                    unallocatedSP = Int(value)
+                } else {
+                    unallocatedSP = 0
+                    Logger.error("无法解析unallocated_sp")
+                }
+                
+                let characterTotalSP = totalSP + unallocatedSP
+                Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
+                
+                injectorCalculation = SkillInjectorCalculator.calculate(
+                    requiredSkillPoints: totalRequiredSP,
+                    characterTotalSP: characterTotalSP
+                )
+                if let calc = injectorCalculation {
+                    Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
+                }
+            } else {
+                Logger.error("未能从数据库获取角色技能点数据")
+            }
+        } catch {
+            Logger.error("加载技能队列失败: \(error)")
         }
+    }
+    
+    private struct InjectorInfo {
+        let name: String
+        let iconFilename: String
+    }
+    
+    private func getInjectorInfo(typeId: Int) -> InjectorInfo? {
+        let query = """
+            SELECT name, icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let name = row["name"] as? String,
+           let iconFilename = row["icon_filename"] as? String {
+            return InjectorInfo(name: name, iconFilename: iconFilename)
+        }
+        return nil
     }
     
     private struct ProgressInfo {
@@ -252,5 +429,12 @@ struct CharacterSkillsView: View {
             return String(format: NSLocalizedString("Time_Minutes", comment: ""), 
                         components.minutes)
         }
+    }
+    
+    private func formatNumber(_ number: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: number)) ?? String(number)
     }
 }

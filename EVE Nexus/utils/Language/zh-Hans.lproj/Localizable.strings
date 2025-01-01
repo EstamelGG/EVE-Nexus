@@ -475,19 +475,22 @@
 "Main_Jump_Clones_Available" = "可用克隆体";
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
 "Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "下次跳跃：%d小时%d分钟后";
+"Main_Jump_Clones_Cooldown_Minutes" = "下次跳跃：%d分钟后";
 "Character_Never" = "从未";
 
 // Skills View
 "Main_Skills_Attribute" = "属性点";
-"Main_Skills_Groups" = "技能组详情";
+"Main_Skills_Category" = "技能目录详情";
 "Main_Skills_Queue_Count" = "技能队列 (%d)";
 "Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
 "Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
 "Main_Skills_Level" = "Lv %d";
-"Main_Skills_Points_Progress" = "%d / %d SP";
+"Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "剩余: %@";
 "Main_Skills_Time_Required" = "需要: %@";
 "Main_Skills_Categories" = "技能目录";
+"Main_Skills_Not_Injected" = "未吸收";
 
 // 时间显示
 "Time_Days_Hours" = "%dd %dh";
@@ -495,3 +498,28 @@
 "Time_Hours" = "%dh";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+
+// Character Attributes
+"Character_Attributes_Title" = "人物属性";
+"Character_Attributes_Basic" = "基础属性";
+"Character_Attributes_Remap" = "属性重映射";
+"Character_Attribute_Perception" = "感知";
+"Character_Attribute_Memory" = "记忆";
+"Character_Attribute_Willpower" = "意志";
+"Character_Attribute_Intelligence" = "智力";
+"Character_Attribute_Charisma" = "魅力";
+"Character_Attributes_Bonus_Remaps" = "可用重置次数";
+"Character_Attributes_Last_Remap" = "上次重置时间";
+"Character_Attributes_Next_Remap" = "下次可重置时间";
+"Character_Attributes_Load_Failed" = "加载属性失败";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "现在";
+"Time_Months_Days" = "%d月%d日";
+"Time_Months" = "%d月";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "暂无技能";
+
+"Main_Skills_Required_Injectors" = "完成队列所需注入器";
+"Main_Skills_Total_Required_SP" = "总计所需技能点：%@";

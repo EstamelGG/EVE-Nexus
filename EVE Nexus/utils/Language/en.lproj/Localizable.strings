@@ -480,23 +480,50 @@
 "Main_Jump_Clones_Available" = "Available Clones";
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
 "Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "Next Jump: %dh %dm";
+"Main_Jump_Clones_Cooldown_Minutes" = "Next Jump: %dm";
 "Character_Never" = "Never";
 
 // Skills View
 "Main_Skills_Attribute" = "Attributes";
-"Main_Skills_Groups" = "Skill Groups";
+"Main_Skills_Category" = "Skill Categories";
 "Main_Skills_Queue_Count" = "Skill Queue (%d)";
 "Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
 "Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
 "Main_Skills_Queue_Empty" = "No skills in training queue";
 "Main_Skills_Level" = "Lv %d";
-"Main_Skills_Points_Progress" = "%d / %d SP";
+"Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "Remaining: %@";
 "Main_Skills_Time_Required" = "Required: %@";
-"Main_Database_Loading" = "Loading...";
+"Main_Skills_Categories" = "Skill Categories";
+"Main_Skills_Not_Injected" = "Not Injected";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
 "Main_Skills_Categories" = "Categories";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "Now";
+"Time_Months_Days" = "%dM %dD";
+"Time_Months" = "%dM";
+
+// Character Attributes
+"Character_Attributes_Title" = "Character Attributes";
+"Character_Attributes_Basic" = "Basic Attributes";
+"Character_Attributes_Remap" = "Attribute Remap";
+"Character_Attribute_Perception" = "Perception";
+"Character_Attribute_Memory" = "Memory";
+"Character_Attribute_Willpower" = "Willpower";
+"Character_Attribute_Intelligence" = "Intelligence";
+"Character_Attribute_Charisma" = "Charisma";
+"Character_Attributes_Bonus_Remaps" = "Available Remaps";
+"Character_Attributes_Next_Remap" = "Next Remap Available";
+"Character_Attributes_Load_Failed" = "Failed to load attributes";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "No skills found";
+
+"Main_Skills_Required_Injectors" = "Required Skill Injectors";
+"Main_Skills_Total_Required_SP" = "Total Required Skill Points: %@";
