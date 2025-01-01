@@ -937,19 +937,16 @@ struct CharacterSheetView: View {
     }
     
     private func getSystemIcon(solarSystemId: Int, databaseManager: DatabaseManager) -> String? {
-        // 1. 从universe表获取system_type
-        let universeQuery = "SELECT system_type FROM universe WHERE solarsystem_id = ?"
-        guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
-              let universeRow = universeRows.first,
-              let systemType = universeRow["system_type"] as? Int else {
-            return nil
-        }
+        // 使用 JOIN 联合查询 universe 和 types 表
+        let query = """
+            SELECT t.icon_filename 
+            FROM universe u 
+            JOIN types t ON u.system_type = t.type_id 
+        """
         
-        // 2. 从types表获取icon_filename
-        let typesQuery = "SELECT icon_filename FROM types WHERE type_id = ?"
-        guard case .success(let typeRows) = databaseManager.executeQuery(typesQuery, parameters: [systemType]),
-              let typeRow = typeRows.first,
-              let iconFileName = typeRow["icon_filename"] as? String else {
+        guard case .success(let rows) = databaseManager.executeQuery(query, parameters: [solarSystemId]),
+              let row = rows.first,
+              let iconFileName = row["icon_filename"] as? String else {
             return nil
         }
         
