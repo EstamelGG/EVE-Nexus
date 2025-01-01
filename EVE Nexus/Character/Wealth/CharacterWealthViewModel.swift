@@ -34,6 +34,21 @@ struct WealthItem: Identifiable {
     }
 }
 
+// 定义高价值物品结构
+struct ValuedItem {
+    let typeId: Int
+    let quantity: Int
+    let value: Double
+    let totalValue: Double
+    
+    init(typeId: Int, quantity: Int, value: Double) {
+        self.typeId = typeId
+        self.quantity = quantity
+        self.value = value
+        self.totalValue = Double(quantity) * value
+    }
+}
+
 @MainActor
 class CharacterWealthViewModel: ObservableObject {
     @Published var isLoading = false
@@ -41,11 +56,38 @@ class CharacterWealthViewModel: ObservableObject {
     @Published var wealthItems: [WealthItem] = []
     @Published var totalWealth: Double = 0
     
+    // 高价值物品列表
+    @Published var valuedAssets: [ValuedItem] = []
+    @Published var valuedImplants: [ValuedItem] = []
+    @Published var valuedOrders: [ValuedItem] = []
+    @Published var isLoadingDetails = false
+    
     private let characterId: Int
     private var marketPrices: [Int: Double] = [:]
+    private let databaseManager = DatabaseManager()
     
     init(characterId: Int) {
         self.characterId = characterId
+    }
+
+    
+    // 获取多个物品的信息
+    func getItemsInfo(typeIds: [Int]) -> [[String: Any]] {
+        if typeIds.isEmpty { return [] }
+        
+        let query = """
+            SELECT type_id, name, icon_filename 
+            FROM types 
+            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        switch databaseManager.executeQuery(query, parameters: []) {
+        case .success(let rows):
+            return rows
+        case .error(let error):
+            Logger.error("获取物品信息失败: \(error)")
+            return []
+        }
     }
     
     // 加载所有财富数据
@@ -203,5 +245,116 @@ class CharacterWealthViewModel: ObservableObject {
         }
         
         return (totalValue, orderCount)
+    }
+    
+    // 加载资产详情
+    func loadAssetDetails() async {
+        isLoadingDetails = true
+        defer { isLoadingDetails = false }
+        
+        do {
+            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+                characterId: characterId,
+                forceRefresh: false
+            ), let jsonData = jsonString.data(using: .utf8) {
+                let locations = try JSONDecoder().decode([AssetTreeNode].self, from: jsonData)
+                
+                // 创建一个字典来统计每种物品的数量和总价值
+                var itemStats: [Int: (quantity: Int, value: Double)] = [:]
+                
+                func processNode(_ node: AssetTreeNode) {
+                    if let price = marketPrices[node.type_id] {
+                        let currentStats = itemStats[node.type_id] ?? (0, 0)
+                        itemStats[node.type_id] = (
+                            currentStats.quantity + node.quantity,
+                            price
+                        )
+                    }
+                    
+                    if let items = node.items {
+                        for item in items {
+                            processNode(item)
+                        }
+                    }
+                }
+                
+                // 处理所有位置
+                for location in locations {
+                    processNode(location)
+                }
+                
+                // 转换为ValuedItem并排序
+                self.valuedAssets = itemStats.map { typeId, stats in
+                    ValuedItem(typeId: typeId, quantity: stats.quantity, value: stats.value)
+                }.sorted { $0.totalValue > $1.totalValue }
+            }
+        } catch {
+            Logger.error("加载资产详情失败: \(error)")
+            self.error = error
+        }
+    }
+    
+    // 加载植入体详情
+    func loadImplantDetails() async {
+        isLoadingDetails = true
+        defer { isLoadingDetails = false }
+        
+        do {
+            var implantIds = Set<Int>()
+            
+            // 获取当前植入体
+            let currentImplants = try await CharacterImplantsAPI.shared.fetchCharacterImplants(
+                characterId: characterId,
+                forceRefresh: false
+            )
+            implantIds.formUnion(currentImplants)
+            
+            // 获取克隆体植入体
+            let cloneInfo = try await CharacterClonesAPI.shared.fetchCharacterClones(
+                characterId: characterId,
+                forceRefresh: false
+            )
+            
+            for clone in cloneInfo.jump_clones {
+                implantIds.formUnion(clone.implants)
+            }
+            
+            // 转换为ValuedItem并排序
+            self.valuedImplants = implantIds.compactMap { implantId in
+                guard let price = marketPrices[implantId] else { return nil }
+                return ValuedItem(typeId: implantId, quantity: 1, value: price)
+            }.sorted { $0.totalValue > $1.totalValue }
+            
+        } catch {
+            Logger.error("加载植入体详情失败: \(error)")
+            self.error = error
+        }
+    }
+    
+    // 加载订单详情
+    func loadOrderDetails() async {
+        isLoadingDetails = true
+        defer { isLoadingDetails = false }
+        
+        do {
+            if let jsonString = try await CharacterMarketAPI.shared.getMarketOrders(
+                characterId: Int64(characterId),
+                forceRefresh: false
+            ), let jsonData = jsonString.data(using: .utf8) {
+                let orders = try JSONDecoder().decode([CharacterMarketOrder].self, from: jsonData)
+                
+                // 转换为ValuedItem并排序
+                self.valuedOrders = orders.map { order in
+                    ValuedItem(
+                        typeId: Int(order.typeId),
+                        quantity: order.volumeRemain,
+                        value: order.price
+                    )
+                }.sorted { $0.totalValue > $1.totalValue }
+            }
+        } catch {
+            Logger.error("加载订单详情失败: \(error)")
+            self.error = error
+        }
     }
 } 
