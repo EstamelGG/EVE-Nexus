@@ -46,11 +46,11 @@ struct SkillCategoryView: View {
             } else {
                 ForEach(skillGroups.sorted(by: { $0.name < $1.name })) { group in
                     NavigationLink {
-                        SkillGroupDetailView(group: group, databaseManager: databaseManager)
+                        SkillGroupDetailView(group: group, databaseManager: databaseManager, characterId: characterId)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.name)
-                            Text("\(group.skills.count)/\(group.totalSkillsInGroup)个技能 - \(formatNumber(group.totalSkillPoints))SP")
+                            Text("\(group.skills.count)/\(group.totalSkillsInGroup) Skills - \(formatNumber(group.totalSkillPoints)) SP")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -85,65 +85,60 @@ struct SkillCategoryView: View {
             let decoder = JSONDecoder()
             let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
             
-            // 2. 获取所有技能的详细信息
-            var skillInfoDict: [Int: SkillInfo] = [:]
-            var groupDict: [Int: (name: String, totalSkills: Int, maxSkillPoints: Int)] = [:]
+            // 2. 获取所有技能组的信息和总技能数
+            let groupQuery = """
+                SELECT t1.groupID, t1.group_name,
+                       (SELECT COUNT(*) FROM types t2 WHERE t2.groupID = t1.groupID AND t2.published = 1) as total_skills
+                FROM types t1
+                WHERE t1.groupID IN (
+                    SELECT DISTINCT groupID
+                    FROM types
+                    WHERE type_id IN (\(skillsResponse.skills.map { String($0.skill_id) }.joined(separator: ",")))
+                )
+                GROUP BY t1.groupID, t1.group_name
+            """
             
-            // 先获取所有技能组的总技能数和最大技能点数
-            for skill in skillsResponse.skills {
-                let query = """
-                    SELECT t1.name, t1.groupID, t1.group_name,
-                           (SELECT COUNT(*) FROM types t2 WHERE t2.groupID = t1.groupID AND t2.published = 1) as total_skills
-                    FROM types t1
-                    WHERE t1.type_id = ?
-                """
-                
-                if case .success(let typeRows) = databaseManager.executeQuery(query, parameters: [skill.skill_id]),
-                   let typeRow = typeRows.first,
-                   let name = typeRow["name"] as? String,
-                   let groupId = typeRow["groupID"] as? Int,
-                   let groupName = typeRow["group_name"] as? String,
-                   let totalSkills = typeRow["total_skills"] as? Int {
-                    
-                    // 获取技能的训练时间倍数
-                    let multiplierQuery = "SELECT value FROM typeAttributes WHERE type_id = ? AND attribute_id = 275"
-                    let timeMultiplier: Int
-                    if case .success(let multiplierRows) = databaseManager.executeQuery(multiplierQuery, parameters: [skill.skill_id]),
-                       let multiplierRow = multiplierRows.first,
-                       let multiplier = multiplierRow["value"] as? Int {
-                        timeMultiplier = multiplier
-                    } else {
-                        timeMultiplier = 1
-                    }
-                    
-                    let maxSkillPoints = 256000 * timeMultiplier
-                    
-                    skillInfoDict[skill.skill_id] = SkillInfo(
-                        id: skill.skill_id,
+            guard case .success(let groupRows) = databaseManager.executeQuery(groupQuery) else {
+                return
+            }
+            
+            var groupDict: [Int: (name: String, totalSkills: Int)] = [:]
+            for row in groupRows {
+                if let groupId = row["groupID"] as? Int,
+                   let groupName = row["group_name"] as? String,
+                   let totalSkills = row["total_skills"] as? Int {
+                    groupDict[groupId] = (name: groupName, totalSkills: totalSkills)
+                }
+            }
+            
+            // 3. 获取所有技能的信息
+            let skillQuery = """
+                SELECT type_id, name, groupID
+                FROM types
+                WHERE type_id IN (\(skillsResponse.skills.map { String($0.skill_id) }.joined(separator: ",")))
+            """
+            
+            guard case .success(let skillRows) = databaseManager.executeQuery(skillQuery) else {
+                return
+            }
+            
+            var skillInfoDict: [Int: SkillInfo] = [:]
+            for row in skillRows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let groupId = row["groupID"] as? Int,
+                   let skill = skillsResponse.skills.first(where: { $0.skill_id == typeId }) {
+                    skillInfoDict[typeId] = SkillInfo(
+                        id: typeId,
                         name: name,
                         groupID: groupId,
                         skillpoints_in_skill: skill.skillpoints_in_skill,
                         trained_skill_level: skill.trained_skill_level
                     )
-                    
-                    // 更新或添加组信息
-                    if let existingGroup = groupDict[groupId] {
-                        groupDict[groupId] = (
-                            name: groupName,
-                            totalSkills: totalSkills,
-                            maxSkillPoints: existingGroup.maxSkillPoints + maxSkillPoints
-                        )
-                    } else {
-                        groupDict[groupId] = (
-                            name: groupName,
-                            totalSkills: totalSkills,
-                            maxSkillPoints: maxSkillPoints
-                        )
-                    }
                 }
             }
             
-            // 3. 按技能组组织数据
+            // 4. 按技能组组织数据
             var groups: [SkillGroup] = []
             for (groupId, groupInfo) in groupDict {
                 let groupSkills = skillsResponse.skills.filter { skill in
@@ -181,8 +176,19 @@ struct SkillCategoryView: View {
 struct SkillGroupDetailView: View {
     let group: SkillGroup
     let databaseManager: DatabaseManager
-    @State private var allSkills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?)] = []
+    let characterId: Int
+    @State private var allSkills: [(
+        typeId: Int,
+        name: String,
+        timeMultiplier: Double,
+        currentSkillPoints: Int?,
+        currentLevel: Int?,
+        primaryAttribute: Int?,    // 主属性ID
+        secondaryAttribute: Int?,  // 副属性ID
+        trainingRate: Int?        // 每小时训练点数
+    )] = []
     @State private var isLoading = true
+    @State private var characterAttributes: CharacterAttributes?
     
     var body: some View {
         List {
@@ -225,11 +231,16 @@ struct SkillGroupDetailView: View {
                             }
                             
                             let maxSkillPoints = Int(256000 * skill.timeMultiplier)
-                            Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                      formatNumber(skill.currentSkillPoints ?? 0),
-                                      formatNumber(maxSkillPoints)))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            HStack {
+                                Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
+                                            formatNumber(skill.currentSkillPoints ?? 0),
+                                            formatNumber(maxSkillPoints)))
+                                if let rate = skill.trainingRate {
+                                    Text("(\(formatNumber(rate))/h)")
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
                         .frame(height: 36)
                     }
@@ -239,9 +250,41 @@ struct SkillGroupDetailView: View {
         .navigationTitle(group.name)
         .onAppear {
             Task {
+                await loadCharacterAttributes()
                 await loadAllSkills()
             }
         }
+    }
+    
+    private func loadCharacterAttributes() async {
+        do {
+            characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+        } catch {
+            Logger.error("获取角色属性失败: \(error)")
+        }
+    }
+    
+    private func calculateTrainingRate(primaryAttrId: Int, secondaryAttrId: Int) -> Int? {
+        guard let attrs = characterAttributes else { return nil }
+        
+        func getAttributeValue(_ attrId: Int) -> Int {
+            switch attrId {
+            case 164: return attrs.charisma
+            case 165: return attrs.intelligence
+            case 166: return attrs.memory
+            case 167: return attrs.perception
+            case 168: return attrs.willpower
+            default: return 0
+            }
+        }
+        
+        let primaryValue = getAttributeValue(primaryAttrId)
+        let secondaryValue = getAttributeValue(secondaryAttrId)
+        
+        // 每分钟训练点数 = 主属性 + 副属性/2
+        let pointsPerMinute = Double(primaryValue) + Double(secondaryValue) / 2.0
+        // 转换为每小时
+        return Int(pointsPerMinute * 60)
     }
     
     private func loadAllSkills() async {
@@ -263,7 +306,7 @@ struct SkillGroupDetailView: View {
             return
         }
         
-        var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?)] = []
+        var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?, primaryAttribute: Int?, secondaryAttribute: Int?, trainingRate: Int?)] = []
         
         for row in rows {
             guard let typeId = row["type_id"] as? Int,
@@ -271,26 +314,49 @@ struct SkillGroupDetailView: View {
                 continue
             }
             
-            // 获取训练时间倍数
-            let multiplierQuery = "SELECT value FROM typeAttributes WHERE type_id = ? AND attribute_id = 275"
-            let timeMultiplier: Double
-            if case .success(let multiplierRows) = databaseManager.executeQuery(multiplierQuery, parameters: [typeId]),
-               let multiplierRow = multiplierRows.first,
-               let multiplier = multiplierRow["value"] as? Double {
-                timeMultiplier = multiplier
-            } else {
-                timeMultiplier = 1.0
+            // 获取训练时间倍数和属性
+            let attrQuery = """
+                SELECT attribute_id, value
+                FROM typeAttributes
+                WHERE type_id = ? AND attribute_id IN (180, 181, 275)
+            """
+            
+            var timeMultiplier: Double = 1.0
+            var primaryAttrId: Int?
+            var secondaryAttrId: Int?
+            
+            if case .success(let attrRows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
+                for attrRow in attrRows {
+                    guard let attrId = attrRow["attribute_id"] as? Int,
+                          let value = attrRow["value"] as? Double else { continue }
+                    
+                    switch attrId {
+                    case 275: timeMultiplier = value
+                    case 180: primaryAttrId = Int(value)
+                    case 181: secondaryAttrId = Int(value)
+                    default: break
+                    }
+                }
             }
             
             // 获取已学习的技能信息（如果有）
             let learnedSkill = learnedSkills[typeId]
+            
+            // 计算训练速度
+            var trainingRate: Int?
+            if let primary = primaryAttrId, let secondary = secondaryAttrId {
+                trainingRate = calculateTrainingRate(primaryAttrId: primary, secondaryAttrId: secondary)
+            }
             
             skills.append((
                 typeId: typeId,
                 name: name,
                 timeMultiplier: timeMultiplier,
                 currentSkillPoints: learnedSkill?.skillpoints_in_skill,
-                currentLevel: learnedSkill?.trained_skill_level
+                currentLevel: learnedSkill?.trained_skill_level,
+                primaryAttribute: primaryAttrId,
+                secondaryAttribute: secondaryAttrId,
+                trainingRate: trainingRate
             ))
         }
         
@@ -305,4 +371,4 @@ struct SkillGroupDetailView: View {
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? String(number)
     }
-} 
+}
