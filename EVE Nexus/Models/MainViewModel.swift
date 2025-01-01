@@ -17,23 +17,11 @@ struct QueuedSkill {
 }
 
 // 定义 CharacterStats 结构体
-struct CharacterStats: Codable {
+struct CharacterStats {
     var skillPoints: String = "--"
     var queueStatus: String = "--"
     var walletBalance: String = "--"
     var location: String = "--"
-    
-    // 添加缓存时间戳
-    var lastUpdated: Date?
-    
-    // 缓存有效期(30分钟)
-    static let cacheValidDuration: TimeInterval = 30 * 60
-    
-    // 判断缓存是否有效
-    var isCacheValid: Bool {
-        guard let lastUpdate = lastUpdated else { return false }
-        return Date().timeIntervalSince(lastUpdate) < Self.cacheValidDuration
-    }
     
     static func empty() -> CharacterStats {
         CharacterStats()
@@ -95,11 +83,6 @@ class MainViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Cache Management
-    private enum CacheKeys {
-        static let characterStats = "cached_character_stats"
-    }
-    
     // MARK: - Published Properties
     @Published var characterStats = CharacterStats()
     @Published var serverStatus: ServerStatus?
@@ -109,13 +92,6 @@ class MainViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var loadingState: LoadingState = .idle
     @Published var lastError: RefreshError?
-    
-    // 添加缓存属性
-    private var cachedStats: CharacterStats? {
-        didSet {
-            saveCacheToUserDefaults()
-        }
-    }
     
     // MARK: - Private Properties
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -162,8 +138,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        loadCacheFromUserDefaults()  // 先加载缓存
-        loadSavedCharacter()         // 再加载保存的角色信息
+        loadSavedCharacter()
     }
     
     // MARK: - Private Methods
@@ -248,16 +223,11 @@ class MainViewModel: ObservableObject {
     
     private func updateSkillPoints(_ totalSP: Int?) {
         if let sp = totalSP {
-            let formattedSP = NSLocalizedString("Main_Skills_Ponits", comment: "")
+            characterStats.skillPoints = NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(sp)))
-            characterStats.skillPoints = formattedSP
-            characterStats.lastUpdated = Date()
-            cachedStats = characterStats
-        } else if let cached = cachedStats {
-            // 使用缓存数据
-            characterStats.skillPoints = cached.skillPoints
         } else {
-            characterStats.skillPoints = Constants.emptyValue
+            characterStats.skillPoints = NSLocalizedString("Main_Skills_Ponits", comment: "")
+                .replacingOccurrences(of: "$num", with: Constants.emptyValue)
         }
     }
     
@@ -277,17 +247,10 @@ class MainViewModel: ObservableObject {
                     .replacingOccurrences(of: "$day", with: "\(components.days)")
                     .replacingOccurrences(of: "$hour", with: "\(components.hours)")
                     .replacingOccurrences(of: "$minutes", with: "\(components.minutes)")
-                characterStats.lastUpdated = Date()
-                cachedStats = characterStats
             } else {
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
-                characterStats.lastUpdated = Date()
-                cachedStats = characterStats
             }
-        } else if let cached = cachedStats {
-            // 使用缓存数据
-            characterStats.queueStatus = cached.queueStatus
         } else {
             characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Empty", comment: "")
                 .replacingOccurrences(of: "$num", with: "0")
@@ -296,16 +259,11 @@ class MainViewModel: ObservableObject {
     
     private func updateWalletBalance(_ balance: Double?) {
         if let bal = balance {
-            let formattedBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")
+            characterStats.walletBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(bal))
-            characterStats.walletBalance = formattedBalance
-            characterStats.lastUpdated = Date()
-            cachedStats = characterStats
-        } else if let cached = cachedStats {
-            // 使用缓存数据
-            characterStats.walletBalance = cached.walletBalance
         } else {
-            characterStats.walletBalance = Constants.emptyValue
+            characterStats.walletBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")
+                .replacingOccurrences(of: "$num", with: Constants.emptyValue)
         }
     }
     
@@ -362,9 +320,6 @@ class MainViewModel: ObservableObject {
         lastError = nil
         let service = CharacterDataService.shared
         
-        // 加载缓存
-        loadCacheFromUserDefaults()
-        
         // 创建一个独立的任务来处理服务器状态
         Task {
             do {
@@ -377,18 +332,6 @@ class MainViewModel: ObservableObject {
         
         // 如果有选中的角色，开始加载所有数据
         if let character = selectedCharacter {
-            // 1. 如果有有效缓存且不是强制刷新，直接使用缓存
-            if let cached = cachedStats, cached.isCacheValid && !forceRefresh {
-                characterStats = cached
-                isRefreshing = false
-                return
-            }
-            
-            // 2. 如果有过期缓存，先显示缓存内容
-            if let cached = cachedStats {
-                characterStats = cached
-            }
-            
             // 优先加载头像
             if characterPortrait == nil {
                 Task {
@@ -403,33 +346,28 @@ class MainViewModel: ObservableObject {
                 }
             }
             
-            // 3. 异步获取新数据
+            // 加载技能信息
             Task {
                 do {
                     let (skillsResponse, queue) = try await retryOperation(named: "获取技能信息") {
-                        try await service.getSkillInfo(id: character.CharacterID, forceRefresh: true)
+                        try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
                     }
                     processSkillInfo(skillsResponse: skillsResponse, queue: queue)
                 } catch {
                     Logger.error("获取技能信息失败: \(error)")
-                    if cachedStats == nil {
-                        updateSkillPoints(nil)
-                    }
                 }
             }
             
+            // 加载钱包余额
             Task {
                 do {
                     let balance = try await retryOperation(named: "获取钱包余额") {
-                        try await service.getWalletBalance(id: character.CharacterID, forceRefresh: true)
+                        try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
                     }
                     self.cache.walletBalance = balance
                     self.updateWalletBalance(balance)
                 } catch {
                     Logger.error("获取钱包余额失败: \(error)")
-                    if cachedStats == nil {
-                        updateWalletBalance(nil)
-                    }
                 }
             }
             
@@ -471,6 +409,11 @@ class MainViewModel: ObservableObject {
             if let auth = EVELogin.shared.getCharacterByID(currentCharacterId) {
                 selectedCharacter = auth.character
                 Logger.info("成功加载保存的角色信息: \(auth.character.CharacterName)")
+                
+                // 异步加载头像和其他数据
+//                Task {
+//                    await refreshAllData()
+//                }
             } else {
                 Logger.warning("找不到保存的角色（ID: \(currentCharacterId)），重置选择")
                 resetCharacterInfo()
@@ -487,14 +430,10 @@ class MainViewModel: ObservableObject {
         loadingState = .idle
         currentCharacterId = 0
         lastError = nil
-        cachedStats = nil  // 清除缓存
         
         // 清除缓存的数据
         cache.clear()
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-        
-        // 清除本地存储的缓存
-        UserDefaults.standard.removeObject(forKey: CacheKeys.characterStats)
     }
     
     // 从本地快速更新数据（缓存+数据库）
@@ -536,24 +475,6 @@ class MainViewModel: ObservableObject {
         } catch {
             Logger.error("快速刷新数据失败: \(error)")
             // 快速刷新失败不设置错误状态，因为这是一个静默的后台操作
-        }
-    }
-    
-    // MARK: - Cache Management Methods
-    private func saveCacheToUserDefaults() {
-        if let encoded = try? JSONEncoder().encode(cachedStats) {
-            UserDefaults.standard.set(encoded, forKey: CacheKeys.characterStats)
-        }
-    }
-    
-    private func loadCacheFromUserDefaults() {
-        if let data = UserDefaults.standard.data(forKey: CacheKeys.characterStats),
-           let decoded = try? JSONDecoder().decode(CharacterStats.self, from: data) {
-            cachedStats = decoded
-            // 如果没有新数据，使用缓存数据
-            if characterStats.skillPoints == "--" {
-                characterStats = decoded
-            }
         }
     }
 } 
