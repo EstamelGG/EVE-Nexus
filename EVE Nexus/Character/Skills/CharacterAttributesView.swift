@@ -47,6 +47,9 @@ struct CharacterAttributesView: View {
                 }
             }
         }
+        .refreshable {
+            await fetchAttributes(forceRefresh: true)
+        }
         .navigationTitle(NSLocalizedString("Character_Attributes_Title", comment: ""))
         .onAppear {
             Task {
@@ -92,12 +95,12 @@ struct CharacterAttributesView: View {
         return NSLocalizedString("Character_Attributes_Ready_Now", comment: "")
     }
     
-    private func fetchAttributes() async {
+    private func fetchAttributes(forceRefresh: Bool = false) async {
         isLoading = true
         defer { isLoading = false }
         
         do {
-            attributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+            attributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId, forceRefresh: forceRefresh)
         } catch {
             Logger.error("获取角色属性失败: \(error)")
         }
