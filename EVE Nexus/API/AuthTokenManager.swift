@@ -14,8 +14,15 @@ actor AuthTokenManager: NSObject {
     
     // 验证认证状态是否有效
     private func validateAuthState(_ authState: OIDAuthState) -> Bool {
-        guard let tokenResponse = authState.lastTokenResponse,
-              let expirationDate = tokenResponse.accessTokenExpirationDate else {
+        Logger.info("开始验证 token 状态")
+        
+        guard let tokenResponse = authState.lastTokenResponse else {
+            Logger.warning("验证失败: lastTokenResponse 为空")
+            return false
+        }
+        
+        guard let expirationDate = tokenResponse.accessTokenExpirationDate else {
+            Logger.warning("验证失败: accessTokenExpirationDate 为空")
             return false
         }
         
@@ -46,12 +53,20 @@ actor AuthTokenManager: NSObject {
             
             return try await withCheckedThrowingContinuation { continuation in
                 authState.setNeedsTokenRefresh()  // 强制刷新
-                authState.performAction { accessToken, _, error in
+                authState.performAction { accessToken, tokenResponse, error in
                     if let error = error {
                         Logger.error("刷新 token 失败: \(error)")
                         continuation.resume(throwing: error)
                     } else if let accessToken = accessToken {
                         Logger.info("Token 已刷新 - 角色ID: \(characterId)")
+                        
+                        // 从 authState 获取最新的过期时间
+                        if let expirationDate = authState.lastTokenResponse?.accessTokenExpirationDate {
+                            Logger.info("新的 token 过期时间: \(expirationDate)")
+                        } else {
+                            Logger.warning("新的 token 没有过期时间")
+                        }
+                        
                         continuation.resume(returning: accessToken)
                     } else {
                         Logger.error("刷新 token 失败: 无效数据")
@@ -135,25 +150,16 @@ actor AuthTokenManager: NSObject {
     func getAccessToken(for characterId: Int) async throws -> String {
         let authState = try await getOrCreateAuthState(for: characterId)
         
-        // 检查状态是否有效，如果无效则强制刷新
-        if !validateAuthState(authState) {
-            Logger.info("检测到token即将过期，主动刷新 - 角色ID: \(characterId)")
-            return try await refreshToken(for: characterId)
-        }
-        
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
                 if let error = error {
-                    Logger.error("获取 access token 失败: \(error)")
+                    Logger.error("获取 token 失败: \(error)")
                     continuation.resume(throwing: error)
                 } else if let accessToken = accessToken {
-                    if let lastToken = authState.lastTokenResponse?.accessToken,
-                       lastToken != accessToken {
-                        Logger.info("Token 已自动刷新 - 角色ID: \(characterId)")
-                    }
+                    Logger.info("获取 token 成功")
                     continuation.resume(returning: accessToken)
                 } else {
-                    Logger.error("获取 access token 失败: 无效数据")
+                    Logger.error("获取 token 失败: 无效数据")
                     continuation.resume(throwing: NetworkError.invalidData)
                 }
             }
