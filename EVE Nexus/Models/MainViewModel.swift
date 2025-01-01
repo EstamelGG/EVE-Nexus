@@ -32,13 +32,13 @@ struct CharacterStats {
 class MainViewModel: ObservableObject {
     // MARK: - Constants
     private enum Constants {
-        static let cloneCooldownPeriod: TimeInterval = 24 * 3600 // 24小时冷却
-        static let emptyValue = "--"
+        static let baseCloneCooldown: TimeInterval = 24 * 3600 // 基础24小时冷却
         static let secondsInDay = 86400
         static let secondsInHour = 3600
         static let secondsInMinute = 60
         static let maxRetryCount = 3
         static let retryDelay: TimeInterval = 1.0
+        static let emptyValue = "--"
     }
     
     // MARK: - Loading State
@@ -95,6 +95,26 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Private Properties
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    private var cloneCooldownPeriod: TimeInterval {
+        guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
+        
+        // 从缓存中获取技能数据
+        guard let skillsData = cache.skills,
+              let skillsJson = UserDefaults.standard.string(forKey: "character_skills_\(character.CharacterID)"),
+              let data = skillsJson.data(using: .utf8),
+              let skillsResponse = try? JSONDecoder().decode(CharacterSkillsResponse.self, from: data) else {
+            return Constants.baseCloneCooldown
+        }
+        
+        // 查找 Advanced Infomorph Psychology 技能等级
+        if let infomorphSkill = skillsResponse.skills.first(where: { $0.skill_id == 33399 }) {
+            // 每级减少1小时
+            let reductionHours = infomorphSkill.trained_skill_level
+            return Constants.baseCloneCooldown - Double(reductionHours * Constants.secondsInHour)
+        }
+        
+        return Constants.baseCloneCooldown
+    }
     
     // MARK: - Cache Management
     private struct Cache {
@@ -126,10 +146,10 @@ class MainViewModel: ObservableObject {
                 let now = Date()
                 let timeSinceLastJump = now.timeIntervalSince(jumpDate)
                 
-                if timeSinceLastJump >= Constants.cloneCooldownPeriod {
+                if timeSinceLastJump >= cloneCooldownPeriod {
                     cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
                 } else {
-                    let remainingHours = Int(ceil((Constants.cloneCooldownPeriod - timeSinceLastJump) / 3600))
+                    let remainingHours = Int(ceil((cloneCooldownPeriod - timeSinceLastJump) / 3600))
                     cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
                 }
             }
