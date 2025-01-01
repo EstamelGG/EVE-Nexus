@@ -527,6 +527,7 @@ struct ContentView: View {
                     icon: "evemail"
                 )
             }
+            .isHidden(true)
             
             NavigationLink {
                 Text("Calendar View") // 待实现
@@ -536,6 +537,7 @@ struct ContentView: View {
                     icon: "calendar"
                 )
             }
+            .isHidden(true)
             
             NavigationLink {
                 Text("Wealth View") // 待实现
@@ -763,6 +765,7 @@ struct ContentView: View {
         let title: String
         let icon: String
         var note: String?
+        var isVisible: Bool = true
         
         var body: some View {
             HStack {
@@ -786,6 +789,15 @@ struct ContentView: View {
                 Spacer()
             }
             .frame(height: 36)
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func isHidden(_ hidden: Bool) -> some View {
+        if !hidden {
+            self
         }
     }
 }

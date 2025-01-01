@@ -265,6 +265,7 @@ struct CharacterSkillsView: View {
                 }
             }
         }
+        .navigationTitle(NSLocalizedString("Main_Skills", comment: ""))
         .refreshable {
             await refreshSkillQueue()
         }
