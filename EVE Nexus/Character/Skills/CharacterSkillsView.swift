@@ -49,212 +49,214 @@ struct CharacterSkillsView: View {
         guard let calculation = injectorCalculation,
               let largePrice = injectorPrices.large,
               let smallPrice = injectorPrices.small else {
+            Logger.debug("计算总价失败 - calculation: \(String(describing: injectorCalculation)), largePrice: \(String(describing: injectorPrices.large)), smallPrice: \(String(describing: injectorPrices.small))")
             return nil
         }
         
-        return Double(calculation.largeInjectorCount) * largePrice + 
-               Double(calculation.smallInjectorCount) * smallPrice
+        let total = Double(calculation.largeInjectorCount) * largePrice + 
+                   Double(calculation.smallInjectorCount) * smallPrice
+        Logger.debug("计算总价成功: \(total)")
+        return total
     }
     
     var body: some View {
         List {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                // 第一个列表 - 两个可点击单元格
-                Section {
-                    NavigationLink {
-                        CharacterAttributesView(characterId: characterId)
-                    } label: {
-                        HStack {
-                            Image("attributes")
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                                .drawingGroup()
-                            Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
-                        }
+            // 第一个列表 - 两个可点击单元格
+            Section {
+                NavigationLink {
+                    CharacterAttributesView(characterId: characterId)
+                } label: {
+                    HStack {
+                        Image("attributes")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
                     }
-                    .frame(height: 36)
-                    
-                    NavigationLink {
-                        SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
-                    } label: {
-                        HStack {
-                            Image("skills")
-                                .resizable()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
-                                .drawingGroup()
-                            Text(NSLocalizedString("Main_Skills_Category", comment: ""))
-                        }
-                    }
-                    .frame(height: 36)
-                } header: {
-                    Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
                 }
+                .frame(height: 36)
                 
-                // 第二个列表 - 技能队列
-                Section {
-                    if skillQueue.isEmpty {
-                        Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
-                            .foregroundColor(.secondary)
-                            .frame(height: 36)
-                    } else {
-                        ForEach(activeSkills) { item in
-                            NavigationLink {
-                                ShowItemInfo(
-                                    databaseManager: databaseManager,
-                                    itemID: item.skill_id
-                                )
-                            } label: {
-                                HStack(spacing: 8) {
-                                    if let icon = skillIcon {
-                                        icon
-                                            .resizable()
-                                            .frame(width: 36, height: 36)
-                                            .cornerRadius(6)
+                NavigationLink {
+                    SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
+                } label: {
+                    HStack {
+                        Image("skills")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Category", comment: ""))
+                    }
+                }
+                .frame(height: 36)
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
+            }
+            
+            // 第二个列表 - 技能队列
+            Section {
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(height: 36)
+                } else if skillQueue.isEmpty {
+                    Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
+                        .foregroundColor(.secondary)
+                        .frame(height: 36)
+                } else {
+                    ForEach(activeSkills) { item in
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: item.skill_id
+                            )
+                        } label: {
+                            HStack(spacing: 8) {
+                                if let icon = skillIcon {
+                                    icon
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 2) {
+                                        Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                                            .lineLimit(1)
+                                        Spacer()
+                                        // 添加等级指示器
+                                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                                            .foregroundColor(.secondary)
+                                            .font(.caption)
+                                            .padding(.trailing, 2)
+                                        SkillLevelIndicator(
+                                            currentLevel: getCurrentLevel(for: item.skill_id),
+                                            trainingLevel: item.finished_level,
+                                            isTraining: item.isCurrentlyTraining
+                                        )
+                                        .padding(.trailing, 4)
                                     }
                                     
-                                    VStack(alignment: .leading, spacing: 2) {
+                                    if let progress = calculateProgress(item) {
                                         HStack(spacing: 2) {
-                                            Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                                .lineLimit(1)
-                                            Spacer()
-                                            // 添加等级指示器
-                                            Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                                .foregroundColor(.secondary)
+                                            Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
+                                                      formatNumber(Int(progress.current)), 
+                                                      formatNumber(progress.total)))
                                                 .font(.caption)
-                                                .padding(.trailing, 2)
-                                            SkillLevelIndicator(
-                                                currentLevel: getCurrentLevel(for: item.skill_id),
-                                                trainingLevel: item.finished_level,
-                                                isTraining: item.isCurrentlyTraining
-                                            )
-                                            .padding(.trailing, 4)
-                                        }
-                                        
-                                        if let progress = calculateProgress(item) {
-                                            HStack(spacing: 2) {
-                                                Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                                          formatNumber(Int(progress.current)), 
-                                                          formatNumber(progress.total)))
+                                                .foregroundColor(.secondary)
+                                            if let rate = trainingRates[item.skill_id] {
+                                                Text("(\(formatNumber(rate))/h)")
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
-                                                if let rate = trainingRates[item.skill_id] {
-                                                    Text("(\(formatNumber(rate))/h)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                                Spacer()
-                                                if item.isCurrentlyTraining {
-                                                    if let remainingTime = item.remainingTime {
-                                                        Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
-                                                                  formatTimeInterval(remainingTime)))
-                                                            .font(.caption)
-                                                            .foregroundColor(.secondary)
-                                                    }
-                                                } else if let startDate = item.start_date,
-                                                          let finishDate = item.finish_date {
-                                                    let trainingTime = finishDate.timeIntervalSince(startDate)
-                                                    Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                              formatTimeInterval(trainingTime)))
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
                                             }
-                                            
-                                            // 只对正在训练的技能显示进度条
+                                            Spacer()
                                             if item.isCurrentlyTraining {
-                                                ProgressView(value: progress.percentage)
-                                                    .progressViewStyle(LinearProgressViewStyle())
-                                                    .padding(.top, 1)
+                                                if let remainingTime = item.remainingTime {
+                                                    Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
+                                                              formatTimeInterval(remainingTime)))
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
+                                            } else if let startDate = item.start_date,
+                                                      let finishDate = item.finish_date {
+                                                let trainingTime = finishDate.timeIntervalSince(startDate)
+                                                Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                          formatTimeInterval(trainingTime)))
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
                                             }
+                                        }
+                                        
+                                        // 只对正在训练的技能显示进度条
+                                        if item.isCurrentlyTraining {
+                                            ProgressView(value: progress.percentage)
+                                                .progressViewStyle(LinearProgressViewStyle())
+                                                .padding(.top, 1)
                                         }
                                     }
                                 }
                             }
-                            .frame(height: item.isCurrentlyTraining ? 44 : 36)
                         }
-                    }
-                } header: {
-                    if skillQueue.isEmpty {
-                        Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""), 0))
-                    } else if isQueuePaused {
-                        Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
-                                  activeSkills.count))
-                    } else if let totalTime = totalRemainingTime {
-                        Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
-                                  activeSkills.count,
-                                  formatTimeInterval(totalTime)))
-                    } else {
-                        Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
-                                  activeSkills.count))
+                        .frame(height: item.isCurrentlyTraining ? 44 : 36)
                     }
                 }
-                
-                // 第三个列表 - 注入器需求（只在有技能队列时显示）
-                if !skillQueue.isEmpty, let calculation = injectorCalculation {
-                    Section {
-                        // 大型注入器
-                        if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
-                            NavigationLink {
-                                ShowItemInfo(
-                                    databaseManager: databaseManager,
-                                    itemID: SkillInjectorCalculator.largeInjectorTypeId
-                                )
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: largeInfo.iconFilename)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-                                    Text(largeInfo.name)
-                                    Spacer()
-                                    Text("\(calculation.largeInjectorCount)")
-                                        .font(.body)
-                                }
-                                .frame(height: 36)
+            } header: {
+                if skillQueue.isEmpty {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""), 0))
+                } else if isQueuePaused {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
+                              activeSkills.count))
+                } else if let totalTime = totalRemainingTime {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
+                              activeSkills.count,
+                              formatTimeInterval(totalTime)))
+                } else {
+                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
+                              activeSkills.count))
+                }
+            }
+            
+            // 第三个列表 - 注入器需求（只在有技能队列时显示）
+            if !skillQueue.isEmpty, let calculation = injectorCalculation {
+                Section {
+                    // 大型注入器
+                    if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.largeInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: largeInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(largeInfo.name)
+                                Spacer()
+                                Text("\(calculation.largeInjectorCount)")
+                                    .font(.body)
                             }
+                            .frame(height: 36)
                         }
-                        
-                        // 小型注入器
-                        if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
-                            NavigationLink {
-                                ShowItemInfo(
-                                    databaseManager: databaseManager,
-                                    itemID: SkillInjectorCalculator.smallInjectorTypeId
-                                )
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: smallInfo.iconFilename)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-                                    Text(smallInfo.name)
-                                    Spacer()
-                                    Text("\(calculation.smallInjectorCount)")
-                                        .font(.body)
-                                }
-                                .frame(height: 36)
-                            }
-                        }
-                        
-                        // 总计所需技能点和预计价格
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), 
-                                      FormatUtil.format(Double(calculation.totalSkillPoints))))
-                            if let totalCost = totalInjectorCost {
-                                Text(String(format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""), 
-                                          FormatUtil.formatISK(totalCost)))
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    } header: {
-                        Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
                     }
+                    
+                    // 小型注入器
+                    if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.smallInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: smallInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(smallInfo.name)
+                                Spacer()
+                                Text("\(calculation.smallInjectorCount)")
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
+                        }
+                    }
+                    
+                    // 总计所需技能点和预计价格
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), 
+                                  FormatUtil.format(Double(calculation.totalSkillPoints))))
+                        if let totalCost = totalInjectorCost {
+                            Text(String(format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""), 
+                                      FormatUtil.formatISK(totalCost)))
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                } header: {
+                    Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
                 }
             }
         }
@@ -263,7 +265,6 @@ struct CharacterSkillsView: View {
         }
         .task {
             await loadSkillQueue()
-            await loadInjectorPrices()
         }
     }
     
@@ -390,9 +391,7 @@ struct CharacterSkillsView: View {
                 }
                 
                 // 获取注入器价格
-                Task {
-                    await loadInjectorPrices()
-                }
+                await loadInjectorPrices()
             } else {
                 // 如果无法从数据库获取技能点数据，尝试重新获取
                 Logger.debug("无法从数据库获取技能点数据，尝试重新获取")
@@ -410,9 +409,7 @@ struct CharacterSkillsView: View {
                     }
                     
                     // 获取注入器价格
-                    Task {
-                        await loadInjectorPrices()
-                    }
+                    await loadInjectorPrices()
                 } catch {
                     Logger.error("获取技能点数据失败: \(error)")
                 }
@@ -425,19 +422,65 @@ struct CharacterSkillsView: View {
     private func loadInjectorPrices() async {
         do {
             let prices = try await CharacterDataService.shared.getMarketPrices()
+            Logger.debug("开始加载注入器价格...")
+            Logger.debug("获取到市场价格数据，总条目数: \(prices.count)")
             
             // 查找大型和小型注入器的价格
+            var foundLarge = false
+            var foundSmall = false
+            
             for price in prices {
                 if price.type_id == SkillInjectorCalculator.largeInjectorTypeId {
+                    foundLarge = true
                     injectorPrices.large = price.average_price
+                    Logger.debug("找到大型注入器(ID: \(SkillInjectorCalculator.largeInjectorTypeId)) - average_price: \(String(describing: price.average_price))")
                 } else if price.type_id == SkillInjectorCalculator.smallInjectorTypeId {
+                    foundSmall = true
                     injectorPrices.small = price.average_price
+                    Logger.debug("找到小型注入器(ID: \(SkillInjectorCalculator.smallInjectorTypeId)) - average_price: \(String(describing: price.average_price))")
                 }
                 
                 // 如果两种注入器的价格都找到了，就可以退出循环
-                if injectorPrices.large != nil && injectorPrices.small != nil {
+                if foundLarge && foundSmall {
+                    Logger.debug("注入器价格加载完成")
                     break
                 }
+            }
+            
+            if !foundLarge {
+                Logger.debug("未找到大型注入器价格数据")
+            }
+            if !foundSmall {
+                Logger.debug("未找到小型注入器价格数据")
+            }
+            
+            // 如果没有找到价格，尝试重新获取市场数据
+            if !foundLarge || !foundSmall {
+                Logger.debug("尝试重新获取市场数据")
+                do {
+                    // 强制刷新市场数据
+                    let newPrices = try await MarketPricesAPI.shared.fetchMarketPrices(forceRefresh: true)
+                    
+                    // 再次查找注入器价格
+                    for price in newPrices {
+                        if price.type_id == SkillInjectorCalculator.largeInjectorTypeId {
+                            injectorPrices.large = price.average_price
+                            Logger.debug("重新获取到大型注入器价格: \(String(describing: price.average_price))")
+                        } else if price.type_id == SkillInjectorCalculator.smallInjectorTypeId {
+                            injectorPrices.small = price.average_price
+                            Logger.debug("重新获取到小型注入器价格: \(String(describing: price.average_price))")
+                        }
+                    }
+                } catch {
+                    Logger.error("重新获取市场数据失败: \(error)")
+                }
+            }
+            
+            // 打印总价计算结果
+            if let totalCost = totalInjectorCost {
+                Logger.debug("计算得到的总价: \(totalCost)")
+            } else {
+                Logger.debug("总价计算失败 - large: \(String(describing: injectorPrices.large)), small: \(String(describing: injectorPrices.small))")
             }
         } catch {
             Logger.error("加载注入器价格失败: \(error)")
