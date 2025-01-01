@@ -69,25 +69,35 @@ struct FormatUtil {
     /// - Parameter isk: ISK 数值
     /// - Returns: 格式化后的 ISK 字符串
     static func formatISK(_ value: Double) -> String {
-        let trillion = 1_000_000_000_000.0
         let billion = 1_000_000_000.0
         let million = 1_000_000.0
-        let thousand = 1_000.0
         
-        if value >= trillion {
-            let formatted = value / trillion
-            return String(format: "%.2fT", formatted)
-        } else if value >= billion {
+        if value >= billion {
             let formatted = value / billion
-            return String(format: "%.2fB", formatted)
+            if formatted >= 100 {
+                return String(format: "%.0fB", formatted)
+            } else if formatted >= 10 {
+                return String(format: "%.1fB", formatted)
+            } else {
+                return String(format: "%.2fB", formatted)
+            }
         } else if value >= million {
             let formatted = value / million
-            return String(format: "%.2fM", formatted)
-        } else if value >= thousand {
-            let formatted = value / thousand
-            return String(format: "%.2fK", formatted)
+            if formatted >= 100 {
+                return String(format: "%.0fM", formatted)
+            } else if formatted >= 10 {
+                return String(format: "%.1fM", formatted)
+            } else {
+                return String(format: "%.2fM", formatted)
+            }
         } else {
-            return String(format: "%.2f", value)
+            if value >= 100_000 {
+                return String(format: "%.0f", value)
+            } else if value >= 10_000 {
+                return String(format: "%.1f", value)
+            } else {
+                return String(format: "%.2f", value)
+            }
         }
     }
     

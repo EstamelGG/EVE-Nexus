@@ -522,4 +522,5 @@
 "Main_Skills_No_Skills" = "暂无技能";
 
 "Main_Skills_Required_Injectors" = "完成队列所需注入器";
-"Main_Skills_Total_Required_SP" = "总计所需技能点：%@";
+"Main_Skills_Total_Required_SP" = "总计所需技能点数：%@";
+"Main_Skills_Total_Injector_Cost" = "预计注入器总价值：%@ ISK";

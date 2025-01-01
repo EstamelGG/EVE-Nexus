@@ -9,6 +9,7 @@ struct CharacterSkillsView: View {
     @State private var skillIcon: Image?
     @State private var injectorCalculation: InjectorCalculation?
     @State private var characterTotalSP: Int = 0
+    @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -38,6 +39,18 @@ struct CharacterSkillsView: View {
             .map { $0.finished_level }
             .min() ?? 1
         return minLevel - 1
+    }
+    
+    // 计算注入器总价值
+    private var totalInjectorCost: Double? {
+        guard let calculation = injectorCalculation,
+              let largePrice = injectorPrices.large,
+              let smallPrice = injectorPrices.small else {
+            return nil
+        }
+        
+        return Double(calculation.largeInjectorCount) * largePrice + 
+               Double(calculation.smallInjectorCount) * smallPrice
     }
     
     var body: some View {
@@ -216,10 +229,17 @@ struct CharacterSkillsView: View {
                         }
                     }
                     
-                    // 总计所需技能点
-                    Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), FormatUtil.format(Double(calculation.totalSkillPoints))))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // 总计所需技能点和预计价格
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), 
+                                  FormatUtil.format(Double(calculation.totalSkillPoints))))
+                        if let totalCost = totalInjectorCost {
+                            Text(String(format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""), 
+                                      FormatUtil.formatISK(totalCost)))
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 } header: {
                     Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
                 }
@@ -230,6 +250,7 @@ struct CharacterSkillsView: View {
         }
         .task {
             await loadSkillQueue()
+            await loadInjectorPrices()
         }
     }
     
@@ -337,6 +358,28 @@ struct CharacterSkillsView: View {
             }
         } catch {
             Logger.error("加载技能队列失败: \(error)")
+        }
+    }
+    
+    private func loadInjectorPrices() async {
+        do {
+            let prices = try await CharacterDataService.shared.getMarketPrices()
+            
+            // 查找大型和小型注入器的价格
+            for price in prices {
+                if price.type_id == SkillInjectorCalculator.largeInjectorTypeId {
+                    injectorPrices.large = price.average_price
+                } else if price.type_id == SkillInjectorCalculator.smallInjectorTypeId {
+                    injectorPrices.small = price.average_price
+                }
+                
+                // 如果两种注入器的价格都找到了，就可以退出循环
+                if injectorPrices.large != nil && injectorPrices.small != nil {
+                    break
+                }
+            }
+        } catch {
+            Logger.error("加载注入器价格失败: \(error)")
         }
     }
     
