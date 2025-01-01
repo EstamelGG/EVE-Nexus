@@ -7,6 +7,7 @@ struct CharacterSkillsView: View {
     @State private var skillNames: [Int: String] = [:]
     @State private var isRefreshing = false
     @State private var isLoading = true
+    @State private var isLoadingInjectors = true
     @State private var skillIcon: Image?
     @State private var injectorCalculation: InjectorCalculation?
     @State private var characterTotalSP: Int = 0
@@ -46,17 +47,21 @@ struct CharacterSkillsView: View {
     
     // 计算注入器总价值
     private var totalInjectorCost: Double? {
-        guard let calculation = injectorCalculation,
-              let largePrice = injectorPrices.large,
-              let smallPrice = injectorPrices.small else {
-            Logger.debug("计算总价失败 - calculation: \(String(describing: injectorCalculation)), largePrice: \(String(describing: injectorPrices.large)), smallPrice: \(String(describing: injectorPrices.small))")
+        guard let calculation = injectorCalculation else {
+            Logger.debug("计算总价失败 - 没有注入器计算结果")
+            return nil
+        }
+        guard let largePrice = injectorPrices.large else {
+            Logger.debug("计算总价失败 - 没有大型注入器价格")
+            return nil
+        }
+        guard let smallPrice = injectorPrices.small else {
+            Logger.debug("计算总价失败 - 没有小型注入器价格")
             return nil
         }
         
-        let total = Double(calculation.largeInjectorCount) * largePrice + 
-                   Double(calculation.smallInjectorCount) * smallPrice
-        Logger.debug("计算总价成功: \(total)")
-        return total
+        return Double(calculation.largeInjectorCount) * largePrice + 
+               Double(calculation.smallInjectorCount) * smallPrice
     }
     
     var body: some View {
@@ -198,7 +203,7 @@ struct CharacterSkillsView: View {
             }
             
             // 第三个列表 - 注入器需求（只在有技能队列时显示）
-            if !skillQueue.isEmpty, let calculation = injectorCalculation {
+            if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation {
                 Section {
                     // 大型注入器
                     if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
@@ -320,170 +325,135 @@ struct CharacterSkillsView: View {
                 }
             }
             
-            // 计算队列中所需的总技能点数
-            var totalRequiredSP = 0
-            for item in skillQueue {
-                if let endSP = item.level_end_sp,
-                   let startSP = item.training_start_sp {
-                    if item.isCurrentlyTraining {
-                        // 对于正在训练的技能，从当前训练进度开始计算
-                        if let finishDate = item.finish_date,
-                           let startDate = item.start_date {
-                            let now = Date()
-                            let totalTrainingTime = finishDate.timeIntervalSince(startDate)
-                            let trainedTime = now.timeIntervalSince(startDate)
-                            let progress = trainedTime / totalTrainingTime
-                            let totalSP = endSP - startSP
-                            let trainedSP = Int(Double(totalSP) * progress)
-                            let remainingSP = totalSP - trainedSP
-                            totalRequiredSP += remainingSP
-                            Logger.debug("正在训练的技能 \(item.skill_id) - 总需求: \(totalSP), 已训练: \(trainedSP), 剩余: \(remainingSP)")
-                        }
-                    } else {
-                        // 对于未开始训练的技能，计算全部所需点数
-                        let requiredSP = endSP - startSP
-                        totalRequiredSP += requiredSP
-                        Logger.debug("未训练的技能 \(item.skill_id) - 需要: \(requiredSP)")
-                    }
-                }
+            // 异步加载注入器计算结果
+            Task {
+                await calculateInjectors()
             }
-            Logger.debug("队列总需求技能点: \(totalRequiredSP)")
             
-            // 从数据库获取角色当前的总技能点数
-            let query = """
-                SELECT total_sp, unallocated_sp
-                FROM character_skills
-                WHERE character_id = ?
-            """
-            if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
-               let row = rows.first {
-                // 处理total_sp
-                let totalSP: Int
-                if let value = row["total_sp"] as? Int {
-                    totalSP = value
-                } else if let value = row["total_sp"] as? Int64 {
-                    totalSP = Int(value)
-                } else {
-                    totalSP = 0
-                    Logger.error("无法解析total_sp")
-                }
-                
-                // 处理unallocated_sp
-                let unallocatedSP: Int
-                if let value = row["unallocated_sp"] as? Int {
-                    unallocatedSP = value
-                } else if let value = row["unallocated_sp"] as? Int64 {
-                    unallocatedSP = Int(value)
-                } else {
-                    unallocatedSP = 0
-                    Logger.error("无法解析unallocated_sp")
-                }
-                
-                let characterTotalSP = totalSP + unallocatedSP
-                Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
-                
-                injectorCalculation = SkillInjectorCalculator.calculate(
-                    requiredSkillPoints: totalRequiredSP,
-                    characterTotalSP: characterTotalSP
-                )
-                if let calc = injectorCalculation {
-                    Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
-                }
-                
-                // 获取注入器价格
-                await loadInjectorPrices()
-            } else {
-                // 如果无法从数据库获取技能点数据，尝试重新获取
-                Logger.debug("无法从数据库获取技能点数据，尝试重新获取")
-                do {
-                    let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterId, forceRefresh: true)
-                    let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
-                    Logger.debug("从API获取角色总技能点: \(characterTotalSP)")
-                    
-                    injectorCalculation = SkillInjectorCalculator.calculate(
-                        requiredSkillPoints: totalRequiredSP,
-                        characterTotalSP: characterTotalSP
-                    )
-                    if let calc = injectorCalculation {
-                        Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
-                    }
-                    
-                    // 获取注入器价格
-                    await loadInjectorPrices()
-                } catch {
-                    Logger.error("获取技能点数据失败: \(error)")
-                }
-            }
         } catch {
             Logger.error("加载技能队列失败: \(error)")
         }
     }
     
-    private func loadInjectorPrices() async {
-        do {
-            let prices = try await CharacterDataService.shared.getMarketPrices()
-            Logger.debug("开始加载注入器价格...")
-            Logger.debug("获取到市场价格数据，总条目数: \(prices.count)")
-            
-            // 查找大型和小型注入器的价格
-            var foundLarge = false
-            var foundSmall = false
-            
-            for price in prices {
-                if price.type_id == SkillInjectorCalculator.largeInjectorTypeId {
-                    foundLarge = true
-                    injectorPrices.large = price.average_price
-                    Logger.debug("找到大型注入器(ID: \(SkillInjectorCalculator.largeInjectorTypeId)) - average_price: \(String(describing: price.average_price))")
-                } else if price.type_id == SkillInjectorCalculator.smallInjectorTypeId {
-                    foundSmall = true
-                    injectorPrices.small = price.average_price
-                    Logger.debug("找到小型注入器(ID: \(SkillInjectorCalculator.smallInjectorTypeId)) - average_price: \(String(describing: price.average_price))")
-                }
-                
-                // 如果两种注入器的价格都找到了，就可以退出循环
-                if foundLarge && foundSmall {
-                    Logger.debug("注入器价格加载完成")
-                    break
-                }
-            }
-            
-            if !foundLarge {
-                Logger.debug("未找到大型注入器价格数据")
-            }
-            if !foundSmall {
-                Logger.debug("未找到小型注入器价格数据")
-            }
-            
-            // 如果没有找到价格，尝试重新获取市场数据
-            if !foundLarge || !foundSmall {
-                Logger.debug("尝试重新获取市场数据")
-                do {
-                    // 强制刷新市场数据
-                    let newPrices = try await MarketPricesAPI.shared.fetchMarketPrices(forceRefresh: true)
-                    
-                    // 再次查找注入器价格
-                    for price in newPrices {
-                        if price.type_id == SkillInjectorCalculator.largeInjectorTypeId {
-                            injectorPrices.large = price.average_price
-                            Logger.debug("重新获取到大型注入器价格: \(String(describing: price.average_price))")
-                        } else if price.type_id == SkillInjectorCalculator.smallInjectorTypeId {
-                            injectorPrices.small = price.average_price
-                            Logger.debug("重新获取到小型注入器价格: \(String(describing: price.average_price))")
-                        }
+    /// 计算注入器需求并加载价格
+    private func calculateInjectors() async {
+        isLoadingInjectors = true
+        defer { isLoadingInjectors = false }
+        
+        // 计算队列中所需的总技能点数
+        var totalRequiredSP = 0
+        for item in skillQueue {
+            if let endSP = item.level_end_sp,
+               let startSP = item.training_start_sp {
+                if item.isCurrentlyTraining {
+                    // 对于正在训练的技能，从当前训练进度开始计算
+                    if let finishDate = item.finish_date,
+                       let startDate = item.start_date {
+                        let now = Date()
+                        let totalTrainingTime = finishDate.timeIntervalSince(startDate)
+                        let trainedTime = now.timeIntervalSince(startDate)
+                        let progress = trainedTime / totalTrainingTime
+                        let totalSP = endSP - startSP
+                        let trainedSP = Int(Double(totalSP) * progress)
+                        let remainingSP = totalSP - trainedSP
+                        totalRequiredSP += remainingSP
+                        Logger.debug("正在训练的技能 \(item.skill_id) - 总需求: \(totalSP), 已训练: \(trainedSP), 剩余: \(remainingSP)")
                     }
-                } catch {
-                    Logger.error("重新获取市场数据失败: \(error)")
+                } else {
+                    // 对于未开始训练的技能，计算全部所需点数
+                    let requiredSP = endSP - startSP
+                    totalRequiredSP += requiredSP
+                    Logger.debug("未训练的技能 \(item.skill_id) - 需要: \(requiredSP)")
                 }
             }
-            
-            // 打印总价计算结果
-            if let totalCost = totalInjectorCost {
-                Logger.debug("计算得到的总价: \(totalCost)")
+        }
+        Logger.debug("队列总需求技能点: \(totalRequiredSP)")
+        
+        // 获取角色总技能点数
+        let characterTotalSP = await getCharacterTotalSP()
+        
+        // 计算注入器需求
+        injectorCalculation = SkillInjectorCalculator.calculate(
+            requiredSkillPoints: totalRequiredSP,
+            characterTotalSP: characterTotalSP
+        )
+        if let calc = injectorCalculation {
+            Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
+        }
+        
+        // 获取注入器价格
+        await loadInjectorPrices()
+    }
+    
+    /// 获取角色总技能点数
+    private func getCharacterTotalSP() async -> Int {
+        // 从数据库获取角色当前的总技能点数
+        let query = """
+            SELECT total_sp, unallocated_sp
+            FROM character_skills
+            WHERE character_id = ?
+        """
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+           let row = rows.first {
+            // 处理total_sp
+            let totalSP: Int
+            if let value = row["total_sp"] as? Int {
+                totalSP = value
+            } else if let value = row["total_sp"] as? Int64 {
+                totalSP = Int(value)
             } else {
-                Logger.debug("总价计算失败 - large: \(String(describing: injectorPrices.large)), small: \(String(describing: injectorPrices.small))")
+                totalSP = 0
+                Logger.error("无法解析total_sp")
             }
+            
+            // 处理unallocated_sp
+            let unallocatedSP: Int
+            if let value = row["unallocated_sp"] as? Int {
+                unallocatedSP = value
+            } else if let value = row["unallocated_sp"] as? Int64 {
+                unallocatedSP = Int(value)
+            } else {
+                unallocatedSP = 0
+                Logger.error("无法解析unallocated_sp")
+            }
+            
+            let characterTotalSP = totalSP + unallocatedSP
+            Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
+            return characterTotalSP
+        }
+        
+        // 如果无法从数据库获取，尝试从API获取
+        do {
+            let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(characterId: characterId, forceRefresh: true)
+            let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
+            Logger.debug("从API获取角色总技能点: \(characterTotalSP)")
+            return characterTotalSP
         } catch {
-            Logger.error("加载注入器价格失败: \(error)")
+            Logger.error("获取技能点数据失败: \(error)")
+            return 0
+        }
+    }
+    
+    private func loadInjectorPrices() async {
+        Logger.debug("开始加载注入器价格 - 大型注入器ID: \(SkillInjectorCalculator.largeInjectorTypeId), 小型注入器ID: \(SkillInjectorCalculator.smallInjectorTypeId)")
+        
+        // 获取大型和小型注入器的价格
+        let prices = await MarketPriceUtil.getMarketPrices(typeIds: [
+            SkillInjectorCalculator.largeInjectorTypeId,
+            SkillInjectorCalculator.smallInjectorTypeId
+        ])
+        
+        Logger.debug("获取到价格数据: \(prices)")
+        
+        // 确保两个价格都有值才更新
+        if let largePrice = prices[SkillInjectorCalculator.largeInjectorTypeId],
+           let smallPrice = prices[SkillInjectorCalculator.smallInjectorTypeId] {
+            // 在主线程一次性更新两个价格
+            await MainActor.run {
+                injectorPrices = (large: largePrice, small: smallPrice)
+            }
+        } else {
+            Logger.debug("价格数据不完整 - large: \(prices[SkillInjectorCalculator.largeInjectorTypeId] as Any), small: \(prices[SkillInjectorCalculator.smallInjectorTypeId] as Any)")
         }
     }
     
