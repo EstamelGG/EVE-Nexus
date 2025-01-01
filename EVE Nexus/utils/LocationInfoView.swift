@@ -25,10 +25,6 @@ struct LocationInfoView: View {
         self.textColor = textColor
     }
     
-    private func formatSecurity(_ security: Double) -> String {
-        String(format: "%.1f", security)
-    }
-    
     var body: some View {
         if let stationName = stationName,
            let solarSystemName = solarSystemName {
