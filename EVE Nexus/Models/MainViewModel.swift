@@ -44,7 +44,7 @@ struct CharacterStats: Codable {
 class MainViewModel: ObservableObject {
     // MARK: - Constants
     private enum Constants {
-        static let baseCloneCooldown: TimeInterval = 24 * 3600 // 基础24小时冷却
+        static let baseCloneCooldown: TimeInterval = 24 * 3600
         static let secondsInDay = 86400
         static let secondsInHour = 3600
         static let secondsInMinute = 60
@@ -97,7 +97,9 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Cache Management
     private enum CacheKeys {
-        static let characterStats = "cached_character_stats"
+        static func characterStats(for characterId: Int) -> String {
+            return "cached_character_stats_\(characterId)"
+        }
     }
     
     // MARK: - Published Properties
@@ -110,10 +112,13 @@ class MainViewModel: ObservableObject {
     @Published var loadingState: LoadingState = .idle
     @Published var lastError: RefreshError?
     
-    // 添加缓存属性
-    private var cachedStats: CharacterStats? {
+    // 修改缓存属性，改为字典形式
+    private var cachedStats: [Int: CharacterStats] = [:] {
         didSet {
-            saveCacheToUserDefaults()
+            // 当缓存更新时，保存对应角色的缓存
+            if let characterId = selectedCharacter?.CharacterID {
+                saveCacheToUserDefaults(for: characterId)
+            }
         }
     }
     
@@ -162,8 +167,13 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        loadCacheFromUserDefaults()  // 先加载缓存
-        loadSavedCharacter()         // 再加载保存的角色信息
+        // 先加载保存的角色信息
+        loadSavedCharacter()
+        
+        // 如果有当前角色ID，加载其缓存
+        if currentCharacterId != 0 {
+            loadCacheFromUserDefaults(for: currentCharacterId)
+        }
     }
     
     // MARK: - Private Methods
@@ -247,13 +257,15 @@ class MainViewModel: ObservableObject {
     }
     
     private func updateSkillPoints(_ totalSP: Int?) {
+        guard let characterId = selectedCharacter?.CharacterID else { return }
+        
         if let sp = totalSP {
             let formattedSP = NSLocalizedString("Main_Skills_Ponits", comment: "")
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(Double(sp)))
             characterStats.skillPoints = formattedSP
             characterStats.lastUpdated = Date()
-            cachedStats = characterStats
-        } else if let cached = cachedStats {
+            cachedStats[characterId] = characterStats
+        } else if let cached = cachedStats[characterId] {
             // 使用缓存数据
             characterStats.skillPoints = cached.skillPoints
         } else {
@@ -269,6 +281,8 @@ class MainViewModel: ObservableObject {
     }
     
     private func updateQueueStatus(length: Int?, finishTime: TimeInterval?) {
+        guard let characterId = selectedCharacter?.CharacterID else { return }
+        
         if let qLength = length {
             if let time = finishTime {
                 let components = formatTimeComponents(seconds: Int(time))
@@ -278,14 +292,14 @@ class MainViewModel: ObservableObject {
                     .replacingOccurrences(of: "$hour", with: "\(components.hours)")
                     .replacingOccurrences(of: "$minutes", with: "\(components.minutes)")
                 characterStats.lastUpdated = Date()
-                cachedStats = characterStats
+                cachedStats[characterId] = characterStats
             } else {
                 characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Paused", comment: "")
                     .replacingOccurrences(of: "$num", with: "\(qLength)")
                 characterStats.lastUpdated = Date()
-                cachedStats = characterStats
+                cachedStats[characterId] = characterStats
             }
-        } else if let cached = cachedStats {
+        } else if let cached = cachedStats[characterId] {
             // 使用缓存数据
             characterStats.queueStatus = cached.queueStatus
         } else {
@@ -295,13 +309,15 @@ class MainViewModel: ObservableObject {
     }
     
     private func updateWalletBalance(_ balance: Double?) {
+        guard let characterId = selectedCharacter?.CharacterID else { return }
+        
         if let bal = balance {
             let formattedBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")
                 .replacingOccurrences(of: "$num", with: FormatUtil.format(bal))
             characterStats.walletBalance = formattedBalance
             characterStats.lastUpdated = Date()
-            cachedStats = characterStats
-        } else if let cached = cachedStats {
+            cachedStats[characterId] = characterStats
+        } else if let cached = cachedStats[characterId] {
             // 使用缓存数据
             characterStats.walletBalance = cached.walletBalance
         } else {
@@ -362,8 +378,22 @@ class MainViewModel: ObservableObject {
         lastError = nil
         let service = CharacterDataService.shared
         
-        // 加载缓存
-        loadCacheFromUserDefaults()
+        // 如果有选中的角色，加载该角色的缓存
+        if let characterId = selectedCharacter?.CharacterID {
+            loadCacheFromUserDefaults(for: characterId)
+            
+            // 1. 如果有有效缓存且不是强制刷新，直接使用缓存
+            if let cached = cachedStats[characterId], cached.isCacheValid && !forceRefresh {
+                characterStats = cached
+                isRefreshing = false
+                return
+            }
+            
+            // 2. 如果有过期缓存，先显示缓存内容
+            if let cached = cachedStats[characterId] {
+                characterStats = cached
+            }
+        }
         
         // 创建一个独立的任务来处理服务器状态
         Task {
@@ -375,86 +405,71 @@ class MainViewModel: ObservableObject {
             }
         }
         
-        // 如果有选中的角色，开始加载所有数据
-        if let character = selectedCharacter {
-            // 1. 如果有有效缓存且不是强制刷新，直接使用缓存
-            if let cached = cachedStats, cached.isCacheValid && !forceRefresh {
-                characterStats = cached
-                isRefreshing = false
-                return
-            }
-            
-            // 2. 如果有过期缓存，先显示缓存内容
-            if let cached = cachedStats {
-                characterStats = cached
-            }
-            
-            // 优先加载头像
-            if characterPortrait == nil {
-                Task {
-                    loadingState = .loadingPortrait
-                    if let portrait = try? await service.getCharacterPortrait(
-                        id: character.CharacterID,
-                        forceRefresh: forceRefresh
-                    ) {
-                        self.characterPortrait = portrait
-                    }
-                    loadingState = .idle
-                }
-            }
-            
-            // 3. 异步获取新数据
+        // 优先加载头像
+        if characterPortrait == nil {
             Task {
-                do {
-                    let (skillsResponse, queue) = try await retryOperation(named: "获取技能信息") {
-                        try await service.getSkillInfo(id: character.CharacterID, forceRefresh: true)
-                    }
-                    processSkillInfo(skillsResponse: skillsResponse, queue: queue)
-                } catch {
-                    Logger.error("获取技能信息失败: \(error)")
-                    if cachedStats == nil {
-                        updateSkillPoints(nil)
-                    }
+                loadingState = .loadingPortrait
+                if let portrait = try? await service.getCharacterPortrait(
+                    id: selectedCharacter?.CharacterID ?? 0,
+                    forceRefresh: forceRefresh
+                ) {
+                    self.characterPortrait = portrait
+                }
+                loadingState = .idle
+            }
+        }
+        
+        // 3. 异步获取新数据
+        Task {
+            do {
+                let (skillsResponse, queue) = try await retryOperation(named: "获取技能信息") {
+                    try await service.getSkillInfo(id: selectedCharacter?.CharacterID ?? 0, forceRefresh: true)
+                }
+                processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+            } catch {
+                Logger.error("获取技能信息失败: \(error)")
+                if cachedStats[selectedCharacter?.CharacterID ?? 0] == nil {
+                    updateSkillPoints(nil)
                 }
             }
-            
-            Task {
-                do {
-                    let balance = try await retryOperation(named: "获取钱包余额") {
-                        try await service.getWalletBalance(id: character.CharacterID, forceRefresh: true)
-                    }
-                    self.cache.walletBalance = balance
-                    self.updateWalletBalance(balance)
-                } catch {
-                    Logger.error("获取钱包余额失败: \(error)")
-                    if cachedStats == nil {
-                        updateWalletBalance(nil)
-                    }
+        }
+        
+        Task {
+            do {
+                let balance = try await retryOperation(named: "获取钱包余额") {
+                    try await service.getWalletBalance(id: selectedCharacter?.CharacterID ?? 0, forceRefresh: true)
+                }
+                self.cache.walletBalance = balance
+                self.updateWalletBalance(balance)
+            } catch {
+                Logger.error("获取钱包余额失败: \(error)")
+                if cachedStats[selectedCharacter?.CharacterID ?? 0] == nil {
+                    updateWalletBalance(nil)
                 }
             }
-            
-            // 加载位置信息
-            Task {
-                do {
-                    let location = try await retryOperation(named: "获取位置信息") {
-                        try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
-                    }
-                    self.characterStats.location = location.locationStatus.description
-                } catch {
-                    Logger.error("获取位置信息失败: \(error)")
+        }
+        
+        // 加载位置信息
+        Task {
+            do {
+                let location = try await retryOperation(named: "获取位置信息") {
+                    try await service.getLocation(id: selectedCharacter?.CharacterID ?? 0, forceRefresh: forceRefresh)
                 }
+                self.characterStats.location = location.locationStatus.description
+            } catch {
+                Logger.error("获取位置信息失败: \(error)")
             }
-            
-            // 加载克隆状态
-            Task {
-                do {
-                    let cloneInfo = try await retryOperation(named: "获取克隆状态") {
-                        try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
-                    }
-                    self.updateCloneStatus(from: cloneInfo)
-                } catch {
-                    Logger.error("获取克隆状态失败: \(error)")
+        }
+        
+        // 加载克隆状态
+        Task {
+            do {
+                let cloneInfo = try await retryOperation(named: "获取克隆状态") {
+                    try await service.getCloneStatus(id: selectedCharacter?.CharacterID ?? 0, forceRefresh: forceRefresh)
                 }
+                self.updateCloneStatus(from: cloneInfo)
+            } catch {
+                Logger.error("获取克隆状态失败: \(error)")
             }
         }
         
@@ -471,6 +486,18 @@ class MainViewModel: ObservableObject {
             if let auth = EVELogin.shared.getCharacterByID(currentCharacterId) {
                 selectedCharacter = auth.character
                 Logger.info("成功加载保存的角色信息: \(auth.character.CharacterName)")
+                
+                // 加载角色头像
+                Task {
+                    if let portrait = try? await CharacterDataService.shared.getCharacterPortrait(
+                        id: auth.character.CharacterID,
+                        forceRefresh: false
+                    ) {
+                        await MainActor.run {
+                            self.characterPortrait = portrait
+                        }
+                    }
+                }
             } else {
                 Logger.warning("找不到保存的角色（ID: \(currentCharacterId)），重置选择")
                 resetCharacterInfo()
@@ -478,8 +505,33 @@ class MainViewModel: ObservableObject {
         }
     }
     
-    // 重置角色信息
+    // 修改为统一的角色切换方法
+    func switchCharacter(to character: EVECharacterInfo, portrait: UIImage?) async {
+        // 1. 重置状态
+        characterStats = CharacterStats()
+        characterPortrait = portrait
+        selectedCharacter = character
+        currentCharacterId = character.CharacterID
+        
+        // 2. 加载缓存
+        loadCacheFromUserDefaults(for: character.CharacterID)
+        
+        // 3. 如果有有效缓存，先使用缓存数据
+        if let cached = cachedStats[character.CharacterID], cached.isCacheValid {
+            characterStats = cached
+        }
+        
+        // 4. 刷新数据
+        await refreshAllData(forceRefresh: false)  // 不强制刷新，让缓存机制正常工作
+    }
+    
+    // 修改重置方法
     func resetCharacterInfo() {
+        if let characterId = selectedCharacter?.CharacterID {
+            cachedStats.removeValue(forKey: characterId)
+            UserDefaults.standard.removeObject(forKey: CacheKeys.characterStats(for: characterId))
+        }
+        
         characterStats = CharacterStats()
         selectedCharacter = nil
         characterPortrait = nil
@@ -487,14 +539,9 @@ class MainViewModel: ObservableObject {
         loadingState = .idle
         currentCharacterId = 0
         lastError = nil
-        cachedStats = nil  // 清除缓存
         
-        // 清除缓存的数据
         cache.clear()
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
-        
-        // 清除本地存储的缓存
-        UserDefaults.standard.removeObject(forKey: CacheKeys.characterStats)
     }
     
     // 从本地快速更新数据（缓存+数据库）
@@ -540,18 +587,19 @@ class MainViewModel: ObservableObject {
     }
     
     // MARK: - Cache Management Methods
-    private func saveCacheToUserDefaults() {
-        if let encoded = try? JSONEncoder().encode(cachedStats) {
-            UserDefaults.standard.set(encoded, forKey: CacheKeys.characterStats)
+    private func saveCacheToUserDefaults(for characterId: Int) {
+        if let stats = cachedStats[characterId],
+           let encoded = try? JSONEncoder().encode(stats) {
+            UserDefaults.standard.set(encoded, forKey: CacheKeys.characterStats(for: characterId))
         }
     }
     
-    private func loadCacheFromUserDefaults() {
-        if let data = UserDefaults.standard.data(forKey: CacheKeys.characterStats),
+    private func loadCacheFromUserDefaults(for characterId: Int) {
+        if let data = UserDefaults.standard.data(forKey: CacheKeys.characterStats(for: characterId)),
            let decoded = try? JSONDecoder().decode(CharacterStats.self, from: data) {
-            cachedStats = decoded
-            // 如果没有新数据，使用缓存数据
-            if characterStats.skillPoints == "--" {
+            cachedStats[characterId] = decoded
+            // 如果是当前选中的角色且没有新数据，使用缓存数据
+            if characterId == currentCharacterId && characterStats.skillPoints == "--" {
                 characterStats = decoded
             }
         }

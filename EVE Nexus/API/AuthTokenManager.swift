@@ -21,7 +21,9 @@ actor AuthTokenManager: NSObject {
         
         // 提前5分钟认为token将过期
         let gracePeriod: TimeInterval = 5 * 60
-        return Date().addingTimeInterval(gracePeriod) < expirationDate
+        let res = Date().addingTimeInterval(gracePeriod) < expirationDate
+        Logger.info("Token 预计过期时间: \(expirationDate), 当前时间: \(Date()), 不需要更新: \(res)")
+        return res
     }
     
     // 显式刷新token
