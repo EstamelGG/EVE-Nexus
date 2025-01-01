@@ -168,22 +168,30 @@ struct CharacterClonesView: View {
                 Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
                     if !implantDetails.isEmpty {
                         ForEach(implantDetails, id: \.typeId) { implant in
-                            HStack(alignment: .center, spacing: 8) {
-                                IconManager.shared.loadImage(for: implant.icon)
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
-                                
-                                Text(implant.name)
-                                    .font(.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .multilineTextAlignment(.leading)
-                                    .minimumScaleFactor(0.5)
-                                    .lineLimit(2)
-                                
-                                Spacer(minLength: 0)
+                            NavigationLink {
+                                ShowItemInfo(
+                                    databaseManager: databaseManager,
+                                    itemID: implant.typeId
+                                )
+                            } label: {
+                                HStack(alignment: .center, spacing: 8) {
+                                    IconManager.shared.loadImage(for: implant.icon)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                    
+                                    Text(implant.name)
+                                        .font(.body)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .multilineTextAlignment(.leading)
+                                        .minimumScaleFactor(0.5)
+                                        .lineLimit(2)
+                                        .lineSpacing(1)
+                                    
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(height: 36)
                             }
-                            .frame(height: 36)
                         }
                     } else {
                         Text(NSLocalizedString("Character_No_Implants", comment: ""))
@@ -450,20 +458,27 @@ struct CloneLocationDetailView: View {
                     
                     if let implants = implantDetailsMap[clone.jump_clone_id], !implants.isEmpty {
                         ForEach(implants, id: \.typeId) { implant in
-                            HStack(alignment: .center, spacing: 8) {
-                                IconManager.shared.loadImage(for: implant.icon)
-                                    .resizable()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
-                                
-                                Text(implant.name)
-                                    .font(.body)
-                                    .lineLimit(2)
-                                    .lineSpacing(1)
-                                
-                                Spacer(minLength: 0)
+                            NavigationLink {
+                                ShowItemInfo(
+                                    databaseManager: databaseManager,
+                                    itemID: implant.typeId
+                                )
+                            } label: {
+                                HStack(alignment: .center, spacing: 8) {
+                                    IconManager.shared.loadImage(for: implant.icon)
+                                        .resizable()
+                                        .frame(width: 36, height: 36)
+                                        .cornerRadius(6)
+                                    
+                                    Text(implant.name)
+                                        .font(.body)
+                                        .lineLimit(2)
+                                        .lineSpacing(1)
+                                    
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(height: 36)
                             }
-                            .frame(height: 36)
                         }
                     } else {
                         Text(NSLocalizedString("Character_No_Implants", comment: ""))
