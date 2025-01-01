@@ -135,8 +135,9 @@ actor AuthTokenManager: NSObject {
             // 提前5分钟刷新
             let gracePeriod: TimeInterval = 5 * 60
             if Date().addingTimeInterval(gracePeriod) >= expirationDate {
-                Logger.error("Token 状态异常，将在5分钟内过期，提前刷新 - 角色ID: \(characterId)")
-                authState.setNeedsTokenRefresh()
+                Logger.info("Token 将在5分钟内过期，提前刷新 - 角色ID: \(characterId)")
+                // 强制刷新 token
+                return try await refreshToken(for: characterId)
             } else {
                 Logger.info("Token 状态正常，过期时间: \(expirationDate)")
             }
@@ -148,7 +149,10 @@ actor AuthTokenManager: NSObject {
                     Logger.error("获取 token 失败: \(error)")
                     continuation.resume(throwing: error)
                 } else if let accessToken = accessToken {
-                    Logger.info("获取 token 成功")
+                    // 从 authState 获取最新的过期时间
+                    if let expirationDate = authState.lastTokenResponse?.accessTokenExpirationDate {
+                        Logger.info("使用 token，过期时间: \(expirationDate)")
+                    }
                     continuation.resume(returning: accessToken)
                 } else {
                     Logger.error("获取 token 失败: 无效数据")
