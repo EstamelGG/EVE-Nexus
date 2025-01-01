@@ -95,6 +95,8 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Private Properties
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    private var cloneCooldownEndDate: Date? // 缓存冷却结束时间
+    private var refreshTimer: Timer? // 定时器
     private var cloneCooldownPeriod: TimeInterval {
         guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
         
@@ -140,6 +142,7 @@ class MainViewModel: ObservableObject {
     }
     
     // MARK: - Private Methods
+    @MainActor
     private func updateCloneStatus(from cloneInfo: CharacterCloneInfo) {
         if let lastJumpDate = cloneInfo.last_clone_jump_date {
             let dateFormatter = ISO8601DateFormatter()
@@ -151,29 +154,71 @@ class MainViewModel: ObservableObject {
                 
                 if timeSinceLastJump >= cloneCooldownPeriod {
                     cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                    stopTimer()
                 } else {
-                    // 计算冷却完成的时间点
-                    let cooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
-                    let remainingTime = cooldownEndDate.timeIntervalSince(now)
-                    
-                    // 转换为小时和分钟
-                    let hours = Int(remainingTime) / 3600
-                    let minutes = (Int(remainingTime) % 3600) / 60
-                    
-                    if hours > 0 {
-                        if minutes > 0 {
-                            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Hours_Minutes", comment: ""), hours, minutes)
-                        } else {
-                            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
-                        }
-                    } else {
-                        cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Minutes", comment: ""), minutes)
-                    }
+                    // 计算并缓存冷却完成时间
+                    cloneCooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
+                    updateCloneStatusDisplay()
+                    startTimer()
                 }
             }
         } else {
             cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            stopTimer()
         }
+    }
+    
+    @MainActor
+    private func updateCloneStatusDisplay() {
+        guard let endDate = cloneCooldownEndDate else {
+            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            return
+        }
+        
+        let now = Date()
+        let remainingTime = endDate.timeIntervalSince(now)
+        
+        if remainingTime <= 0 {
+            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+            stopTimer()
+            return
+        }
+        
+        // 转换为小时和分钟
+        let hours = Int(remainingTime) / 3600
+        let minutes = (Int(remainingTime) % 3600) / 60
+        
+        if hours > 0 {
+            if minutes > 0 {
+                cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Hours_Minutes", comment: ""), hours, minutes)
+            } else {
+                cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+            }
+        } else {
+            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Minutes", comment: ""), minutes)
+        }
+    }
+    
+    @MainActor
+    private func startTimer() {
+        stopTimer()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateCloneStatusDisplay()
+            }
+        }
+    }
+    
+    @MainActor
+    private func stopTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+    
+    deinit {
+        // 直接在deinit中停止定时器，不使用异步调用
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
     
     private func updateSkillPoints(_ totalSP: Int?) {
