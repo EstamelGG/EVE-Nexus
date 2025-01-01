@@ -552,7 +552,9 @@ struct ContentView: View {
             }
             
             NavigationLink {
-                Text("Loyalty Points View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterLoyaltyPointsView(characterId: character.CharacterID)
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
