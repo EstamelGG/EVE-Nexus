@@ -204,10 +204,18 @@ struct CharacterSheetView: View {
                         }
                     } else if currentLocation != nil {
                         // 在星系中时显示默认图标
-                        IconManager.shared.loadImage(for: "icon_9_64.png")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
+                        if let location = currentLocation,
+                           let iconFileName = getSystemIcon(solarSystemId: location.systemId, databaseManager: databaseManager) {
+                            IconManager.shared.loadImage(for: iconFileName)
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                        } else {
+                            IconManager.shared.loadImage(for: "icon_0_64.png")
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                        }
                     } else {
                         IconManager.shared.loadImage(for: "icon_0_64.png")
                             .resizable()
@@ -926,5 +934,25 @@ struct CharacterSheetView: View {
         formatter.timeStyle = .none
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
+    }
+    
+    private func getSystemIcon(solarSystemId: Int, databaseManager: DatabaseManager) -> String? {
+        // 1. 从universe表获取system_type
+        let universeQuery = "SELECT system_type FROM universe WHERE solarsystem_id = ?"
+        guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [solarSystemId]),
+              let universeRow = universeRows.first,
+              let systemType = universeRow["system_type"] as? Int else {
+            return nil
+        }
+        
+        // 2. 从types表获取icon_filename
+        let typesQuery = "SELECT icon_filename FROM types WHERE type_id = ?"
+        guard case .success(let typeRows) = databaseManager.executeQuery(typesQuery, parameters: [systemType]),
+              let typeRow = typeRows.first,
+              let iconFileName = typeRow["icon_filename"] as? String else {
+            return nil
+        }
+        
+        return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
     }
 }
