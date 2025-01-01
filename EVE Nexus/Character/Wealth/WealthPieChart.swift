@@ -53,34 +53,46 @@ struct WealthPieChart: View {
     }
     
     var body: some View {
-        ZStack {
-            ForEach(slices) { slice in
-                PieSliceView(slice: slice, size: size)
-                    .scaleEffect(selectedSlice?.id == slice.id ? 1.05 : 1.0)
-                    .onTapGesture {
-                        withAnimation(.spring()) {
-                            selectedSlice = selectedSlice?.id == slice.id ? nil : slice
+        HStack(alignment: .center, spacing: 20) {
+            // 图例和占比
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(slices) { slice in
+                    HStack(spacing: 8) {
+                        // 颜色方块
+                        Rectangle()
+                            .fill(slice.color)
+                            .frame(width: 12, height: 12)
+                            .cornerRadius(2)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            // 分类名称
+                            Text(NSLocalizedString("Wealth_\(slice.type.rawValue)", comment: ""))
+                                .font(.caption)
+                            
+                            // 占比和金额
+                            Text(String(format: "%.1f%% (%@)", slice.percentage, FormatUtil.formatISK(slice.value)))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
                     }
-            }
-            
-            if let selected = selectedSlice {
-                // 显示选中片段的详细信息
-                VStack {
-                    Text(NSLocalizedString("Wealth_\(selected.type.rawValue)", comment: ""))
-                        .font(.headline)
-                    Text(String(format: "%.1f%%", selected.percentage))
-                        .font(.subheadline)
-                    Text(FormatUtil.formatISK(selected.value) + " ISK")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                 }
-                .padding(8)
-                .background(Color(UIColor.systemBackground).opacity(0.8))
-                .cornerRadius(8)
             }
+            .padding(.vertical, 8)
+            
+            // 饼图
+            ZStack {
+                ForEach(slices) { slice in
+                    PieSliceView(slice: slice, size: size)
+                        .scaleEffect(selectedSlice?.id == slice.id ? 1.05 : 1.0)
+                        .onTapGesture {
+                            withAnimation(.spring()) {
+                                selectedSlice = selectedSlice?.id == slice.id ? nil : slice
+                            }
+                        }
+                }
+            }
+            .frame(width: size, height: size)
         }
-        .frame(width: size, height: size)
     }
 }
 
