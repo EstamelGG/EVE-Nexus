@@ -527,3 +527,14 @@
 "Main_Skills_Required_Injectors" = "Required Skill Injectors";
 "Main_Skills_Total_Required_SP" = "Total Required Skill Points: %@";
 "Main_Skills_Total_Injector_Cost" = "Estimated Injector Cost: %@ ISK";
+
+// Wealth View
+"Wealth_Total" = "Total Wealth";
+"Wealth_Assets" = "Assets";
+"Wealth_Implants" = "Implants";
+"Wealth_Orders" = "Market Orders";
+"Wealth_Wallet" = "Wallet Balance";
+"Wealth_Assets_Count" = "%d items";
+"Wealth_Implants_Count" = "%d implants";
+"Wealth_Orders_Count" = "%d orders";
+"Wealth_Wallet_Balance" = "Current balance";

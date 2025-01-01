@@ -540,7 +540,9 @@ struct ContentView: View {
             .isHidden(true)
             
             NavigationLink {
-                Text("Wealth View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterWealthView(characterId: character.CharacterID)
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_Wealth", comment: ""),
