@@ -16,12 +16,26 @@ struct CharacterSkillsView: View {
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
     
     private var activeSkills: [SkillQueueItem] {
-        skillQueue.sorted { $0.queue_position < $1.queue_position }
+        let now = Date()
+        // 找到当前时间正在训练的技能的位置
+        let currentPosition = skillQueue.firstIndex { skill in
+            guard let startDate = skill.start_date,
+                  let finishDate = skill.finish_date else {
+                return false
+            }
+            return now >= startDate && now <= finishDate
+        } ?? 0
+        
+        // 从当前位置开始的所有技能
+        return skillQueue
+            .filter { $0.queue_position >= currentPosition }
+            .sorted { $0.queue_position < $1.queue_position }
     }
     
     private var isQueuePaused: Bool {
         guard let firstSkill = activeSkills.first,
-              firstSkill.isCurrentlyTraining else {
+              let _ = firstSkill.start_date,
+              let _ = firstSkill.finish_date else {
             return true
         }
         return false
