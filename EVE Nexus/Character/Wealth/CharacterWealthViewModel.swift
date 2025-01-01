@@ -234,8 +234,8 @@ class CharacterWealthViewModel: ObservableObject {
             for order in orders {
                 let orderValue = Double(order.volumeRemain) * order.price
                 if order.isBuyOrder ?? false {
-                    // 买单：需要支付的金额算作负资产
-                    totalValue -= orderValue
+                    // 买单：订单上预付的金额也算作资产
+                    totalValue += orderValue
                 } else {
                     // 卖单：预期获得的金额算作正资产
                     totalValue += orderValue
