@@ -165,12 +165,14 @@ class CharacterWealthViewModel: ObservableObject {
             let locations = try JSONDecoder().decode([AssetTreeNode].self, from: jsonData)
             
             // 递归计算所有资产价值
-            func calculateNodeValue(_ node: AssetTreeNode) {
-                if let price = marketPrices[node.type_id] {
+            func calculateNodeValue(_ node: AssetTreeNode, isTopLevel: Bool = false) {
+                // 如果不是顶层节点，则计算价值
+                if !isTopLevel, let price = marketPrices[node.type_id] {
                     totalValue += price * Double(node.quantity)
                     totalCount += 1
                 }
                 
+                // 递归处理子节点
                 if let items = node.items {
                     for item in items {
                         calculateNodeValue(item)
@@ -178,9 +180,9 @@ class CharacterWealthViewModel: ObservableObject {
                 }
             }
             
-            // 遍历所有位置
+            // 遍历所有位置，标记为顶层节点
             for location in locations {
-                calculateNodeValue(location)
+                calculateNodeValue(location, isTopLevel: true)
             }
         }
         
@@ -262,8 +264,9 @@ class CharacterWealthViewModel: ObservableObject {
                 // 创建一个字典来统计每种物品的数量和总价值
                 var itemStats: [Int: (quantity: Int, value: Double)] = [:]
                 
-                func processNode(_ node: AssetTreeNode) {
-                    if let price = marketPrices[node.type_id] {
+                func processNode(_ node: AssetTreeNode, isTopLevel: Bool = false) {
+                    // 如果不是顶层节点，则计算价值
+                    if !isTopLevel, let price = marketPrices[node.type_id] {
                         let currentStats = itemStats[node.type_id] ?? (0, 0)
                         itemStats[node.type_id] = (
                             currentStats.quantity + node.quantity,
@@ -271,6 +274,7 @@ class CharacterWealthViewModel: ObservableObject {
                         )
                     }
                     
+                    // 递归处理子节点
                     if let items = node.items {
                         for item in items {
                             processNode(item)
@@ -278,9 +282,9 @@ class CharacterWealthViewModel: ObservableObject {
                     }
                 }
                 
-                // 处理所有位置
+                // 处理所有位置，标记为顶层节点
                 for location in locations {
-                    processNode(location)
+                    processNode(location, isTopLevel: true)
                 }
                 
                 // 转换为ValuedItem，排序，并只取前20个
