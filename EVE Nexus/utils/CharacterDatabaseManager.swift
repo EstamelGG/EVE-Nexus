@@ -360,6 +360,15 @@ class CharacterDatabaseManager: ObservableObject {
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
             CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
 
+            -- 市场价格表
+            CREATE TABLE IF NOT EXISTS market_prices (
+                type_id INTEGER PRIMARY KEY,
+                adjusted_price REAL,
+                average_price REAL,
+                last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_market_prices_last_updated ON market_prices(last_updated);
+
             -- 创建索引
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
         """

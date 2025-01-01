@@ -16,6 +16,7 @@ enum MarketPricesAPIError: LocalizedError {
     case decodingError(Error)
     case httpError(Int)
     case rateLimitExceeded
+    case databaseError(String)
     
     var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ enum MarketPricesAPIError: LocalizedError {
             return "HTTP错误: \(code)"
         case .rateLimitExceeded:
             return "超出请求限制"
+        case .databaseError(let message):
+            return "数据库错误: \(message)"
         }
     }
 }
@@ -47,59 +50,91 @@ class MarketPricesAPI {
     
     private init() {}
     
-    private struct CachedData: Codable {
-        let data: [MarketPrice]
-        let timestamp: Date
-    }
-    
-    // MARK: - 缓存方法
-    private func getCacheDirectory() -> URL? {
-        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return nil
+    // MARK: - 数据库方法
+    private func loadFromDatabase() -> [MarketPrice]? {
+        // 检查缓存是否过期
+        let query = """
+            SELECT * FROM market_prices 
+            WHERE datetime(last_updated) > datetime('now', '-8 hours')
+            LIMIT 1
+        """
+        
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query),
+           !rows.isEmpty {
+            // 缓存有效，加载所有价格
+            let priceQuery = "SELECT * FROM market_prices"
+            if case .success(let priceRows) = CharacterDatabaseManager.shared.executeQuery(priceQuery) {
+                return priceRows.compactMap { row in
+                    guard let typeId = row["type_id"] as? Int64 else { return nil }
+                    let adjustedPrice = row["adjusted_price"] as? Double
+                    let averagePrice = row["average_price"] as? Double
+                    return MarketPrice(
+                        adjusted_price: adjustedPrice,
+                        average_price: averagePrice,
+                        type_id: Int(typeId)
+                    )
+                }
+            }
         }
-        let cacheDirectory = documentsDirectory.appendingPathComponent("MarketCache", isDirectory: true)
-        
-        // 确保缓存目录存在
-        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true, attributes: nil)
-        
-        return cacheDirectory
+        return nil
     }
     
-    private func getCacheFilePath() -> URL? {
-        guard let cacheDirectory = getCacheDirectory() else { return nil }
-        return cacheDirectory.appendingPathComponent("market_prices.json")
-    }
-    
-    private func loadFromCache() -> [MarketPrice]? {
-        guard let cacheFile = getCacheFilePath(),
-              let data = try? Data(contentsOf: cacheFile),
-              let cached = try? JSONDecoder().decode(CachedData.self, from: data),
-              cached.timestamp.addingTimeInterval(cacheDuration) > Date() else {
-            return nil
+    private func saveToDatabase(_ prices: [MarketPrice]) {
+        // 开始事务
+        let beginTransaction = "BEGIN TRANSACTION"
+        _ = CharacterDatabaseManager.shared.executeQuery(beginTransaction)
+        
+        // 清除旧数据
+        let clearQuery = "DELETE FROM market_prices"
+        _ = CharacterDatabaseManager.shared.executeQuery(clearQuery)
+        
+        // 计算每批次的大小（考虑到每条记录需要3个参数）
+        let batchSize = 300 // 每批次处理300条记录，对应900个参数
+        var success = true
+        
+        // 分批处理数据
+        for batchStart in stride(from: 0, to: prices.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, prices.count)
+            let currentBatch = Array(prices[batchStart..<batchEnd])
+            
+            // 构建批量插入语句
+            let placeholders = Array(repeating: "(?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let insertQuery = """
+                INSERT INTO market_prices (type_id, adjusted_price, average_price)
+                VALUES \(placeholders)
+            """
+            
+            // 准备参数数组
+            var parameters: [Any] = []
+            for price in currentBatch {
+                parameters.append(price.type_id)
+                parameters.append(price.adjusted_price as Any)
+                parameters.append(price.average_price as Any)
+            }
+            
+            // 执行批量插入
+            if case .error = CharacterDatabaseManager.shared.executeQuery(insertQuery, parameters: parameters) {
+                success = false
+                break
+            }
         }
         
-        Logger.info("使用缓存的市场价格数据")
-        return cached.data
-    }
-    
-    private func saveToCache(_ prices: [MarketPrice]) {
-        guard let cacheFile = getCacheFilePath() else { return }
-        
-        let cachedData = CachedData(data: prices, timestamp: Date())
-        do {
-            let encodedData = try JSONEncoder().encode(cachedData)
-            try encodedData.write(to: cacheFile)
-            Logger.info("市场价格数据已缓存到文件")
-        } catch {
-            Logger.error("保存市场价格缓存失败: \(error)")
+        // 根据执行结果提交或回滚事务
+        if success {
+            _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
+            Logger.info("市场价格数据已保存到数据库，共 \(prices.count) 条记录")
+        } else {
+            _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
+            Logger.error("保存市场价格数据失败")
         }
     }
     
     // MARK: - 公共方法
     func fetchMarketPrices(forceRefresh: Bool = false) async throws -> [MarketPrice] {
-        // 如果不是强制刷新，尝试从缓存获取
+        // 如果不是强制刷新，尝试从数据库获取
         if !forceRefresh {
-            if let cached = loadFromCache() {
+            if let cached = loadFromDatabase() {
+                Logger.info("使用数据库缓存的市场价格数据")
                 return cached
             }
         }
@@ -119,9 +154,16 @@ class MarketPricesAPI {
         let data = try await NetworkManager.shared.fetchData(from: url)
         let prices = try JSONDecoder().decode([MarketPrice].self, from: data)
         
-        // 保存到缓存
-        saveToCache(prices)
+        // 保存到数据库
+        saveToDatabase(prices)
         
         return prices
+    }
+    
+    /// 清除缓存
+    func clearCache() {
+        let query = "DELETE FROM market_prices"
+        _ = CharacterDatabaseManager.shared.executeQuery(query)
+        Logger.info("市场价格缓存已清除")
     }
 } 
