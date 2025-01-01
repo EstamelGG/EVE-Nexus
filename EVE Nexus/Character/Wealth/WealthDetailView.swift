@@ -3,6 +3,7 @@ import SwiftUI
 struct WealthDetailView: View {
     let title: String
     let valuedItems: [ValuedItem]
+    let databaseManager: DatabaseManager
     @StateObject private var viewModel: CharacterWealthViewModel
     @State private var itemInfos: [[String: Any]] = []
     @State private var isLoading = true
@@ -10,6 +11,7 @@ struct WealthDetailView: View {
     init(title: String, valuedItems: [ValuedItem], viewModel: CharacterWealthViewModel) {
         self.title = title
         self.valuedItems = valuedItems
+        self.databaseManager = DatabaseManager()
         self._viewModel = StateObject(wrappedValue: viewModel)
     }
     
@@ -41,28 +43,31 @@ struct WealthDetailView: View {
             } else {
                 ForEach(valuedItems, id: \.typeId) { item in
                     if let itemInfo = getItemInfo(typeId: item.typeId) {
-                        HStack {
-                            // 物品图标
-                            IconManager.shared.loadImage(for: itemInfo.iconFileName)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(itemInfo.name)
-                                Text("\(item.quantity) × \(FormatUtil.formatISK(item.value)) ISK")
+                        NavigationLink{
+                            MarketItemDetailView(databaseManager: databaseManager, itemID: item.typeId)
+                        } label: {
+                            HStack {
+                                // 物品图标
+                                IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(itemInfo.name)
+                                    Text("\(item.quantity) × \(FormatUtil.formatISK(item.value)) ISK")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                // 总价值
+                                Text(FormatUtil.formatISK(item.totalValue) + " ISK")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
-                            Spacer()
-                            
-                            // 总价值
-                            Text(FormatUtil.formatISK(item.totalValue) + " ISK")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(height: 36)
+                            .frame(height: 36)}
                     }
                 }
             }
@@ -75,4 +80,4 @@ struct WealthDetailView: View {
             isLoading = false
         }
     }
-} 
+}
