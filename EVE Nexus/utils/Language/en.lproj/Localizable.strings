@@ -344,7 +344,7 @@
 "Orders_Buy" = "Buy";
 "Orders_Sell" = "Sell";
 "Orders_Corp" = "Corp";
-"Orders_No_Data" = "No orders found";
+"Orders_No_Data" = "No Data Found";
 "Orders_No_Buy_Orders" = "No Buy Orders";
 "Orders_No_Sell_Orders" = "No Sell Orders";
 
