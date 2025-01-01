@@ -10,6 +10,8 @@ struct CharacterSkillsView: View {
     @State private var injectorCalculation: InjectorCalculation?
     @State private var characterTotalSP: Int = 0
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
+    @State private var characterAttributes: CharacterAttributes?
+    @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -135,6 +137,11 @@ struct CharacterSkillsView: View {
                                                       formatNumber(progress.total)))
                                                 .font(.caption)
                                                 .foregroundColor(.secondary)
+                                            if let rate = trainingRates[item.skill_id] {
+                                                Text("(\(formatNumber(rate))/h)")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
                                             Spacer()
                                             if item.isCurrentlyTraining {
                                                 if let remainingTime = item.remainingTime {
@@ -269,18 +276,50 @@ struct CharacterSkillsView: View {
     
     private func loadSkillQueue(forceRefresh: Bool = false) async {
         do {
+            // 加载角色属性
+            characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+            
             Logger.debug("开始加载技能队列...")
             // 加载技能队列
             skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
             Logger.debug("获取到技能队列，数量: \(skillQueue.count)")
             
-            // 加载技能名称
+            // 加载技能名称和训练速度
             for item in skillQueue {
-                let query = "SELECT name FROM types WHERE type_id = ?"
-                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [item.skill_id]),
+                // 加载技能名称
+                let nameQuery = "SELECT name FROM types WHERE type_id = ?"
+                if case .success(let rows) = databaseManager.executeQuery(nameQuery, parameters: [item.skill_id]),
                    let row = rows.first,
                    let name = row["name"] as? String {
                     skillNames[item.skill_id] = name
+                }
+                
+                // 加载训练速度属性
+                let attrQuery = """
+                    SELECT attribute_id, value
+                    FROM typeAttributes
+                    WHERE type_id = ? AND attribute_id IN (180, 181)
+                """
+                if case .success(let rows) = databaseManager.executeQuery(attrQuery, parameters: [item.skill_id]) {
+                    var primaryAttrId: Int?
+                    var secondaryAttrId: Int?
+                    
+                    for row in rows {
+                        guard let attrId = row["attribute_id"] as? Int,
+                              let value = row["value"] as? Double else { continue }
+                        
+                        switch attrId {
+                        case 180: primaryAttrId = Int(value)
+                        case 181: secondaryAttrId = Int(value)
+                        default: break
+                        }
+                    }
+                    
+                    if let primary = primaryAttrId,
+                       let secondary = secondaryAttrId,
+                       let rate = calculateTrainingRate(primaryAttrId: primary, secondaryAttrId: secondary) {
+                        trainingRates[item.skill_id] = rate
+                    }
                 }
             }
             
@@ -505,5 +544,28 @@ struct CharacterSkillsView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
+    private func calculateTrainingRate(primaryAttrId: Int, secondaryAttrId: Int) -> Int? {
+        guard let attrs = characterAttributes else { return nil }
+        
+        func getAttributeValue(_ attrId: Int) -> Int {
+            switch attrId {
+            case 164: return attrs.charisma
+            case 165: return attrs.intelligence
+            case 166: return attrs.memory
+            case 167: return attrs.perception
+            case 168: return attrs.willpower
+            default: return 0
+            }
+        }
+        
+        let primaryValue = getAttributeValue(primaryAttrId)
+        let secondaryValue = getAttributeValue(secondaryAttrId)
+        
+        // 每分钟训练点数 = 主属性 + 副属性/2
+        let pointsPerMinute = Double(primaryValue) + Double(secondaryValue) / 2.0
+        // 转换为每小时
+        return Int(pointsPerMinute * 60)
     }
 }
