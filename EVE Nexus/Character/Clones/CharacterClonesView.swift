@@ -181,14 +181,10 @@ struct CharacterClonesView: View {
                                         .cornerRadius(6)
                                     
                                     Text(implant.name)
-                                        .font(.body)
-                                        .fixedSize(horizontal: false, vertical: true)
                                         .multilineTextAlignment(.leading)
-                                        .minimumScaleFactor(0.5)
                                         .lineLimit(2)
-                                        .lineSpacing(1)
-                                    
-                                    Spacer(minLength: 0)
+                                        .fixedSize(horizontal: false, vertical: true) // 添加这行以确保正确换行
+                                    Spacer()
                                 }
                                 .frame(height: 36)
                             }

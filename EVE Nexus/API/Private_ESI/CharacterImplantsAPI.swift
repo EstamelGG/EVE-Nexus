@@ -63,7 +63,7 @@ class CharacterImplantsAPI {
         let query = """
             SELECT implants_data FROM implants 
             WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
+            AND datetime(last_updated) > datetime('now', '-12 hour')
         """
         
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [characterId]),

@@ -34,7 +34,7 @@ struct CharacterLoyaltyPointsView: View {
                             IconManager.shared.loadImage(for: loyalty.iconFileName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 40, height: 40)
+                                .frame(width: 36, height: 36)
                         } else {
                             AsyncImage(url: URL(string: "https://images.evetech.net/corporations/\(loyalty.corporationId)/logo")) { image in
                                 image
@@ -43,18 +43,18 @@ struct CharacterLoyaltyPointsView: View {
                             } placeholder: {
                                 ProgressView()
                             }
-                            .frame(width: 40, height: 40)
+                            .frame(width: 36, height: 36)
                         }
                         
                         VStack(alignment: .leading) {
                             Text(loyalty.corporationName)
-                                .font(.headline)
                             Text("\(loyalty.loyaltyPoints) LP")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 2)
+                    .frame(height: 36)
                 }
             }
         }
