@@ -458,10 +458,8 @@ struct CloneLocationDetailView: View {
                                 
                                 Text(implant.name)
                                     .font(.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .multilineTextAlignment(.leading)
-                                    .minimumScaleFactor(0.5)
                                     .lineLimit(2)
+                                    .lineSpacing(1)
                                 
                                 Spacer(minLength: 0)
                             }
