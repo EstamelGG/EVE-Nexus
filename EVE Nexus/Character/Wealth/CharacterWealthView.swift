@@ -28,7 +28,7 @@ struct CharacterWealthView: View {
                         
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Wealth_Total", comment: ""))
-                            Text(FormatUtil.format(viewModel.totalWealth) + " ISK")
+                            Text(FormatUtil.formatISK(viewModel.totalWealth) + " ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -54,7 +54,7 @@ struct CharacterWealthView: View {
                             
                             Spacer()
                             
-                            Text(item.formattedValue + " ISK")
+                            Text(FormatUtil.formatISK(item.value) + " ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
