@@ -48,7 +48,7 @@ struct CharacterWealthView: View {
                 }
             }
         }
-        .navigationTitle("财富")
+        .navigationTitle(NSLocalizedString("Main_Wealth", comment: ""))
         .refreshable {
             isRefreshing = true
             await loadData(forceRefresh: true)

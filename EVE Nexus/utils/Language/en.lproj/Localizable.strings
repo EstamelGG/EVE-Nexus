@@ -534,7 +534,15 @@
 "Wealth_Implants" = "Implants";
 "Wealth_Orders" = "Market Orders";
 "Wealth_Wallet" = "Wallet Balance";
-"Wealth_Assets_Count" = "%d items";
-"Wealth_Implants_Count" = "%d implants";
-"Wealth_Orders_Count" = "%d orders";
-"Wealth_Wallet_Balance" = "Current balance";
+"Wealth_Assets_Count" = "%d Items";
+"Wealth_Implants_Count" = "%d Implants";
+"Wealth_Orders_Count" = "%d Orders";
+"Wealth_Wallet_Balance" = "Current Balance";
+
+// Wealth Detail View
+"Wealth_Detail_Title" = "%@ (Top 20)";
+"Wealth_Detail_NoData" = "No Data";
+"Wealth_Detail_Loading" = "Loading...";
+"Wealth_Detail_MarketPrice" = "Market Price";
+"Wealth_Detail_Quantity" = "Quantity";
+"Wealth_Detail_TotalValue" = "Total Value";

@@ -19,7 +19,7 @@
 "Main_Skills_Queue_Empty" = "技能队列为空";
 "Main_EVE_Mail" = "EVE 邮件";
 "Main_Calendar" = "日历";
-"Main_Wealth" = "财产";
+"Main_Wealth" = "个人财产";
 "Main_Wealth_ISK" = "$num ISK";
 "Main_Loyalty_Points" = "忠诚点";
 "Main_Databases" = "数据";
@@ -535,3 +535,11 @@
 "Wealth_Implants_Count" = "%d 个植入体";
 "Wealth_Orders_Count" = "%d 个订单";
 "Wealth_Wallet_Balance" = "当前余额";
+
+// 财富详情
+"Wealth_Detail_Title" = "%@ (前20名)";
+"Wealth_Detail_NoData" = "暂无数据";
+"Wealth_Detail_Loading" = "加载中...";
+"Wealth_Detail_MarketPrice" = "市场价格";
+"Wealth_Detail_Quantity" = "数量";
+"Wealth_Detail_TotalValue" = "总价值";

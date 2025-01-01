@@ -31,19 +31,20 @@ struct WealthDetailView: View {
                 HStack {
                     Spacer()
                     ProgressView()
+                    Text(NSLocalizedString("Wealth_Detail_Loading", comment: ""))
                     Spacer()
                 }
             } else if valuedItems.isEmpty {
                 HStack {
                     Spacer()
-                    Text("暂无数据")
+                    Text(NSLocalizedString("Wealth_Detail_NoData", comment: ""))
                         .foregroundColor(.secondary)
                     Spacer()
                 }
             } else {
                 ForEach(valuedItems, id: \.typeId) { item in
                     if let itemInfo = getItemInfo(typeId: item.typeId) {
-                        NavigationLink{
+                        NavigationLink {
                             MarketItemDetailView(databaseManager: databaseManager, itemID: item.typeId)
                         } label: {
                             HStack {
@@ -67,12 +68,13 @@ struct WealthDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)}
+                            .frame(height: 36)
+                        }
                     }
                 }
             }
         }
-        .navigationTitle("\(title) top20")
+        .navigationTitle(String(format: NSLocalizedString("Wealth_Detail_Title", comment: ""), title))
         .task {
             // 加载所有物品的信息
             let typeIds = valuedItems.map { $0.typeId }
