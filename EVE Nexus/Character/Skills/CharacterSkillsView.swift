@@ -268,8 +268,26 @@ struct CharacterSkillsView: View {
             for item in skillQueue {
                 if let endSP = item.level_end_sp,
                    let startSP = item.training_start_sp {
-                    totalRequiredSP += endSP - startSP
-                    Logger.debug("技能 \(item.skill_id) 需要技能点: \(endSP - startSP)")
+                    if item.isCurrentlyTraining {
+                        // 对于正在训练的技能，从当前训练进度开始计算
+                        if let finishDate = item.finish_date,
+                           let startDate = item.start_date {
+                            let now = Date()
+                            let totalTrainingTime = finishDate.timeIntervalSince(startDate)
+                            let trainedTime = now.timeIntervalSince(startDate)
+                            let progress = trainedTime / totalTrainingTime
+                            let totalSP = endSP - startSP
+                            let trainedSP = Int(Double(totalSP) * progress)
+                            let remainingSP = totalSP - trainedSP
+                            totalRequiredSP += remainingSP
+                            Logger.debug("正在训练的技能 \(item.skill_id) - 总需求: \(totalSP), 已训练: \(trainedSP), 剩余: \(remainingSP)")
+                        }
+                    } else {
+                        // 对于未开始训练的技能，计算全部所需点数
+                        let requiredSP = endSP - startSP
+                        totalRequiredSP += requiredSP
+                        Logger.debug("未训练的技能 \(item.skill_id) - 需要: \(requiredSP)")
+                    }
                 }
             }
             Logger.debug("队列总需求技能点: \(totalRequiredSP)")
