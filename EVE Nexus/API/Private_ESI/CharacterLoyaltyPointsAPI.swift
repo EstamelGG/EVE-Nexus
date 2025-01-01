@@ -11,6 +11,12 @@ public class CharacterLoyaltyPointsAPI {
     private init() {}
     
     public func fetchLoyaltyPoints(characterId: Int) async throws -> [LoyaltyPoint] {
+        // 首先检查数据库缓存
+        if let cachedData = try checkCache(characterId: characterId) {
+            return cachedData
+        }
+        
+        // 如果没有缓存或缓存已过期，从API获取
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/loyalty/points/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
@@ -21,6 +27,44 @@ public class CharacterLoyaltyPointsAPI {
             characterId: characterId
         )
         
+        let points = try JSONDecoder().decode([LoyaltyPoint].self, from: data)
+        
+        // 保存到数据库
+        try await saveToDatabase(characterId: characterId, data: data)
+        
+        return points
+    }
+    
+    private func checkCache(characterId: Int) throws -> [LoyaltyPoint]? {
+        let query = """
+            SELECT points_data, last_updated 
+            FROM loyalty_points 
+            WHERE character_id = ? 
+            AND datetime(last_updated) > datetime('now', '-12 hours')
+        """
+        
+        guard case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+              let row = rows.first,
+              let pointsData = row["points_data"] as? String,
+              let data = pointsData.data(using: .utf8) else {
+            return nil
+        }
+        
         return try JSONDecoder().decode([LoyaltyPoint].self, from: data)
+    }
+    
+    private func saveToDatabase(characterId: Int, data: Data) async throws {
+        guard let jsonString = String(data: data, encoding: .utf8) else {
+            throw NetworkError.invalidData
+        }
+        
+        let query = """
+            INSERT OR REPLACE INTO loyalty_points (character_id, points_data, last_updated)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        """
+        
+        guard case .success = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId, jsonString]) else {
+            throw NetworkError.invalidResponse
+        }
     }
 } 

@@ -369,6 +369,14 @@ class CharacterDatabaseManager: ObservableObject {
 
             -- 创建索引
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
+
+            -- 忠诚点数据表
+            CREATE TABLE IF NOT EXISTS loyalty_points (
+                character_id INTEGER PRIMARY KEY,
+                points_data TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_loyalty_points_last_updated ON loyalty_points(last_updated);
         """
         
         // 分割SQL语句并逐个执行
