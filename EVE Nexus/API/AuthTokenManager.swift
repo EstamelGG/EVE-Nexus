@@ -12,27 +12,6 @@ actor AuthTokenManager: NSObject {
         super.init()
     }
     
-    // 验证认证状态是否有效
-    private func validateAuthState(_ authState: OIDAuthState) -> Bool {
-        Logger.info("开始验证 token 状态")
-        
-        guard let tokenResponse = authState.lastTokenResponse else {
-            Logger.warning("验证失败: lastTokenResponse 为空")
-            return false
-        }
-        
-        guard let expirationDate = tokenResponse.accessTokenExpirationDate else {
-            Logger.warning("验证失败: accessTokenExpirationDate 为空")
-            return false
-        }
-        
-        // 提前5分钟认为token将过期
-        let gracePeriod: TimeInterval = 5 * 60
-        let res = Date().addingTimeInterval(gracePeriod) < expirationDate
-        Logger.info("Token 预计过期时间: \(expirationDate), 当前时间: \(Date()), 不需要更新: \(res)")
-        return res
-    }
-    
     // 显式刷新token
     private func refreshToken(for characterId: Int) async throws -> String {
         // 如果已经有正在进行的刷新任务，等待其完成
@@ -149,6 +128,19 @@ actor AuthTokenManager: NSObject {
     
     func getAccessToken(for characterId: Int) async throws -> String {
         let authState = try await getOrCreateAuthState(for: characterId)
+        
+        // 检查是否需要提前刷新
+        if let tokenResponse = authState.lastTokenResponse,
+           let expirationDate = tokenResponse.accessTokenExpirationDate {
+            // 提前5分钟刷新
+            let gracePeriod: TimeInterval = 5 * 60
+            if Date().addingTimeInterval(gracePeriod) >= expirationDate {
+                Logger.error("Token 状态异常，将在5分钟内过期，提前刷新 - 角色ID: \(characterId)")
+                authState.setNeedsTokenRefresh()
+            } else {
+                Logger.info("Token 状态正常，过期时间: \(expirationDate)")
+            }
+        }
         
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
