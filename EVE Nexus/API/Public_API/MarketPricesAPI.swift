@@ -179,12 +179,4 @@ class MarketPricesAPI {
         
         return prices
     }
-    
-    /// 清除缓存
-    func clearCache() {
-        let query = "DELETE FROM market_prices"
-        _ = CharacterDatabaseManager.shared.executeQuery(query)
-        lastUpdateTime = nil
-        Logger.info("市场价格缓存已清除")
-    }
 } 
