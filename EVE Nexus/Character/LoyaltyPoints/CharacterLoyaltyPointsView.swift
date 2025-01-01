@@ -96,7 +96,7 @@ struct CharacterLoyaltyPointsView: View {
                         Image("lpstore")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 24, height: 24)
+                            .frame(width: 36, height: 36)
                         Text(NSLocalizedString("Main_LP_Store", comment: ""))
                     }
                 }
