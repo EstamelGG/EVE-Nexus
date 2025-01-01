@@ -47,6 +47,15 @@ struct CharacterWealthView: View {
                     }
                 }
             }
+            
+            // 资产分布饼图
+            Section(header: Text(NSLocalizedString("Wealth_Distribution", comment: ""))) {
+                if !viewModel.wealthItems.isEmpty {
+                    WealthPieChart(items: viewModel.wealthItems, size: 200)
+                        .padding(.vertical)
+                        .frame(maxWidth: .infinity)
+                }
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Wealth", comment: ""))
         .refreshable {

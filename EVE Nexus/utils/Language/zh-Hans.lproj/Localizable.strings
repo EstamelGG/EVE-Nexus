@@ -543,3 +543,5 @@
 "Wealth_Detail_MarketPrice" = "市场价格";
 "Wealth_Detail_Quantity" = "数量";
 "Wealth_Detail_TotalValue" = "总价值";
+
+"Wealth_Distribution" = "资产分布";
