@@ -64,4 +64,10 @@ class CharacterDataService {
     func getAttributes(id: Int, forceRefresh: Bool = false) async throws -> CharacterAttributes {
         return try await CharacterSkillsAPI.shared.fetchAttributes(characterId: id, forceRefresh: forceRefresh)
     }
+    
+    // MARK: - 市场信息
+    /// 获取市场价格数据
+    func getMarketPrices(forceRefresh: Bool = false) async throws -> [MarketPrice] {
+        return try await MarketPricesAPI.shared.fetchMarketPrices(forceRefresh: forceRefresh)
+    }
 } 
