@@ -174,32 +174,46 @@ struct CharacterSkillsView: View {
                 Section {
                     // 大型注入器
                     if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
-                        HStack {
-                            IconManager.shared.loadImage(for: largeInfo.iconFilename)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(largeInfo.name)
-                            Spacer()
-                            Text("\(calculation.largeInjectorCount)")
-                                .font(.body)
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.largeInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: largeInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(largeInfo.name)
+                                Spacer()
+                                Text("\(calculation.largeInjectorCount)")
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
                         }
-                        .frame(height: 36)
                     }
                     
                     // 小型注入器
                     if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
-                        HStack {
-                            IconManager.shared.loadImage(for: smallInfo.iconFilename)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(smallInfo.name)
-                            Spacer()
-                            Text("\(calculation.smallInjectorCount)")
-                                .font(.body)
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: SkillInjectorCalculator.smallInjectorTypeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: smallInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(smallInfo.name)
+                                Spacer()
+                                Text("\(calculation.smallInjectorCount)")
+                                    .font(.body)
+                            }
+                            .frame(height: 36)
                         }
-                        .frame(height: 36)
                     }
                     
                     // 总计所需技能点
