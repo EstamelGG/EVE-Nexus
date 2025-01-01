@@ -16,7 +16,7 @@
 "Main_Skills_Queue" = "队列长度：$num ($day天$hour时$minutes分)";
 "Main_Skills_Queue_Training" = "训练中: $num个技能 ($day天$hour时$minutes分)";
 "Main_Skills_Queue_Paused" = "已暂停: $num个技能";
-"Main_Skills_Queue_Empty" = "技能队列: $num个技能";
+"Main_Skills_Queue_Empty" = "技能队列为空";
 "Main_EVE_Mail" = "EVE 邮件";
 "Main_Calendar" = "日历";
 "Main_Wealth" = "财产";

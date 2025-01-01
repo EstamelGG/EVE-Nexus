@@ -91,7 +91,7 @@ struct CharacterSkillsView: View {
             // 第二个列表 - 技能队列
             Section {
                 if skillQueue.isEmpty {
-                    Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: ""))
+                    Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
                         .foregroundColor(.secondary)
                         .frame(height: 36)
                 } else {
