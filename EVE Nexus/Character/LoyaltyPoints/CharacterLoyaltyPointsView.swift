@@ -1,5 +1,49 @@
 import SwiftUI
 
+struct CorporationLogoView: View {
+    let corporationId: Int
+    let iconFileName: String
+    @State private var corporationLogo: UIImage?
+    @State private var isLoading = true
+    
+    var body: some View {
+        ZStack {
+            if !iconFileName.isEmpty {
+                IconManager.shared.loadImage(for: iconFileName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 36, height: 36)
+            } else if let logo = corporationLogo {
+                Image(uiImage: logo)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 36, height: 36)
+            } else if isLoading {
+                ProgressView()
+                    .frame(width: 36, height: 36)
+            } else {
+                IconManager.shared.loadImage(for: "corporations_default.png")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 36, height: 36)
+            }
+        }
+        .onAppear {
+            if iconFileName.isEmpty {
+                isLoading = true
+                Task {
+                    do {
+                        corporationLogo = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
+                    } catch {
+                        Logger.error("获取军团图标失败: \(error)")
+                    }
+                    isLoading = false
+                }
+            }
+        }
+    }
+}
+
 struct CharacterLoyaltyPointsView: View {
     @StateObject private var viewModel = CharacterLoyaltyPointsViewModel()
     let characterId: Int
@@ -31,32 +75,7 @@ struct CharacterLoyaltyPointsView: View {
                 } else {
                     ForEach(viewModel.loyaltyPoints) { loyalty in
                         HStack {
-                            if !loyalty.iconFileName.isEmpty {
-                                IconManager.shared.loadImage(for: loyalty.iconFileName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 36)
-                            } else {
-                                AsyncImage(url: URL(string: "https://images.evetech.net/corporations/\(loyalty.corporationId)/logo")) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                    case .failure:
-                                        IconManager.shared.loadImage(for: "corporations_default.png")
-                                            .resizable()
-                                            .scaledToFit()
-                                    case .empty:
-                                        ProgressView()
-                                    @unknown default:
-                                        IconManager.shared.loadImage(for: "corporations_default.png")
-                                            .resizable()
-                                            .scaledToFit()
-                                    }
-                                }
-                                .frame(width: 36, height: 36)
-                            }
+                            CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
                             
                             VStack(alignment: .leading) {
                                 Text(loyalty.corporationName)
@@ -77,7 +96,7 @@ struct CharacterLoyaltyPointsView: View {
                         Image("lpstore")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 36, height: 36)
+                            .frame(width: 24, height: 24)
                         Text(NSLocalizedString("Main_LP_Store", comment: ""))
                     }
                 }
