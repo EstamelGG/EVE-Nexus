@@ -20,7 +20,7 @@
 "Main_EVE_Mail" = "EVE 邮件";
 "Main_Calendar" = "日历";
 "Main_Wealth" = "个人财产";
-"Main_Wealth_ISK" = "$num ISK";
+"Main_Wealth_ISK" = "钱包余额: $num ISK";
 "Main_Loyalty_Points" = "忠诚点";
 "Main_Databases" = "数据";
 "Main_Database" = "数据库";

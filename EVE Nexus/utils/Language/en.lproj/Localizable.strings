@@ -19,7 +19,7 @@
 "Main_EVE_Mail" = "EVE Mail";
 "Main_Calendar" = "Calendar";
 "Main_Wealth" = "Wealth";
-"Main_Wealth_ISK" = "$num ISK";
+"Main_Wealth_ISK" = "Wallet: $num ISK";
 "Main_Loyalty_Points" = "Loyalty Points";
 "Main_Databases" = "Databases";
 "Main_Database" = "Database";
