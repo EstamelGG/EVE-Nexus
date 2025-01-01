@@ -524,3 +524,6 @@
 
 // Skill Categories
 "Main_Skills_No_Skills" = "No skills found";
+
+"Main_Skills_Required_Injectors" = "Required Skill Injectors";
+"Main_Skills_Total_Required_SP" = "Total Required Skill Points: %@";
