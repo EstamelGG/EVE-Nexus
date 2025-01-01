@@ -348,12 +348,12 @@ public class CharacterSkillsAPI {
         if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
            let row = rows.first {
             // 使用 NSNumber 转换来处理不同的数字类型
-            let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 0
-            let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 0
-            let memory = (row["memory"] as? NSNumber)?.intValue ?? 0
-            let perception = (row["perception"] as? NSNumber)?.intValue ?? 0
-            let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 0
-            let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue
+            let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 19
+            let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 20
+            let memory = (row["memory"] as? NSNumber)?.intValue ?? 20
+            let perception = (row["perception"] as? NSNumber)?.intValue ?? 20
+            let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 20
+            let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue ?? 0
             
             return CharacterAttributes(
                 charisma: charisma,

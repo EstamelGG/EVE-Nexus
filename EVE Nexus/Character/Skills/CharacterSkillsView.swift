@@ -14,6 +14,7 @@ struct CharacterSkillsView: View {
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     @State private var characterAttributes: CharacterAttributes?
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
+    @State private var hasLoadedData = false
     
     private var activeSkills: [SkillQueueItem] {
         let now = Date()
@@ -196,8 +197,8 @@ struct CharacterSkillsView: View {
                                     }
                                 }
                             }
+                            .frame(height: item.isCurrentlyTraining ? 44 : 36)
                         }
-                        .frame(height: item.isCurrentlyTraining ? 44 : 36)
                     }
                 }
             } header: {
@@ -284,7 +285,10 @@ struct CharacterSkillsView: View {
             await refreshSkillQueue()
         }
         .task {
-            await loadSkillQueue()
+            if !hasLoadedData {
+                await loadSkillQueue()
+                hasLoadedData = true
+            }
         }
     }
     
