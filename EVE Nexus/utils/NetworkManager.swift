@@ -198,8 +198,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         var allHeaders: [String: String] = [
             "Authorization": "Bearer \(token)",
             "datasource": "tranquility",
-            "Accept": "application/json",
-            "Content-Type": "application/json"
+            "Accept": "application/json"
         ]
         
         // 添加自定义请求头
