@@ -47,33 +47,42 @@ enum MarketPricesAPIError: LocalizedError {
 class MarketPricesAPI {
     static let shared = MarketPricesAPI()
     private let cacheDuration: TimeInterval = 8 * 60 * 60 // 8小时缓存
+    private let lastUpdateKey = "MarketPrices_LastUpdate"
     
     private init() {}
     
+    // MARK: - 缓存管理
+    private var lastUpdateTime: Date? {
+        get {
+            UserDefaults.standard.object(forKey: lastUpdateKey) as? Date
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: lastUpdateKey)
+        }
+    }
+    
+    private func isCacheValid() -> Bool {
+        guard let lastUpdate = lastUpdateTime else { return false }
+        return Date().timeIntervalSince(lastUpdate) < cacheDuration
+    }
+    
     // MARK: - 数据库方法
     private func loadFromDatabase() -> [MarketPrice]? {
-        // 检查缓存是否过期
-        let query = """
-            SELECT * FROM market_prices 
-            WHERE datetime(last_updated) > datetime('now', '-8 hours')
-            LIMIT 1
-        """
+        // 检查缓存是否有效
+        guard isCacheValid() else { return nil }
         
-        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query),
-           !rows.isEmpty {
-            // 缓存有效，加载所有价格
-            let priceQuery = "SELECT * FROM market_prices"
-            if case .success(let priceRows) = CharacterDatabaseManager.shared.executeQuery(priceQuery) {
-                return priceRows.compactMap { row in
-                    guard let typeId = row["type_id"] as? Int64 else { return nil }
-                    let adjustedPrice = row["adjusted_price"] as? Double
-                    let averagePrice = row["average_price"] as? Double
-                    return MarketPrice(
-                        adjusted_price: adjustedPrice,
-                        average_price: averagePrice,
-                        type_id: Int(typeId)
-                    )
-                }
+        // 缓存有效，加载所有价格
+        let query = "SELECT type_id, adjusted_price, average_price FROM market_prices"
+        if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query) {
+            return rows.compactMap { row in
+                guard let typeId = row["type_id"] as? Int64 else { return nil }
+                let adjustedPrice = row["adjusted_price"] as? Double
+                let averagePrice = row["average_price"] as? Double
+                return MarketPrice(
+                    adjusted_price: adjustedPrice,
+                    average_price: averagePrice,
+                    type_id: Int(typeId)
+                )
             }
         }
         return nil
@@ -122,6 +131,8 @@ class MarketPricesAPI {
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
+            // 更新最后更新时间
+            lastUpdateTime = Date()
             Logger.info("市场价格数据已保存到数据库，共 \(prices.count) 条记录")
         } else {
             _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
@@ -164,6 +175,7 @@ class MarketPricesAPI {
     func clearCache() {
         let query = "DELETE FROM market_prices"
         _ = CharacterDatabaseManager.shared.executeQuery(query)
+        lastUpdateTime = nil
         Logger.info("市场价格缓存已清除")
     }
 } 
