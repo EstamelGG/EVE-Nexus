@@ -62,6 +62,7 @@ struct WealthDetailView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
+                        .frame(height: 36)
                     }
                 }
             }

@@ -283,10 +283,13 @@ class CharacterWealthViewModel: ObservableObject {
                     processNode(location)
                 }
                 
-                // 转换为ValuedItem并排序
+                // 转换为ValuedItem，排序，并只取前20个
                 self.valuedAssets = itemStats.map { typeId, stats in
                     ValuedItem(typeId: typeId, quantity: stats.quantity, value: stats.value)
-                }.sorted { $0.totalValue > $1.totalValue }
+                }
+                .sorted { $0.totalValue > $1.totalValue }
+                .prefix(20)
+                .map { $0 }
             }
         } catch {
             Logger.error("加载资产详情失败: \(error)")
@@ -319,11 +322,14 @@ class CharacterWealthViewModel: ObservableObject {
                 implantIds.formUnion(clone.implants)
             }
             
-            // 转换为ValuedItem并排序
+            // 转换为ValuedItem，排序，并只取前20个
             self.valuedImplants = implantIds.compactMap { implantId in
                 guard let price = marketPrices[implantId] else { return nil }
                 return ValuedItem(typeId: implantId, quantity: 1, value: price)
-            }.sorted { $0.totalValue > $1.totalValue }
+            }
+            .sorted { $0.totalValue > $1.totalValue }
+            .prefix(20)
+            .map { $0 }
             
         } catch {
             Logger.error("加载植入体详情失败: \(error)")
@@ -343,14 +349,17 @@ class CharacterWealthViewModel: ObservableObject {
             ), let jsonData = jsonString.data(using: .utf8) {
                 let orders = try JSONDecoder().decode([CharacterMarketOrder].self, from: jsonData)
                 
-                // 转换为ValuedItem并排序
+                // 转换为ValuedItem，排序，并只取前20个
                 self.valuedOrders = orders.map { order in
                     ValuedItem(
                         typeId: Int(order.typeId),
                         quantity: order.volumeRemain,
                         value: order.price
                     )
-                }.sorted { $0.totalValue > $1.totalValue }
+                }
+                .sorted { $0.totalValue > $1.totalValue }
+                .prefix(20)
+                .map { $0 }
             }
         } catch {
             Logger.error("加载订单详情失败: \(error)")
