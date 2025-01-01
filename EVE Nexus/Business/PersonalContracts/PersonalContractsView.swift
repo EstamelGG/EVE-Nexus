@@ -15,6 +15,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     let characterId: Int
+    private var notificationTask: Task<Void, Never>?
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -24,28 +25,24 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
-        
-        // 设置通知监听
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleContractsUpdated(_:)),
-            name: NSNotification.Name("ContractsUpdated"),
-            object: nil
-        )
+        setupNotificationHandling()
     }
     
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        notificationTask?.cancel()
     }
     
-    @objc private func handleContractsUpdated(_ notification: Notification) {
-        guard let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
-              updatedCharacterId == characterId else {
-            return
-        }
-        
-        Task {
-            await loadContractsData()
+    private func setupNotificationHandling() {
+        notificationTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("ContractsUpdated")) {
+                guard let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
+                      updatedCharacterId == self.characterId,
+                      !Task.isCancelled else {
+                    continue
+                }
+                await self.loadContractsData()
+            }
         }
     }
     
@@ -122,7 +119,6 @@ struct PersonalContractsView: View {
     }()
     
     init(characterId: Int) {
-        Logger.debug("初始化PersonalContractsView - 角色ID: \(characterId)")
         _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
     }
     
