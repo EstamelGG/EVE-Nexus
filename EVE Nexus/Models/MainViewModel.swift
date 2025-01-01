@@ -330,46 +330,11 @@ class MainViewModel: ObservableObject {
             }
         }
         
-        // 如果有选中的角色，立即开始加载角色数据
+        // 如果有选中的角色，开始加载所有数据
         if let character = selectedCharacter {
-            do {
-                // 并发执行所有请求
-                async let skillInfoTask = retryOperation(named: "获取技能信息") {
-                    try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let walletTask = retryOperation(named: "获取钱包余额") {
-                    try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let locationTask = retryOperation(named: "获取位置信息") {
-                    try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                async let cloneTask = retryOperation(named: "获取克隆状态") {
-                    try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
-                }
-                
-                // 等待所有角色数据请求完成
-                let ((skillsResponse, queue), balance, location, cloneInfo) = try await (
-                    skillInfoTask,
-                    walletTask,
-                    locationTask,
-                    cloneTask
-                )
-                
-                // 处理技能信息
-                processSkillInfo(skillsResponse: skillsResponse, queue: queue)
-                
-                // 处理钱包余额
-                self.cache.walletBalance = balance
-                self.updateWalletBalance(balance)
-                
-                // 处理位置信息
-                self.characterStats.location = location.locationStatus.description
-                
-                // 处理克隆状态
-                self.updateCloneStatus(from: cloneInfo)
-                
-                // 如果没有头像，请求头像
-                if characterPortrait == nil {
+            // 优先加载头像
+            if characterPortrait == nil {
+                Task {
                     loadingState = .loadingPortrait
                     if let portrait = try? await service.getCharacterPortrait(
                         id: character.CharacterID,
@@ -379,9 +344,55 @@ class MainViewModel: ObservableObject {
                     }
                     loadingState = .idle
                 }
-            } catch {
-                lastError = error as? RefreshError ?? .serverStatusFailed
-                Logger.error("刷新数据失败: \(error)")
+            }
+            
+            // 加载技能信息
+            Task {
+                do {
+                    let (skillsResponse, queue) = try await retryOperation(named: "获取技能信息") {
+                        try await service.getSkillInfo(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    processSkillInfo(skillsResponse: skillsResponse, queue: queue)
+                } catch {
+                    Logger.error("获取技能信息失败: \(error)")
+                }
+            }
+            
+            // 加载钱包余额
+            Task {
+                do {
+                    let balance = try await retryOperation(named: "获取钱包余额") {
+                        try await service.getWalletBalance(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.cache.walletBalance = balance
+                    self.updateWalletBalance(balance)
+                } catch {
+                    Logger.error("获取钱包余额失败: \(error)")
+                }
+            }
+            
+            // 加载位置信息
+            Task {
+                do {
+                    let location = try await retryOperation(named: "获取位置信息") {
+                        try await service.getLocation(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.characterStats.location = location.locationStatus.description
+                } catch {
+                    Logger.error("获取位置信息失败: \(error)")
+                }
+            }
+            
+            // 加载克隆状态
+            Task {
+                do {
+                    let cloneInfo = try await retryOperation(named: "获取克隆状态") {
+                        try await service.getCloneStatus(id: character.CharacterID, forceRefresh: forceRefresh)
+                    }
+                    self.updateCloneStatus(from: cloneInfo)
+                } catch {
+                    Logger.error("获取克隆状态失败: \(error)")
+                }
             }
         }
         
