@@ -7,6 +7,8 @@ struct CharacterSkillsView: View {
     @State private var skillNames: [Int: String] = [:]
     @State private var isRefreshing = false
     @State private var skillIcon: Image?
+    @State private var injectorCalculation: InjectorCalculation?
+    @State private var characterTotalSP: Int = 0
     
     private var activeSkills: [SkillQueueItem] {
         skillQueue.sorted { $0.queue_position < $1.queue_position }
@@ -150,6 +152,42 @@ struct CharacterSkillsView: View {
                         }
                         .frame(height: item.isCurrentlyTraining ? 44 : 36)
                     }
+                    
+                    if let calculation = injectorCalculation {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+                                .font(.headline)
+                                .padding(.top, 8)
+                            
+                            if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
+                                HStack {
+                                    IconManager.shared.loadImage(for: largeInfo.iconFilename)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                    Text("\(calculation.largeInjectorCount)")
+                                        .font(.body)
+                                }
+                            }
+                            
+                            if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
+                                HStack {
+                                    IconManager.shared.loadImage(for: smallInfo.iconFilename)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                    Text("\(calculation.smallInjectorCount)")
+                                        .font(.body)
+                                }
+                            }
+                            
+                            Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), FormatUtil.format(Double(calculation.totalSkillPoints))))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 8)
+                    }
                 }
             } header: {
                 if skillQueue.isEmpty {
@@ -170,12 +208,8 @@ struct CharacterSkillsView: View {
         .refreshable {
             await refreshSkillQueue()
         }
-        .onAppear {
-            Task {
-                await loadSkillQueue()
-            }
-            // 加载技能图标
-            skillIcon = IconManager.shared.loadImage(for: "icon_2403_64.png")
+        .task {
+            await loadSkillQueue()
         }
     }
     
@@ -194,8 +228,10 @@ struct CharacterSkillsView: View {
     
     private func loadSkillQueue(forceRefresh: Bool = false) async {
         do {
+            Logger.debug("开始加载技能队列...")
             // 加载技能队列
             skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
+            Logger.debug("获取到技能队列，数量: \(skillQueue.count)")
             
             // 加载技能名称
             for item in skillQueue {
@@ -206,9 +242,84 @@ struct CharacterSkillsView: View {
                     skillNames[item.skill_id] = name
                 }
             }
+            
+            // 计算队列中所需的总技能点数
+            var totalRequiredSP = 0
+            for item in skillQueue {
+                if let endSP = item.level_end_sp,
+                   let startSP = item.training_start_sp {
+                    totalRequiredSP += endSP - startSP
+                    Logger.debug("技能 \(item.skill_id) 需要技能点: \(endSP - startSP)")
+                }
+            }
+            Logger.debug("队列总需求技能点: \(totalRequiredSP)")
+            
+            // 从数据库获取角色当前的总技能点数
+            let query = """
+                SELECT total_sp, unallocated_sp
+                FROM character_skills
+                WHERE character_id = ?
+            """
+            if case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId]),
+               let row = rows.first {
+                // 处理total_sp
+                let totalSP: Int
+                if let value = row["total_sp"] as? Int {
+                    totalSP = value
+                } else if let value = row["total_sp"] as? Int64 {
+                    totalSP = Int(value)
+                } else {
+                    totalSP = 0
+                    Logger.error("无法解析total_sp")
+                }
+                
+                // 处理unallocated_sp
+                let unallocatedSP: Int
+                if let value = row["unallocated_sp"] as? Int {
+                    unallocatedSP = value
+                } else if let value = row["unallocated_sp"] as? Int64 {
+                    unallocatedSP = Int(value)
+                } else {
+                    unallocatedSP = 0
+                    Logger.error("无法解析unallocated_sp")
+                }
+                
+                let characterTotalSP = totalSP + unallocatedSP
+                Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
+                
+                injectorCalculation = SkillInjectorCalculator.calculate(
+                    requiredSkillPoints: totalRequiredSP,
+                    characterTotalSP: characterTotalSP
+                )
+                if let calc = injectorCalculation {
+                    Logger.debug("计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
+                }
+            } else {
+                Logger.error("未能从数据库获取角色技能点数据")
+            }
         } catch {
             Logger.error("加载技能队列失败: \(error)")
         }
+    }
+    
+    private struct InjectorInfo {
+        let name: String
+        let iconFilename: String
+    }
+    
+    private func getInjectorInfo(typeId: Int) -> InjectorInfo? {
+        let query = """
+            SELECT name, icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let name = row["name"] as? String,
+           let iconFilename = row["icon_filename"] as? String {
+            return InjectorInfo(name: name, iconFilename: iconFilename)
+        }
+        return nil
     }
     
     private struct ProgressInfo {
