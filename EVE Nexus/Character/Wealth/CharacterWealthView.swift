@@ -49,8 +49,8 @@ struct CharacterWealthView: View {
             }
             
             // 资产分布饼图
-            Section(header: Text(NSLocalizedString("Wealth_Distribution", comment: ""))) {
-                if !viewModel.wealthItems.isEmpty {
+            if !viewModel.wealthItems.isEmpty {
+                Section(header: Text(NSLocalizedString("Wealth_Distribution", comment: ""))) {
                     WealthPieChart(items: viewModel.wealthItems, size: 200)
                         .padding(.vertical)
                         .frame(maxWidth: .infinity)
