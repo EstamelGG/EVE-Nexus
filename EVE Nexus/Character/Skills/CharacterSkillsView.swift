@@ -152,42 +152,6 @@ struct CharacterSkillsView: View {
                         }
                         .frame(height: item.isCurrentlyTraining ? 44 : 36)
                     }
-                    
-                    if let calculation = injectorCalculation {
-                        Divider()
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
-                                .font(.headline)
-                                .padding(.top, 8)
-                            
-                            if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
-                                HStack {
-                                    IconManager.shared.loadImage(for: largeInfo.iconFilename)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-                                    Text("\(calculation.largeInjectorCount)")
-                                        .font(.body)
-                                }
-                            }
-                            
-                            if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
-                                HStack {
-                                    IconManager.shared.loadImage(for: smallInfo.iconFilename)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-                                    Text("\(calculation.smallInjectorCount)")
-                                        .font(.body)
-                                }
-                            }
-                            
-                            Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), FormatUtil.format(Double(calculation.totalSkillPoints))))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 8)
-                    }
                 }
             } header: {
                 if skillQueue.isEmpty {
@@ -202,6 +166,47 @@ struct CharacterSkillsView: View {
                 } else {
                     Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
                               activeSkills.count))
+                }
+            }
+            
+            // 第三个列表 - 注入器需求（只在有技能队列时显示）
+            if !skillQueue.isEmpty, let calculation = injectorCalculation {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
+                            HStack {
+                                IconManager.shared.loadImage(for: largeInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text("\(calculation.largeInjectorCount)")
+                                    .font(.body)
+                                Text(largeInfo.name)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(height: 36)
+                        }
+                        
+                        if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
+                            HStack {
+                                IconManager.shared.loadImage(for: smallInfo.iconFilename)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text("\(calculation.smallInjectorCount)")
+                                    .font(.body)
+                                Text(smallInfo.name)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(height: 36)
+                        }
+                        
+                        Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), FormatUtil.format(Double(calculation.totalSkillPoints))))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } header: {
+                    Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
                 }
             }
         }
