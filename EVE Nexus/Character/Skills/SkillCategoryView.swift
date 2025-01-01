@@ -183,8 +183,6 @@ struct SkillGroupDetailView: View {
         timeMultiplier: Double,
         currentSkillPoints: Int?,
         currentLevel: Int?,
-        primaryAttribute: Int?,    // 主属性ID
-        secondaryAttribute: Int?,  // 副属性ID
         trainingRate: Int?        // 每小时训练点数
     )] = []
     @State private var isLoading = true
@@ -264,29 +262,6 @@ struct SkillGroupDetailView: View {
         }
     }
     
-    private func calculateTrainingRate(primaryAttrId: Int, secondaryAttrId: Int) -> Int? {
-        guard let attrs = characterAttributes else { return nil }
-        
-        func getAttributeValue(_ attrId: Int) -> Int {
-            switch attrId {
-            case 164: return attrs.charisma
-            case 165: return attrs.intelligence
-            case 166: return attrs.memory
-            case 167: return attrs.perception
-            case 168: return attrs.willpower
-            default: return 0
-            }
-        }
-        
-        let primaryValue = getAttributeValue(primaryAttrId)
-        let secondaryValue = getAttributeValue(secondaryAttrId)
-        
-        // 每分钟训练点数 = 主属性 + 副属性/2
-        let pointsPerMinute = Double(primaryValue) + Double(secondaryValue) / 2.0
-        // 转换为每小时
-        return Int(pointsPerMinute * 60)
-    }
-    
     private func loadAllSkills() async {
         isLoading = true
         defer { isLoading = false }
@@ -306,7 +281,7 @@ struct SkillGroupDetailView: View {
             return
         }
         
-        var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?, primaryAttribute: Int?, secondaryAttribute: Int?, trainingRate: Int?)] = []
+        var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?, trainingRate: Int?)] = []
         
         for row in rows {
             guard let typeId = row["type_id"] as? Int,
@@ -314,29 +289,19 @@ struct SkillGroupDetailView: View {
                 continue
             }
             
-            // 获取训练时间倍数和属性
+            // 获取训练时间倍数
             let attrQuery = """
-                SELECT attribute_id, value
+                SELECT value
                 FROM typeAttributes
-                WHERE type_id = ? AND attribute_id IN (180, 181, 275)
+                WHERE type_id = ? AND attribute_id = 275
             """
             
             var timeMultiplier: Double = 1.0
-            var primaryAttrId: Int?
-            var secondaryAttrId: Int?
             
-            if case .success(let attrRows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
-                for attrRow in attrRows {
-                    guard let attrId = attrRow["attribute_id"] as? Int,
-                          let value = attrRow["value"] as? Double else { continue }
-                    
-                    switch attrId {
-                    case 275: timeMultiplier = value
-                    case 180: primaryAttrId = Int(value)
-                    case 181: secondaryAttrId = Int(value)
-                    default: break
-                    }
-                }
+            if case .success(let attrRows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]),
+               let row = attrRows.first,
+               let value = row["value"] as? Double {
+                timeMultiplier = value
             }
             
             // 获取已学习的技能信息（如果有）
@@ -344,8 +309,16 @@ struct SkillGroupDetailView: View {
             
             // 计算训练速度
             var trainingRate: Int?
-            if let primary = primaryAttrId, let secondary = secondaryAttrId {
-                trainingRate = calculateTrainingRate(primaryAttrId: primary, secondaryAttrId: secondary)
+            if let attrs = characterAttributes,
+               let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+                   skillId: typeId,
+                   databaseManager: databaseManager
+               ) {
+                trainingRate = SkillTrainingCalculator.calculateTrainingRate(
+                    primaryAttrId: primary,
+                    secondaryAttrId: secondary,
+                    attributes: attrs
+                )
             }
             
             skills.append((
@@ -354,8 +327,6 @@ struct SkillGroupDetailView: View {
                 timeMultiplier: timeMultiplier,
                 currentSkillPoints: learnedSkill?.skillpoints_in_skill,
                 currentLevel: learnedSkill?.trained_skill_level,
-                primaryAttribute: primaryAttrId,
-                secondaryAttribute: secondaryAttrId,
                 trainingRate: trainingRate
             ))
         }
