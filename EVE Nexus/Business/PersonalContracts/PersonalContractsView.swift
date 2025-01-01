@@ -29,18 +29,23 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     deinit {
-        notificationTask?.cancel()
+        NotificationCenter.default.removeObserver(self)
     }
     
     private func setupNotificationHandling() {
-        notificationTask = Task { [weak self] in
-            guard let self = self else { return }
-            for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("ContractsUpdated")) {
-                guard let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
-                      updatedCharacterId == self.characterId,
-                      !Task.isCancelled else {
-                    continue
-                }
+        // 使用传统的通知观察方式，但在主线程上处理
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ContractsUpdated"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
+                  updatedCharacterId == self.characterId else {
+                return
+            }
+            
+            Task {
                 await self.loadContractsData()
             }
         }
