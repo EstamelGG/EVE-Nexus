@@ -480,6 +480,8 @@
 "Main_Jump_Clones_Available" = "Available Clones";
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
 "Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "Next Jump: %dh %dm";
+"Main_Jump_Clones_Cooldown_Minutes" = "Next Jump: %dm";
 "Character_Never" = "Never";
 
 // Skills View

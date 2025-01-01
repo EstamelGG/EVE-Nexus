@@ -475,6 +475,8 @@
 "Main_Jump_Clones_Available" = "可用克隆体";
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
 "Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "下次跳跃：%d小时%d分钟后";
+"Main_Jump_Clones_Cooldown_Minutes" = "下次跳跃：%d分钟后";
 "Character_Never" = "从未";
 
 // Skills View

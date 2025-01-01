@@ -98,9 +98,11 @@ class MainViewModel: ObservableObject {
     private var cloneCooldownPeriod: TimeInterval {
         guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
         
-        // 从缓存中获取技能数据
-        guard let skillsData = cache.skills,
-              let skillsJson = UserDefaults.standard.string(forKey: "character_skills_\(character.CharacterID)"),
+        // 从character_skills表获取技能数据
+        let query = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        guard case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [character.CharacterID]),
+              let row = rows.first,
+              let skillsJson = row["skills_data"] as? String,
               let data = skillsJson.data(using: .utf8),
               let skillsResponse = try? JSONDecoder().decode(CharacterSkillsResponse.self, from: data) else {
             return Constants.baseCloneCooldown
@@ -108,9 +110,10 @@ class MainViewModel: ObservableObject {
         
         // 查找 Advanced Infomorph Psychology 技能等级
         if let infomorphSkill = skillsResponse.skills.first(where: { $0.skill_id == 33399 }) {
-            // 每级减少1小时
+            // 每级减少1小时，从24小时开始
             let reductionHours = infomorphSkill.trained_skill_level
-            return Constants.baseCloneCooldown - Double(reductionHours * Constants.secondsInHour)
+            let remainingHours = max(24 - reductionHours, 1) // 最少保留1小时冷却时间
+            return Double(remainingHours * Constants.secondsInHour)
         }
         
         return Constants.baseCloneCooldown
@@ -149,8 +152,23 @@ class MainViewModel: ObservableObject {
                 if timeSinceLastJump >= cloneCooldownPeriod {
                     cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
                 } else {
-                    let remainingHours = Int(ceil((cloneCooldownPeriod - timeSinceLastJump) / 3600))
-                    cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), remainingHours)
+                    // 计算冷却完成的时间点
+                    let cooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
+                    let remainingTime = cooldownEndDate.timeIntervalSince(now)
+                    
+                    // 转换为小时和分钟
+                    let hours = Int(remainingTime) / 3600
+                    let minutes = (Int(remainingTime) % 3600) / 60
+                    
+                    if hours > 0 {
+                        if minutes > 0 {
+                            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Hours_Minutes", comment: ""), hours, minutes)
+                        } else {
+                            cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours)
+                        }
+                    } else {
+                        cloneJumpStatus = String(format: NSLocalizedString("Main_Jump_Clones_Cooldown_Minutes", comment: ""), minutes)
+                    }
                 }
             }
         } else {
