@@ -91,7 +91,7 @@ struct CharacterLoyaltyPointsView: View {
             }
             
             Section {
-                NavigationLink(destination: EmptyView()) {
+                NavigationLink(destination: CharacterLoyaltyPointsStoreView()) {
                     HStack {
                         Image("lpstore")
                             .resizable()

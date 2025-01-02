@@ -3,6 +3,7 @@ import SQLite3
 import SwiftUI
 
 class DatabaseManager: ObservableObject {
+    static let shared = DatabaseManager()
     @Published var databaseUpdated = false
     private let sqliteManager = SQLiteManager.shared
     
@@ -46,6 +47,7 @@ class DatabaseManager: ObservableObject {
     
     // 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
+        Logger.debug(query)
         // let startTime = CFAbsoluteTimeGetCurrent()
         let result = sqliteManager.executeQuery(query, parameters: parameters, useCache: useCache)
         // let endTime = CFAbsoluteTimeGetCurrent()
