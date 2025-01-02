@@ -109,6 +109,7 @@ struct LPStoreGroupView: View {
 
 struct CorporationLPStoreView: View {
     let corporationId: Int
+    let corporationName: String
     @State private var offers: [LPStoreOffer] = []
     @State private var itemInfos: [Int: LPStoreItemInfo] = [:]
     @State private var categoryInfos: [String: CategoryInfo] = [:]
@@ -190,6 +191,7 @@ struct CorporationLPStoreView: View {
                 }
             }
         }
+        .navigationTitle(corporationName)
         .refreshable {
             await loadOffers(forceRefresh: true)
         }

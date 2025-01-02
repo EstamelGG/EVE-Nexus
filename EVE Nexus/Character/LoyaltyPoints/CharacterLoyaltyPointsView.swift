@@ -78,7 +78,10 @@ struct CharacterLoyaltyPointsView: View {
                     }
                 } else {
                     ForEach(viewModel.loyaltyPoints) { loyalty in
-                        NavigationLink(destination: CorporationLPStoreView(corporationId: loyalty.corporationId)) {
+                        NavigationLink(destination: CorporationLPStoreView(
+                            corporationId: loyalty.corporationId,
+                            corporationName: loyalty.corporationName
+                        )) {
                             HStack {
                                 CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
                                 

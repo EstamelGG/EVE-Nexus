@@ -29,7 +29,7 @@ struct FactionDetailView: View {
                 }
             } else {
                 ForEach(corporations) { corporation in
-                    NavigationLink(destination: CorporationLPStoreView(corporationId: corporation.id)) {
+                    NavigationLink(destination: CorporationLPStoreView(corporationId: corporation.id, corporationName: corporation.name)) {
                         HStack {
                             IconManager.shared.loadImage(for: corporation.iconFileName)
                                 .resizable()
