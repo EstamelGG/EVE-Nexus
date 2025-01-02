@@ -147,6 +147,22 @@ struct CorporationLPStoreView: View {
                     }
                     .buttonStyle(.bordered)
                 }
+            } else if offers.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 4) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
+                    }
+                }
+                .listSectionSpacing(.compact)
             } else {
                 ForEach(categoryOffers, id: \.0.name) { categoryInfo, offers in
                     NavigationLink(destination: LPStoreGroupView(
