@@ -3,10 +3,19 @@ import SwiftUI
 
 // 定义资产类型枚举
 enum WealthType: String, CaseIterable {
-    case assets = "Assets"
-    case implants = "Implants"
-    case orders = "Orders"
-    case wallet = "Wallet"
+    case wallet = "Wallet"     // 钱包余额
+    case assets = "Assets"     // 资产
+    case implants = "Implants" // 植入体
+    case orders = "Orders"     // 市场订单
+    
+    var sortOrder: Int {
+        switch self {
+        case .wallet: return 0
+        case .assets: return 1
+        case .implants: return 2
+        case .orders: return 3
+        }
+    }
     
     var icon: String {
         switch self {
@@ -166,6 +175,8 @@ class CharacterWealthViewModel: ObservableObject {
     private func addWealthItem(type: WealthType, value: Double, details: String) {
         let item = WealthItem(type: type, value: value, details: details)
         wealthItems.append(item)
+        // 每次添加后按照固定顺序排序
+        wealthItems.sort { $0.type.sortOrder < $1.type.sortOrder }
     }
     
     private func updateTotalWealth() {
@@ -448,7 +459,10 @@ class CharacterWealthViewModel: ObservableObject {
             Logger.error("获取无市场价格物品失败: \(error)")
         }
         
-        // 按数量排序
-        return itemsWithoutPrice.sorted { $0.quantity > $1.quantity }
+        // 按数量排序并只取前20个
+        return itemsWithoutPrice
+            .sorted { $0.quantity > $1.quantity }
+            .prefix(20)
+            .map { $0 }
     }
 } 

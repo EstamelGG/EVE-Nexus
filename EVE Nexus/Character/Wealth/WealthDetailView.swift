@@ -4,6 +4,7 @@ struct WealthDetailView: View {
     let title: String
     let valuedItems: [ValuedItem]
     let databaseManager: DatabaseManager
+    let wealthType: WealthType
     @StateObject private var viewModel: CharacterWealthViewModel
     @State private var itemInfos: [[String: Any]] = []
     @State private var isLoading = true
@@ -17,10 +18,11 @@ struct WealthDetailView: View {
         var iconFileName: String = ""
     }
     
-    init(title: String, valuedItems: [ValuedItem], viewModel: CharacterWealthViewModel) {
+    init(title: String, valuedItems: [ValuedItem], viewModel: CharacterWealthViewModel, wealthType: WealthType) {
         self.title = title
         self.valuedItems = valuedItems
         self.databaseManager = DatabaseManager()
+        self.wealthType = wealthType
         self._viewModel = StateObject(wrappedValue: viewModel)
     }
     
@@ -80,8 +82,8 @@ struct WealthDetailView: View {
                     }
                 }
                 
-                // 无市场价格的物品
-                if !itemsWithoutPrice.isEmpty {
+                // 只在资产类型时显示无市场价格的物品
+                if wealthType == .assets && !itemsWithoutPrice.isEmpty {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_NoPrice", comment: ""))) {
                         ForEach(itemsWithoutPrice) { item in
                             NavigationLink {
@@ -108,7 +110,7 @@ struct WealthDetailView: View {
                 }
                 
                 // 如果两个列表都为空
-                if valuedItems.isEmpty && itemsWithoutPrice.isEmpty {
+                if valuedItems.isEmpty && (wealthType != .assets || itemsWithoutPrice.isEmpty) {
                     HStack {
                         Spacer()
                         Text(NSLocalizedString("Wealth_Detail_NoData", comment: ""))
@@ -124,8 +126,10 @@ struct WealthDetailView: View {
             let typeIds = valuedItems.map { $0.typeId }
             itemInfos = viewModel.getItemsInfo(typeIds: typeIds)
             
-            // 获取无市场价格的物品
-            itemsWithoutPrice = await viewModel.getItemsWithoutPrice()
+            // 只在资产类型时加载无市场价格的物品
+            if wealthType == .assets {
+                itemsWithoutPrice = await viewModel.getItemsWithoutPrice()
+            }
             
             isLoading = false
         }

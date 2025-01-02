@@ -51,7 +51,8 @@ struct CharacterWealthView: View {
                             WealthDetailView(
                                 title: NSLocalizedString("Wealth_\(item.type.rawValue)", comment: ""),
                                 valuedItems: getValuedItems(for: item.type),
-                                viewModel: viewModel
+                                viewModel: viewModel,
+                                wealthType: item.type
                             )
                         } label: {
                             WealthItemRow(item: item)
