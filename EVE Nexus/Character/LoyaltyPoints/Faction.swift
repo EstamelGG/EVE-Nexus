@@ -12,12 +12,12 @@ struct Faction: Identifiable {
     }
     
     init?(from row: [String: Any]) {
-        guard let id = row["id"] as? Int64,
+        guard let id = row["id"] as? Int,
               let name = row["name"] as? String,
               let iconName = row["iconName"] as? String else {
             return nil
         }
-        self.id = Int(id)
+        self.id = id
         self.name = name
         self.iconName = iconName
     }

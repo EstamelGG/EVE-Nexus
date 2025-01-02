@@ -39,6 +39,7 @@ struct CharacterLoyaltyPointsStoreView: View {
                         }
                         .padding(.vertical, 2)
                     }
+                    .frame(height: 36)
                 }
             }
         }
@@ -53,9 +54,7 @@ struct CharacterLoyaltyPointsStoreView: View {
         error = nil
         
         let query = """
-            SELECT id, name, iconName 
-            FROM factions 
-            ORDER BY id
+            SELECT * FROM factions
         """
         
         let result = DatabaseManager.shared.executeQuery(query)
@@ -72,8 +71,3 @@ struct CharacterLoyaltyPointsStoreView: View {
     }
 }
 
-#Preview {
-    NavigationView {
-        CharacterLoyaltyPointsStoreView()
-    }
-} 
