@@ -3,6 +3,7 @@ import SwiftUI
 struct CharacterWealthView: View {
     @StateObject private var viewModel: CharacterWealthViewModel
     @State private var isRefreshing = false
+    @State private var loadedTypes: Set<WealthType> = []
     
     init(characterId: Int) {
         self._viewModel = StateObject(wrappedValue: CharacterWealthViewModel(characterId: characterId))
@@ -20,9 +21,20 @@ struct CharacterWealthView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Wealth_Total", comment: ""))
-                        Text(FormatUtil.formatISK(viewModel.totalWealth) + " ISK")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        if viewModel.isLoading {
+                            Text(NSLocalizedString("Loading", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(FormatUtil.formatISK(viewModel.totalWealth) + " ISK")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if viewModel.isLoading {
+                        Spacer()
+                        ProgressView()
                     }
                 }
             }
@@ -46,6 +58,29 @@ struct CharacterWealthView: View {
                         }
                     }
                 }
+                
+                // 显示正在加载的项目
+                if viewModel.isLoading {
+                    ForEach(WealthType.allCases.filter { !loadedTypes.contains($0) }, id: \.self) { type in
+                        HStack {
+                            Image(type.icon)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(NSLocalizedString("Wealth_\(type.rawValue)", comment: ""))
+                                Text(NSLocalizedString("Calculating", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            ProgressView()
+                        }
+                        .frame(height: 36)
+                    }
+                }
             }
             
             // 资产分布饼图
@@ -60,6 +95,7 @@ struct CharacterWealthView: View {
         .navigationTitle(NSLocalizedString("Main_Wealth", comment: ""))
         .refreshable {
             isRefreshing = true
+            loadedTypes.removeAll()
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
@@ -69,8 +105,12 @@ struct CharacterWealthView: View {
     }
     
     private func loadData(forceRefresh: Bool = false) async {
+        loadedTypes.removeAll()
+        
         // 加载主要数据
-        await viewModel.loadWealthData(forceRefresh: forceRefresh)
+        await viewModel.loadWealthData(forceRefresh: forceRefresh) { loadedType in
+            loadedTypes.insert(loadedType)
+        }
         
         // 预加载详情数据
         async let assets: () = viewModel.loadAssetDetails()

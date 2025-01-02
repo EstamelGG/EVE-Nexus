@@ -91,8 +91,9 @@ class CharacterWealthViewModel: ObservableObject {
     }
     
     // 加载所有财富数据
-    func loadWealthData(forceRefresh: Bool = false) async {
+    func loadWealthData(forceRefresh: Bool = false, onTypeLoaded: @escaping (WealthType) -> Void) async {
         isLoading = true
+        wealthItems.removeAll()
         defer { isLoading = false }
         
         do {
@@ -103,52 +104,58 @@ class CharacterWealthViewModel: ObservableObject {
                 return (price.type_id, averagePrice)
             })
             
-            // 2. 获取资产数据并计算价值
-            let (assetsValue, assetsCount) = try await calculateAssetsValue(forceRefresh: forceRefresh)
-            
-            // 3. 获取植入体数据并计算价值
-            let (implantsValue, implantsCount) = try await calculateImplantsValue(forceRefresh: forceRefresh)
-            
-            // 4. 获取订单数据并计算价值
-            let (ordersValue, ordersCount) = try await calculateOrdersValue(forceRefresh: forceRefresh)
-            
-            // 5. 获取钱包余额
+            // 2. 获取钱包余额（最快，所以先加载）
             let walletBalance = try await CharacterWalletAPI.shared.getWalletBalance(
                 characterId: characterId,
                 forceRefresh: forceRefresh
             )
+            addWealthItem(type: .wallet, value: walletBalance, details: NSLocalizedString("Wealth_Wallet_Balance", comment: ""))
+            onTypeLoaded(.wallet)
             
-            // 6. 更新UI数据
-            let items = [
-                WealthItem(
-                    type: .assets,
-                    value: assetsValue,
-                    details: String(format: NSLocalizedString("Wealth_Assets_Count", comment: ""), assetsCount)
-                ),
-                WealthItem(
-                    type: .implants,
-                    value: implantsValue,
-                    details: String(format: NSLocalizedString("Wealth_Implants_Count", comment: ""), implantsCount)
-                ),
-                WealthItem(
-                    type: .orders,
-                    value: ordersValue,
-                    details: String(format: NSLocalizedString("Wealth_Orders_Count", comment: ""), ordersCount)
-                ),
-                WealthItem(
-                    type: .wallet,
-                    value: walletBalance,
-                    details: NSLocalizedString("Wealth_Wallet_Balance", comment: "")
-                )
-            ]
+            // 3. 使用 TaskGroup 并行加载其他数据
+            try await withThrowingTaskGroup(of: (WealthType, Double, Int).self) { group in
+                // 添加资产计算任务
+                group.addTask {
+                    let result = try await self.calculateAssetsValue(forceRefresh: forceRefresh)
+                    return (.assets, result.value, result.count)
+                }
+                
+                // 添加植入体计算任务
+                group.addTask {
+                    let result = try await self.calculateImplantsValue(forceRefresh: forceRefresh)
+                    return (.implants, result.value, result.count)
+                }
+                
+                // 添加订单计算任务
+                group.addTask {
+                    let result = try await self.calculateOrdersValue(forceRefresh: forceRefresh)
+                    return (.orders, result.value, result.count)
+                }
+                
+                // 处理每个完成的任务
+                for try await (type, value, count) in group {
+                    let details = String(format: NSLocalizedString("Wealth_\(type.rawValue)_Count", comment: ""), count)
+                    addWealthItem(type: type, value: value, details: details)
+                    onTypeLoaded(type)
+                }
+            }
             
-            self.wealthItems = items
-            self.totalWealth = items.reduce(0) { $0 + $1.value }
+            // 4. 更新总资产
+            updateTotalWealth()
             
         } catch {
             Logger.error("加载财富数据失败: \(error)")
             self.error = error
         }
+    }
+    
+    private func addWealthItem(type: WealthType, value: Double, details: String) {
+        let item = WealthItem(type: type, value: value, details: details)
+        wealthItems.append(item)
+    }
+    
+    private func updateTotalWealth() {
+        totalWealth = wealthItems.reduce(0) { $0 + $1.value }
     }
     
     // 计算资产价值
