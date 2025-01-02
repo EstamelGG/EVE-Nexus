@@ -35,27 +35,27 @@ struct LPStoreOfferView: View {
                         Text("\(offer.quantity)x \(itemInfo.name)")
                             .font(.headline)
                             .lineLimit(1)
+                        
+                        HStack(spacing: 4) {
+                            if offer.lpCost > 0 {
+                                Text("\(offer.lpCost) LP")
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            if offer.lpCost > 0 && offer.iskCost > 0 {
+                                Text("+")
+                            }
+                            
+                            if offer.iskCost > 0 {
+                                Text("\(FormatUtil.formatISK(Double(offer.iskCost))) ISK")
+                                    .foregroundColor(.green)
+                            }
+                        }
+                        .font(.subheadline)
                     }
                 }
             }
             .buttonStyle(.plain)
-            
-            HStack(spacing: 4) {
-                if offer.lpCost > 0 {
-                    Text("\(offer.lpCost) LP")
-                        .foregroundColor(.blue)
-                }
-                
-                if offer.lpCost > 0 && offer.iskCost > 0 {
-                    Text("+")
-                }
-                
-                if offer.iskCost > 0 {
-                    Text("\(FormatUtil.formatISK(Double(offer.iskCost))) ISK")
-                        .foregroundColor(.green)
-                }
-            }
-            .font(.subheadline)
             
             if !offer.requiredItems.isEmpty {
                 Text(NSLocalizedString("Main_LP_Required_Items", comment: ""))
