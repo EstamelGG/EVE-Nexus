@@ -22,6 +22,7 @@ struct LPStoreOfferView: View {
                 IconManager.shared.loadImage(for: itemInfo.iconFileName)
                     .resizable()
                     .scaledToFit()
+                    .cornerRadius(6)
                     .frame(width: 36, height: 36)
                 
                 VStack(alignment: .leading) {
@@ -116,6 +117,7 @@ struct CorporationLPStoreView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundColor(.red)
+                        .cornerRadius(6)
                     Text(error.localizedDescription)
                         .font(.headline)
                     Button(NSLocalizedString("Main_Setting_Reset", comment: "")) {
