@@ -62,7 +62,8 @@ struct LPStoreOfferView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                ForEach(offer.requiredItems, id: \.typeId) { item in
+                let sortedItems = offer.requiredItems.sorted { $0.typeId < $1.typeId }
+                ForEach(sortedItems, id: \.typeId) { item in
                     if let info = requiredItemInfos[item.typeId] {
                         HStack {
                             IconManager.shared.loadImage(for: info.iconFileName)
