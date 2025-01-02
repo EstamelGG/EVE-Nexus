@@ -9,6 +9,7 @@ struct LPStoreItemInfo {
     let name: String
     let iconFileName: String
     let categoryName: String
+    let categoryId: Int
 }
 
 struct LPStoreOfferView: View {
@@ -18,21 +19,28 @@ struct LPStoreOfferView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                IconManager.shared.loadImage(for: itemInfo.iconFileName)
-                    .resizable()
-                    .scaledToFit()
-                    .cornerRadius(6)
-                    .frame(width: 36, height: 36)
-                
-                VStack(alignment: .leading) {
-                    Text(itemInfo.name)
-                        .font(.headline)
-                    Text("\(offer.quantity)x")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            NavigationLink(destination: ItemInfoMap.getItemInfoView(
+                itemID: offer.typeId,
+                categoryID: itemInfo.categoryId,
+                databaseManager: DatabaseManager.shared
+            )) {
+                HStack {
+                    IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                        .resizable()
+                        .scaledToFit()
+                        .cornerRadius(6)
+                        .frame(width: 36, height: 36)
+                    
+                    VStack(alignment: .leading) {
+                        Text(itemInfo.name)
+                            .font(.headline)
+                        Text("\(offer.quantity)x")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
+            .buttonStyle(.plain)
             
             HStack(spacing: 4) {
                 if offer.lpCost > 0 {
@@ -58,13 +66,20 @@ struct LPStoreOfferView: View {
                 
                 ForEach(offer.requiredItems, id: \.typeId) { item in
                     if let info = requiredItemInfos[item.typeId] {
-                        HStack {
-                            Text("\(item.quantity)x")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(info.name)
-                                .font(.caption)
+                        NavigationLink(destination: ItemInfoMap.getItemInfoView(
+                            itemID: item.typeId,
+                            categoryID: info.categoryId,
+                            databaseManager: DatabaseManager.shared
+                        )) {
+                            HStack {
+                                Text("\(item.quantity)x")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(info.name)
+                                    .font(.caption)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -189,7 +204,7 @@ struct CorporationLPStoreView: View {
             
             // 3. 一次性查询所有物品信息
             let query = """
-                SELECT type_id, name, icon_filename, category_name
+                SELECT type_id, name, icon_filename, category_name, categoryID
                 FROM types
                 WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
             """
@@ -202,11 +217,13 @@ struct CorporationLPStoreView: View {
                     if let typeId = row["type_id"] as? Int,
                        let name = row["name"] as? String,
                        let iconFileName = row["icon_filename"] as? String,
-                       let categoryName = row["category_name"] as? String {
+                       let categoryName = row["category_name"] as? String,
+                       let categoryId = row["categoryID"] as? Int {
                         infos[typeId] = LPStoreItemInfo(
                             name: name,
                             iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
-                            categoryName: categoryName
+                            categoryName: categoryName,
+                            categoryId: categoryId
                         )
                         categoryNames.insert(categoryName)
                     }
