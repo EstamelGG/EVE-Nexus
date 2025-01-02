@@ -91,9 +91,21 @@ struct LPStoreGroupView: View {
     let offers: [LPStoreOffer]
     let itemInfos: [Int: LPStoreItemInfo]
     
+    var sortedOffers: [LPStoreOffer] {
+        offers.sorted { offer1, offer2 in
+            if offer1.typeId != offer2.typeId {
+                return offer1.typeId < offer2.typeId
+            }
+            if offer1.lpCost != offer2.lpCost {
+                return offer1.lpCost < offer2.lpCost
+            }
+            return offer1.iskCost < offer2.iskCost
+        }
+    }
+    
     var body: some View {
         List {
-            ForEach(offers, id: \.offerId) { offer in
+            ForEach(sortedOffers, id: \.offerId) { offer in
                 if let itemInfo = itemInfos[offer.typeId] {
                     LPStoreOfferView(
                         offer: offer,
