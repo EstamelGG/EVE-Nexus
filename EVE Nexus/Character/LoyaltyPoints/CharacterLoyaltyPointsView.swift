@@ -13,11 +13,13 @@ struct CorporationLogoView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 36, height: 36)
+                    .cornerRadius(6)
             } else if let logo = corporationLogo {
                 Image(uiImage: logo)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 36, height: 36)
+                    .cornerRadius(6)
             } else if isLoading {
                 ProgressView()
                     .frame(width: 36, height: 36)
@@ -26,6 +28,7 @@ struct CorporationLogoView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 36, height: 36)
+                    .cornerRadius(6)
             }
         }
         .onAppear {
@@ -62,6 +65,7 @@ struct CharacterLoyaltyPointsView: View {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.largeTitle)
                             .foregroundColor(.red)
+                            .cornerRadius(6)
                         Text(NSLocalizedString("Main_Database_Loading", comment: ""))
                             .font(.headline)
                         Text(error.localizedDescription)
@@ -97,6 +101,7 @@ struct CharacterLoyaltyPointsView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: 36, height: 36)
+                            .cornerRadius(6)
                         Text(NSLocalizedString("Main_LP_Store", comment: ""))
                     }
                 }

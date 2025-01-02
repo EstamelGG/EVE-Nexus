@@ -19,6 +19,7 @@ struct FactionDetailView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundColor(.red)
+                        .cornerRadius(6)
                     Text(error.localizedDescription)
                         .font(.headline)
                     Button(NSLocalizedString("Main_Setting_Reset", comment: "")) {
@@ -34,6 +35,7 @@ struct FactionDetailView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 36, height: 36)
+                                .cornerRadius(6)
                             
                             Text(corporation.name)
                                 .padding(.leading, 8)
@@ -75,9 +77,3 @@ struct FactionDetailView: View {
         }
     }
 }
-
-#Preview {
-    NavigationView {
-        FactionDetailView(faction: Faction(id: 500001, name: "加达里合众国", iconName: "faction_500001.png"))
-    }
-} 

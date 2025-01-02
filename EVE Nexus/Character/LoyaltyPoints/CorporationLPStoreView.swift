@@ -139,7 +139,7 @@ struct CorporationLPStoreView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 36, height: 36)
-                            
+                                .cornerRadius(6)
                             Text(categoryInfo.name)
                                 .padding(.leading, 8)
                             
