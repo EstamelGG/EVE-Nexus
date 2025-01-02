@@ -555,12 +555,4 @@ class CharacterDatabaseManager: ObservableObject {
             return false
         }
     }
-    
-    func getNPCScene(for typeID: Int) -> String? {
-        let query = "SELECT npc_ship_scene FROM types WHERE type_id = ?"
-        if case .success(let rows) = executeQuery(query, parameters: [typeID]) {
-            return rows.first?["npc_ship_scene"] as? String
-        }
-        return nil
-    }
 } 
