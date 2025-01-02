@@ -78,18 +78,20 @@ struct CharacterLoyaltyPointsView: View {
                     }
                 } else {
                     ForEach(viewModel.loyaltyPoints) { loyalty in
-                        HStack {
-                            CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
-                            
-                            VStack(alignment: .leading) {
-                                Text(loyalty.corporationName)
-                                Text("\(loyalty.loyaltyPoints) LP")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                        NavigationLink(destination: CorporationLPStoreView(corporationId: loyalty.corporationId)) {
+                            HStack {
+                                CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
+                                
+                                VStack(alignment: .leading) {
+                                    Text(loyalty.corporationName)
+                                    Text("\(loyalty.loyaltyPoints) LP")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
+                            .padding(.vertical, 2)
+                            .frame(height: 36)
                         }
-                        .padding(.vertical, 2)
-                        .frame(height: 36)
                     }
                 }
             }
