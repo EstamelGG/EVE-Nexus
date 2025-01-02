@@ -23,14 +23,28 @@ enum WealthType: String, CaseIterable {
 }
 
 // 定义资产项结构
-struct WealthItem: Identifiable {
-    let id = UUID()
+struct WealthItem: Identifiable, Equatable {
+    let id: UUID
     let type: WealthType
     let value: Double
     let details: String
     
+    init(type: WealthType, value: Double, details: String) {
+        self.id = UUID()
+        self.type = type
+        self.value = value
+        self.details = details
+    }
+    
     var formattedValue: String {
         return FormatUtil.format(value)
+    }
+    
+    static func == (lhs: WealthItem, rhs: WealthItem) -> Bool {
+        // 只比较实际内容，忽略id
+        return lhs.type == rhs.type &&
+               lhs.value == rhs.value &&
+               lhs.details == rhs.details
     }
 }
 

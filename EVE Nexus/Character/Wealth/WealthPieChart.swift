@@ -19,25 +19,7 @@ struct WealthPieChart: View {
     let size: CGFloat
     @State private var selectedSlice: WealthPieSlice?
     
-    // 使用 @State 来缓存计算结果
-    @State private var cachedSlices: [WealthPieSlice] = []
-    @State private var previousItems: [WealthItem] = []
-    
     private var slices: [WealthPieSlice] {
-        // 检查items是否发生变化
-        if previousItems != items {
-            let newSlices = calculateSlices()
-            // 在下一个更新周期更新缓存
-            DispatchQueue.main.async {
-                self.cachedSlices = newSlices
-                self.previousItems = self.items
-            }
-            return newSlices
-        }
-        return cachedSlices
-    }
-    
-    private func calculateSlices() -> [WealthPieSlice] {
         let total = items.reduce(0) { $0 + $1.value }
         var startAngle = 0.0
         
@@ -71,7 +53,7 @@ struct WealthPieChart: View {
     }
     
     var body: some View {
-        HStack(alignment: .center, spacing: 20) {
+        let chartView = HStack(alignment: .center, spacing: 20) {
             // 图例和占比
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(slices) { slice in
@@ -111,6 +93,9 @@ struct WealthPieChart: View {
             }
             .frame(width: size, height: size)
         }
+        
+        return chartView
+            .id(items.map { "\($0.type)\($0.value)" }.joined())
     }
 }
 
