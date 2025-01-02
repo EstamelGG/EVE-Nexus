@@ -34,12 +34,20 @@ struct LPStoreOfferView: View {
                 }
             }
             
-            HStack {
-                Text("\(offer.lpCost) LP")
-                    .foregroundColor(.blue)
-                Text("+")
-                Text("\(FormatUtil.formatISK(Double(offer.iskCost))) ISK")
-                    .foregroundColor(.green)
+            HStack(spacing: 4) {
+                if offer.lpCost > 0 {
+                    Text("\(offer.lpCost) LP")
+                        .foregroundColor(.blue)
+                }
+                
+                if offer.lpCost > 0 && offer.iskCost > 0 {
+                    Text("+")
+                }
+                
+                if offer.iskCost > 0 {
+                    Text("\(FormatUtil.formatISK(Double(offer.iskCost))) ISK")
+                        .foregroundColor(.green)
+                }
             }
             .font(.subheadline)
             
