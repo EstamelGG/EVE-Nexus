@@ -24,18 +24,18 @@ struct CharacterWealthView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Wealth_Total", comment: ""))
-                        if viewModel.isLoading && !hasLoadedInitialData {
+                        if viewModel.isLoading && cachedTotalWealth == 0 {
                             Text(NSLocalizedString("Loading", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text(FormatUtil.formatISK(cachedTotalWealth) + " ISK")
+                            Text(FormatUtil.formatISK(viewModel.totalWealth > 0 ? viewModel.totalWealth : cachedTotalWealth) + " ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                     
-                    if viewModel.isLoading && !hasLoadedInitialData {
+                    if viewModel.isLoading && cachedTotalWealth == 0 {
                         Spacer()
                         ProgressView()
                     }
@@ -101,17 +101,17 @@ struct CharacterWealthView: View {
             isRefreshing = true
             loadedTypes.removeAll()
             hasLoadedInitialData = false
-            // 初始化所有类型为"计算中"状态
             initializeEmptyCache()
-            cachedTotalWealth = 0
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
         .task {
             if !hasLoadedInitialData {
-                // 首次加载时初始化空缓存
                 initializeEmptyCache()
                 await loadData()
+            } else if viewModel.totalWealth > 0 {
+                // 如果已经有数据，更新缓存
+                cachedTotalWealth = viewModel.totalWealth
             }
         }
     }
