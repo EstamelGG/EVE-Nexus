@@ -540,7 +540,7 @@
 "Wealth_Wallet_Balance" = "Current Balance";
 
 // Wealth Detail View
-"Wealth_Detail_Title" = "%@ (Top 20)";
+"Wealth_Detail_Title" = "%@ Est. (Top 20)";
 "Wealth_Detail_NoData" = "No Data";
 "Wealth_Detail_Loading" = "Loading...";
 "Wealth_Detail_MarketPrice" = "Market Price";

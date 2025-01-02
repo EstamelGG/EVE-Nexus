@@ -537,7 +537,7 @@
 "Wealth_Wallet_Balance" = "当前余额";
 
 // 财富详情
-"Wealth_Detail_Title" = "%@ (前20名)";
+"Wealth_Detail_Title" = "%@估价 (前20名)";
 "Wealth_Detail_NoData" = "暂无数据";
 "Wealth_Detail_Loading" = "加载中...";
 "Wealth_Detail_MarketPrice" = "市场价格";
