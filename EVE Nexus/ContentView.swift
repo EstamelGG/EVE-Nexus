@@ -433,6 +433,18 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(currentColorScheme)
+        .onAppear {
+            // 检查当前选择的角色是否在已登录列表中
+            Logger.debug("Check current character: \(currentCharacterId)")
+            if currentCharacterId != 0 {
+                let auth = EVELogin.shared.getCharacterByID(currentCharacterId)
+                if auth == nil {
+                    // 如果找不到认证信息，说明角色已退出
+                    currentCharacterId = 0
+                    viewModel.resetCharacterInfo()
+                }
+            }
+        }
         .task {
             await viewModel.refreshAllData()
         }
