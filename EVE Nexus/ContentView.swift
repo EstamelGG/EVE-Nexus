@@ -258,11 +258,14 @@ struct LoginButtonView: View {
         .contentShape(Rectangle())
         .padding(.vertical, 8)
         .task {
-            await loadCharacterInfo()
             // 检查token状态
             if let character = selectedCharacter {
                 if let auth = EVELogin.shared.getCharacterByID(character.CharacterID) {
                     tokenExpired = auth.character.tokenExpired
+                    await loadCharacterInfo()
+                } else {
+                    // 如果找不到认证信息，通知 ContentView 执行登出操作
+                    NotificationCenter.default.post(name: NSNotification.Name("CharacterLoggedOut"), object: nil)
                 }
             }
         }
@@ -306,34 +309,34 @@ struct LoginButtonView: View {
                 }
             }
         }
-        .task {
-            // 初始加载
-            if let character = selectedCharacter {
-                do {
-                    // 加载军团信息和图标
-                    async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: character.corporationId ?? 0)
-                    async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: character.corporationId ?? 0)
-                    
-                    let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
-                    
-                    corporationInfo = corpInfo
-                    corporationLogo = corpLogo
-                    
-                    // 如果有联盟,加载联盟信息和图标
-                    if let allianceId = character.allianceId {
-                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                        
-                        let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
-                        
-                        allianceInfo = alliInfo
-                        allianceLogo = alliLogo
-                    }
-                } catch {
-                    Logger.error("加载角色信息失败: \(error)")
-                }
-            }
-        }
+//        .task {
+//            // 初始加载
+//            if let character = selectedCharacter {
+//                do {
+//                    // 加载军团信息和图标
+//                    async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: character.corporationId ?? 0)
+//                    async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: character.corporationId ?? 0)
+//                    
+//                    let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
+//                    
+//                    corporationInfo = corpInfo
+//                    corporationLogo = corpLogo
+//                    
+//                    // 如果有联盟,加载联盟信息和图标
+//                    if let allianceId = character.allianceId {
+//                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+//                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+//                        
+//                        let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
+//                        
+//                        allianceInfo = alliInfo
+//                        allianceLogo = alliLogo
+//                    }
+//                } catch {
+//                    Logger.error("加载角色信息失败: \(error)")
+//                }
+//            }
+//        }
     }
     
     private func loadCharacterInfo() async {
@@ -457,6 +460,11 @@ struct ContentView: View {
                 await viewModel.refreshAllData()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CharacterLoggedOut"))) { _ in
+            // 收到角色登出通知时执行登出操作
+            currentCharacterId = 0
+            viewModel.resetCharacterInfo()
+        }
     }
     
     // MARK: - 视图组件
@@ -483,6 +491,17 @@ struct ContentView: View {
                     characterPortrait: viewModel.characterPortrait,
                     isRefreshing: viewModel.isRefreshing
                 )
+            }
+            .onDisappear {
+                // 从人物管理页面返回时检查
+                if currentCharacterId != 0 {
+                    let auth = EVELogin.shared.getCharacterByID(currentCharacterId)
+                    if auth == nil {
+                        // 如果找不到认证信息，说明角色已退出
+                        currentCharacterId = 0
+                        viewModel.resetCharacterInfo()
+                    }
+                }
             }
         }
     }
