@@ -309,34 +309,6 @@ struct LoginButtonView: View {
                 }
             }
         }
-//        .task {
-//            // 初始加载
-//            if let character = selectedCharacter {
-//                do {
-//                    // 加载军团信息和图标
-//                    async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: character.corporationId ?? 0)
-//                    async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: character.corporationId ?? 0)
-//                    
-//                    let (corpInfo, corpLogo) = try await (corporationInfoTask, corporationLogoTask)
-//                    
-//                    corporationInfo = corpInfo
-//                    corporationLogo = corpLogo
-//                    
-//                    // 如果有联盟,加载联盟信息和图标
-//                    if let allianceId = character.allianceId {
-//                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-//                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-//                        
-//                        let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
-//                        
-//                        allianceInfo = alliInfo
-//                        allianceLogo = alliLogo
-//                    }
-//                } catch {
-//                    Logger.error("加载角色信息失败: \(error)")
-//                }
-//            }
-//        }
     }
     
     private func loadCharacterInfo() async {
