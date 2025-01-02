@@ -17,7 +17,7 @@ struct LPStoreOfferView: View {
     let requiredItemInfos: [Int: LPStoreItemInfo]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
                 IconManager.shared.loadImage(for: itemInfo.iconFileName)
                     .resizable()
@@ -69,7 +69,7 @@ struct LPStoreOfferView: View {
                 }
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 2)
     }
 }
 
