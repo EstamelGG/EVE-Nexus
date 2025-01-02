@@ -1,21 +1,25 @@
 import SwiftUI
 
+struct LPStoreItemInfo {
+    let name: String
+    let iconFileName: String
+}
+
 struct LPStoreOfferView: View {
     let offer: LPStoreOffer
-    @State private var itemName: String = ""
-    @State private var itemIconFileName: String = ""
-    @State private var requiredItemNames: [String] = []
+    let itemInfo: LPStoreItemInfo
+    let requiredItemInfos: [Int: LPStoreItemInfo]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                IconManager.shared.loadImage(for: itemIconFileName)
+                IconManager.shared.loadImage(for: itemInfo.iconFileName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 36, height: 36)
                 
                 VStack(alignment: .leading) {
-                    Text(itemName)
+                    Text(itemInfo.name)
                         .font(.headline)
                     Text("\(offer.quantity)x")
                         .font(.caption)
@@ -32,54 +36,32 @@ struct LPStoreOfferView: View {
             }
             .font(.subheadline)
             
-            if !requiredItemNames.isEmpty {
+            if !offer.requiredItems.isEmpty {
                 Text(NSLocalizedString("Main_LP_Required_Items", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                ForEach(offer.requiredItems.indices, id: \.self) { index in
-                    HStack {
-                        Text("\(offer.requiredItems[index].quantity)x")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(requiredItemNames[index])
-                            .font(.caption)
+                ForEach(offer.requiredItems, id: \.typeId) { item in
+                    if let info = requiredItemInfos[item.typeId] {
+                        HStack {
+                            Text("\(item.quantity)x")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(info.name)
+                                .font(.caption)
+                        }
                     }
                 }
             }
         }
         .padding(.vertical, 8)
-        .onAppear {
-            loadItemInfo()
-        }
-    }
-    
-    private func loadItemInfo() {
-        // 获取物品信息
-        let query = """
-            SELECT name, icon_filename
-            FROM types
-            WHERE type_id = ?
-        """
-        
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [offer.typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let iconFileName = row["icon_filename"] as? String {
-            itemName = name
-            itemIconFileName = iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
-        }
-        
-        // 加载所需物品名称
-        requiredItemNames = offer.requiredItems.compactMap { item in
-            DatabaseManager.shared.getTypeName(for: item.typeId)
-        }
     }
 }
 
 struct CorporationLPStoreView: View {
     let corporationId: Int
     @State private var offers: [LPStoreOffer] = []
+    @State private var itemInfos: [Int: LPStoreItemInfo] = [:]
     @State private var isLoading = true
     @State private var error: Error?
     
@@ -107,7 +89,13 @@ struct CorporationLPStoreView: View {
                 }
             } else {
                 ForEach(offers, id: \.offerId) { offer in
-                    LPStoreOfferView(offer: offer)
+                    if let itemInfo = itemInfos[offer.typeId] {
+                        LPStoreOfferView(
+                            offer: offer,
+                            itemInfo: itemInfo,
+                            requiredItemInfos: itemInfos
+                        )
+                    }
                 }
             }
         }
@@ -124,10 +112,41 @@ struct CorporationLPStoreView: View {
         error = nil
         
         do {
+            // 1. 获取所有商品
             offers = try await LPStoreAPI.shared.fetchLPStoreOffers(
                 corporationId: corporationId,
                 forceRefresh: forceRefresh
             )
+            
+            // 2. 收集所有需要查询的物品ID
+            var typeIds = Set<Int>()
+            typeIds.formUnion(offers.map { $0.typeId })
+            for offer in offers {
+                typeIds.formUnion(offer.requiredItems.map { $0.typeId })
+            }
+            
+            // 3. 一次性查询所有物品信息
+            let query = """
+                SELECT type_id, name, icon_filename
+                FROM types
+                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+            """
+            
+            if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                var infos: [Int: LPStoreItemInfo] = [:]
+                for row in rows {
+                    if let typeId = row["type_id"] as? Int,
+                       let name = row["name"] as? String,
+                       let iconFileName = row["icon_filename"] as? String {
+                        infos[typeId] = LPStoreItemInfo(
+                            name: name,
+                            iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+                        )
+                    }
+                }
+                itemInfos = infos
+            }
+            
             isLoading = false
         } catch {
             self.error = error
