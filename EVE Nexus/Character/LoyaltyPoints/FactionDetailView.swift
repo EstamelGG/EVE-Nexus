@@ -28,17 +28,19 @@ struct FactionDetailView: View {
                 }
             } else {
                 ForEach(corporations) { corporation in
-                    HStack {
-                        IconManager.shared.loadImage(for: corporation.iconFileName)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 36, height: 36)
-                        
-                        Text(corporation.name)
-                            .padding(.leading, 8)
+                    NavigationLink(destination: CorporationLPStoreView(corporationId: corporation.id)) {
+                        HStack {
+                            IconManager.shared.loadImage(for: corporation.iconFileName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 36, height: 36)
+                            
+                            Text(corporation.name)
+                                .padding(.leading, 8)
+                        }
+                        .padding(.vertical, 2)
+                        .frame(height: 36)
                     }
-                    .padding(.vertical, 2)
-                    .frame(height: 36)
                 }
             }
         }
