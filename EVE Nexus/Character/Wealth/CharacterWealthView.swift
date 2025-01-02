@@ -7,9 +7,18 @@ struct CharacterWealthView: View {
     @State private var hasLoadedInitialData = false
     @State private var cachedWealthItems: [WealthItem] = []
     @State private var cachedTotalWealth: Double = 0
+    @State private var refreshingTypes: Set<WealthType> = []
     
     init(characterId: Int) {
         self._viewModel = StateObject(wrappedValue: CharacterWealthViewModel(characterId: characterId))
+    }
+    
+    private func isTypeRefreshing(_ type: WealthType) -> Bool {
+        isRefreshing && !loadedTypes.contains(type)
+    }
+    
+    private func calculateTotalWealth() -> Double {
+        return cachedWealthItems.reduce(0) { $0 + $1.value }
     }
     
     var body: some View {
@@ -24,19 +33,20 @@ struct CharacterWealthView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Wealth_Total", comment: ""))
-                        if viewModel.isLoading && cachedTotalWealth == 0 {
-                            Text(NSLocalizedString("Loading", comment: ""))
+                        if isRefreshing && loadedTypes.count < WealthType.allCases.count {
+                            Text(NSLocalizedString("Calculating", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text(FormatUtil.formatISK(viewModel.totalWealth > 0 ? viewModel.totalWealth : cachedTotalWealth) + " ISK")
+                            Text(FormatUtil.formatISK(cachedTotalWealth) + " ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                     
-                    if viewModel.isLoading && cachedTotalWealth == 0 {
-                        Spacer()
+                    Spacer()
+                    
+                    if isRefreshing && loadedTypes.count < WealthType.allCases.count {
                         ProgressView()
                     }
                 }
@@ -47,7 +57,7 @@ struct CharacterWealthView: View {
                 ForEach(cachedWealthItems) { item in
                     if item.type == .wallet {
                         // 钱包余额不可点击
-                        WealthItemRow(item: item)
+                        WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
                     } else {
                         // 其他项目可以点击查看详情
                         NavigationLink {
@@ -58,12 +68,12 @@ struct CharacterWealthView: View {
                                 wealthType: item.type
                             )
                         } label: {
-                            WealthItemRow(item: item)
+                            WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
                         }
                     }
                 }
                 
-                // 只在首次加载时显示加载项，刷新时不显示
+                // 只在首次加载时显示加载项
                 if viewModel.isLoading && !hasLoadedInitialData && cachedWealthItems.isEmpty {
                     ForEach(WealthType.allCases.filter { !loadedTypes.contains($0) }, id: \.self) { type in
                         HStack {
@@ -133,8 +143,10 @@ struct CharacterWealthView: View {
                 }
             }
             
-            // 更新总财富值
-            cachedTotalWealth = viewModel.totalWealth
+            // 只在所有类型都加载完成后更新总财富值
+            if loadedTypes.count == WealthType.allCases.count {
+                cachedTotalWealth = calculateTotalWealth()
+            }
         }
         
         // 预加载详情数据
@@ -175,6 +187,7 @@ struct CharacterWealthView: View {
 
 struct WealthItemRow: View {
     let item: WealthItem
+    var isRefreshing: Bool
     
     var body: some View {
         HStack {
@@ -193,6 +206,11 @@ struct WealthItemRow: View {
             }
             
             Spacer()
+            
+            if isRefreshing {
+                ProgressView()
+                    .padding(.horizontal, 8)
+            }
             
             // 价值
             Text(item.formattedValue + " ISK")
