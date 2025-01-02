@@ -11,7 +11,7 @@ enum NPCBrowserLevel {
 struct NPCBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
     let title: String
-    let content: Content  // 改为直接使用Content而不是闭包
+    let content: Content
     let searchQuery: (String) -> String
     let searchParameters: (String) -> [Any]
     
@@ -22,29 +22,76 @@ struct NPCBaseView<Content: View>: View {
     @State private var isShowingSearchResults = false
     @StateObject private var searchController = SearchController()
     
+    // 搜索结果分组
+    var groupedSearchResults: [(id: Int, name: String, items: [NPCItem])] {
+        guard !items.isEmpty else { return [] }
+        
+        // 按场景分类
+        var groupItems: [String: [NPCItem]] = [:]
+        
+        // 获取所有物品的场景信息
+        let typeIDs = items.map { String($0.typeID) }.joined(separator: ",")
+        let query = "SELECT type_id, npc_ship_scene FROM types WHERE type_id IN (\(typeIDs))"
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            // 创建typeID到scene的映射
+            var sceneMap: [Int: String] = [:]
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let scene = row["npc_ship_scene"] as? String {
+                    sceneMap[typeID] = scene
+                }
+            }
+            
+            // 按场景分组
+            for item in items {
+                if let scene = sceneMap[item.typeID] {
+                    if groupItems[scene] == nil {
+                        groupItems[scene] = []
+                    }
+                    groupItems[scene]?.append(item)
+                }
+            }
+        }
+        
+        // 转换为所需格式
+        return groupItems.enumerated().map { index, group in
+            (id: index, name: group.key, items: group.value.sorted(by: { $0.name < $1.name }))
+        }.sorted(by: { $0.name < $1.name })
+    }
+    
     var body: some View {
         List {
             if isShowingSearchResults {
-                // 搜索结果视图
-                ForEach(items, id: \.typeID) { item in
-                    NavigationLink {
-                        if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: item.typeID,
-                                categoryID: categoryID,
-                                databaseManager: databaseManager
-                            )
-                        }
-                    } label: {
-                        HStack {
-                            IconManager.shared.loadImage(for: item.iconFileName)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(item.name)
+                // 搜索结果视图，按场景分组显示
+                ForEach(groupedSearchResults, id: \.id) { group in
+                    Section(header: Text(group.name)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.items, id: \.typeID) { item in
+                            NavigationLink {
+                                if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
+                                    ItemInfoMap.getItemInfoView(
+                                        itemID: item.typeID,
+                                        categoryID: categoryID,
+                                        databaseManager: databaseManager
+                                    )
+                                }
+                            } label: {
+                                HStack {
+                                    IconManager.shared.loadImage(for: item.iconFileName)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                    Text(item.name)
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             } else {
                 content
