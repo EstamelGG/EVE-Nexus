@@ -4,6 +4,9 @@ struct CharacterWealthView: View {
     @StateObject private var viewModel: CharacterWealthViewModel
     @State private var isRefreshing = false
     @State private var loadedTypes: Set<WealthType> = []
+    @State private var hasLoadedInitialData = false
+    @State private var cachedWealthItems: [WealthItem] = []
+    @State private var cachedTotalWealth: Double = 0
     
     init(characterId: Int) {
         self._viewModel = StateObject(wrappedValue: CharacterWealthViewModel(characterId: characterId))
@@ -21,18 +24,18 @@ struct CharacterWealthView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Wealth_Total", comment: ""))
-                        if viewModel.isLoading {
+                        if viewModel.isLoading && !hasLoadedInitialData {
                             Text(NSLocalizedString("Loading", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text(FormatUtil.formatISK(viewModel.totalWealth) + " ISK")
+                            Text(FormatUtil.formatISK(cachedTotalWealth) + " ISK")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
                     
-                    if viewModel.isLoading {
+                    if viewModel.isLoading && !hasLoadedInitialData {
                         Spacer()
                         ProgressView()
                     }
@@ -41,7 +44,7 @@ struct CharacterWealthView: View {
             
             // 资产明细
             Section {
-                ForEach(viewModel.wealthItems) { item in
+                ForEach(cachedWealthItems) { item in
                     if item.type == .wallet {
                         // 钱包余额不可点击
                         WealthItemRow(item: item)
@@ -61,7 +64,7 @@ struct CharacterWealthView: View {
                 }
                 
                 // 显示正在加载的项目
-                if viewModel.isLoading {
+                if viewModel.isLoading && !hasLoadedInitialData {
                     ForEach(WealthType.allCases.filter { !loadedTypes.contains($0) }, id: \.self) { type in
                         HStack {
                             Image(type.icon)
@@ -85,9 +88,9 @@ struct CharacterWealthView: View {
             }
             
             // 资产分布饼图
-            if !viewModel.wealthItems.isEmpty {
+            if !cachedWealthItems.isEmpty {
                 Section(header: Text(NSLocalizedString("Wealth_Distribution", comment: ""))) {
-                    WealthPieChart(items: viewModel.wealthItems, size: 200)
+                    WealthPieChart(items: cachedWealthItems, size: 200)
                         .padding(.vertical)
                         .frame(maxWidth: .infinity)
                 }
@@ -97,11 +100,14 @@ struct CharacterWealthView: View {
         .refreshable {
             isRefreshing = true
             loadedTypes.removeAll()
+            hasLoadedInitialData = false
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
         .task {
-            await loadData()
+            if !hasLoadedInitialData {
+                await loadData()
+            }
         }
     }
     
@@ -113,11 +119,19 @@ struct CharacterWealthView: View {
             loadedTypes.insert(loadedType)
         }
         
+        // 更新缓存的数据
+        cachedWealthItems = viewModel.wealthItems
+        cachedTotalWealth = viewModel.totalWealth
+        
         // 预加载详情数据
-        async let assets: () = viewModel.loadAssetDetails()
-        async let implants: () = viewModel.loadImplantDetails()
-        async let orders: () = viewModel.loadOrderDetails()
-        _ = await [assets, implants, orders]
+        if !hasLoadedInitialData || forceRefresh {
+            async let assets: () = viewModel.loadAssetDetails()
+            async let implants: () = viewModel.loadImplantDetails()
+            async let orders: () = viewModel.loadOrderDetails()
+            _ = await [assets, implants, orders]
+        }
+        
+        hasLoadedInitialData = true
     }
     
     private func getValuedItems(for type: WealthType) -> [ValuedItem] {
