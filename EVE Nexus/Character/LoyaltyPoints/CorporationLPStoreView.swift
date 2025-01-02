@@ -66,20 +66,13 @@ struct LPStoreOfferView: View {
                 
                 ForEach(offer.requiredItems, id: \.typeId) { item in
                     if let info = requiredItemInfos[item.typeId] {
-                        NavigationLink(destination: ItemInfoMap.getItemInfoView(
-                            itemID: item.typeId,
-                            categoryID: info.categoryId,
-                            databaseManager: DatabaseManager.shared
-                        )) {
-                            HStack {
-                                Text("\(item.quantity)x")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(info.name)
-                                    .font(.caption)
-                            }
+                        HStack {
+                            Text("\(item.quantity)x")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(info.name)
+                                .font(.caption)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
