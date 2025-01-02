@@ -101,20 +101,16 @@ struct CharacterWealthView: View {
             isRefreshing = true
             loadedTypes.removeAll()
             hasLoadedInitialData = false
-            // 只重置现有的资产分类数据
-            cachedWealthItems = cachedWealthItems.map { item in
-                WealthItem(
-                    type: item.type,
-                    value: 0,
-                    details: NSLocalizedString("Calculating", comment: "")
-                )
-            }
+            // 初始化所有类型为"计算中"状态
+            initializeEmptyCache()
             cachedTotalWealth = 0
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
         .task {
             if !hasLoadedInitialData {
+                // 首次加载时初始化空缓存
+                initializeEmptyCache()
                 await loadData()
             }
         }
@@ -123,14 +119,23 @@ struct CharacterWealthView: View {
     private func loadData(forceRefresh: Bool = false) async {
         loadedTypes.removeAll()
         
-        // 加载主要数据
+        // 加载主要数据，动态更新每个类型的数据
         await viewModel.loadWealthData(forceRefresh: forceRefresh) { loadedType in
             loadedTypes.insert(loadedType)
+            
+            // 找到并更新对应类型的数据
+            if let index = cachedWealthItems.firstIndex(where: { $0.type == loadedType }) {
+                cachedWealthItems[index] = viewModel.wealthItems.first(where: { $0.type == loadedType })!
+            } else {
+                // 如果是新的类型，添加到缓存中
+                if let newItem = viewModel.wealthItems.first(where: { $0.type == loadedType }) {
+                    cachedWealthItems.append(newItem)
+                }
+            }
+            
+            // 更新总财富值
+            cachedTotalWealth = viewModel.totalWealth
         }
-        
-        // 更新缓存的数据
-        cachedWealthItems = viewModel.wealthItems
-        cachedTotalWealth = viewModel.totalWealth
         
         // 预加载详情数据
         if !hasLoadedInitialData || forceRefresh {
@@ -141,6 +146,17 @@ struct CharacterWealthView: View {
         }
         
         hasLoadedInitialData = true
+    }
+    
+    // 初始化空的缓存数据
+    private func initializeEmptyCache() {
+        cachedWealthItems = WealthType.allCases.map { type in
+            WealthItem(
+                type: type,
+                value: 0,
+                details: NSLocalizedString("Calculating", comment: "")
+            )
+        }
     }
     
     private func getValuedItems(for type: WealthType) -> [ValuedItem] {
