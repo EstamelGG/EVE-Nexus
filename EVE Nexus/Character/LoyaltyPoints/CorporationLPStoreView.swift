@@ -1,8 +1,14 @@
 import SwiftUI
 
+struct CategoryInfo {
+    let name: String
+    let iconFileName: String
+}
+
 struct LPStoreItemInfo {
     let name: String
     let iconFileName: String
+    let categoryName: String
 }
 
 struct LPStoreOfferView: View {
@@ -58,12 +64,44 @@ struct LPStoreOfferView: View {
     }
 }
 
+struct LPStoreGroupView: View {
+    let categoryName: String
+    let offers: [LPStoreOffer]
+    let itemInfos: [Int: LPStoreItemInfo]
+    
+    var body: some View {
+        List {
+            ForEach(offers, id: \.offerId) { offer in
+                if let itemInfo = itemInfos[offer.typeId] {
+                    LPStoreOfferView(
+                        offer: offer,
+                        itemInfo: itemInfo,
+                        requiredItemInfos: itemInfos
+                    )
+                }
+            }
+        }
+        .navigationTitle(categoryName)
+    }
+}
+
 struct CorporationLPStoreView: View {
     let corporationId: Int
     @State private var offers: [LPStoreOffer] = []
     @State private var itemInfos: [Int: LPStoreItemInfo] = [:]
+    @State private var categoryInfos: [String: CategoryInfo] = [:]
     @State private var isLoading = true
     @State private var error: Error?
+    
+    private var categoryOffers: [(CategoryInfo, [LPStoreOffer])] {
+        let groups = Dictionary(grouping: offers) { offer in
+            itemInfos[offer.typeId]?.categoryName ?? ""
+        }
+        return groups.compactMap { name, offers in
+            guard let categoryInfo = categoryInfos[name] else { return nil }
+            return (categoryInfo, offers)
+        }.sorted { $0.0.name < $1.0.name }
+    }
     
     var body: some View {
         List {
@@ -88,14 +126,28 @@ struct CorporationLPStoreView: View {
                     .buttonStyle(.bordered)
                 }
             } else {
-                ForEach(offers, id: \.offerId) { offer in
-                    if let itemInfo = itemInfos[offer.typeId] {
-                        LPStoreOfferView(
-                            offer: offer,
-                            itemInfo: itemInfo,
-                            requiredItemInfos: itemInfos
-                        )
+                ForEach(categoryOffers, id: \.0.name) { categoryInfo, offers in
+                    NavigationLink(destination: LPStoreGroupView(
+                        categoryName: categoryInfo.name,
+                        offers: offers,
+                        itemInfos: itemInfos
+                    )) {
+                        HStack {
+                            IconManager.shared.loadImage(for: categoryInfo.iconFileName)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 36, height: 36)
+                            
+                            Text(categoryInfo.name)
+                                .padding(.leading, 8)
+                            
+                            Spacer()
+                            Text("\(offers.count)")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 2)
                     }
+                    .frame(height: 36)
                 }
             }
         }
@@ -127,24 +179,52 @@ struct CorporationLPStoreView: View {
             
             // 3. 一次性查询所有物品信息
             let query = """
-                SELECT type_id, name, icon_filename
+                SELECT type_id, name, icon_filename, category_name
                 FROM types
                 WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
             """
             
             if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
                 var infos: [Int: LPStoreItemInfo] = [:]
+                var categoryNames = Set<String>()
+                
                 for row in rows {
                     if let typeId = row["type_id"] as? Int,
                        let name = row["name"] as? String,
-                       let iconFileName = row["icon_filename"] as? String {
+                       let iconFileName = row["icon_filename"] as? String,
+                       let categoryName = row["category_name"] as? String {
                         infos[typeId] = LPStoreItemInfo(
                             name: name,
-                            iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+                            iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
+                            categoryName: categoryName
                         )
+                        categoryNames.insert(categoryName)
                     }
                 }
                 itemInfos = infos
+                
+                // 4. 获取分类信息
+                if !categoryNames.isEmpty {
+                    let categoryQuery = """
+                        SELECT name, icon_filename
+                        FROM categories
+                        WHERE name IN (\(categoryNames.map { "'\($0)'" }.joined(separator: ",")))
+                    """
+                    
+                    if case .success(let categoryRows) = DatabaseManager.shared.executeQuery(categoryQuery) {
+                        var categories: [String: CategoryInfo] = [:]
+                        for row in categoryRows {
+                            if let name = row["name"] as? String,
+                               let iconFileName = row["icon_filename"] as? String {
+                                categories[name] = CategoryInfo(
+                                    name: name,
+                                    iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+                                )
+                            }
+                        }
+                        categoryInfos = categories
+                    }
+                }
             }
             
             isLoading = false
@@ -154,9 +234,3 @@ struct CorporationLPStoreView: View {
         }
     }
 }
-
-#Preview {
-    NavigationView {
-        CorporationLPStoreView(corporationId: 1000035)
-    }
-} 
