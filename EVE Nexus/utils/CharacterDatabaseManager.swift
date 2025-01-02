@@ -377,6 +377,14 @@ class CharacterDatabaseManager: ObservableObject {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_loyalty_points_last_updated ON loyalty_points(last_updated);
+
+            -- LP商店数据表
+            CREATE TABLE IF NOT EXISTS LPStore (
+                corporation_id INTEGER PRIMARY KEY,
+                offers_data TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
         """
         
         // 分割SQL语句并逐个执行
