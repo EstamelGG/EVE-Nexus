@@ -32,11 +32,9 @@ struct LPStoreOfferView: View {
                         .frame(width: 36, height: 36)
                     
                     VStack(alignment: .leading) {
-                        Text(itemInfo.name)
+                        Text("\(offer.quantity)x \(itemInfo.name)")
                             .font(.headline)
-                        Text("\(offer.quantity)x")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                 }
             }
@@ -67,6 +65,12 @@ struct LPStoreOfferView: View {
                 ForEach(offer.requiredItems, id: \.typeId) { item in
                     if let info = requiredItemInfos[item.typeId] {
                         HStack {
+                            IconManager.shared.loadImage(for: info.iconFileName)
+                                .resizable()
+                                .scaledToFit()
+                                .cornerRadius(6)
+                                .frame(width: 24, height: 24)
+                            
                             Text("\(item.quantity)x")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
