@@ -63,8 +63,8 @@ struct CharacterWealthView: View {
                     }
                 }
                 
-                // 显示正在加载的项目
-                if viewModel.isLoading && !hasLoadedInitialData {
+                // 只在首次加载时显示加载项，刷新时不显示
+                if viewModel.isLoading && !hasLoadedInitialData && cachedWealthItems.isEmpty {
                     ForEach(WealthType.allCases.filter { !loadedTypes.contains($0) }, id: \.self) { type in
                         HStack {
                             Image(type.icon)
@@ -101,6 +101,15 @@ struct CharacterWealthView: View {
             isRefreshing = true
             loadedTypes.removeAll()
             hasLoadedInitialData = false
+            // 只重置现有的资产分类数据
+            cachedWealthItems = cachedWealthItems.map { item in
+                WealthItem(
+                    type: item.type,
+                    value: 0,
+                    details: NSLocalizedString("Calculating", comment: "")
+                )
+            }
+            cachedTotalWealth = 0
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
