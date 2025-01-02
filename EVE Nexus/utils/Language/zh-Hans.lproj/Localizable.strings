@@ -543,6 +543,9 @@
 "Wealth_Detail_MarketPrice" = "市场价格";
 "Wealth_Detail_Quantity" = "数量";
 "Wealth_Detail_TotalValue" = "总价值";
+"Wealth_Detail_HasPrice" = "有市场价格的物品 (前20名)";
+"Wealth_Detail_NoPrice" = "无市场价格的物品 (前20名)";
+"Wealth_Detail_Unit_Price" = "单价";
 
 "Wealth_Distribution" = "资产分布";
 

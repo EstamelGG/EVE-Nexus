@@ -546,6 +546,9 @@
 "Wealth_Detail_MarketPrice" = "Market Price";
 "Wealth_Detail_Quantity" = "Quantity";
 "Wealth_Detail_TotalValue" = "Total Value";
+"Wealth_Detail_HasPrice" = "Items with Market Price (Top 20)";
+"Wealth_Detail_NoPrice" = "Items without Market Price (Top 20)";
+"Wealth_Detail_Unit_Price" = "Unit Price";
 
 "Wealth_Distribution" = "Wealth Distribution";
 

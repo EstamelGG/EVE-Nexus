@@ -391,4 +391,64 @@ class CharacterWealthViewModel: ObservableObject {
             self.error = error
         }
     }
+    
+    // 获取无市场价格的物品
+    func getItemsWithoutPrice() async -> [WealthDetailView.NoMarketPriceItem] {
+        var itemsWithoutPrice: [WealthDetailView.NoMarketPriceItem] = []
+        
+        do {
+            // 获取资产树JSON
+            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+                characterId: characterId,
+                forceRefresh: false
+            ), let jsonData = jsonString.data(using: .utf8) {
+                let locations = try JSONDecoder().decode([AssetTreeNode].self, from: jsonData)
+                
+                // 创建一个字典来统计每种物品的数量
+                var itemStats: [Int: Int] = [:]
+                
+                func processNode(_ node: AssetTreeNode, isTopLevel: Bool = false) {
+                    // 如果不是顶层节点，且在市场价格中找不到，则添加到统计
+                    if !isTopLevel && marketPrices[node.type_id] == nil {
+                        itemStats[node.type_id, default: 0] += node.quantity
+                    }
+                    
+                    // 递归处理子节点
+                    if let items = node.items {
+                        for item in items {
+                            processNode(item)
+                        }
+                    }
+                }
+                
+                // 处理所有位置
+                for location in locations {
+                    processNode(location, isTopLevel: true)
+                }
+                
+                // 获取物品信息
+                let typeIds = Array(itemStats.keys)
+                let itemInfos = getItemsInfo(typeIds: typeIds)
+                
+                // 转换为 NoMarketPriceItem
+                for (typeId, quantity) in itemStats {
+                    if let info = itemInfos.first(where: { ($0["type_id"] as? Int) == typeId }) {
+                        let item = WealthDetailView.NoMarketPriceItem(
+                            id: typeId,
+                            typeId: typeId,
+                            quantity: quantity,
+                            name: info["name"] as? String ?? "Unknown Item",
+                            iconFileName: info["icon_filename"] as? String ?? ""
+                        )
+                        itemsWithoutPrice.append(item)
+                    }
+                }
+            }
+        } catch {
+            Logger.error("获取无市场价格物品失败: \(error)")
+        }
+        
+        // 按数量排序
+        return itemsWithoutPrice.sorted { $0.quantity > $1.quantity }
+    }
 } 
