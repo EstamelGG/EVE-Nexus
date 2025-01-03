@@ -43,7 +43,7 @@ struct AboutView: View {
                                 .shadow(radius: 5)
                         }
                         
-                        Text("EVE Nexus")
+                        Text("EVE Panel")
                             .font(.title2)
                             .fontWeight(.bold)
                     }

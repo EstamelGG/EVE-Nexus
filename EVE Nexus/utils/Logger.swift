@@ -36,7 +36,7 @@ class Logger {
         // 写入日志文件头部信息
         let header = """
         =====================================
-        EVE Nexus Log File
+        EVE Panel Log File
         Created at: \(dateFormatter.string(from: Date()))
         Device: \(UIDevice.current.model)
         System: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)

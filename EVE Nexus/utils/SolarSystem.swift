@@ -1,6 +1,6 @@
 //
 //  SecurtiyColor.swift
-//  EVE Nexus
+//  EVE Panel
 //
 //  Created by GG Estamel on 2024/12/16.
 //

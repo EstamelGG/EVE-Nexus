@@ -433,7 +433,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "EVE Nexus";
+				INFOPLIST_KEY_CFBundleDisplayName = "EVE Panel";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -479,7 +479,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "EVE Nexus";
+				INFOPLIST_KEY_CFBundleDisplayName = "EVE Panel";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
