@@ -12,9 +12,9 @@ struct AboutView: View {
     }
     
     private let aboutItems: [AboutItem] = [
-        AboutItem(title: "App Version", value: "1.0-b", icon: "app.badge"),
-        AboutItem(title: "Database Version", value: "2025-01-01", icon: "server.rack"),
-        AboutItem(title: "GitHub", value: "https://github.com/EstamelGG/EVE-Nexus-Public", icon: "link")
+        AboutItem(title: "App Version", value: "1.0-b", icon: "app.badge", url: nil),
+        AboutItem(title: "Database Version", value: "2025-01-01", icon: "server.rack", url: nil),
+        AboutItem(title: "GitHub", value: "https://github.com/EstamelGG/EVE-Nexus-Public", icon: "link", url: URL(string: "https://github.com/EstamelGG/EVE-Nexus-Public"))
     ]
     
     var body: some View {
@@ -46,20 +46,13 @@ struct AboutView: View {
             // Information Section
             Section {
                 ForEach(aboutItems) { item in
-                    HStack(spacing: 16) {
-                        Image(systemName: item.icon)
-                            .foregroundColor(.accentColor)
-                            .frame(width: 24)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.title)
-                                .font(.system(size: 16))
-                            Text(item.value)
-                                .font(.system(size: 14))
-                                .foregroundColor(.gray)
+                    if let url = item.url {
+                        Link(destination: url) {
+                            AboutItemRow(item: item)
                         }
+                    } else {
+                        AboutItemRow(item: item)
                     }
-                    .padding(.vertical, 8)
                 }
             }
             
@@ -85,6 +78,28 @@ struct AboutItem: Identifiable {
     let title: String
     let value: String
     let icon: String
+    let url: URL?
+}
+
+struct AboutItemRow: View {
+    let item: AboutItem
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: item.icon)
+                .foregroundColor(.accentColor)
+                .frame(width: 24)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.system(size: 16))
+                Text(item.value)
+                    .font(.system(size: 14))
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.vertical, 8)
+    }
 }
 
 #Preview {
