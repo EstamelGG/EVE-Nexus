@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct AboutView: View {
+    @Environment(\.locale) private var locale
+    
     private var appIcon: UIImage? {
         if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
            let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
@@ -12,10 +14,18 @@ struct AboutView: View {
     }
     
     private let aboutItems: [AboutItem] = [
-        AboutItem(title: "App Version", value: "1.0-b", icon: "app.badge", url: nil),
-        AboutItem(title: "Database Version", value: "2025-01-01", icon: "server.rack", url: nil),
-        AboutItem(title: "GitHub", value: "https://github.com/EstamelGG/EVE-Nexus-Public", icon: "link", url: URL(string: "https://github.com/EstamelGG/EVE-Nexus-Public"))
+        AboutItem(title: NSLocalizedString("Main_About_Version", comment: ""), value: "1.0-b", icon: "app.badge", url: nil),
+        AboutItem(title: NSLocalizedString("Main_About_Database_Version", comment: ""), value: "2025-01-01", icon: "server.rack", url: nil),
+        AboutItem(title: NSLocalizedString("Main_About_Github", comment: ""), value: "https://github.com/EstamelGG/EVE-Nexus-Public", icon: "link", url: URL(string: "https://github.com/EstamelGG/EVE-Nexus-Public"))
     ]
+    
+    private var privacyText: String {
+        NSLocalizedString("Main_About_Privacy_Statement", comment: "")
+    }
+    
+    private var privacyTitle: String {
+        NSLocalizedString("Main_About_Privacy_Title", comment: "")
+    }
     
     var body: some View {
         List {
@@ -56,11 +66,19 @@ struct AboutView: View {
                 }
             }
             
+            // Privacy Section
+            Section(header: Text(privacyTitle).fontWeight(.bold)) {
+                Text(privacyText)
+                    .font(.system(size: 14))
+                    .foregroundColor(.primary)
+                    .padding(.vertical, 8)
+            }
+            
             // Copyright Section
             Section {
                 HStack {
                     Spacer()
-                    Text("© 2025 EVE Nexus. All rights reserved.")
+                    Text(NSLocalizedString("Main_About_Copyright", comment: ""))
                         .font(.footnote)
                         .foregroundColor(.gray)
                     Spacer()
@@ -69,7 +87,7 @@ struct AboutView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("About")
+        .navigationTitle(Text(NSLocalizedString("Main_About", comment: "")))
     }
 }
 

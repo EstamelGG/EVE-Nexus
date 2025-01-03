@@ -555,3 +555,10 @@
 "Main_LP_Basic_Info" = "Basic Information";
 "Main_LP_Store" = "LP Store";
 "Main_LP_Required_Items" = "Required Items";
+
+"Main_About_Version" = "App Version";
+"Main_About_Database_Version" = "Database Version";
+"Main_About_Github" = "GitHub";
+"Main_About_Privacy_Title" = "Privacy Statement";
+"Main_About_Privacy_Statement" = "EVE Nexus is committed to protecting your privacy and data security:\n\n• Data Storage: All personal data is stored locally on your device only\n• ESI Authorization: We only access EVE Online ESI API with your explicit authorization\n• Data Usage: Your game data is used solely for app functionality and not for any other purposes\n• Third-party Sharing: We do not share your personal data with any third parties\n• Data Deletion: You can revoke authorization and delete all local data at any time";
+"Main_About_Copyright" = "© 2025 EVE Nexus. All rights reserved.";
