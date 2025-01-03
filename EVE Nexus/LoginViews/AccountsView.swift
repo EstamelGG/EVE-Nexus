@@ -287,6 +287,23 @@ struct AccountsView: View {
                                         remainingTime: currentSkill.remainingTime
                                     )
                                 }
+                            } else if let firstSkill = queue.first,
+                                      let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id),
+                                      let trainingStartSp = firstSkill.training_start_sp,
+                                      let levelEndSp = firstSkill.level_end_sp {
+                                // 计算暂停技能的实际进度
+                                let calculatedProgress = SkillProgressCalculator.calculateProgress(
+                                    trainingStartSp: trainingStartSp,
+                                    levelEndSp: levelEndSp,
+                                    finishedLevel: firstSkill.finished_level
+                                )
+                                viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                    skillId: firstSkill.skill_id,
+                                    name: skillName,
+                                    level: firstSkill.skillLevel,
+                                    progress: calculatedProgress,
+                                    remainingTime: nil // 暂停状态
+                                )
                             }
                         }
                         
@@ -559,13 +576,26 @@ struct AccountsView: View {
                         if let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id) {
                             Logger.info("找到暂停的技能 - 技能: \(skillName), 等级: \(firstSkill.skillLevel), 进度: \(firstSkill.progress)")
                             
+                            // 计算暂停技能的实际进度
+                            let calculatedProgress: Double
+                            if let trainingStartSp = firstSkill.training_start_sp,
+                               let levelEndSp = firstSkill.level_end_sp {
+                                calculatedProgress = SkillProgressCalculator.calculateProgress(
+                                    trainingStartSp: trainingStartSp,
+                                    levelEndSp: levelEndSp,
+                                    finishedLevel: firstSkill.finished_level
+                                )
+                            } else {
+                                calculatedProgress = 0.0
+                            }
+                            
                             await updateUI {
                                 var updatedCharacter = character
                                 updatedCharacter.currentSkill = EVECharacterInfo.CurrentSkillInfo(
                                     skillId: firstSkill.skill_id,
                                     name: skillName,
                                     level: firstSkill.skillLevel,
-                                    progress: firstSkill.progress,
+                                    progress: calculatedProgress,
                                     remainingTime: nil // 暂停状态
                                 )
                                 updatedCharacter.skillQueueLength = queue.count
@@ -919,5 +949,34 @@ actor AsyncSemaphore {
         }
         
         value += 1
+    }
+}
+
+// 技能进度计算工具类
+struct SkillProgressCalculator {
+    // 基准技能点数（x1倍增系数）
+    static let baseSkillPoints: [Int] = [250, 1415, 8000, 45255, 256000]
+    
+    // 计算技能的倍增系数
+    static func calculateMultiplier(levelEndSp: Int, finishedLevel: Int) -> Int {
+        guard finishedLevel > 0 && finishedLevel <= baseSkillPoints.count else { return 1 }
+        let baseEndSp = baseSkillPoints[finishedLevel - 1]
+        let multiplier = Double(levelEndSp) / Double(baseEndSp)
+        return Int(round(multiplier))
+    }
+    
+    // 获取前一等级的技能点数
+    static func getPreviousLevelSp(finishedLevel: Int, multiplier: Int) -> Int {
+        guard finishedLevel > 1 && finishedLevel <= baseSkillPoints.count else { return 0 }
+        return baseSkillPoints[finishedLevel - 2] * multiplier
+    }
+    
+    // 计算技能训练进度（0.0 - 1.0）
+    static func calculateProgress(trainingStartSp: Int, levelEndSp: Int, finishedLevel: Int) -> Double {
+        let multiplier = calculateMultiplier(levelEndSp: levelEndSp, finishedLevel: finishedLevel)
+        let previousLevelSp = getPreviousLevelSp(finishedLevel: finishedLevel, multiplier: multiplier)
+        
+        let progress = Double(trainingStartSp - previousLevelSp) / Double(levelEndSp - previousLevelSp)
+        return min(max(progress, 0.0), 1.0) // 确保进度在0.0到1.0之间
     }
 } 
