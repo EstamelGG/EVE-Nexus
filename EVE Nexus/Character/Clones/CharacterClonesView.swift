@@ -196,8 +196,8 @@ struct CharacterClonesView: View {
                 }
                 
                 // 克隆体列表
-                Section(NSLocalizedString("Character_Jump_Clones", comment: "")) {
-                    if cloneInfo != nil {
+                if let _ = cloneInfo, !mergedCloneLocations.isEmpty {
+                    Section(NSLocalizedString("Character_Jump_Clones", comment: "")) {
                         ForEach(mergedCloneLocations) { location in
                             NavigationLink {
                                 CloneLocationDetailView(

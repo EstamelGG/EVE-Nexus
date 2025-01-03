@@ -53,48 +53,58 @@ struct CharacterLoyaltyPointsView: View {
     
     var body: some View {
         List {
-            Section(NSLocalizedString("Main_LP_Basic_Info", comment: "")) {
-                if viewModel.isLoading && viewModel.loyaltyPoints.isEmpty {
+            if !viewModel.loyaltyPoints.isEmpty {
+                Section(NSLocalizedString("Main_LP_Basic_Info", comment: "")) {
+                    if viewModel.isLoading {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    } else if let error = viewModel.error {
+                        VStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.largeTitle)
+                                .foregroundColor(.red)
+                                .cornerRadius(6)
+                            Text(NSLocalizedString("Main_Database_Loading", comment: ""))
+                                .font(.headline)
+                            Text(error.localizedDescription)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Button(NSLocalizedString("Main_Setting_Reset", comment: "")) {
+                                viewModel.fetchLoyaltyPoints(characterId: characterId)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    } else {
+                        ForEach(viewModel.loyaltyPoints) { loyalty in
+                            NavigationLink(destination: CorporationLPStoreView(
+                                corporationId: loyalty.corporationId,
+                                corporationName: loyalty.corporationName
+                            )) {
+                                HStack {
+                                    CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
+                                    
+                                    VStack(alignment: .leading) {
+                                        Text(loyalty.corporationName)
+                                        Text("\(loyalty.loyaltyPoints) LP")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                                .frame(height: 36)
+                            }
+                        }
+                    }
+                }
+            } else if viewModel.isLoading {
+                Section {
                     HStack {
                         Spacer()
                         ProgressView()
                         Spacer()
-                    }
-                } else if let error = viewModel.error {
-                    VStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundColor(.red)
-                            .cornerRadius(6)
-                        Text(NSLocalizedString("Main_Database_Loading", comment: ""))
-                            .font(.headline)
-                        Text(error.localizedDescription)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Button(NSLocalizedString("Main_Setting_Reset", comment: "")) {
-                            viewModel.fetchLoyaltyPoints(characterId: characterId)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                } else {
-                    ForEach(viewModel.loyaltyPoints) { loyalty in
-                        NavigationLink(destination: CorporationLPStoreView(
-                            corporationId: loyalty.corporationId,
-                            corporationName: loyalty.corporationName
-                        )) {
-                            HStack {
-                                CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
-                                
-                                VStack(alignment: .leading) {
-                                    Text(loyalty.corporationName)
-                                    Text("\(loyalty.loyaltyPoints) LP")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                            .frame(height: 36)
-                        }
                     }
                 }
             }
