@@ -44,7 +44,6 @@ struct CharacterMailDetailView: View {
                     // 邮件正文
                     RichTextProcessor.processRichText(content.body)
                         .font(.body)
-                        .foregroundColor(.primary)
                 }
                 .padding()
             }
