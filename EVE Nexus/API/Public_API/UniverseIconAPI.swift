@@ -1,7 +1,8 @@
 import Foundation
 import UIKit
 
-actor UniverseIconAPI {
+@NetworkManagerActor
+class UniverseIconAPI {
     static let shared = UniverseIconAPI()
     private let networkManager = NetworkManager.shared
     

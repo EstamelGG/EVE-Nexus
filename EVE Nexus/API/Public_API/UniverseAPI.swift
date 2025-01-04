@@ -6,7 +6,8 @@ struct UniverseNameResponse: Codable {
     let name: String
 }
 
-actor UniverseAPI {
+@NetworkManagerActor
+class UniverseAPI {
     static let shared = UniverseAPI()
     private let networkManager = NetworkManager.shared
     private let databaseManager = CharacterDatabaseManager.shared
