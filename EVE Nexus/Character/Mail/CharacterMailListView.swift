@@ -211,6 +211,7 @@ class CharacterMailListViewModel: ObservableObject {
             // 2. 如果数据库中没有更多邮件，尝试从网络获取更旧的邮件
             if localMails.isEmpty {
                 if let lastMail = mails.last {
+                    Logger.info("数据库中没有更多邮件，尝试从网络获取更旧的邮件 - 最后邮件ID: \(lastMail.mail_id)")
                     let hasOlderMails = try await mailAPI.fetchLatestMails(
                         characterId: characterId,
                         labelId: labelId,
@@ -228,12 +229,13 @@ class CharacterMailListViewModel: ObservableObject {
                         if !newMails.isEmpty {
                             self.mails.append(contentsOf: newMails)
                             await loadSenderNames(for: newMails)
-                            hasMoreMails = newMails.count >= pageSize
+                            hasMoreMails = true // 可能还有更老的邮件
                         } else {
                             hasMoreMails = false
                         }
                     } else {
                         hasMoreMails = false
+                        Logger.info("没有更老的邮件了")
                     }
                 } else {
                     hasMoreMails = false
@@ -242,7 +244,7 @@ class CharacterMailListViewModel: ObservableObject {
                 // 3. 如果数据库中有更多邮件，直接添加到列表
                 self.mails.append(contentsOf: localMails)
                 await loadSenderNames(for: localMails)
-                hasMoreMails = localMails.count >= pageSize
+                hasMoreMails = true // 可能还有更多邮件
             }
             
         } catch {
