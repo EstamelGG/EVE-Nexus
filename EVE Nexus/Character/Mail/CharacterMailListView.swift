@@ -41,26 +41,27 @@ class CharacterPortraitViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
+        // 先尝试获取角色头像
         do {
-            // 先尝试获取角色头像
+            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
+            // 保存到缓存
+            await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
+            self.image = portrait
+            Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes")
+            return
+        } catch {
+            Logger.info("获取角色头像失败，尝试获取军团头像 - ID: \(characterId)")
+            // 如果获取角色头像失败，尝试获取军团头像
             do {
-                let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
-                // 保存到缓存
-                await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
-                self.image = portrait
-                Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes")
-            } catch {
-                // 如果获取角色头像失败，尝试获取军团头像
-                Logger.info("角色头像获取失败，尝试获取军团头像 - ID: \(characterId)")
                 let corpLogo = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: characterId, size: size)
                 // 保存到缓存
                 await CharacterPortraitCache.shared.setImage(corpLogo, for: characterId, size: size)
                 self.image = corpLogo
                 self.isCorporation = true
                 Logger.info("成功获取并缓存军团头像 - 军团ID: \(characterId), 大小: \(size)")
+            } catch {
+                Logger.error("加载头像失败（角色和军团都失败）: \(error)")
             }
-        } catch {
-            Logger.error("加载头像失败（角色和军团都失败）: \(error)")
         }
     }
 }
@@ -176,14 +177,31 @@ class CharacterMailListViewModel: ObservableObject {
                     let info = try await characterAPI.fetchCharacterPublicInfo(characterId: mail.from)
                     newSenderNames[mail.from] = info.name
                     Logger.debug("获取发件人信息成功: ID=\(mail.from), 名称=\(info.name)")
+                } catch let error as NetworkError {
+                    // 如果是404错误（角色不存在），尝试获取军团信息
+                    if case .httpError(404, let responseBody) = error,
+                       let body = responseBody,
+                       body.contains("Character not found") {
+                        do {
+                            let corpInfo = try await CorporationAPI.shared.fetchCorporationInfo(corporationId: mail.from)
+                            newSenderNames[mail.from] = corpInfo.name
+                            Logger.debug("获取军团信息成功: ID=\(mail.from), 名称=\(corpInfo.name)")
+                        } catch {
+                            Logger.error("获取军团信息失败: \(error)")
+                        }
+                    } else {
+                        Logger.error("获取角色信息失败: \(error)")
+                    }
                 } catch {
-                    Logger.error("获取角色信息失败: \(error)")
+                    Logger.error("获取发件人信息失败: \(error)")
                 }
             }
         }
         
         if !newSenderNames.isEmpty {
-            self.senderNames.merge(newSenderNames) { _, new in new }
+            await MainActor.run {
+                self.senderNames.merge(newSenderNames) { _, new in new }
+            }
         }
     }
     
@@ -202,11 +220,16 @@ struct CharacterMailListView: View {
                 ProgressView()
             } else if let error = viewModel.error {
                 VStack {
-                    Text(error.localizedDescription)
-                        .foregroundColor(.red)
-                    Text("错误详情：\(String(describing: error))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                    if error is CancellationError {
+                        // 忽略取消错误的显示
+                        EmptyView()
+                    } else {
+                        Text(error.localizedDescription)
+                            .foregroundColor(.red)
+                        Text("错误详情：\(String(describing: error))")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
             } else if viewModel.mails.isEmpty {
                 Text("没有邮件")
@@ -263,8 +286,8 @@ struct CharacterMailListView: View {
             }
         }
         .refreshable {
-            Logger.info("用户触发刷新")
-            await viewModel.fetchMails(characterId: characterId)
+            Logger.info("用户触发下拉刷新，强制更新数据")
+            await viewModel.fetchMails(characterId: characterId, forceRefresh: true)
         }
     }
 }
