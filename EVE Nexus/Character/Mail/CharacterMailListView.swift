@@ -55,12 +55,15 @@ class CharacterPortraitViewModel: ObservableObject {
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
+    let cornerRadius: CGFloat
     @StateObject private var viewModel: CharacterPortraitViewModel
     
-    init(characterId: Int, size: CGFloat) {
+    init(characterId: Int, size: CGFloat, cornerRadius: CGFloat = 6) {
         self.characterId = characterId
         self.size = size
-        self._viewModel = StateObject(wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: Int(size)))
+        self.cornerRadius = cornerRadius
+        // 始终使用64尺寸的图片
+        self._viewModel = StateObject(wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: 64))
     }
     
     var body: some View {
@@ -70,7 +73,7 @@ struct CharacterPortrait: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
-                    .clipShape(Circle())
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             } else if viewModel.isLoading {
                 ProgressView()
                     .frame(width: size, height: size)
@@ -80,6 +83,7 @@ struct CharacterPortrait: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     .foregroundColor(.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
         }
         .task {
@@ -215,8 +219,8 @@ struct CharacterMailListView: View {
             } else {
                 List(viewModel.mails, id: \.mail_id) { mail in
                     HStack(alignment: .top, spacing: 12) {
-                        // 发件人头像
-                        CharacterPortrait(characterId: mail.from, size: 64)
+                        // 发件人头像 - 使用64尺寸的图片但显示为48x48
+                        CharacterPortrait(characterId: mail.from, size: 48)
                         
                         VStack(alignment: .leading, spacing: 4) {
                             // 邮件主题
@@ -225,9 +229,13 @@ struct CharacterMailListView: View {
                                 .lineLimit(1)
                             
                             // 发件人名称
-                            Text(viewModel.getSenderName(mail.from))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                            HStack(spacing: 4) {
+                                Text("From:")
+                                    .foregroundColor(.secondary)
+                                Text(viewModel.getSenderName(mail.from))
+                                    .foregroundColor(.secondary)
+                            }
+                            .font(.subheadline)
                             
                             // 时间戳
                             Text(mail.timestamp.formatDate())
@@ -269,12 +277,14 @@ extension String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
         dateFormatter.timeZone = TimeZone(identifier: "UTC")
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         guard let date = dateFormatter.date(from: self) else { return self }
         
         let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        outputFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         outputFormatter.timeZone = TimeZone.current
+        outputFormatter.locale = Locale.current
         
         return outputFormatter.string(from: date)
     }
