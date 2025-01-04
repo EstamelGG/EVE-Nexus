@@ -3,6 +3,7 @@ import SwiftUI
 struct CharacterMailView: View {
     let characterId: Int
     @StateObject private var viewModel = CharacterMailViewModel()
+    @State private var selectedLabelId: Int? = nil
     
     var body: some View {
         List {
@@ -70,28 +71,38 @@ struct CharacterMailView: View {
                     .textCase(nil)
             }
             
-            // 邮件列表部分
+            // 邮件标签部分
             Section {
                 if viewModel.isLoading {
                     Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                         .foregroundColor(.gray)
-                } else if viewModel.error != nil {
+                } else if let error = viewModel.error {
                     Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
                         .foregroundColor(.red)
-                } else if viewModel.mailList.isEmpty {
-                    Text(NSLocalizedString("Main_EVE_Mail_No_Mail", comment: ""))
+                } else if viewModel.mailLabels.isEmpty {
+                    Text(NSLocalizedString("Main_EVE_Mail_No_Labels", comment: ""))
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(viewModel.mailList) { mail in
+                    ForEach(viewModel.mailLabels) { label in
                         NavigationLink {
-                            Text("邮件详情视图") // 待实现
+                            MailLabelDetailView(characterId: characterId, label: label, viewModel: viewModel)
                         } label: {
-                            MailRowView(mail: mail)
+                            HStack {
+                                Circle()
+                                    .fill(Color(hex: label.color ?? "#808080"))
+                                    .frame(width: 12, height: 12)
+                                Text(label.name)
+                                Spacer()
+                                if label.unreadCount > 0 {
+                                    Text("\(label.unreadCount)")
+                                        .foregroundColor(.gray)
+                                }
+                            }
                         }
                     }
                 }
             } header: {
-                Text(NSLocalizedString("Main_EVE_Mail_List", comment: ""))
+                Text(NSLocalizedString("Main_EVE_Mail_Labels", comment: ""))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.primary)
                     .textCase(nil)
@@ -100,10 +111,47 @@ struct CharacterMailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_EVE_Mail_Title", comment: ""))
         .task {
-            await viewModel.fetchMails(characterId: characterId)
+            await viewModel.fetchMailLabels(characterId: characterId)
         }
         .refreshable {
-            await viewModel.fetchMails(characterId: characterId)
+            await viewModel.fetchMailLabels(characterId: characterId)
+        }
+    }
+}
+
+// 邮件标签详情视图
+struct MailLabelDetailView: View {
+    let characterId: Int
+    let label: CharacterMailViewModel.MailLabel
+    @ObservedObject var viewModel: CharacterMailViewModel
+    
+    var body: some View {
+        List {
+            if viewModel.isLoading {
+                Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
+                    .foregroundColor(.gray)
+            } else if viewModel.error != nil {
+                Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
+                    .foregroundColor(.red)
+            } else if viewModel.selectedLabelMails.isEmpty {
+                Text(NSLocalizedString("Main_EVE_Mail_No_Mail", comment: ""))
+                    .foregroundColor(.gray)
+            } else {
+                ForEach(viewModel.selectedLabelMails) { mail in
+                    NavigationLink {
+                        Text("邮件详情视图") // 待实现
+                    } label: {
+                        MailRowView(mail: mail)
+                    }
+                }
+            }
+        }
+        .navigationTitle(label.name)
+        .task {
+            await viewModel.fetchMailsByLabel(characterId: characterId, labelId: label.id)
+        }
+        .refreshable {
+            await viewModel.fetchMailsByLabel(characterId: characterId, labelId: label.id)
         }
     }
 }
@@ -169,10 +217,36 @@ struct Mail: Identifiable {
     let isRead: Bool
     
     var formattedDate: String {
-        // 这里可以根据需要格式化日期
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// Color扩展，用于解析十六进制颜色
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
