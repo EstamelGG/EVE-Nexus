@@ -67,19 +67,16 @@ class CharacterMailDetailViewModel: ObservableObject {
     @Published var senderName: String?
     @Published var recipientNames: [Int: String] = [:]
     
-    private let mailAPI = CharacterMailAPI.shared
-    private let universeAPI = UniverseAPI.shared
-    
     func loadMailContent(characterId: Int, mailId: Int) async {
         do {
             // 获取邮件内容
-            mailContent = try await mailAPI.fetchMailContent(characterId: characterId, mailId: mailId)
+            mailContent = try await CharacterMailAPI.shared.fetchMailContent(characterId: characterId, mailId: mailId)
             
             if let content = mailContent {
                 // 获取发件人名称
-                let senderResult = try await universeAPI.fetchAndSaveNames(ids: [content.from])
+                let senderResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: [content.from])
                 if senderResult > 0 {
-                    if let nameInfo = try await universeAPI.getNameFromDatabase(id: content.from) {
+                    if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: content.from) {
                         senderName = nameInfo.name
                     }
                 }
@@ -93,10 +90,10 @@ class CharacterMailDetailViewModel: ObservableObject {
                 
                 if !validRecipients.isEmpty {
                     let recipientIds = validRecipients.map { $0.recipient_id }
-                    let recipientResult = try await universeAPI.fetchAndSaveNames(ids: recipientIds)
+                    let recipientResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: recipientIds)
                     if recipientResult > 0 {
                         for recipient in validRecipients {
-                            if let nameInfo = try await universeAPI.getNameFromDatabase(id: recipient.recipient_id) {
+                            if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: recipient.recipient_id) {
                                 recipientNames[recipient.recipient_id] = nameInfo.name
                             } else {
                                 // 如果获取不到名称，使用默认名称
