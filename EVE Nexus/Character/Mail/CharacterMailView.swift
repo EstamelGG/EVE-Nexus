@@ -99,13 +99,13 @@ struct CharacterMailView: View {
             // 邮件订阅列表部分
             Section {
                 if viewModel.isLoading {
-                    Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
+                    Text("Loading...")
                         .foregroundColor(.gray)
                 } else if viewModel.error != nil {
-                    Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
+                    Text("Error.")
                         .foregroundColor(.red)
                 } else if viewModel.mailLists.isEmpty {
-                    Text(NSLocalizedString("Main_EVE_Mail_No_Lists", comment: ""))
+                    Text("No Mail Lists")
                         .foregroundColor(.gray)
                 } else {
                     ForEach(viewModel.mailLists, id: \.mailing_list_id) { list in
