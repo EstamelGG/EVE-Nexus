@@ -293,7 +293,7 @@ class CharacterMailAPI {
                     mail.mail_id,
                     characterId,
                     mail.from,
-                    mail.is_read ?? true ? 1 : 0,
+                    mail.is_read == true ? 1 : 0,
                     mail.subject,
                     recipientsString,
                     mail.timestamp

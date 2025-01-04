@@ -254,7 +254,7 @@ struct CharacterMailListView: View {
                             // 第一行：主题
                             Text(mail.subject)
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(mail.is_read ?? true ? .secondary : .primary)
+                                .foregroundColor(mail.is_read == true ? .secondary : .primary)
                                 .lineLimit(1)
                             
                             // 第二行：发件人
@@ -276,7 +276,7 @@ struct CharacterMailListView: View {
                         Spacer()
                         
                         // 未读标记
-                        if let isRead = mail.is_read, !isRead {
+                        if mail.is_read != true {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 8, height: 8)
