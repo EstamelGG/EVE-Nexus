@@ -1,20 +1,77 @@
 import SwiftUI
 
+// 全局头像缓存
+actor CharacterPortraitCache {
+    static let shared = CharacterPortraitCache()
+    private var cache: [String: UIImage] = [:]
+    
+    private init() {}
+    
+    func image(for characterId: Int, size: Int) -> UIImage? {
+        return cache["\(characterId)_\(size)"]
+    }
+    
+    func setImage(_ image: UIImage, for characterId: Int, size: Int) {
+        cache["\(characterId)_\(size)"] = image
+    }
+}
+
+@MainActor
+class CharacterPortraitViewModel: ObservableObject {
+    @Published var image: UIImage?
+    @Published var isLoading = false
+    
+    let characterId: Int
+    let size: Int
+    
+    init(characterId: Int, size: Int) {
+        self.characterId = characterId
+        self.size = size
+    }
+    
+    func loadImage() async {
+        // 先检查缓存
+        if let cachedImage = await CharacterPortraitCache.shared.image(for: characterId, size: size) {
+            self.image = cachedImage
+            return
+        }
+        
+        // 如果缓存中没有，则开始加载
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
+            // 保存到缓存
+            await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
+            self.image = portrait
+            Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes")
+        } catch {
+            Logger.error("加载角色头像失败: \(error)")
+        }
+    }
+}
+
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
-    @State private var image: UIImage?
-    @State private var isLoading = false
+    @StateObject private var viewModel: CharacterPortraitViewModel
+    
+    init(characterId: Int, size: CGFloat) {
+        self.characterId = characterId
+        self.size = size
+        self._viewModel = StateObject(wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: Int(size)))
+    }
     
     var body: some View {
         ZStack {
-            if let image = image {
+            if let image = viewModel.image {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     .clipShape(Circle())
-            } else if isLoading {
+            } else if viewModel.isLoading {
                 ProgressView()
                     .frame(width: size, height: size)
             } else {
@@ -25,25 +82,8 @@ struct CharacterPortrait: View {
                     .foregroundColor(.gray)
             }
         }
-        .onAppear {
-            Task {
-                await loadImage()
-            }
-        }
-    }
-    
-    private func loadImage() async {
-        guard image == nil else { return }
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: Int(size))
-            await MainActor.run {
-                self.image = portrait
-            }
-        } catch {
-            Logger.error("加载角色头像失败: \(error)")
+        .task {
+            await viewModel.loadImage()
         }
     }
 }
