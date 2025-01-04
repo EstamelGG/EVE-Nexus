@@ -218,28 +218,31 @@ struct CharacterMailListView: View {
                     .foregroundColor(.gray)
             } else {
                 List(viewModel.mails, id: \.mail_id) { mail in
-                    HStack(alignment: .top, spacing: 12) {
-                        // 发件人头像 - 使用64尺寸的图片但显示为48x48
+                    HStack(alignment: .center, spacing: 12) {
+                        // 发件人头像
                         CharacterPortrait(characterId: mail.from, size: 48)
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 邮件主题
+                        // 右侧内容
+                        VStack(alignment: .leading, spacing: 2) {
+                            // 第一行：主题
                             Text(mail.subject)
-                                .font(.headline)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.primary)
                                 .lineLimit(1)
                             
-                            // 发件人名称
+                            // 第二行：发件人
                             HStack(spacing: 4) {
                                 Text("From:")
+                                    .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                                 Text(viewModel.getSenderName(mail.from))
+                                    .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                             }
-                            .font(.subheadline)
                             
-                            // 时间戳
+                            // 第三行：时间
                             Text(mail.timestamp.formatDate())
-                                .font(.caption)
+                                .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }
                         
