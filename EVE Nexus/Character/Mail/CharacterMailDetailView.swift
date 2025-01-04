@@ -89,9 +89,9 @@ class CharacterMailDetailViewModel: ObservableObject {
                         // 从数据库中查找邮件列表名称
                         if let listName = try await CharacterMailAPI.shared.loadMailListsFromDatabase(characterId: characterId)
                             .first(where: { $0.mailing_list_id == recipient.recipient_id })?.name {
-                            recipientNames[recipient.recipient_id] = listName
+                            recipientNames[recipient.recipient_id] = "[\(listName)]"
                         } else {
-                            recipientNames[recipient.recipient_id] = "邮件列表#\(recipient.recipient_id)"
+                            recipientNames[recipient.recipient_id] = "[邮件列表#\(recipient.recipient_id)]"
                         }
                     case "character", "corporation", "alliance":
                         // 获取角色、军团、联盟的名称
