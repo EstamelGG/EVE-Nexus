@@ -252,72 +252,85 @@ struct CharacterMailListView: View {
     }
     
     var body: some View {
-        if viewModel.isLoading && viewModel.mails.isEmpty {
-            ProgressView()
-                .navigationTitle(title)
-                .task {
-                    await viewModel.fetchMails(characterId: characterId, labelId: labelId)
-                }
-        } else {
-            List {
-                ForEach(viewModel.mails, id: \.mail_id) { mail in
-                    NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
-                        HStack(spacing: 12) {
-                            // 发件人头像
-                            CharacterPortrait(characterId: mail.from, size: 48)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                // 邮件主题
-                                Text(mail.subject)
-                                    .font(.headline)
-                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
-                                    .lineLimit(1)
-                                
-                                // 发件人名称
-                                Text(viewModel.getSenderName(mail.from))
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                // 时间
-                                Text(mail.timestamp.formatDate())
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // 未读标记
-                            if mail.is_read != true {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 8, height: 8)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-                
-                // 加载更多指示器
-                if viewModel.isLoadingMore {
-                    HStack {
-                        Spacer()
+        List {
+            if viewModel.isLoading && viewModel.mails.isEmpty {
+                HStack {
+                    Spacer()
+                    VStack {
                         ProgressView()
-                        Spacer()
+                        Text("加载中...")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                            .padding(.top, 8)
                     }
-                    .onAppear {
+                    Spacer()
+                }
+            }
+            
+            ForEach(viewModel.mails, id: \.mail_id) { mail in
+                NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
+                    HStack(spacing: 12) {
+                        // 发件人头像
+                        CharacterPortrait(characterId: mail.from, size: 48)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            // 邮件主题
+                            Text(mail.subject)
+                                .font(.headline)
+                                .foregroundColor(mail.is_read == true ? .secondary : .primary)
+                                .lineLimit(1)
+                            
+                            // 发件人名称
+                            Text(viewModel.getSenderName(mail.from))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            // 时间
+                            Text(mail.timestamp.formatDate())
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        // 未读标记
+                        if mail.is_read != true {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                // 在最后一封邮件显示时触发加载更多
+                .onAppear {
+                    if mail.mail_id == viewModel.mails.last?.mail_id {
                         Task {
                             await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
                         }
                     }
                 }
             }
-            .refreshable {
-                await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
+            
+            // 加载更多指示器
+            if viewModel.isLoadingMore {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Text("加载更多...")
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
+                    Spacer()
+                }
+                .padding(.vertical, 8)
             }
-            .navigationTitle(title)
-            .task {
-                await viewModel.fetchMails(characterId: characterId, labelId: labelId)
-            }
+        }
+        .refreshable {
+            await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
+        }
+        .navigationTitle(title)
+        .task {
+            await viewModel.fetchMails(characterId: characterId, labelId: labelId)
         }
     }
 }
