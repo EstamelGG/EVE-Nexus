@@ -37,11 +37,11 @@ actor UniverseIconAPI {
         var urlString: String
         switch category.lowercased() {
         case "character":
-            urlString = "https://images.evetech.net/characters/\(id)/portrait"
+            urlString = "https://images.evetech.net/characters/\(id)/portrait?size=64"
         case "corporation":
-            urlString = "https://images.evetech.net/corporations/\(id)/logo"
+            urlString = "https://images.evetech.net/corporations/\(id)/logo?size=64"
         case "alliance":
-            urlString = "https://images.evetech.net/alliances/\(id)/logo"
+            urlString = "https://images.evetech.net/alliances/\(id)/logo?size=64"
         default:
             throw NetworkError.invalidURL
         }
