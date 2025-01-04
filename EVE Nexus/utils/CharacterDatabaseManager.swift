@@ -159,6 +159,24 @@ class CharacterDatabaseManager: ObservableObject {
                 last_update INTEGER
             );
             
+            -- 邮箱表
+            CREATE TABLE IF NOT EXISTS mailbox (
+                mail_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
+                from_id INTEGER NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT 0,
+                subject TEXT NOT NULL,
+                recipients TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (mail_id, character_id)
+            );
+
+            -- 创建邮箱相关索引
+            CREATE INDEX IF NOT EXISTS idx_mailbox_character_id ON mailbox(character_id);
+            CREATE INDEX IF NOT EXISTS idx_mailbox_timestamp ON mailbox(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_mailbox_from_id ON mailbox(from_id);
+            
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
                 id INTEGER NOT NULL,
