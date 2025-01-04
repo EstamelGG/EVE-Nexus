@@ -134,7 +134,6 @@ class CharacterMailListViewModel: ObservableObject {
                 }
                 
                 Logger.info("成功处理 \(fetchedMails.count) 封邮件")
-                // 在主线程更新UI
                 self.mails = fetchedMails
                 self.senderNames.merge(newSenderNames) { _, new in new }
                 Logger.info("UI更新完成，当前显示 \(self.mails.count) 封邮件")

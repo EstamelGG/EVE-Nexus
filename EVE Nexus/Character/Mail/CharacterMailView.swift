@@ -35,7 +35,7 @@ struct CharacterMailView: View {
             Section {
                 ForEach(MailboxType.allCases, id: \.self) { mailbox in
                     NavigationLink {
-                        Text("\(mailbox.title)视图") // 待实现
+                        CharacterMailListView(characterId: characterId)
                     } label: {
                         HStack {
                             switch mailbox {
@@ -136,29 +136,39 @@ struct CharacterMailView: View {
             await viewModel.fetchMailLabels(characterId: characterId)
         }
         .refreshable {
-            await loadUnreadCounts()
+            Logger.info("用户触发刷新，强制更新数据")
+            await loadUnreadCounts(forceRefresh: true)
             await viewModel.fetchMailLabels(characterId: characterId)
         }
     }
     
-    private func loadUnreadCounts() async {
+    private func loadUnreadCounts(forceRefresh: Bool = false) async {
         do {
             isLoading = true
             defer { isLoading = false }
             
             // 获取总未读数
-            totalUnread = try await CharacterMailAPI.shared.getTotalUnreadCount(characterId: characterId)
+            totalUnread = try await CharacterMailAPI.shared.getTotalUnreadCount(characterId: characterId, forceRefresh: forceRefresh)
             
             // 获取收件箱未读数
-            inboxUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 1)
+            inboxUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 1, forceRefresh: forceRefresh)
             
             // 获取军团邮箱未读数
-            corpUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 4)
+            corpUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 4, forceRefresh: forceRefresh)
             
             // 获取联盟邮箱未读数
-            allianceUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 8)
+            allianceUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 8, forceRefresh: forceRefresh)
+            
+            Logger.info("""
+                邮件未读数统计\(forceRefresh ? "(强制刷新)" : ""):
+                总未读: \(totalUnread ?? 0)
+                收件箱: \(inboxUnread ?? 0)
+                军团邮箱: \(corpUnread ?? 0)
+                联盟邮箱: \(allianceUnread ?? 0)
+                """)
             
         } catch {
+            Logger.error("获取未读数失败: \(error)")
             self.error = error
         }
     }

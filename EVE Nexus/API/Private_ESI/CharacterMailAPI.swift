@@ -68,11 +68,14 @@ class CharacterMailAPI {
     }
     
     /// 获取邮件标签和未读数
-    /// - Parameter characterId: 角色ID
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 邮件标签响应数据
-    func fetchMailLabels(characterId: Int) async throws -> MailLabelsResponse {
+    func fetchMailLabels(characterId: Int, forceRefresh: Bool = false) async throws -> MailLabelsResponse {
         // 检查缓存是否有效
-        if let cachedResponse = cachedLabels[characterId],
+        if !forceRefresh,
+           let cachedResponse = cachedLabels[characterId],
            let cacheTime = labelsCacheTime[characterId],
            Date().timeIntervalSince(cacheTime) < cacheValidDuration {
             Logger.debug("使用缓存的邮件标签数据")
@@ -108,9 +111,10 @@ class CharacterMailAPI {
     /// - Parameters:
     ///   - characterId: 角色ID
     ///   - labelId: 标签ID
+    ///   - forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 未读邮件数，如果为0则返回nil
-    func getUnreadCount(characterId: Int, labelId: Int) async throws -> Int? {
-        let response = try await fetchMailLabels(characterId: characterId)
+    func getUnreadCount(characterId: Int, labelId: Int, forceRefresh: Bool = false) async throws -> Int? {
+        let response = try await fetchMailLabels(characterId: characterId, forceRefresh: forceRefresh)
         
         if let label = response.labels.first(where: { $0.label_id == labelId }) {
             return label.unread_count == 0 ? nil : label.unread_count
@@ -119,10 +123,12 @@ class CharacterMailAPI {
     }
     
     /// 获取总未读邮件数
-    /// - Parameter characterId: 角色ID
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 总未读邮件数，如果为0则返回nil
-    func getTotalUnreadCount(characterId: Int) async throws -> Int? {
-        let response = try await fetchMailLabels(characterId: characterId)
+    func getTotalUnreadCount(characterId: Int, forceRefresh: Bool = false) async throws -> Int? {
+        let response = try await fetchMailLabels(characterId: characterId, forceRefresh: forceRefresh)
         return response.total_unread_count == 0 ? nil : response.total_unread_count
     }
     
