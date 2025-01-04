@@ -573,3 +573,5 @@
 "Main_EVE_Mail_Spam" = "垃圾箱";
 "Main_EVE_Mail_Loading" = "正在加载邮件...";
 "Main_EVE_Mail_Error" = "加载邮件失败";
+
+"Main_EVE_Mail_Labels" = "邮件列表";
