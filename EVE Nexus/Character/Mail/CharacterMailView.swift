@@ -101,7 +101,7 @@ struct CharacterMailView: View {
                 if viewModel.isLoading {
                     Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                         .foregroundColor(.gray)
-                } else if let error = viewModel.error {
+                } else if viewModel.error != nil {
                     Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
                         .foregroundColor(.red)
                 } else if viewModel.mailLabels.isEmpty {

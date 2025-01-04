@@ -116,6 +116,7 @@ enum MailDatabaseError: Error {
     case fetchError(String)
 }
 
+@MainActor
 class CharacterMailListViewModel: ObservableObject {
     @Published var mails: [EVEMail] = []
     @Published var senderNames: [Int: String] = [:]
@@ -126,10 +127,6 @@ class CharacterMailListViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var hasMoreMails = true
     
-    private let mailAPI = CharacterMailAPI.shared
-    private let characterAPI = CharacterAPI.shared
-    
-    @MainActor
     func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
         if forceRefresh {
             isRefreshing = true
@@ -144,7 +141,7 @@ class CharacterMailListViewModel: ObservableObject {
         
         do {
             // 获取一批邮件
-            let newMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
+            let newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId, labelId: labelId)
             self.mails = newMails
             await loadSenderNames(for: newMails)
             // 只要获取到了邮件，就假设可能还有更多
@@ -156,7 +153,6 @@ class CharacterMailListViewModel: ObservableObject {
         }
     }
     
-    @MainActor
     func loadMoreMails(characterId: Int, labelId: Int? = nil) async {
         guard !isLoadingMore, hasMoreMails, let lastMail = mails.last else { return }
         
@@ -165,7 +161,7 @@ class CharacterMailListViewModel: ObservableObject {
         
         do {
             // 使用最后一封邮件的ID获取更老的邮件
-            let olderMails = try await mailAPI.fetchLatestMails(
+            let olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
                 characterId: characterId,
                 labelId: labelId,
                 lastMailId: lastMail.mail_id
@@ -202,11 +198,9 @@ class CharacterMailListViewModel: ObservableObject {
             let existingNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(senderIds))
             
             // 更新已有的名称信息
-            await MainActor.run {
-                for (id, info) in existingNames {
-                    self.senderNames[id] = info.name
-                    self.senderCategories[id] = info.category
-                }
+            for (id, info) in existingNames {
+                self.senderNames[id] = info.name
+                self.senderCategories[id] = info.category
             }
             
             // 找出需要从API获取的ID
@@ -219,11 +213,9 @@ class CharacterMailListViewModel: ObservableObject {
                 let newNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(missingIds))
                 
                 // 更新新获取的名称信息
-                await MainActor.run {
-                    for (id, info) in newNames {
-                        self.senderNames[id] = info.name
-                        self.senderCategories[id] = info.category
-                    }
+                for (id, info) in newNames {
+                    self.senderNames[id] = info.name
+                    self.senderCategories[id] = info.category
                 }
             }
             
