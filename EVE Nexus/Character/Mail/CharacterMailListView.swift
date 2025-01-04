@@ -266,7 +266,7 @@ struct CharacterMailListView: View {
                             // 发件人头像
                             CharacterPortrait(characterId: mail.from, size: 48)
                             
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 // 邮件主题
                                 Text(mail.subject)
                                     .font(.headline)
@@ -293,7 +293,7 @@ struct CharacterMailListView: View {
                                     .frame(width: 8, height: 8)
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 2)
                     }
                 }
                 
