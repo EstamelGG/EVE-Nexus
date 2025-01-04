@@ -82,30 +82,30 @@ class CharacterMailDetailViewModel: ObservableObject {
                 }
                 
                 // 获取收件人名称
-                // 只获取角色、军团、联盟类型的收件人名称
-                let validRecipients = content.recipients.filter { recipient in
-                    let type = recipient.recipient_type
-                    return type == "character" || type == "corporation" || type == "alliance"
-                }
-                
-                if !validRecipients.isEmpty {
-                    let recipientIds = validRecipients.map { $0.recipient_id }
-                    let recipientResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: recipientIds)
-                    if recipientResult > 0 {
-                        for recipient in validRecipients {
+                // 分类处理不同类型的收件人
+                for recipient in content.recipients {
+                    switch recipient.recipient_type {
+                    case "mailing_list":
+                        // 从数据库中查找邮件列表名称
+                        if let listName = try await CharacterMailAPI.shared.loadMailListsFromDatabase(characterId: characterId)
+                            .first(where: { $0.mailing_list_id == recipient.recipient_id })?.name {
+                            recipientNames[recipient.recipient_id] = listName
+                        } else {
+                            recipientNames[recipient.recipient_id] = "邮件列表#\(recipient.recipient_id)"
+                        }
+                    case "character", "corporation", "alliance":
+                        // 获取角色、军团、联盟的名称
+                        let recipientResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: [recipient.recipient_id])
+                        if recipientResult > 0 {
                             if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: recipient.recipient_id) {
                                 recipientNames[recipient.recipient_id] = nameInfo.name
                             } else {
-                                // 如果获取不到名称，使用默认名称
                                 recipientNames[recipient.recipient_id] = "未知\(getRecipientTypeText(recipient.recipient_type))"
                             }
                         }
+                    default:
+                        recipientNames[recipient.recipient_id] = "未知收件人"
                     }
-                }
-                
-                // 为邮件列表类型的收件人设置默认名称
-                for recipient in content.recipients where recipient.recipient_type == "mailing_list" {
-                    recipientNames[recipient.recipient_id] = "邮件列表#\(recipient.recipient_id)"
                 }
             }
         } catch {
