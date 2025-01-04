@@ -95,42 +95,6 @@ struct CharacterMailView: View {
                     .foregroundColor(.primary)
                     .textCase(nil)
             }
-
-            // 邮件订阅列表部分
-            Section {
-                if viewModel.isLoading {
-                    Text("Loading...")
-                        .foregroundColor(.gray)
-                } else if viewModel.error != nil {
-                    Text("Error.")
-                        .foregroundColor(.red)
-                } else if viewModel.mailLists.isEmpty {
-                    Text("No Mail Lists")
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(viewModel.mailLists, id: \.mailing_list_id) { list in
-                        NavigationLink {
-                            CharacterMailListView(
-                                characterId: characterId,
-                                labelId: list.mailing_list_id,
-                                title: list.name
-                            )
-                        } label: {
-                            HStack {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray)
-                                    .frame(width: 24, height: 24)
-                                Text(list.name)
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text(NSLocalizedString("Main_EVE_Mail_Lists", comment: ""))
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.primary)
-                    .textCase(nil)
-            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_EVE_Mail_Title", comment: ""))
