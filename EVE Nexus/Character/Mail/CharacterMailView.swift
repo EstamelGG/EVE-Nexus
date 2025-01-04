@@ -3,14 +3,19 @@ import SwiftUI
 struct CharacterMailView: View {
     let characterId: Int
     @StateObject private var viewModel = CharacterMailViewModel()
-    @State private var selectedLabelId: Int? = nil
+    @State private var totalUnread: Int?
+    @State private var inboxUnread: Int?
+    @State private var corpUnread: Int?
+    @State private var allianceUnread: Int?
+    @State private var isLoading = false
+    @State private var error: Error?
     
     var body: some View {
         List {
             // 全部邮件部分
             Section {
                 NavigationLink {
-                    Text("全部邮件视图") // 待实现
+                    CharacterMailListView(characterId: characterId)
                 } label: {
                     HStack {
                         Image(systemName: "envelope.fill")
@@ -18,9 +23,9 @@ struct CharacterMailView: View {
                             .frame(width: 24, height: 24)
                         Text(NSLocalizedString("Main_EVE_Mail_All", comment: ""))
                         Spacer()
-                        if let totalCount = viewModel.totalMailCount {
-                            Text("\(totalCount)")
-                                .foregroundColor(.gray)
+                        if let totalUnread = totalUnread {
+                            Text("\(totalUnread)")
+                                .foregroundColor(.blue)
                         }
                     }
                 }
@@ -57,9 +62,25 @@ struct CharacterMailView: View {
                             }
                             Text(mailbox.title)
                             Spacer()
-                            if let count = viewModel.mailboxCounts[mailbox] {
-                                Text("\(count)")
-                                    .foregroundColor(.gray)
+                            // 显示未读数
+                            switch mailbox {
+                            case .inbox:
+                                if let unread = inboxUnread {
+                                    Text("\(unread)")
+                                        .foregroundColor(.blue)
+                                }
+                            case .corporation:
+                                if let unread = corpUnread {
+                                    Text("\(unread)")
+                                        .foregroundColor(.blue)
+                                }
+                            case .alliance:
+                                if let unread = allianceUnread {
+                                    Text("\(unread)")
+                                        .foregroundColor(.blue)
+                                }
+                            default:
+                                EmptyView()
                             }
                         }
                     }
@@ -95,7 +116,7 @@ struct CharacterMailView: View {
                                 Spacer()
                                 if label.unreadCount > 0 {
                                     Text("\(label.unreadCount)")
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(.blue)
                                 }
                             }
                         }
@@ -111,10 +132,34 @@ struct CharacterMailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_EVE_Mail_Title", comment: ""))
         .task {
+            await loadUnreadCounts()
             await viewModel.fetchMailLabels(characterId: characterId)
         }
         .refreshable {
+            await loadUnreadCounts()
             await viewModel.fetchMailLabels(characterId: characterId)
+        }
+    }
+    
+    private func loadUnreadCounts() async {
+        do {
+            isLoading = true
+            defer { isLoading = false }
+            
+            // 获取总未读数
+            totalUnread = try await CharacterMailAPI.shared.getTotalUnreadCount(characterId: characterId)
+            
+            // 获取收件箱未读数
+            inboxUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 1)
+            
+            // 获取军团邮箱未读数
+            corpUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 4)
+            
+            // 获取联盟邮箱未读数
+            allianceUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 8)
+            
+        } catch {
+            self.error = error
         }
     }
 }
