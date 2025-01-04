@@ -391,7 +391,7 @@ struct CharacterMailListView: View {
                 }
             }
         }
-        .navigationBarTitle("\(title)(\(viewModel.mails.count))", displayMode: .inline)
+        .navigationBarTitle(title, displayMode: .inline)
         .task {
             Logger.info("CharacterMailListView appeared")
             Task {
