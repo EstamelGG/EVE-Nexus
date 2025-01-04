@@ -47,41 +47,74 @@ class CharacterMailAPI {
     ///   - labelId: 标签ID，如果为nil则加载所有邮件
     ///   - offset: 偏移量
     ///   - limit: 限制数量
+    ///   - lastMailId: 最后一封邮件的ID，用于获取更旧的邮件
     /// - Returns: 邮件数组
-    func loadMailsFromDatabase(characterId: Int, labelId: Int? = nil, offset: Int = 0, limit: Int = 20) async throws -> [EVEMail] {
+    func loadMailsFromDatabase(characterId: Int, labelId: Int? = nil, offset: Int = 0, limit: Int = 20, lastMailId: Int? = nil) async throws -> [EVEMail] {
         let query: String
         let parameters: [Any]
         
         if let labelId = labelId {
             // 如果指定了标签ID，只获取该标签的邮件
-            query = """
-                SELECT * FROM mailbox 
-                WHERE character_id = ? AND mail_id IN (
-                    SELECT mail_id FROM mailbox 
+            if let lastMailId = lastMailId {
+                // 获取比指定邮件更老的邮件
+                query = """
+                    SELECT m.* FROM mailbox m
+                    INNER JOIN (
+                        SELECT timestamp FROM mailbox WHERE mail_id = ?
+                    ) last_mail ON m.timestamp <= last_mail.timestamp
+                    WHERE m.character_id = ? 
+                    AND m.mail_id IN (
+                        SELECT mail_id FROM mail_labels WHERE label_id = ?
+                    )
+                    AND m.mail_id != ?
+                    ORDER BY m.timestamp DESC
+                    LIMIT ?
+                """
+                parameters = [lastMailId, characterId, labelId, lastMailId, limit]
+            } else {
+                // 正常分页查询
+                query = """
+                    SELECT * FROM mailbox 
                     WHERE character_id = ? AND mail_id IN (
                         SELECT mail_id FROM mail_labels 
                         WHERE label_id = ?
                     )
-                )
-                ORDER BY timestamp DESC
-                LIMIT ? OFFSET ?
-            """
-            parameters = [characterId, characterId, labelId, limit, offset]
+                    ORDER BY timestamp DESC
+                    LIMIT ? OFFSET ?
+                """
+                parameters = [characterId, labelId, limit, offset]
+            }
         } else {
             // 如果没有指定标签ID，获取所有邮件
-            query = """
-                SELECT * FROM mailbox 
-                WHERE character_id = ? 
-                ORDER BY timestamp DESC
-                LIMIT ? OFFSET ?
-            """
-            parameters = [characterId, limit, offset]
+            if let lastMailId = lastMailId {
+                // 获取比指定邮件更老的邮件
+                query = """
+                    SELECT m.* FROM mailbox m
+                    INNER JOIN (
+                        SELECT timestamp FROM mailbox WHERE mail_id = ?
+                    ) last_mail ON m.timestamp <= last_mail.timestamp
+                    WHERE m.character_id = ?
+                    AND m.mail_id != ?
+                    ORDER BY m.timestamp DESC
+                    LIMIT ?
+                """
+                parameters = [lastMailId, characterId, lastMailId, limit]
+            } else {
+                // 正常分页查询
+                query = """
+                    SELECT * FROM mailbox 
+                    WHERE character_id = ? 
+                    ORDER BY timestamp DESC
+                    LIMIT ? OFFSET ?
+                """
+                parameters = [characterId, limit, offset]
+            }
         }
         
         let result = databaseManager.executeQuery(query, parameters: parameters)
         switch result {
         case .success(let rows):
-            Logger.info("从数据库读取到 \(rows.count) 条邮件记录 (offset: \(offset), limit: \(limit))")
+            Logger.info("从数据库读取到 \(rows.count) 条邮件记录 (offset: \(offset), limit: \(limit), lastMailId: \(lastMailId ?? 0))")
             var mails: [EVEMail] = []
             
             for row in rows {

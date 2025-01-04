@@ -197,23 +197,22 @@ class CharacterMailListViewModel: ObservableObject {
             )
             
             if hasOlderMails {
-                // 获取新加载的邮件
-                let currentMailIds = Set(mails.map { $0.mail_id })
-                let newMails = try await mailAPI.loadMailsFromDatabase(
+                // 从数据库中获取比最后一封邮件更老的20条邮件
+                let olderMails = try await mailAPI.loadMailsFromDatabase(
                     characterId: characterId,
                     labelId: labelId,
-                    offset: 0,
-                    limit: 100 // 获取足够多的邮件以确保包含新加载的
+                    limit: 20,
+                    lastMailId: lastMail.mail_id
                 )
                 
-                // 过滤出尚未显示的邮件
-                let additionalMails = newMails.filter { !currentMailIds.contains($0.mail_id) }
-                if !additionalMails.isEmpty {
-                    self.mails.append(contentsOf: additionalMails)
-                    await loadSenderNames(for: additionalMails)
+                if !olderMails.isEmpty {
+                    self.mails.append(contentsOf: olderMails)
+                    await loadSenderNames(for: olderMails)
                     hasMoreMails = true
+                    Logger.info("成功加载 \(olderMails.count) 封更老的邮件")
                 } else {
                     hasMoreMails = false
+                    Logger.info("没有找到更老的邮件")
                 }
             } else {
                 hasMoreMails = false
