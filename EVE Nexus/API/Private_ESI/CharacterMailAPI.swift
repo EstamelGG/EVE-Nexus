@@ -190,7 +190,19 @@ class CharacterMailAPI {
         let mails = try JSONDecoder().decode([EVEMail].self, from: data)
         Logger.info("从API获取到 \(mails.count) 封邮件")
         
-        // 直接返回所有邮件
+        // 在后台保存邮件到数据库
+        if !mails.isEmpty {
+            Task.detached {
+                do {
+                    try await self.saveMails(mails, for: characterId)
+                    Logger.info("成功在后台保存 \(mails.count) 封邮件到数据库")
+                } catch {
+                    Logger.error("后台保存邮件失败: \(error)")
+                }
+            }
+        }
+        
+        // 直接返回网络获取的邮件
         return mails
     }
     
