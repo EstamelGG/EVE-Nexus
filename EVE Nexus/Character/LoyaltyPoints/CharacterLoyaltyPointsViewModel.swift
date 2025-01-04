@@ -15,7 +15,13 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: Error?
     
+    private var hasLoadedData = false
+    
     func fetchLoyaltyPoints(characterId: Int, forceRefresh: Bool = false) {
+        if hasLoadedData && !forceRefresh {
+            return
+        }
+        
         isLoading = true
         error = nil
         
@@ -48,6 +54,7 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
             }
             
             loyaltyPoints = corporationInfo.sorted(by: { $0.corporationId < $1.corporationId })
+            hasLoadedData = true
             isLoading = false
         } catch {
             self.error = error

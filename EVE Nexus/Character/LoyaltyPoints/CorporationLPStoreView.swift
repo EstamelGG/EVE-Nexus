@@ -127,6 +127,7 @@ struct CorporationLPStoreView: View {
     @State private var categoryInfos: [String: CategoryInfo] = [:]
     @State private var isLoading = true
     @State private var error: Error?
+    @State private var hasLoadedData = false
     
     private var categoryOffers: [(CategoryInfo, [LPStoreOffer])] {
         let groups = Dictionary(grouping: offers) { offer in
@@ -208,11 +209,17 @@ struct CorporationLPStoreView: View {
             await loadOffers(forceRefresh: true)
         }
         .task {
-            await loadOffers()
+            if !hasLoadedData {
+                await loadOffers()
+            }
         }
     }
     
     private func loadOffers(forceRefresh: Bool = false) async {
+        if hasLoadedData && !forceRefresh {
+            return
+        }
+        
         isLoading = true
         error = nil
         
@@ -283,6 +290,7 @@ struct CorporationLPStoreView: View {
             }
             
             isLoading = false
+            hasLoadedData = true
         } catch {
             self.error = error
             isLoading = false
