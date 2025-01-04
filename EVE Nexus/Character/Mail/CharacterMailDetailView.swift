@@ -85,18 +85,44 @@ class CharacterMailDetailViewModel: ObservableObject {
                 }
                 
                 // 获取收件人名称
-                let recipientIds = content.recipients.map { $0.recipient_id }
-                let recipientResult = try await universeAPI.fetchAndSaveNames(ids: recipientIds)
-                if recipientResult > 0 {
-                    for id in recipientIds {
-                        if let nameInfo = try await universeAPI.getNameFromDatabase(id: id) {
-                            recipientNames[id] = nameInfo.name
+                // 只获取角色、军团、联盟类型的收件人名称
+                let validRecipients = content.recipients.filter { recipient in
+                    let type = recipient.recipient_type
+                    return type == "character" || type == "corporation" || type == "alliance"
+                }
+                
+                if !validRecipients.isEmpty {
+                    let recipientIds = validRecipients.map { $0.recipient_id }
+                    let recipientResult = try await universeAPI.fetchAndSaveNames(ids: recipientIds)
+                    if recipientResult > 0 {
+                        for recipient in validRecipients {
+                            if let nameInfo = try await universeAPI.getNameFromDatabase(id: recipient.recipient_id) {
+                                recipientNames[recipient.recipient_id] = nameInfo.name
+                            } else {
+                                // 如果获取不到名称，使用默认名称
+                                recipientNames[recipient.recipient_id] = "未知\(getRecipientTypeText(recipient.recipient_type))"
+                            }
                         }
                     }
+                }
+                
+                // 为邮件列表类型的收件人设置默认名称
+                for recipient in content.recipients where recipient.recipient_type == "mailing_list" {
+                    recipientNames[recipient.recipient_id] = "邮件列表#\(recipient.recipient_id)"
                 }
             }
         } catch {
             Logger.error("加载邮件内容失败: \(error)")
+        }
+    }
+    
+    private func getRecipientTypeText(_ type: String) -> String {
+        switch type {
+            case "character": return "角色"
+            case "corporation": return "军团"
+            case "alliance": return "联盟"
+            case "mailing_list": return "邮件列表"
+            default: return "收件人"
         }
     }
 } 
