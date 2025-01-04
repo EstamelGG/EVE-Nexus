@@ -793,7 +793,7 @@ struct CharacterRowView: View {
                         // 位置信息
                         if let location = character.location {
                             HStack(spacing: 4) {
-                                Text(formatSecurity(location.security))
+                                Text(formatSystemSecurity(location.security))
                                     .foregroundColor(getSecurityColor(location.security))
                                 Text("\(location.systemName) / \(location.regionName)").lineLimit(1)
                                 if let locationStatus = character.locationStatus?.description {

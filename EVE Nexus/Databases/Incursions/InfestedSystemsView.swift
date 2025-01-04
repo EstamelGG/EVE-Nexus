@@ -328,7 +328,7 @@ struct SystemRow: View {
     
     var body: some View {
         HStack {
-            Text(formatSecurity(system.security))
+            Text(formatSystemSecurity(system.security))
                 .foregroundColor(getSecurityColor(system.security))
             Text(system.systemName)
                 .fontWeight(.medium)

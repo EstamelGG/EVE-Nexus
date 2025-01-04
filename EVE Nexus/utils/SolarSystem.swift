@@ -37,7 +37,7 @@ func calculateDisplaySecurity(_ trueSec: Double) -> Double {
 }
 
 // 格式化安全等级显示
-func formatSecurity(_ trueSec: Double) -> String {
+func formatSystemSecurity(_ trueSec: Double) -> String {
     let displaySec = calculateDisplaySecurity(trueSec)
     return String(format: "%.1f", displaySec)
 }

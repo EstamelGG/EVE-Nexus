@@ -185,7 +185,7 @@ struct SovereigntyCell: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
-                        Text(formatSecurity(sovereignty.location.security))
+                        Text(formatSystemSecurity(sovereignty.location.security))
                             .foregroundColor(getSecurityColor(sovereignty.location.security))
                         Text(sovereignty.location.systemName)
                             .fontWeight(.bold)

@@ -176,7 +176,7 @@ struct CharacterSheetView: View {
                             Text(NSLocalizedString("Character_Security_Status", comment: ""))
                                 .font(.body)
                                 .foregroundColor(.primary)
-                            Text(formatSecurity(security))
+                            Text(String(format: "%.2f", security))
                                 .font(.caption)
                                 .foregroundColor(getSecurityStatusColor(security))
                         }
@@ -238,7 +238,7 @@ struct CharacterSheetView: View {
                             // 星系信息（在太空中）
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
-                                    Text(formatSecurity(location.security))
+                                    Text(formatSystemSecurity(location.security))
                                         .foregroundColor(getSecurityColor(location.security))
                                     Text("\(location.systemName) / \(location.regionName)")
                                     if let status = locationStatus {

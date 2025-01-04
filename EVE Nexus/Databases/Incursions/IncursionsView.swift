@@ -228,7 +228,7 @@ struct IncursionCell: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Text(formatSecurity(incursion.location.security))
+                            Text(formatSystemSecurity(incursion.location.security))
                                 .foregroundColor(getSecurityColor(incursion.location.security))
                             Text(incursion.location.systemName)
                                 .fontWeight(.bold)
