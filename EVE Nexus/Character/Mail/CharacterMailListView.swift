@@ -119,6 +119,7 @@ enum MailDatabaseError: Error {
 class CharacterMailListViewModel: ObservableObject {
     @Published var mails: [EVEMail] = []
     @Published var senderNames: [Int: String] = [:]
+    @Published var senderCategories: [Int: String] = [:]
     @Published var isLoading = false
     @Published var isLoadingMore = false
     @Published var error: Error?
@@ -243,40 +244,47 @@ class CharacterMailListViewModel: ObservableObject {
         }
     }
     
+    func getSenderCategory(_ id: Int) -> String {
+        return senderCategories[id] ?? "character"
+    }
+    
     private func loadSenderNames(for mails: [EVEMail]) async {
-        var newSenderNames: [Int: String] = [:]
+        // 收集所有发件人ID并去重
+        let senderIds = Set(mails.map { $0.from })
         
-        for mail in mails {
-            if senderNames[mail.from] == nil {
-                do {
-                    let info = try await characterAPI.fetchCharacterPublicInfo(characterId: mail.from)
-                    newSenderNames[mail.from] = info.name
-                    Logger.debug("获取发件人信息成功: ID=\(mail.from), 名称=\(info.name)")
-                } catch let error as NetworkError {
-                    // 如果是404错误（角色不存在），尝试获取军团信息
-                    if case .httpError(404, let responseBody) = error,
-                       let body = responseBody,
-                       body.contains("Character not found") {
-                        do {
-                            let corpInfo = try await CorporationAPI.shared.fetchCorporationInfo(corporationId: mail.from)
-                            newSenderNames[mail.from] = corpInfo.name
-                            Logger.debug("获取军团信息成功: ID=\(mail.from), 名称=\(corpInfo.name)")
-                        } catch {
-                            Logger.error("获取军团信息失败: \(error)")
-                        }
-                    } else {
-                        Logger.error("获取角色信息失败: \(error)")
-                    }
-                } catch {
-                    Logger.error("获取发件人信息失败: \(error)")
+        do {
+            // 先尝试从数据库获取已有的名称信息
+            let existingNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(senderIds))
+            
+            // 更新已有的名称信息
+            await MainActor.run {
+                for (id, info) in existingNames {
+                    self.senderNames[id] = info.name
+                    self.senderCategories[id] = info.category
                 }
             }
-        }
-        
-        if !newSenderNames.isEmpty {
-            await MainActor.run {
-                self.senderNames.merge(newSenderNames) { _, new in new }
+            
+            // 找出需要从API获取的ID
+            let missingIds = senderIds.filter { !existingNames.keys.contains($0) }
+            if !missingIds.isEmpty {
+                // 从API获取并保存缺失的名称信息
+                _ = try await UniverseAPI.shared.fetchAndSaveNames(ids: Array(missingIds))
+                
+                // 从数据库获取新保存的名称信息
+                let newNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(missingIds))
+                
+                // 更新新获取的名称信息
+                await MainActor.run {
+                    for (id, info) in newNames {
+                        self.senderNames[id] = info.name
+                        self.senderCategories[id] = info.category
+                    }
+                }
             }
+            
+            Logger.debug("成功获取 \(senderIds.count) 个发件人的信息")
+        } catch {
+            Logger.error("获取发件人信息失败: \(error)")
         }
     }
     
@@ -323,45 +331,32 @@ struct CharacterMailListView: View {
                     ForEach(viewModel.mails, id: \.mail_id) { mail in
                         HStack(alignment: .center, spacing: 12) {
                             // 发件人头像
-                            CharacterPortrait(characterId: mail.from, size: 48)
+                            UniversePortrait(id: mail.from, category: viewModel.getSenderCategory(mail.from))
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                             
                             // 右侧内容
                             VStack(alignment: .leading, spacing: 2) {
                                 // 第一行：主题
                                 Text(mail.subject)
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
                                     .lineLimit(1)
                                 
-                                // 第二行：发件人
-                                HStack(spacing: 4) {
-                                    Text("From:")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
+                                // 第二行：发件人和时间
+                                HStack {
                                     Text(viewModel.getSenderName(mail.from))
                                         .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text(mail.timestamp.formatDate())
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.gray)
                                 }
-                                
-                                // 第三行：时间
-                                Text(mail.timestamp.formatDate())
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            // 未读标记
-                            if mail.is_read != true {
-                                Circle()
-                                    .fill(.blue)
-                                    .frame(width: 8, height: 8)
                             }
                         }
-                        .padding(.vertical, 4)
-                        .frame(height: 50)
+                        .contentShape(Rectangle())
                         .onAppear {
-                            // 如果这是最后一个项目，加载更多
+                            // 当显示最后一封邮件时，加载更多
                             if mail.mail_id == viewModel.mails.last?.mail_id {
                                 Task {
                                     await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
@@ -369,20 +364,10 @@ struct CharacterMailListView: View {
                             }
                         }
                     }
-                    
-                    if viewModel.isLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .padding()
-                    }
                 }
             }
         }
-        .navigationBarTitle("\(title)(\(viewModel.mails.count))", displayMode: .inline)
-        .onAppear {
+        .task {
             Logger.info("CharacterMailListView appeared")
             Task {
                 await viewModel.fetchMails(characterId: characterId, labelId: labelId)
@@ -391,6 +376,43 @@ struct CharacterMailListView: View {
         .refreshable {
             Logger.info("用户触发下拉刷新，强制更新数据")
             await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
+        }
+    }
+}
+
+// 通用头像组件
+struct UniversePortrait: View {
+    let id: Int
+    let category: String
+    
+    @State private var image: UIImage?
+    @State private var isLoading = true
+    @State private var error: Error?
+    
+    var body: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else if isLoading {
+                ProgressView()
+            } else {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .foregroundColor(.gray)
+            }
+        }
+        .task {
+            do {
+                isLoading = true
+                image = try await UniverseIconAPI.shared.fetchIcon(id: id, category: category)
+                isLoading = false
+            } catch {
+                Logger.error("加载头像失败: \(error)")
+                self.error = error
+                isLoading = false
+            }
         }
     }
 }
