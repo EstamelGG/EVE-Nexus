@@ -254,7 +254,7 @@ struct CharacterMailListView: View {
                             // 第一行：主题
                             Text(mail.subject)
                                 .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.primary)
+                                .foregroundColor(mail.is_read ?? true ? .secondary : .primary)
                                 .lineLimit(1)
                             
                             // 第二行：发件人
