@@ -127,17 +127,12 @@ class CharacterMailListViewModel: ObservableObject {
     
     private let mailAPI = CharacterMailAPI.shared
     private let characterAPI = CharacterAPI.shared
-    private var currentOffset = 0
-    private let pageSize = 20
     
     @MainActor
     func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
         if forceRefresh {
             isRefreshing = true
-            currentOffset = 0
-            mails = []
-            hasMoreMails = true
-        } else if currentOffset == 0 {
+        } else {
             isLoading = true
         }
         
@@ -147,46 +142,40 @@ class CharacterMailListViewModel: ObservableObject {
         }
         
         do {
-            // 1. 从数据库加载邮件
-            Logger.info("从数据库加载邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 偏移量: \(currentOffset)")
-            let localMails = try await mailAPI.loadMailsFromDatabase(
-                characterId: characterId,
-                labelId: labelId,
-                offset: currentOffset,
-                limit: pageSize
-            )
+            // 直接从网络获取最新邮件
+            Logger.info("从网络获取最新邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
+            let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
             
-            // 2. 更新视图
-            if !localMails.isEmpty {
-                if currentOffset == 0 {
+            if hasNewMails {
+                // 从数据库加载最新的邮件（包括刚刚获取的）
+                let latestMails = try await mailAPI.loadMailsFromDatabase(
+                    characterId: characterId,
+                    labelId: labelId,
+                    offset: 0,
+                    limit: 20
+                )
+                
+                self.mails = latestMails
+                await loadSenderNames(for: latestMails)
+                hasMoreMails = true
+            } else if mails.isEmpty {
+                // 如果是首次加载且没有获取到新邮件，尝试从数据库加载
+                let localMails = try await mailAPI.loadMailsFromDatabase(
+                    characterId: characterId,
+                    labelId: labelId,
+                    offset: 0,
+                    limit: 20
+                )
+                
+                if !localMails.isEmpty {
                     self.mails = localMails
-                } else {
-                    self.mails.append(contentsOf: localMails)
-                }
-                await loadSenderNames(for: localMails)
-            }
-            
-            // 3. 如果是第一页，从网络获取最新数据
-            if currentOffset == 0 {
-                let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
-                if hasNewMails {
-                    // 重新加载第一页
-                    let updatedMails = try await mailAPI.loadMailsFromDatabase(
-                        characterId: characterId,
-                        labelId: labelId,
-                        offset: 0,
-                        limit: pageSize
-                    )
-                    self.mails = updatedMails
-                    await loadSenderNames(for: updatedMails)
+                    await loadSenderNames(for: localMails)
+                    hasMoreMails = true
                 }
             }
-            
-            // 4. 更新是否还有更多邮件的状态
-            hasMoreMails = localMails.count >= pageSize
             
         } catch {
-            Logger.error("获取邮件过程失败: \(error)")
+            Logger.error("获取邮件失败: \(error)")
             self.error = error
         }
     }
@@ -194,63 +183,46 @@ class CharacterMailListViewModel: ObservableObject {
     @MainActor
     func loadMoreMails(characterId: Int, labelId: Int? = nil) async {
         guard hasMoreMails && !isLoadingMore else { return }
+        guard let lastMail = mails.last else { return }
         
         isLoadingMore = true
         defer { isLoadingMore = false }
         
         do {
-            // 1. 尝试从数据库加载更多邮件
-            currentOffset += pageSize
-            let localMails = try await mailAPI.loadMailsFromDatabase(
+            Logger.info("获取更老的邮件 - 最后邮件ID: \(lastMail.mail_id)")
+            let hasOlderMails = try await mailAPI.fetchLatestMails(
                 characterId: characterId,
                 labelId: labelId,
-                offset: currentOffset,
-                limit: pageSize
+                lastMailId: lastMail.mail_id
             )
             
-            // 2. 如果数据库中没有更多邮件，尝试从网络获取更旧的邮件
-            if localMails.isEmpty {
-                if let lastMail = mails.last {
-                    Logger.info("数据库中没有更多邮件，尝试从网络获取更旧的邮件 - 最后邮件ID: \(lastMail.mail_id)")
-                    let hasOlderMails = try await mailAPI.fetchLatestMails(
-                        characterId: characterId,
-                        labelId: labelId,
-                        lastMailId: lastMail.mail_id
-                    )
-                    
-                    if hasOlderMails {
-                        // 重新从数据库加载这一页
-                        let newMails = try await mailAPI.loadMailsFromDatabase(
-                            characterId: characterId,
-                            labelId: labelId,
-                            offset: currentOffset,
-                            limit: pageSize
-                        )
-                        if !newMails.isEmpty {
-                            self.mails.append(contentsOf: newMails)
-                            await loadSenderNames(for: newMails)
-                            hasMoreMails = true // 可能还有更老的邮件
-                        } else {
-                            hasMoreMails = false
-                        }
-                    } else {
-                        hasMoreMails = false
-                        Logger.info("没有更老的邮件了")
-                    }
+            if hasOlderMails {
+                // 获取新加载的邮件
+                let currentMailIds = Set(mails.map { $0.mail_id })
+                let newMails = try await mailAPI.loadMailsFromDatabase(
+                    characterId: characterId,
+                    labelId: labelId,
+                    offset: 0,
+                    limit: 100 // 获取足够多的邮件以确保包含新加载的
+                )
+                
+                // 过滤出尚未显示的邮件
+                let additionalMails = newMails.filter { !currentMailIds.contains($0.mail_id) }
+                if !additionalMails.isEmpty {
+                    self.mails.append(contentsOf: additionalMails)
+                    await loadSenderNames(for: additionalMails)
+                    hasMoreMails = true
                 } else {
                     hasMoreMails = false
                 }
             } else {
-                // 3. 如果数据库中有更多邮件，直接添加到列表
-                self.mails.append(contentsOf: localMails)
-                await loadSenderNames(for: localMails)
-                hasMoreMails = true // 可能还有更多邮件
+                hasMoreMails = false
+                Logger.info("没有更老的邮件了")
             }
             
         } catch {
             Logger.error("加载更多邮件失败: \(error)")
             self.error = error
-            currentOffset -= pageSize // 恢复偏移量
         }
     }
     
