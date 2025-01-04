@@ -7,54 +7,56 @@ struct CharacterMailDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        Group {
-            if let content = viewModel.mailContent {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // 主题
-                        Text(content.subject)
-                            .font(.headline)
-                            .padding(.bottom, 4)
-                        
-                        // 发件人和时间信息
-                        HStack {
-                            CharacterPortrait(id: content.from, size: 32)
-                            VStack(alignment: .leading) {
-                                Text(viewModel.senderName ?? "未知发件人")
-                                    .font(.subheadline)
-                                Text(mail.timestamp.formatDate())
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        // 收件人信息
-                        if !content.recipients.isEmpty {
-                            Text("收件人：")
+        if let content = viewModel.mailContent {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    // 主题
+                    Text(content.subject)
+                        .font(.headline)
+                        .padding(.bottom, 4)
+                    
+                    // 发件人和时间信息
+                    HStack {
+                        CharacterPortrait(characterId: content.from, size: 32)
+                        VStack(alignment: .leading) {
+                            Text(viewModel.senderName ?? "未知发件人")
                                 .font(.subheadline)
+                            Text(mail.timestamp.formatDate())
+                                .font(.caption)
                                 .foregroundColor(.secondary)
-                            ForEach(content.recipients, id: \.recipient_id) { recipient in
-                                Text(viewModel.recipientNames[recipient.recipient_id] ?? "未知收件人")
-                                    .font(.subheadline)
-                            }
                         }
-                        
-                        Divider()
-                            .padding(.vertical, 8)
-                        
-                        // 邮件正文
-                        Text(LocalizedStringKey(content.body))
-                            .textSelection(.enabled)
                     }
-                    .padding()
+                    
+                    // 收件人信息
+                    if !content.recipients.isEmpty {
+                        Text("收件人：")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        ForEach(content.recipients, id: \.recipient_id) { recipient in
+                            Text(viewModel.recipientNames[recipient.recipient_id] ?? "未知收件人")
+                                .font(.subheadline)
+                        }
+                    }
+                    
+                    Divider()
+                        .padding(.vertical, 8)
+                    
+                    // 邮件正文
+                    Text(LocalizedStringKey(content.body))
+                        .textSelection(.enabled)
                 }
-            } else {
-                ProgressView()
+                .padding()
             }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
+            .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
+            }
+        } else {
+            ProgressView()
+                .navigationBarTitleDisplayMode(.inline)
+                .task {
+                    await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
+                }
         }
     }
 }
@@ -77,7 +79,9 @@ class CharacterMailDetailViewModel: ObservableObject {
                 // 获取发件人名称
                 let senderResult = try await universeAPI.fetchAndSaveNames(ids: [content.from])
                 if senderResult > 0 {
-                    senderName = try await universeAPI.getNameFromDatabase(id: content.from)
+                    if let nameInfo = try await universeAPI.getNameFromDatabase(id: content.from) {
+                        senderName = nameInfo.name
+                    }
                 }
                 
                 // 获取收件人名称
@@ -85,8 +89,8 @@ class CharacterMailDetailViewModel: ObservableObject {
                 let recipientResult = try await universeAPI.fetchAndSaveNames(ids: recipientIds)
                 if recipientResult > 0 {
                     for id in recipientIds {
-                        if let name = try await universeAPI.getNameFromDatabase(id: id) {
-                            recipientNames[id] = name
+                        if let nameInfo = try await universeAPI.getNameFromDatabase(id: id) {
+                            recipientNames[id] = nameInfo.name
                         }
                     }
                 }

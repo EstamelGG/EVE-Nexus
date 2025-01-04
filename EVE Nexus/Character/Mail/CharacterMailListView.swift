@@ -252,55 +252,35 @@ struct CharacterMailListView: View {
     }
     
     var body: some View {
-        ZStack {
-            if viewModel.isLoading {
-                ProgressView()
-            } else if let error = viewModel.error {
-                VStack {
-                    if error is CancellationError {
-                        // 忽略取消错误的显示
-                        EmptyView()
-                    } else {
-                        Text(error.localizedDescription)
-                            .foregroundColor(.red)
-                        Text("错误详情：\(String(describing: error))")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+        if viewModel.isLoading && viewModel.mails.isEmpty {
+            ProgressView()
+                .navigationTitle(title)
+                .task {
+                    await viewModel.fetchMails(characterId: characterId, labelId: labelId)
                 }
-            } else if viewModel.mails.isEmpty {
-                Text("没有邮件")
-                    .foregroundColor(.gray)
-            } else {
-                List {
-                    ForEach(viewModel.mails, id: \.mail_id) { mail in
-                        HStack(alignment: .center, spacing: 12) {
+        } else {
+            List {
+                ForEach(viewModel.mails, id: \.mail_id) { mail in
+                    NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
+                        HStack(spacing: 12) {
                             // 发件人头像
-                            UniversePortrait(id: mail.from, category: viewModel.getSenderCategory(mail.from))
-                                .frame(width: 48, height: 48)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            CharacterPortrait(characterId: mail.from, size: 40)
                             
-                            // 右侧内容
-                            VStack(alignment: .leading, spacing: 2) {
-                                // 第一行：主题
+                            VStack(alignment: .leading, spacing: 4) {
+                                // 发件人名称
+                                Text(viewModel.getSenderName(mail.from))
+                                    .font(.subheadline)
+                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
+                                
+                                // 邮件主题
                                 Text(mail.subject)
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.headline)
                                     .foregroundColor(mail.is_read == true ? .secondary : .primary)
                                     .lineLimit(1)
                                 
-                                // 第二行：发件人
-                                HStack(spacing: 4) {
-                                    Text("From:")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                    Text(viewModel.getSenderName(mail.from))
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                // 第三行：时间
+                                // 时间
                                 Text(mail.timestamp.formatDate())
-                                    .font(.system(size: 12))
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                             
@@ -309,43 +289,35 @@ struct CharacterMailListView: View {
                             // 未读标记
                             if mail.is_read != true {
                                 Circle()
-                                    .fill(.blue)
+                                    .fill(Color.blue)
                                     .frame(width: 8, height: 8)
                             }
                         }
                         .padding(.vertical, 4)
-                        .frame(height: 50)
-                        .onAppear {
-                            // 如果这是最后一个项目，加载更多
-                            if mail.mail_id == viewModel.mails.last?.mail_id {
-                                Task {
-                                    await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
-                                }
-                            }
-                        }
                     }
-                    
-                    if viewModel.isLoadingMore {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
+                }
+                
+                // 加载更多指示器
+                if viewModel.isLoadingMore {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                    .onAppear {
+                        Task {
+                            await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
                         }
-                        .padding()
                     }
                 }
             }
-        }
-        .navigationBarTitle(title, displayMode: .inline)
-        .task {
-            Logger.info("CharacterMailListView appeared")
-            Task {
+            .refreshable {
+                await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
+            }
+            .navigationTitle(title)
+            .task {
                 await viewModel.fetchMails(characterId: characterId, labelId: labelId)
             }
-        }
-        .refreshable {
-            Logger.info("用户触发下拉刷新，强制更新数据")
-            await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
         }
     }
 }
