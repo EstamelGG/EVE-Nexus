@@ -412,6 +412,14 @@ class CharacterDatabaseManager: ObservableObject {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
+
+            -- 通用ID表，用于存储角色、军团等实体的信息
+            CREATE TABLE IF NOT EXISTS universe_id (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                type TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_universe_id_type ON universe_id(type);
         """
         
         // 分割SQL语句并逐个执行
@@ -423,22 +431,6 @@ class CharacterDatabaseManager: ObservableObject {
                     Logger.error("创建表失败: \(error)\nSQL: \(trimmed)")
                 }
             }
-        }
-
-        // 创建universe_id表，用于存储角色、军团等实体的信息
-        let createUniverseIdTableSQL = """
-            CREATE TABLE IF NOT EXISTS universe_id (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                type TEXT NOT NULL
-            )
-        """
-        
-        let result = executeQuery(createUniverseIdTableSQL)
-        if case .error(let error) = result {
-            Logger.error("创建universe_id表失败: \(error)")
-        } else {
-            Logger.info("成功创建或确认universe_id表存在")
         }
     }
     
