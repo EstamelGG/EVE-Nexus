@@ -3,12 +3,6 @@ import SwiftUI
 // 导入必要的类型
 typealias ContractItemInfo = CharacterContractsAPI.ContractItemInfo
 
-struct UniverseNameResponse: Codable {
-    let category: String
-    let id: Int
-    let name: String
-}
-
 @MainActor
 final class ContractDetailViewModel: ObservableObject {
     @Published private(set) var items: [ContractItemInfo] = []

@@ -1,5 +1,11 @@
 import Foundation
 
+struct UniverseNameResponse: Codable {
+    let category: String
+    let id: Int
+    let name: String
+}
+
 actor UniverseAPI {
     static let shared = UniverseAPI()
     private let networkManager = NetworkManager.shared
@@ -35,10 +41,10 @@ actor UniverseAPI {
         
         // 保存到数据库
         let insertSQL = """
-            INSERT OR REPLACE INTO universe_id (
+            INSERT OR REPLACE INTO universe_names (
                 id,
                 name,
-                type
+                category
             ) VALUES (?, ?, ?)
         """
         
@@ -68,16 +74,16 @@ actor UniverseAPI {
     /// 从数据库获取ID对应的名称信息
     /// - Parameter id: 要查询的ID
     /// - Returns: 名称和类型（如果存在）
-    func getNameFromDatabase(id: Int) async throws -> (name: String, type: String)? {
-        let query = "SELECT name, type FROM universe_id WHERE id = ? LIMIT 1"
+    func getNameFromDatabase(id: Int) async throws -> (name: String, category: String)? {
+        let query = "SELECT name, category FROM universe_names WHERE id = ? LIMIT 1"
         let result = databaseManager.executeQuery(query, parameters: [id])
         
         switch result {
         case .success(let rows):
             if let row = rows.first,
                let name = row["name"] as? String,
-               let type = row["type"] as? String {
-                return (name: name, type: type)
+               let category = row["category"] as? String {
+                return (name: name, category: category)
             }
             return nil
             
@@ -90,20 +96,20 @@ actor UniverseAPI {
     /// 从数据库批量获取ID对应的名称信息
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: ID到名称和类型的映射
-    func getNamesFromDatabase(ids: [Int]) async throws -> [Int: (name: String, type: String)] {
+    func getNamesFromDatabase(ids: [Int]) async throws -> [Int: (name: String, category: String)] {
         let placeholders = String(repeating: "?,", count: ids.count).dropLast()
-        let query = "SELECT id, name, type FROM universe_id WHERE id IN (\(placeholders))"
+        let query = "SELECT id, name, category FROM universe_names WHERE id IN (\(placeholders))"
         
         let result = databaseManager.executeQuery(query, parameters: ids)
         
         switch result {
         case .success(let rows):
-            var namesMap: [Int: (name: String, type: String)] = [:]
+            var namesMap: [Int: (name: String, category: String)] = [:]
             for row in rows {
                 if let id = row["id"] as? Int64,
                    let name = row["name"] as? String,
-                   let type = row["type"] as? String {
-                    namesMap[Int(id)] = (name: name, type: type)
+                   let category = row["category"] as? String {
+                    namesMap[Int(id)] = (name: name, category: category)
                 }
             }
             return namesMap
