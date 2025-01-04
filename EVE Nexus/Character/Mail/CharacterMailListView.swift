@@ -282,9 +282,9 @@ struct CharacterMailListView: View {
                                 .frame(width: 8, height: 8)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 4)
+                    .frame(height: 50)
                 }
-                .listStyle(PlainListStyle())
             }
         }
         .navigationBarTitle("\(title)(\(viewModel.mails.count))", displayMode: .inline)
