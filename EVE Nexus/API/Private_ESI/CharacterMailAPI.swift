@@ -161,13 +161,13 @@ class CharacterMailAPI {
         }
     }
     
-    /// 从网络获取最新邮件并更新数据库
+    /// 从网络获取邮件
     /// - Parameters:
     ///   - characterId: 角色ID
-    ///   - labelId: 标签ID
+    ///   - labelId: 标签ID，如果为nil则获取所有邮件
     ///   - lastMailId: 最后一封邮件的ID，用于获取更旧的邮件
-    /// - Returns: 是否有新邮件
-    func fetchLatestMails(characterId: Int, labelId: Int? = nil, lastMailId: Int? = nil) async throws -> Bool {
+    /// - Returns: 邮件列表
+    func fetchLatestMails(characterId: Int, labelId: Int? = nil, lastMailId: Int? = nil) async throws -> [EVEMail] {
         Logger.info("开始从网络获取邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 最后邮件ID: \(lastMailId ?? 0)")
         
         // 构建请求URL
@@ -190,15 +190,8 @@ class CharacterMailAPI {
         let mails = try JSONDecoder().decode([EVEMail].self, from: data)
         Logger.info("从API获取到 \(mails.count) 封邮件")
         
-        if !mails.isEmpty {
-            // 保存邮件到数据库
-            try await saveMails(mails, for: characterId)
-            Logger.info("成功保存 \(mails.count) 封邮件到数据库")
-            return true
-        } else {
-            Logger.info("没有新邮件")
-            return false
-        }
+        // 直接返回所有邮件
+        return mails
     }
     
     /// 获取邮件标签和未读数
