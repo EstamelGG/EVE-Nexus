@@ -140,12 +140,23 @@ class CharacterMailListViewModel: ObservableObject {
         }
         
         do {
-            // 获取一批邮件
-            let newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId, labelId: labelId)
-            self.mails = newMails
-            await loadSenderNames(for: newMails)
-            // 只要获取到了邮件，就假设可能还有更多
-            hasMoreMails = !newMails.isEmpty
+            let newMails: [EVEMail]
+            if let listId = labelId, isMailingList(listId) {
+                // 如果是邮件列表，获取全量邮件并过滤
+                newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
+                self.mails = newMails.filter { mail in
+                    mail.recipients.contains { recipient in
+                        recipient.recipient_id == listId && recipient.recipient_type == "mailing_list"
+                    }
+                }
+            } else {
+                // 其他情况（收件箱等）使用原有逻辑
+                newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId, labelId: labelId)
+                self.mails = newMails
+            }
+            
+            await loadSenderNames(for: self.mails)
+            hasMoreMails = !self.mails.isEmpty
             
         } catch {
             Logger.error("获取邮件失败: \(error)")
@@ -160,29 +171,57 @@ class CharacterMailListViewModel: ObservableObject {
         defer { isLoadingMore = false }
         
         do {
-            // 使用最后一封邮件的ID获取更老的邮件
-            let olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                characterId: characterId,
-                labelId: labelId,
-                lastMailId: lastMail.mail_id
-            )
-            
-            if !olderMails.isEmpty {
-                self.mails.append(contentsOf: olderMails)
-                await loadSenderNames(for: olderMails)
-                // 只要获取到了邮件，就假设可能还有更多
-                hasMoreMails = true
-                Logger.info("成功加载 \(olderMails.count) 封更老的邮件")
+            let olderMails: [EVEMail]
+            if let listId = labelId, isMailingList(listId) {
+                // 如果是邮件列表，获取全量邮件并过滤
+                olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
+                    characterId: characterId,
+                    lastMailId: lastMail.mail_id
+                )
+                let filteredMails = olderMails.filter { mail in
+                    mail.recipients.contains { recipient in
+                        recipient.recipient_id == listId && recipient.recipient_type == "mailing_list"
+                    }
+                }
+                
+                if !filteredMails.isEmpty {
+                    self.mails.append(contentsOf: filteredMails)
+                    await loadSenderNames(for: filteredMails)
+                    hasMoreMails = true
+                    Logger.info("成功加载 \(filteredMails.count) 封更老的邮件")
+                } else {
+                    hasMoreMails = false
+                    Logger.info("没有更多邮件了")
+                }
             } else {
-                // 只有当真的获取不到邮件时，才标记没有更多
-                hasMoreMails = false
-                Logger.info("没有更多邮件了")
+                // 其他情况（收件箱等）使用原有逻辑
+                olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
+                    characterId: characterId,
+                    labelId: labelId,
+                    lastMailId: lastMail.mail_id
+                )
+                
+                if !olderMails.isEmpty {
+                    self.mails.append(contentsOf: olderMails)
+                    await loadSenderNames(for: olderMails)
+                    hasMoreMails = true
+                    Logger.info("成功加载 \(olderMails.count) 封更老的邮件")
+                } else {
+                    hasMoreMails = false
+                    Logger.info("没有更多邮件了")
+                }
             }
             
         } catch {
             Logger.error("加载更多邮件失败: \(error)")
             self.error = error
         }
+    }
+    
+    // 判断是否是邮件列表ID
+    private func isMailingList(_ id: Int) -> Bool {
+        // 系统预定义的标签ID都很小，邮件列表ID通常很大
+        return id > 100000
     }
     
     func getSenderCategory(_ id: Int) -> String {
