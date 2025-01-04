@@ -42,16 +42,39 @@ class CharacterMailAPI {
     private init() {}
     
     /// 从数据库加载邮件
-    /// - Parameter characterId: 角色ID
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - labelId: 标签ID，如果为nil则加载所有邮件
     /// - Returns: 邮件数组
-    func loadMailsFromDatabase(characterId: Int) async throws -> [EVEMail] {
-        let query = """
-            SELECT * FROM mailbox 
-            WHERE character_id = ? 
-            ORDER BY timestamp DESC
-        """
+    func loadMailsFromDatabase(characterId: Int, labelId: Int? = nil) async throws -> [EVEMail] {
+        let query: String
+        let parameters: [Any]
         
-        let result = databaseManager.executeQuery(query, parameters: [characterId])
+        if let labelId = labelId {
+            // 如果指定了标签ID，只获取该标签的邮件
+            query = """
+                SELECT * FROM mailbox 
+                WHERE character_id = ? AND mail_id IN (
+                    SELECT mail_id FROM mailbox 
+                    WHERE character_id = ? AND mail_id IN (
+                        SELECT mail_id FROM mail_labels 
+                        WHERE label_id = ?
+                    )
+                )
+                ORDER BY timestamp DESC
+            """
+            parameters = [characterId, characterId, labelId]
+        } else {
+            // 如果没有指定标签ID，获取所有邮件
+            query = """
+                SELECT * FROM mailbox 
+                WHERE character_id = ? 
+                ORDER BY timestamp DESC
+            """
+            parameters = [characterId]
+        }
+        
+        let result = databaseManager.executeQuery(query, parameters: parameters)
         switch result {
         case .success(let rows):
             Logger.info("从数据库读取到 \(rows.count) 条邮件记录")
@@ -82,12 +105,13 @@ class CharacterMailAPI {
                 let mail = EVEMail(
                     from: fromId,
                     is_read: isRead == 1,
-                    labels: [], // 暂时不处理标签
+                    labels: [], // 不再需要处理标签
                     mail_id: mailId,
                     recipients: recipients,
                     subject: subject,
                     timestamp: timestamp
                 )
+                
                 mails.append(mail)
             }
             
@@ -103,10 +127,15 @@ class CharacterMailAPI {
     /// 从网络获取最新邮件并更新数据库
     /// - Parameter characterId: 角色ID
     /// - Returns: 是否有新邮件
-    func fetchLatestMails(characterId: Int) async throws -> Bool {
-        Logger.info("开始从网络获取最新邮件")
+    func fetchLatestMails(characterId: Int, labelId: Int? = nil) async throws -> Bool {
+        Logger.info("开始从网络获取最新邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
+        
         // 构建请求URL
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+        var urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+        if let labelId = labelId {
+            urlString += "&labels=\(labelId)"
+        }
+        
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -116,6 +145,7 @@ class CharacterMailAPI {
         
         // 解析响应数据
         let mails = try JSONDecoder().decode([EVEMail].self, from: data)
+        Logger.info("从API获取到 \(mails.count) 封邮件")
         
         // 检查是否有新邮件
         let query = "SELECT mail_id FROM mailbox WHERE character_id = ?"
@@ -226,7 +256,7 @@ class CharacterMailAPI {
     ///   - characterId: 角色ID
     private func saveMails(_ mails: [EVEMail], for characterId: Int) async throws {
         // 构建SQL插入语句
-        let insertSQL = """
+        let insertMailSQL = """
             INSERT OR REPLACE INTO mailbox (
                 mail_id,
                 character_id,
@@ -239,7 +269,16 @@ class CharacterMailAPI {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """
         
+        let insertLabelSQL = """
+            INSERT OR REPLACE INTO mail_labels (
+                mail_id,
+                label_id
+            ) VALUES (?, ?)
+        """
+        
         for mail in mails {
+            Logger.info("开始处理邮件 - ID: \(mail.mail_id), 标签: \(mail.labels)")
+            
             // 将recipients转换为JSON字符串
             let recipientsData = try JSONEncoder().encode(mail.recipients)
             guard let recipientsString = String(data: recipientsData, encoding: .utf8) else {
@@ -247,9 +286,9 @@ class CharacterMailAPI {
                 continue
             }
             
-            // 执行插入操作
+            // 执行邮件插入操作
             let result = databaseManager.executeQuery(
-                insertSQL,
+                insertMailSQL,
                 parameters: [
                     mail.mail_id,
                     characterId,
@@ -263,7 +302,28 @@ class CharacterMailAPI {
             
             switch result {
             case .success:
-                continue
+                Logger.info("成功保存邮件基本信息 - ID: \(mail.mail_id)")
+                
+                // 先删除旧的标签关系
+                let deleteLabelSQL = "DELETE FROM mail_labels WHERE mail_id = ?"
+                let deleteResult = databaseManager.executeQuery(deleteLabelSQL, parameters: [mail.mail_id])
+                if case .error(let error) = deleteResult {
+                    Logger.error("删除旧邮件标签失败: \(error)")
+                }
+                
+                // 保存新的标签关系
+                for labelId in mail.labels {
+                    let labelResult = databaseManager.executeQuery(
+                        insertLabelSQL,
+                        parameters: [mail.mail_id, labelId]
+                    )
+                    if case .error(let error) = labelResult {
+                        Logger.error("保存邮件标签失败: \(error)")
+                    } else {
+                        Logger.info("成功保存邮件标签 - 邮件ID: \(mail.mail_id), 标签ID: \(labelId)")
+                    }
+                }
+                
             case .error(let error):
                 Logger.error("保存邮件失败: \(error)")
                 throw DatabaseError.insertError(error)

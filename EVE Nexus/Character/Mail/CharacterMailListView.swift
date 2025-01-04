@@ -127,7 +127,7 @@ class CharacterMailListViewModel: ObservableObject {
     private let characterAPI = CharacterAPI.shared
     
     @MainActor
-    func fetchMails(characterId: Int, forceRefresh: Bool = false) async {
+    func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
         if !forceRefresh {
             isLoading = true
         } else {
@@ -142,8 +142,8 @@ class CharacterMailListViewModel: ObservableObject {
         do {
             // 1. 先从数据库加载
             if !forceRefresh {
-                Logger.info("从数据库加载邮件 - 角色ID: \(characterId)")
-                let localMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId)
+                Logger.info("从数据库加载邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
+                let localMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId, labelId: labelId)
                 if !localMails.isEmpty {
                     self.mails = localMails
                     await loadSenderNames(for: localMails)
@@ -151,13 +151,13 @@ class CharacterMailListViewModel: ObservableObject {
             }
             
             // 2. 从网络获取最新数据
-            Logger.info("检查新邮件 - 角色ID: \(characterId)")
-            let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId)
+            Logger.info("检查新邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
+            let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
             
             // 3. 如果有新邮件，重新从数据库加载
             if hasNewMails || forceRefresh {
                 Logger.info("发现新邮件，重新加载")
-                let updatedMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId)
+                let updatedMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId, labelId: labelId)
                 self.mails = updatedMails
                 await loadSenderNames(for: updatedMails)
             }
@@ -212,7 +212,16 @@ class CharacterMailListViewModel: ObservableObject {
 
 struct CharacterMailListView: View {
     let characterId: Int
+    let labelId: Int?
+    let title: String
+    
     @StateObject private var viewModel = CharacterMailListViewModel()
+    
+    init(characterId: Int, labelId: Int? = nil, title: String? = nil) {
+        self.characterId = characterId
+        self.labelId = labelId
+        self.title = title ?? "全部邮件"
+    }
     
     var body: some View {
         ZStack {
@@ -278,16 +287,16 @@ struct CharacterMailListView: View {
                 .listStyle(PlainListStyle())
             }
         }
-        .navigationBarTitle("全部邮件(\(viewModel.mails.count))", displayMode: .inline)
+        .navigationBarTitle("\(title)(\(viewModel.mails.count))", displayMode: .inline)
         .onAppear {
             Logger.info("CharacterMailListView appeared")
             Task {
-                await viewModel.fetchMails(characterId: characterId)
+                await viewModel.fetchMails(characterId: characterId, labelId: labelId)
             }
         }
         .refreshable {
             Logger.info("用户触发下拉刷新，强制更新数据")
-            await viewModel.fetchMails(characterId: characterId, forceRefresh: true)
+            await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
         }
     }
 }

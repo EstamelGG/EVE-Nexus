@@ -35,7 +35,11 @@ struct CharacterMailView: View {
             Section {
                 ForEach(MailboxType.allCases, id: \.self) { mailbox in
                     NavigationLink {
-                        CharacterMailListView(characterId: characterId)
+                        CharacterMailListView(
+                            characterId: characterId,
+                            labelId: mailbox.labelId,
+                            title: mailbox.title
+                        )
                     } label: {
                         HStack {
                             switch mailbox {
@@ -226,6 +230,16 @@ enum MailboxType: CaseIterable {
         case .corporation: return NSLocalizedString("Main_EVE_Mail_Corporation", comment: "")
         case .alliance: return NSLocalizedString("Main_EVE_Mail_Alliance", comment: "")
         case .spam: return NSLocalizedString("Main_EVE_Mail_Spam", comment: "")
+        }
+    }
+    
+    var labelId: Int {
+        switch self {
+        case .inbox: return 1
+        case .sent: return 2
+        case .corporation: return 4
+        case .alliance: return 8
+        case .spam: return 16
         }
     }
 }

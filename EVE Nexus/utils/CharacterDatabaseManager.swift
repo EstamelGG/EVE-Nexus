@@ -172,10 +172,19 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (mail_id, character_id)
             );
 
+            -- 邮件标签关系表
+            CREATE TABLE IF NOT EXISTS mail_labels (
+                mail_id INTEGER NOT NULL,
+                label_id INTEGER NOT NULL,
+                PRIMARY KEY (mail_id, label_id),
+                FOREIGN KEY (mail_id) REFERENCES mailbox(mail_id)
+            );
+
             -- 创建邮箱相关索引
             CREATE INDEX IF NOT EXISTS idx_mailbox_character_id ON mailbox(character_id);
             CREATE INDEX IF NOT EXISTS idx_mailbox_timestamp ON mailbox(timestamp);
             CREATE INDEX IF NOT EXISTS idx_mailbox_from_id ON mailbox(from_id);
+            CREATE INDEX IF NOT EXISTS idx_mail_labels_label_id ON mail_labels(label_id);
             
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
