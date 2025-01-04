@@ -41,29 +41,106 @@ class CharacterMailAPI {
     
     private init() {}
     
-    /// 获取角色的所有邮件
+    /// 从数据库加载邮件
     /// - Parameter characterId: 角色ID
-    func fetchMails(characterId: Int) async throws {
-        do {
-            // 构建请求URL
-            let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
-            guard let url = URL(string: urlString) else {
-                throw NetworkError.invalidURL
+    /// - Returns: 邮件数组
+    func loadMailsFromDatabase(characterId: Int) async throws -> [EVEMail] {
+        let query = """
+            SELECT * FROM mailbox 
+            WHERE character_id = ? 
+            ORDER BY timestamp DESC
+        """
+        
+        let result = databaseManager.executeQuery(query, parameters: [characterId])
+        switch result {
+        case .success(let rows):
+            Logger.info("从数据库读取到 \(rows.count) 条邮件记录")
+            var mails: [EVEMail] = []
+            
+            for row in rows {
+                // 转换数据类型
+                let mailId = (row["mail_id"] as? Int64).map(Int.init) ?? (row["mail_id"] as? Int) ?? 0
+                let fromId = (row["from_id"] as? Int64).map(Int.init) ?? (row["from_id"] as? Int) ?? 0
+                let isRead = (row["is_read"] as? Int64).map(Int.init) ?? (row["is_read"] as? Int) ?? 0
+                
+                guard mailId > 0,
+                      fromId > 0,
+                      let subject = row["subject"] as? String,
+                      let timestamp = row["timestamp"] as? String,
+                      let recipientsString = row["recipients"] as? String,
+                      let recipientsData = recipientsString.data(using: .utf8) else {
+                    Logger.error("邮件数据格式错误: \(row)")
+                    continue
+                }
+                
+                // 解析收件人数据
+                guard let recipients = try? JSONDecoder().decode([EVEMailRecipient].self, from: recipientsData) else {
+                    Logger.error("解析收件人数据失败: \(recipientsString)")
+                    continue
+                }
+                
+                let mail = EVEMail(
+                    from: fromId,
+                    is_read: isRead == 1,
+                    labels: [], // 暂时不处理标签
+                    mail_id: mailId,
+                    recipients: recipients,
+                    subject: subject,
+                    timestamp: timestamp
+                )
+                mails.append(mail)
             }
             
-            // 发送请求获取数据
-            let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
+            Logger.info("成功从数据库加载 \(mails.count) 封邮件")
+            return mails
             
-            // 解析响应数据
-            let mails = try JSONDecoder().decode([EVEMail].self, from: data)
-            
-            // 将邮件保存到数据库
-            try await saveMails(mails, for: characterId)
-            
-            Logger.info("成功获取并保存\(mails.count)封邮件")
-        } catch {
-            Logger.error("获取邮件失败: \(error)")
-            throw error
+        case .error(let error):
+            Logger.error("数据库查询失败: \(error)")
+            throw DatabaseError.fetchError(error)
+        }
+    }
+    
+    /// 从网络获取最新邮件并更新数据库
+    /// - Parameter characterId: 角色ID
+    /// - Returns: 是否有新邮件
+    func fetchLatestMails(characterId: Int) async throws -> Bool {
+        Logger.info("开始从网络获取最新邮件")
+        // 构建请求URL
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 发送请求获取数据
+        let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
+        
+        // 解析响应数据
+        let mails = try JSONDecoder().decode([EVEMail].self, from: data)
+        
+        // 检查是否有新邮件
+        let query = "SELECT mail_id FROM mailbox WHERE character_id = ?"
+        let result = databaseManager.executeQuery(query, parameters: [characterId])
+        var existingMailIds = Set<Int>()
+        
+        if case .success(let rows) = result {
+            for row in rows {
+                if let mailId = (row["mail_id"] as? Int64).map(Int.init) ?? (row["mail_id"] as? Int) {
+                    existingMailIds.insert(mailId)
+                }
+            }
+        }
+        
+        // 过滤出新邮件
+        let newMails = mails.filter { !existingMailIds.contains($0.mail_id) }
+        
+        if !newMails.isEmpty {
+            // 保存新邮件到数据库
+            try await saveMails(newMails, for: characterId)
+            Logger.info("成功保存 \(newMails.count) 封新邮件到数据库")
+            return true
+        } else {
+            Logger.info("没有新邮件")
+            return false
         }
     }
     
@@ -197,4 +274,5 @@ class CharacterMailAPI {
 
 enum DatabaseError: Error {
     case insertError(String)
+    case fetchError(String)
 } 

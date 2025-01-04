@@ -20,6 +20,7 @@ actor CharacterPortraitCache {
 class CharacterPortraitViewModel: ObservableObject {
     @Published var image: UIImage?
     @Published var isLoading = false
+    @Published var isCorporation = false
     
     let characterId: Int
     let size: Int
@@ -41,13 +42,25 @@ class CharacterPortraitViewModel: ObservableObject {
         defer { isLoading = false }
         
         do {
-            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
-            // 保存到缓存
-            await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
-            self.image = portrait
-            Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes")
+            // 先尝试获取角色头像
+            do {
+                let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
+                // 保存到缓存
+                await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
+                self.image = portrait
+                Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes")
+            } catch {
+                // 如果获取角色头像失败，尝试获取军团头像
+                Logger.info("角色头像获取失败，尝试获取军团头像 - ID: \(characterId)")
+                let corpLogo = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: characterId, size: size)
+                // 保存到缓存
+                await CharacterPortraitCache.shared.setImage(corpLogo, for: characterId, size: size)
+                self.image = corpLogo
+                self.isCorporation = true
+                Logger.info("成功获取并缓存军团头像 - 军团ID: \(characterId), 大小: \(size)")
+            }
         } catch {
-            Logger.error("加载角色头像失败: \(error)")
+            Logger.error("加载头像失败（角色和军团都失败）: \(error)")
         }
     }
 }
@@ -74,6 +87,12 @@ struct CharacterPortrait: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .overlay(
+                        viewModel.isCorporation ?
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        : nil
+                    )
             } else if viewModel.isLoading {
                 ProgressView()
                     .frame(width: size, height: size)
@@ -101,94 +120,70 @@ class CharacterMailListViewModel: ObservableObject {
     @Published var senderNames: [Int: String] = [:]
     @Published var isLoading = false
     @Published var error: Error?
+    @Published var isRefreshing = false
     
     private let mailAPI = CharacterMailAPI.shared
     private let characterAPI = CharacterAPI.shared
     
     @MainActor
-    func fetchMails(characterId: Int) async {
-        isLoading = true
-        defer { isLoading = false }
+    func fetchMails(characterId: Int, forceRefresh: Bool = false) async {
+        if !forceRefresh {
+            isLoading = true
+        } else {
+            isRefreshing = true
+        }
+        
+        defer {
+            isLoading = false
+            isRefreshing = false
+        }
         
         do {
-            Logger.info("开始获取邮件 - 角色ID: \(characterId)")
-            // 获取邮件
-            try await mailAPI.fetchMails(characterId: characterId)
-            
-            // 从数据库读取邮件
-            let query = """
-                SELECT * FROM mailbox 
-                WHERE character_id = ? 
-                ORDER BY timestamp DESC
-            """
-            
-            let result = CharacterDatabaseManager.shared.executeQuery(query, parameters: [characterId])
-            switch result {
-            case .success(let rows):
-                Logger.info("从数据库读取到 \(rows.count) 条邮件记录")
-                var fetchedMails: [EVEMail] = []
-                var newSenderNames: [Int: String] = [:]
-                
-                for row in rows {
-                    Logger.debug("处理邮件记录: \(row)")
-                    
-                    // 转换数据类型
-                    let mailId = (row["mail_id"] as? Int64).map(Int.init) ?? (row["mail_id"] as? Int) ?? 0
-                    let fromId = (row["from_id"] as? Int64).map(Int.init) ?? (row["from_id"] as? Int) ?? 0
-                    let isRead = (row["is_read"] as? Int64).map(Int.init) ?? (row["is_read"] as? Int) ?? 0
-                    
-                    guard mailId > 0,
-                          fromId > 0,
-                          let subject = row["subject"] as? String,
-                          let timestamp = row["timestamp"] as? String,
-                          let recipientsString = row["recipients"] as? String,
-                          let recipientsData = recipientsString.data(using: .utf8) else {
-                        Logger.error("邮件数据格式错误: \(row)")
-                        continue
-                    }
-                    
-                    // 解析收件人数据
-                    guard let recipients = try? JSONDecoder().decode([EVEMailRecipient].self, from: recipientsData) else {
-                        Logger.error("解析收件人数据失败: \(recipientsString)")
-                        continue
-                    }
-                    
-                    let mail = EVEMail(
-                        from: fromId,
-                        is_read: isRead == 1,
-                        labels: [], // 暂时不处理标签
-                        mail_id: mailId,
-                        recipients: recipients,
-                        subject: subject,
-                        timestamp: timestamp
-                    )
-                    fetchedMails.append(mail)
-                    Logger.debug("成功解析邮件: ID=\(mailId), 主题=\(subject)")
-                    
-                    // 获取发件人名称
-                    if senderNames[fromId] == nil {
-                        do {
-                            let info = try await characterAPI.fetchCharacterPublicInfo(characterId: fromId)
-                            newSenderNames[fromId] = info.name
-                            Logger.debug("获取发件人信息成功: ID=\(fromId), 名称=\(info.name)")
-                        } catch {
-                            Logger.error("获取角色信息失败: \(error)")
-                        }
-                    }
+            // 1. 先从数据库加载
+            if !forceRefresh {
+                Logger.info("从数据库加载邮件 - 角色ID: \(characterId)")
+                let localMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId)
+                if !localMails.isEmpty {
+                    self.mails = localMails
+                    await loadSenderNames(for: localMails)
                 }
-                
-                Logger.info("成功处理 \(fetchedMails.count) 封邮件")
-                self.mails = fetchedMails
-                self.senderNames.merge(newSenderNames) { _, new in new }
-                Logger.info("UI更新完成，当前显示 \(self.mails.count) 封邮件")
-                
-            case .error(let error):
-                Logger.error("数据库查询失败: \(error)")
-                self.error = MailDatabaseError.fetchError(error)
             }
+            
+            // 2. 从网络获取最新数据
+            Logger.info("检查新邮件 - 角色ID: \(characterId)")
+            let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId)
+            
+            // 3. 如果有新邮件，重新从数据库加载
+            if hasNewMails || forceRefresh {
+                Logger.info("发现新邮件，重新加载")
+                let updatedMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId)
+                self.mails = updatedMails
+                await loadSenderNames(for: updatedMails)
+            }
+            
         } catch {
             Logger.error("获取邮件过程失败: \(error)")
             self.error = error
+        }
+    }
+    
+    private func loadSenderNames(for mails: [EVEMail]) async {
+        var newSenderNames: [Int: String] = [:]
+        
+        for mail in mails {
+            if senderNames[mail.from] == nil {
+                do {
+                    let info = try await characterAPI.fetchCharacterPublicInfo(characterId: mail.from)
+                    newSenderNames[mail.from] = info.name
+                    Logger.debug("获取发件人信息成功: ID=\(mail.from), 名称=\(info.name)")
+                } catch {
+                    Logger.error("获取角色信息失败: \(error)")
+                }
+            }
+        }
+        
+        if !newSenderNames.isEmpty {
+            self.senderNames.merge(newSenderNames) { _, new in new }
         }
     }
     
