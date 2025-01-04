@@ -117,7 +117,7 @@ struct CharacterMailView: View {
                             )
                         } label: {
                             HStack {
-                                Image(systemName: "person.3.fill")
+                                Image(systemName: "person.fill")
                                     .foregroundColor(.gray)
                                     .frame(width: 24, height: 24)
                                 Text(list.name)
