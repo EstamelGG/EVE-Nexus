@@ -120,18 +120,25 @@ class CharacterMailListViewModel: ObservableObject {
     @Published var mails: [EVEMail] = []
     @Published var senderNames: [Int: String] = [:]
     @Published var isLoading = false
+    @Published var isLoadingMore = false
     @Published var error: Error?
     @Published var isRefreshing = false
+    @Published var hasMoreMails = true
     
     private let mailAPI = CharacterMailAPI.shared
     private let characterAPI = CharacterAPI.shared
+    private var currentOffset = 0
+    private let pageSize = 20
     
     @MainActor
     func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
-        if !forceRefresh {
-            isLoading = true
-        } else {
+        if forceRefresh {
             isRefreshing = true
+            currentOffset = 0
+            mails = []
+            hasMoreMails = true
+        } else if currentOffset == 0 {
+            isLoading = true
         }
         
         defer {
@@ -140,31 +147,108 @@ class CharacterMailListViewModel: ObservableObject {
         }
         
         do {
-            // 1. 先从数据库加载
-            if !forceRefresh {
-                Logger.info("从数据库加载邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
-                let localMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId, labelId: labelId)
-                if !localMails.isEmpty {
+            // 1. 从数据库加载邮件
+            Logger.info("从数据库加载邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 偏移量: \(currentOffset)")
+            let localMails = try await mailAPI.loadMailsFromDatabase(
+                characterId: characterId,
+                labelId: labelId,
+                offset: currentOffset,
+                limit: pageSize
+            )
+            
+            // 2. 更新视图
+            if !localMails.isEmpty {
+                if currentOffset == 0 {
                     self.mails = localMails
-                    await loadSenderNames(for: localMails)
+                } else {
+                    self.mails.append(contentsOf: localMails)
+                }
+                await loadSenderNames(for: localMails)
+            }
+            
+            // 3. 如果是第一页，从网络获取最新数据
+            if currentOffset == 0 {
+                let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
+                if hasNewMails {
+                    // 重新加载第一页
+                    let updatedMails = try await mailAPI.loadMailsFromDatabase(
+                        characterId: characterId,
+                        labelId: labelId,
+                        offset: 0,
+                        limit: pageSize
+                    )
+                    self.mails = updatedMails
+                    await loadSenderNames(for: updatedMails)
                 }
             }
             
-            // 2. 从网络获取最新数据
-            Logger.info("检查新邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
-            let hasNewMails = try await mailAPI.fetchLatestMails(characterId: characterId, labelId: labelId)
-            
-            // 3. 如果有新邮件，重新从数据库加载
-            if hasNewMails || forceRefresh {
-                Logger.info("发现新邮件，重新加载")
-                let updatedMails = try await mailAPI.loadMailsFromDatabase(characterId: characterId, labelId: labelId)
-                self.mails = updatedMails
-                await loadSenderNames(for: updatedMails)
-            }
+            // 4. 更新是否还有更多邮件的状态
+            hasMoreMails = localMails.count >= pageSize
             
         } catch {
             Logger.error("获取邮件过程失败: \(error)")
             self.error = error
+        }
+    }
+    
+    @MainActor
+    func loadMoreMails(characterId: Int, labelId: Int? = nil) async {
+        guard hasMoreMails && !isLoadingMore else { return }
+        
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        
+        do {
+            // 1. 尝试从数据库加载更多邮件
+            currentOffset += pageSize
+            let localMails = try await mailAPI.loadMailsFromDatabase(
+                characterId: characterId,
+                labelId: labelId,
+                offset: currentOffset,
+                limit: pageSize
+            )
+            
+            // 2. 如果数据库中没有更多邮件，尝试从网络获取更旧的邮件
+            if localMails.isEmpty {
+                if let lastMail = mails.last {
+                    let hasOlderMails = try await mailAPI.fetchLatestMails(
+                        characterId: characterId,
+                        labelId: labelId,
+                        lastMailId: lastMail.mail_id
+                    )
+                    
+                    if hasOlderMails {
+                        // 重新从数据库加载这一页
+                        let newMails = try await mailAPI.loadMailsFromDatabase(
+                            characterId: characterId,
+                            labelId: labelId,
+                            offset: currentOffset,
+                            limit: pageSize
+                        )
+                        if !newMails.isEmpty {
+                            self.mails.append(contentsOf: newMails)
+                            await loadSenderNames(for: newMails)
+                            hasMoreMails = newMails.count >= pageSize
+                        } else {
+                            hasMoreMails = false
+                        }
+                    } else {
+                        hasMoreMails = false
+                    }
+                } else {
+                    hasMoreMails = false
+                }
+            } else {
+                // 3. 如果数据库中有更多邮件，直接添加到列表
+                self.mails.append(contentsOf: localMails)
+                await loadSenderNames(for: localMails)
+                hasMoreMails = localMails.count >= pageSize
+            }
+            
+        } catch {
+            Logger.error("加载更多邮件失败: \(error)")
+            self.error = error
+            currentOffset -= pageSize // 恢复偏移量
         }
     }
     
@@ -244,46 +328,65 @@ struct CharacterMailListView: View {
                 Text("没有邮件")
                     .foregroundColor(.gray)
             } else {
-                List(viewModel.mails, id: \.mail_id) { mail in
-                    HStack(alignment: .center, spacing: 12) {
-                        // 发件人头像
-                        CharacterPortrait(characterId: mail.from, size: 48)
-                        
-                        // 右侧内容
-                        VStack(alignment: .leading, spacing: 2) {
-                            // 第一行：主题
-                            Text(mail.subject)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(mail.is_read == true ? .secondary : .primary)
-                                .lineLimit(1)
+                List {
+                    ForEach(viewModel.mails, id: \.mail_id) { mail in
+                        HStack(alignment: .center, spacing: 12) {
+                            // 发件人头像
+                            CharacterPortrait(characterId: mail.from, size: 48)
                             
-                            // 第二行：发件人
-                            HStack(spacing: 4) {
-                                Text("From:")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                                Text(viewModel.getSenderName(mail.from))
-                                    .font(.system(size: 14))
+                            // 右侧内容
+                            VStack(alignment: .leading, spacing: 2) {
+                                // 第一行：主题
+                                Text(mail.subject)
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
+                                    .lineLimit(1)
+                                
+                                // 第二行：发件人
+                                HStack(spacing: 4) {
+                                    Text("From:")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                    Text(viewModel.getSenderName(mail.from))
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                // 第三行：时间
+                                Text(mail.timestamp.formatDate())
+                                    .font(.system(size: 12))
                                     .foregroundColor(.secondary)
                             }
                             
-                            // 第三行：时间
-                            Text(mail.timestamp.formatDate())
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                            Spacer()
+                            
+                            // 未读标记
+                            if mail.is_read != true {
+                                Circle()
+                                    .fill(.blue)
+                                    .frame(width: 8, height: 8)
+                            }
                         }
-                        
-                        Spacer()
-                        
-                        // 未读标记
-                        if mail.is_read != true {
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 8, height: 8)
+                        .padding(.vertical, 4)
+                        .frame(height: 50)
+                        .onAppear {
+                            // 如果这是最后一个项目，加载更多
+                            if mail.mail_id == viewModel.mails.last?.mail_id {
+                                Task {
+                                    await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
+                                }
+                            }
                         }
                     }
-                    .padding(.vertical, 4)
-                    .frame(height: 50)
+                    
+                    if viewModel.isLoadingMore {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .padding()
+                    }
                 }
             }
         }

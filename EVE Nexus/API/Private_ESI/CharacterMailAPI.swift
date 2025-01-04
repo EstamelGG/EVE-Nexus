@@ -45,8 +45,10 @@ class CharacterMailAPI {
     /// - Parameters:
     ///   - characterId: 角色ID
     ///   - labelId: 标签ID，如果为nil则加载所有邮件
+    ///   - offset: 偏移量
+    ///   - limit: 限制数量
     /// - Returns: 邮件数组
-    func loadMailsFromDatabase(characterId: Int, labelId: Int? = nil) async throws -> [EVEMail] {
+    func loadMailsFromDatabase(characterId: Int, labelId: Int? = nil, offset: Int = 0, limit: Int = 20) async throws -> [EVEMail] {
         let query: String
         let parameters: [Any]
         
@@ -62,22 +64,24 @@ class CharacterMailAPI {
                     )
                 )
                 ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
             """
-            parameters = [characterId, characterId, labelId]
+            parameters = [characterId, characterId, labelId, limit, offset]
         } else {
             // 如果没有指定标签ID，获取所有邮件
             query = """
                 SELECT * FROM mailbox 
                 WHERE character_id = ? 
                 ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
             """
-            parameters = [characterId]
+            parameters = [characterId, limit, offset]
         }
         
         let result = databaseManager.executeQuery(query, parameters: parameters)
         switch result {
         case .success(let rows):
-            Logger.info("从数据库读取到 \(rows.count) 条邮件记录")
+            Logger.info("从数据库读取到 \(rows.count) 条邮件记录 (offset: \(offset), limit: \(limit))")
             var mails: [EVEMail] = []
             
             for row in rows {
@@ -125,15 +129,21 @@ class CharacterMailAPI {
     }
     
     /// 从网络获取最新邮件并更新数据库
-    /// - Parameter characterId: 角色ID
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - labelId: 标签ID
+    ///   - lastMailId: 最后一封邮件的ID，用于获取更旧的邮件
     /// - Returns: 是否有新邮件
-    func fetchLatestMails(characterId: Int, labelId: Int? = nil) async throws -> Bool {
-        Logger.info("开始从网络获取最新邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0)")
+    func fetchLatestMails(characterId: Int, labelId: Int? = nil, lastMailId: Int? = nil) async throws -> Bool {
+        Logger.info("开始从网络获取邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 最后邮件ID: \(lastMailId ?? 0)")
         
         // 构建请求URL
         var urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
         if let labelId = labelId {
             urlString += "&labels=\(labelId)"
+        }
+        if let lastMailId = lastMailId {
+            urlString += "&last_mail_id=\(lastMailId)"
         }
         
         guard let url = URL(string: urlString) else {
@@ -147,26 +157,10 @@ class CharacterMailAPI {
         let mails = try JSONDecoder().decode([EVEMail].self, from: data)
         Logger.info("从API获取到 \(mails.count) 封邮件")
         
-        // 检查是否有新邮件
-        let query = "SELECT mail_id FROM mailbox WHERE character_id = ?"
-        let result = databaseManager.executeQuery(query, parameters: [characterId])
-        var existingMailIds = Set<Int>()
-        
-        if case .success(let rows) = result {
-            for row in rows {
-                if let mailId = (row["mail_id"] as? Int64).map(Int.init) ?? (row["mail_id"] as? Int) {
-                    existingMailIds.insert(mailId)
-                }
-            }
-        }
-        
-        // 过滤出新邮件
-        let newMails = mails.filter { !existingMailIds.contains($0.mail_id) }
-        
-        if !newMails.isEmpty {
-            // 保存新邮件到数据库
-            try await saveMails(newMails, for: characterId)
-            Logger.info("成功保存 \(newMails.count) 封新邮件到数据库")
+        if !mails.isEmpty {
+            // 保存邮件到数据库
+            try await saveMails(mails, for: characterId)
+            Logger.info("成功保存 \(mails.count) 封邮件到数据库")
             return true
         } else {
             Logger.info("没有新邮件")
