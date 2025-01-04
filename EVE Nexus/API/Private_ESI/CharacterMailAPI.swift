@@ -28,6 +28,16 @@ struct MailLabel: Codable {
     let unread_count: Int?
 }
 
+// 邮件内容响应模型
+struct EVEMailContent: Codable {
+    let body: String
+    let from: Int
+    let labels: [Int]
+    let recipients: [EVEMailRecipient]
+    let subject: String
+    let timestamp: String
+}
+
 @NetworkManagerActor
 class CharacterMailAPI {
     static let shared = CharacterMailAPI()
@@ -361,6 +371,30 @@ class CharacterMailAPI {
                 throw DatabaseError.insertError(error)
             }
         }
+    }
+    
+    /// 获取邮件内容
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - mailId: 邮件ID
+    /// - Returns: 邮件内容
+    func fetchMailContent(characterId: Int, mailId: Int) async throws -> EVEMailContent {
+        Logger.info("开始获取邮件内容 - 角色ID: \(characterId), 邮件ID: \(mailId)")
+        
+        // 构建请求URL
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/\(mailId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 发送请求获取数据
+        let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
+        
+        // 解析响应数据
+        let content = try JSONDecoder().decode(EVEMailContent.self, from: data)
+        Logger.info("成功获取邮件内容 - 邮件ID: \(mailId)")
+        
+        return content
     }
 }
 
