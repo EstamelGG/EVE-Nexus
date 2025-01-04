@@ -172,6 +172,18 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (mail_id, character_id)
             );
 
+            -- 邮件内容表
+            CREATE TABLE IF NOT EXISTS mail_content (
+                mail_id INTEGER PRIMARY KEY,
+                body TEXT NOT NULL,
+                from_id INTEGER NOT NULL,
+                subject TEXT NOT NULL,
+                recipients TEXT NOT NULL,
+                labels TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_content_from_id ON mail_content(from_id);
+
             -- 邮件标签关系表
             CREATE TABLE IF NOT EXISTS mail_labels (
                 mail_id INTEGER NOT NULL,

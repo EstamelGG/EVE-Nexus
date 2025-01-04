@@ -44,6 +44,15 @@ struct EVEMailList: Codable {
     let name: String
 }
 
+// 邮件内容缓存包装类
+final class CachedMailContent {
+    let content: EVEMailContent
+    
+    init(_ content: EVEMailContent) {
+        self.content = content
+    }
+}
+
 @NetworkManagerActor
 class CharacterMailAPI {
     static let shared = CharacterMailAPI()
@@ -55,7 +64,13 @@ class CharacterMailAPI {
     private var labelsCacheTime: [Int: Date] = [:]
     private let cacheValidDuration: TimeInterval = 300 // 5分钟缓存有效期
     
-    private init() {}
+    // 邮件内容缓存
+    private let mailContentCache = NSCache<NSNumber, CachedMailContent>()
+    
+    private init() {
+        // 设置缓存限制
+        mailContentCache.countLimit = 100 // 最多缓存100封邮件
+    }
     
     /// 从数据库加载邮件
     /// - Parameters:
@@ -385,22 +400,122 @@ class CharacterMailAPI {
     ///   - mailId: 邮件ID
     /// - Returns: 邮件内容
     func fetchMailContent(characterId: Int, mailId: Int) async throws -> EVEMailContent {
-        Logger.info("开始获取邮件内容 - 角色ID: \(characterId), 邮件ID: \(mailId)")
+        // 1. 检查内存缓存
+        if let cachedContent = mailContentCache.object(forKey: NSNumber(value: mailId)) {
+            Logger.info("使用内存缓存的邮件内容 - 邮件ID: \(mailId)")
+            return cachedContent.content
+        }
         
-        // 构建请求URL
+        // 2. 检查数据库缓存
+        if let dbContent = try await loadMailContentFromDatabase(mailId: mailId) {
+            Logger.info("使用数据库缓存的邮件内容 - 邮件ID: \(mailId)")
+            // 保存到内存缓存
+            mailContentCache.setObject(CachedMailContent(dbContent), forKey: NSNumber(value: mailId))
+            return dbContent
+        }
+        
+        Logger.info("开始从API获取邮件内容 - 角色ID: \(characterId), 邮件ID: \(mailId)")
+        
+        // 3. 从API获取数据
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/\(mailId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
         
-        // 发送请求获取数据
         let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
-        
-        // 解析响应数据
         let content = try JSONDecoder().decode(EVEMailContent.self, from: data)
-        Logger.info("成功获取邮件内容 - 邮件ID: \(mailId)")
+        Logger.info("成功从API获取邮件内容 - 邮件ID: \(mailId)")
+        
+        // 4. 保存到缓存和数据库
+        mailContentCache.setObject(CachedMailContent(content), forKey: NSNumber(value: mailId))
+        try await saveMailContentToDatabase(content: content)
         
         return content
+    }
+    
+    /// 从数据库加载邮件内容
+    /// - Parameter mailId: 邮件ID
+    /// - Returns: 邮件内容，如果不存在则返回nil
+    private func loadMailContentFromDatabase(mailId: Int) async throws -> EVEMailContent? {
+        let query = """
+            SELECT * FROM mail_content 
+            WHERE mail_id = ? 
+            LIMIT 1
+        """
+        
+        let result = databaseManager.executeQuery(query, parameters: [mailId])
+        switch result {
+        case .success(let rows):
+            guard let row = rows.first,
+                  let body = row["body"] as? String,
+                  let fromId = (row["from_id"] as? Int64).map(Int.init) ?? (row["from_id"] as? Int),
+                  let subject = row["subject"] as? String,
+                  let recipientsString = row["recipients"] as? String,
+                  let labelsString = row["labels"] as? String,
+                  let timestamp = row["timestamp"] as? String,
+                  let recipients = try? JSONDecoder().decode([EVEMailRecipient].self, from: recipientsString.data(using: .utf8)!),
+                  let labels = try? JSONDecoder().decode([Int].self, from: labelsString.data(using: .utf8)!) else {
+                return nil
+            }
+            
+            return EVEMailContent(
+                body: body,
+                from: fromId,
+                labels: labels,
+                recipients: recipients,
+                subject: subject,
+                timestamp: timestamp
+            )
+            
+        case .error(let error):
+            Logger.error("从数据库加载邮件内容失败: \(error)")
+            return nil
+        }
+    }
+    
+    /// 保存邮件内容到数据库
+    /// - Parameter content: 邮件内容
+    private func saveMailContentToDatabase(content: EVEMailContent) async throws {
+        let insertSQL = """
+            INSERT OR REPLACE INTO mail_content (
+                mail_id,
+                body,
+                from_id,
+                subject,
+                recipients,
+                labels,
+                timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        // 将数组转换为JSON字符串
+        let recipientsData = try JSONEncoder().encode(content.recipients)
+        let labelsData = try JSONEncoder().encode(content.labels)
+        
+        guard let recipientsString = String(data: recipientsData, encoding: .utf8),
+              let labelsString = String(data: labelsData, encoding: .utf8) else {
+            throw DatabaseError.insertError("Failed to encode recipients or labels")
+        }
+        
+        let result = databaseManager.executeQuery(
+            insertSQL,
+            parameters: [
+                content.from, // 使用from作为mail_id
+                content.body,
+                content.from,
+                content.subject,
+                recipientsString,
+                labelsString,
+                content.timestamp
+            ]
+        )
+        
+        if case .error(let error) = result {
+            Logger.error("保存邮件内容到数据库失败: \(error)")
+            throw DatabaseError.insertError(error)
+        }
+        
+        Logger.info("成功保存邮件内容到数据库 - 邮件ID: \(content.from)")
     }
     
     /// 获取邮件订阅列表
