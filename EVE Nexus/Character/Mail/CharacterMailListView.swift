@@ -264,19 +264,19 @@ struct CharacterMailListView: View {
                     NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
                         HStack(spacing: 12) {
                             // 发件人头像
-                            CharacterPortrait(characterId: mail.from, size: 40)
+                            CharacterPortrait(characterId: mail.from, size: 48)
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                // 发件人名称
-                                Text(viewModel.getSenderName(mail.from))
-                                    .font(.subheadline)
-                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
-                                
                                 // 邮件主题
                                 Text(mail.subject)
                                     .font(.headline)
                                     .foregroundColor(mail.is_read == true ? .secondary : .primary)
                                     .lineLimit(1)
+                                
+                                // 发件人名称
+                                Text(viewModel.getSenderName(mail.from))
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                                 
                                 // 时间
                                 Text(mail.timestamp.formatDate())
