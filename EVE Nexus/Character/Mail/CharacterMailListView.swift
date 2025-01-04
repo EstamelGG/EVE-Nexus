@@ -87,9 +87,14 @@ class CharacterMailListViewModel: ObservableObject {
                 
                 for row in rows {
                     Logger.debug("处理邮件记录: \(row)")
-                    guard let mailId = row["mail_id"] as? Int,
-                          let fromId = row["from_id"] as? Int,
-                          let isRead = row["is_read"] as? Int,
+                    
+                    // 转换数据类型
+                    let mailId = (row["mail_id"] as? Int64).map(Int.init) ?? (row["mail_id"] as? Int) ?? 0
+                    let fromId = (row["from_id"] as? Int64).map(Int.init) ?? (row["from_id"] as? Int) ?? 0
+                    let isRead = (row["is_read"] as? Int64).map(Int.init) ?? (row["is_read"] as? Int) ?? 0
+                    
+                    guard mailId > 0,
+                          fromId > 0,
                           let subject = row["subject"] as? String,
                           let timestamp = row["timestamp"] as? String,
                           let recipientsString = row["recipients"] as? String,
@@ -99,7 +104,10 @@ class CharacterMailListViewModel: ObservableObject {
                     }
                     
                     // 解析收件人数据
-                    let recipients = (try? JSONDecoder().decode([EVEMailRecipient].self, from: recipientsData)) ?? []
+                    guard let recipients = try? JSONDecoder().decode([EVEMailRecipient].self, from: recipientsData) else {
+                        Logger.error("解析收件人数据失败: \(recipientsString)")
+                        continue
+                    }
                     
                     let mail = EVEMail(
                         from: fromId,
