@@ -241,6 +241,37 @@ class NetworkManager: NSObject, @unchecked Sendable {
             headers: allHeaders
         )
     }
+    
+    // DELETE请求带Token的方法
+    func deleteDataWithToken(
+        from url: URL,
+        characterId: Int,
+        headers: [String: String]? = nil,
+        noRetryKeywords: [String]? = nil
+    ) async throws -> Data {
+        // 获取角色的token
+        let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
+        
+        // 创建基本请求头
+        var allHeaders: [String: String] = [
+            "Authorization": "Bearer \(token)",
+            "datasource": "tranquility",
+            "Accept": "application/json"
+        ]
+        
+        // 添加自定义请求头
+        headers?.forEach { key, value in
+            allHeaders[key] = value
+        }
+        
+        // 使用基础的 fetchData 方法发送DELETE请求
+        return try await fetchData(
+            from: url,
+            method: "DELETE",
+            headers: allHeaders,
+            noRetryKeywords: noRetryKeywords
+        )
+    }
 }
 
 // 网络错误枚举
