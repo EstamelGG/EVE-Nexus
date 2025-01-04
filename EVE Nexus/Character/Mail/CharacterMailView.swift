@@ -95,8 +95,8 @@ struct CharacterMailView: View {
                     .foregroundColor(.primary)
                     .textCase(nil)
             }
-            
-            // 邮件标签部分
+
+            // 邮件订阅列表部分
             Section {
                 if viewModel.isLoading {
                     Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
@@ -104,30 +104,29 @@ struct CharacterMailView: View {
                 } else if viewModel.error != nil {
                     Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
                         .foregroundColor(.red)
-                } else if viewModel.mailLabels.isEmpty {
-                    Text(NSLocalizedString("Main_EVE_Mail_No_Labels", comment: ""))
+                } else if viewModel.mailLists.isEmpty {
+                    Text(NSLocalizedString("Main_EVE_Mail_No_Lists", comment: ""))
                         .foregroundColor(.gray)
                 } else {
-                    ForEach(viewModel.mailLabels) { label in
+                    ForEach(viewModel.mailLists, id: \.mailing_list_id) { list in
                         NavigationLink {
-                            MailLabelDetailView(characterId: characterId, label: label, viewModel: viewModel)
+                            CharacterMailListView(
+                                characterId: characterId,
+                                labelId: list.mailing_list_id,
+                                title: list.name
+                            )
                         } label: {
                             HStack {
-                                Circle()
-                                    .fill(Color(hex: label.color ?? "#808080"))
-                                    .frame(width: 12, height: 12)
-                                Text(label.name)
-                                Spacer()
-                                if label.unreadCount > 0 {
-                                    Text("\(label.unreadCount)")
-                                        .foregroundColor(.blue)
-                                }
+                                Image(systemName: "person.3.fill")
+                                    .foregroundColor(.gray)
+                                    .frame(width: 24, height: 24)
+                                Text(list.name)
                             }
                         }
                     }
                 }
             } header: {
-                Text(NSLocalizedString("Main_EVE_Mail_Labels", comment: ""))
+                Text(NSLocalizedString("Main_EVE_Mail_Lists", comment: ""))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.primary)
                     .textCase(nil)

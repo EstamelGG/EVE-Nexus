@@ -38,6 +38,12 @@ struct EVEMailContent: Codable {
     let timestamp: String
 }
 
+// 邮件订阅列表响应模型
+struct EVEMailList: Codable {
+    let mailing_list_id: Int
+    let name: String
+}
+
 @NetworkManagerActor
 class CharacterMailAPI {
     static let shared = CharacterMailAPI()
@@ -395,6 +401,121 @@ class CharacterMailAPI {
         Logger.info("成功获取邮件内容 - 邮件ID: \(mailId)")
         
         return content
+    }
+    
+    /// 获取邮件订阅列表
+    /// - Parameter characterId: 角色ID
+    /// - Returns: 邮件订阅列表数组
+    func fetchMailLists(characterId: Int) async throws -> [EVEMailList] {
+        Logger.info("开始获取邮件订阅列表 - 角色ID: \(characterId)")
+        
+        // 构建请求URL
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/lists/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 发送请求获取数据
+        let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
+        
+        // 解析响应数据
+        let mailLists = try JSONDecoder().decode([EVEMailList].self, from: data)
+        Logger.info("成功获取 \(mailLists.count) 个邮件订阅列表")
+        
+        // 在后台保存到数据库
+        if !mailLists.isEmpty {
+            Task.detached {
+                do {
+                    try await self.saveMailLists(mailLists, for: characterId)
+                    Logger.info("成功保存邮件订阅列表到数据库")
+                } catch {
+                    Logger.error("保存邮件订阅列表失败: \(error)")
+                }
+            }
+        }
+        
+        return mailLists
+    }
+    
+    /// 将邮件订阅列表保存到数据库
+    /// - Parameters:
+    ///   - mailLists: 邮件订阅列表数组
+    ///   - characterId: 角色ID
+    private func saveMailLists(_ mailLists: [EVEMailList], for characterId: Int) async throws {
+        // 构建SQL插入语句
+        let insertSQL = """
+            INSERT OR REPLACE INTO mail_lists (
+                list_id,
+                character_id,
+                name,
+                last_updated
+            ) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        """
+        
+        // 先删除该角色的旧订阅列表
+        let deleteSQL = "DELETE FROM mail_lists WHERE character_id = ?"
+        let deleteResult = databaseManager.executeQuery(deleteSQL, parameters: [characterId])
+        if case .error(let error) = deleteResult {
+            Logger.error("删除旧邮件订阅列表失败: \(error)")
+            throw DatabaseError.insertError(error)
+        }
+        
+        // 保存新的订阅列表
+        for list in mailLists {
+            let result = databaseManager.executeQuery(
+                insertSQL,
+                parameters: [
+                    list.mailing_list_id,
+                    characterId,
+                    list.name
+                ]
+            )
+            
+            if case .error(let error) = result {
+                Logger.error("保存邮件订阅列表失败: \(error)")
+                throw DatabaseError.insertError(error)
+            }
+        }
+        
+        Logger.info("成功保存 \(mailLists.count) 个邮件订阅列表到数据库")
+    }
+    
+    /// 从数据库获取邮件订阅列表
+    /// - Parameter characterId: 角色ID
+    /// - Returns: 邮件订阅列表数组
+    func loadMailListsFromDatabase(characterId: Int) async throws -> [EVEMailList] {
+        let query = """
+            SELECT list_id, name 
+            FROM mail_lists 
+            WHERE character_id = ? 
+            ORDER BY name
+        """
+        
+        let result = databaseManager.executeQuery(query, parameters: [characterId])
+        switch result {
+        case .success(let rows):
+            var mailLists: [EVEMailList] = []
+            
+            for row in rows {
+                guard let listId = (row["list_id"] as? Int64).map(Int.init) ?? (row["list_id"] as? Int),
+                      let name = row["name"] as? String else {
+                    continue
+                }
+                
+                let mailList = EVEMailList(
+                    mailing_list_id: listId,
+                    name: name
+                )
+                mailLists.append(mailList)
+            }
+            
+            Logger.info("从数据库加载了 \(mailLists.count) 个邮件订阅列表")
+            return mailLists
+            
+        case .error(let error):
+            Logger.error("从数据库加载邮件订阅列表失败: \(error)")
+            throw DatabaseError.fetchError(error)
+        }
     }
 }
 

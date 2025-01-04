@@ -2,13 +2,12 @@ import Foundation
 
 @MainActor
 class CharacterMailViewModel: ObservableObject {
-    @Published var mailList: [Mail] = []
     @Published var mailboxCounts: [MailboxType: Int] = [:]
-    @Published var totalMailCount: Int?
     @Published var isLoading = false
     @Published var error: Error?
     @Published var mailLabels: [MailLabel] = []
     @Published var selectedLabelMails: [Mail] = []
+    @Published var mailLists: [EVEMailList] = []
     
     // 邮件标签数据结构
     struct MailLabel: Identifiable {
@@ -16,6 +15,13 @@ class CharacterMailViewModel: ObservableObject {
         let name: String
         let color: String?
         let unreadCount: Int
+        
+        init(apiLabel: EVE_Nexus.MailLabel) {
+            self.id = apiLabel.label_id
+            self.name = apiLabel.name
+            self.color = apiLabel.color
+            self.unreadCount = apiLabel.unread_count ?? 0
+        }
     }
     
     // 获取邮件标签列表
@@ -24,10 +30,17 @@ class CharacterMailViewModel: ObservableObject {
         defer { isLoading = false }
         
         do {
-            // TODO: 实现实际的API调用
-            // 这里暂时使用模拟数据
-            mailLabels = getMockMailLabels()
+            // 获取邮件标签
+            let response = try await CharacterMailAPI.shared.fetchMailLabels(characterId: characterId)
+            self.mailLabels = response.labels.map { MailLabel(apiLabel: $0) }
+            
+            // 获取邮件订阅列表
+            let lists = try await CharacterMailAPI.shared.fetchMailLists(characterId: characterId)
+            self.mailLists = lists
+            
+            Logger.info("成功获取 \(lists.count) 个邮件订阅列表")
         } catch {
+            Logger.error("获取邮件标签和订阅列表失败: \(error)")
             self.error = error
         }
     }
@@ -44,29 +57,6 @@ class CharacterMailViewModel: ObservableObject {
         } catch {
             self.error = error
         }
-    }
-    
-    // 更新邮箱计数
-    private func updateMailboxCounts() {
-        // 模拟数据
-        mailboxCounts = [
-            .inbox: 5,
-            .sent: 3,
-            .corporation: 2,
-            .alliance: 1,
-            .spam: 0
-        ]
-        
-        totalMailCount = mailList.count
-    }
-    
-    // 获取模拟邮件标签数据
-    private func getMockMailLabels() -> [MailLabel] {
-        return [
-            MailLabel(id: 1, name: "重要", color: "#FF0000", unreadCount: 3),
-            MailLabel(id: 2, name: "军团事务", color: "#0000FF", unreadCount: 2),
-            MailLabel(id: 3, name: "市场交易", color: "#00FF00", unreadCount: 0)
-        ]
     }
     
     // 获取模拟标签邮件数据

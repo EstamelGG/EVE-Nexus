@@ -195,6 +195,16 @@ class CharacterDatabaseManager: ObservableObject {
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
 
+            -- 邮件订阅列表
+            CREATE TABLE IF NOT EXISTS mail_lists (
+                list_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (list_id, character_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_lists_character_id ON mail_lists(character_id);
+
             -- 钱包日志表
             CREATE TABLE IF NOT EXISTS wallet_journal (
                 id INTEGER,
