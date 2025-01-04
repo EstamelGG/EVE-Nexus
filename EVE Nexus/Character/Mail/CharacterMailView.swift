@@ -13,7 +13,8 @@ struct CharacterMailView: View {
                 } label: {
                     HStack {
                         Image(systemName: "envelope.fill")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.gray)
+                            .frame(width: 24, height: 24)
                         Text(NSLocalizedString("Main_EVE_Mail_All", comment: ""))
                         Spacer()
                         if let totalCount = viewModel.totalMailCount {
@@ -31,8 +32,28 @@ struct CharacterMailView: View {
                         Text("\(mailbox.title)视图") // 待实现
                     } label: {
                         HStack {
-                            Image(systemName: mailbox.iconName)
-                                .foregroundColor(mailbox.iconColor)
+                            switch mailbox {
+                            case .inbox:
+                                Image(systemName: "tray.and.arrow.down.fill")
+                                    .foregroundColor(.gray)
+                                    .frame(width: 24, height: 24)
+                            case .sent:
+                                Image(systemName: "tray.and.arrow.up.fill")
+                                    .foregroundColor(.gray)
+                                    .frame(width: 24, height: 24)
+                            case .corporation:
+                                Image("corporation")
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                            case .alliance:
+                                Image("alliances")
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                            case .spam:
+                                Image("reprocess")
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                            }
                             Text(mailbox.title)
                             Spacer()
                             if let count = viewModel.mailboxCounts[mailbox] {
@@ -102,26 +123,6 @@ enum MailboxType: CaseIterable {
         case .corporation: return NSLocalizedString("Main_EVE_Mail_Corporation", comment: "")
         case .alliance: return NSLocalizedString("Main_EVE_Mail_Alliance", comment: "")
         case .spam: return NSLocalizedString("Main_EVE_Mail_Spam", comment: "")
-        }
-    }
-    
-    var iconName: String {
-        switch self {
-        case .inbox: return "tray.and.arrow.down.fill"
-        case .sent: return "tray.and.arrow.up.fill"
-        case .corporation: return "building.2.fill"
-        case .alliance: return "star.fill"
-        case .spam: return "xmark.bin.fill"
-        }
-    }
-    
-    var iconColor: Color {
-        switch self {
-        case .inbox: return .blue
-        case .sent: return .green
-        case .corporation: return .orange
-        case .alliance: return .yellow
-        case .spam: return .red
         }
     }
 }
