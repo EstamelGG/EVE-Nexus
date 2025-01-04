@@ -42,8 +42,9 @@ struct CharacterMailDetailView: View {
                         .padding(.vertical, 8)
                     
                     // 邮件正文
-                    Text(LocalizedStringKey(content.body))
-                        .textSelection(.enabled)
+                    RichTextProcessor.processRichText(content.body)
+                        .font(.body)
+                        .foregroundColor(.primary)
                 }
                 .padding()
             }
