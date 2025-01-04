@@ -126,8 +126,14 @@ class CharacterMailListViewModel: ObservableObject {
     @Published var error: Error?
     @Published var isRefreshing = false
     @Published var hasMoreMails = true
+    @Published var initialLoadDone = false
     
     func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         if forceRefresh {
             isRefreshing = true
         } else {
@@ -157,6 +163,7 @@ class CharacterMailListViewModel: ObservableObject {
             
             await loadSenderNames(for: self.mails)
             hasMoreMails = !self.mails.isEmpty
+            initialLoadDone = true
             
         } catch {
             Logger.error("获取邮件失败: \(error)")
@@ -269,12 +276,88 @@ class CharacterMailListViewModel: ObservableObject {
     }
 }
 
+// 邮件列表项视图
+private struct MailListItemView: View {
+    let characterId: Int
+    let mail: EVEMail
+    let viewModel: CharacterMailListViewModel
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 发件人头像
+            CharacterPortrait(characterId: mail.from, size: 48)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                // 邮件主题
+                Text(mail.subject)
+                    .font(.headline)
+                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
+                    .lineLimit(1)
+                
+                // 发件人名称
+                Text(viewModel.getSenderName(mail.from))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                // 时间
+                Text(mail.timestamp.formatDate())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // 未读标记
+            if mail.is_read != true {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// 加载指示器视图
+private struct LoadingIndicatorView: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            VStack {
+                ProgressView()
+                Text("加载中...")
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .padding(.top, 8)
+            }
+            Spacer()
+        }
+    }
+}
+
+// 加载更多指示器视图
+private struct LoadMoreIndicatorView: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+            Text("加载更多...")
+                .foregroundColor(.secondary)
+                .font(.subheadline)
+            Spacer()
+        }
+        .padding(.vertical, 8)
+    }
+}
+
 struct CharacterMailListView: View {
     let characterId: Int
     let labelId: Int?
     let title: String
     
     @StateObject private var viewModel = CharacterMailListViewModel()
+    @Namespace private var scrollSpace
+    @State private var scrollPosition: Int?
     
     init(characterId: Int, labelId: Int? = nil, title: String? = nil) {
         self.characterId = characterId
@@ -283,85 +366,39 @@ struct CharacterMailListView: View {
     }
     
     var body: some View {
-        List {
-            if viewModel.isLoading && viewModel.mails.isEmpty {
-                HStack {
-                    Spacer()
-                    VStack {
-                        ProgressView()
-                        Text("加载中...")
-                            .foregroundColor(.secondary)
-                            .font(.subheadline)
-                            .padding(.top, 8)
-                    }
-                    Spacer()
+        ScrollViewReader { proxy in
+            List {
+                if viewModel.isLoading && viewModel.mails.isEmpty {
+                    LoadingIndicatorView()
                 }
-            }
-            
-            ForEach(viewModel.mails, id: \.mail_id) { mail in
-                NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
-                    HStack(spacing: 12) {
-                        // 发件人头像
-                        CharacterPortrait(characterId: mail.from, size: 48)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            // 邮件主题
-                            Text(mail.subject)
-                                .font(.headline)
-                                .foregroundColor(mail.is_read == true ? .secondary : .primary)
-                                .lineLimit(1)
-                            
-                            // 发件人名称
-                            Text(viewModel.getSenderName(mail.from))
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            // 时间
-                            Text(mail.timestamp.formatDate())
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 未读标记
-                        if mail.is_read != true {
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 8, height: 8)
-                        }
+                
+                ForEach(viewModel.mails, id: \.mail_id) { mail in
+                    NavigationLink(destination: CharacterMailDetailView(characterId: characterId, mail: mail)) {
+                        MailListItemView(characterId: characterId, mail: mail, viewModel: viewModel)
+                            .id(mail.mail_id)
                     }
-                    .padding(.vertical, 2)
-                }
-                // 在最后一封邮件显示时触发加载更多
-                .onAppear {
-                    if mail.mail_id == viewModel.mails.last?.mail_id {
-                        Task {
-                            await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
+                    .onAppear {
+                        if mail.mail_id == viewModel.mails.last?.mail_id {
+                            Task {
+                                await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
+                            }
                         }
+                        // 记录当前滚动位置
+                        scrollPosition = mail.mail_id
                     }
                 }
-            }
-            
-            // 加载更多指示器
-            if viewModel.isLoadingMore {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Text("加载更多...")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
-                    Spacer()
+                
+                if viewModel.isLoadingMore {
+                    LoadMoreIndicatorView()
                 }
-                .padding(.vertical, 8)
             }
-        }
-        .refreshable {
-            await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
-        }
-        .navigationTitle(title)
-        .task {
-            await viewModel.fetchMails(characterId: characterId, labelId: labelId)
+            .refreshable {
+                await viewModel.fetchMails(characterId: characterId, labelId: labelId, forceRefresh: true)
+            }
+            .navigationTitle(title)
+            .task {
+                await viewModel.fetchMails(characterId: characterId, labelId: labelId)
+            }
         }
     }
 }
