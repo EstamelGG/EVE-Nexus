@@ -559,3 +559,17 @@
 "Main_About_Privacy_Title" = "隐私声明";
 "Main_About_Privacy_Statement" = "EVE Panel 致力于保护您的隐私和数据安全：\n\n• 数据存储：所有个人数据仅存储在您的设备本地\n• ESI 授权：我们仅在获得您的明确授权后访问 EVE Online ESI API\n• 数据使用：您的游戏数据仅用于提供应用功能，不会用于其他目的\n• 第三方共享：我们不会将您的个人数据分享给任何第三方\n• 数据删除：您可以随时撤销授权并删除所有本地数据";
 "Main_About_Copyright" = "© 2025 EVE Panel. 保留所有权利。";
+
+// Mail Related
+"Main_EVE_Mail_Title" = "EVE邮件";
+"Main_EVE_Mail_All" = "全部邮件";
+"Main_EVE_Mail_Mailboxes" = "全部邮箱";
+"Main_EVE_Mail_List" = "邮件列表";
+"Main_EVE_Mail_No_Mail" = "无邮件";
+"Main_EVE_Mail_Inbox" = "收件箱";
+"Main_EVE_Mail_Sent" = "发件箱";
+"Main_EVE_Mail_Corporation" = "军团邮箱";
+"Main_EVE_Mail_Alliance" = "联盟邮箱";
+"Main_EVE_Mail_Spam" = "垃圾箱";
+"Main_EVE_Mail_Loading" = "正在加载邮件...";
+"Main_EVE_Mail_Error" = "加载邮件失败";

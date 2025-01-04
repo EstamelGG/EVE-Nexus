@@ -523,14 +523,16 @@ struct ContentView: View {
             }
             
             NavigationLink {
-                Text("EVE Mail View") // 待实现
+                if let character = viewModel.selectedCharacter {
+                    CharacterMailView(characterId: character.CharacterID)
+                }
             } label: {
                 RowView(
                     title: NSLocalizedString("Main_EVE_Mail", comment: ""),
                     icon: "evemail"
                 )
             }
-            .isHidden(true)
+            // .isHidden(true)
             
             NavigationLink {
                 Text("Calendar View") // 待实现
