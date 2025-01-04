@@ -340,23 +340,38 @@ struct CharacterMailListView: View {
                                 // 第一行：主题
                                 Text(mail.subject)
                                     .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
                                     .lineLimit(1)
                                 
-                                // 第二行：发件人和时间
-                                HStack {
+                                // 第二行：发件人
+                                HStack(spacing: 4) {
+                                    Text("From:")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.secondary)
                                     Text(viewModel.getSenderName(mail.from))
                                         .font(.system(size: 14))
-                                        .foregroundColor(.gray)
-                                    Spacer()
-                                    Text(mail.timestamp.formatDate())
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(.secondary)
                                 }
+                                
+                                // 第三行：时间
+                                Text(mail.timestamp.formatDate())
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            // 未读标记
+                            if mail.is_read != true {
+                                Circle()
+                                    .fill(.blue)
+                                    .frame(width: 8, height: 8)
                             }
                         }
-                        .contentShape(Rectangle())
+                        .padding(.vertical, 4)
+                        .frame(height: 50)
                         .onAppear {
-                            // 当显示最后一封邮件时，加载更多
+                            // 如果这是最后一个项目，加载更多
                             if mail.mail_id == viewModel.mails.last?.mail_id {
                                 Task {
                                     await viewModel.loadMoreMails(characterId: characterId, labelId: labelId)
@@ -364,9 +379,19 @@ struct CharacterMailListView: View {
                             }
                         }
                     }
+                    
+                    if viewModel.isLoadingMore {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                        .padding()
+                    }
                 }
             }
         }
+        .navigationBarTitle("\(title)(\(viewModel.mails.count))", displayMode: .inline)
         .task {
             Logger.info("CharacterMailListView appeared")
             Task {
