@@ -22,11 +22,11 @@ struct CharacterMailView: View {
                             .foregroundColor(.gray)
                             .frame(width: 24, height: 24)
                         Text(NSLocalizedString("Main_EVE_Mail_All", comment: ""))
-                        Spacer()
-                        if let totalUnread = totalUnread {
-                            Text("\(totalUnread)")
-                                .foregroundColor(.blue)
-                        }
+//                        Spacer()
+//                        if let totalUnread = totalUnread {
+//                            Text("\(totalUnread)")
+//                                .foregroundColor(.blue)
+//                        }
                     }
                 }
             }
