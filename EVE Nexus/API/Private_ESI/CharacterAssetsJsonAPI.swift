@@ -405,17 +405,11 @@ public class CharacterAssetsJsonAPI {
         from asset: CharacterAsset,
         locationMap: [Int64: [CharacterAsset]],
         names: [Int64: String],
-        databaseManager: DatabaseManager
+        databaseManager: DatabaseManager,
+        iconMap: [Int: String]
     ) -> AssetTreeNode {
-        // 获取图标名称和物品类型名称
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-        var iconName: String? = nil
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [asset.type_id]),
-           let row = rows.first {
-            if let filename = row["icon_filename"] as? String {
-                iconName = filename.isEmpty ? DatabaseConfig.defaultItemIcon : filename
-            }
-        }
+        // 从图标映射中获取图标名称
+        let iconName = iconMap[asset.type_id] ?? DatabaseConfig.defaultItemIcon
         
         // 获取子项
         let children = locationMap[asset.item_id, default: []].map { childAsset in
@@ -423,7 +417,8 @@ public class CharacterAssetsJsonAPI {
                 from: childAsset,
                 locationMap: locationMap,
                 names: names,
-                databaseManager: databaseManager
+                databaseManager: databaseManager,
+                iconMap: iconMap
             )
         }
         
@@ -445,6 +440,29 @@ public class CharacterAssetsJsonAPI {
         )
     }
     
+    // 获取所有物品的图标信息
+    private func fetchAllItemIcons(typeIds: Set<Int>, databaseManager: DatabaseManager) -> [Int: String] {
+        // 构建查询语句
+        let query = """
+            SELECT type_id, icon_filename
+            FROM types
+            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        var iconMap: [Int: String] = [:]
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let iconFilename = row["icon_filename"] as? String {
+                    iconMap[typeId] = iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename
+                }
+            }
+        }
+        
+        return iconMap
+    }
+    
     private func generateAssetTreeJson(
         assets: [CharacterAsset],
         names: [Int64: String],
@@ -455,9 +473,11 @@ public class CharacterAssetsJsonAPI {
         // 建立 location_id 到资产列表的映射
         var locationMap: [Int64: [CharacterAsset]] = [:]
         
-        // 构建映射关系
+        // 构建映射关系并收集所有资产的 type_id
+        var allTypeIds = Set<Int>()
         for asset in assets {
             locationMap[asset.location_id, default: []].append(asset)
+            allTypeIds.insert(asset.type_id)
         }
         
         // 找出顶层位置（空间站和建筑物）
@@ -466,13 +486,33 @@ public class CharacterAssetsJsonAPI {
             topLocations.remove(asset.item_id)
         }
         
+        // 获取建筑物的 type_id
+        for locationId in topLocations {
+            if let items = locationMap[locationId] {
+                let locationType = items.first?.location_type ?? "unknown"
+                let info = try await fetchLocationInfo(
+                    locationId: locationId,
+                    locationType: locationType,
+                    characterId: characterId,
+                    databaseManager: databaseManager
+                )
+                if let typeId = info.typeId {
+                    allTypeIds.insert(typeId)
+                }
+            }
+        }
+        
+        // 一次性获取所有物品的图标信息（包括建筑物）
+        let iconMap = fetchAllItemIcons(typeIds: allTypeIds, databaseManager: databaseManager)
+        
         // 创建初始的根节点
         var rootNodes = try await createInitialRootNodes(
             topLocations: topLocations,
             locationMap: locationMap,
             characterId: characterId,
             databaseManager: databaseManager,
-            names: names
+            names: names,
+            iconMap: iconMap
         )
         
         // 收集所有容器的ID
@@ -496,7 +536,8 @@ public class CharacterAssetsJsonAPI {
             locationMap: locationMap,
             characterId: characterId,
             databaseManager: databaseManager,
-            names: allNames
+            names: allNames,
+            iconMap: iconMap
         )
         
         // 转换为JSON
@@ -585,7 +626,8 @@ public class CharacterAssetsJsonAPI {
         locationMap: [Int64: [CharacterAsset]],
         characterId: Int,
         databaseManager: DatabaseManager,
-        names: [Int64: String] = [:]
+        names: [Int64: String] = [:],
+        iconMap: [Int: String]
     ) async throws -> [AssetTreeNode] {
         var rootNodes: [AssetTreeNode] = []
         let concurrentLimit = 5 // 并发数量限制
@@ -628,7 +670,7 @@ public class CharacterAssetsJsonAPI {
                         (locationName, typeId, systemId, systemName, regionName, securityStatus) = info
                         
                         if let tid = typeId {
-                            iconName = self.getStationIcon(typeId: tid, databaseManager: databaseManager)
+                            iconName = iconMap[tid] ?? DatabaseConfig.defaultItemIcon
                         }
                         
                         return (locationId, locationName, iconName, typeId, systemId, systemName, regionName, securityStatus)
@@ -654,7 +696,7 @@ public class CharacterAssetsJsonAPI {
                             system_name: systemName,
                             region_name: regionName,
                             security_status: securityStatus,
-                            items: items.map { buildTreeNode(from: $0, locationMap: locationMap, names: names, databaseManager: databaseManager) }
+                            items: items.map { buildTreeNode(from: $0, locationMap: locationMap, names: names, databaseManager: databaseManager, iconMap: iconMap) }
                         )
                         rootNodes.append(locationNode)
                     }
