@@ -226,7 +226,7 @@ class CharacterMailAPI {
             Task.detached {
                 do {
                     try await self.saveMails(mails, for: characterId)
-                    Logger.info("成功在后台保存 \(mails.count) 封邮件到数据库")
+                    Logger.info("成功在后台处理 \(mails.count) 封邮件到数据库")
                 } catch {
                     Logger.error("后台保存邮件失败: \(error)")
                 }
@@ -318,9 +318,42 @@ class CharacterMailAPI {
     ///   - mails: 邮件数组
     ///   - characterId: 角色ID
     private func saveMails(_ mails: [EVEMail], for characterId: Int) async throws {
-        // 构建SQL插入语句
+        guard !mails.isEmpty else { return }
+        
+        // 构建批量查询SQL
+        let mailIds = mails.map { String($0.mail_id) }.joined(separator: ",")
+        let checkExistSQL = """
+            SELECT mail_id FROM mailbox 
+            WHERE mail_id IN (\(mailIds)) AND character_id = ?
+        """
+        
+        // 批量查询已存在的邮件
+        let existResult = databaseManager.executeQuery(checkExistSQL, parameters: [characterId])
+        var existingMailIds: Set<Int> = []
+        
+        switch existResult {
+        case .success(let rows):
+            existingMailIds = Set(rows.compactMap { 
+                ($0["mail_id"] as? Int64).map(Int.init) ?? ($0["mail_id"] as? Int)
+            })
+            Logger.info("找到 \(existingMailIds.count) 封已存在的邮件")
+            
+        case .error(let error):
+            Logger.error("批量查询邮件是否存在时发生错误: \(error)")
+            throw DatabaseError.insertError(error)
+        }
+        
+        // 过滤出需要插入的新邮件
+        let newMails = mails.filter { !existingMailIds.contains($0.mail_id) }
+        guard !newMails.isEmpty else {
+            Logger.info("没有需要插入的新邮件")
+            return
+        }
+        
+        // 构建批量插入SQL
+        let valuePlaceholders = newMails.map { _ in "(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)" }.joined(separator: ",")
         let insertMailSQL = """
-            INSERT OR REPLACE INTO mailbox (
+            INSERT INTO mailbox (
                 mail_id,
                 character_id,
                 from_id,
@@ -329,68 +362,79 @@ class CharacterMailAPI {
                 recipients,
                 timestamp,
                 last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES \(valuePlaceholders)
         """
         
-        let insertLabelSQL = """
-            INSERT OR REPLACE INTO mail_labels (
-                mail_id,
-                label_id
-            ) VALUES (?, ?)
-        """
+        // 准备批量插入的参数
+        var insertParameters: [Any] = []
+        var mailLabels: [(mailId: Int, labels: [Int])] = []
         
-        for mail in mails {
-            Logger.info("开始处理邮件 - ID: \(mail.mail_id), 标签: \(mail.labels)")
-            
-            // 将recipients转换为JSON字符串
+        for mail in newMails {
             let recipientsData = try JSONEncoder().encode(mail.recipients)
             guard let recipientsString = String(data: recipientsData, encoding: .utf8) else {
-                Logger.error("无法编码收件人数据")
+                Logger.error("无法编码收件人数据 - 邮件ID: \(mail.mail_id)")
                 continue
             }
             
-            // 执行邮件插入操作
-            let result = databaseManager.executeQuery(
-                insertMailSQL,
-                parameters: [
-                    mail.mail_id,
-                    characterId,
-                    mail.from,
-                    mail.is_read == true ? 1 : 0,
-                    mail.subject,
-                    recipientsString,
-                    mail.timestamp
-                ]
-            )
+            insertParameters.append(contentsOf: [
+                mail.mail_id,
+                characterId,
+                mail.from,
+                mail.is_read == true ? 1 : 0,
+                mail.subject,
+                recipientsString,
+                mail.timestamp
+            ])
             
-            switch result {
-            case .success:
-                Logger.info("成功保存邮件基本信息 - ID: \(mail.mail_id)")
+            if !mail.labels.isEmpty {
+                mailLabels.append((mailId: mail.mail_id, labels: mail.labels))
+            }
+        }
+        
+        // 执行批量插入
+        let result = databaseManager.executeQuery(insertMailSQL, parameters: insertParameters)
+        switch result {
+        case .success:
+            Logger.info("成功批量插入 \(newMails.count) 封新邮件")
+            
+            // 批量处理标签
+            if !mailLabels.isEmpty {
+                // 构建批量删除旧标签SQL
+                let mailIdsForLabels = mailLabels.map { String($0.mailId) }.joined(separator: ",")
+                let deleteLabelSQL = "DELETE FROM mail_labels WHERE mail_id IN (\(mailIdsForLabels))"
                 
-                // 先删除旧的标签关系
-                let deleteLabelSQL = "DELETE FROM mail_labels WHERE mail_id = ?"
-                let deleteResult = databaseManager.executeQuery(deleteLabelSQL, parameters: [mail.mail_id])
+                let deleteResult = databaseManager.executeQuery(deleteLabelSQL)
                 if case .error(let error) = deleteResult {
-                    Logger.error("删除旧邮件标签失败: \(error)")
+                    Logger.error("批量删除旧邮件标签失败: \(error)")
                 }
                 
-                // 保存新的标签关系
-                for labelId in mail.labels {
-                    let labelResult = databaseManager.executeQuery(
-                        insertLabelSQL,
-                        parameters: [mail.mail_id, labelId]
-                    )
-                    if case .error(let error) = labelResult {
-                        Logger.error("保存邮件标签失败: \(error)")
-                    } else {
-                        Logger.info("成功保存邮件标签 - 邮件ID: \(mail.mail_id), 标签ID: \(labelId)")
+                // 构建批量插入标签SQL
+                var labelValuePlaceholders: [String] = []
+                var labelParameters: [Any] = []
+                
+                for mailLabel in mailLabels {
+                    for labelId in mailLabel.labels {
+                        labelValuePlaceholders.append("(?, ?)")
+                        labelParameters.append(contentsOf: [mailLabel.mailId, labelId])
                     }
                 }
                 
-            case .error(let error):
-                Logger.error("保存邮件失败: \(error)")
-                throw DatabaseError.insertError(error)
+                let insertLabelSQL = """
+                    INSERT OR REPLACE INTO mail_labels (mail_id, label_id)
+                    VALUES \(labelValuePlaceholders.joined(separator: ","))
+                """
+                
+                let labelResult = databaseManager.executeQuery(insertLabelSQL, parameters: labelParameters)
+                if case .error(let error) = labelResult {
+                    Logger.error("批量保存邮件标签失败: \(error)")
+                } else {
+                    Logger.info("成功批量保存邮件标签")
+                }
             }
+            
+        case .error(let error):
+            Logger.error("批量保存邮件失败: \(error)")
+            throw DatabaseError.insertError(error)
         }
     }
     
@@ -516,40 +560,6 @@ class CharacterMailAPI {
         }
         
         Logger.info("成功保存邮件内容到数据库 - 邮件ID: \(content.from)")
-    }
-    
-    /// 获取邮件订阅列表
-    /// - Parameter characterId: 角色ID
-    /// - Returns: 邮件订阅列表数组
-    func fetchMailLists(characterId: Int) async throws -> [EVEMailList] {
-        Logger.info("开始获取邮件订阅列表 - 角色ID: \(characterId)")
-        
-        // 构建请求URL
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/lists/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        // 发送请求获取数据
-        let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
-        
-        // 解析响应数据
-        let mailLists = try JSONDecoder().decode([EVEMailList].self, from: data)
-        Logger.info("成功获取 \(mailLists.count) 个邮件订阅列表")
-        
-        // 在后台保存到数据库
-        if !mailLists.isEmpty {
-            Task.detached {
-                do {
-                    try await self.saveMailLists(mailLists, for: characterId)
-                    Logger.info("成功保存邮件订阅列表到数据库")
-                } catch {
-                    Logger.error("保存邮件订阅列表失败: \(error)")
-                }
-            }
-        }
-        
-        return mailLists
     }
     
     /// 将邮件订阅列表保存到数据库
