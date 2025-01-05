@@ -620,3 +620,8 @@
 "Main_EVE_Mail_Recipient_Corporation" = "Corporation";
 "Main_EVE_Mail_Recipient_Alliance" = "Alliance";
 "Main_EVE_Mail_Recipient_Mailing_List" = "Mailing List";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "Quick Select";
+"Main_EVE_Mail_Searching" = "Searching...";
+"Main_EVE_Mail_Search_Failed" = "Search Failed";

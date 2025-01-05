@@ -617,3 +617,8 @@
 "Main_EVE_Mail_Recipient_Corporation" = "军团";
 "Main_EVE_Mail_Recipient_Alliance" = "联盟";
 "Main_EVE_Mail_Recipient_Mailing_List" = "邮件列表";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "快速选择";
+"Main_EVE_Mail_Searching" = "搜索中...";
+"Main_EVE_Mail_Search_Failed" = "搜索失败";

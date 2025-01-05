@@ -177,58 +177,60 @@ struct RecipientPickerView: View {
     var body: some View {
         NavigationView {
             List {
-                if viewModel.isSearching {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Text("搜索中...")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                } else if viewModel.error != nil {
-                    HStack {
-                        Spacer()
-                        VStack {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.largeTitle)
-                                .foregroundColor(.red)
-                            Text("搜索失败:\(String(describing: viewModel.error))")
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                    }
-                } else if searchText.isEmpty {
-                    Text("")
-                        .foregroundColor(.secondary)
-                } else if searchText.count <= 2 {
-                    Text(NSLocalizedString("Main_EVE_Mail_Min_Search_Length", comment: ""))
-                        .foregroundColor(.secondary)
-                } else if viewModel.searchResults.isEmpty {
-                    Text(NSLocalizedString("Main_EVE_Mail_No_Results", comment: ""))
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(viewModel.searchResults) { result in
-                        Button {
-                            onSelect(MailRecipient(id: result.id, name: result.name, type: result.type))
-                            dismiss()
-                        } label: {
-                            HStack {
-                                UniversePortrait(id: result.id, type: result.type, size: 32)
-                                VStack(alignment: .leading) {
-                                    Text(result.name)
-                                    Text(result.type.rawValue)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                if searchText.isEmpty {
+                    // 快速选择部分
+                    Section(header: Text(NSLocalizedString("Main_EVE_Mail_Quick_Select", comment: ""))) {
+                        if viewModel.isLoadingQuickSelect {
+                            ProgressView()
+                        } else {
+                            // 我的军团
+                            if let corp = viewModel.myCorporation {
+                                QuickSelectRow(recipient: corp, onSelect: onSelect, dismiss: dismiss)
+                            }
+                            
+                            // 最近的收件人
+                            ForEach(viewModel.recentRecipients) { recipient in
+                                QuickSelectRow(recipient: recipient, onSelect: onSelect, dismiss: dismiss)
                             }
                         }
-                        .foregroundColor(.primary)
+                    }
+                } else {
+                    // 搜索结果部分
+                    if viewModel.isSearching {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Text(NSLocalizedString("Main_EVE_Mail_Searching", comment: ""))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else if viewModel.error != nil {
+                        HStack {
+                            Spacer()
+                            VStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.red)
+                                Text(NSLocalizedString("Main_EVE_Mail_Search_Failed", comment: ""))
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                    } else if searchText.count <= 2 {
+                        Text(NSLocalizedString("Main_EVE_Mail_Min_Search_Length", comment: ""))
+                            .foregroundColor(.secondary)
+                    } else if viewModel.searchResults.isEmpty {
+                        Text(NSLocalizedString("Main_EVE_Mail_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(viewModel.searchResults) { result in
+                            QuickSelectRow(recipient: result, onSelect: onSelect, dismiss: dismiss)
+                        }
                     }
                 }
             }
             .searchable(text: $searchText, prompt: NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: ""))
             .onChange(of: searchText) { _, _ in
-                // 如果搜索文本为空或长度小于等于2，直接清空结果
                 if searchText.isEmpty || searchText.count <= 2 {
                     viewModel.searchResults = []
                     if !searchText.isEmpty {
@@ -236,7 +238,6 @@ struct RecipientPickerView: View {
                         viewModel.isSearching = false
                     }
                 } else {
-                    // 使用防抖搜索
                     viewModel.debounceSearch(characterId: characterId, searchText: searchText)
                 }
             }
@@ -250,6 +251,34 @@ struct RecipientPickerView: View {
                 }
             }
         }
+        .task {
+            await viewModel.loadQuickSelectRecipients(characterId: characterId)
+        }
+    }
+}
+
+// 快速选择行视图
+private struct QuickSelectRow: View {
+    let recipient: RecipientPickerViewModel.SearchResult
+    let onSelect: (MailRecipient) -> Void
+    let dismiss: DismissAction
+    
+    var body: some View {
+        Button {
+            onSelect(MailRecipient(id: recipient.id, name: recipient.name, type: recipient.type))
+            dismiss()
+        } label: {
+            HStack {
+                UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
+                VStack(alignment: .leading) {
+                    Text(recipient.name)
+                    Text(recipient.type.rawValue)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .foregroundColor(.primary)
     }
 }
 
@@ -355,6 +384,11 @@ class RecipientPickerViewModel: ObservableObject {
     @Published var isSearching = false
     @Published var error: Error?
     
+    // 快速选择相关
+    @Published var isLoadingQuickSelect = false
+    @Published var myCorporation: SearchResult?
+    @Published var recentRecipients: [SearchResult] = []
+    
     // 用于防抖的任务
     private var searchTask: Task<Void, Never>?
     
@@ -362,6 +396,92 @@ class RecipientPickerViewModel: ObservableObject {
         let id: Int
         let name: String
         let type: MailRecipient.RecipientType
+    }
+    
+    // 加载快速选择收件人
+    func loadQuickSelectRecipients(characterId: Int) async {
+        isLoadingQuickSelect = true
+        defer { isLoadingQuickSelect = false }
+        
+        do {
+            // 获取最近的邮件
+            let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
+            
+            // 创建一个字典来存储每个联系人的最近邮件时间
+            var recipientLastContact: [Int: Date] = [:]
+            
+            // 收集联系人ID和他们最近的联系时间
+            for mail in recentMails {
+                guard let mailDate = mail.timestamp.toDate() else { continue }
+                
+                // 处理发件人
+                if mail.from != characterId {
+                    // 如果这个联系人还没有记录时间，或者这个邮件更新，更新时间
+                    if recipientLastContact[mail.from] == nil || mailDate > recipientLastContact[mail.from]! {
+                        recipientLastContact[mail.from] = mailDate
+                    }
+                }
+                
+                // 处理收件人
+                for recipient in mail.recipients where recipient.recipient_type != "mailing_list" {
+                    let id = recipient.recipient_id
+                    if id != characterId {
+                        if recipientLastContact[id] == nil || mailDate > recipientLastContact[id]! {
+                            recipientLastContact[id] = mailDate
+                        }
+                    }
+                }
+            }
+            
+            // 将联系人按最近联系时间排序
+            let sortedRecipients = recipientLastContact.sorted { $0.value > $1.value }
+            
+            // 获取前10个联系人的ID
+            let topRecipientIds = sortedRecipients.prefix(10).map { $0.key }
+            
+            // 获取这些ID的名称信息
+            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(topRecipientIds))
+            
+            // 转换为SearchResult数组，保持时间排序
+            recentRecipients = topRecipientIds.compactMap { id in
+                guard let info = names[id] else { return nil }
+                return SearchResult(
+                    id: id,
+                    name: info.name,
+                    type: info.category == "character" ? .character :
+                          info.category == "corporation" ? .corporation : .alliance
+                )
+            }
+            
+            // 获取角色所在的军团（如果有）
+            let data = try await CharacterSearchAPI.shared.search(
+                characterId: characterId,
+                categories: [.character],
+                searchText: String(characterId)
+            )
+            
+            let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
+            if let characters = searchResponse.character,
+               let characterInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)[characterId] {
+                let corpData = try await CharacterSearchAPI.shared.search(
+                    characterId: characterId,
+                    categories: [.corporation],
+                    searchText: characterInfo.name
+                )
+                
+                let corpResponse = try JSONDecoder().decode(SearchResponse.self, from: corpData)
+                if let corporations = corpResponse.corporation,
+                   !corporations.isEmpty {
+                    let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
+                    if let firstCorp = corpNames.first {
+                        myCorporation = SearchResult(id: firstCorp.key, name: firstCorp.value.name, type: .corporation)
+                    }
+                }
+            }
+            
+        } catch {
+            Logger.error("加载快速选择收件人失败: \(error)")
+        }
     }
     
     func debounceSearch(characterId: Int, searchText: String) {
@@ -494,5 +614,16 @@ class CharacterComposeMailViewModel: ObservableObject {
             Logger.error("发送邮件失败: \(error)")
             self.error = error
         }
+    }
+}
+
+// 日期转换扩展
+extension String {
+    func toDate() -> Date? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        dateFormatter.timeZone = TimeZone(identifier: "UTC")
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        return dateFormatter.date(from: self)
     }
 } 
