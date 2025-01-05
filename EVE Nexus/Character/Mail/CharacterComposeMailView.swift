@@ -2,6 +2,10 @@ import SwiftUI
 
 struct CharacterComposeMailView: View {
     let characterId: Int
+    let initialRecipients: [MailRecipient]
+    let initialSubject: String
+    let initialBody: String
+    
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CharacterComposeMailViewModel()
     
@@ -10,6 +14,23 @@ struct CharacterComposeMailView: View {
     @State private var mailBody: String = ""
     @State private var showingRecipientPicker = false
     @State private var showingMailListPicker = false
+    
+    init(
+        characterId: Int,
+        initialRecipients: [MailRecipient] = [],
+        initialSubject: String = "",
+        initialBody: String = ""
+    ) {
+        self.characterId = characterId
+        self.initialRecipients = initialRecipients
+        self.initialSubject = initialSubject
+        self.initialBody = initialBody
+        
+        // 初始化状态变量
+        _recipients = State(initialValue: initialRecipients)
+        _subject = State(initialValue: initialSubject)
+        _mailBody = State(initialValue: initialBody)
+    }
     
     var body: some View {
         Form {
