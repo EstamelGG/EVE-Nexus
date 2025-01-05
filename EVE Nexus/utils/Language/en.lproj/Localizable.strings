@@ -577,4 +577,46 @@
 "Main_EVE_Mail_Loading" = "Loading mails...";
 "Main_EVE_Mail_Error" = "Failed to load mails";
 
-"Main_EVE_Mail_Lists" = "Mail list";
+"Main_EVE_Mail_Lists" = "Mail Lists";
+"Main_EVE_Mail_List_Name" = "List Name";
+"Main_EVE_Mail_List_Members" = "Member Count";
+"Main_EVE_Mail_List_No_Lists" = "No mailing lists subscribed";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "New Mail";
+"Main_EVE_Mail_Recipients" = "Recipients";
+"Main_EVE_Mail_Add_Recipient" = "Add Recipient";
+"Main_EVE_Mail_Add_Mailing_List" = "Add Mailing List";
+"Main_EVE_Mail_Subject" = "Subject";
+"Main_EVE_Mail_Body" = "Body";
+"Main_EVE_Mail_Send" = "Send";
+"Main_EVE_Mail_Cancel" = "Cancel";
+"Main_EVE_Mail_Search_Recipients" = "Search characters, corporations or alliances";
+"Main_EVE_Mail_Min_Search_Length" = "Please enter at least 3 characters";
+"Main_EVE_Mail_No_Results" = "No results found";
+"Main_EVE_Mail_Select_Mailing_List" = "Select Mailing List";
+"Main_EVE_Mail_No_Mailing_Lists" = "No mailing lists subscribed";
+"Main_EVE_Mail_Done" = "Done";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "Reply";
+"Main_EVE_Mail_Reply_All" = "Reply All";
+"Main_EVE_Mail_Forward" = "Forward";
+"Main_EVE_Mail_From" = "From: ";
+"Main_EVE_Mail_To" = "To: ";
+"Main_EVE_Mail_Unknown_Recipient" = "Unknown Recipient";
+"Main_EVE_Mail_Unknown_Sender" = "Unknown Sender";
+"Main_EVE_Mail_Load_Failed" = "Failed to load mail content";
+"Main_EVE_Mail_Original_Message" = "-------- Original Message --------";
+"Main_EVE_Mail_Wrote" = "On %@ %@ wrote:";
+"Main_EVE_Mail_Forward_Header" = "-------- Forwarded Message --------";
+"Main_EVE_Mail_Forward_From" = "From: %@";
+"Main_EVE_Mail_Forward_Date" = "Date: %@";
+"Main_EVE_Mail_Forward_Subject" = "Subject: %@";
+"Main_EVE_Mail_Forward_To" = "To: %@";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "Character";
+"Main_EVE_Mail_Recipient_Corporation" = "Corporation";
+"Main_EVE_Mail_Recipient_Alliance" = "Alliance";
+"Main_EVE_Mail_Recipient_Mailing_List" = "Mailing List";

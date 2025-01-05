@@ -561,17 +561,59 @@
 "Main_About_Copyright" = "© 2025 EVE Panel. 保留所有权利。";
 
 // Mail Related
-"Main_EVE_Mail_Title" = "EVE邮件";
+"Main_EVE_Mail_Title" = "EVE 邮件";
 "Main_EVE_Mail_All" = "全部邮件";
-"Main_EVE_Mail_Mailboxes" = "全部邮箱";
+"Main_EVE_Mail_Mailboxes" = "所有邮箱";
 "Main_EVE_Mail_List" = "邮件列表";
-"Main_EVE_Mail_No_Mail" = "无邮件";
+"Main_EVE_Mail_No_Mail" = "没有邮件";
 "Main_EVE_Mail_Inbox" = "收件箱";
-"Main_EVE_Mail_Sent" = "发件箱";
-"Main_EVE_Mail_Corporation" = "军团邮箱";
-"Main_EVE_Mail_Alliance" = "联盟邮箱";
-"Main_EVE_Mail_Spam" = "垃圾箱";
+"Main_EVE_Mail_Sent" = "已发送";
+"Main_EVE_Mail_Corporation" = "军团邮件";
+"Main_EVE_Mail_Alliance" = "联盟邮件";
+"Main_EVE_Mail_Spam" = "垃圾邮件";
 "Main_EVE_Mail_Loading" = "正在加载邮件...";
 "Main_EVE_Mail_Error" = "加载邮件失败";
 
 "Main_EVE_Mail_Lists" = "邮件列表";
+"Main_EVE_Mail_List_Name" = "列表名称";
+"Main_EVE_Mail_List_Members" = "成员数量";
+"Main_EVE_Mail_List_No_Lists" = "没有可用的邮件列表";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "新邮件";
+"Main_EVE_Mail_Recipients" = "收件人";
+"Main_EVE_Mail_Add_Recipient" = "添加收件人";
+"Main_EVE_Mail_Add_Mailing_List" = "添加邮件列表";
+"Main_EVE_Mail_Subject" = "主题";
+"Main_EVE_Mail_Body" = "正文";
+"Main_EVE_Mail_Send" = "发送";
+"Main_EVE_Mail_Cancel" = "取消";
+"Main_EVE_Mail_Search_Recipients" = "搜索角色、军团或联盟";
+"Main_EVE_Mail_Min_Search_Length" = "请至少输入3个字符";
+"Main_EVE_Mail_No_Results" = "未找到相关结果";
+"Main_EVE_Mail_Select_Mailing_List" = "选择邮件列表";
+"Main_EVE_Mail_No_Mailing_Lists" = "没有订阅的邮件列表";
+"Main_EVE_Mail_Done" = "完成";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "回复";
+"Main_EVE_Mail_Reply_All" = "回复全体";
+"Main_EVE_Mail_Forward" = "转发";
+"Main_EVE_Mail_From" = "发件人：";
+"Main_EVE_Mail_To" = "收件人：";
+"Main_EVE_Mail_Unknown_Recipient" = "未知收件人";
+"Main_EVE_Mail_Unknown_Sender" = "未知发件人";
+"Main_EVE_Mail_Load_Failed" = "加载邮件内容失败";
+"Main_EVE_Mail_Original_Message" = "-------- 原始邮件 --------";
+"Main_EVE_Mail_Wrote" = "在 %@ %@ 写道：";
+"Main_EVE_Mail_Forward_Header" = "-------- 转发的邮件 --------";
+"Main_EVE_Mail_Forward_From" = "发件人：%@";
+"Main_EVE_Mail_Forward_Date" = "日期：%@";
+"Main_EVE_Mail_Forward_Subject" = "主题：%@";
+"Main_EVE_Mail_Forward_To" = "收件人：%@";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "角色";
+"Main_EVE_Mail_Recipient_Corporation" = "军团";
+"Main_EVE_Mail_Recipient_Alliance" = "联盟";
+"Main_EVE_Mail_Recipient_Mailing_List" = "邮件列表";

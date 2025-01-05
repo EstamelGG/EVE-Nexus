@@ -21,9 +21,12 @@ struct CharacterMailDetailView: View {
         
         var title: String {
             switch self {
-            case .reply: return "回复"
-            case .replyAll: return "回复全体"
-            case .forward: return "转发"
+            case .reply:
+                return NSLocalizedString("Main_EVE_Mail_Reply", comment: "")
+            case .replyAll:
+                return NSLocalizedString("Main_EVE_Mail_Reply_All", comment: "")
+            case .forward:
+                return NSLocalizedString("Main_EVE_Mail_Forward", comment: "")
             }
         }
     }
@@ -38,7 +41,7 @@ struct CharacterMailDetailView: View {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundColor(.red)
-                    Text("加载失败")
+                    Text(NSLocalizedString("Main_EVE_Mail_Load_Failed", comment: ""))
                         .font(.headline)
                     Text(error.localizedDescription)
                         .font(.subheadline)
@@ -67,9 +70,9 @@ struct CharacterMailDetailView: View {
                         
                         // 收件人信息
                         if !detail.content.recipients.isEmpty {
-                            (Text("收件人：")
+                            (Text(NSLocalizedString("Main_EVE_Mail_To", comment: ""))
                                 .foregroundColor(.secondary) +
-                            Text(detail.content.recipients.compactMap { detail.recipientNames[$0.recipient_id] ?? "未知收件人" }.joined(separator: ", ")))
+                            Text(detail.content.recipients.compactMap { detail.recipientNames[$0.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "") }.joined(separator: ", ")))
                                 .font(.subheadline)
                         }
                         
@@ -94,7 +97,7 @@ struct CharacterMailDetailView: View {
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.left.fill")
-                        Text("回复")
+                        Text(NSLocalizedString("Main_EVE_Mail_Reply", comment: ""))
                             .font(.caption)
                     }
                 }
@@ -107,7 +110,7 @@ struct CharacterMailDetailView: View {
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.left.2.fill")
-                        Text("回复全体")
+                        Text(NSLocalizedString("Main_EVE_Mail_Reply_All", comment: ""))
                             .font(.caption)
                     }
                 }
@@ -120,7 +123,7 @@ struct CharacterMailDetailView: View {
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.forward.fill")
-                        Text("转发")
+                        Text(NSLocalizedString("Main_EVE_Mail_Forward", comment: ""))
                             .font(.caption)
                     }
                 }
@@ -178,20 +181,17 @@ struct CharacterMailDetailView: View {
     }
     
     private func getInitialBody(type: ComposeType, detail: MailDetailData) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .medium
         let dateString = mail.timestamp.formatDate()
         
         switch type {
         case .reply, .replyAll:
-            return "\n\n在 \(dateString)，\(detail.senderName) 写道：\n\n\(detail.content.body)"
+            return "\n\n" + String(format: NSLocalizedString("Main_EVE_Mail_Wrote", comment: ""), dateString, detail.senderName) + "\n\n\(detail.content.body)"
         case .forward:
-            return "\n\n-------- 转发的邮件 --------\n" +
-                   "发件人：\(detail.senderName)\n" +
-                   "日期：\(dateString)\n" +
-                   "主题：\(detail.content.subject)\n" +
-                   "收件人：\(detail.content.recipients.map { detail.recipientNames[$0.recipient_id] ?? "未知收件人" }.joined(separator: ", "))\n\n" +
+            return "\n\n" + NSLocalizedString("Main_EVE_Mail_Forward_Header", comment: "") + "\n" +
+                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_From", comment: ""), detail.senderName) + "\n" +
+                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_Date", comment: ""), dateString) + "\n" +
+                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_Subject", comment: ""), detail.content.subject) + "\n" +
+                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_To", comment: ""), detail.content.recipients.map { detail.recipientNames[$0.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "") }.joined(separator: ", ")) + "\n\n" +
                    detail.content.body
         }
     }

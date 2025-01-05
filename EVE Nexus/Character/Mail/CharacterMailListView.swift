@@ -297,7 +297,8 @@ private struct MailListItemView: View {
                     .lineLimit(1)
                 
                 // 发件人名称
-                Text("From: \(viewModel.getSenderName(mail.from))")
+                Text(NSLocalizedString("Main_EVE_Mail_From", comment: "")) +
+                Text(viewModel.getSenderName(mail.from))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
@@ -327,7 +328,7 @@ private struct LoadingIndicatorView: View {
             Spacer()
             VStack {
                 ProgressView()
-                Text("加载中...")
+                Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                     .foregroundColor(.secondary)
                     .font(.subheadline)
                     .padding(.top, 8)
@@ -343,7 +344,7 @@ private struct LoadMoreIndicatorView: View {
         HStack {
             Spacer()
             ProgressView()
-            Text("加载更多...")
+            Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                 .foregroundColor(.secondary)
                 .font(.subheadline)
             Spacer()
@@ -364,7 +365,7 @@ struct CharacterMailListView: View {
     init(characterId: Int, labelId: Int? = nil, title: String? = nil) {
         self.characterId = characterId
         self.labelId = labelId
-        self.title = title ?? "全部邮件"
+        self.title = title ?? NSLocalizedString("Main_EVE_Mail_All", comment: "")
     }
     
     var body: some View {

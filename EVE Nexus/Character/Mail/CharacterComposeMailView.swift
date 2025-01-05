@@ -63,7 +63,7 @@ struct CharacterComposeMailView: View {
                 } label: {
                     HStack {
                         Image(systemName: "plus.circle.fill")
-                        Text("添加收件人")
+                        Text(NSLocalizedString("Main_EVE_Mail_Add_Recipient", comment: ""))
                     }
                 }
                 
@@ -73,18 +73,18 @@ struct CharacterComposeMailView: View {
                 } label: {
                     HStack {
                         Image(systemName: "list.bullet.circle.fill")
-                        Text("添加邮件列表")
+                        Text(NSLocalizedString("Main_EVE_Mail_Add_Mailing_List", comment: ""))
                     }
                 }
             } header: {
-                Text("收件人")
+                Text(NSLocalizedString("Main_EVE_Mail_Recipients", comment: ""))
             }
             
             Section {
                 TextField("主题", text: $subject)
                     .textInputAutocapitalization(.none)
             } header: {
-                Text("主题")
+                Text(NSLocalizedString("Main_EVE_Mail_Subject", comment: ""))
             }
             
             Section {
@@ -92,20 +92,20 @@ struct CharacterComposeMailView: View {
                     .frame(minHeight: 200)
                     .textInputAutocapitalization(.none)
             } header: {
-                Text("正文")
+                Text(NSLocalizedString("Main_EVE_Mail_Body", comment: ""))
             }
         }
-        .navigationTitle("新邮件")
+        .navigationTitle(NSLocalizedString("Main_EVE_Mail_Add_Recipient", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button("取消") {
+                Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: "")) {
                     dismiss()
                 }
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("发送") {
+                Button(NSLocalizedString("Main_EVE_Mail_Send", comment: "")) {
                     Task {
                         await viewModel.sendMail(
                             characterId: characterId,
@@ -147,10 +147,23 @@ struct MailRecipient: Identifiable {
     let type: RecipientType
     
     enum RecipientType: String {
-        case character = "角色"
-        case corporation = "军团"
-        case alliance = "联盟"
-        case mailingList = "邮件列表"
+        case character
+        case corporation
+        case alliance
+        case mailingList
+        
+        var rawValue: String {
+            switch self {
+            case .character:
+                return NSLocalizedString("Main_EVE_Mail_Recipient_Character", comment: "")
+            case .corporation:
+                return NSLocalizedString("Main_EVE_Mail_Recipient_Corporation", comment: "")
+            case .alliance:
+                return NSLocalizedString("Main_EVE_Mail_Recipient_Alliance", comment: "")
+            case .mailingList:
+                return NSLocalizedString("Main_EVE_Mail_Recipient_Mailing_List", comment: "")
+            }
+        }
     }
 }
 
@@ -185,13 +198,13 @@ struct RecipientPickerView: View {
                         Spacer()
                     }
                 } else if searchText.isEmpty {
-                    Text("请输入要搜索的角色、军团或联盟名称")
+                    Text(NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: ""))
                         .foregroundColor(.secondary)
                 } else if searchText.count <= 2 {
-                    Text("请至少输入3个字符")
+                    Text(NSLocalizedString("Main_EVE_Mail_Min_Search_Length", comment: ""))
                         .foregroundColor(.secondary)
                 } else if viewModel.searchResults.isEmpty {
-                    Text("未找到相关结果")
+                    Text(NSLocalizedString("Main_EVE_Mail_No_Results", comment: ""))
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(viewModel.searchResults) { result in
@@ -227,11 +240,11 @@ struct RecipientPickerView: View {
                     viewModel.debounceSearch(characterId: characterId, searchText: searchText)
                 }
             }
-            .navigationTitle("添加收件人")
+            .navigationTitle(NSLocalizedString("Main_EVE_Mail_Add_Recipient", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -254,7 +267,7 @@ struct MailListPickerView: View {
                     HStack {
                         Spacer()
                         ProgressView()
-                        Text("加载中...")
+                        Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                             .foregroundColor(.secondary)
                         Spacer()
                     }
@@ -265,13 +278,13 @@ struct MailListPickerView: View {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.largeTitle)
                                 .foregroundColor(.red)
-                            Text("加载失败: \(error.localizedDescription)")
+                            Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
                     }
                 } else if viewModel.mailLists.isEmpty {
-                    Text("没有订阅的邮件列表")
+                    Text(NSLocalizedString("Main_EVE_Mail_No_Mailing_Lists", comment: ""))
                         .foregroundColor(.secondary)
                 } else {
                     ForEach(viewModel.mailLists, id: \.mailing_list_id) { mailList in
@@ -287,11 +300,11 @@ struct MailListPickerView: View {
                     }
                 }
             }
-            .navigationTitle("选择邮件列表")
+            .navigationTitle(NSLocalizedString("Main_EVE_Mail_Select_Mailing_List", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
                         dismiss()
                     }
                 }
