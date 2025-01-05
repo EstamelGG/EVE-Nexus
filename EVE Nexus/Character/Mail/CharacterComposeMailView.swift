@@ -432,7 +432,8 @@ class CharacterComposeMailViewModel: ObservableObject {
             let recipientsList = recipients.map { recipient in
                 EVEMailRecipient(
                     recipient_id: recipient.id,
-                    recipient_type: recipient.type == .character ? "character" :
+                    recipient_type: recipient.type == .mailingList ? "mailing_list" :
+                                  recipient.type == .character ? "character" :
                                   recipient.type == .corporation ? "corporation" : "alliance"
                 )
             }
