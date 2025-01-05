@@ -1,22 +1,5 @@
 import SwiftUI
 
-// 添加关闭键盘的 ViewModifier
-struct DismissKeyboardOnTap: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .onTapGesture {
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            }
-    }
-}
-
-// 扩展 View 以便更方便地使用这个 modifier
-extension View {
-    func dismissKeyboardOnTap() -> some View {
-        modifier(DismissKeyboardOnTap())
-    }
-}
-
 struct CharacterComposeMailView: View {
     let characterId: Int
     @Environment(\.dismiss) private var dismiss
@@ -78,7 +61,6 @@ struct CharacterComposeMailView: View {
                 Text("正文")
             }
         }
-        .dismissKeyboardOnTap()
         .navigationTitle("新邮件")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
