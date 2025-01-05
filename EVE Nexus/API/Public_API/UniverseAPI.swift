@@ -127,6 +127,7 @@ class UniverseAPI {
     /// - Returns: ID到名称和类型的映射
     func getNamesWithFallback(ids: [Int]) async throws -> [Int: (name: String, category: String)] {
         // 首先从数据库获取所有可用的名称
+        Logger.debug("Fetch from DB. \(ids)")
         var namesMap = try await getNamesFromDatabase(ids: ids)
         
         // 找出数据库中不存在的ID
@@ -134,6 +135,7 @@ class UniverseAPI {
         
         // 如果有缺失的ID，从API获取
         if !missingIds.isEmpty {
+            Logger.debug("Fetch from api. \(missingIds)")
             let result = try await fetchAndSaveNames(ids: missingIds)
             if result > 0 {
                 // 获取新保存的数据
@@ -141,6 +143,8 @@ class UniverseAPI {
                 // 合并结果
                 namesMap.merge(newNames) { current, _ in current }
             }
+        } else {
+            Logger.debug("All found in DB.")
         }
         
         return namesMap
