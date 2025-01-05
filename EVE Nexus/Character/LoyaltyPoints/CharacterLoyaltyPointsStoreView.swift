@@ -4,6 +4,7 @@ struct CharacterLoyaltyPointsStoreView: View {
     @State private var factions: [Faction] = []
     @State private var isLoading = true
     @State private var error: Error?
+    @State private var hasLoadedData = false
     
     var body: some View {
         List {
@@ -45,11 +46,17 @@ struct CharacterLoyaltyPointsStoreView: View {
         }
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))
         .onAppear {
-            loadFactions()
+            if !hasLoadedData {
+                loadFactions()
+            }
         }
     }
     
     private func loadFactions() {
+        if hasLoadedData {
+            return
+        }
+        
         isLoading = true
         error = nil
         
@@ -62,6 +69,7 @@ struct CharacterLoyaltyPointsStoreView: View {
         case .success(let rows):
             factions = rows.compactMap { Faction(from: $0) }
             isLoading = false
+            hasLoadedData = true
         case .error(let errorMessage):
             error = NSError(domain: "com.eve.nexus", 
                           code: -1, 

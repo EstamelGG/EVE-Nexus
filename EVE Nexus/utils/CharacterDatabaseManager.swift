@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import SQLite3
 
-class CharacterDatabaseManager: ObservableObject {
+class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     static let shared = CharacterDatabaseManager()
     @Published var databaseUpdated = false
     private var db: OpaquePointer?
@@ -159,6 +159,45 @@ class CharacterDatabaseManager: ObservableObject {
                 last_update INTEGER
             );
             
+            -- 邮箱表
+            CREATE TABLE IF NOT EXISTS mailbox (
+                mail_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
+                from_id INTEGER NOT NULL,
+                is_read BOOLEAN NOT NULL DEFAULT 0,
+                subject TEXT NOT NULL,
+                recipients TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (mail_id, character_id)
+            );
+
+            -- 邮件内容表
+            CREATE TABLE IF NOT EXISTS mail_content (
+                mail_id INTEGER PRIMARY KEY,
+                body TEXT NOT NULL,
+                from_id INTEGER NOT NULL,
+                subject TEXT NOT NULL,
+                recipients TEXT NOT NULL,
+                labels TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_content_from_id ON mail_content(from_id);
+
+            -- 邮件标签关系表
+            CREATE TABLE IF NOT EXISTS mail_labels (
+                mail_id INTEGER NOT NULL,
+                label_id INTEGER NOT NULL,
+                PRIMARY KEY (mail_id, label_id),
+                FOREIGN KEY (mail_id) REFERENCES mailbox(mail_id)
+            );
+
+            -- 创建邮箱相关索引
+            CREATE INDEX IF NOT EXISTS idx_mailbox_character_id ON mailbox(character_id);
+            CREATE INDEX IF NOT EXISTS idx_mailbox_timestamp ON mailbox(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_mailbox_from_id ON mailbox(from_id);
+            CREATE INDEX IF NOT EXISTS idx_mail_labels_label_id ON mail_labels(label_id);
+            
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
                 id INTEGER NOT NULL,
@@ -167,7 +206,17 @@ class CharacterDatabaseManager: ObservableObject {
                 PRIMARY KEY (id)
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
-
+        
+            -- 邮件订阅列表
+            CREATE TABLE IF NOT EXISTS mail_lists (
+                list_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (list_id, character_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_lists_character_id ON mail_lists(character_id);
+        
             -- 钱包日志表
             CREATE TABLE IF NOT EXISTS wallet_journal (
                 id INTEGER,
@@ -561,6 +610,40 @@ class CharacterDatabaseManager: ObservableObject {
         case .error(let error):
             Logger.error("删除合同物品失败 - 合同ID: \(contractId), 错误: \(error)")
             return false
+        }
+    }
+    
+    // 获取角色所在的军团ID
+    func getCharacterCorporationId(characterId: Int) async throws -> Int? {
+        return try await withCheckedThrowingContinuation { continuation in
+            dbQueue.async {
+                do {
+                    let query = "SELECT corporation_id FROM character_info WHERE character_id = ?"
+                    var statement: OpaquePointer?
+                    
+                    guard let db = self.db else {
+                        continuation.resume(throwing: NSError(domain: "EVENexus", code: -1, userInfo: [NSLocalizedDescriptionKey: "数据库未打开"]))
+                        return
+                    }
+                    
+                    if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
+                        let errmsg = String(cString: sqlite3_errmsg(db))
+                        continuation.resume(throwing: NSError(domain: "EVENexus", code: -1, userInfo: [NSLocalizedDescriptionKey: errmsg]))
+                        return
+                    }
+                    
+                    sqlite3_bind_int64(statement, 1, Int64(characterId))
+                    
+                    if sqlite3_step(statement) == SQLITE_ROW {
+                        let corporationId = sqlite3_column_int64(statement, 0)
+                        continuation.resume(returning: corporationId > 0 ? Int(corporationId) : nil)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                    
+                    sqlite3_finalize(statement)
+                }
+            }
         }
     }
 } 

@@ -562,3 +562,66 @@
 "Main_About_Privacy_Title" = "Privacy Statement";
 "Main_About_Privacy_Statement" = "EVE Panel is committed to protecting your privacy and data security:\n\n• Data Storage: All personal data is stored locally on your device only\n• ESI Authorization: We only access EVE Online ESI API with your explicit authorization\n• Data Usage: Your game data is used solely for app functionality and not for any other purposes\n• Third-party Sharing: We do not share your personal data with any third parties\n• Data Deletion: You can revoke authorization and delete all local data at any time";
 "Main_About_Copyright" = "© 2025 EVE Panel. All rights reserved.";
+
+// Mail Related
+"Main_EVE_Mail_Title" = "EVE Mail";
+"Main_EVE_Mail_All" = "All Mails";
+"Main_EVE_Mail_Mailboxes" = "All Mailboxes";
+"Main_EVE_Mail_List" = "Mail List";
+"Main_EVE_Mail_No_Mail" = "No Mail";
+"Main_EVE_Mail_Inbox" = "Inbox";
+"Main_EVE_Mail_Sent" = "Sent";
+"Main_EVE_Mail_Corporation" = "Corporation";
+"Main_EVE_Mail_Alliance" = "Alliance";
+"Main_EVE_Mail_Spam" = "Spam";
+"Main_EVE_Mail_Loading" = "Loading mails...";
+"Main_EVE_Mail_Error" = "Failed to load mails";
+
+"Main_EVE_Mail_Lists" = "Mail Lists";
+"Main_EVE_Mail_List_Name" = "List Name";
+"Main_EVE_Mail_List_Members" = "Member Count";
+"Main_EVE_Mail_List_No_Lists" = "No mailing lists subscribed";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "New Mail";
+"Main_EVE_Mail_Recipients" = "Recipients";
+"Main_EVE_Mail_Add_Recipient" = "Add Recipient";
+"Main_EVE_Mail_Add_Mailing_List" = "Add Mailing List";
+"Main_EVE_Mail_Subject" = "Subject";
+"Main_EVE_Mail_Body" = "Body";
+"Main_EVE_Mail_Send" = "Send";
+"Main_EVE_Mail_Cancel" = "Cancel";
+"Main_EVE_Mail_Search_Recipients" = "Search characters, corporations or alliances";
+"Main_EVE_Mail_Min_Search_Length" = "Please enter at least 3 characters";
+"Main_EVE_Mail_No_Results" = "No results found";
+"Main_EVE_Mail_Select_Mailing_List" = "Select Mailing List";
+"Main_EVE_Mail_No_Mailing_Lists" = "No mailing lists subscribed";
+"Main_EVE_Mail_Done" = "Done";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "Reply";
+"Main_EVE_Mail_Reply_All" = "Reply All";
+"Main_EVE_Mail_Forward" = "Forward";
+"Main_EVE_Mail_From" = "From: ";
+"Main_EVE_Mail_To" = "To: ";
+"Main_EVE_Mail_Unknown_Recipient" = "Unknown Recipient";
+"Main_EVE_Mail_Unknown_Sender" = "Unknown Sender";
+"Main_EVE_Mail_Load_Failed" = "Failed to load mail content";
+"Main_EVE_Mail_Original_Message" = "-------- Original Message --------";
+"Main_EVE_Mail_Wrote" = "-----------------";
+"Main_EVE_Mail_Forward_Header" = "-------- Forwarded Message --------";
+"Main_EVE_Mail_Forward_From" = "From: %@";
+"Main_EVE_Mail_Forward_Date" = "Date: %@";
+"Main_EVE_Mail_Forward_Subject" = "Subject: %@";
+"Main_EVE_Mail_Forward_To" = "To: %@";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "Character";
+"Main_EVE_Mail_Recipient_Corporation" = "Corporation";
+"Main_EVE_Mail_Recipient_Alliance" = "Alliance";
+"Main_EVE_Mail_Recipient_Mailing_List" = "Mailing List";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "Quick Select";
+"Main_EVE_Mail_Searching" = "Searching...";
+"Main_EVE_Mail_Search_Failed" = "Search Failed";

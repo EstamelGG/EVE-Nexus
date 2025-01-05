@@ -66,7 +66,7 @@ class CorporationAPI {
                     Logger.info("成功获取军团图标 - 军团ID: \(corporationId), 大小: \(size)")
                     continuation.resume(returning: imageResult.image)
                 case .failure(let error):
-                    Logger.error("获取军团图标失败 - 军团ID: \(corporationId), 错误: \(error)")
+                    Logger.error("获取军团图标失败 - 军团ID: \(corporationId) - URL: \(logoURL), 错误: \(error)")
                     continuation.resume(throwing: NetworkError.invalidImageData)
                 }
             }
