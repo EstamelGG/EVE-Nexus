@@ -83,60 +83,61 @@ struct CharacterMailDetailView: View {
                     .padding()
                 }
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        Spacer()
-                        Button {
-                            composeType = .reply
-                            showingComposeView = true
-                        } label: {
-                            VStack {
-                                Image(systemName: "arrowshape.turn.up.left.fill")
-                                Text("回复")
-                                    .font(.caption)
-                            }
-                        }
-                        
-                        Spacer()
-                        Button {
-                            composeType = .replyAll
-                            showingComposeView = true
-                        } label: {
-                            VStack {
-                                Image(systemName: "arrowshape.turn.up.left.2.fill")
-                                Text("回复全体")
-                                    .font(.caption)
-                            }
-                        }
-                        
-                        Spacer()
-                        Button {
-                            composeType = .forward
-                            showingComposeView = true
-                        } label: {
-                            VStack {
-                                Image(systemName: "arrowshape.turn.up.forward.fill")
-                                Text("转发")
-                                    .font(.caption)
-                            }
-                        }
-                        Spacer()
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
+                Button {
+                    composeType = .reply
+                    showingComposeView = true
+                } label: {
+                    VStack {
+                        Image(systemName: "arrowshape.turn.up.left.fill")
+                        Text("回复")
+                            .font(.caption)
                     }
                 }
-                .toolbarBackground(.visible, for: .bottomBar)
-                .transition(.move(edge: .bottom))
-                .animation(.spring(), value: viewModel.mailDetail != nil)
-                .sheet(isPresented: $showingComposeView) {
-                    if let detail = viewModel.mailDetail, let type = composeType {
-                        NavigationView {
-                            CharacterComposeMailView(
-                                characterId: characterId,
-                                initialRecipients: getInitialRecipients(type: type, detail: detail),
-                                initialSubject: getInitialSubject(type: type, detail: detail),
-                                initialBody: getInitialBody(type: type, detail: detail)
-                            )
-                        }
+                .disabled(viewModel.mailDetail == nil)
+                
+                Spacer()
+                Button {
+                    composeType = .replyAll
+                    showingComposeView = true
+                } label: {
+                    VStack {
+                        Image(systemName: "arrowshape.turn.up.left.2.fill")
+                        Text("回复全体")
+                            .font(.caption)
                     }
+                }
+                .disabled(viewModel.mailDetail == nil)
+                
+                Spacer()
+                Button {
+                    composeType = .forward
+                    showingComposeView = true
+                } label: {
+                    VStack {
+                        Image(systemName: "arrowshape.turn.up.forward.fill")
+                        Text("转发")
+                            .font(.caption)
+                    }
+                }
+                .disabled(viewModel.mailDetail == nil)
+                Spacer()
+            }
+        }
+        .toolbarBackground(.visible, for: .bottomBar)
+        .sheet(isPresented: $showingComposeView) {
+            if let detail = viewModel.mailDetail, let type = composeType {
+                NavigationView {
+                    CharacterComposeMailView(
+                        characterId: characterId,
+                        initialRecipients: getInitialRecipients(type: type, detail: detail),
+                        initialSubject: getInitialSubject(type: type, detail: detail),
+                        initialBody: getInitialBody(type: type, detail: detail)
+                    )
                 }
             }
         }
