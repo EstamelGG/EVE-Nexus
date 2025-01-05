@@ -16,7 +16,7 @@ struct CharacterComposeMailView: View {
                 // 收件人列表
                 ForEach(recipients) { recipient in
                     HStack {
-                        CharacterPortrait(characterId: recipient.id, size: 32)
+                        UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
                         VStack(alignment: .leading) {
                             Text(recipient.name)
                             Text(recipient.type.rawValue)
