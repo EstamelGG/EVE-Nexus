@@ -9,9 +9,9 @@ struct CharacterComposeMailView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CharacterComposeMailViewModel()
     
-    @State private var recipients: [MailRecipient] = []
-    @State private var subject: String = ""
-    @State private var mailBody: String = ""
+    @State private var recipients: [MailRecipient]
+    @State private var subject: String
+    @State private var mailBody: String
     @State private var showingRecipientPicker = false
     @State private var showingMailListPicker = false
     
@@ -26,7 +26,7 @@ struct CharacterComposeMailView: View {
         self.initialSubject = initialSubject
         self.initialBody = initialBody
         
-        // 初始化状态变量，确保收件人不重复
+        // 使用_State包装器直接初始化状态变量
         _recipients = State(initialValue: Array(Set(initialRecipients)))
         _subject = State(initialValue: initialSubject)
         _mailBody = State(initialValue: initialBody)
@@ -123,7 +123,6 @@ struct CharacterComposeMailView: View {
         }
         .sheet(isPresented: $showingRecipientPicker) {
             RecipientPickerView(characterId: characterId) { recipient in
-                // 添加收件人时进行去重
                 if !recipients.contains(where: { $0.id == recipient.id }) {
                     recipients.append(recipient)
                 }
@@ -131,7 +130,6 @@ struct CharacterComposeMailView: View {
         }
         .sheet(isPresented: $showingMailListPicker) {
             MailListPickerView(characterId: characterId) { mailList in
-                // 添加邮件列表时进行去重
                 if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
                     recipients.append(MailRecipient(
                         id: mailList.mailing_list_id,
