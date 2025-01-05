@@ -165,9 +165,15 @@ struct RecipientPickerView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "搜索角色、军团或联盟")
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { _ in
+                // 每次输入变化时都进行搜索
                 Task {
-                    await viewModel.search(characterId: characterId, searchText: newValue)
+                    // 如果搜索文本为空，直接清空结果
+                    if searchText.isEmpty {
+                        viewModel.searchResults = []
+                    } else {
+                        await viewModel.search(characterId: characterId, searchText: searchText)
+                    }
                 }
             }
             .navigationTitle("添加收件人")
@@ -234,52 +240,68 @@ class RecipientPickerViewModel: ObservableObject {
             return
         }
         
+        // 如果已经在搜索中，就不要重复搜索
+        guard !isSearching else {
+            return
+        }
+        
         isSearching = true
         defer { isSearching = false }
         
         do {
+            // 清除之前的错误
+            error = nil
+            
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
                 categories: [.character, .corporation, .alliance],
                 searchText: searchText
             )
             
+            Logger.debug("收到搜索响应数据: \(String(data: data, encoding: .utf8) ?? "无法解码")")
+            
             // 解析搜索结果
-            if let searchResponse = try? JSONDecoder().decode(SearchResponse.self, from: data) {
-                var results: [SearchResult] = []
-                
-                // 处理角色搜索结果
-                if let characters = searchResponse.character {
-                    let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
-                    results.append(contentsOf: characters.compactMap { id in
-                        guard let info = characterNames[id] else { return nil }
-                        return SearchResult(id: id, name: info.name, type: .character)
-                    })
-                }
-                
-                // 处理军团搜索结果
-                if let corporations = searchResponse.corporation {
-                    let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
-                    results.append(contentsOf: corporations.compactMap { id in
-                        guard let info = corpNames[id] else { return nil }
-                        return SearchResult(id: id, name: info.name, type: .corporation)
-                    })
-                }
-                
-                // 处理联盟搜索结果
-                if let alliances = searchResponse.alliance {
-                    let allianceNames = try await UniverseAPI.shared.getNamesWithFallback(ids: alliances)
-                    results.append(contentsOf: alliances.compactMap { id in
-                        guard let info = allianceNames[id] else { return nil }
-                        return SearchResult(id: id, name: info.name, type: .alliance)
-                    })
-                }
-                
-                searchResults = results
+            let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
+            var results: [SearchResult] = []
+            
+            // 处理角色搜索结果
+            if let characters = searchResponse.character {
+                let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
+                results.append(contentsOf: characters.compactMap { id in
+                    guard let info = characterNames[id] else { return nil }
+                    return SearchResult(id: id, name: info.name, type: .character)
+                })
             }
+            
+            // 处理军团搜索结果
+            if let corporations = searchResponse.corporation {
+                let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
+                results.append(contentsOf: corporations.compactMap { id in
+                    guard let info = corpNames[id] else { return nil }
+                    return SearchResult(id: id, name: info.name, type: .corporation)
+                })
+            }
+            
+            // 处理联盟搜索结果
+            if let alliances = searchResponse.alliance {
+                let allianceNames = try await UniverseAPI.shared.getNamesWithFallback(ids: alliances)
+                results.append(contentsOf: alliances.compactMap { id in
+                    guard let info = allianceNames[id] else { return nil }
+                    return SearchResult(id: id, name: info.name, type: .alliance)
+                })
+            }
+            
+            // 按名称排序结果
+            results.sort { $0.name < $1.name }
+            
+            // 更新搜索结果
+            searchResults = results
+            Logger.info("搜索完成，找到 \(results.count) 个结果")
+            
         } catch {
             Logger.error("搜索收件人失败: \(error)")
             self.error = error
+            // 保持旧的搜索结果，而不是清空
         }
     }
 }
