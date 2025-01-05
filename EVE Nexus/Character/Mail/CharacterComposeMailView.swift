@@ -81,7 +81,7 @@ struct CharacterComposeMailView: View {
             }
             
             Section {
-                TextField("主题", text: $subject)
+                TextField(NSLocalizedString("Main_EVE_Mail_Subject", comment: ""), text: $subject)
                     .textInputAutocapitalization(.none)
             } header: {
                 Text(NSLocalizedString("Main_EVE_Mail_Subject", comment: ""))
@@ -198,7 +198,7 @@ struct RecipientPickerView: View {
                         Spacer()
                     }
                 } else if searchText.isEmpty {
-                    Text(NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: ""))
+                    Text("")
                         .foregroundColor(.secondary)
                 } else if searchText.count <= 2 {
                     Text(NSLocalizedString("Main_EVE_Mail_Min_Search_Length", comment: ""))
@@ -226,7 +226,7 @@ struct RecipientPickerView: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "搜索角色、军团或联盟")
+            .searchable(text: $searchText, prompt: NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: ""))
             .onChange(of: searchText) { _, _ in
                 // 如果搜索文本为空或长度小于等于2，直接清空结果
                 if searchText.isEmpty || searchText.count <= 2 {
