@@ -605,7 +605,7 @@
 "Main_EVE_Mail_Unknown_Sender" = "未知发件人";
 "Main_EVE_Mail_Load_Failed" = "加载邮件内容失败";
 "Main_EVE_Mail_Original_Message" = "-------- 原始邮件 --------";
-"Main_EVE_Mail_Wrote" = "在 %@ %@ 写道：";
+"Main_EVE_Mail_Wrote" = "-----------------";
 "Main_EVE_Mail_Forward_Header" = "-------- 转发的邮件 --------";
 "Main_EVE_Mail_Forward_From" = "发件人：%@";
 "Main_EVE_Mail_Forward_Date" = "日期：%@";

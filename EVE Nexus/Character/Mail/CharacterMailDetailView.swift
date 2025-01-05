@@ -186,15 +186,39 @@ struct CharacterMailDetailView: View {
         
         switch type {
         case .reply, .replyAll:
-            return "\n\n" + String(format: NSLocalizedString("Main_EVE_Mail_Wrote", comment: ""), dateString, detail.senderName) + "\n\n\(detail.content.body)"
+            let header = String(format: NSLocalizedString("Main_EVE_Mail_Wrote", comment: ""))
+            return formatMailContent("\n\n\(header)\n\n\(detail.content.body)")
         case .forward:
-            return "\n\n" + NSLocalizedString("Main_EVE_Mail_Forward_Header", comment: "") + "\n" +
-                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_From", comment: ""), detail.senderName) + "\n" +
-                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_Date", comment: ""), dateString) + "\n" +
-                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_Subject", comment: ""), detail.content.subject) + "\n" +
-                   String(format: NSLocalizedString("Main_EVE_Mail_Forward_To", comment: ""), detail.content.recipients.map { detail.recipientNames[$0.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "") }.joined(separator: ", ")) + "\n\n" +
-                   detail.content.body
+            let forwardHeader = NSLocalizedString("Main_EVE_Mail_Forward_Header", comment: "")
+            let from = String(format: NSLocalizedString("Main_EVE_Mail_Forward_From", comment: ""), detail.senderName)
+            let date = String(format: NSLocalizedString("Main_EVE_Mail_Forward_Date", comment: ""), dateString)
+            let subject = String(format: NSLocalizedString("Main_EVE_Mail_Forward_Subject", comment: ""), detail.content.subject)
+            let to = String(format: NSLocalizedString("Main_EVE_Mail_Forward_To", comment: ""), detail.content.recipients.map { detail.recipientNames[$0.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "") }.joined(separator: ", "))
+            
+            return formatMailContent("\n\n\(forwardHeader)\n\(from)\n\(date)\n\(subject)\n\(to)\n\n\(detail.content.body)")
         }
+    }
+    
+    private func formatMailContent(_ content: String) -> String {
+        return content.components(separatedBy: .newlines)
+            .map { line in
+                let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+                if trimmedLine.isEmpty {
+                    return ""
+                }
+                // 检查是否已经包含HTML标签
+                let lowercasedLine = trimmedLine.lowercased()
+                if lowercasedLine.contains("<font") && lowercasedLine.contains("</font>") {
+                    // 如果已经有font标签，直接返回原内容
+                    return trimmedLine
+                }
+                if lowercasedLine.contains("<br") && lowercasedLine.contains(">") {
+                    // 如果已经有br标签，直接返回原内容
+                    return trimmedLine
+                }
+                return "<font size=\"15\" color=\"#bfffffff\">\(trimmedLine)</font>"
+            }
+            .joined(separator: "\n")
     }
     
     private func getRecipientType(from typeString: String) -> MailRecipient.RecipientType {

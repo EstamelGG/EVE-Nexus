@@ -608,7 +608,7 @@
 "Main_EVE_Mail_Unknown_Sender" = "Unknown Sender";
 "Main_EVE_Mail_Load_Failed" = "Failed to load mail content";
 "Main_EVE_Mail_Original_Message" = "-------- Original Message --------";
-"Main_EVE_Mail_Wrote" = "On %@ %@ wrote:";
+"Main_EVE_Mail_Wrote" = "-----------------";
 "Main_EVE_Mail_Forward_Header" = "-------- Forwarded Message --------";
 "Main_EVE_Mail_Forward_From" = "From: %@";
 "Main_EVE_Mail_Forward_Date" = "Date: %@";
