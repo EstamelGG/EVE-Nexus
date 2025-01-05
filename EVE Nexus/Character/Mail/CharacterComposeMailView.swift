@@ -133,7 +133,7 @@ struct RecipientPickerView: View {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.largeTitle)
                                 .foregroundColor(.red)
-                            Text("搜索失败")
+                            Text("搜索失败:\(viewModel.error)")
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
