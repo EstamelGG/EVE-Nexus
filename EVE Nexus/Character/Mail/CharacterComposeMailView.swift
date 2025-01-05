@@ -30,6 +30,8 @@ struct CharacterComposeMailView: View {
         _recipients = State(initialValue: initialRecipients)
         _subject = State(initialValue: initialSubject)
         _mailBody = State(initialValue: initialBody)
+        
+        Logger.debug("初始化邮件编辑视图 - 收件人: \(initialRecipients)")
     }
     
     var body: some View {
@@ -95,7 +97,7 @@ struct CharacterComposeMailView: View {
                 Text(NSLocalizedString("Main_EVE_Mail_Body", comment: ""))
             }
         }
-        .navigationTitle(NSLocalizedString("Main_EVE_Mail_Add_Recipient", comment: ""))
+        .navigationTitle(NSLocalizedString("Main_EVE_Mail_New", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
