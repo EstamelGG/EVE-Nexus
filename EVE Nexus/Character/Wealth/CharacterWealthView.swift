@@ -70,6 +70,7 @@ struct CharacterWealthView: View {
                         } label: {
                             WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
                         }
+                        .disabled(loadedTypes.count < WealthType.allCases.count)
                     }
                 }
                 
