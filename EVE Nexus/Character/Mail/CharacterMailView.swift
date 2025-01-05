@@ -9,6 +9,7 @@ struct CharacterMailView: View {
     @State private var allianceUnread: Int?
     @State private var isLoading = false
     @State private var error: Error?
+    @State private var showingComposeView = false
     
     var body: some View {
         List {
@@ -98,6 +99,20 @@ struct CharacterMailView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_EVE_Mail_Title", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showingComposeView = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+            }
+        }
+        .sheet(isPresented: $showingComposeView) {
+            NavigationView {
+                CharacterComposeMailView(characterId: characterId)
+            }
+        }
         .task {
             await loadUnreadCounts()
             await viewModel.fetchMailLabels(characterId: characterId)

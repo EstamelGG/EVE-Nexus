@@ -673,6 +673,43 @@ class CharacterMailAPI {
             throw DatabaseError.fetchError(error)
         }
     }
+    
+    /// 发送新邮件
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - recipients: 收件人列表
+    ///   - subject: 邮件主题
+    ///   - body: 邮件正文
+    /// - Returns: 发送结果
+    func sendMail(characterId: Int, recipients: [EVEMailRecipient], subject: String, body: String) async throws {
+        Logger.info("开始发送邮件 - 角色ID: \(characterId), 收件人数: \(recipients.count)")
+        
+        // 构建请求URL
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 构建请求体
+        let mailData: [String: Any] = [
+            "approved_cost": 0,
+            "body": body,
+            "recipients": recipients.map { [
+                "recipient_id": $0.recipient_id,
+                "recipient_type": $0.recipient_type
+            ] },
+            "subject": subject
+        ]
+        
+        // 将请求体转换为JSON数据
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: mailData) else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 发送POST请求
+        _ = try await networkManager.postDataWithToken(to: url, body: jsonData, characterId: characterId)
+        Logger.info("邮件发送成功")
+    }
 }
 
 enum DatabaseError: Error {
