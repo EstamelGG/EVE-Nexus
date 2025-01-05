@@ -361,6 +361,7 @@ struct ContentView: View {
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) var systemColorScheme
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
     
     // 使用计算属性来确定当前的颜色方案
     private var currentColorScheme: ColorScheme? {
@@ -375,7 +376,7 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationStack {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List {
                 // 登录部分
                 loginSection
@@ -406,7 +407,11 @@ struct ContentView: View {
                     logoutButton
                 }
             }
+        } detail: {
+            Text(NSLocalizedString("Select_Item", comment: ""))
+                .foregroundColor(.gray)
         }
+        .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(currentColorScheme)
         .onAppear {
             // 检查当前选择的角色是否在已登录列表中
@@ -532,7 +537,6 @@ struct ContentView: View {
                     icon: "evemail"
                 )
             }
-            // .isHidden(true)
             
             NavigationLink {
                 Text("Calendar View") // 待实现
