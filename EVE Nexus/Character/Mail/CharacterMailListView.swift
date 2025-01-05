@@ -305,7 +305,7 @@ private struct MailListItemView: View {
                     .lineLimit(1)
                 
                 // 发件人名称
-                Text(viewModel.getSenderName(mail.from))
+                Text("From: \(viewModel.getSenderName(mail.from))")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
