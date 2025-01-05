@@ -362,12 +362,7 @@ struct CharacterMailListView: View {
     @Namespace private var scrollSpace
     @State private var scrollPosition: Int?
     @State private var showingComposeView = false
-    @State private var presetRecipient: MailRecipient?
-    @State private var composeType: ComposeType?
-    
-    enum ComposeType {
-        case corporation(MailRecipient)
-    }
+    @State private var initialRecipients: [MailRecipient] = []
     
     init(characterId: Int, labelId: Int? = nil, title: String? = nil) {
         self.characterId = characterId
@@ -425,9 +420,9 @@ struct CharacterMailListView: View {
                                                 name: corpInfo.name,
                                                 type: .corporation
                                             )
-                                            // 在主线程更新UI
+                                            // 设置收件人并显示编辑视图
                                             await MainActor.run {
-                                                composeType = .corporation(recipient)
+                                                initialRecipients = [recipient]
                                                 showingComposeView = true
                                             }
                                         }
@@ -442,19 +437,14 @@ struct CharacterMailListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingComposeView) {
-                if let type = composeType {
-                    NavigationStack {
-                        CharacterComposeMailView(
-                            characterId: characterId,
-                            initialRecipients: {
-                                switch type {
-                                case .corporation(let recipient):
-                                    return [recipient]
-                                }
-                            }()
-                        )
-                    }
+            .sheet(isPresented: $showingComposeView, onDismiss: {
+                initialRecipients = []
+            }) {
+                NavigationStack {
+                    CharacterComposeMailView(
+                        characterId: characterId,
+                        initialRecipients: initialRecipients
+                    )
                 }
             }
             .task {
