@@ -183,14 +183,15 @@ struct RecipientPickerView: View {
                         if viewModel.isLoadingQuickSelect {
                             ProgressView()
                         } else {
-                            // 我的军团
-                            if let corp = viewModel.myCorporation {
-                                QuickSelectRow(recipient: corp, onSelect: onSelect, dismiss: dismiss)
-                            }
-                            
                             // 最近的收件人
                             ForEach(viewModel.recentRecipients) { recipient in
                                 QuickSelectRow(recipient: recipient, onSelect: onSelect, dismiss: dismiss)
+                            }
+                            
+                            // 我的军团（放在最后）
+                            if let corp = viewModel.myCorporation {
+                                Divider()
+                                QuickSelectRow(recipient: corp, onSelect: onSelect, dismiss: dismiss)
                             }
                         }
                     }
@@ -404,6 +405,15 @@ class RecipientPickerViewModel: ObservableObject {
         defer { isLoadingQuickSelect = false }
         
         do {
+            // 从本地数据库获取角色所在的军团ID
+            if let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) {
+                // 获取军团名称
+                let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [corporationId])
+                if let corpInfo = corpNames[corporationId] {
+                    myCorporation = SearchResult(id: corporationId, name: corpInfo.name, type: .corporation)
+                }
+            }
+            
             // 获取最近的邮件
             let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
             
@@ -451,32 +461,6 @@ class RecipientPickerViewModel: ObservableObject {
                     type: info.category == "character" ? .character :
                           info.category == "corporation" ? .corporation : .alliance
                 )
-            }
-            
-            // 获取角色所在的军团（如果有）
-            let data = try await CharacterSearchAPI.shared.search(
-                characterId: characterId,
-                categories: [.character],
-                searchText: String(characterId)
-            )
-            
-            let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
-            if let characters = searchResponse.character,
-               let characterInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)[characterId] {
-                let corpData = try await CharacterSearchAPI.shared.search(
-                    characterId: characterId,
-                    categories: [.corporation],
-                    searchText: characterInfo.name
-                )
-                
-                let corpResponse = try JSONDecoder().decode(SearchResponse.self, from: corpData)
-                if let corporations = corpResponse.corporation,
-                   !corporations.isEmpty {
-                    let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
-                    if let firstCorp = corpNames.first {
-                        myCorporation = SearchResult(id: firstCorp.key, name: firstCorp.value.name, type: .corporation)
-                    }
-                }
             }
             
         } catch {

@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import SQLite3
 
-class CharacterDatabaseManager: ObservableObject {
+class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     static let shared = CharacterDatabaseManager()
     @Published var databaseUpdated = false
     private var db: OpaquePointer?
@@ -610,6 +610,40 @@ class CharacterDatabaseManager: ObservableObject {
         case .error(let error):
             Logger.error("删除合同物品失败 - 合同ID: \(contractId), 错误: \(error)")
             return false
+        }
+    }
+    
+    // 获取角色所在的军团ID
+    func getCharacterCorporationId(characterId: Int) async throws -> Int? {
+        return try await withCheckedThrowingContinuation { continuation in
+            dbQueue.async {
+                do {
+                    let query = "SELECT corporation_id FROM character_info WHERE character_id = ?"
+                    var statement: OpaquePointer?
+                    
+                    guard let db = self.db else {
+                        continuation.resume(throwing: NSError(domain: "EVENexus", code: -1, userInfo: [NSLocalizedDescriptionKey: "数据库未打开"]))
+                        return
+                    }
+                    
+                    if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
+                        let errmsg = String(cString: sqlite3_errmsg(db))
+                        continuation.resume(throwing: NSError(domain: "EVENexus", code: -1, userInfo: [NSLocalizedDescriptionKey: errmsg]))
+                        return
+                    }
+                    
+                    sqlite3_bind_int64(statement, 1, Int64(characterId))
+                    
+                    if sqlite3_step(statement) == SQLITE_ROW {
+                        let corporationId = sqlite3_column_int64(statement, 0)
+                        continuation.resume(returning: corporationId > 0 ? Int(corporationId) : nil)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                    
+                    sqlite3_finalize(statement)
+                }
+            }
         }
     }
 } 
