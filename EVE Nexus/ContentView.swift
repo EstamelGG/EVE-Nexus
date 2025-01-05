@@ -475,6 +475,34 @@ struct ContentView: View {
                         IncursionsView(databaseManager: databaseManager)
                     case "sovereignty":
                         SovereigntyView(databaseManager: databaseManager)
+                    case "assets":
+                        if let character = viewModel.selectedCharacter {
+                            CharacterAssetsView(characterId: character.CharacterID)
+                        }
+                    case "market_orders":
+                        if let character = viewModel.selectedCharacter {
+                            CharacterOrdersView(characterId: Int64(character.CharacterID))
+                        }
+                    case "contracts":
+                        if let character = viewModel.selectedCharacter {
+                            PersonalContractsView(characterId: character.CharacterID)
+                        }
+                    case "market_transactions":
+                        if let character = viewModel.selectedCharacter {
+                            WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
+                        }
+                    case "wallet_journal":
+                        if let character = viewModel.selectedCharacter {
+                            WalletJournalView(characterId: character.CharacterID)
+                        }
+                    case "industry_jobs":
+                        if let character = viewModel.selectedCharacter {
+                            CharacterIndustryView(characterId: character.CharacterID)
+                        }
+                    case "mining_ledger":
+                        if let character = viewModel.selectedCharacter {
+                            MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
+                        }
                     default:
                         Text(NSLocalizedString("Select_Item", comment: ""))
                             .foregroundColor(.gray)
@@ -660,49 +688,53 @@ struct ContentView: View {
     
     private var businessSection: some View {
         Section {
-            ForEach([
-                (NSLocalizedString("Main_Assets", comment: ""), "assets", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterAssetsView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Market_Orders", comment: ""), "marketdeliveries", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterOrdersView(characterId: Int64(character.CharacterID))
-                    }
-                )),
-                (NSLocalizedString("Main_Contracts", comment: ""), "contracts", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        PersonalContractsView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Market_Transactions", comment: ""), "journal", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
-                    }
-                )),
-                (NSLocalizedString("Main_Wallet_Journal", comment: ""), "wallet", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        WalletJournalView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Industry_Jobs", comment: ""), "industry", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterIndustryView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Mining_Ledger", comment: ""), "miningledger", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
-                    }
-                ))
-            ], id: \.0) { title, icon, destination in
-                NavigationLink(destination: destination) {
-                    RowView(
-                        title: title,
-                        icon: icon
-                    )
-                }
+            NavigationLink(value: "assets") {
+                RowView(
+                    title: NSLocalizedString("Main_Assets", comment: ""),
+                    icon: "assets"
+                )
+            }
+            
+            NavigationLink(value: "market_orders") {
+                RowView(
+                    title: NSLocalizedString("Main_Market_Orders", comment: ""),
+                    icon: "marketdeliveries"
+                )
+            }
+            
+            NavigationLink(value: "contracts") {
+                RowView(
+                    title: NSLocalizedString("Main_Contracts", comment: ""),
+                    icon: "contracts"
+                )
+            }
+            
+            NavigationLink(value: "market_transactions") {
+                RowView(
+                    title: NSLocalizedString("Main_Market_Transactions", comment: ""),
+                    icon: "journal"
+                )
+            }
+            
+            NavigationLink(value: "wallet_journal") {
+                RowView(
+                    title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
+                    icon: "wallet"
+                )
+            }
+            
+            NavigationLink(value: "industry_jobs") {
+                RowView(
+                    title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
+                    icon: "industry"
+                )
+            }
+            
+            NavigationLink(value: "mining_ledger") {
+                RowView(
+                    title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
+                    icon: "miningledger"
+                )
             }
         } header: {
             Text(NSLocalizedString("Main_Business", comment: ""))
