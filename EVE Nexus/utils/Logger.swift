@@ -125,9 +125,6 @@ class Logger {
     
     static func error(_ message: String, error: Error? = nil, showAlert: Bool = true) {
         let errorMessage = "\(message) \(error?.localizedDescription ?? "")"
-        
-        // 记录到系统日志
-        os_log("%{public}@", type: .error, errorMessage)
         // 记录到文件
         shared.writeToFile(errorMessage, type: .error)
     }
