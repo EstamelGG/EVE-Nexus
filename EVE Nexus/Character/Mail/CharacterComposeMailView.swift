@@ -141,6 +141,9 @@ struct RecipientPickerView: View {
                 } else if searchText.isEmpty {
                     Text("请输入要搜索的角色、军团或联盟名称")
                         .foregroundColor(.secondary)
+                } else if searchText.count <= 2 {
+                    Text("请至少输入3个字符")
+                        .foregroundColor(.secondary)
                 } else if viewModel.searchResults.isEmpty {
                     Text("未找到相关结果")
                         .foregroundColor(.secondary)
@@ -166,11 +169,14 @@ struct RecipientPickerView: View {
             }
             .searchable(text: $searchText, prompt: "搜索角色、军团或联盟")
             .onChange(of: searchText) { _ in
-                // 每次输入变化时都进行搜索
                 Task {
-                    // 如果搜索文本为空，直接清空结果
-                    if searchText.isEmpty {
+                    // 如果搜索文本为空或长度小于等于2，直接清空结果
+                    if searchText.isEmpty || searchText.count <= 2 {
                         viewModel.searchResults = []
+                        if !searchText.isEmpty {
+                            viewModel.error = nil
+                            viewModel.isSearching = false
+                        }
                     } else {
                         await viewModel.search(characterId: characterId, searchText: searchText)
                     }
