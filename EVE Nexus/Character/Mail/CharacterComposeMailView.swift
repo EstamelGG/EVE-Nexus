@@ -12,8 +12,21 @@ struct CharacterComposeMailView: View {
     @State private var recipients: [MailRecipient]
     @State private var subject: String
     @State private var mailBody: String
-    @State private var showingRecipientPicker = false
-    @State private var showingMailListPicker = false
+    
+    // 使用枚举来管理 sheet 状态
+    private enum SheetType: Identifiable {
+        case recipientPicker
+        case mailListPicker
+        
+        var id: Int {
+            switch self {
+            case .recipientPicker: return 1
+            case .mailListPicker: return 2
+            }
+        }
+    }
+    
+    @State private var activeSheet: SheetType?
     
     init(
         characterId: Int,
@@ -26,12 +39,14 @@ struct CharacterComposeMailView: View {
         self.initialSubject = initialSubject
         self.initialBody = initialBody
         
-        // 使用_State包装器直接初始化状态变量
-        _recipients = State(initialValue: Array(Set(initialRecipients)))
+        let uniqueRecipients = Array(Set(initialRecipients))
+        _recipients = State(initialValue: uniqueRecipients)
         _subject = State(initialValue: initialSubject)
         _mailBody = State(initialValue: initialBody)
         
-        Logger.debug("初始化邮件编辑视图 - 收件人: \(initialRecipients)")
+        if !uniqueRecipients.isEmpty {
+            Logger.debug("初始化邮件编辑视图 - 收件人: \(uniqueRecipients)")
+        }
     }
     
     var body: some View {
@@ -61,7 +76,7 @@ struct CharacterComposeMailView: View {
                 
                 // 添加收件人按钮
                 Button {
-                    showingRecipientPicker = true
+                    activeSheet = .recipientPicker
                 } label: {
                     HStack {
                         Image(systemName: "plus.circle.fill")
@@ -71,7 +86,7 @@ struct CharacterComposeMailView: View {
                 
                 // 添加邮件列表按钮
                 Button {
-                    showingMailListPicker = true
+                    activeSheet = .mailListPicker
                 } label: {
                     HStack {
                         Image(systemName: "list.bullet.circle.fill")
@@ -121,22 +136,33 @@ struct CharacterComposeMailView: View {
                 .disabled(recipients.isEmpty || subject.isEmpty || mailBody.isEmpty)
             }
         }
-        .sheet(isPresented: $showingRecipientPicker) {
-            RecipientPickerView(characterId: characterId) { recipient in
-                if !recipients.contains(where: { $0.id == recipient.id }) {
-                    recipients.append(recipient)
-                }
-            }
-        }
-        .sheet(isPresented: $showingMailListPicker) {
-            MailListPickerView(characterId: characterId) { mailList in
-                if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
-                    recipients.append(MailRecipient(
-                        id: mailList.mailing_list_id,
-                        name: mailList.name,
-                        type: .mailingList
-                    ))
-                }
+        .sheet(item: $activeSheet) { sheetType in
+            switch sheetType {
+            case .recipientPicker:
+                RecipientPickerView(
+                    characterId: characterId,
+                    onSelect: { recipient in
+                        if !recipients.contains(where: { $0.id == recipient.id }) {
+                            recipients.append(recipient)
+                        }
+                        activeSheet = nil
+                    }
+                )
+                
+            case .mailListPicker:
+                MailListPickerView(
+                    characterId: characterId,
+                    onSelect: { mailList in
+                        if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
+                            recipients.append(MailRecipient(
+                                id: mailList.mailing_list_id,
+                                name: mailList.name,
+                                type: .mailingList
+                            ))
+                        }
+                        activeSheet = nil
+                    }
+                )
             }
         }
     }
@@ -259,8 +285,16 @@ struct RecipientPickerView: View {
                 }
             }
         }
-        .task {
-            await viewModel.loadQuickSelectRecipients(characterId: characterId)
+        .onAppear {
+            // 重置状态
+            searchText = ""
+            viewModel.searchResults = []
+            viewModel.error = nil
+            viewModel.isSearching = false
+            // 重新加载快速选择数据
+            Task {
+                await viewModel.loadQuickSelectRecipients(characterId: characterId)
+            }
         }
     }
 }
@@ -347,8 +381,14 @@ struct MailListPickerView: View {
                 }
             }
         }
-        .task {
-            await viewModel.fetchMailLists(characterId: characterId)
+        .onAppear {
+            // 重置状态
+            viewModel.mailLists = []
+            viewModel.error = nil
+            // 重新加载数据
+            Task {
+                await viewModel.fetchMailLists(characterId: characterId)
+            }
         }
     }
 }
