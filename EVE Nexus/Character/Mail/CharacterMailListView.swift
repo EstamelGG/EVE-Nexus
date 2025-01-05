@@ -397,43 +397,6 @@ struct CharacterMailListView: View {
     }
 }
 
-// 通用头像组件
-struct UniversePortrait: View {
-    let id: Int
-    let category: String
-    
-    @State private var image: UIImage?
-    @State private var isLoading = true
-    @State private var error: Error?
-    
-    var body: some View {
-        ZStack {
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else if isLoading {
-                ProgressView()
-            } else {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .foregroundColor(.gray)
-            }
-        }
-        .task {
-            do {
-                isLoading = true
-                image = try await UniverseIconAPI.shared.fetchIcon(id: id, category: category)
-                isLoading = false
-            } catch {
-                Logger.error("加载头像失败: \(error)")
-                self.error = error
-                isLoading = false
-            }
-        }
-    }
-}
-
 // 日期格式化扩展
 extension String {
     func formatDate() -> String {

@@ -154,7 +154,7 @@ struct RecipientPickerView: View {
                             dismiss()
                         } label: {
                             HStack {
-                                CharacterPortrait(characterId: result.id, size: 32)
+                                UniversePortrait(id: result.id, type: result.type, size: 32)
                                 VStack(alignment: .leading) {
                                     Text(result.name)
                                     Text(result.type.rawValue)
@@ -194,37 +194,17 @@ struct RecipientPickerView: View {
     }
 }
 
-@MainActor
-class CharacterComposeMailViewModel: ObservableObject {
-    @Published var isLoading = false
-    @Published var error: Error?
-    
-    func sendMail(characterId: Int, recipients: [MailRecipient], subject: String, body: String) async {
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            // 转换收件人格式
-            let recipientsList = recipients.map { recipient in
-                EVEMailRecipient(
-                    recipient_id: recipient.id,
-                    recipient_type: recipient.type == .character ? "character" :
-                                  recipient.type == .corporation ? "corporation" : "alliance"
-                )
-            }
-            
-            try await CharacterMailAPI.shared.sendMail(
-                characterId: characterId,
-                recipients: recipientsList,
-                subject: subject,
-                body: body
-            )
-            Logger.info("邮件发送成功")
-        } catch {
-            Logger.error("发送邮件失败: \(error)")
-            self.error = error
-        }
+#Preview {
+    NavigationView {
+        CharacterComposeMailView(characterId: 123456)
     }
+}
+
+// 搜索响应数据结构
+private struct SearchResponse: Codable {
+    let character: [Int]?
+    let corporation: [Int]?
+    let alliance: [Int]?
 }
 
 @MainActor
@@ -330,15 +310,35 @@ class RecipientPickerViewModel: ObservableObject {
     }
 }
 
-// 搜索响应数据结构
-private struct SearchResponse: Codable {
-    let character: [Int]?
-    let corporation: [Int]?
-    let alliance: [Int]?
-}
-
-#Preview {
-    NavigationView {
-        CharacterComposeMailView(characterId: 123456)
+@MainActor
+class CharacterComposeMailViewModel: ObservableObject {
+    @Published var isLoading = false
+    @Published var error: Error?
+    
+    func sendMail(characterId: Int, recipients: [MailRecipient], subject: String, body: String) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            // 转换收件人格式
+            let recipientsList = recipients.map { recipient in
+                EVEMailRecipient(
+                    recipient_id: recipient.id,
+                    recipient_type: recipient.type == .character ? "character" :
+                                  recipient.type == .corporation ? "corporation" : "alliance"
+                )
+            }
+            
+            try await CharacterMailAPI.shared.sendMail(
+                characterId: characterId,
+                recipients: recipientsList,
+                subject: subject,
+                body: body
+            )
+            Logger.info("邮件发送成功")
+        } catch {
+            Logger.error("发送邮件失败: \(error)")
+            self.error = error
+        }
     }
 } 
