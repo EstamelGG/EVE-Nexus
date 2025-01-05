@@ -83,8 +83,9 @@ struct CharacterMailDetailView: View {
                     .padding()
                 }
                 .navigationBarTitleDisplayMode(.inline)
-                .safeAreaInset(edge: .bottom) {
-                    HStack(spacing: 20) {
+                .toolbar {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Spacer()
                         Button {
                             composeType = .reply
                             showingComposeView = true
@@ -96,6 +97,7 @@ struct CharacterMailDetailView: View {
                             }
                         }
                         
+                        Spacer()
                         Button {
                             composeType = .replyAll
                             showingComposeView = true
@@ -107,6 +109,7 @@ struct CharacterMailDetailView: View {
                             }
                         }
                         
+                        Spacer()
                         Button {
                             composeType = .forward
                             showingComposeView = true
@@ -117,10 +120,12 @@ struct CharacterMailDetailView: View {
                                     .font(.caption)
                             }
                         }
+                        Spacer()
                     }
-                    .padding()
-                    .background(.bar)
                 }
+                .toolbarBackground(.visible, for: .bottomBar)
+                .transition(.move(edge: .bottom))
+                .animation(.spring(), value: viewModel.mailDetail != nil)
                 .sheet(isPresented: $showingComposeView) {
                     if let detail = viewModel.mailDetail, let type = composeType {
                         NavigationView {
