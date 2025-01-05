@@ -153,7 +153,7 @@ class MarketPricesAPI {
     func fetchMarketPrices(forceRefresh: Bool = false) async throws -> [MarketPrice] {
         // 如果不是强制刷新，尝试从数据库获取
         if !forceRefresh {
-            if let cached = loadFromDatabase() {
+            if let cached = loadFromDatabase(), !cached.isEmpty {
                 Logger.info("使用数据库缓存的市场价格数据")
                 return cached
             }
