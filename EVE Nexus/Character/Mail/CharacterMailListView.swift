@@ -279,7 +279,7 @@ private struct MailListItemView: View {
     var body: some View {
         HStack(spacing: 12) {
             // 发件人头像
-            CharacterPortrait(characterId: mail.from, size: 48)
+            CharacterPortrait(characterId: mail.from, size: 64)
             
             VStack(alignment: .leading, spacing: 2) {
                 // 邮件主题
