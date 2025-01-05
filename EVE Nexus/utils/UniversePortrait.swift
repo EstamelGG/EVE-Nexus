@@ -53,14 +53,16 @@ struct UniversePortrait: View {
     let id: Int
     let type: MailRecipient.RecipientType
     let size: CGFloat
+    let displaySize: CGFloat
     let cornerRadius: CGFloat
     
     @StateObject private var viewModel: UniversePortraitViewModel
     
-    init(id: Int, type: MailRecipient.RecipientType, size: CGFloat, cornerRadius: CGFloat = 6) {
+    init(id: Int, type: MailRecipient.RecipientType, size: CGFloat, displaySize: CGFloat? = nil, cornerRadius: CGFloat = 6) {
         self.id = id
         self.type = type
         self.size = size
+        self.displaySize = displaySize ?? size
         self.cornerRadius = cornerRadius
         self._viewModel = StateObject(wrappedValue: UniversePortraitViewModel(id: id, type: type, size: Int(size)))
     }
@@ -71,18 +73,18 @@ struct UniversePortrait: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             } else if viewModel.isLoading {
                 ProgressView()
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
             } else {
                 // 根据类型显示不同的占位图标
                 Image(systemName: type == .character ? "person.circle.fill" :
                       type == .corporation ? "building.2.fill" : "globe")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
                     .foregroundColor(.gray)
             }
         }

@@ -69,12 +69,14 @@ class CharacterPortraitViewModel: ObservableObject {
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
+    let displaySize: CGFloat
     let cornerRadius: CGFloat
     @StateObject private var viewModel: CharacterPortraitViewModel
     
-    init(characterId: Int, size: CGFloat, cornerRadius: CGFloat = 6) {
+    init(characterId: Int, size: CGFloat, displaySize: CGFloat? = nil, cornerRadius: CGFloat = 6) {
         self.characterId = characterId
         self.size = size
+        self.displaySize = displaySize ?? size
         self.cornerRadius = cornerRadius
         // 始终使用64尺寸的图片
         self._viewModel = StateObject(wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: 64))
@@ -86,7 +88,7 @@ struct CharacterPortrait: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                     .overlay(
                         viewModel.isCorporation ?
@@ -96,12 +98,12 @@ struct CharacterPortrait: View {
                     )
             } else if viewModel.isLoading {
                 ProgressView()
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
             } else {
                 Image(systemName: "person.circle.fill")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: size, height: size)
+                    .frame(width: displaySize, height: displaySize)
                     .foregroundColor(.gray)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
@@ -280,11 +282,11 @@ private struct MailListItemView: View {
         HStack(spacing: 12) {
             // 发件人头像
             if viewModel.getSenderCategory(mail.from) == "corporation" {
-                UniversePortrait(id: mail.from, type: .corporation, size: 48)
+                UniversePortrait(id: mail.from, type: .corporation, size: 64, displaySize: 48)
             } else if viewModel.getSenderCategory(mail.from) == "alliance" {
-                UniversePortrait(id: mail.from, type: .alliance, size: 48)
+                UniversePortrait(id: mail.from, type: .alliance, size: 64, displaySize: 48)
             } else {
-                CharacterPortrait(characterId: mail.from, size: 48)
+                CharacterPortrait(characterId: mail.from, size: 64, displaySize: 48)
             }
             
             VStack(alignment: .leading, spacing: 2) {
