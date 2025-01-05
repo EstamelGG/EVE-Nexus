@@ -169,17 +169,16 @@ struct RecipientPickerView: View {
             }
             .searchable(text: $searchText, prompt: "搜索角色、军团或联盟")
             .onChange(of: searchText) { _ in
-                Task {
-                    // 如果搜索文本为空或长度小于等于2，直接清空结果
-                    if searchText.isEmpty || searchText.count <= 2 {
-                        viewModel.searchResults = []
-                        if !searchText.isEmpty {
-                            viewModel.error = nil
-                            viewModel.isSearching = false
-                        }
-                    } else {
-                        await viewModel.search(characterId: characterId, searchText: searchText)
+                // 如果搜索文本为空或长度小于等于2，直接清空结果
+                if searchText.isEmpty || searchText.count <= 2 {
+                    viewModel.searchResults = []
+                    if !searchText.isEmpty {
+                        viewModel.error = nil
+                        viewModel.isSearching = false
                     }
+                } else {
+                    // 使用防抖搜索
+                    viewModel.debounceSearch(characterId: characterId, searchText: searchText)
                 }
             }
             .navigationTitle("添加收件人")
@@ -234,10 +233,29 @@ class RecipientPickerViewModel: ObservableObject {
     @Published var isSearching = false
     @Published var error: Error?
     
+    // 用于防抖的任务
+    private var searchTask: Task<Void, Never>?
+    
     struct SearchResult: Identifiable {
         let id: Int
         let name: String
         let type: MailRecipient.RecipientType
+    }
+    
+    func debounceSearch(characterId: Int, searchText: String) {
+        // 取消之前的搜索任务
+        searchTask?.cancel()
+        
+        // 创建新的搜索任务，延迟500毫秒
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            
+            // 如果任务被取消了，就直接返回
+            if Task.isCancelled { return }
+            
+            // 执行实际的搜索
+            await search(characterId: characterId, searchText: searchText)
+        }
     }
     
     func search(characterId: Int, searchText: String) async {
