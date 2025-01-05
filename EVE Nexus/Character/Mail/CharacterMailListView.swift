@@ -279,7 +279,13 @@ private struct MailListItemView: View {
     var body: some View {
         HStack(spacing: 12) {
             // 发件人头像
-            CharacterPortrait(characterId: mail.from, size: 48)
+            if viewModel.getSenderCategory(mail.from) == "corporation" {
+                UniversePortrait(id: mail.from, type: .corporation, size: 48)
+            } else if viewModel.getSenderCategory(mail.from) == "alliance" {
+                UniversePortrait(id: mail.from, type: .alliance, size: 48)
+            } else {
+                CharacterPortrait(characterId: mail.from, size: 48)
+            }
             
             VStack(alignment: .leading, spacing: 2) {
                 // 邮件主题
