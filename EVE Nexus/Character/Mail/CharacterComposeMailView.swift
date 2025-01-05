@@ -26,8 +26,8 @@ struct CharacterComposeMailView: View {
         self.initialSubject = initialSubject
         self.initialBody = initialBody
         
-        // 初始化状态变量
-        _recipients = State(initialValue: initialRecipients)
+        // 初始化状态变量，确保收件人不重复
+        _recipients = State(initialValue: Array(Set(initialRecipients)))
         _subject = State(initialValue: initialSubject)
         _mailBody = State(initialValue: initialBody)
         
@@ -123,6 +123,7 @@ struct CharacterComposeMailView: View {
         }
         .sheet(isPresented: $showingRecipientPicker) {
             RecipientPickerView(characterId: characterId) { recipient in
+                // 添加收件人时进行去重
                 if !recipients.contains(where: { $0.id == recipient.id }) {
                     recipients.append(recipient)
                 }
@@ -130,6 +131,7 @@ struct CharacterComposeMailView: View {
         }
         .sheet(isPresented: $showingMailListPicker) {
             MailListPickerView(characterId: characterId) { mailList in
+                // 添加邮件列表时进行去重
                 if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
                     recipients.append(MailRecipient(
                         id: mailList.mailing_list_id,
@@ -143,10 +145,21 @@ struct CharacterComposeMailView: View {
 }
 
 // 邮件收件人数据结构
-struct MailRecipient: Identifiable {
+struct MailRecipient: Identifiable, Hashable {
     let id: Int
     let name: String
     let type: RecipientType
+    
+    // 实现 Hashable 协议
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(type)
+    }
+    
+    // 实现相等性比较
+    static func == (lhs: MailRecipient, rhs: MailRecipient) -> Bool {
+        return lhs.id == rhs.id && lhs.type == rhs.type
+    }
     
     enum RecipientType: String {
         case character
