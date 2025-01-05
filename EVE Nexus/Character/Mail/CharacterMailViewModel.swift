@@ -33,6 +33,12 @@ class CharacterMailViewModel: ObservableObject {
             // 获取邮件标签
             let response = try await CharacterMailAPI.shared.fetchMailLabels(characterId: characterId)
             self.mailLabels = response.labels.map { MailLabel(apiLabel: $0) }
+            
+            // 获取邮件订阅列表
+            let lists = try await CharacterMailAPI.shared.fetchMailLists(characterId: characterId)
+            self.mailLists = lists
+            
+            Logger.info("成功获取 \(lists.count) 个邮件订阅列表")
         } catch {
             Logger.error("获取邮件标签和订阅列表失败: \(error)")
             self.error = error

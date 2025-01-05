@@ -333,7 +333,7 @@ class CharacterMailAPI {
         
         switch existResult {
         case .success(let rows):
-            existingMailIds = Set(rows.compactMap { 
+            existingMailIds = Set(rows.compactMap {
                 ($0["mail_id"] as? Int64).map(Int.init) ?? ($0["mail_id"] as? Int)
             })
             Logger.info("找到 \(existingMailIds.count) 封已存在的邮件")
@@ -562,6 +562,37 @@ class CharacterMailAPI {
         Logger.info("成功保存邮件内容到数据库 - 邮件ID: \(content.from)")
     }
     
+    func fetchMailLists(characterId: Int) async throws -> [EVEMailList] {
+        Logger.info("开始获取邮件订阅列表 - 角色ID: \(characterId)")
+        
+        // 构建请求URL
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/mail/lists/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 发送请求获取数据
+        let data = try await networkManager.fetchDataWithToken(from: url, characterId: characterId)
+        
+        // 解析响应数据
+        let mailLists = try JSONDecoder().decode([EVEMailList].self, from: data)
+        Logger.info("成功获取 \(mailLists.count) 个邮件订阅列表")
+        
+        // 在后台保存到数据库
+        if !mailLists.isEmpty {
+            Task.detached {
+                do {
+                    try await self.saveMailLists(mailLists, for: characterId)
+                    Logger.info("成功保存邮件订阅列表到数据库")
+                } catch {
+                    Logger.error("保存邮件订阅列表失败: \(error)")
+                }
+            }
+        }
+        
+        return mailLists
+    }
+    
     /// 将邮件订阅列表保存到数据库
     /// - Parameters:
     ///   - mailLists: 邮件订阅列表数组
@@ -647,4 +678,4 @@ class CharacterMailAPI {
 enum DatabaseError: Error {
     case insertError(String)
     case fetchError(String)
-} 
+}
