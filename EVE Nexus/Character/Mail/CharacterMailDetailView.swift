@@ -142,6 +142,7 @@ struct CharacterMailDetailView: View {
                         initialBody: getInitialBody(type: type, detail: detail)
                     )
                 }
+                .interactiveDismissDisabled()
             }
         }
         .task {
