@@ -150,18 +150,24 @@ class CharacterMailListViewModel: ObservableObject {
             if let listId = labelId, isMailingList(listId) {
                 // 如果是邮件列表，获取全量邮件并过滤
                 newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
-                self.mails = newMails.filter { mail in
+                let filteredMails = newMails.filter { mail in
                     mail.recipients.contains { recipient in
                         recipient.recipient_id == listId && recipient.recipient_type == "mailing_list"
                     }
                 }
+                // 先加载发件人信息
+                await loadSenderNames(for: filteredMails)
+                // 然后一次性更新UI数据
+                self.mails = filteredMails
             } else {
                 // 其他情况（收件箱等）使用原有逻辑
                 newMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId, labelId: labelId)
+                // 先加载发件人信息
+                await loadSenderNames(for: newMails)
+                // 然后一次性更新UI数据
                 self.mails = newMails
             }
             
-            await loadSenderNames(for: self.mails)
             hasMoreMails = !self.mails.isEmpty
             initialLoadDone = true
             
@@ -192,8 +198,10 @@ class CharacterMailListViewModel: ObservableObject {
                 }
                 
                 if !filteredMails.isEmpty {
-                    self.mails.append(contentsOf: filteredMails)
+                    // 先加载发件人信息
                     await loadSenderNames(for: filteredMails)
+                    // 然后一次性更新UI数据
+                    self.mails.append(contentsOf: filteredMails)
                     hasMoreMails = true
                     Logger.info("成功加载 \(filteredMails.count) 封更老的邮件")
                 } else {
@@ -209,8 +217,10 @@ class CharacterMailListViewModel: ObservableObject {
                 )
                 
                 if !olderMails.isEmpty {
-                    self.mails.append(contentsOf: olderMails)
+                    // 先加载发件人信息
                     await loadSenderNames(for: olderMails)
+                    // 然后一次性更新UI数据
+                    self.mails.append(contentsOf: olderMails)
                     hasMoreMails = true
                     Logger.info("成功加载 \(olderMails.count) 封更老的邮件")
                 } else {
