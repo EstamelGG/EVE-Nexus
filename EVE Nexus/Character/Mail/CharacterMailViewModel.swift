@@ -54,8 +54,6 @@ class CharacterMailViewModel: ObservableObject {
             // TODO: 实现实际的API调用
             // 这里暂时使用模拟数据
             selectedLabelMails = getMockMailsByLabel(labelId: labelId)
-        } catch {
-            self.error = error
         }
     }
     

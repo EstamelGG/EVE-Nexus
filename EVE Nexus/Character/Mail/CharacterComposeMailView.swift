@@ -271,7 +271,7 @@ struct MailListPickerView: View {
                             .foregroundColor(.secondary)
                         Spacer()
                     }
-                } else if let error = viewModel.error {
+                } else if viewModel.error != nil {
                     HStack {
                         Spacer()
                         VStack {
@@ -404,6 +404,9 @@ class RecipientPickerViewModel: ObservableObject {
                 searchText: searchText
             )
             
+            // 如果任务已经被取消，直接返回
+            if Task.isCancelled { return }
+            
             Logger.debug("收到搜索响应数据: \(String(data: data, encoding: .utf8) ?? "无法解码")")
             
             // 解析搜索结果
@@ -437,6 +440,9 @@ class RecipientPickerViewModel: ObservableObject {
                 })
             }
             
+            // 如果任务已经被取消，直接返回
+            if Task.isCancelled { return }
+            
             // 按名称排序结果
             results.sort { $0.name < $1.name }
             
@@ -445,6 +451,11 @@ class RecipientPickerViewModel: ObservableObject {
             Logger.info("搜索完成，找到 \(results.count) 个结果")
             
         } catch {
+            // 如果是取消错误，就不显示错误信息
+            if error is CancellationError {
+                Logger.debug("搜索任务被取消")
+                return
+            }
             Logger.error("搜索收件人失败: \(error)")
             self.error = error
             // 保持旧的搜索结果，而不是清空
