@@ -35,6 +35,8 @@ class UniversePortraitViewModel: ObservableObject {
                 portrait = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: id, size: size)
             case .alliance:
                 portrait = try await UniverseIconAPI.shared.fetchIcon(id: id, category: "alliance")
+            case .mailingList:
+                throw NetworkError.invalidURL // 邮件列表不需要头像
             }
             
             // 保存到缓存
@@ -80,12 +82,20 @@ struct UniversePortrait: View {
                     .frame(width: displaySize, height: displaySize)
             } else {
                 // 根据类型显示不同的占位图标
-                Image(systemName: type == .character ? "person.circle.fill" :
-                      type == .corporation ? "building.2.fill" : "globe")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: displaySize, height: displaySize)
-                    .foregroundColor(.gray)
+                if type == .mailingList {
+                    Image("grouplist")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: displaySize, height: displaySize)
+                        .foregroundColor(.gray)
+                } else {
+                    Image(systemName: type == .character ? "person.circle.fill" :
+                          type == .corporation ? "building.2.fill" : "globe")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: displaySize, height: displaySize)
+                        .foregroundColor(.gray)
+                }
             }
         }
         .task {

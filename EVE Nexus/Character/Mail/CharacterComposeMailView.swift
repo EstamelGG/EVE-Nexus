@@ -9,6 +9,7 @@ struct CharacterComposeMailView: View {
     @State private var subject: String = ""
     @State private var mailBody: String = ""
     @State private var showingRecipientPicker = false
+    @State private var showingMailListPicker = false
     
     var body: some View {
         Form {
@@ -16,7 +17,9 @@ struct CharacterComposeMailView: View {
                 // 收件人列表
                 ForEach(recipients) { recipient in
                     HStack {
-                        UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
+                        if recipient.type != .mailingList {
+                            UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
+                        }
                         VStack(alignment: .leading) {
                             Text(recipient.name)
                             Text(recipient.type.rawValue)
@@ -40,6 +43,16 @@ struct CharacterComposeMailView: View {
                     HStack {
                         Image(systemName: "plus.circle.fill")
                         Text("添加收件人")
+                    }
+                }
+                
+                // 添加邮件列表按钮
+                Button {
+                    showingMailListPicker = true
+                } label: {
+                    HStack {
+                        Image(systemName: "list.bullet.circle.fill")
+                        Text("添加邮件列表")
                     }
                 }
             } header: {
@@ -92,6 +105,17 @@ struct CharacterComposeMailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingMailListPicker) {
+            MailListPickerView(characterId: characterId) { mailList in
+                if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
+                    recipients.append(MailRecipient(
+                        id: mailList.mailing_list_id,
+                        name: mailList.name,
+                        type: .mailingList
+                    ))
+                }
+            }
+        }
     }
 }
 
@@ -105,6 +129,7 @@ struct MailRecipient: Identifiable {
         case character = "角色"
         case corporation = "军团"
         case alliance = "联盟"
+        case mailingList = "邮件列表"
     }
 }
 
@@ -190,6 +215,89 @@ struct RecipientPickerView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// 邮件列表选择视图
+struct MailListPickerView: View {
+    let characterId: Int
+    let onSelect: (EVEMailList) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = MailListPickerViewModel()
+    
+    var body: some View {
+        NavigationView {
+            List {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Text("加载中...")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                } else if let error = viewModel.error {
+                    HStack {
+                        Spacer()
+                        VStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.largeTitle)
+                                .foregroundColor(.red)
+                            Text("加载失败: \(error.localizedDescription)")
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                } else if viewModel.mailLists.isEmpty {
+                    Text("没有订阅的邮件列表")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(viewModel.mailLists, id: \.mailing_list_id) { mailList in
+                        Button {
+                            onSelect(mailList)
+                            dismiss()
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(mailList.name)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("选择邮件列表")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .task {
+            await viewModel.fetchMailLists(characterId: characterId)
+        }
+    }
+}
+
+@MainActor
+class MailListPickerViewModel: ObservableObject {
+    @Published var mailLists: [EVEMailList] = []
+    @Published var isLoading = false
+    @Published var error: Error?
+    
+    func fetchMailLists(characterId: Int) async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            mailLists = try await CharacterMailAPI.shared.fetchMailLists(characterId: characterId)
+            Logger.info("成功获取 \(mailLists.count) 个邮件列表")
+        } catch {
+            Logger.error("获取邮件列表失败: \(error)")
+            self.error = error
         }
     }
 }
