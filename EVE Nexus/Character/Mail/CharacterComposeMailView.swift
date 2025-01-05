@@ -133,7 +133,7 @@ struct RecipientPickerView: View {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.largeTitle)
                                 .foregroundColor(.red)
-                            Text("搜索失败:\(viewModel.error)")
+                            Text("搜索失败:\(String(describing: viewModel.error))")
                                 .foregroundColor(.secondary)
                         }
                         Spacer()
@@ -168,7 +168,7 @@ struct RecipientPickerView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "搜索角色、军团或联盟")
-            .onChange(of: searchText) { _ in
+            .onChange(of: searchText) { _, _ in
                 // 如果搜索文本为空或长度小于等于2，直接清空结果
                 if searchText.isEmpty || searchText.count <= 2 {
                     viewModel.searchResults = []

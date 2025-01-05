@@ -53,13 +53,10 @@ struct CharacterMailDetailView: View {
                         
                         // 收件人信息
                         if !detail.content.recipients.isEmpty {
-                            Text("收件人：")
+                            (Text("收件人：")
+                                .foregroundColor(.secondary) +
+                            Text(detail.content.recipients.compactMap { detail.recipientNames[$0.recipient_id] ?? "未知收件人" }.joined(separator: ", ")))
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            ForEach(detail.content.recipients, id: \.recipient_id) { recipient in
-                                Text(detail.recipientNames[recipient.recipient_id] ?? "未知收件人")
-                                    .font(.subheadline)
-                            }
                         }
                         
                         Divider()
