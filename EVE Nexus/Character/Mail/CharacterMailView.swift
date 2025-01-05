@@ -60,10 +60,10 @@ struct CharacterMailView: View {
                                 Image("alliances")
                                     .resizable()
                                     .frame(width: 24, height: 24)
-                            case .spam:
-                                Image("reprocess")
-                                    .resizable()
-                                    .frame(width: 24, height: 24)
+                            // case .spam:
+                            //     Image("reprocess")
+                            //         .resizable()
+                            //         .frame(width: 24, height: 24)
                             }
                             Text(mailbox.title)
                             //Spacer()
@@ -199,7 +199,7 @@ enum MailboxType: CaseIterable {
     case sent
     case corporation
     case alliance
-    case spam
+    // case spam
     
     var title: String {
         switch self {
@@ -207,7 +207,7 @@ enum MailboxType: CaseIterable {
         case .sent: return NSLocalizedString("Main_EVE_Mail_Sent", comment: "")
         case .corporation: return NSLocalizedString("Main_EVE_Mail_Corporation", comment: "")
         case .alliance: return NSLocalizedString("Main_EVE_Mail_Alliance", comment: "")
-        case .spam: return NSLocalizedString("Main_EVE_Mail_Spam", comment: "")
+        // case .spam: return NSLocalizedString("Main_EVE_Mail_Spam", comment: "")
         }
     }
     
@@ -217,7 +217,7 @@ enum MailboxType: CaseIterable {
         case .sent: return 2
         case .corporation: return 4
         case .alliance: return 8
-        case .spam: return 16
+        // case .spam: return 16
         }
     }
 }
