@@ -187,12 +187,6 @@ struct RecipientPickerView: View {
                             ForEach(viewModel.recentRecipients) { recipient in
                                 QuickSelectRow(recipient: recipient, onSelect: onSelect, dismiss: dismiss)
                             }
-                            
-                            // 我的军团（放在最后）
-                            if let corp = viewModel.myCorporation {
-                                Divider()
-                                QuickSelectRow(recipient: corp, onSelect: onSelect, dismiss: dismiss)
-                            }
                         }
                     }
                 } else {
@@ -387,7 +381,6 @@ class RecipientPickerViewModel: ObservableObject {
     
     // 快速选择相关
     @Published var isLoadingQuickSelect = false
-    @Published var myCorporation: SearchResult?
     @Published var recentRecipients: [SearchResult] = []
     
     // 用于防抖的任务
@@ -405,15 +398,6 @@ class RecipientPickerViewModel: ObservableObject {
         defer { isLoadingQuickSelect = false }
         
         do {
-            // 从本地数据库获取角色所在的军团ID
-            if let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) {
-                // 获取军团名称
-                let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [corporationId])
-                if let corpInfo = corpNames[corporationId] {
-                    myCorporation = SearchResult(id: corporationId, name: corpInfo.name, type: .corporation)
-                }
-            }
-            
             // 获取最近的邮件
             let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
             
