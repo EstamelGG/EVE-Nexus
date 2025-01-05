@@ -94,18 +94,10 @@ class CharacterMailDetailViewModel: ObservableObject {
             // 1. 获取邮件内容
             let content = try await CharacterMailAPI.shared.fetchMailContent(characterId: characterId, mailId: mailId)
             
-            // 2. 获取发件人名称（优先从数据库获取）
+            // 2. 获取发件人名称
             var senderName = "未知发件人"
-            if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: content.from) {
+            if let nameInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [content.from])[content.from] {
                 senderName = nameInfo.name
-            } else {
-                // 如果数据库中没有，再从API获取
-                let senderResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: [content.from])
-                if senderResult > 0 {
-                    if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: content.from) {
-                        senderName = nameInfo.name
-                    }
-                }
             }
             
             // 3. 获取所有收件人名称
@@ -120,19 +112,10 @@ class CharacterMailDetailViewModel: ObservableObject {
                         recipientNames[recipient.recipient_id] = "[邮件列表#\(recipient.recipient_id)]"
                     }
                 case "character", "corporation", "alliance":
-                    // 优先从数据库获取名称
-                    if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: recipient.recipient_id) {
+                    if let nameInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [recipient.recipient_id])[recipient.recipient_id] {
                         recipientNames[recipient.recipient_id] = nameInfo.name
                     } else {
-                        // 如果数据库中没有，再从API获取
-                        let recipientResult = try await UniverseAPI.shared.fetchAndSaveNames(ids: [recipient.recipient_id])
-                        if recipientResult > 0 {
-                            if let nameInfo = try await UniverseAPI.shared.getNameFromDatabase(id: recipient.recipient_id) {
-                                recipientNames[recipient.recipient_id] = nameInfo.name
-                            } else {
-                                recipientNames[recipient.recipient_id] = "未知\(getRecipientTypeText(recipient.recipient_type))"
-                            }
-                        }
+                        recipientNames[recipient.recipient_id] = "未知\(getRecipientTypeText(recipient.recipient_type))"
                     }
                 default:
                     recipientNames[recipient.recipient_id] = "未知收件人"

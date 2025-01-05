@@ -17,6 +17,7 @@ class UniverseAPI {
     /// 从ESI获取ID对应的名称信息
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: 成功获取的数量
+    /// Resolve a set of IDs to names and categories. Supported ID’s for resolving are: Characters, Corporations, Alliances, Stations, Solar Systems, Constellations, Regions, Types, Factions
     func fetchAndSaveNames(ids: [Int]) async throws -> Int {
         Logger.info("开始获取实体名称信息 - IDs: \(ids)")
         
@@ -119,5 +120,29 @@ class UniverseAPI {
             Logger.error("从数据库批量获取实体信息失败 - IDs: \(ids), 错误: \(error)")
             throw DatabaseError.fetchError(error)
         }
+    }
+    
+    /// 批量获取ID对应的名称信息，对于数据库中不存在的条目会自动从API获取
+    /// - Parameter ids: 要查询的ID数组
+    /// - Returns: ID到名称和类型的映射
+    func getNamesWithFallback(ids: [Int]) async throws -> [Int: (name: String, category: String)] {
+        // 首先从数据库获取所有可用的名称
+        var namesMap = try await getNamesFromDatabase(ids: ids)
+        
+        // 找出数据库中不存在的ID
+        let missingIds = ids.filter { !namesMap.keys.contains($0) }
+        
+        // 如果有缺失的ID，从API获取
+        if !missingIds.isEmpty {
+            let result = try await fetchAndSaveNames(ids: missingIds)
+            if result > 0 {
+                // 获取新保存的数据
+                let newNames = try await getNamesFromDatabase(ids: missingIds)
+                // 合并结果
+                namesMap.merge(newNames) { current, _ in current }
+            }
+        }
+        
+        return namesMap
     }
 } 

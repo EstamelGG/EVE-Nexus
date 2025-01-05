@@ -250,32 +250,16 @@ class CharacterMailListViewModel: ObservableObject {
         let senderIds = Set(mails.map { $0.from })
         
         do {
-            // 先尝试从数据库获取已有的名称信息
-            let existingNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(senderIds))
+            // 使用getNamesWithFallback一次性获取所有名称信息
+            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(senderIds))
             
-            // 更新已有的名称信息
-            for (id, info) in existingNames {
+            // 更新视图数据
+            for (id, info) in names {
                 self.senderNames[id] = info.name
                 self.senderCategories[id] = info.category
             }
             
-            // 找出需要从API获取的ID
-            let missingIds = senderIds.filter { !existingNames.keys.contains($0) }
-            if !missingIds.isEmpty {
-                // 从API获取并保存缺失的名称信息
-                _ = try await UniverseAPI.shared.fetchAndSaveNames(ids: Array(missingIds))
-                
-                // 从数据库获取新保存的名称信息
-                let newNames = try await UniverseAPI.shared.getNamesFromDatabase(ids: Array(missingIds))
-                
-                // 更新新获取的名称信息
-                for (id, info) in newNames {
-                    self.senderNames[id] = info.name
-                    self.senderCategories[id] = info.category
-                }
-            }
-            
-            Logger.debug("成功获取 \(senderIds.count) 个发件人的信息")
+            Logger.debug("成功获取 \(names.count) 个发件人的信息")
         } catch {
             Logger.error("获取发件人信息失败: \(error)")
         }
