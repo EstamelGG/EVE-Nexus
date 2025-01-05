@@ -301,7 +301,7 @@ private struct MailListItemView: View {
                 // 邮件主题
                 Text(mail.subject)
                     .font(.headline)
-                    .foregroundColor(mail.is_read == true ? .secondary : .primary)
+                    // .foregroundColor(mail.is_read == true ? .secondary : .primary)
                     .lineLimit(1)
                 
                 // 发件人名称
@@ -318,11 +318,11 @@ private struct MailListItemView: View {
             Spacer()
             
             // 未读标记
-            if mail.is_read != true {
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 8, height: 8)
-            }
+//            if mail.is_read != true {
+//                Circle()
+//                    .fill(Color.blue)
+//                    .frame(width: 8, height: 8)
+//            }
         }
         .padding(.vertical, 2)
     }

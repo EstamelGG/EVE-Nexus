@@ -65,27 +65,27 @@ struct CharacterMailView: View {
                                     .frame(width: 24, height: 24)
                             }
                             Text(mailbox.title)
-                            Spacer()
+                            //Spacer()
                             // 显示未读数
-                            switch mailbox {
-                            case .inbox:
-                                if let unread = inboxUnread {
-                                    Text("\(unread)")
-                                        .foregroundColor(.blue)
-                                }
-                            case .corporation:
-                                if let unread = corpUnread {
-                                    Text("\(unread)")
-                                        .foregroundColor(.blue)
-                                }
-                            case .alliance:
-                                if let unread = allianceUnread {
-                                    Text("\(unread)")
-                                        .foregroundColor(.blue)
-                                }
-                            default:
-                                EmptyView()
-                            }
+//                            switch mailbox {
+//                            case .inbox:
+//                                if let unread = inboxUnread {
+//                                    Text("\(unread)")
+//                                        .foregroundColor(.blue)
+//                                }
+//                            case .corporation:
+//                                if let unread = corpUnread {
+//                                    Text("\(unread)")
+//                                        .foregroundColor(.blue)
+//                                }
+//                            case .alliance:
+//                                if let unread = allianceUnread {
+//                                    Text("\(unread)")
+//                                        .foregroundColor(.blue)
+//                                }
+//                            default:
+//                                EmptyView()
+//                            }
                         }
                     }
                 }
