@@ -361,8 +361,12 @@ struct CharacterMailListView: View {
     @StateObject private var viewModel = CharacterMailListViewModel()
     @Namespace private var scrollSpace
     @State private var scrollPosition: Int?
-    @State private var showingComposeView = false
-    @State private var initialRecipients: [MailRecipient] = []
+    @State private var composeMailData: ComposeMailData?
+    
+    struct ComposeMailData: Identifiable {
+        let id = UUID()
+        let recipients: [MailRecipient]
+    }
     
     init(characterId: Int, labelId: Int? = nil, title: String? = nil) {
         self.characterId = characterId
@@ -406,49 +410,56 @@ struct CharacterMailListView: View {
                 if labelId == MailboxType.corporation.labelId {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
-                            Task {
-                                do {
-                                    // 获取当前角色所在的军团
-                                    if let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) {
-                                        // 获取军团名称
-                                        let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [corporationId])
-                                        if let corpInfo = corpNames[corporationId] {
-                                            Logger.debug("获取到军团信息 - ID: \(corporationId), 名称: \(corpInfo.name)")
-                                            // 创建预设的收件人
-                                            let recipient = MailRecipient(
-                                                id: corporationId,
-                                                name: corpInfo.name,
-                                                type: .corporation
-                                            )
-                                            // 设置收件人并显示编辑视图
-                                            await MainActor.run {
-                                                initialRecipients = [recipient]
-                                                showingComposeView = true
-                                            }
-                                        }
-                                    }
-                                } catch {
-                                    Logger.error("获取军团信息失败: \(error)")
-                                }
-                            }
+                            // 先获取军团信息，再显示编辑页面
+                            getCorpInfoAndShowCompose()
                         } label: {
                             Image(systemName: "square.and.pencil")
                         }
                     }
                 }
             }
-            .sheet(isPresented: $showingComposeView, onDismiss: {
-                initialRecipients = []
-            }) {
+            .sheet(item: $composeMailData) { data in
                 NavigationStack {
                     CharacterComposeMailView(
                         characterId: characterId,
-                        initialRecipients: initialRecipients
+                        initialRecipients: data.recipients
                     )
                 }
             }
             .task {
                 await viewModel.fetchMails(characterId: characterId, labelId: labelId)
+            }
+        }
+    }
+    
+    private func getCorpInfoAndShowCompose() {
+        Task {
+            do {
+                // 获取当前角色所在的军团
+                guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+                    Logger.error("无法获取军团ID")
+                    return
+                }
+                
+                // 获取军团名称
+                let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [corporationId])
+                guard let corpInfo = corpNames[corporationId] else {
+                    Logger.error("无法获取军团名称")
+                    return
+                }
+                
+                Logger.debug("获取到军团信息 - ID: \(corporationId), 名称: \(corpInfo.name)")
+                
+                // 创建收件人并更新状态
+                let recipient = MailRecipient(
+                    id: corporationId,
+                    name: corpInfo.name,
+                    type: .corporation
+                )
+                composeMailData = ComposeMailData(recipients: [recipient])
+                
+            } catch {
+                Logger.error("获取军团信息失败: \(error)")
             }
         }
     }
