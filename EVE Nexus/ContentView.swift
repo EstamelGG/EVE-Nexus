@@ -96,30 +96,41 @@ struct ServerStatusView: View {
     let status: ServerStatus?
     
     var body: some View {
-        HStack(spacing: 4) {
-            UTCTimeView()
-            Text("-")
-            if let status = status {
-                if status.isOnline {
-                    Text("Online")
-                        .font(.caption.bold())
-                        .foregroundColor(.green)
-                    
-                    let formattedPlayers = NumberFormatter.localizedString(
-                        from: NSNumber(value: status.players),
-                        number: .decimal
-                    )
-                    Text("(\(formattedPlayers) players)")
-                        .font(.caption)
-                } else {
-                    Text("Offline")
-                        .font(.caption.bold())
-                        .foregroundColor(.red)
-                }
-            } else {
-                Text("Checking Status...")
+        Text(formattedUTCTime)
+            .font(.monospacedDigit(.caption)()) +
+        Text(" - ")
+            .font(.caption) +
+        statusText
+    }
+    
+    private var formattedUTCTime: String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        return formatter.string(from: Date())
+    }
+    
+    private var statusText: Text {
+        if let status = status {
+            if status.isOnline {
+                let formattedPlayers = NumberFormatter.localizedString(
+                    from: NSNumber(value: status.players),
+                    number: .decimal
+                )
+                return Text("Online")
+                    .font(.caption.bold())
+                    .foregroundColor(.green) +
+                Text(" (\(formattedPlayers) players)")
                     .font(.caption)
+            } else {
+                return Text("Offline")
+                    .font(.caption.bold())
+                    .foregroundColor(.red)
             }
+        } else {
+            return Text("Checking Status...")
+                .font(.caption)
         }
     }
 }
@@ -408,7 +419,7 @@ struct ContentView: View {
                     logoutButton
                 }
             }
-            .navigationSplitViewColumnWidth(400)
+            .navigationSplitViewColumnWidth(ideal: UIScreen.main.bounds.width * 0.4)
         } detail: {
             NavigationStack {
                 if selectedItem == nil {
