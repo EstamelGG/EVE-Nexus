@@ -93,38 +93,52 @@ struct Cache<Value: Codable> {
 @MainActor
 final class IncursionsViewModel: ObservableObject {
     @Published private(set) var preparedIncursions: [PreparedIncursion] = []
-    @Published var incursion_isLoading = false
-    @Published var incursion_isRefreshing = false
+    @Published var isLoading = true
+    @Published var errorMessage: String?
     
     let databaseManager: DatabaseManager
+    private var loadingTask: Task<Void, Never>?
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
     }
     
-    func fetchIncursions(forceRefresh: Bool = false, silent: Bool = false) async {
-        if !silent {
-            if preparedIncursions.isEmpty {
-                incursion_isLoading = true
-            } else {
-                incursion_isRefreshing = true
+    deinit {
+        loadingTask?.cancel()
+    }
+    
+    func fetchIncursions(forceRefresh: Bool = false) async {
+        // 取消之前的加载任务
+        loadingTask?.cancel()
+        
+        // 创建新的加载任务
+        loadingTask = Task {
+            isLoading = true
+            errorMessage = nil
+            
+            do {
+                Logger.info("开始获取入侵数据")
+                let incursions = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: forceRefresh)
+                
+                if Task.isCancelled { return }
+                
+                await processIncursions(incursions)
+                
+                if Task.isCancelled { return }
+                
+                self.isLoading = false
+                
+            } catch {
+                Logger.error("获取入侵数据失败: \(error)")
+                if !Task.isCancelled {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
             }
         }
         
-        defer {
-            if !silent {
-                incursion_isLoading = false
-                incursion_isRefreshing = false
-            }
-        }
-        
-        Logger.info("ViewModel: 开始获取入侵数据")
-        do {
-            let incursions = try await IncursionsAPI.shared.fetchIncursions(forceRefresh: forceRefresh)
-            await processIncursions(incursions)
-        } catch {
-            Logger.error("ViewModel: 获取入侵数据失败: \(error)")
-        }
+        // 等待任务完成
+        await loadingTask?.value
     }
     
     private func processIncursions(_ incursions: [Incursion]) async {
@@ -165,14 +179,14 @@ final class IncursionsViewModel: ObservableObject {
         }
         
         if !prepared.isEmpty {
-            Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
+            Logger.info("成功准备 \(prepared.count) 条数据")
             preparedIncursions = prepared
         } else {
-            Logger.error("ViewModel: 没有可显示的完整数据")
+            Logger.error("没有可显示的完整数据")
         }
     }
     
-    func getFactionInfo(factionId: Int) async -> (iconName: String, name: String)? {
+    private func getFactionInfo(factionId: Int) async -> (iconName: String, name: String)? {
         let iconName = factionId == 500019 ? "corporations_44_128_2.png" : "items_7_64_4.png"
         
         let query = "SELECT name FROM factions WHERE id = ?"
@@ -184,7 +198,7 @@ final class IncursionsViewModel: ObservableObject {
         return (iconName, name)
     }
     
-    func getLocationInfo(solarSystemId: Int) async -> (systemId: Int, systemName: String, security: Double, constellationId: Int, constellationName: String, regionId: Int, regionName: String)? {
+    private func getLocationInfo(solarSystemId: Int) async -> (systemId: Int, systemName: String, security: Double, constellationId: Int, constellationName: String, regionId: Int, regionName: String)? {
         if let info = await getSolarSystemInfo(solarSystemId: solarSystemId, databaseManager: databaseManager) {
             return (
                 systemId: info.systemId,
@@ -213,7 +227,7 @@ struct IncursionCell: View {
                     .frame(width: 48, height: 48)
                     .cornerRadius(6)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Text(incursion.faction.name)
                         Text("[\(String(format: "%.1f", incursion.incursion.influence * 100))%]")
@@ -255,7 +269,7 @@ struct IncursionsView: View {
     var body: some View {
         List {
             Section {
-                if viewModel.incursion_isLoading {
+                if viewModel.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                 } else if viewModel.preparedIncursions.isEmpty {
@@ -267,7 +281,7 @@ struct IncursionsView: View {
                                     .font(.system(size: 30))
                                     .foregroundColor(.gray)
                                 Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
+                                    .foregroundColor(.gray)
                             }
                             .padding()
                             Spacer()
@@ -289,9 +303,7 @@ struct IncursionsView: View {
             await viewModel.fetchIncursions(forceRefresh: true)
         }
         .task {
-            if viewModel.preparedIncursions.isEmpty {
-                await viewModel.fetchIncursions()
-            }
+            await viewModel.fetchIncursions()
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }

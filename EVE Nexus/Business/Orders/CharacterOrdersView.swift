@@ -9,24 +9,34 @@ struct OrderItemInfo {
 // 位置信息模型
 typealias OrderLocationInfo = LocationInfoDetail
 
-struct CharacterOrdersView: View {
-    let characterId: Int64
-    @State private var orders: [CharacterMarketOrder] = []
-    @State private var isLoading = false
-    @State private var isBackgroundLoading = false
-    @State private var errorMessage: String?
-    @State private var showError = false
-    @State private var locationNames: [Int64: String] = [:]
-    @State private var itemInfoCache: [Int64: OrderItemInfo] = [:]
-    @State private var locationInfoCache: [Int64: OrderLocationInfo] = [:]
-    @StateObject private var databaseManager = DatabaseManager()
-    @State private var showBuyOrders = false
-    @State private var isDataReady = false
+@MainActor
+final class CharacterOrdersViewModel: ObservableObject {
+    @Published private(set) var orders: [CharacterMarketOrder] = []
+    @Published var isLoading = true
+    @Published var errorMessage: String?
+    @Published var showError = false
+    @Published private(set) var itemInfoCache: [Int64: OrderItemInfo] = [:]
+    @Published private(set) var locationInfoCache: [Int64: OrderLocationInfo] = [:]
+    @Published var showBuyOrders = false
+    @Published private(set) var isDataReady = false
     
-    private var filteredOrders: [CharacterMarketOrder] {
+    private let characterId: Int64
+    private let databaseManager: DatabaseManager
+    private var loadingTask: Task<Void, Never>?
+    
+    var filteredOrders: [CharacterMarketOrder] {
         orders
             .filter { $0.isBuyOrder ?? false == showBuyOrders }
             .sorted { $0.orderId > $1.orderId }
+    }
+    
+    init(characterId: Int64, databaseManager: DatabaseManager) {
+        self.characterId = characterId
+        self.databaseManager = databaseManager
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
     
     // 初始化订单显示类型
@@ -41,34 +51,139 @@ struct CharacterOrdersView: View {
         }
     }
     
+    func loadOrders(forceRefresh: Bool = false) async {
+        // 取消之前的加载任务
+        loadingTask?.cancel()
+        
+        // 创建新的加载任务
+        loadingTask = Task {
+            isLoading = true
+            errorMessage = nil
+            showError = false
+            isDataReady = false
+            
+            do {
+                if let jsonString = try await CharacterMarketAPI.shared.getMarketOrders(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                ) {
+                    if Task.isCancelled { return }
+                    
+                    // 解析JSON数据
+                    let jsonData = jsonString.data(using: .utf8)!
+                    let decoder = JSONDecoder()
+                    orders = try decoder.decode([CharacterMarketOrder].self, from: jsonData)
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 同步加载所有信息
+                    await loadAllInformation()
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 初始化订单显示类型
+                    initializeOrderType()
+                    
+                } else {
+                    orders = []
+                }
+                
+                await MainActor.run {
+                    self.isDataReady = true
+                    self.isLoading = false
+                }
+                
+            } catch {
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.showError = true
+                        self.orders = []
+                        self.isDataReady = true
+                        self.isLoading = false
+                    }
+                }
+            }
+        }
+        
+        // 等待任务完成
+        await loadingTask?.value
+    }
+    
+    private func loadAllInformation() async {
+        // 1. 加载所有物品信息
+        let typeIds = Set(orders.map { $0.typeId })
+        if !typeIds.isEmpty {
+            let query = """
+                SELECT type_id, name, icon_filename
+                FROM types
+                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+            """
+            
+            if case .success(let rows) = databaseManager.executeQuery(query) {
+                for row in rows {
+                    if let typeIdInt = (row["type_id"] as? NSNumber)?.int64Value,
+                       let name = row["name"] as? String,
+                       let iconFileName = row["icon_filename"] as? String {
+                        itemInfoCache[typeIdInt] = OrderItemInfo(
+                            name: name,
+                            iconFileName: iconFileName
+                        )
+                    }
+                }
+            }
+        }
+        
+        // 2. 使用 LocationInfoLoader 加载位置信息
+        let locationIds = Set(orders.map { $0.locationId })
+        let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: characterId)
+        locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
+        
+        Logger.debug("加载的物品信息数量: \(itemInfoCache.count)")
+        Logger.debug("加载的位置信息数量: \(locationInfoCache.count)")
+    }
+}
+
+struct CharacterOrdersView: View {
+    let characterId: Int64
+    @StateObject private var viewModel: CharacterOrdersViewModel
+    
+    init(characterId: Int64, databaseManager: DatabaseManager = DatabaseManager()) {
+        self.characterId = characterId
+        _viewModel = StateObject(wrappedValue: CharacterOrdersViewModel(
+            characterId: characterId,
+            databaseManager: databaseManager
+        ))
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 买卖单切换按钮
-            TabView(selection: $showBuyOrders) {
+            TabView(selection: $viewModel.showBuyOrders) {
                 OrderListView(
-                    orders: filteredOrders.filter { !($0.isBuyOrder ?? false) },
-                    itemInfoCache: itemInfoCache,
-                    locationInfoCache: locationInfoCache,
-                    isLoading: isLoading,
-                    isDataReady: isDataReady
+                    orders: viewModel.filteredOrders.filter { !($0.isBuyOrder ?? false) },
+                    itemInfoCache: viewModel.itemInfoCache,
+                    locationInfoCache: viewModel.locationInfoCache,
+                    isLoading: viewModel.isLoading,
+                    isDataReady: viewModel.isDataReady
                 )
                 .tag(false)
                 
                 OrderListView(
-                    orders: filteredOrders.filter { $0.isBuyOrder ?? false },
-                    itemInfoCache: itemInfoCache,
-                    locationInfoCache: locationInfoCache,
-                    isLoading: isLoading,
-                    isDataReady: isDataReady
+                    orders: viewModel.filteredOrders.filter { $0.isBuyOrder ?? false },
+                    itemInfoCache: viewModel.itemInfoCache,
+                    locationInfoCache: viewModel.locationInfoCache,
+                    isLoading: viewModel.isLoading,
+                    isDataReady: viewModel.isDataReady
                 )
                 .tag(true)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .safeAreaInset(edge: .top, spacing: 0) {
                 VStack(spacing: 0) {
-                    Picker("Order Type", selection: $showBuyOrders) {
-                        Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !($0.isBuyOrder ?? false) }.count))").tag(false)
-                        Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
+                    Picker("Order Type", selection: $viewModel.showBuyOrders) {
+                        Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(viewModel.orders.filter { !($0.isBuyOrder ?? false) }.count))").tag(false)
+                        Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(viewModel.orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal, 4)
@@ -78,25 +193,17 @@ struct CharacterOrdersView: View {
             }
         }
         .refreshable {
-            await loadOrders(forceRefresh: true)
+            await viewModel.loadOrders(forceRefresh: true)
         }
-        .alert(NSLocalizedString("Error", comment: ""), isPresented: $showError) {
+        .alert(NSLocalizedString("Error", comment: ""), isPresented: $viewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(errorMessage ?? "Unknown error")
+            Text(viewModel.errorMessage ?? "Unknown error")
         }
         .navigationTitle(NSLocalizedString("Main_Market_Orders", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
         .task {
-            await loadOrders()
+            await viewModel.loadOrders()
         }
     }
     
@@ -301,85 +408,5 @@ struct CharacterOrdersView: View {
             return displayFormatter.string(from: date)
         }
     }
-    
-    private func loadOrders(forceRefresh: Bool = false) async {
-        let shouldShowFullscreenLoading = orders.isEmpty && !forceRefresh
-        
-        if shouldShowFullscreenLoading {
-            isLoading = true
-        } else if forceRefresh {
-            isBackgroundLoading = true
-        }
-        
-        do {
-            if let jsonString = try await CharacterMarketAPI.shared.getMarketOrders(
-                characterId: characterId,
-                forceRefresh: forceRefresh,
-                progressCallback: { isLoading in
-                    Task { @MainActor in
-                        isBackgroundLoading = isLoading
-                    }
-                }
-            ) {
-                // 解析JSON数据
-                let jsonData = jsonString.data(using: .utf8)!
-                let decoder = JSONDecoder()
-                orders = try decoder.decode([CharacterMarketOrder].self, from: jsonData)
-                
-                // 同步加载所有信息
-                await loadAllInformation()
-                
-                // 初始化订单显示类型
-                initializeOrderType()
-                
-                // 所有数据加载完成
-                isDataReady = true
-            } else {
-                orders = []
-                isDataReady = true
-            }
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
-            orders = []
-            isDataReady = true
-        }
-        
-        isLoading = false
-        isBackgroundLoading = false
-    }
-    
-    private func loadAllInformation() async {
-        // 1. 加载所有物品信息
-        let typeIds = Set(orders.map { $0.typeId })
-        if !typeIds.isEmpty {
-            let query = """
-                SELECT type_id, name, icon_filename
-                FROM types
-                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
-            """
-            
-            if case .success(let rows) = databaseManager.executeQuery(query) {
-                for row in rows {
-                    if let typeIdInt = (row["type_id"] as? NSNumber)?.int64Value,
-                       let name = row["name"] as? String,
-                       let iconFileName = row["icon_filename"] as? String {
-                        itemInfoCache[typeIdInt] = OrderItemInfo(
-                            name: name,
-                            iconFileName: iconFileName
-                        )
-                    }
-                }
-            }
-        }
-        
-        // 2. 使用 LocationInfoLoader 加载位置信息
-        let locationIds = Set(orders.map { $0.locationId })
-        let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: characterId)
-        locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
-        
-        // 添加调试日志
-        Logger.debug("加载的物品信息数量: \(itemInfoCache.count)")
-        Logger.debug("加载的位置信息数量: \(locationInfoCache.count)")
-    }
 }
+

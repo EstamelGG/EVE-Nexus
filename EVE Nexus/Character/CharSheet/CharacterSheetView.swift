@@ -24,17 +24,187 @@ struct CharacterSheetView: View {
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
     
+    // UserDefaults 键名常量
+    private let lastShipTypeIdKey: String
+    private let lastLocationKey: String
+    
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
     
+    // 位置信息缓存结构体
+    private struct LocationCache: Codable {
+        let solarSystemId: Int
+        let stationId: Int?
+        let structureId: Int?
+        let locationStatus: String
+        let typeId: Int?
+    }
+    
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
         self.characterPortrait = characterPortrait
         self.databaseManager = databaseManager
         self._locationLoader = State(initialValue: LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(character.CharacterID)))
+        // 为每个角色创建唯一的 UserDefaults 键
+        self.lastShipTypeIdKey = "LastShipTypeId_\(character.CharacterID)"
+        self.lastLocationKey = "LastLocation_\(character.CharacterID)"
+        
+        // 从 UserDefaults 加载上次的飞船信息
+        if let lastShipTypeId = UserDefaults.standard.object(forKey: lastShipTypeIdKey) as? Int {
+            let query = "SELECT name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [lastShipTypeId]),
+               let row = rows.first,
+               let typeName = row["name"] as? String {
+                // 使用上次的飞船类型创建一个临时的 CharacterShipInfo
+                let lastShip = CharacterShipInfo(ship_item_id: 0, ship_name: "", ship_type_id: lastShipTypeId)
+                self._currentShip = State(initialValue: lastShip)
+                self._shipTypeName = State(initialValue: typeName)
+            }
+        }
+    }
+    
+    // 从缓存加载位置信息
+    private func loadLocationFromCache(_ cache: LocationCache) async {
+        if let structureId = cache.structureId {
+            // 建筑物
+            let _ = CharacterLocation(
+                solar_system_id: cache.solarSystemId,
+                structure_id: structureId,
+                station_id: nil
+            )
+            if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
+                await MainActor.run {
+                    self.locationDetail = info
+                    self.currentLocation = nil
+                    self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                    self.locationTypeId = cache.typeId
+                }
+            }
+        } else if let stationId = cache.stationId {
+            // 空间站
+            let _ = CharacterLocation(
+                solar_system_id: cache.solarSystemId,
+                structure_id: nil,
+                station_id: stationId
+            )
+            if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
+                await MainActor.run {
+                    self.locationDetail = info
+                    self.currentLocation = nil
+                    self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                    self.locationTypeId = cache.typeId
+                }
+            }
+        } else {
+            // 星系
+            if let info = await getSolarSystemInfo(solarSystemId: cache.solarSystemId, databaseManager: databaseManager) {
+                await MainActor.run {
+                    self.locationDetail = nil
+                    self.currentLocation = info
+                    self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                    self.locationTypeId = nil
+                }
+            }
+        }
+    }
+    
+    // 保存位置信息到缓存
+    private func saveLocationToCache(location: CharacterLocation, typeId: Int? = nil) {
+        let cache = LocationCache(
+            solarSystemId: location.solar_system_id,
+            stationId: location.station_id,
+            structureId: location.structure_id,
+            locationStatus: location.locationStatus.rawValue,
+            typeId: typeId
+        )
+        
+        if let data = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(data, forKey: lastLocationKey)
+        }
+    }
+    
+    // 比较位置是否相同
+    private func isSameLocation(location: CharacterLocation, cache: LocationCache) -> Bool {
+        // 检查基本信息是否相同
+        guard location.solar_system_id == cache.solarSystemId,
+              location.station_id == cache.stationId,
+              location.structure_id == cache.structureId,
+              location.locationStatus.rawValue == cache.locationStatus else {
+            return false
+        }
+        return true
+    }
+    
+    // 加载位置信息
+    private func loadLocationInfo(forceRefresh: Bool = false) async {
+        do {
+            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
+                characterId: character.CharacterID,
+                forceRefresh: forceRefresh
+            )
+            
+            // 检查是否与缓存位置相同
+            if let data = UserDefaults.standard.data(forKey: lastLocationKey),
+               let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data),
+               isSameLocation(location: location, cache: locationCache) {
+                // 位置相同，不需要更新UI
+                return
+            }
+            
+            // 位置不同，更新UI和缓存
+            if let structureId = location.structure_id {
+                let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+                    structureId: Int64(structureId),
+                    characterId: character.CharacterID
+                )
+                if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
+                    await MainActor.run {
+                        self.locationDetail = info
+                        self.currentLocation = nil
+                        self.locationStatus = location.locationStatus
+                        self.locationTypeId = structureInfo?.type_id
+                    }
+                    saveLocationToCache(location: location, typeId: structureInfo?.type_id)
+                }
+            } else if let stationId = location.station_id {
+                let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+                var typeId: Int?
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [Int(stationId)]),
+                   let row = rows.first {
+                    typeId = row["stationTypeID"] as? Int
+                }
+                
+                if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
+                    await MainActor.run {
+                        self.locationDetail = info
+                        self.currentLocation = nil
+                        self.locationStatus = location.locationStatus
+                        self.locationTypeId = typeId
+                    }
+                    saveLocationToCache(location: location, typeId: typeId)
+                }
+            } else {
+                if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
+                    await MainActor.run {
+                        self.locationDetail = nil
+                        self.currentLocation = info
+                        self.locationStatus = location.locationStatus
+                        self.locationTypeId = nil
+                    }
+                    saveLocationToCache(location: location)
+                }
+            }
+            
+            // 保存状态到数据库
+            if let ship = currentShip {
+                await saveCharacterState(location: location, ship: ship)
+            }
+        } catch {
+            Logger.error("获取位置信息失败: \(error)")
+        }
     }
     
     var body: some View {
@@ -252,36 +422,45 @@ struct CharacterSheetView: View {
                                 .foregroundColor(.secondary)
                             }
                         } else {
-                            Text(NSLocalizedString("Location_Unknown", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.gray)
+                            Text("Unknown")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
                 .frame(height: 36)
                 
                 // 当前飞船信息
-                if let ship = currentShip {
-                    HStack {
-                        // 飞船图标
+                HStack {
+                    // 飞船图标
+                    if let ship = currentShip {
                         IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("Character_Current_Ship", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            if let typeName = shipTypeName {
-                                Text(typeName)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                    } else {
+                        IconManager.shared.loadImage(for: "icon_0_64.png")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("Character_Current_Ship", comment: ""))
+                            .font(.body)
+                            .foregroundColor(.primary)
+                        if let _ = currentShip, let typeName = shipTypeName {
+                            Text(typeName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Unknown")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
-                    .frame(height: 36)
                 }
+                .frame(height: 36)
             } header: {
                 Text(NSLocalizedString("Common_info", comment: ""))
             }
@@ -377,28 +556,204 @@ struct CharacterSheetView: View {
             // 1. 首先加载本地数据库中的数据
             loadLocalData()
             
-            // 2. 异步加载需要网络请求的数据
-            await loadNetworkData()
+            // 2. 从缓存加载位置信息
+            if let data = UserDefaults.standard.data(forKey: lastLocationKey),
+               let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data) {
+                await loadLocationFromCache(locationCache)
+            }
             
-            // 5. 获取奖章信息
-            Task {
-                if let medals = try? await CharacterMedalsAPI.shared.fetchCharacterMedals(
-                    characterId: character.CharacterID
-                ) {
-                    await MainActor.run {
-                        self.medals = medals
-                        self.isLoadingMedals = false
-                    }
-                } else {
-                    await MainActor.run {
-                        self.isLoadingMedals = false
-                    }
+            // 3. 并行加载所有网络数据
+            await withTaskGroup(of: Void.self) { group in
+                // 加载在线状态
+                group.addTask {
+                    await loadOnlineStatus()
                 }
+                
+                // 加载位置信息（强制刷新）
+                group.addTask {
+                    await loadLocationInfo(forceRefresh: true)
+                }
+                
+                // 加载飞船信息
+                group.addTask {
+                    await loadShipInfo()
+                }
+                
+                // 加载跳跃疲劳
+                group.addTask {
+                    await loadFatigueInfo()
+                }
+                
+                // 加载军团和联盟信息
+                group.addTask {
+                    await loadCorporationAndAllianceInfo()
+                }
+                
+                // 加载奖章信息
+                group.addTask {
+                    await loadMedalsInfo()
+                }
+                
+                // 等待所有任务完成
+                await group.waitForAll()
             }
         }
         .refreshable {
             // 用户下拉刷新时，强制从API获取最新数据
             await refreshAllData()
+        }
+    }
+    
+    // 加载在线状态
+    private func loadOnlineStatus() async {
+        if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
+            characterId: character.CharacterID
+        ) {
+            await MainActor.run {
+                self.onlineStatus = status
+                self.isLoadingOnlineStatus = false
+            }
+        } else {
+            await MainActor.run {
+                self.isLoadingOnlineStatus = false
+            }
+        }
+    }
+    
+    // 加载飞船信息
+    private func loadShipInfo() async {
+        do {
+            let shipInfo = try await CharacterLocationAPI.shared.fetchCharacterShip(
+                characterId: character.CharacterID
+            )
+            
+            let query = "SELECT name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [shipInfo.ship_type_id]),
+               let row = rows.first,
+               let typeName = row["name"] as? String {
+                await MainActor.run {
+                    self.currentShip = shipInfo
+                    self.shipTypeName = typeName
+                    // 保存最新的飞船类型ID到 UserDefaults
+                    UserDefaults.standard.set(shipInfo.ship_type_id, forKey: lastShipTypeIdKey)
+                }
+            }
+        } catch {
+            Logger.error("获取飞船信息失败: \(error)")
+        }
+    }
+    
+    // 加载建筑物信息
+    private func loadStructureInfo(structureId: Int64, location: CharacterLocation) async {
+        let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+            structureId: structureId,
+            characterId: character.CharacterID
+        )
+        if let info = await locationLoader?.loadLocationInfo(locationIds: [structureId]).first?.value {
+            await MainActor.run {
+                self.locationDetail = info
+                self.locationStatus = location.locationStatus
+                self.locationTypeId = structureInfo?.type_id
+            }
+        }
+    }
+    
+    // 加载空间站信息
+    private func loadStationInfo(stationId: Int64, location: CharacterLocation) async {
+        let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [Int(stationId)]),
+           let row = rows.first,
+           let typeId = row["stationTypeID"] as? Int {
+            if let info = await locationLoader?.loadLocationInfo(locationIds: [stationId]).first?.value {
+                await MainActor.run {
+                    self.locationDetail = info
+                    self.locationStatus = location.locationStatus
+                    self.locationTypeId = typeId
+                }
+            }
+        }
+    }
+    
+    // 加载星系信息
+    private func loadSolarSystemInfo(location: CharacterLocation) async {
+        if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
+            await MainActor.run {
+                self.currentLocation = info
+                self.locationStatus = location.locationStatus
+                self.locationTypeId = nil
+            }
+        }
+    }
+    
+    // 加载跳跃疲劳信息
+    private func loadFatigueInfo() async {
+        if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
+            characterId: character.CharacterID
+        ) {
+            await MainActor.run {
+                self.fatigue = fatigue
+                self.isLoadingFatigue = false
+            }
+        } else {
+            await MainActor.run {
+                self.isLoadingFatigue = false
+            }
+        }
+    }
+    
+    // 加载军团和联盟信息
+    private func loadCorporationAndAllianceInfo() async {
+        if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
+            characterId: character.CharacterID
+        ) {
+            // 获取军团信息
+            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: publicInfo.corporation_id
+            )
+            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                corporationId: publicInfo.corporation_id
+            )
+            
+            if let (info, logo) = try? await (corpInfoTask, corpLogoTask) {
+                await MainActor.run {
+                    self.corporationInfo = info
+                    self.corporationLogo = logo
+                }
+            }
+            
+            // 获取联盟信息（如果有）
+            if let allianceId = publicInfo.alliance_id {
+                async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
+                async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                
+                if let (info, logo) = try? await (allianceInfoTask, allianceLogoTask) {
+                    await MainActor.run {
+                        self.allianceInfo = info
+                        self.allianceLogo = logo
+                    }
+                }
+            }
+            
+            // 更新安全等级
+            await MainActor.run {
+                self.securityStatus = publicInfo.security_status
+            }
+        }
+    }
+    
+    // 加载奖章信息
+    private func loadMedalsInfo() async {
+        if let medals = try? await CharacterMedalsAPI.shared.fetchCharacterMedals(
+            characterId: character.CharacterID
+        ) {
+            await MainActor.run {
+                self.medals = medals
+                self.isLoadingMedals = false
+            }
+        } else {
+            await MainActor.run {
+                self.isLoadingMedals = false
+            }
         }
     }
     
@@ -418,163 +773,6 @@ struct CharacterSheetView: View {
            let row = rows.first,
            let security = row["security_status"] as? Double {
             self.securityStatus = security
-        }
-    }
-    
-    // 加载需要网络请求的数据
-    private func loadNetworkData() async {
-        // 使用多个独立的Task，避免相互阻塞
-        
-        // 1. 获取在线状态
-        Task {
-            if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
-                characterId: character.CharacterID
-            ) {
-                await MainActor.run {
-                    self.onlineStatus = status
-                    self.isLoadingOnlineStatus = false
-                }
-            } else {
-                await MainActor.run {
-                    self.isLoadingOnlineStatus = false
-                }
-            }
-        }
-        
-        // 2. 获取跳跃疲劳信息
-        Task {
-            if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
-                characterId: character.CharacterID
-            ) {
-                await MainActor.run {
-                    self.fatigue = fatigue
-                    self.isLoadingFatigue = false
-                }
-            } else {
-                await MainActor.run {
-                    self.isLoadingFatigue = false
-                }
-            }
-        }
-        
-        // 3. 获取位置和飞船信息
-        Task {
-            await loadCharacterInfo(forceRefresh: false)
-        }
-        
-        // 4. 获取军团和联盟信息
-        Task {
-            if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
-                characterId: character.CharacterID
-            ) {
-                // 获取军团信息
-                async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                    corporationId: publicInfo.corporation_id
-                )
-                async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                    corporationId: publicInfo.corporation_id
-                )
-                
-                if let (info, logo) = try? await (corpInfoTask, corpLogoTask) {
-                    await MainActor.run {
-                        self.corporationInfo = info
-                        self.corporationLogo = logo
-                    }
-                }
-                
-                // 获取联盟信息（如果有）
-                if let allianceId = publicInfo.alliance_id {
-                    async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-                    async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                    
-                    if let (info, logo) = try? await (allianceInfoTask, allianceLogoTask) {
-                        await MainActor.run {
-                            self.allianceInfo = info
-                            self.allianceLogo = logo
-                        }
-                    }
-                }
-                
-                // 更新安全等级（如果数据库中没有）
-                if self.securityStatus == nil {
-                    await MainActor.run {
-                        self.securityStatus = publicInfo.security_status
-                    }
-                }
-            }
-        }
-    }
-    
-    private func loadCharacterInfo(forceRefresh: Bool = false) async {
-        do {
-            // 获取位置信息，使用CharacterLocationAPI的缓存机制
-            Logger.info("开始获取位置信息")
-            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
-                characterId: character.CharacterID,
-                forceRefresh: forceRefresh
-            )
-            Logger.info("成功获取位置信息: \(location)")
-            
-            // 根据位置类型获取详细信息
-            if let structureId = location.structure_id {
-                // 建筑物
-                let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
-                    structureId: Int64(structureId),
-                    characterId: character.CharacterID
-                )
-                if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(structureId)]).first?.value {
-                    await MainActor.run {
-                        self.locationDetail = info
-                        self.locationStatus = location.locationStatus
-                        self.locationTypeId = structureInfo?.type_id
-                    }
-                }
-            } else if let stationId = location.station_id {
-                // 空间站
-                let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
-                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [stationId]),
-                   let row = rows.first,
-                   let typeId = row["stationTypeID"] as? Int {
-                    if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]).first?.value {
-                        await MainActor.run {
-                            self.locationDetail = info
-                            self.locationStatus = location.locationStatus
-                            self.locationTypeId = typeId
-                        }
-                    }
-                }
-            } else {
-                // 太空中
-                if let info = await getSolarSystemInfo(solarSystemId: location.solar_system_id, databaseManager: databaseManager) {
-                    await MainActor.run {
-                        self.currentLocation = info
-                        self.locationStatus = location.locationStatus
-                        self.locationTypeId = nil
-                    }
-                }
-            }
-            
-            // 获取当前飞船信息
-            let shipInfo = try await CharacterLocationAPI.shared.fetchCharacterShip(
-                characterId: character.CharacterID
-            )
-            
-            // 获取飞船类型名称
-            let query = "SELECT name FROM types WHERE type_id = ?"
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [shipInfo.ship_type_id]),
-               let row = rows.first,
-               let typeName = row["name"] as? String {
-                await MainActor.run {
-                    self.currentShip = shipInfo
-                    self.shipTypeName = typeName
-                }
-            }
-            
-            // 保存状态到数据库（作为备份）
-            await saveCharacterState(location: location, ship: shipInfo)
-            
-        } catch {
-            Logger.error("获取角色位置信息失败: \(error)")
         }
     }
     

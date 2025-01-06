@@ -6,8 +6,7 @@ typealias IndustryJob = CharacterIndustryAPI.IndustryJob
 class CharacterIndustryViewModel: ObservableObject {
     @Published var jobs: [IndustryJob] = []
     @Published var groupedJobs: [String: [IndustryJob]] = [:]  // 按日期分组的工作项目
-    @Published var isLoading = false
-    @Published var isBackgroundLoading = false
+    @Published var isLoading = true
     @Published var errorMessage: String?
     @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
@@ -18,6 +17,7 @@ class CharacterIndustryViewModel: ObservableObject {
     private let characterId: Int
     private let databaseManager: DatabaseManager
     private var updateTask: Task<Void, Never>?
+    private var loadingTask: Task<Void, Never>?
     
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
@@ -26,6 +26,7 @@ class CharacterIndustryViewModel: ObservableObject {
     
     deinit {
         updateTask?.cancel()
+        loadingTask?.cancel()
     }
     
     // 启动更新任务
@@ -55,28 +56,19 @@ class CharacterIndustryViewModel: ObservableObject {
         
         // 首先筛选出进行中和未交付的任务
         let activeJobs = jobs.filter { job in
-            // 检查任务是否：
-            // 1. 正在进行中（status == "active" 且未到结束时间）
-            // 2. 已完成但未交付（status == "ready"）
-            // 3. 已完成但状态还是active（status == "active" 且已过结束时间）
             return (job.status == "active" && job.end_date > Date()) || // 正在进行中
                    job.status == "ready" || // 已完成但未交付
                    (job.status == "active" && job.end_date <= Date()) // 已完成但状态未更新
         }
         
         if !activeJobs.isEmpty {
-            // 将任务按状态和时间排序：
-            // 1. 正在进行的任务优先
-            // 2. 然后是已完成未交付的任务
             let sortedActiveJobs = activeJobs.sorted {
-                // 如果一个是进行中，一个是已完成，进行中的排在前面
                 let isActive1 = $0.status == "active" && $0.end_date > Date()
                 let isActive2 = $1.status == "active" && $1.end_date > Date()
                 if isActive1 != isActive2 {
                     return isActive1
                 }
                 
-                // 如果状态相同，按开始时间降序排序
                 if $0.start_date == $1.start_date {
                     return $0.job_id > $1.job_id
                 }
@@ -90,12 +82,10 @@ class CharacterIndustryViewModel: ObservableObject {
         
         // 处理其他任务
         for job in jobs {
-            // 跳过已经在进行中列表的任务
             if processedJobIds.contains(job.job_id) {
                 continue
             }
             
-            // 直接格式化日期，不使用 startOfDay
             let dateKey = dateFormatter.string(from: job.start_date)
             
             if grouped[dateKey] == nil {
@@ -104,7 +94,7 @@ class CharacterIndustryViewModel: ObservableObject {
             grouped[dateKey]?.append(job)
         }
         
-        // 对每个组内的工作项目按开始时间降序排序，相同时间按job_id降序
+        // 对每个组内的工作项目按开始时间降序排序
         for (key, value) in grouped where key != "active" {
             grouped[key] = value.sorted {
                 if $0.start_date == $1.start_date {
@@ -118,57 +108,50 @@ class CharacterIndustryViewModel: ObservableObject {
     }
     
     func loadJobs(forceRefresh: Bool = false) async {
-        let shouldShowFullscreenLoading = jobs.isEmpty && !forceRefresh
+        // 取消之前的加载任务
+        loadingTask?.cancel()
         
-        if shouldShowFullscreenLoading {
+        // 创建新的加载任务
+        loadingTask = Task {
             isLoading = true
-        }
-        
-        do {
-            // 先加载缓存数据
-            let cachedJobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
-                characterId: characterId,
-                forceRefresh: false,
-                progressCallback: { [weak self] isLoading in
-                    Task { @MainActor in
-                        self?.isBackgroundLoading = isLoading
-                    }
-                }
-            )
+            errorMessage = nil
+            showError = false
             
-            // 更新UI
-            jobs = cachedJobs
-            await loadItemNames()
-            await loadLocationNames()
-            groupJobsByDate()
-            startUpdateTask()
-            
-            // 如果需要强制刷新或后台刷新
-            if forceRefresh {
-                isBackgroundLoading = true
-                let refreshedJobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
+            do {
+                // 加载数据
+                let jobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
                     characterId: characterId,
-                    forceRefresh: true,
-                    progressCallback: { [weak self] isLoading in
-                        Task { @MainActor in
-                            self?.isBackgroundLoading = isLoading
-                        }
-                    }
+                    forceRefresh: forceRefresh
                 )
                 
-                jobs = refreshedJobs
+                if Task.isCancelled { return }
+                
+                // 更新数据
+                self.jobs = jobs
                 await loadItemNames()
+                
+                if Task.isCancelled { return }
+                
                 await loadLocationNames()
+                
+                if Task.isCancelled { return }
+                
                 groupJobsByDate()
+                startUpdateTask()
+                
+                self.isLoading = false
+                
+            } catch {
+                if !Task.isCancelled {
+                    self.errorMessage = error.localizedDescription
+                    self.showError = true
+                    self.isLoading = false
+                }
             }
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
         }
         
-        isLoading = false
-        isBackgroundLoading = false
+        // 等待任务完成
+        await loadingTask?.value
     }
     
     private func loadItemNames() async {
@@ -197,14 +180,12 @@ class CharacterIndustryViewModel: ObservableObject {
     }
     
     private func loadLocationNames() async {
-        // 收集所有需要查询的location_id
         var locationIds = Set<Int64>()
         for job in jobs {
             locationIds.insert(job.station_id)
             locationIds.insert(job.facility_id)
         }
         
-        // 使用LocationInfoLoader加载位置信息
         let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
         locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
     }
@@ -306,19 +287,11 @@ struct CharacterIndustryView: View {
         .refreshable {
             await viewModel.loadJobs(forceRefresh: true)
         }
-        .navigationTitle(NSLocalizedString("Main_Industry_Jobs", comment: ""))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
         .task {
             await viewModel.loadJobs()
         }
+        .navigationTitle(NSLocalizedString("Main_Industry_Jobs", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

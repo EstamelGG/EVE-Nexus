@@ -11,11 +11,10 @@ struct ContractGroup: Identifiable {
 final class PersonalContractsViewModel: ObservableObject {
     @Published private(set) var contractGroups: [ContractGroup] = []
     @Published var isLoading = true
-    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
+    private var loadingTask: Task<Void, Never>?
     
     let characterId: Int
-    private var notificationTask: Task<Void, Never>?
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -25,90 +24,70 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
-        setupNotificationHandling()
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-    
-    private func setupNotificationHandling() {
-        // 使用传统的通知观察方式，但在主线程上处理
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ContractsUpdated"),
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self,
-                  let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
-                  updatedCharacterId == self.characterId else {
-                return
-            }
-            
-            Task {
-                await self.loadContractsData()
-            }
-        }
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        // 只有在第一次加载（没有数据）时才显示全屏加载
-        let shouldShowFullscreenLoading = contractGroups.isEmpty && !forceRefresh
-        Logger.debug("开始加载合同数据 - 角色ID: \(characterId), 强制刷新: \(forceRefresh)")
+        // 取消之前的加载任务（如果存在）
+        loadingTask?.cancel()
         
-        if shouldShowFullscreenLoading {
+        // 创建新的加载任务
+        loadingTask = Task {
             isLoading = true
-        } else {
-            isBackgroundLoading = true
+            errorMessage = nil
+            
+            do {
+                let contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
+                Logger.debug("获取到\(contracts.count)个合同")
+                
+                // 检查任务是否已被取消
+                if Task.isCancelled { return }
+                
+                var groupedContracts: [Date: [ContractInfo]] = [:]
+                for contract in contracts {
+                    let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
+                    guard let dayDate = calendar.date(from: components) else {
+                        Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
+                        continue
+                    }
+                    
+                    groupedContracts[dayDate, default: []].append(contract)
+                }
+                
+                let groups = groupedContracts.map { (date, contracts) -> ContractGroup in
+                    ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
+                }.sorted { $0.date > $1.date }
+                
+                Logger.debug("合同分组完成，共\(groups.count)个分组")
+                
+                // 再次检查任务是否已被取消
+                if Task.isCancelled { return }
+                
+                await MainActor.run {
+                    self.contractGroups = groups
+                    Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载合同数据失败: \(error.localizedDescription)")
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                }
+            }
         }
-        errorMessage = nil
         
-        do {
-            let contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                characterId: characterId,
-                forceRefresh: forceRefresh
-            )
-            Logger.debug("获取到\(contracts.count)个合同")
-            
-            var groupedContracts: [Date: [ContractInfo]] = [:]
-            for contract in contracts {
-                let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
-                guard let dayDate = calendar.date(from: components) else {
-                    Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
-                    continue
-                }
-                
-                groupedContracts[dayDate, default: []].append(contract)
-            }
-            
-            let groups = groupedContracts.map { (date, contracts) -> ContractGroup in
-                ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
-            }.sorted { $0.date > $1.date }
-            
-            Logger.debug("合同分组完成，共\(groups.count)个分组")
-            
-            await MainActor.run {
-                self.contractGroups = groups
-                Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
-                
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
-            }
-            
-        } catch {
-            Logger.error("加载合同数据失败: \(error.localizedDescription)")
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
-            }
-        }
+        // 等待任务完成
+        await loadingTask?.value
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
 }
 
@@ -166,12 +145,7 @@ struct PersonalContractsView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             Logger.debug("执行下拉刷新")
-            // 立即触发刷新并返回，不等待加载完成
-            Task {
-                await viewModel.loadContractsData(forceRefresh: true)
-            }
-            // 立即完成下拉刷新动作
-            return
+            await viewModel.loadContractsData(forceRefresh: true)
         }
         .task {
             Logger.debug("PersonalContractsView.task 开始执行")
@@ -179,14 +153,6 @@ struct PersonalContractsView: View {
             Logger.debug("PersonalContractsView.task 执行完成")
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
     }
 }
 

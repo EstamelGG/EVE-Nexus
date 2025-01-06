@@ -33,13 +33,13 @@ struct TransactionItemInfo {
 final class WalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [WalletTransactionGroup] = []
     @Published var isLoading = true
-    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
     private var locationInfoCache: [Int64: LocationInfoDetail] = [:]
+    private var loadingTask: Task<Void, Never>?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -58,6 +58,10 @@ final class WalletTransactionsViewModel: ObservableObject {
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
     
     func getItemInfo(for typeId: Int) -> TransactionItemInfo {
@@ -99,67 +103,77 @@ final class WalletTransactionsViewModel: ObservableObject {
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
-        let shouldShowFullscreenLoading = transactionGroups.isEmpty && !forceRefresh
+        // 取消之前的加载任务
+        loadingTask?.cancel()
         
-        if shouldShowFullscreenLoading {
+        // 创建新的加载任务
+        loadingTask = Task {
             isLoading = true
-        } else {
-            isBackgroundLoading = true
+            errorMessage = nil
+            
+            do {
+                guard let jsonString = try await CharacterWalletAPI.shared.getWalletTransactions(characterId: characterId, forceRefresh: forceRefresh) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                guard let jsonData = jsonString.data(using: .utf8),
+                      let entries = try? JSONDecoder().decode([WalletTransactionEntry].self, from: jsonData) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                // 收集所有位置ID
+                let locationIds = Set(entries.map { $0.location_id })
+                
+                // 使用 LocationInfoLoader 加载位置信息
+                let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
+                locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
+                
+                if Task.isCancelled { return }
+                
+                var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
+                for entry in entries {
+                    guard let date = dateFormatter.date(from: entry.date) else {
+                        Logger.error("Failed to parse date: \(entry.date)")
+                        continue
+                    }
+                    
+                    let components = calendar.dateComponents([.year, .month, .day], from: date)
+                    guard let dayDate = calendar.date(from: components) else {
+                        Logger.error("Failed to create date from components for: \(entry.date)")
+                        continue
+                    }
+                    
+                    groupedEntries[dayDate, default: []].append(entry)
+                }
+                
+                if Task.isCancelled { return }
+                
+                let groups = groupedEntries.map { (date, entries) -> WalletTransactionGroup in
+                    WalletTransactionGroup(date: date, entries: entries.sorted { $0.transaction_id > $1.transaction_id })
+                }.sorted { $0.date > $1.date }
+                
+                await MainActor.run {
+                    self.transactionGroups = groups
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载交易记录失败: \(error.localizedDescription)")
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                }
+            }
         }
-        errorMessage = nil
         
-        do {
-            guard let jsonString = try await CharacterWalletAPI.shared.getWalletTransactions(characterId: characterId, forceRefresh: forceRefresh) else {
-                throw NetworkError.invalidResponse
-            }
-            
-            guard let jsonData = jsonString.data(using: .utf8),
-                  let entries = try? JSONDecoder().decode([WalletTransactionEntry].self, from: jsonData) else {
-                throw NetworkError.invalidResponse
-            }
-            
-            // 收集所有位置ID
-            let locationIds = Set(entries.map { $0.location_id })
-            
-            // 使用 LocationInfoLoader 加载位置信息
-            let locationLoader = LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
-            locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
-            
-            var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
-            for entry in entries {
-                guard let date = dateFormatter.date(from: entry.date) else {
-                    print("Failed to parse date: \(entry.date)")
-                    continue
-                }
-                
-                let components = calendar.dateComponents([.year, .month, .day], from: date)
-                guard let dayDate = calendar.date(from: components) else {
-                    print("Failed to create date from components for: \(entry.date)")
-                    continue
-                }
-                
-                groupedEntries[dayDate, default: []].append(entry)
-            }
-            
-            let groups = groupedEntries.map { (date, entries) -> WalletTransactionGroup in
-                WalletTransactionGroup(date: date, entries: entries.sorted { $0.transaction_id > $1.transaction_id })
-            }.sorted { $0.date > $1.date }
-            
-            self.transactionGroups = groups
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
-            }
-            
-        } catch {
-            self.errorMessage = error.localizedDescription
-            if shouldShowFullscreenLoading {
-                isLoading = false
-            } else {
-                isBackgroundLoading = false
-            }
-        }
+        // 等待任务完成
+        await loadingTask?.value
     }
 }
 
@@ -217,27 +231,12 @@ struct WalletTransactionsView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            // 立即触发刷新并返回，不等待加载完成
-            Task {
-                await viewModel.loadTransactionData(forceRefresh: true)
-            }
-            // 立即完成下拉刷新动作
-            return
+            await viewModel.loadTransactionData(forceRefresh: true)
         }
         .task {
-            if viewModel.transactionGroups.isEmpty {
-                await viewModel.loadTransactionData()
-            }
+            await viewModel.loadTransactionData()
         }
         .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
     }
 }
 

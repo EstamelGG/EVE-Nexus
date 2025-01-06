@@ -7,14 +7,21 @@ struct CharacterWealthView: View {
     @State private var hasLoadedInitialData = false
     @State private var cachedWealthItems: [WealthItem] = []
     @State private var cachedTotalWealth: Double = 0
-    @State private var refreshingTypes: Set<WealthType> = []
     
     init(characterId: Int) {
         self._viewModel = StateObject(wrappedValue: CharacterWealthViewModel(characterId: characterId))
+        // 初始化时就创建占位数据
+        self._cachedWealthItems = State(initialValue: WealthType.allCases.map { type in
+            WealthItem(
+                type: type,
+                value: 0,
+                details: NSLocalizedString("Calculating", comment: "")
+            )
+        })
     }
     
     private func isTypeRefreshing(_ type: WealthType) -> Bool {
-        isRefreshing && !loadedTypes.contains(type)
+        (isRefreshing || !hasLoadedInitialData) && !loadedTypes.contains(type)
     }
     
     private func calculateTotalWealth() -> Double {
@@ -33,7 +40,7 @@ struct CharacterWealthView: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Wealth_Total", comment: ""))
-                        if isRefreshing && loadedTypes.count < WealthType.allCases.count {
+                        if isTypeRefreshing(.wallet) {
                             Text(NSLocalizedString("Calculating", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -46,7 +53,7 @@ struct CharacterWealthView: View {
                     
                     Spacer()
                     
-                    if isRefreshing && loadedTypes.count < WealthType.allCases.count {
+                    if isTypeRefreshing(.wallet) {
                         ProgressView()
                     }
                 }
@@ -70,36 +77,13 @@ struct CharacterWealthView: View {
                         } label: {
                             WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
                         }
-                        .disabled(loadedTypes.count < WealthType.allCases.count)
-                    }
-                }
-                
-                // 只在首次加载时显示加载项
-                if viewModel.isLoading && !hasLoadedInitialData && cachedWealthItems.isEmpty {
-                    ForEach(WealthType.allCases.filter { !loadedTypes.contains($0) }, id: \.self) { type in
-                        HStack {
-                            Image(type.icon)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Wealth_\(type.rawValue)", comment: ""))
-                                Text(NSLocalizedString("Calculating", comment: ""))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            ProgressView()
-                        }
-                        .frame(height: 36)
+                        .disabled(isTypeRefreshing(item.type))
                     }
                 }
             }
             
             // 资产分布饼图
-            if !cachedWealthItems.isEmpty {
+            if hasLoadedInitialData && !isRefreshing {
                 Section(header: Text(NSLocalizedString("Wealth_Distribution", comment: ""))) {
                     WealthPieChart(items: cachedWealthItems, size: 200)
                         .padding(.vertical)
@@ -111,14 +95,11 @@ struct CharacterWealthView: View {
         .refreshable {
             isRefreshing = true
             loadedTypes.removeAll()
-            hasLoadedInitialData = false
-            initializeEmptyCache()
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
         .task {
             if !hasLoadedInitialData {
-                initializeEmptyCache()
                 await loadData()
             }
         }
@@ -127,27 +108,18 @@ struct CharacterWealthView: View {
     private func loadData(forceRefresh: Bool = false) async {
         loadedTypes.removeAll()
         
-        // 创建一个有序的临时数组来存储加载的数据
-        var orderedWealthItems: [WealthItem] = []
-        
         // 加载主要数据，动态更新每个类型的数据
         await viewModel.loadWealthData(forceRefresh: forceRefresh) { loadedType in
             loadedTypes.insert(loadedType)
             
             if let newItem = viewModel.wealthItems.first(where: { $0.type == loadedType }) {
-                // 按照预定义顺序插入数据
-                let insertIndex = WealthType.allCases.firstIndex(of: loadedType) ?? orderedWealthItems.count
-                if insertIndex >= orderedWealthItems.count {
-                    orderedWealthItems.append(newItem)
-                } else {
-                    orderedWealthItems.insert(newItem, at: insertIndex)
-                }
-                
-                // 更新缓存
+                // 更新对应类型的数据
                 DispatchQueue.main.async {
-                    self.cachedWealthItems = orderedWealthItems
-                    if loadedTypes.count == WealthType.allCases.count {
-                        self.cachedTotalWealth = self.calculateTotalWealth()
+                    if let index = self.cachedWealthItems.firstIndex(where: { $0.type == loadedType }) {
+                        self.cachedWealthItems[index] = newItem
+                        if loadedTypes.count == WealthType.allCases.count {
+                            self.cachedTotalWealth = self.calculateTotalWealth()
+                        }
                     }
                 }
             }
@@ -162,18 +134,6 @@ struct CharacterWealthView: View {
         }
         
         hasLoadedInitialData = true
-    }
-    
-    // 初始化空的缓存数据 - 确保按照预定义顺序初始化
-    private func initializeEmptyCache() {
-        cachedWealthItems = WealthType.allCases.map { type in
-            WealthItem(
-                type: type,
-                value: 0,
-                details: NSLocalizedString("Calculating", comment: "")
-            )
-        }
-        cachedTotalWealth = 0
     }
     
     private func getValuedItems(for type: WealthType) -> [ValuedItem] {
