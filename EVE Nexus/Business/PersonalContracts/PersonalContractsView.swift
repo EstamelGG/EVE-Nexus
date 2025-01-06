@@ -11,11 +11,9 @@ struct ContractGroup: Identifiable {
 final class PersonalContractsViewModel: ObservableObject {
     @Published private(set) var contractGroups: [ContractGroup] = []
     @Published var isLoading = true
-    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     let characterId: Int
-    private var notificationTask: Task<Void, Never>?
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -25,42 +23,10 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
-        setupNotificationHandling()
-    }
-    
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-    
-    private func setupNotificationHandling() {
-        // 使用传统的通知观察方式，但在主线程上处理
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("ContractsUpdated"),
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            guard let self = self,
-                  let updatedCharacterId = notification.userInfo?["characterId"] as? Int,
-                  updatedCharacterId == self.characterId else {
-                return
-            }
-            
-            Task {
-                await self.loadContractsData()
-            }
-        }
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        // 只有在第一次加载（没有数据）时才显示全屏加载
-        let shouldShowFullscreenLoading = contractGroups.isEmpty && !forceRefresh
-        Logger.debug("开始加载合同数据 - 角色ID: \(characterId), 强制刷新: \(forceRefresh)")
-        
-        if shouldShowFullscreenLoading {
-            isLoading = true
-        } else {
-            isBackgroundLoading = true
-        }
+        isLoading = true
         errorMessage = nil
         
         do {
@@ -90,23 +56,14 @@ final class PersonalContractsViewModel: ObservableObject {
             await MainActor.run {
                 self.contractGroups = groups
                 Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
-                
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
+                isLoading = false
             }
             
         } catch {
             Logger.error("加载合同数据失败: \(error.localizedDescription)")
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
+                isLoading = false
             }
         }
     }
@@ -166,12 +123,7 @@ struct PersonalContractsView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             Logger.debug("执行下拉刷新")
-            // 立即触发刷新并返回，不等待加载完成
-            Task {
-                await viewModel.loadContractsData(forceRefresh: true)
-            }
-            // 立即完成下拉刷新动作
-            return
+            await viewModel.loadContractsData(forceRefresh: true)
         }
         .task {
             Logger.debug("PersonalContractsView.task 开始执行")
@@ -179,14 +131,6 @@ struct PersonalContractsView: View {
             Logger.debug("PersonalContractsView.task 执行完成")
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
     }
 }
 
