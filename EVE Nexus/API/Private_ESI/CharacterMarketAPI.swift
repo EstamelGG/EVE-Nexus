@@ -18,28 +18,42 @@ class CharacterMarketAPI {
     }
     
     private func isCacheValid(_ cache: CachedData) -> Bool {
-        return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
+        let timeSinceLastUpdate = Date().timeIntervalSince(cache.timestamp)
+        let isValid = timeSinceLastUpdate < cacheTimeout
+        
+        if isValid {
+            // 计算并打印缓存剩余有效期
+            let remainingTime = cacheTimeout - timeSinceLastUpdate
+            let remainingHours = Int(remainingTime / 3600)
+            let remainingMinutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
+            Logger.info("市场订单缓存有效 - 剩余时间: \(remainingHours)小时\(remainingMinutes)分钟")
+        }
+        
+        return isValid
     }
     
     private func getCachedOrders(characterId: Int64) -> String? {
         let key = getCacheKey(characterId: characterId)
+        
+        // 1. 尝试获取并解码缓存数据
         guard let data = UserDefaults.standard.data(forKey: key),
               let cache = try? JSONDecoder().decode(CachedData.self, from: data) else {
             return nil
         }
         
-        // 计算并打印缓存剩余有效期
-        let remainingTime = cacheTimeout - Date().timeIntervalSince(cache.timestamp)
-        let remainingHours = Int(remainingTime / 3600)
-        let remainingMinutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
-        Logger.debug("市场订单缓存剩余有效期: \(remainingHours)小时 \(remainingMinutes)分钟 - 角色ID: \(characterId)")
-        
-        // 将缓存的订单转换回JSON字符串
+        // 2. 将缓存的订单转换为JSON字符串
         guard let jsonData = try? JSONEncoder().encode(cache.orders),
               let jsonString = String(data: jsonData, encoding: .utf8) else {
             return nil
         }
         
+        // 3. 检查缓存是否有效并打印日志
+        if !isCacheValid(cache) {
+            Logger.debug("市场订单缓存已过期 - 角色ID: \(characterId)")
+            return jsonString
+        }
+        
+        Logger.debug("使用市场订单缓存数据 - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
         return jsonString
     }
     
@@ -85,83 +99,69 @@ class CharacterMarketAPI {
         forceRefresh: Bool = false,
         progressCallback: ((Bool) -> Void)? = nil
     ) async throws -> String? {
-        // 1. 先尝试获取缓存
-        if !forceRefresh {
-            if let cachedJson = getCachedOrders(characterId: characterId) {
-                // 检查缓存是否过期
-                let key = getCacheKey(characterId: characterId)
-                if let data = UserDefaults.standard.data(forKey: key),
-                   let cache = try? JSONDecoder().decode(CachedData.self, from: data),
-                   !isCacheValid(cache) {
-                    
-                    // 如果缓存过期，在后台刷新
-                    Logger.info("使用过期的市场订单缓存数据，将在后台刷新 - 角色ID: \(characterId)")
-                    Task {
-                        do {
-                            progressCallback?(true)
-                            let jsonString = try await fetchFromNetwork(characterId: characterId)
-                            
-                            // 合并新旧数据
-                            if let existingData = cachedJson.data(using: .utf8),
-                               let existingOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: existingData),
-                               let newData = jsonString.data(using: .utf8),
-                               let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData) {
-                                
-                                // 合并并去重
-                                let allOrders = Set(existingOrders).union(newOrders)
-                                let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
-                                
-                                // 保存合并后的数据
-                                if let mergedData = try? JSONEncoder().encode(mergedOrders),
-                                   let mergedString = String(data: mergedData, encoding: .utf8) {
-                                    saveOrdersToCache(jsonString: mergedString, characterId: characterId)
-                                }
-                            } else {
-                                // 如果合并失败，至少保存新数据
-                                saveOrdersToCache(jsonString: jsonString, characterId: characterId)
-                            }
-                            
-                            progressCallback?(false)
-                        } catch {
-                            Logger.error("后台刷新市场订单数据失败: \(error)")
-                            progressCallback?(false)
-                        }
+        progressCallback?(true)
+        defer { progressCallback?(false) }
+        
+        // 1. 检查缓存
+        if !forceRefresh, let cachedJson = getCachedOrders(characterId: characterId) {
+            // 检查缓存是否过期
+            let key = getCacheKey(characterId: characterId)
+            if let data = UserDefaults.standard.data(forKey: key),
+               let cache = try? JSONDecoder().decode(CachedData.self, from: data),
+               !isCacheValid(cache) {
+                // 如果缓存过期，在后台刷新
+                Logger.info("使用过期的市场订单数据，将在后台刷新 - 角色ID: \(characterId)")
+                Task {
+                    do {
+                        progressCallback?(true)
+                        let jsonString = try await fetchFromNetwork(characterId: characterId)
+                        await mergeAndSaveOrders(newJsonString: jsonString, existingJsonString: cachedJson, characterId: characterId)
+                        progressCallback?(false)
+                    } catch {
+                        Logger.error("后台刷新市场订单数据失败: \(error)")
+                        progressCallback?(false)
                     }
-                } else {
-                    Logger.info("使用有效的市场订单缓存数据 - 角色ID: \(characterId)")
                 }
-                
-                return cachedJson
             }
+            return cachedJson
         }
         
         // 2. 如果强制刷新或没有缓存，从网络获取
-        progressCallback?(true)
         let jsonString = try await fetchFromNetwork(characterId: characterId)
         
         // 3. 如果有缓存数据，尝试合并
-        if let cachedJson = getCachedOrders(characterId: characterId),
-           let existingData = cachedJson.data(using: .utf8),
-           let existingOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: existingData),
-           let newData = jsonString.data(using: .utf8),
-           let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData) {
-            
-            // 合并并去重
-            let allOrders = Set(existingOrders).union(newOrders)
-            let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
-            
-            // 保存并返回合并后的数据
-            if let mergedData = try? JSONEncoder().encode(mergedOrders),
-               let mergedString = String(data: mergedData, encoding: .utf8) {
-                saveOrdersToCache(jsonString: mergedString, characterId: characterId)
-                progressCallback?(false)
-                return mergedString
-            }
+        if let cachedJson = getCachedOrders(characterId: characterId) {
+            await mergeAndSaveOrders(newJsonString: jsonString, existingJsonString: cachedJson, characterId: characterId)
+            return jsonString
         }
         
-        // 4. 如果没有缓存或合并失败，使用新数据
+        // 4. 如果没有缓存，直接保存新数据
         saveOrdersToCache(jsonString: jsonString, characterId: characterId)
-        progressCallback?(false)
         return jsonString
+    }
+    
+    // 合并并保存订单数据
+    private func mergeAndSaveOrders(newJsonString: String, existingJsonString: String, characterId: Int64) async {
+        guard let existingData = existingJsonString.data(using: .utf8),
+              let existingOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: existingData),
+              let newData = newJsonString.data(using: .utf8),
+              let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData) else {
+            // 如果合并失败，至少保存新数据
+            saveOrdersToCache(jsonString: newJsonString, characterId: characterId)
+            return
+        }
+        
+        // 合并并去重
+        let allOrders = Set(existingOrders).union(newOrders)
+        let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
+        
+        // 保存合并后的数据
+        if let mergedData = try? JSONEncoder().encode(mergedOrders),
+           let mergedString = String(data: mergedData, encoding: .utf8) {
+            saveOrdersToCache(jsonString: mergedString, characterId: characterId)
+        } else {
+            // 如果合并后的数据编码失败，保存新数据
+            saveOrdersToCache(jsonString: newJsonString, characterId: characterId)
+        }
     }
 } 
