@@ -408,6 +408,7 @@ struct ContentView: View {
                     logoutButton
                 }
             }
+            .navigationSplitViewColumnWidth(400)
         } detail: {
             NavigationStack {
                 if selectedItem == nil {
