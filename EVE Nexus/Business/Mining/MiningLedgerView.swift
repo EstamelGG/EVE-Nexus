@@ -175,15 +175,9 @@ struct MiningLedgerView: View {
     var body: some View {
         List {
             if viewModel.isLoading {
-                Section {
-                    HStack {
-                        Spacer()
-                        ProgressView(NSLocalizedString("Mining_Loading", comment: ""))
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                }
-            } else if !viewModel.isLoading && viewModel.monthGroups.isEmpty {
+                ProgressView(NSLocalizedString("Mining_Loading", comment: ""))
+                    .frame(maxWidth: .infinity)
+            } else if viewModel.monthGroups.isEmpty {
                 Section {
                     HStack {
                         Spacer()
@@ -192,7 +186,7 @@ struct MiningLedgerView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
+                            .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
