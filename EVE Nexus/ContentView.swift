@@ -548,10 +548,6 @@ struct ContentView: View {
                         if let character = viewModel.selectedCharacter {
                             MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
                         }
-                    case "settings":
-                        SettingView(databaseManager: databaseManager)
-                    case "about":
-                        AboutView()
                     default:
                         Text(NSLocalizedString("Select_Item", comment: ""))
                             .foregroundColor(.gray)
@@ -795,14 +791,18 @@ struct ContentView: View {
     
     private var otherSection: some View {
         Section {
-            NavigationLink(value: "settings") {
+            NavigationLink {
+                SettingView(databaseManager: databaseManager)
+            } label: {
                 RowView(
                     title: NSLocalizedString("Main_Setting", comment: ""),
                     icon: "Settings"
                 )
             }
             
-            NavigationLink(value: "about") {
+            NavigationLink {
+                AboutView()
+            } label: {
                 RowView(
                     title: NSLocalizedString("Main_About", comment: ""),
                     icon: "info"
