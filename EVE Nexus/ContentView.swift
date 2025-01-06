@@ -423,38 +423,34 @@ struct ContentView: View {
     
     var body: some View {
         CustomSplitView(columnVisibility: $columnVisibility) {
-            NavigationStack {
-                List(selection: $selectedItem) {
-                    // 登录部分
-                    loginSection
-                    
-                    // 角色功能部分
-                    if currentCharacterId != 0 {
-                        characterSection
-                    }
-                    
-                    // 数据库部分(始终显示)
-                    databaseSection
-                    
-                    // 商业部分(登录后显示)
-                    if currentCharacterId != 0 {
-                        businessSection
-                    }
-                    
-                    // 其他设置(始终显示)
-                    otherSection
+            List(selection: $selectedItem) {
+                // 登录部分
+                loginSection
+                
+                // 角色功能部分
+                if currentCharacterId != 0 {
+                    characterSection
                 }
-                .listStyle(.insetGrouped)
-                .scrollContentBackground(.visible)
-                .refreshable {
-                    await viewModel.refreshAllData(forceRefresh: true)
+                
+                // 数据库部分(始终显示)
+                databaseSection
+                
+                // 商业部分(登录后显示)
+                if currentCharacterId != 0 {
+                    businessSection
                 }
-                .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        logoutButton
-                    }
+                
+                // 其他设置(始终显示)
+                otherSection
+            }
+            .listStyle(.insetGrouped)
+            .refreshable {
+                await viewModel.refreshAllData(forceRefresh: true)
+            }
+            .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    logoutButton
                 }
             }
         } detail: {
