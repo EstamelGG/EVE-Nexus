@@ -27,12 +27,12 @@ struct MiningItemSummary: Identifiable {
 final class MiningLedgerViewModel: ObservableObject {
     @Published private(set) var monthGroups: [MiningMonthGroup] = []
     @Published var isLoading = true
-    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
     
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: (name: String, iconFileName: String)] = [:]
+    private var loadingTask: Task<Void, Never>?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -51,6 +51,10 @@ final class MiningLedgerViewModel: ObservableObject {
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
     
     func getItemInfo(for typeId: Int) -> (name: String, iconFileName: String) {
@@ -78,82 +82,88 @@ final class MiningLedgerViewModel: ObservableObject {
     }
     
     func loadMiningData(forceRefresh: Bool = false) async {
-        let shouldShowFullscreenLoading = monthGroups.isEmpty && !forceRefresh
+        // 取消之前的加载任务
+        loadingTask?.cancel()
         
-        if shouldShowFullscreenLoading {
+        // 创建新的加载任务
+        loadingTask = Task {
             isLoading = true
+            errorMessage = nil
+            
+            do {
+                let entries = try await CharacterMiningAPI.shared.getMiningLedger(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
+                
+                if Task.isCancelled { return }
+                
+                Logger.debug("获取到挖矿记录：\(entries.count)条")
+                
+                // 按月份和矿石类型分组
+                var groupedByMonth: [Date: [Int: Int]] = [:]  // [月份: [type_id: 总数量]]
+                
+                for entry in entries {
+                    guard let date = dateFormatter.date(from: entry.date) else {
+                        Logger.error("日期格式错误：\(entry.date)")
+                        continue
+                    }
+                    
+                    let components = calendar.dateComponents([.year, .month], from: date)
+                    guard let monthDate = calendar.date(from: components) else {
+                        Logger.error("无法创建月份日期")
+                        continue
+                    }
+                    
+                    if groupedByMonth[monthDate] == nil {
+                        groupedByMonth[monthDate] = [:]
+                    }
+                    
+                    groupedByMonth[monthDate]?[entry.type_id, default: 0] += entry.quantity
+                }
+                
+                if Task.isCancelled { return }
+                
+                Logger.debug("分组后的月份数：\(groupedByMonth.count)")
+                
+                // 转换为视图模型
+                let groups = groupedByMonth.map { (date, itemQuantities) -> MiningMonthGroup in
+                    let summaries = itemQuantities.map { (typeId, quantity) -> MiningItemSummary in
+                        let info = getItemInfo(for: typeId)
+                        return MiningItemSummary(
+                            id: typeId,
+                            name: info.name,
+                            iconFileName: info.iconFileName,
+                            totalQuantity: quantity
+                        )
+                    }.sorted { $0.totalQuantity > $1.totalQuantity }
+                    
+                    return MiningMonthGroup(yearMonth: date, entries: summaries)
+                }.sorted { $0.yearMonth > $1.yearMonth }
+                
+                if Task.isCancelled { return }
+                
+                Logger.debug("最终生成的月份组数：\(groups.count)")
+                
+                await MainActor.run {
+                    self.monthGroups = groups
+                    Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载挖矿记录失败：\(error.localizedDescription)")
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                }
+            }
         }
-        isBackgroundLoading = true
-        errorMessage = nil
         
-        do {
-            let entries = try await CharacterMiningAPI.shared.getMiningLedger(
-                characterId: characterId,
-                forceRefresh: forceRefresh
-            )
-            
-            Logger.debug("获取到挖矿记录：\(entries.count)条")
-            
-            // 按月份和矿石类型分组
-            var groupedByMonth: [Date: [Int: Int]] = [:]  // [月份: [type_id: 总数量]]
-            
-            for entry in entries {
-                guard let date = dateFormatter.date(from: entry.date) else {
-                    Logger.error("日期格式错误：\(entry.date)")
-                    continue
-                }
-                
-                let components = calendar.dateComponents([.year, .month], from: date)
-                guard let monthDate = calendar.date(from: components) else {
-                    Logger.error("无法创建月份日期")
-                    continue
-                }
-                
-                if groupedByMonth[monthDate] == nil {
-                    groupedByMonth[monthDate] = [:]
-                }
-                
-                groupedByMonth[monthDate]?[entry.type_id, default: 0] += entry.quantity
-            }
-            
-            Logger.debug("分组后的月份数：\(groupedByMonth.count)")
-            
-            // 转换为视图模型
-            let groups = groupedByMonth.map { (date, itemQuantities) -> MiningMonthGroup in
-                let summaries = itemQuantities.map { (typeId, quantity) -> MiningItemSummary in
-                    let info = getItemInfo(for: typeId)
-                    return MiningItemSummary(
-                        id: typeId,
-                        name: info.name,
-                        iconFileName: info.iconFileName,
-                        totalQuantity: quantity
-                    )
-                }.sorted { $0.totalQuantity > $1.totalQuantity }
-                
-                return MiningMonthGroup(yearMonth: date, entries: summaries)
-            }.sorted { $0.yearMonth > $1.yearMonth }
-            
-            Logger.debug("最终生成的月份组数：\(groups.count)")
-            
-            await MainActor.run {
-                self.monthGroups = groups
-                Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                }
-                isBackgroundLoading = false
-            }
-            
-        } catch {
-            Logger.error("加载挖矿记录失败：\(error.localizedDescription)")
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                }
-                isBackgroundLoading = false
-            }
-        }
+        // 等待任务完成
+        await loadingTask?.value
     }
 }
 
@@ -175,7 +185,7 @@ struct MiningLedgerView: View {
     var body: some View {
         List {
             if viewModel.isLoading {
-                ProgressView(NSLocalizedString("Mining_Loading", comment: ""))
+                ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.monthGroups.isEmpty {
                 Section {
@@ -186,7 +196,7 @@ struct MiningLedgerView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                            .foregroundColor(.gray)
+                                .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -211,23 +221,12 @@ struct MiningLedgerView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            // 立即启动后台刷新
-            Task {
-                await viewModel.loadMiningData(forceRefresh: true)
-            }
-        }
-        .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
+            await viewModel.loadMiningData(forceRefresh: true)
         }
         .task {
             await viewModel.loadMiningData()
         }
+        .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
     }
 }
 
