@@ -180,7 +180,7 @@ struct PersonalContractsView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
         .toolbar {
-            if viewModel.isBackgroundLoading {
+            if viewModel.isLoading || viewModel.isBackgroundLoading {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ProgressView()
                         .scaleEffect(0.8)
