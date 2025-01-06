@@ -355,51 +355,6 @@ struct LoginButtonView: View {
     }
 }
 
-// 添加自定义 SplitView 包装器
-struct CustomSplitView<Primary: View, Detail: View>: UIViewControllerRepresentable {
-    let primary: Primary
-    let detail: Detail
-    @Binding var columnVisibility: NavigationSplitViewVisibility
-    
-    init(columnVisibility: Binding<NavigationSplitViewVisibility>,
-         @ViewBuilder primary: () -> Primary,
-         @ViewBuilder detail: () -> Detail) {
-        self.primary = primary()
-        self.detail = detail()
-        self._columnVisibility = columnVisibility
-    }
-    
-    func makeUIViewController(context: Context) -> UISplitViewController {
-        let splitViewController = UISplitViewController(style: .doubleColumn)
-        
-        // 配置分栏控制器
-        splitViewController.preferredDisplayMode = .twoBesideSecondary
-        splitViewController.preferredSplitBehavior = .tile
-        splitViewController.maximumPrimaryColumnWidth = 400
-        splitViewController.preferredPrimaryColumnWidth = 400
-        splitViewController.minimumPrimaryColumnWidth = 400
-        
-        // 创建主视图和详情视图的控制器
-        let primaryHostingController = UIHostingController(rootView: primary)
-        let detailHostingController = UIHostingController(rootView: detail)
-        
-        // 设置视图控制器
-        splitViewController.setViewController(primaryHostingController, for: .primary)
-        splitViewController.setViewController(detailHostingController, for: .secondary)
-        
-        return splitViewController
-    }
-    
-    func updateUIViewController(_ splitViewController: UISplitViewController, context: Context) {
-        if let primaryController = splitViewController.viewController(for: .primary) as? UIHostingController<Primary> {
-            primaryController.rootView = primary
-        }
-        if let detailController = splitViewController.viewController(for: .secondary) as? UIHostingController<Detail> {
-            detailController.rootView = detail
-        }
-    }
-}
-
 struct ContentView: View {
     @StateObject private var viewModel = MainViewModel()
     @ObservedObject var databaseManager: DatabaseManager
@@ -422,7 +377,7 @@ struct ContentView: View {
     }
     
     var body: some View {
-        CustomSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $selectedItem) {
                 // 登录部分
                 loginSection
@@ -555,6 +510,7 @@ struct ContentView: View {
                 }
             }
         }
+        .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(currentColorScheme)
         .onAppear {
             // 检查当前选择的角色是否在已登录列表中
