@@ -4,50 +4,60 @@ import SwiftUI
 @MainActor
 final class SovereigntyViewModel: ObservableObject {
     @Published private(set) var preparedCampaigns: [PreparedSovereignty] = []
-    @Published var sov_isLoading = false
-    @Published var sov_isRefreshing = false
-    private var loadingTasks: [Int: Task<Void, Never>] = [:]
+    @Published var isLoading = true
+    @Published var errorMessage: String?
     
-    let databaseManager: DatabaseManager
+    private let databaseManager: DatabaseManager
+    private var loadingTask: Task<Void, Never>?
+    private var iconLoadingTasks: [Int: Task<Void, Never>] = [:]
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
     }
     
     deinit {
-        loadingTasks.values.forEach { $0.cancel() }
+        loadingTask?.cancel()
+        iconLoadingTasks.values.forEach { $0.cancel() }
     }
     
-    func fetchSovereignty(forceRefresh: Bool = false, silent: Bool = false) async {
-        if !silent {
-            if preparedCampaigns.isEmpty {
-                sov_isLoading = true
-            } else {
-                sov_isRefreshing = true
+    func fetchSovereignty(forceRefresh: Bool = false) async {
+        // 取消之前的加载任务
+        loadingTask?.cancel()
+        
+        // 创建新的加载任务
+        loadingTask = Task {
+            isLoading = true
+            errorMessage = nil
+            
+            do {
+                Logger.info("开始获取主权争夺数据")
+                let campaigns = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
+                
+                if Task.isCancelled { return }
+                
+                await processCampaigns(campaigns)
+                
+                if Task.isCancelled { return }
+                
+                self.isLoading = false
+                
+            } catch {
+                Logger.error("获取主权争夺数据失败: \(error)")
+                if !Task.isCancelled {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                }
             }
         }
         
-        defer {
-            if !silent {
-                sov_isLoading = false
-                sov_isRefreshing = false
-            }
-        }
-        
-        Logger.info("ViewModel: 开始获取主权争夺数据")
-        do {
-            // 直接使用 SovereigntyCampaignsAPI
-            let campaigns = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(forceRefresh: forceRefresh)
-            await processCampaigns(campaigns)
-        } catch {
-            Logger.error("ViewModel: 获取主权争夺数据失败: \(error)")
-        }
+        // 等待任务完成
+        await loadingTask?.value
     }
     
     private func processCampaigns(_ campaigns: [SovereigntyCampaign]) async {
-        // 取消所有现有的加载任务
-        loadingTasks.values.forEach { $0.cancel() }
-        loadingTasks.removeAll()
+        // 取消所有现有的图标加载任务
+        iconLoadingTasks.values.forEach { $0.cancel() }
+        iconLoadingTasks.removeAll()
         
         let prepared = await withTaskGroup(of: PreparedSovereignty?.self) { group in
             for campaign in campaigns {
@@ -76,12 +86,12 @@ final class SovereigntyViewModel: ObservableObject {
         }
         
         if !prepared.isEmpty {
-            Logger.info("ViewModel: 成功准备 \(prepared.count) 条数据")
+            Logger.info("成功准备 \(prepared.count) 条数据")
             preparedCampaigns = prepared
             // 加载所有联盟图标
             loadAllIcons()
         } else {
-            Logger.error("ViewModel: 没有可显示的完整数据")
+            Logger.error("没有可显示的完整数据")
         }
     }
     
@@ -95,15 +105,16 @@ final class SovereigntyViewModel: ObservableObject {
                 if campaigns.first != nil {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(campaigns.count) 个战役")
-                        let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(allianceID:allianceId)
-                        if !Task.isCancelled {
-                            let icon = Image(uiImage: uiImage)
-                            // 更新所有使用这个联盟图标的战役
-                            for campaign in campaigns {
-                                campaign.icon = icon
-                            }
-                            Logger.debug("联盟图标加载成功: \(allianceId)")
+                        let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                        
+                        if Task.isCancelled { return }
+                        
+                        let icon = Image(uiImage: uiImage)
+                        // 更新所有使用这个联盟图标的战役
+                        for campaign in campaigns {
+                            campaign.icon = icon
                         }
+                        Logger.debug("联盟图标加载成功: \(allianceId)")
                     } catch {
                         if (error as NSError).code == NSURLErrorCancelled {
                             Logger.debug("联盟图标加载已取消: \(allianceId)")
@@ -112,12 +123,14 @@ final class SovereigntyViewModel: ObservableObject {
                         }
                     }
                     // 更新所有相关战役的加载状态
-                    for campaign in campaigns {
-                        campaign.isLoadingIcon = false
+                    if !Task.isCancelled {
+                        for campaign in campaigns {
+                            campaign.isLoadingIcon = false
+                        }
                     }
                 }
             }
-            loadingTasks[allianceId] = task
+            iconLoadingTasks[allianceId] = task
             // 设置所有相关战役的加载状态
             for campaign in campaigns {
                 campaign.isLoadingIcon = true
@@ -222,7 +235,7 @@ struct SovereigntyView: View {
         let groupedCampaigns = Dictionary(grouping: viewModel.preparedCampaigns) { $0.location.regionName }
         
         List {
-            if viewModel.sov_isLoading {
+            if viewModel.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
@@ -234,7 +247,7 @@ struct SovereigntyView: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(.gray)
                             Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                            .foregroundColor(.gray)
+                                .foregroundColor(.gray)
                         }
                         .padding()
                         Spacer()
@@ -260,9 +273,7 @@ struct SovereigntyView: View {
             await viewModel.fetchSovereignty(forceRefresh: true)
         }
         .task {
-            if viewModel.preparedCampaigns.isEmpty {
-                await viewModel.fetchSovereignty()
-            }
+            await viewModel.fetchSovereignty()
         }
         .navigationTitle(NSLocalizedString("Main_Sovereignty", comment: ""))
     }
