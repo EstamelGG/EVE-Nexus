@@ -63,7 +63,11 @@ class MarketPricesAPI {
     
     private func isCacheValid() -> Bool {
         guard let lastUpdate = lastUpdateTime else { return false }
-        return Date().timeIntervalSince(lastUpdate) < cacheDuration
+        let res = Date().timeIntervalSince(lastUpdate) < cacheDuration
+        if res {
+            Logger.info("市场估价信息有效，上次更新: \(lastUpdate)")
+        }
+        return res
     }
     
     // MARK: - 数据库方法
