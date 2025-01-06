@@ -408,7 +408,7 @@ struct AccountsView: View {
                         do {
                             // 使用 TokenManager 获取有效的 token
                             let current_access_token = try await AuthTokenManager.shared.getAccessToken(for: characterAuth.character.CharacterID)
-                            Logger.info("获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)): " + current_access_token)
+                            Logger.info("获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) token: \(String(reflecting: current_access_token))")
                             
                             // 并行获取所有数据
                             async let skillInfoTask = service.getSkillInfo(id: characterAuth.character.CharacterID, forceRefresh: true)
