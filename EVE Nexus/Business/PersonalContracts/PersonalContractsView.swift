@@ -12,6 +12,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published private(set) var contractGroups: [ContractGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    private var loadingTask: Task<Void, Never>?
     
     let characterId: Int
     
@@ -26,46 +27,67 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        isLoading = true
-        errorMessage = nil
+        // 取消之前的加载任务（如果存在）
+        loadingTask?.cancel()
         
-        do {
-            let contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                characterId: characterId,
-                forceRefresh: forceRefresh
-            )
-            Logger.debug("获取到\(contracts.count)个合同")
+        // 创建新的加载任务
+        loadingTask = Task {
+            isLoading = true
+            errorMessage = nil
             
-            var groupedContracts: [Date: [ContractInfo]] = [:]
-            for contract in contracts {
-                let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
-                guard let dayDate = calendar.date(from: components) else {
-                    Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
-                    continue
+            do {
+                let contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
+                Logger.debug("获取到\(contracts.count)个合同")
+                
+                // 检查任务是否已被取消
+                if Task.isCancelled { return }
+                
+                var groupedContracts: [Date: [ContractInfo]] = [:]
+                for contract in contracts {
+                    let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
+                    guard let dayDate = calendar.date(from: components) else {
+                        Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
+                        continue
+                    }
+                    
+                    groupedContracts[dayDate, default: []].append(contract)
                 }
                 
-                groupedContracts[dayDate, default: []].append(contract)
-            }
-            
-            let groups = groupedContracts.map { (date, contracts) -> ContractGroup in
-                ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
-            }.sorted { $0.date > $1.date }
-            
-            Logger.debug("合同分组完成，共\(groups.count)个分组")
-            
-            await MainActor.run {
-                self.contractGroups = groups
-                Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
-                isLoading = false
-            }
-            
-        } catch {
-            Logger.error("加载合同数据失败: \(error.localizedDescription)")
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                isLoading = false
+                let groups = groupedContracts.map { (date, contracts) -> ContractGroup in
+                    ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
+                }.sorted { $0.date > $1.date }
+                
+                Logger.debug("合同分组完成，共\(groups.count)个分组")
+                
+                // 再次检查任务是否已被取消
+                if Task.isCancelled { return }
+                
+                await MainActor.run {
+                    self.contractGroups = groups
+                    Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载合同数据失败: \(error.localizedDescription)")
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                }
             }
         }
+        
+        // 等待任务完成
+        await loadingTask?.value
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
 }
 
