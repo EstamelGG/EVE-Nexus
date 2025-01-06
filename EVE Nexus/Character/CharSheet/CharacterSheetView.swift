@@ -24,6 +24,9 @@ struct CharacterSheetView: View {
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
     
+    // UserDefaults 键名常量
+    private let lastShipTypeIdKey: String
+    
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -35,6 +38,21 @@ struct CharacterSheetView: View {
         self.characterPortrait = characterPortrait
         self.databaseManager = databaseManager
         self._locationLoader = State(initialValue: LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(character.CharacterID)))
+        // 为每个角色创建唯一的 UserDefaults 键
+        self.lastShipTypeIdKey = "LastShipTypeId_\(character.CharacterID)"
+        
+        // 从 UserDefaults 加载上次的飞船信息
+        if let lastShipTypeId = UserDefaults.standard.object(forKey: lastShipTypeIdKey) as? Int {
+            let query = "SELECT name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [lastShipTypeId]),
+               let row = rows.first,
+               let typeName = row["name"] as? String {
+                // 使用上次的飞船类型创建一个临时的 CharacterShipInfo
+                let lastShip = CharacterShipInfo(ship_item_id: 0, ship_name: "", ship_type_id: lastShipTypeId)
+                self._currentShip = State(initialValue: lastShip)
+                self._shipTypeName = State(initialValue: typeName)
+            }
+        }
     }
     
     var body: some View {
@@ -279,7 +297,7 @@ struct CharacterSheetView: View {
                         Text(NSLocalizedString("Character_Current_Ship", comment: ""))
                             .font(.body)
                             .foregroundColor(.primary)
-                        if let ship = currentShip, let typeName = shipTypeName {
+                        if let _ = currentShip, let typeName = shipTypeName {
                             Text(typeName)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -458,6 +476,8 @@ struct CharacterSheetView: View {
                 await MainActor.run {
                     self.currentShip = shipInfo
                     self.shipTypeName = typeName
+                    // 保存最新的飞船类型ID到 UserDefaults
+                    UserDefaults.standard.set(shipInfo.ship_type_id, forKey: lastShipTypeIdKey)
                 }
             }
         } catch {
