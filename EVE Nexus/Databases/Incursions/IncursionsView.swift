@@ -227,7 +227,7 @@ struct IncursionCell: View {
                     .frame(width: 48, height: 48)
                     .cornerRadius(6)
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Text(incursion.faction.name)
                         Text("[\(String(format: "%.1f", incursion.incursion.influence * 100))%]")
