@@ -26,12 +26,22 @@ struct CharacterSheetView: View {
     
     // UserDefaults 键名常量
     private let lastShipTypeIdKey: String
+    private let lastLocationKey: String
     
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
+    
+    // 位置信息缓存结构体
+    private struct LocationCache: Codable {
+        let solarSystemId: Int
+        let stationId: Int?
+        let structureId: Int?
+        let locationStatus: String
+        let typeId: Int?
+    }
     
     init(character: EVECharacterInfo, characterPortrait: UIImage?, databaseManager: DatabaseManager = DatabaseManager()) {
         self.character = character
@@ -40,6 +50,7 @@ struct CharacterSheetView: View {
         self._locationLoader = State(initialValue: LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(character.CharacterID)))
         // 为每个角色创建唯一的 UserDefaults 键
         self.lastShipTypeIdKey = "LastShipTypeId_\(character.CharacterID)"
+        self.lastLocationKey = "LastLocation_\(character.CharacterID)"
         
         // 从 UserDefaults 加载上次的飞船信息
         if let lastShipTypeId = UserDefaults.standard.object(forKey: lastShipTypeIdKey) as? Int {
@@ -52,6 +63,129 @@ struct CharacterSheetView: View {
                 self._currentShip = State(initialValue: lastShip)
                 self._shipTypeName = State(initialValue: typeName)
             }
+        }
+    }
+    
+    // 从缓存加载位置信息
+    private func loadLocationFromCache(_ cache: LocationCache) async {
+        if let structureId = cache.structureId {
+            // 建筑物
+            let location = CharacterLocation(
+                solar_system_id: cache.solarSystemId,
+                structure_id: structureId,
+                station_id: nil
+            )
+            // 先清除旧的位置信息
+            await MainActor.run {
+                self.locationDetail = nil
+                self.currentLocation = nil
+                self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                self.locationTypeId = cache.typeId
+            }
+            await loadStructureInfo(structureId: Int64(structureId), location: location)
+        } else if let stationId = cache.stationId {
+            // 空间站
+            let location = CharacterLocation(
+                solar_system_id: cache.solarSystemId,
+                structure_id: nil,
+                station_id: stationId
+            )
+            // 先清除旧的位置信息
+            await MainActor.run {
+                self.locationDetail = nil
+                self.currentLocation = nil
+                self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                self.locationTypeId = cache.typeId
+            }
+            await loadStationInfo(stationId: Int64(stationId), location: location)
+        } else {
+            // 星系
+            let location = CharacterLocation(
+                solar_system_id: cache.solarSystemId,
+                structure_id: nil,
+                station_id: nil
+            )
+            // 先清除旧的位置信息
+            await MainActor.run {
+                self.locationDetail = nil
+                self.currentLocation = nil
+                self.locationStatus = CharacterLocation.LocationStatus(rawValue: cache.locationStatus)
+                self.locationTypeId = nil
+            }
+            // 直接加载星系信息
+            if let info = await getSolarSystemInfo(solarSystemId: cache.solarSystemId, databaseManager: databaseManager) {
+                await MainActor.run {
+                    self.currentLocation = info
+                }
+            }
+        }
+    }
+    
+    // 保存位置信息到缓存
+    private func saveLocationToCache(location: CharacterLocation, typeId: Int? = nil) {
+        let cache = LocationCache(
+            solarSystemId: location.solar_system_id,
+            stationId: location.station_id,
+            structureId: location.structure_id,
+            locationStatus: location.locationStatus.rawValue,
+            typeId: typeId
+        )
+        
+        if let data = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(data, forKey: lastLocationKey)
+        }
+    }
+    
+    // 加载位置信息
+    private func loadLocationInfo(forceRefresh: Bool = false) async {
+        do {
+            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
+                characterId: character.CharacterID,
+                forceRefresh: forceRefresh
+            )
+            
+            // 先清除旧的位置信息
+            await MainActor.run {
+                self.locationDetail = nil
+                self.currentLocation = nil
+                self.locationStatus = nil
+                self.locationTypeId = nil
+            }
+            
+            // 根据位置类型获取详细信息
+            if let structureId = location.structure_id {
+                await loadStructureInfo(structureId: Int64(structureId), location: location)
+                // 获取建筑物类型ID并保存缓存
+                if let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
+                    structureId: Int64(structureId),
+                    characterId: character.CharacterID
+                ) {
+                    saveLocationToCache(location: location, typeId: structureInfo.type_id)
+                } else {
+                    saveLocationToCache(location: location)
+                }
+            } else if let stationId = location.station_id {
+                await loadStationInfo(stationId: Int64(stationId), location: location)
+                // 获取空间站类型ID并保存缓存
+                let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: [Int(stationId)]),
+                   let row = rows.first,
+                   let typeId = row["stationTypeID"] as? Int {
+                    saveLocationToCache(location: location, typeId: typeId)
+                } else {
+                    saveLocationToCache(location: location)
+                }
+            } else {
+                await loadSolarSystemInfo(location: location)
+                saveLocationToCache(location: location)
+            }
+            
+            // 保存状态到数据库
+            if let ship = currentShip {
+                await saveCharacterState(location: location, ship: ship)
+            }
+        } catch {
+            Logger.error("获取位置信息失败: \(error)")
         }
     }
     
@@ -404,16 +538,22 @@ struct CharacterSheetView: View {
             // 1. 首先加载本地数据库中的数据
             loadLocalData()
             
-            // 2. 并行加载所有网络数据
+            // 2. 从缓存加载位置信息
+            if let data = UserDefaults.standard.data(forKey: lastLocationKey),
+               let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data) {
+                await loadLocationFromCache(locationCache)
+            }
+            
+            // 3. 并行加载所有网络数据
             await withTaskGroup(of: Void.self) { group in
                 // 加载在线状态
                 group.addTask {
                     await loadOnlineStatus()
                 }
                 
-                // 加载位置信息
+                // 加载位置信息（强制刷新）
                 group.addTask {
-                    await loadLocationInfo()
+                    await loadLocationInfo(forceRefresh: true)
                 }
                 
                 // 加载飞船信息
@@ -482,31 +622,6 @@ struct CharacterSheetView: View {
             }
         } catch {
             Logger.error("获取飞船信息失败: \(error)")
-        }
-    }
-    
-    // 加载位置信息
-    private func loadLocationInfo() async {
-        do {
-            let location = try await CharacterLocationAPI.shared.fetchCharacterLocation(
-                characterId: character.CharacterID
-            )
-            
-            // 根据位置类型获取详细信息
-            if let structureId = location.structure_id {
-                await loadStructureInfo(structureId: Int64(structureId), location: location)
-            } else if let stationId = location.station_id {
-                await loadStationInfo(stationId: Int64(stationId), location: location)
-            } else {
-                await loadSolarSystemInfo(location: location)
-            }
-            
-            // 保存状态到数据库
-            if let ship = currentShip {
-                await saveCharacterState(location: location, ship: ship)
-            }
-        } catch {
-            Logger.error("获取位置信息失败: \(error)")
         }
     }
     
