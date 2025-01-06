@@ -120,8 +120,9 @@ struct CharacterWealthView: View {
             if !hasLoadedInitialData {
                 initializeEmptyCache()
                 await loadData()
-            } else if viewModel.totalWealth > 0 {
-                // 如果已经有数据，更新缓存
+            } else {
+                // 直接使用现有的 wealthItems 更新缓存，而不是累加
+                cachedWealthItems = viewModel.wealthItems
                 cachedTotalWealth = viewModel.totalWealth
             }
         }
