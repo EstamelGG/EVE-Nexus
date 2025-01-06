@@ -26,8 +26,8 @@ struct WalletJournalGroup: Identifiable {
 final class WalletJournalViewModel: ObservableObject {
     @Published private(set) var journalGroups: [WalletJournalGroup] = []
     @Published var isLoading = true
-    @Published var isBackgroundLoading = false
     @Published var errorMessage: String?
+    private var loadingTask: Task<Void, Never>?
     
     private let characterId: Int
     
@@ -49,66 +49,73 @@ final class WalletJournalViewModel: ObservableObject {
         self.characterId = characterId
     }
     
+    deinit {
+        loadingTask?.cancel()
+    }
+    
     func loadJournalData(forceRefresh: Bool = false) async {
-        // 只有在第一次加载（没有数据）时才显示全屏加载
-        let shouldShowFullscreenLoading = journalGroups.isEmpty && !forceRefresh
+        // 取消之前的加载任务
+        loadingTask?.cancel()
         
-        if shouldShowFullscreenLoading {
+        // 创建新的加载任务
+        loadingTask = Task {
             isLoading = true
-        } else {
-            isBackgroundLoading = true
+            errorMessage = nil
+            
+            do {
+                guard let jsonString = try await CharacterWalletAPI.shared.getWalletJournal(characterId: characterId, forceRefresh: forceRefresh) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                guard let jsonData = jsonString.data(using: .utf8),
+                      let entries = try? JSONDecoder().decode([WalletJournalEntry].self, from: jsonData) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                var groupedEntries: [Date: [WalletJournalEntry]] = [:]
+                for entry in entries {
+                    guard let date = dateFormatter.date(from: entry.date) else {
+                        Logger.error("Failed to parse date: \(entry.date)")
+                        continue
+                    }
+                    
+                    let components = calendar.dateComponents([.year, .month, .day], from: date)
+                    guard let dayDate = calendar.date(from: components) else {
+                        Logger.error("Failed to create date from components for: \(entry.date)")
+                        continue
+                    }
+                    
+                    groupedEntries[dayDate, default: []].append(entry)
+                }
+                
+                if Task.isCancelled { return }
+                
+                let groups = groupedEntries.map { (date, entries) -> WalletJournalGroup in
+                    WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
+                }.sorted { $0.date > $1.date }
+                
+                await MainActor.run {
+                    self.journalGroups = groups
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载钱包日志失败: \(error.localizedDescription)")
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.errorMessage = error.localizedDescription
+                        self.isLoading = false
+                    }
+                }
+            }
         }
-        errorMessage = nil
         
-        do {
-            guard let jsonString = try await CharacterWalletAPI.shared.getWalletJournal(characterId: characterId, forceRefresh: forceRefresh) else {
-                throw NetworkError.invalidResponse
-            }
-            
-            guard let jsonData = jsonString.data(using: .utf8),
-                  let entries = try? JSONDecoder().decode([WalletJournalEntry].self, from: jsonData) else {
-                throw NetworkError.invalidResponse
-            }
-            
-            var groupedEntries: [Date: [WalletJournalEntry]] = [:]
-            for entry in entries {
-                guard let date = dateFormatter.date(from: entry.date) else {
-                    Logger.error("Failed to parse date: \(entry.date)")
-                    continue
-                }
-                
-                let components = calendar.dateComponents([.year, .month, .day], from: date)
-                guard let dayDate = calendar.date(from: components) else {
-                    Logger.error("Failed to create date from components for: \(entry.date)")
-                    continue
-                }
-                
-                groupedEntries[dayDate, default: []].append(entry)
-            }
-            
-            let groups = groupedEntries.map { (date, entries) -> WalletJournalGroup in
-                WalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
-            }.sorted { $0.date > $1.date }
-            
-            await MainActor.run {
-                self.journalGroups = groups
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
-            }
-            
-        } catch {
-            await MainActor.run {
-                self.errorMessage = error.localizedDescription
-                if shouldShowFullscreenLoading {
-                    isLoading = false
-                } else {
-                    isBackgroundLoading = false
-                }
-            }
-        }
+        // 等待任务完成
+        await loadingTask?.value
     }
 }
 
@@ -165,27 +172,12 @@ struct WalletJournalView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            // 立即触发刷新并返回，不等待加载完成
-            Task {
-                await viewModel.loadJournalData(forceRefresh: true)
-            }
-            // 立即完成下拉刷新动作
-            return
+            await viewModel.loadJournalData(forceRefresh: true)
         }
         .task {
-            if viewModel.journalGroups.isEmpty {
-                await viewModel.loadJournalData()
-            }
+            await viewModel.loadJournalData()
         }
         .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
-        .toolbar {
-            if viewModel.isBackgroundLoading {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-        }
     }
 }
 
