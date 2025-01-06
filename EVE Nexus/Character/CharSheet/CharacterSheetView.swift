@@ -100,7 +100,7 @@ struct CharacterSheetView: View {
             await loadStationInfo(stationId: Int64(stationId), location: location)
         } else {
             // 星系
-            let location = CharacterLocation(
+            let _ = CharacterLocation(
                 solar_system_id: cache.solarSystemId,
                 structure_id: nil,
                 station_id: nil
