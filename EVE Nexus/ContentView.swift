@@ -553,6 +553,9 @@ struct ContentView: View {
             viewModel.resetCharacterInfo()
             selectedItem = nil
         }
+        .task {
+            await viewModel.refreshAllData()
+        }
     }
     
     // MARK: - 视图组件
