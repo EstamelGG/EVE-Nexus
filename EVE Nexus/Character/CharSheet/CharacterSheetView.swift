@@ -422,9 +422,9 @@ struct CharacterSheetView: View {
                                 .foregroundColor(.secondary)
                             }
                         } else {
-                            Text(NSLocalizedString("Location_Unknown", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.gray)
+                            Text("Unknown")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
