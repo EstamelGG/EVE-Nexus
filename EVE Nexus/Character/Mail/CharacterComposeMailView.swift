@@ -413,12 +413,6 @@ class MailListPickerViewModel: ObservableObject {
     }
 }
 
-#Preview {
-    NavigationView {
-        CharacterComposeMailView(characterId: 123456)
-    }
-}
-
 // 搜索响应数据结构
 private struct SearchResponse: Codable {
     let character: [Int]?

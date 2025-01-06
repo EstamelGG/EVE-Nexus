@@ -131,9 +131,3 @@ struct CharacterLoyaltyPointsView: View {
         }
     }
 }
-
-#Preview {
-    NavigationView {
-        CharacterLoyaltyPointsView(characterId: 2112625428)
-    }
-} 

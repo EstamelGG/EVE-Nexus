@@ -296,10 +296,3 @@ extension Color {
         )
     }
 }
-
-// 预览
-#Preview {
-    NavigationView {
-        CharacterMailView(characterId: 123456)
-    }
-} 
