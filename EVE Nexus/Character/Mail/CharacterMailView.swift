@@ -109,7 +109,7 @@ struct CharacterMailView: View {
             }
         }
         .sheet(isPresented: $showingComposeView) {
-            NavigationView {
+            NavigationStack {
                 CharacterComposeMailView(characterId: characterId)
             }
         }
