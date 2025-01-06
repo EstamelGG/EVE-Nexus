@@ -98,16 +98,6 @@ struct CharacterOrdersView: View {
         .task {
             await loadOrders()
         }
-        .onReceive(NotificationCenter.default.publisher(
-            for: Notification.Name(CharacterContractsAPI.contractsUpdatedNotification)
-        )) { notification in
-            if let updatedCharacterId = notification.userInfo?[CharacterContractsAPI.contractsUpdatedCharacterIdKey] as? Int,
-               updatedCharacterId == Int(characterId) {
-                Task {
-                    await loadOrders()
-                }
-            }
-        }
     }
     
     // 订单列表视图
