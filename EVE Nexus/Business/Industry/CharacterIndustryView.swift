@@ -306,11 +306,6 @@ struct CharacterIndustryView: View {
         .refreshable {
             await viewModel.loadJobs(forceRefresh: true)
         }
-        .alert(NSLocalizedString("Error", comment: ""), isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(viewModel.errorMessage ?? "Unknown error")
-        }
         .navigationTitle(NSLocalizedString("Main_Industry_Jobs", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
