@@ -214,7 +214,7 @@ struct RecipientPickerView: View {
     @State private var searchText = ""
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 if searchText.isEmpty {
                     // 快速选择部分
@@ -332,7 +332,7 @@ struct MailListPickerView: View {
     @StateObject private var viewModel = MailListPickerViewModel()
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 if viewModel.isLoading {
                     HStack {
@@ -410,12 +410,6 @@ class MailListPickerViewModel: ObservableObject {
             Logger.error("获取邮件列表失败: \(error)")
             self.error = error
         }
-    }
-}
-
-#Preview {
-    NavigationView {
-        CharacterComposeMailView(characterId: 123456)
     }
 }
 

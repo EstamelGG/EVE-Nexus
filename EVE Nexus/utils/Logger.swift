@@ -123,9 +123,10 @@ class Logger {
         shared.writeToFile(message, type: .fault)
     }
     
-    static func error(_ message: String) {
-        os_log("%{public}@", type: .error, message)
-        shared.writeToFile(message, type: .error)
+    static func error(_ message: String, error: Error? = nil, showAlert: Bool = true) {
+        let errorMessage = "\(message) \(error?.localizedDescription ?? "")"
+        // 记录到文件
+        shared.writeToFile(errorMessage, type: .error)
     }
     
     static func fault(_ message: String) {

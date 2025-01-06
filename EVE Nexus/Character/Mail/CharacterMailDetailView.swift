@@ -134,7 +134,7 @@ struct CharacterMailDetailView: View {
         .toolbarBackground(.visible, for: .bottomBar)
         .sheet(isPresented: $showingComposeView) {
             if let detail = viewModel.mailDetail, let type = composeType {
-                NavigationView {
+                NavigationStack {
                     CharacterComposeMailView(
                         characterId: characterId,
                         initialRecipients: getInitialRecipients(type: type, detail: detail),

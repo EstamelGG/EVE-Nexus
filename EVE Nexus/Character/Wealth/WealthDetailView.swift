@@ -2,8 +2,6 @@ import SwiftUI
 
 struct WealthDetailView: View {
     let title: String
-    let valuedItems: [ValuedItem]
-    let databaseManager: DatabaseManager
     let wealthType: WealthType
     @StateObject private var viewModel: CharacterWealthViewModel
     @State private var itemInfos: [[String: Any]] = []
@@ -20,10 +18,21 @@ struct WealthDetailView: View {
     
     init(title: String, valuedItems: [ValuedItem], viewModel: CharacterWealthViewModel, wealthType: WealthType) {
         self.title = title
-        self.valuedItems = valuedItems
-        self.databaseManager = DatabaseManager()
         self.wealthType = wealthType
         self._viewModel = StateObject(wrappedValue: viewModel)
+    }
+    
+    private var valuedItems: [ValuedItem] {
+        switch wealthType {
+        case .assets:
+            return viewModel.valuedAssets
+        case .implants:
+            return viewModel.valuedImplants
+        case .orders:
+            return viewModel.valuedOrders
+        case .wallet:
+            return []
+        }
     }
     
     private func getItemInfo(typeId: Int) -> (name: String, iconFileName: String)? {
@@ -34,6 +43,33 @@ struct WealthDetailView: View {
             )
         }
         return nil
+    }
+    
+    private func loadData() async {
+        isLoading = true
+        
+        // 根据不同类型加载数据
+        switch wealthType {
+        case .assets:
+            await viewModel.loadAssetDetails()
+        case .implants:
+            await viewModel.loadImplantDetails()
+        case .orders:
+            await viewModel.loadOrderDetails()
+        case .wallet:
+            break
+        }
+        
+        // 加载物品信息
+        let typeIds = valuedItems.map { $0.typeId }
+        itemInfos = viewModel.getItemsInfo(typeIds: typeIds)
+        
+        // 只在资产类型时加载无市场价格的物品
+        if wealthType == .assets {
+            itemsWithoutPrice = await viewModel.getItemsWithoutPrice()
+        }
+        
+        isLoading = false
     }
     
     var body: some View {
@@ -49,10 +85,10 @@ struct WealthDetailView: View {
                 // 有市场价格的物品
                 if !valuedItems.isEmpty {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: ""))) {
-                        ForEach(valuedItems, id: \.typeId) { item in
+                        ForEach(valuedItems.sorted(by: { $0.totalValue > $1.totalValue }), id: \.typeId) { item in
                             if let itemInfo = getItemInfo(typeId: item.typeId) {
                                 NavigationLink {
-                                    MarketItemDetailView(databaseManager: databaseManager, itemID: item.typeId)
+                                    MarketItemDetailView(databaseManager: DatabaseManager(), itemID: item.typeId)
                                 } label: {
                                     HStack {
                                         // 物品图标
@@ -87,7 +123,7 @@ struct WealthDetailView: View {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_NoPrice", comment: ""))) {
                         ForEach(itemsWithoutPrice) { item in
                             NavigationLink {
-                                MarketItemDetailView(databaseManager: databaseManager, itemID: item.typeId)
+                                MarketItemDetailView(databaseManager: DatabaseManager(), itemID: item.typeId)
                             } label: {
                                 HStack {
                                     // 物品图标
@@ -122,16 +158,10 @@ struct WealthDetailView: View {
         }
         .navigationTitle(String(format: NSLocalizedString("Wealth_Detail_Title", comment: ""), title))
         .task {
-            // 加载所有物品的信息
-            let typeIds = valuedItems.map { $0.typeId }
-            itemInfos = viewModel.getItemsInfo(typeIds: typeIds)
-            
-            // 只在资产类型时加载无市场价格的物品
-            if wealthType == .assets {
-                itemsWithoutPrice = await viewModel.getItemsWithoutPrice()
-            }
-            
-            isLoading = false
+            await loadData()
+        }
+        .refreshable {
+            await loadData()
         }
     }
 }

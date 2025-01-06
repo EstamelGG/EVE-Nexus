@@ -109,7 +109,7 @@ struct CharacterMailView: View {
             }
         }
         .sheet(isPresented: $showingComposeView) {
-            NavigationView {
+            NavigationStack {
                 CharacterComposeMailView(characterId: characterId)
             }
         }
@@ -296,10 +296,3 @@ extension Color {
         )
     }
 }
-
-// 预览
-#Preview {
-    NavigationView {
-        CharacterMailView(characterId: 123456)
-    }
-} 

@@ -70,6 +70,7 @@ struct CharacterWealthView: View {
                         } label: {
                             WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
                         }
+                        .disabled(loadedTypes.count < WealthType.allCases.count)
                     }
                 }
                 
@@ -119,9 +120,6 @@ struct CharacterWealthView: View {
             if !hasLoadedInitialData {
                 initializeEmptyCache()
                 await loadData()
-            } else if viewModel.totalWealth > 0 {
-                // 如果已经有数据，更新缓存
-                cachedTotalWealth = viewModel.totalWealth
             }
         }
     }
@@ -129,23 +127,29 @@ struct CharacterWealthView: View {
     private func loadData(forceRefresh: Bool = false) async {
         loadedTypes.removeAll()
         
+        // 创建一个有序的临时数组来存储加载的数据
+        var orderedWealthItems: [WealthItem] = []
+        
         // 加载主要数据，动态更新每个类型的数据
         await viewModel.loadWealthData(forceRefresh: forceRefresh) { loadedType in
             loadedTypes.insert(loadedType)
             
-            // 找到并更新对应类型的数据
-            if let index = cachedWealthItems.firstIndex(where: { $0.type == loadedType }) {
-                cachedWealthItems[index] = viewModel.wealthItems.first(where: { $0.type == loadedType })!
-            } else {
-                // 如果是新的类型，添加到缓存中
-                if let newItem = viewModel.wealthItems.first(where: { $0.type == loadedType }) {
-                    cachedWealthItems.append(newItem)
+            if let newItem = viewModel.wealthItems.first(where: { $0.type == loadedType }) {
+                // 按照预定义顺序插入数据
+                let insertIndex = WealthType.allCases.firstIndex(of: loadedType) ?? orderedWealthItems.count
+                if insertIndex >= orderedWealthItems.count {
+                    orderedWealthItems.append(newItem)
+                } else {
+                    orderedWealthItems.insert(newItem, at: insertIndex)
                 }
-            }
-            
-            // 只在所有类型都加载完成后更新总财富值
-            if loadedTypes.count == WealthType.allCases.count {
-                cachedTotalWealth = calculateTotalWealth()
+                
+                // 更新缓存
+                DispatchQueue.main.async {
+                    self.cachedWealthItems = orderedWealthItems
+                    if loadedTypes.count == WealthType.allCases.count {
+                        self.cachedTotalWealth = self.calculateTotalWealth()
+                    }
+                }
             }
         }
         
@@ -160,7 +164,7 @@ struct CharacterWealthView: View {
         hasLoadedInitialData = true
     }
     
-    // 初始化空的缓存数据
+    // 初始化空的缓存数据 - 确保按照预定义顺序初始化
     private func initializeEmptyCache() {
         cachedWealthItems = WealthType.allCases.map { type in
             WealthItem(
@@ -169,6 +173,7 @@ struct CharacterWealthView: View {
                 details: NSLocalizedString("Calculating", comment: "")
             )
         }
+        cachedTotalWealth = 0
     }
     
     private func getValuedItems(for type: WealthType) -> [ValuedItem] {

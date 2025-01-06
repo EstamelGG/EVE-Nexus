@@ -63,7 +63,11 @@ class MarketPricesAPI {
     
     private func isCacheValid() -> Bool {
         guard let lastUpdate = lastUpdateTime else { return false }
-        return Date().timeIntervalSince(lastUpdate) < cacheDuration
+        let res = Date().timeIntervalSince(lastUpdate) < cacheDuration
+        if res {
+            Logger.info("市场估价信息有效，上次更新: \(lastUpdate)")
+        }
+        return res
     }
     
     // MARK: - 数据库方法
@@ -153,7 +157,7 @@ class MarketPricesAPI {
     func fetchMarketPrices(forceRefresh: Bool = false) async throws -> [MarketPrice] {
         // 如果不是强制刷新，尝试从数据库获取
         if !forceRefresh {
-            if let cached = loadFromDatabase() {
+            if let cached = loadFromDatabase(), !cached.isEmpty {
                 Logger.info("使用数据库缓存的市场价格数据")
                 return cached
             }

@@ -119,9 +119,3 @@ struct AboutItemRow: View {
         .padding(.vertical, 8)
     }
 }
-
-#Preview {
-    NavigationView {
-        AboutView()
-    }
-}

@@ -96,30 +96,41 @@ struct ServerStatusView: View {
     let status: ServerStatus?
     
     var body: some View {
-        HStack(spacing: 4) {
-            UTCTimeView()
-            Text("-")
-            if let status = status {
-                if status.isOnline {
-                    Text("Online")
-                        .font(.caption.bold())
-                        .foregroundColor(.green)
-                    
-                    let formattedPlayers = NumberFormatter.localizedString(
-                        from: NSNumber(value: status.players),
-                        number: .decimal
-                    )
-                    Text("(\(formattedPlayers) players)")
-                        .font(.caption)
-                } else {
-                    Text("Offline")
-                        .font(.caption.bold())
-                        .foregroundColor(.red)
-                }
-            } else {
-                Text("Checking Status...")
+        Text(formattedUTCTime)
+            .font(.monospacedDigit(.caption)()) +
+        Text(" - ")
+            .font(.caption) +
+        statusText
+    }
+    
+    private var formattedUTCTime: String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        return formatter.string(from: Date())
+    }
+    
+    private var statusText: Text {
+        if let status = status {
+            if status.isOnline {
+                let formattedPlayers = NumberFormatter.localizedString(
+                    from: NSNumber(value: status.players),
+                    number: .decimal
+                )
+                return Text("Online")
+                    .font(.caption.bold())
+                    .foregroundColor(.green) +
+                Text(" (\(formattedPlayers) players)")
                     .font(.caption)
+            } else {
+                return Text("Offline")
+                    .font(.caption.bold())
+                    .foregroundColor(.red)
             }
+        } else {
+            return Text("Checking Status...")
+                .font(.caption)
         }
     }
 }
@@ -361,6 +372,8 @@ struct ContentView: View {
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @Environment(\.colorScheme) var systemColorScheme
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @State private var selectedItem: String? = nil
     
     // 使用计算属性来确定当前的颜色方案
     private var currentColorScheme: ColorScheme? {
@@ -375,38 +388,143 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            List {
-                // 登录部分
-                loginSection
-                
-                // 角色功能部分
-                if currentCharacterId != 0 {
-                    characterSection
+        GeometryReader { geometry in
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                List(selection: $selectedItem) {
+                    // 登录部分
+                    loginSection
+                    
+                    // 角色功能部分
+                    if currentCharacterId != 0 {
+                        characterSection
+                    }
+                    
+                    // 数据库部分(始终显示)
+                    databaseSection
+                    
+                    // 商业部分(登录后显示)
+                    if currentCharacterId != 0 {
+                        businessSection
+                    }
+                    
+                    // 其他设置(始终显示)
+                    otherSection
                 }
-                
-                // 数据库部分(始终显示)
-                databaseSection
-                
-                // 商业部分(登录后显示)
-                if currentCharacterId != 0 {
-                    businessSection
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.refreshAllData(forceRefresh: true)
                 }
-                
-                // 其他设置(始终显示)
-                otherSection
-            }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                await viewModel.refreshAllData(forceRefresh: true)
-            }
-            .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    logoutButton
+                .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        logoutButton
+                    }
+                }
+                .navigationSplitViewColumnWidth(min: 300, ideal: geometry.size.width * 0.35)
+            } detail: {
+                NavigationStack {
+                    if selectedItem == nil {
+                        Text(NSLocalizedString("Select_Item", comment: ""))
+                            .foregroundColor(.gray)
+                    } else {
+                        switch selectedItem {
+                        case "accounts":
+                            AccountsView(
+                                databaseManager: databaseManager,
+                                mainViewModel: viewModel
+                            ) { character, portrait in
+                                viewModel.resetCharacterInfo()
+                                viewModel.selectedCharacter = character
+                                viewModel.characterPortrait = portrait
+                                currentCharacterId = character.CharacterID
+                                Task {
+                                    await viewModel.refreshAllData()
+                                }
+                            }
+                        case "character_sheet":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterSheetView(
+                                    character: character,
+                                    characterPortrait: viewModel.characterPortrait
+                                )
+                            }
+                        case "character_clones":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterClonesView(character: character)
+                            }
+                        case "character_skills":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterSkillsView(
+                                    characterId: character.CharacterID,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        case "character_mail":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterMailView(characterId: character.CharacterID)
+                            }
+                        case "calendar":
+                            Text("Calendar View") // 待实现
+                        case "character_wealth":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterWealthView(characterId: character.CharacterID)
+                            }
+                        case "character_lp":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterLoyaltyPointsView(characterId: character.CharacterID)
+                            }
+                        case "database":
+                            DatabaseBrowserView(
+                                databaseManager: databaseManager,
+                                level: .categories
+                            )
+                        case "market":
+                            MarketBrowserView(databaseManager: databaseManager)
+                        case "npc":
+                            NPCBrowserView(databaseManager: databaseManager)
+                        case "wormhole":
+                            WormholeView(databaseManager: databaseManager)
+                        case "incursions":
+                            IncursionsView(databaseManager: databaseManager)
+                        case "sovereignty":
+                            SovereigntyView(databaseManager: databaseManager)
+                        case "assets":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterAssetsView(characterId: character.CharacterID)
+                            }
+                        case "market_orders":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterOrdersView(characterId: Int64(character.CharacterID))
+                            }
+                        case "contracts":
+                            if let character = viewModel.selectedCharacter {
+                                PersonalContractsView(characterId: character.CharacterID)
+                            }
+                        case "market_transactions":
+                            if let character = viewModel.selectedCharacter {
+                                WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
+                        case "wallet_journal":
+                            if let character = viewModel.selectedCharacter {
+                                WalletJournalView(characterId: character.CharacterID)
+                            }
+                        case "industry_jobs":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterIndustryView(characterId: character.CharacterID)
+                            }
+                        case "mining_ledger":
+                            if let character = viewModel.selectedCharacter {
+                                MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
+                        default:
+                            Text(NSLocalizedString("Select_Item", comment: ""))
+                                .foregroundColor(.gray)
+                        }
+                    }
                 }
             }
         }
+        .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(currentColorScheme)
         .onAppear {
             // 检查当前选择的角色是否在已登录列表中
@@ -419,9 +537,6 @@ struct ContentView: View {
                     viewModel.resetCharacterInfo()
                 }
             }
-        }
-        .task {
-            await viewModel.refreshAllData()
         }
         .onChange(of: selectedTheme) { _, _ in
             // 主题变更时的处理
@@ -436,26 +551,17 @@ struct ContentView: View {
             // 收到角色登出通知时执行登出操作
             currentCharacterId = 0
             viewModel.resetCharacterInfo()
+            selectedItem = nil
+        }
+        .task {
+            await viewModel.refreshAllData()
         }
     }
     
     // MARK: - 视图组件
     private var loginSection: some View {
         Section {
-            NavigationLink {
-                AccountsView(
-                    databaseManager: databaseManager,
-                    mainViewModel: viewModel
-                ) { character, portrait in
-                    viewModel.resetCharacterInfo()
-                    viewModel.selectedCharacter = character
-                    viewModel.characterPortrait = portrait
-                    currentCharacterId = character.CharacterID
-                    Task {
-                        await viewModel.refreshAllData()
-                    }
-                }
-            } label: {
+            NavigationLink(value: "accounts") {
                 LoginButtonView(
                     isLoggedIn: currentCharacterId != 0,
                     serverStatus: viewModel.serverStatus,
@@ -480,14 +586,7 @@ struct ContentView: View {
     
     private var characterSection: some View {
         Section {
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterSheetView(
-                        character: character,
-                        characterPortrait: viewModel.characterPortrait
-                    )
-                }
-            } label: {
+            NavigationLink(value: "character_sheet") {
                 RowView(
                     title: NSLocalizedString("Main_Character_Sheet", comment: ""),
                     icon: "charactersheet",
@@ -495,11 +594,7 @@ struct ContentView: View {
                 )
             }
             
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterClonesView(character: character)
-                }
-            } label: {
+            NavigationLink(value: "character_clones") {
                 RowView(
                     title: NSLocalizedString("Main_Jump_Clones", comment: ""),
                     icon: "jumpclones",
@@ -507,14 +602,7 @@ struct ContentView: View {
                 )
             }
             
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterSkillsView(
-                        characterId: character.CharacterID,
-                        databaseManager: databaseManager
-                    )
-                }
-            } label: {
+            NavigationLink(value: "character_skills") {
                 RowView(
                     title: NSLocalizedString("Main_Skills", comment: ""),
                     icon: "skills",
@@ -522,21 +610,14 @@ struct ContentView: View {
                 )
             }
             
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterMailView(characterId: character.CharacterID)
-                }
-            } label: {
+            NavigationLink(value: "character_mail") {
                 RowView(
                     title: NSLocalizedString("Main_EVE_Mail", comment: ""),
                     icon: "evemail"
                 )
             }
-            // .isHidden(true)
             
-            NavigationLink {
-                Text("Calendar View") // 待实现
-            } label: {
+            NavigationLink(value: "calendar") {
                 RowView(
                     title: NSLocalizedString("Main_Calendar", comment: ""),
                     icon: "calendar"
@@ -544,11 +625,7 @@ struct ContentView: View {
             }
             .isHidden(true)
             
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterWealthView(characterId: character.CharacterID)
-                }
-            } label: {
+            NavigationLink(value: "character_wealth") {
                 RowView(
                     title: NSLocalizedString("Main_Wealth", comment: ""),
                     icon: "Folder",
@@ -556,11 +633,7 @@ struct ContentView: View {
                 )
             }
             
-            NavigationLink {
-                if let character = viewModel.selectedCharacter {
-                    CharacterLoyaltyPointsView(characterId: character.CharacterID)
-                }
-            } label: {
+            NavigationLink(value: "character_lp") {
                 RowView(
                     title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
                     icon: "lpstore"
@@ -577,57 +650,42 @@ struct ContentView: View {
     
     private var databaseSection: some View {
         Section {
-            NavigationLink {
-                DatabaseBrowserView(
-                    databaseManager: databaseManager,
-                    level: .categories
-                )
-            } label: {
+            NavigationLink(value: "database") {
                 RowView(
                     title: NSLocalizedString("Main_Database", comment: ""),
                     icon: "items"
                 )
             }
             
-            NavigationLink {
-                MarketBrowserView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "market") {
                 RowView(
                     title: NSLocalizedString("Main_Market", comment: ""),
                     icon: "market"
                 )
             }
             
-            NavigationLink {
-                NPCBrowserView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "npc") {
                 RowView(
                     title: "NPC",
                     icon: "criminal"
                 )
             }
             
-            NavigationLink {
-                WormholeView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "wormhole") {
                 RowView(
                     title: NSLocalizedString("Main_WH", comment: ""),
                     icon: "terminate"
                 )
             }
             
-            NavigationLink {
-                IncursionsView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "incursions") {
                 RowView(
                     title: NSLocalizedString("Main_Incursions", comment: ""),
                     icon: "incursions"
                 )
             }
             
-            NavigationLink {
-                SovereigntyView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "sovereignty") {
                 RowView(
                     title: NSLocalizedString("Main_Sovereignty", comment: ""),
                     icon: "sovereignty"
@@ -644,49 +702,53 @@ struct ContentView: View {
     
     private var businessSection: some View {
         Section {
-            ForEach([
-                (NSLocalizedString("Main_Assets", comment: ""), "assets", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterAssetsView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Market_Orders", comment: ""), "marketdeliveries", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterOrdersView(characterId: Int64(character.CharacterID))
-                    }
-                )),
-                (NSLocalizedString("Main_Contracts", comment: ""), "contracts", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        PersonalContractsView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Market_Transactions", comment: ""), "journal", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
-                    }
-                )),
-                (NSLocalizedString("Main_Wallet_Journal", comment: ""), "wallet", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        WalletJournalView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Industry_Jobs", comment: ""), "industry", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        CharacterIndustryView(characterId: character.CharacterID)
-                    }
-                )),
-                (NSLocalizedString("Main_Mining_Ledger", comment: ""), "miningledger", AnyView(
-                    viewModel.selectedCharacter.map { character in
-                        MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
-                    }
-                ))
-            ], id: \.0) { title, icon, destination in
-                NavigationLink(destination: destination) {
-                    RowView(
-                        title: title,
-                        icon: icon
-                    )
-                }
+            NavigationLink(value: "assets") {
+                RowView(
+                    title: NSLocalizedString("Main_Assets", comment: ""),
+                    icon: "assets"
+                )
+            }
+            
+            NavigationLink(value: "market_orders") {
+                RowView(
+                    title: NSLocalizedString("Main_Market_Orders", comment: ""),
+                    icon: "marketdeliveries"
+                )
+            }
+            
+            NavigationLink(value: "contracts") {
+                RowView(
+                    title: NSLocalizedString("Main_Contracts", comment: ""),
+                    icon: "contracts"
+                )
+            }
+            
+            NavigationLink(value: "market_transactions") {
+                RowView(
+                    title: NSLocalizedString("Main_Market_Transactions", comment: ""),
+                    icon: "journal"
+                )
+            }
+            
+            NavigationLink(value: "wallet_journal") {
+                RowView(
+                    title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
+                    icon: "wallet"
+                )
+            }
+            
+            NavigationLink(value: "industry_jobs") {
+                RowView(
+                    title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
+                    icon: "industry"
+                )
+            }
+            
+            NavigationLink(value: "mining_ledger") {
+                RowView(
+                    title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
+                    icon: "miningledger"
+                )
             }
         } header: {
             Text(NSLocalizedString("Main_Business", comment: ""))

@@ -225,13 +225,6 @@ struct MiningLedgerView: View {
                 }
             }
         }
-        .alert(NSLocalizedString("Mining_Error_Loading", comment: ""), isPresented: .constant(viewModel.errorMessage != nil)) {
-            Button("Common_OK", role: .cancel) {}
-        } message: {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-            }
-        }
         .task {
             await viewModel.loadMiningData()
         }

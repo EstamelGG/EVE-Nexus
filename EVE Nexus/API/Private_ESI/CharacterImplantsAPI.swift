@@ -67,6 +67,7 @@ class CharacterImplantsAPI {
         """
         
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [characterId]),
+           rows.count > 0,
            let row = rows.first,
            let jsonString = row["implants_data"] as? String,
            let jsonData = jsonString.data(using: .utf8) {

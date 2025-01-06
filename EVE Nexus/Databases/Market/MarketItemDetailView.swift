@@ -245,7 +245,7 @@ struct RegionPickerView: View {
     }
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 // 置顶星域 Section
                 Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {

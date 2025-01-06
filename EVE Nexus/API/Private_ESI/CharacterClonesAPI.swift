@@ -90,6 +90,7 @@ class CharacterClonesAPI {
         """
         
         if case .success(let rows) = databaseManager.executeQuery(query, parameters: [characterId]),
+           rows.count > 0,
            let row = rows.first,
            let jsonString = row["clones_data"] as? String,
            let jsonData = jsonString.data(using: .utf8) {

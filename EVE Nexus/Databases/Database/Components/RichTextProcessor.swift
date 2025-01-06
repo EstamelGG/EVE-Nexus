@@ -32,7 +32,7 @@ struct RichTextView: View {
                 get: { selectedItem.map { SheetItem(itemID: $0.itemID, categoryID: $0.categoryID) } },
                 set: { if $0 == nil { selectedItem = nil } }
             )) { item in
-                NavigationView {
+                NavigationStack {
                     ItemInfoMap.getItemInfoView(
                         itemID: item.itemID,
                         categoryID: item.categoryID,
