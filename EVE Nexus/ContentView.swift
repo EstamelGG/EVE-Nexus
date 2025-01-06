@@ -388,136 +388,138 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            List(selection: $selectedItem) {
-                // 登录部分
-                loginSection
-                
-                // 角色功能部分
-                if currentCharacterId != 0 {
-                    characterSection
+        GeometryReader { geometry in
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                List(selection: $selectedItem) {
+                    // 登录部分
+                    loginSection
+                    
+                    // 角色功能部分
+                    if currentCharacterId != 0 {
+                        characterSection
+                    }
+                    
+                    // 数据库部分(始终显示)
+                    databaseSection
+                    
+                    // 商业部分(登录后显示)
+                    if currentCharacterId != 0 {
+                        businessSection
+                    }
+                    
+                    // 其他设置(始终显示)
+                    otherSection
                 }
-                
-                // 数据库部分(始终显示)
-                databaseSection
-                
-                // 商业部分(登录后显示)
-                if currentCharacterId != 0 {
-                    businessSection
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.refreshAllData(forceRefresh: true)
                 }
-                
-                // 其他设置(始终显示)
-                otherSection
-            }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                await viewModel.refreshAllData(forceRefresh: true)
-            }
-            .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    logoutButton
+                .navigationTitle(NSLocalizedString("Main_Title", comment: ""))
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        logoutButton
+                    }
                 }
-            }
-            .navigationSplitViewColumnWidth(ideal: UIScreen.main.bounds.width * 0.4)
-        } detail: {
-            NavigationStack {
-                if selectedItem == nil {
-                    Text(NSLocalizedString("Select_Item", comment: ""))
-                        .foregroundColor(.gray)
-                } else {
-                    switch selectedItem {
-                    case "accounts":
-                        AccountsView(
-                            databaseManager: databaseManager,
-                            mainViewModel: viewModel
-                        ) { character, portrait in
-                            viewModel.resetCharacterInfo()
-                            viewModel.selectedCharacter = character
-                            viewModel.characterPortrait = portrait
-                            currentCharacterId = character.CharacterID
-                            Task {
-                                await viewModel.refreshAllData()
-                            }
-                        }
-                    case "character_sheet":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterSheetView(
-                                character: character,
-                                characterPortrait: viewModel.characterPortrait
-                            )
-                        }
-                    case "character_clones":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterClonesView(character: character)
-                        }
-                    case "character_skills":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterSkillsView(
-                                characterId: character.CharacterID,
-                                databaseManager: databaseManager
-                            )
-                        }
-                    case "character_mail":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterMailView(characterId: character.CharacterID)
-                        }
-                    case "calendar":
-                        Text("Calendar View") // 待实现
-                    case "character_wealth":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterWealthView(characterId: character.CharacterID)
-                        }
-                    case "character_lp":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterLoyaltyPointsView(characterId: character.CharacterID)
-                        }
-                    case "database":
-                        DatabaseBrowserView(
-                            databaseManager: databaseManager,
-                            level: .categories
-                        )
-                    case "market":
-                        MarketBrowserView(databaseManager: databaseManager)
-                    case "npc":
-                        NPCBrowserView(databaseManager: databaseManager)
-                    case "wormhole":
-                        WormholeView(databaseManager: databaseManager)
-                    case "incursions":
-                        IncursionsView(databaseManager: databaseManager)
-                    case "sovereignty":
-                        SovereigntyView(databaseManager: databaseManager)
-                    case "assets":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterAssetsView(characterId: character.CharacterID)
-                        }
-                    case "market_orders":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterOrdersView(characterId: Int64(character.CharacterID))
-                        }
-                    case "contracts":
-                        if let character = viewModel.selectedCharacter {
-                            PersonalContractsView(characterId: character.CharacterID)
-                        }
-                    case "market_transactions":
-                        if let character = viewModel.selectedCharacter {
-                            WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
-                        }
-                    case "wallet_journal":
-                        if let character = viewModel.selectedCharacter {
-                            WalletJournalView(characterId: character.CharacterID)
-                        }
-                    case "industry_jobs":
-                        if let character = viewModel.selectedCharacter {
-                            CharacterIndustryView(characterId: character.CharacterID)
-                        }
-                    case "mining_ledger":
-                        if let character = viewModel.selectedCharacter {
-                            MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
-                        }
-                    default:
+                .navigationSplitViewColumnWidth(min: 300, ideal: geometry.size.width * 0.35)
+            } detail: {
+                NavigationStack {
+                    if selectedItem == nil {
                         Text(NSLocalizedString("Select_Item", comment: ""))
                             .foregroundColor(.gray)
+                    } else {
+                        switch selectedItem {
+                        case "accounts":
+                            AccountsView(
+                                databaseManager: databaseManager,
+                                mainViewModel: viewModel
+                            ) { character, portrait in
+                                viewModel.resetCharacterInfo()
+                                viewModel.selectedCharacter = character
+                                viewModel.characterPortrait = portrait
+                                currentCharacterId = character.CharacterID
+                                Task {
+                                    await viewModel.refreshAllData()
+                                }
+                            }
+                        case "character_sheet":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterSheetView(
+                                    character: character,
+                                    characterPortrait: viewModel.characterPortrait
+                                )
+                            }
+                        case "character_clones":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterClonesView(character: character)
+                            }
+                        case "character_skills":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterSkillsView(
+                                    characterId: character.CharacterID,
+                                    databaseManager: databaseManager
+                                )
+                            }
+                        case "character_mail":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterMailView(characterId: character.CharacterID)
+                            }
+                        case "calendar":
+                            Text("Calendar View") // 待实现
+                        case "character_wealth":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterWealthView(characterId: character.CharacterID)
+                            }
+                        case "character_lp":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterLoyaltyPointsView(characterId: character.CharacterID)
+                            }
+                        case "database":
+                            DatabaseBrowserView(
+                                databaseManager: databaseManager,
+                                level: .categories
+                            )
+                        case "market":
+                            MarketBrowserView(databaseManager: databaseManager)
+                        case "npc":
+                            NPCBrowserView(databaseManager: databaseManager)
+                        case "wormhole":
+                            WormholeView(databaseManager: databaseManager)
+                        case "incursions":
+                            IncursionsView(databaseManager: databaseManager)
+                        case "sovereignty":
+                            SovereigntyView(databaseManager: databaseManager)
+                        case "assets":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterAssetsView(characterId: character.CharacterID)
+                            }
+                        case "market_orders":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterOrdersView(characterId: Int64(character.CharacterID))
+                            }
+                        case "contracts":
+                            if let character = viewModel.selectedCharacter {
+                                PersonalContractsView(characterId: character.CharacterID)
+                            }
+                        case "market_transactions":
+                            if let character = viewModel.selectedCharacter {
+                                WalletTransactionsView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
+                        case "wallet_journal":
+                            if let character = viewModel.selectedCharacter {
+                                WalletJournalView(characterId: character.CharacterID)
+                            }
+                        case "industry_jobs":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterIndustryView(characterId: character.CharacterID)
+                            }
+                        case "mining_ledger":
+                            if let character = viewModel.selectedCharacter {
+                                MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
+                        default:
+                            Text(NSLocalizedString("Select_Item", comment: ""))
+                                .foregroundColor(.gray)
+                        }
                     }
                 }
             }
@@ -535,9 +537,6 @@ struct ContentView: View {
                     viewModel.resetCharacterInfo()
                 }
             }
-        }
-        .task {
-            await viewModel.refreshAllData()
         }
         .onChange(of: selectedTheme) { _, _ in
             // 主题变更时的处理
