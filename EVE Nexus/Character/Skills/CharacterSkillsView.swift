@@ -107,7 +107,38 @@ struct CharacterSkillsView: View {
     
     var body: some View {
         List {
-            // 第一个列表 - 技能队列
+            // 第一个列表 - 属性和技能目录导航
+            Section {
+                NavigationLink {
+                    CharacterAttributesView(characterId: characterId)
+                } label: {
+                    HStack {
+                        Image("attributes")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                    }
+                }
+                
+                NavigationLink {
+                    SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
+                } label: {
+                    HStack {
+                        Image("skills")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                            .drawingGroup()
+                        Text(NSLocalizedString("Main_Skills_Category", comment: ""))
+                    }
+                }
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
+            }
+            
+            // 第二个列表 - 技能队列
             Section {
                 if isLoading {
                     ProgressView()
