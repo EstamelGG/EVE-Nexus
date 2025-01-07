@@ -15,6 +15,22 @@ struct CharacterSkillsView: View {
     @State private var characterAttributes: CharacterAttributes?
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
     @State private var hasLoadedData = false
+    @State private var optimalAttributes: OptimalAttributeAllocation?
+    
+    private var attributeComparisons: [(name: String, current: Int, optimal: Int, diff: Int)] {
+        guard let attrs = characterAttributes,
+              let optimal = optimalAttributes else {
+            return []
+        }
+        
+        return [
+            ("感知", attrs.perception, optimal.perception, optimal.perception - attrs.perception),
+            ("记忆", attrs.memory, optimal.memory, optimal.memory - attrs.memory),
+            ("意志", attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
+            ("智力", attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
+            ("魅力", attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
+        ]
+    }
     
     private var activeSkills: [SkillQueueItem] {
         let now = Date()
@@ -91,38 +107,7 @@ struct CharacterSkillsView: View {
     
     var body: some View {
         List {
-            // 第一个列表 - 两个可点击单元格
-            Section {
-                NavigationLink {
-                    CharacterAttributesView(characterId: characterId)
-                } label: {
-                    HStack {
-                        Image("attributes")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                            .drawingGroup()
-                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
-                    }
-                }
-                
-                NavigationLink {
-                    SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
-                } label: {
-                    HStack {
-                        Image("skills")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                            .drawingGroup()
-                        Text(NSLocalizedString("Main_Skills_Category", comment: ""))
-                    }
-                }
-            } header: {
-                Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
-            }
-            
-            // 第二个列表 - 技能队列
+            // 第一个列表 - 技能队列
             Section {
                 if isLoading {
                     ProgressView()
@@ -131,34 +116,6 @@ struct CharacterSkillsView: View {
                     Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
                         .foregroundColor(.secondary)
                 } else {
-                    // 添加最优属性分配按钮
-                    Button(action: {
-                        if let optimalAllocation = calculateOptimalAttributeAllocation() {
-                            let alert = UIAlertController(
-                                title: NSLocalizedString("Main_Skills_Optimal_Attributes", comment: "最优属性分配"),
-                                message: optimalAllocation.description,
-                                preferredStyle: .alert
-                            )
-                            alert.addAction(UIAlertAction(
-                                title: NSLocalizedString("Common_OK", comment: "确定"),
-                                style: .default
-                            ))
-                            
-                            // 获取当前视图控制器并显示警告框
-                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                               let viewController = windowScene.windows.first?.rootViewController {
-                                viewController.present(alert, animated: true)
-                            }
-                        }
-                    }) {
-                        Label(
-                            NSLocalizedString("Main_Skills_Calculate_Optimal", comment: "计算最优属性"),
-                            systemImage: "chart.bar.fill"
-                        )
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(.vertical, 4)
-                    
                     ForEach(activeSkills) { item in
                         NavigationLink {
                             ShowItemInfo(
@@ -179,7 +136,6 @@ struct CharacterSkillsView: View {
                                         Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
                                             .lineLimit(1)
                                         Spacer()
-                                        // 添加等级指示器
                                         Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
                                             .foregroundColor(.secondary)
                                             .font(.caption)
@@ -222,7 +178,6 @@ struct CharacterSkillsView: View {
                                             }
                                         }
                                         
-                                        // 只对正在训练的技能显示进度条
                                         if item.isCurrentlyTraining {
                                             ProgressView(value: progress.percentage)
                                                 .progressViewStyle(LinearProgressViewStyle())
@@ -251,7 +206,7 @@ struct CharacterSkillsView: View {
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             
-            // 第三个列表 - 注入器需求（只在有技能队列时显示）
+            // 第二个列表 - 注入器需求
             if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation {
                 Section {
                     // 大型注入器
@@ -309,6 +264,33 @@ struct CharacterSkillsView: View {
                     .foregroundColor(.secondary)
                 } header: {
                     Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+                }
+            }
+            
+            // 第三个列表 - 属性对比
+            if !attributeComparisons.isEmpty {
+                Section {
+                    ForEach(attributeComparisons, id: \.name) { attr in
+                        HStack {
+                            Text(attr.name)
+                            Spacer()
+                            if attr.diff == 0 {
+                                Text("\(attr.current)")
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("\(attr.current)(+\(attr.diff))")
+                                    .foregroundColor(attr.diff > 0 ? .green : .red)
+                            }
+                        }
+                    }
+                    
+                    if let optimal = optimalAttributes {
+                        Text("优化后可节省: \(formatTimeInterval(optimal.savedTime))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } header: {
+                    Text("最优属性分配")
                 }
             }
         }
@@ -372,6 +354,41 @@ struct CharacterSkillsView: View {
                         attributes: attrs
                     ) {
                         trainingRates[item.skill_id] = rate
+                    }
+                }
+            }
+            
+            // 计算最优属性分配
+            if let attrs = characterAttributes {
+                let queueInfo = activeSkills.compactMap { item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
+                    guard let levelEndSp = item.level_end_sp,
+                          let trainingStartSp = item.training_start_sp else {
+                        return nil
+                    }
+                    
+                    return (
+                        skillId: item.skill_id,
+                        remainingSP: levelEndSp - trainingStartSp,
+                        startDate: item.start_date,
+                        finishDate: item.finish_date
+                    )
+                }
+                
+                if let optimal = SkillTrainingCalculator.calculateOptimalAttributes(
+                    skillQueue: queueInfo,
+                    databaseManager: databaseManager,
+                    currentAttributes: attrs
+                ) {
+                    await MainActor.run {
+                        optimalAttributes = OptimalAttributeAllocation(
+                            charisma: optimal.charisma,
+                            intelligence: optimal.intelligence,
+                            memory: optimal.memory,
+                            perception: optimal.perception,
+                            willpower: optimal.willpower,
+                            totalTrainingTime: optimal.totalTrainingTime,
+                            currentTrainingTime: optimal.currentTrainingTime
+                        )
                     }
                 }
             }
