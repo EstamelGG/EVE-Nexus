@@ -275,6 +275,24 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 PRIMARY KEY (character_id, transaction_id)
             );
 
+            -- 军团钱包交易记录表
+            CREATE TABLE IF NOT EXISTS corp_wallet_transactions (
+                transaction_id INTEGER,
+                corporation_id INTEGER,
+                division INTEGER,
+                client_id INTEGER,
+                date TEXT,
+                is_buy BOOLEAN,
+                is_personal BOOLEAN,
+                journal_ref_id INTEGER,
+                location_id INTEGER,
+                quantity INTEGER,
+                type_id INTEGER,
+                unit_price REAL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (corporation_id, division, transaction_id)
+            );
+
             -- 合同表
             CREATE TABLE IF NOT EXISTS contracts (
                 contract_id INTEGER,

@@ -180,14 +180,9 @@ class CorpWalletAPI {
     ///   - characterId: 角色ID
     ///   - division: 部门编号
     /// - Returns: 钱包日志数组
-    private func fetchCorpJournalFromServer(characterId: Int, division: Int) async throws -> [[String: Any]] {
+    private func fetchCorpJournalFromServer(characterId: Int, corporationId: Int, division: Int) async throws -> [[String: Any]] {
         var allJournalEntries: [[String: Any]] = []
         var page = 1
-        
-        // 1. 获取角色的军团ID
-        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
-            throw NetworkError.authenticationError("无法获取军团ID")
-        }
         
         while true {
             do {
@@ -345,7 +340,7 @@ class CorpWalletAPI {
         // 3. 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
             Logger.debug("军团钱包日志为空或需要刷新，从网络获取数据")
-            let journalData = try await fetchCorpJournalFromServer(characterId: characterId, division: division)
+            let journalData = try await fetchCorpJournalFromServer(characterId: characterId, corporationId: corporationId, division: division)
             if !saveCorpWalletJournalToDB(corporationId: corporationId, division: division, entries: journalData) {
                 Logger.error("保存军团钱包日志到数据库失败")
             }
@@ -359,5 +354,151 @@ class CorpWalletAPI {
             return String(data: jsonData, encoding: .utf8)
         }
         return nil
+    }
+    
+    /// 获取军团钱包交易记录（公开方法）
+    public func getCorpWalletTransactions(characterId: Int, division: Int, forceRefresh: Bool = false) async throws -> String? {
+        // 1. 获取军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
+        // 2. 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM corp_wallet_transactions WHERE corporation_id = ? AND division = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [corporationId, division])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
+        
+        // 3. 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("军团钱包交易记录为空或需要刷新，从网络获取数据")
+            let transactionData = try await fetchCorpTransactionsFromServer(characterId: characterId, corporationId: corporationId, division: division)
+            if !saveCorpWalletTransactionsToDB(corporationId: corporationId, division: division, entries: transactionData) {
+                Logger.error("保存军团钱包交易记录到数据库失败")
+            }
+        } else {
+            Logger.debug("使用数据库中的军团钱包交易记录数据")
+        }
+        
+        // 4. 从数据库获取数据并返回
+        if let results = getCorpWalletTransactionsFromDB(corporationId: corporationId, division: division) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
+        }
+        return nil
+    }
+    
+    /// 从服务器获取军团交易记录
+    private func fetchCorpTransactionsFromServer(characterId: Int, corporationId: Int, division: Int) async throws -> [[String: Any]] {
+        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/transactions/"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
+        
+        guard let transactions = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            throw NetworkError.invalidResponse
+        }
+        
+        Logger.info("成功获取军团钱包交易记录，共\(transactions.count)条记录")
+        return transactions
+    }
+    
+    /// 从数据库获取军团钱包交易记录
+    private func getCorpWalletTransactionsFromDB(corporationId: Int, division: Int) -> [[String: Any]]? {
+        let query = """
+            SELECT transaction_id, client_id, date, is_buy, is_personal,
+                   journal_ref_id, location_id, quantity, type_id,
+                   unit_price, last_updated
+            FROM corp_wallet_transactions 
+            WHERE corporation_id = ? AND division = ?
+            ORDER BY date DESC 
+            LIMIT 1000
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [corporationId, division]) {
+            // 将整数转换回布尔值
+            return results.map { row in
+                var mutableRow = row
+                if let isBuy = row["is_buy"] as? Int64 {
+                    mutableRow["is_buy"] = isBuy != 0
+                }
+                if let isPersonal = row["is_personal"] as? Int64 {
+                    mutableRow["is_personal"] = isPersonal != 0
+                }
+                return mutableRow
+            }
+        }
+        return nil
+    }
+    
+    /// 保存军团钱包交易记录到数据库
+    private func saveCorpWalletTransactionsToDB(corporationId: Int, division: Int, entries: [[String: Any]]) -> Bool {
+        // 首先获取已存在的交易ID
+        let checkQuery = "SELECT transaction_id FROM corp_wallet_transactions WHERE corporation_id = ? AND division = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [corporationId, division]) else {
+            Logger.error("查询现有交易记录失败")
+            return false
+        }
+        
+        let existingIds = Set(existingResults.compactMap { ($0["transaction_id"] as? Int64) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO corp_wallet_transactions (
+                transaction_id, corporation_id, division, client_id, date, is_buy,
+                is_personal, journal_ref_id, location_id, quantity,
+                type_id, unit_price
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var newCount = 0
+        for entry in entries {
+            let transactionId = entry["transaction_id"] as? Int64 ?? 0
+            // 如果交易ID已存在，跳过
+            if existingIds.contains(transactionId) {
+                continue
+            }
+            
+            // 将布尔值转换为整数
+            let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
+            let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
+            
+            let parameters: [Any] = [
+                transactionId,
+                corporationId,
+                division,
+                entry["client_id"] as? Int ?? 0,
+                entry["date"] as? String ?? "",
+                isBuy,
+                isPersonal,
+                entry["journal_ref_id"] as? Int64 ?? 0,
+                entry["location_id"] as? Int64 ?? 0,
+                entry["quantity"] as? Int ?? 0,
+                entry["type_id"] as? Int ?? 0,
+                entry["unit_price"] as? Double ?? 0.0
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存军团钱包交易记录到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)条军团钱包交易记录到数据库")
+        } else {
+            Logger.info("无需新增交易记录")
+        }
+        return true
     }
 } 
