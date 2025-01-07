@@ -12,16 +12,26 @@ final class CorpWalletDivisionViewModel: ObservableObject {
     
     func loadInitialData() async {
         // 同时加载两个视图的数据
-        async let journalTask = journalViewModel.loadJournalData()
-        async let transactionsTask = transactionsViewModel.loadTransactionData()
-        _ = await (journalTask, transactionsTask)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.journalViewModel.loadJournalData()
+            }
+            group.addTask {
+                await self.transactionsViewModel.loadTransactionData()
+            }
+        }
     }
     
     func refreshData() async {
         // 同时刷新两个视图的数据
-        async let journalTask = journalViewModel.loadJournalData(forceRefresh: true)
-        async let transactionsTask = transactionsViewModel.loadTransactionData(forceRefresh: true)
-        _ = await (journalTask, transactionsTask)
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await self.journalViewModel.loadJournalData(forceRefresh: true)
+            }
+            group.addTask {
+                await self.transactionsViewModel.loadTransactionData(forceRefresh: true)
+            }
+        }
     }
 }
 
