@@ -161,14 +161,14 @@ struct SkillTrainingCalculator {
         characterId: Int
     ) async -> OptimalAttributes? {
         // 获取植入体加成
-        let implantBonuses = await getImplantBonuses(characterId: characterId)
+        // let implantBonuses = await getImplantBonuses(characterId: characterId)
         
         // 计算实际的基础属性（当前属性减去植入体加成）
-        let baseCharisma = currentAttributes.charisma - implantBonuses.charismaBonus
-        let baseIntelligence = currentAttributes.intelligence - implantBonuses.intelligenceBonus
-        let baseMemory = currentAttributes.memory - implantBonuses.memoryBonus
-        let basePerception = currentAttributes.perception - implantBonuses.perceptionBonus
-        let baseWillpower = currentAttributes.willpower - implantBonuses.willpowerBonus
+        // let baseCharisma = currentAttributes.charisma - implantBonuses.charismaBonus
+        // let baseIntelligence = currentAttributes.intelligence - implantBonuses.intelligenceBonus
+        // let baseMemory = currentAttributes.memory - implantBonuses.memoryBonus
+        // let basePerception = currentAttributes.perception - implantBonuses.perceptionBonus
+        // let baseWillpower = currentAttributes.willpower - implantBonuses.willpowerBonus
         
         // Logger.debug("计算最优属性分配 - 初始状态:")
         // Logger.debug("当前基础属性 - 感知: \(basePerception), 记忆: \(baseMemory), 意志: \(baseWillpower), 智力: \(baseIntelligence), 魅力: \(baseCharisma)")
