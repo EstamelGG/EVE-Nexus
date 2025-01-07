@@ -350,21 +350,8 @@ struct SettingView: View {
                 detail: nil,
                 icon: nil,
                 iconColor: .blue,
-                action: { }
-            ) { item in
-                Toggle(isOn: $showCorporationAffairs) {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .font(.system(size: 16))
-                            .foregroundColor(.primary)
-                        if let detail = item.detail {
-                            Text(detail)
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                }
-            }
+                action: { showCorporationAffairs.toggle() }
+            )
         ])
     }
     
@@ -461,6 +448,7 @@ struct SettingView: View {
         let item: SettingItem
         let isCleaningCache: Bool
         let showingLoadingView: Bool
+        @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
         
         var body: some View {
             if let customView = item.customView {
@@ -480,7 +468,13 @@ struct SettingView: View {
                             }
                         }
                         Spacer()
-                        if let icon = item.icon {
+                        if item.title == NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: "") {
+                            Toggle("", isOn: .init(
+                                get: { showCorporationAffairs },
+                                set: { _ in item.action() }
+                            ))
+                            .labelsHidden()
+                        } else if let icon = item.icon {
                             if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                 ProgressView()
                                     .frame(width: 36, height: 36)
