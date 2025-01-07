@@ -82,6 +82,7 @@ struct ResistanceBarView: View {
                             Rectangle()
                                 .fill(type.color)
                                 .saturation(1.2)     // 增加饱和度
+                                .brightness(0.1)     // 增加亮度
                                 .frame(width: geometry.size.width * CGFloat(resistances[type.id]) / 100)
                         }
                     }

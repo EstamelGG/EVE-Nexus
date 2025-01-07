@@ -33,6 +33,7 @@ struct DamageBarView: View {
                 // 进度条
                 Rectangle()
                     .fill(foregroundColor)
+                    .brightness(0.1)     // 增加亮度
                     .frame(width: max(0, min(geometry.size.width * CGFloat(percentage) / 100, geometry.size.width)))
                 
                 // 文字显示
