@@ -994,7 +994,7 @@ struct ContentView: View {
             currentCharacterId = 0
             viewModel.resetCharacterInfo()
         } label: {
-            Image(systemName: "rectangle.portrait.and.arrow.right")
+            Image(systemName: "power")
                 .resizable()
                 .frame(width: 24, height: 24)
                 .foregroundColor(.red)

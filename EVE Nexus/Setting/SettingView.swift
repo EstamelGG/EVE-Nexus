@@ -381,7 +381,7 @@ struct SettingView: View {
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Language", comment: ""),
                 detail: NSLocalizedString("Main_Setting_Select_your_language", comment: ""),
-                icon: "globe",
+                icon: "translate",
                 action: { showingLanguageView = true }
             ),
             SettingItem(
