@@ -16,9 +16,9 @@ struct SkillLevelIndicator: View {
     private let blockSpacing: CGFloat = 1.5 // 1 * 1.5
     
     // 颜色定义
-    private let darkGray = Color.gray.opacity(0.8)
-    private let lightGray = Color.gray.opacity(0.4)
-    private let borderColor = Color.gray.opacity(0.8)
+    private let darkGray = Color.primary.opacity(0.8)
+    private let lightGray = Color.secondary.opacity(0.6)
+    private let borderColor = Color.primary.opacity(0.8)
     
     var body: some View {
         ZStack(alignment: Alignment(horizontal: .leading, vertical: .center)) {
