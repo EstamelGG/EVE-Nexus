@@ -82,7 +82,6 @@
 "Main_Setting_Select_Language" = "选择语言";
 "Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
 "Main_Setting_Clean_Cache" = "清理缓存";
-"Main_Setting_Clean_Cache_detail" = "清理图片缓存并重启APP";
 "Main_Setting_Clean_Cache_Title" = "清理缓存";
 "Main_Setting_Clean_Cache_Message" = "这将清理应用缓存，包括网络缓存和临时文件。是否确认？";
 "Main_Setting_Reset_Icons" = "重置图标缓存";

@@ -85,7 +85,6 @@
 "Main_Setting_Select_Language" = "Select Language";
 "Main_Setting_SwitchLanguageConfirmation" = "Require reload to switch language.";
 "Main_Setting_Clean_Cache" = "Clean Cache";
-"Main_Setting_Clean_Cache_detail" = "Clean icons cache and restart app";
 "Main_Database_Role_Bonuses" = "Role Bonuses";
 "Main_Database_Bonuses_Per_Level" = "bonuses per level";
 
