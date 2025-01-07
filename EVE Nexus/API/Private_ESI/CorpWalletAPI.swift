@@ -152,7 +152,11 @@ class CorpWalletAPI {
         if type == "hangar" {
             return String(format: NSLocalizedString("Main_Corporation_Hangar_Default", comment: ""), division)
         } else {
-            return String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), division)
+            if division == 1 {
+                return String(format: NSLocalizedString("Main_Corporation_Wallet_Division1", comment: ""), division)
+            } else {
+                return String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), division)
+            }
         }
     }
     
@@ -209,9 +213,12 @@ class CorpWalletAPI {
                 page += 1
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
                 
+                if page >= 1000 { // 最多取1000页
+                    break
+                }
+                
             } catch let error as NetworkError {
-                if case .httpError(let statusCode, let message) = error,
-                   statusCode == 500,
+                if case .httpError(_, let message) = error,
                    message?.contains("Requested page does not exist") == true {
                     // 这是正常的分页结束情况
                     Logger.info("军团钱包第\(division)部门日志获取完成，共\(allJournalEntries.count)条记录")
@@ -234,9 +241,9 @@ class CorpWalletAPI {
     /// - Returns: 钱包日志数组
     private func getCorpWalletJournalFromDB(corporationId: Int, division: Int) -> [[String: Any]]? {
         let query = """
-            SELECT id, amount, balance, context_id, context_id_type,
-                   date, description, first_party_id, reason, ref_type,
-                   second_party_id, last_updated
+            SELECT id, corporation_id, division, amount, balance, context_id,
+                   context_id_type, date, description, first_party_id,
+                   reason, ref_type, second_party_id
             FROM corp_wallet_journal 
             WHERE corporation_id = ? AND division = ?
             ORDER BY date DESC 

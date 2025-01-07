@@ -188,10 +188,11 @@ class CharacterMiningAPI {
                 
                 page += 1
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))
-                
+                if page >= 1000 { // 最多取1000页
+                    break
+                }
             } catch let error as NetworkError {
-                if case .httpError(let statusCode, let message) = error,
-                   [500, 404].contains(statusCode),
+                if case .httpError(_, let message) = error,
                    message?.contains("Requested page does not exist") == true {
                     break
                 }

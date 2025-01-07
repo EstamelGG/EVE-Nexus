@@ -404,10 +404,11 @@ class CharacterWalletAPI {
                 
                 page += 1
                 try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
-                
+                if page >= 1000 { // 最多取1000页
+                    break
+                }
             } catch let error as NetworkError {
-                if case .httpError(let statusCode, let message) = error,
-                   statusCode == 500,
+                if case .httpError(_, let message) = error,
                    message?.contains("Requested page does not exist") == true {
                     // 这是正常的分页结束情况
                     Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")

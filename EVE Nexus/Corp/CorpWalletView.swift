@@ -49,29 +49,35 @@ struct CorpWalletView: View {
                 }
             } else {
                 ForEach(wallets, id: \.division) { wallet in
-                    HStack {
-                        // 钱包图标
-                        Image("wallet")
-                            .resizable()
-                            .frame(width: 32, height: 32)
-                            .cornerRadius(6)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            // 钱包分部名称
-                            Text(wallet.name ?? String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), wallet.division))
-                                .font(.system(size: 16))
-                                .foregroundColor(.primary)
+                    NavigationLink(destination: CorpWalletJournalView(
+                        characterId: characterId,
+                        division: wallet.division,
+                        divisionName: wallet.name ?? String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), wallet.division)
+                    )) {
+                        HStack {
+                            // 钱包图标
+                            Image("wallet")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
                             
-                            // 余额
-                            Text("\(formatBalance(wallet.balance)) ISK")
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                // 钱包分部名称
+                                Text(wallet.name ?? String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), wallet.division))
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.primary)
+                                
+                                // 余额
+                                Text("\(formatBalance(wallet.balance)) ISK")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.leading, 2)
+                            
+                            Spacer()
                         }
-                        .padding(.leading, 2)
-                        
-                        Spacer()
+                        .frame(height: 36)
                     }
-                    .frame(height: 36)
                 }
             }
         }

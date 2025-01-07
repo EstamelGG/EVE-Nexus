@@ -241,8 +241,7 @@ public class CharacterAssetsJsonAPI {
                             return (page, pageAssets)
                             
                         } catch let error as NetworkError {
-                            if case .httpError(let statusCode, let message) = error,
-                               statusCode == 404,
+                            if case .httpError(_, let message) = error,
                                message?.contains("Requested page does not exist") == true {
                                 return (page, []) // 返回空数组和页码，表示该页不存在
                             }

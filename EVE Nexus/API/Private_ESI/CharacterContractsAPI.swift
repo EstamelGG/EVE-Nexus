@@ -590,9 +590,12 @@ class CharacterContractsAPI {
                     allContracts.append(contentsOf: pageContracts)
                     currentPage += 1
                 }
+                if currentPage >= 1000 { // 最多取1000页
+                    shouldContinue = false
+                    break
+                }
             } catch let error as NetworkError {
-                if case .httpError(let statusCode, let message) = error,
-                   [404, 500].contains(statusCode) ,
+                if case .httpError(_, let message) = error,
                    message?.contains("Requested page does not exist") == true {
                     shouldContinue = false
                 } else {
