@@ -9,6 +9,7 @@ struct SettingItem: Identifiable {
     let icon: String?
     let iconColor: Color
     let action: () -> Void
+    var customView: ((SettingItem) -> AnyView)?
     
     init(title: String, detail: String? = nil, icon: String? = nil, iconColor: Color = .blue, action: @escaping () -> Void) {
         self.title = title
@@ -16,6 +17,16 @@ struct SettingItem: Identifiable {
         self.icon = icon
         self.iconColor = iconColor
         self.action = action
+        self.customView = nil
+    }
+    
+    init<V: View>(title: String, detail: String? = nil, icon: String? = nil, iconColor: Color = .blue, action: @escaping () -> Void, @ViewBuilder customView: @escaping (SettingItem) -> V) {
+        self.title = title
+        self.detail = detail
+        self.icon = icon
+        self.iconColor = iconColor
+        self.action = action
+        self.customView = { AnyView(customView($0)) }
     }
 }
 
@@ -220,6 +231,7 @@ struct SettingView: View {
     
     // MARK: - 属性定义
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
+    @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
@@ -299,6 +311,7 @@ struct SettingView: View {
     private func updateSettingGroups() {
         settingGroups = [
             createAppearanceGroup(),
+            createCorporationAffairsGroup(),
             createOthersGroup(),
             createCacheGroup()
         ]
@@ -328,6 +341,31 @@ struct SettingView: View {
         default:
             break
         }
+    }
+    
+    private func createCorporationAffairsGroup() -> SettingGroup {
+        SettingGroup(header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""), items: [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
+                detail: nil,
+                icon: nil,
+                iconColor: .blue,
+                action: { }
+            ) { item in
+                Toggle(isOn: $showCorporationAffairs) {
+                    VStack(alignment: .leading) {
+                        Text(item.title)
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        if let detail = item.detail {
+                            Text(detail)
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+            }
+        ])
     }
     
     private func createOthersGroup() -> SettingGroup {
@@ -425,34 +463,39 @@ struct SettingView: View {
         let showingLoadingView: Bool
         
         var body: some View {
-            Button(action: item.action) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                            .font(.system(size: 16))
-                            .foregroundColor(.primary)
-                        if let detail = item.detail {
-                            Text(detail)
-                                .font(.system(size: 12))
-                                .foregroundColor(.gray)
+            if let customView = item.customView {
+                customView(item)
+                    .disabled(isCleaningCache || showingLoadingView)
+            } else {
+                Button(action: item.action) {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(item.title)
+                                .font(.system(size: 16))
+                                .foregroundColor(.primary)
+                            if let detail = item.detail {
+                                Text(detail)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        Spacer()
+                        if let icon = item.icon {
+                            if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
+                                ProgressView()
+                                    .frame(width: 36, height: 36)
+                            } else {
+                                Image(systemName: icon)
+                                    .font(.system(size: 20))
+                                    .frame(width: 36, height: 36)
+                                    .foregroundColor(item.iconColor)
+                            }
                         }
                     }
-                    Spacer()
-                    if let icon = item.icon {
-                        if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
-                            ProgressView()
-                                .frame(width: 36, height: 36)
-                        } else {
-                            Image(systemName: icon)
-                                .font(.system(size: 20))
-                                .frame(width: 36, height: 36)
-                                .foregroundColor(item.iconColor)
-                        }
-                    }
+                    .frame(height: 36)
                 }
-                .frame(height: 36)
+                .disabled(isCleaningCache || showingLoadingView)
             }
-            .disabled(isCleaningCache || showingLoadingView)
         }
     }
     

@@ -625,3 +625,15 @@
 "Main_EVE_Mail_Quick_Select" = "Quick Select";
 "Main_EVE_Mail_Searching" = "Searching...";
 "Main_EVE_Mail_Search_Failed" = "Search Failed";
+
+"Main_Setting_Corporation_Affairs" = "Corporation Affairs";
+"Main_Setting_Show_Corporation_Affairs" = "Show Corporation Affairs";
+
+// Corporation Section
+"Main_Corporation" = "Corporation";
+"Main_Corporation_wallet" = "Corp Wallet";
+"Main_Corporation_Members" = "Corp Members";
+"Main_Corporation_Structures" = "Corp Structures";
+"Main_Corporation_Contracts" = "Corp Contracts";
+"Main_Corporation_Market_Orders" = "Corp Market Orders";
+"Main_Corporation_Industry" = "Corp Industry";

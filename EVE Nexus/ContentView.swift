@@ -511,6 +511,7 @@ struct ContentView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
+    @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
     @Environment(\.colorScheme) var systemColorScheme
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedItem: String? = nil
@@ -537,6 +538,11 @@ struct ContentView: View {
                     // 角色功能部分
                     if currentCharacterId != 0 {
                         characterSection
+                        
+                        // 军团部分（仅在开启设置且已登录时显示）
+                        if showCorporationAffairs {
+                            corporationSection
+                        }
                     }
                     
                     // 数据库部分(始终显示)
@@ -655,6 +661,10 @@ struct ContentView: View {
                         case "mining_ledger":
                             if let character = viewModel.selectedCharacter {
                                 MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
+                        case "corporation_wallet":
+                            if let character = viewModel.selectedCharacter {
+                                Text("Corporation Wallet View") // 待实现
                             }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
@@ -781,6 +791,58 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Character", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
+        }
+    }
+    
+    private var corporationSection: some View {
+        Section {
+            NavigationLink(value: "corporation_wallet") {
+                RowView(
+                    title: NSLocalizedString("Main_Corporation_wallet", comment: ""),
+                    icon: "wallet"
+                )
+            }
+
+            // NavigationLink(value: "corporation_members") {
+            //     RowView(
+            //         title: NSLocalizedString("Main_Corporation_Members", comment: ""),
+            //         icon: "corporation"
+            //     )
+            // }
+            
+            // NavigationLink(value: "corporation_structures") {
+            //     RowView(
+            //         title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
+            //         icon: "structures"
+            //     )
+            // }
+            
+            // NavigationLink(value: "corporation_contracts") {
+            //     RowView(
+            //         title: NSLocalizedString("Main_Corporation_Contracts", comment: ""),
+            //         icon: "contracts"
+            //     )
+            // }
+            
+            // NavigationLink(value: "corporation_market_orders") {
+            //     RowView(
+            //         title: NSLocalizedString("Main_Corporation_Market_Orders", comment: ""),
+            //         icon: "marketdeliveries"
+            //     )
+            // }
+            
+            // NavigationLink(value: "corporation_industry") {
+            //     RowView(
+            //         title: NSLocalizedString("Main_Corporation_Industry", comment: ""),
+            //         icon: "industry"
+            //     )
+            // }
+        } header: {
+            Text(NSLocalizedString("Main_Corporation", comment: ""))
                 .fontWeight(.bold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
