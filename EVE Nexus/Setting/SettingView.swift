@@ -348,10 +348,8 @@ struct SettingView: View {
         
         var body: some View {
             HStack {
-                Image(systemName: "building.2")
-                    .foregroundColor(.blue)
                 Toggle(NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""), isOn: $showCorporationAffairs)
-                    .tint(.blue)
+                    .tint(.green)
             }
             .frame(height: 36)
         }
@@ -362,7 +360,6 @@ struct SettingView: View {
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
                 detail: nil,
-                icon: "building.2",
                 iconColor: .blue,
                 action: {}
             ) { _ in
