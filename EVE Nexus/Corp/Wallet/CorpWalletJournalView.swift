@@ -1,63 +1,68 @@
 import SwiftUI
 
-// 添加一个结构体来包装日志条目
-struct CorpWalletJournalEntry: Identifiable {
+// 军团钱包日志条目模型
+struct CorpWalletJournalEntry: Codable, Identifiable {
     let id: Int64
-    let date: String
     let amount: Double
     let balance: Double
+    let date: String
     let description: String
-    let firstPartyId: Int
-    let secondPartyId: Int
-    let contextId: Int
-    let contextIdType: String
-    let refType: String
+    let first_party_id: Int
     let reason: String
-    
-    init(from dictionary: [String: Any]) {
-        self.id = dictionary["id"] as? Int64 ?? 0
-        self.date = dictionary["date"] as? String ?? ""
-        self.amount = dictionary["amount"] as? Double ?? 0.0
-        self.balance = dictionary["balance"] as? Double ?? 0.0
-        self.description = dictionary["description"] as? String ?? ""
-        self.firstPartyId = dictionary["first_party_id"] as? Int ?? 0
-        self.secondPartyId = dictionary["second_party_id"] as? Int ?? 0
-        self.contextId = dictionary["context_id"] as? Int ?? 0
-        self.contextIdType = dictionary["context_id_type"] as? String ?? ""
-        self.refType = dictionary["ref_type"] as? String ?? ""
-        self.reason = dictionary["reason"] as? String ?? ""
-    }
+    let ref_type: String
+    let second_party_id: Int
+    let context_id: Int64?
+    let context_id_type: String?
 }
 
-struct CorpWalletJournalView: View {
-    let characterId: Int
-    let division: Int
-    let divisionName: String
-    
-    @State private var journalEntries: [CorpWalletJournalEntry] = []
-    @State private var isLoading = true
-    @State private var error: Error?
-    @State private var showError = false
-    @State private var totalIncome: Double = 0.0
-    @State private var totalExpense: Double = 0.0
+// 按日期分组的钱包日志
+struct CorpWalletJournalGroup: Identifiable {
+    let id = UUID()
+    let date: Date
+    var entries: [CorpWalletJournalEntry]
+}
 
+@MainActor
+final class CorpWalletJournalViewModel: ObservableObject {
+    @Published private(set) var journalGroups: [CorpWalletJournalGroup] = []
+    @Published var isLoading = true
+    @Published var errorMessage: String?
+    @Published private(set) var totalIncome: Double = 0.0
+    @Published private(set) var totalExpense: Double = 0.0
     
-    // 格式化日期
-    private func formatDate(_ dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        guard let date = dateFormatter.date(from: dateString) else { return dateString }
-        
-        dateFormatter.dateFormat = "MM-dd HH:mm"
-        return dateFormatter.string(from: date)
+    private let characterId: Int
+    private let division: Int
+    private var loadingTask: Task<Void, Never>?
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }()
+    
+    init(characterId: Int, division: Int) {
+        self.characterId = characterId
+        self.division = division
+    }
+    
+    deinit {
+        loadingTask?.cancel()
     }
     
     // 计算总收支
-    private func calculateTotals() {
+    private func calculateTotals(from entries: [CorpWalletJournalEntry]) {
         var income: Double = 0
         var expense: Double = 0
         
-        for entry in journalEntries {
+        for entry in entries {
             if entry.amount > 0 {
                 income += entry.amount
             } else {
@@ -69,34 +74,100 @@ struct CorpWalletJournalView: View {
         totalExpense = expense
     }
     
-    private func loadJournalData(forceRefresh: Bool = false) {
-        isLoading = true
-        error = nil
+    func loadJournalData(forceRefresh: Bool = false) async {
+        // 取消之前的加载任务
+        loadingTask?.cancel()
         
-        Task {
+        // 创建新的加载任务
+        loadingTask = Task {
+            isLoading = true
+            errorMessage = nil
+            
             do {
-                if let jsonString = try await CorpWalletAPI.shared.getCorpWalletJournal(
+                guard let jsonString = try await CorpWalletAPI.shared.getCorpWalletJournal(
                     characterId: characterId,
                     division: division,
                     forceRefresh: forceRefresh
-                ),
-                   let data = jsonString.data(using: .utf8),
-                   let json = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                ) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                guard let jsonData = jsonString.data(using: .utf8),
+                      let entries = try? JSONDecoder().decode([CorpWalletJournalEntry].self, from: jsonData) else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                if Task.isCancelled { return }
+                
+                // 计算总收支
+                calculateTotals(from: entries)
+                
+                // 按日期分组
+                var groupedEntries: [Date: [CorpWalletJournalEntry]] = [:]
+                for entry in entries {
+                    guard let date = dateFormatter.date(from: entry.date) else {
+                        Logger.error("Failed to parse date: \(entry.date)")
+                        continue
+                    }
+                    
+                    let components = calendar.dateComponents([.year, .month, .day], from: date)
+                    guard let dayDate = calendar.date(from: components) else {
+                        Logger.error("Failed to create date from components for: \(entry.date)")
+                        continue
+                    }
+                    
+                    groupedEntries[dayDate, default: []].append(entry)
+                }
+                
+                if Task.isCancelled { return }
+                
+                let groups = groupedEntries.map { (date, entries) -> CorpWalletJournalGroup in
+                    CorpWalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
+                }.sorted { $0.date > $1.date }
+                
+                await MainActor.run {
+                    self.journalGroups = groups
+                    self.isLoading = false
+                }
+                
+            } catch {
+                Logger.error("加载军团钱包日志失败: \(error.localizedDescription)")
+                if !Task.isCancelled {
                     await MainActor.run {
-                        self.journalEntries = json.map { CorpWalletJournalEntry(from: $0) }
-                        calculateTotals()
+                        self.errorMessage = error.localizedDescription
                         self.isLoading = false
                     }
                 }
-            } catch {
-                await MainActor.run {
-                    self.error = error
-                    self.showError = true
-                    self.isLoading = false
-                }
-                Logger.error("获取军团钱包日志失败: \(error)")
             }
         }
+        
+        // 等待任务完成
+        await loadingTask?.value
+    }
+}
+
+struct CorpWalletJournalView: View {
+    let characterId: Int
+    let division: Int
+    let divisionName: String
+    
+    @StateObject private var viewModel: CorpWalletJournalViewModel
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    init(characterId: Int, division: Int, divisionName: String) {
+        self.characterId = characterId
+        self.division = division
+        self.divisionName = divisionName
+        _viewModel = StateObject(wrappedValue: CorpWalletJournalViewModel(characterId: characterId, division: division))
     }
     
     var summarySection: some View {
@@ -112,7 +183,7 @@ struct CorpWalletJournalView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("+ \(FormatUtil.format(totalIncome)) ISK")
+                Text("+ \(FormatUtil.format(viewModel.totalIncome)) ISK")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.green)
             }
@@ -123,7 +194,7 @@ struct CorpWalletJournalView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("- \(FormatUtil.format(totalExpense)) ISK")
+                Text("- \(FormatUtil.format(viewModel.totalExpense)) ISK")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.red)
             }
@@ -132,80 +203,120 @@ struct CorpWalletJournalView: View {
     
     var body: some View {
         List {
-            if isLoading {
+            if viewModel.isLoading {
                 HStack {
                     Spacer()
                     ProgressView()
                         .progressViewStyle(.circular)
                     Spacer()
                 }
+            } else if viewModel.journalGroups.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        Spacer()
+                    }
+                }
             } else {
                 summarySection
                 
-                Section(header: Text(NSLocalizedString("Transactions", comment: ""))
-                    .fontWeight(.bold)
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .textCase(.none)
-                ) {
-                    ForEach(journalEntries) { entry in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                // 日期
-                                Text(formatDate(entry.date))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                                
-                                // 金额
-                                Text("\(entry.amount >= 0 ? "+" : "")\(FormatUtil.format(entry.amount)) ISK")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(entry.amount >= 0 ? .green : .red)
-                            }
-                            
-                            // 描述
-                            Text(entry.description)
-                                .font(.system(size: 14))
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-                            
-                            // 交易类型和原因
-                            if !entry.refType.isEmpty {
-                                Text(entry.refType)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            if !entry.reason.isEmpty {
-                                Text(entry.reason)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            // 余额
-                            Text(String(format: NSLocalizedString("Balance: %@ ISK", comment: ""), FormatUtil.format(entry.balance)))
-                                .font(.system(size: 12))
-                                .foregroundColor(.secondary)
+                ForEach(viewModel.journalGroups) { group in
+                    Section(header: Text(displayDateFormatter.string(from: group.date))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.entries) { entry in
+                            CorpWalletJournalEntryRow(entry: entry)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
             }
         }
-        .navigationTitle(divisionName)
+        .listStyle(.insetGrouped)
         .refreshable {
-            loadJournalData(forceRefresh: true)
+            await viewModel.loadJournalData(forceRefresh: true)
         }
-        .alert(isPresented: $showError) {
-            Alert(
-                title: Text(NSLocalizedString("Common_Error", comment: "")),
-                message: Text(error?.localizedDescription ?? NSLocalizedString("Common_Unknown_Error", comment: "")),
-                dismissButton: .default(Text(NSLocalizedString("Common_OK", comment: "")))
-            )
+        .task {
+            await viewModel.loadJournalData()
         }
-        .onAppear {
-            loadJournalData()
-        }
+        .navigationTitle(divisionName)
     }
-} 
+}
+
+struct CorpWalletJournalEntryRow: View {
+    let entry: CorpWalletJournalEntry
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private func formatRefType(_ refType: String) -> String {
+        return refType.split(separator: "_")
+            .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+            .joined(separator: " ")
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            // 交易类型和金额
+            HStack {
+                Text(formatRefType(entry.ref_type))
+                    .font(.body)
+                    .lineLimit(1)
+                Spacer()
+                Text("\(FormatUtil.format(entry.amount)) ISK")
+                    .foregroundColor(entry.amount >= 0 ? .green : .red)
+                    .font(.system(.caption, design: .monospaced))
+            }
+            
+            // 交易细节
+            Text(entry.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            
+            // 余额
+            Text(String(format: NSLocalizedString("Balance: %@ ISK", comment: ""), FormatUtil.format(entry.balance)))
+                .font(.caption)
+                .foregroundColor(.gray)
+            
+            // 时间
+            if let date = dateFormatter.date(from: entry.date) {
+                Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date)) (UTC+0)")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.vertical, 2)
+    } 
+}
