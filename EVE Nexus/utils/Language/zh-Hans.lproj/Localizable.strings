@@ -652,3 +652,14 @@
 "Total Expense" = "总支出";
 "Transactions" = "交易记录";
 "Common_Error" = "错误";
+
+// 最优属性分配
+"Main_Skills_Optimal_Attributes" = "最优属性分配";
+"Main_Skills_Optimal_Attributes_Title" = "最优属性分配";
+"Main_Skills_Optimal_Attributes_Description" = "基于当前技能队列计算最优属性分配";
+"Main_Skills_Optimal_Attributes_Time_Saved" = "优化后可节省: %@";
+"Main_Skills_Optimal_Attributes_Current" = "当前";
+"Main_Skills_Optimal_Attributes_Optimal" = "最优";
+"Main_Skills_Optimal_Attributes_Difference" = "差值";
+"Main_Skills_Optimal_Attributes_No_Queue" = "技能队列为空，无法计算最优属性";
+"Main_Skills_Optimal_Attributes_Loading" = "正在计算最优属性...";

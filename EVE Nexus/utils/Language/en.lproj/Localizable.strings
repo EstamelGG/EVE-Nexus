@@ -656,3 +656,14 @@
 "Total Expense" = "Total Expense";
 "Transactions" = "Transactions";
 "Common_Error" = "Error";
+
+// Optimal Attributes
+"Main_Skills_Optimal_Attributes" = "Optimal Attributes";
+"Main_Skills_Optimal_Attributes_Title" = "Optimal Attributes";
+"Main_Skills_Optimal_Attributes_Description" = "Calculate optimal attribute distribution based on current skill queue";
+"Main_Skills_Optimal_Attributes_Time_Saved" = "Time saved with optimization: %@";
+"Main_Skills_Optimal_Attributes_Current" = "Current";
+"Main_Skills_Optimal_Attributes_Optimal" = "Optimal";
+"Main_Skills_Optimal_Attributes_Difference" = "Difference";
+"Main_Skills_Optimal_Attributes_No_Queue" = "Cannot calculate optimal attributes with empty skill queue";
+"Main_Skills_Optimal_Attributes_Loading" = "Calculating optimal attributes...";

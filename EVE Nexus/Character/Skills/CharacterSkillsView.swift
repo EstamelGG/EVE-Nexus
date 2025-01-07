@@ -24,11 +24,11 @@ struct CharacterSkillsView: View {
         }
         
         return [
-            ("感知", attrs.perception, optimal.perception, optimal.perception - attrs.perception),
-            ("记忆", attrs.memory, optimal.memory, optimal.memory - attrs.memory),
-            ("意志", attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
-            ("智力", attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
-            ("魅力", attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
+            (NSLocalizedString("Character_Attribute_Perception", comment: ""), attrs.perception, optimal.perception, optimal.perception - attrs.perception),
+            (NSLocalizedString("Character_Attribute_Memory", comment: ""), attrs.memory, optimal.memory, optimal.memory - attrs.memory),
+            (NSLocalizedString("Character_Attribute_Willpower", comment: ""), attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
+            (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
+            (NSLocalizedString("Character_Attribute_Charisma", comment: ""), attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
         ]
     }
     
@@ -316,12 +316,13 @@ struct CharacterSkillsView: View {
                     }
                     
                     if let optimal = optimalAttributes {
-                        Text("优化后可节省: \(formatTimeInterval(optimal.savedTime))")
+                        Text(String(format: NSLocalizedString("Main_Skills_Optimal_Attributes_Time_Saved", comment: ""), 
+                                  formatTimeInterval(optimal.savedTime)))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 } header: {
-                    Text("最优属性分配")
+                    Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
                 }
             }
         }
