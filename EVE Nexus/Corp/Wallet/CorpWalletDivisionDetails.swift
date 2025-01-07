@@ -8,31 +8,36 @@ struct CorpWalletDivisionDetails: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部选择器
-            Picker("", selection: $selectedTab) {
-                Text(NSLocalizedString("Main_Wallet_Journal", comment: ""))
-                    .tag(0)
-                Text(NSLocalizedString("Main_Market_Transactions", comment: ""))
-                    .tag(1)
-            }
-            .pickerStyle(.segmented)
-            .padding()
-            
             // 内容视图
             TabView(selection: $selectedTab) {
-                CorpWalletJournalView(characterId: characterId, 
-                                    division: division, 
+                CorpWalletJournalView(characterId: characterId,
+                                    division: division,
                                     divisionName: divisionName)
-                    .tag(0)
+                                    .tag(0)
                 
-                CorpWalletTransactionsView(characterId: characterId, 
-                                         division: division, 
-                                         divisionName: divisionName, 
+                CorpWalletTransactionsView(characterId: characterId,
+                                         division: division,
+                                         divisionName: divisionName,
                                          databaseManager: DatabaseManager.shared)
-                    .tag(1)
+                                        .tag(1)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.easeInOut, value: selectedTab)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                VStack(spacing: 0) {
+                    // 顶部选择器
+                    Picker("", selection: $selectedTab) {
+                        Text(NSLocalizedString("Main_Wallet_Journal", comment: ""))
+                            .tag(0)
+                        Text(NSLocalizedString("Main_Market_Transactions", comment: ""))
+                            .tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
+                }
+                .background(Color(.systemGroupedBackground))
+            }
+
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(divisionName)
