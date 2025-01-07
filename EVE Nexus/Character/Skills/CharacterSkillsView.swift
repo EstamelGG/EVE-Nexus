@@ -1,4 +1,14 @@
 import SwiftUI
+import Foundation
+
+/// 植入体属性加成
+struct ImplantAttributes {
+    var charismaBonus: Int = 0
+    var intelligenceBonus: Int = 0
+    var memoryBonus: Int = 0
+    var perceptionBonus: Int = 0
+    var willpowerBonus: Int = 0
+}
 
 struct CharacterSkillsView: View {
     let characterId: Int
@@ -13,22 +23,43 @@ struct CharacterSkillsView: View {
     @State private var characterTotalSP: Int = 0
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     @State private var characterAttributes: CharacterAttributes?
+    @State private var implantBonuses: ImplantAttributes?
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
     @State private var hasLoadedData = false
     @State private var optimalAttributes: OptimalAttributeAllocation?
     
     private var attributeComparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] {
         guard let attrs = characterAttributes,
-              let optimal = optimalAttributes else {
+              let optimal = optimalAttributes,
+              let bonuses = implantBonuses else {
             return []
         }
         
+        // 计算基础属性（当前属性减去植入体加成）
+        let baseCharisma = attrs.charisma - bonuses.charismaBonus
+        let baseIntelligence = attrs.intelligence - bonuses.intelligenceBonus
+        let baseMemory = attrs.memory - bonuses.memoryBonus
+        let basePerception = attrs.perception - bonuses.perceptionBonus
+        let baseWillpower = attrs.willpower - bonuses.willpowerBonus
+        
+        Logger.debug("属性计算详情:")
+        Logger.debug("感知 - 当前总值: \(attrs.perception), 基础值: \(basePerception), 植入体加成: \(bonuses.perceptionBonus), 最优基础值: \(optimal.perception), 变化: \(optimal.perception - basePerception)")
+        Logger.debug("记忆 - 当前总值: \(attrs.memory), 基础值: \(baseMemory), 植入体加成: \(bonuses.memoryBonus), 最优基础值: \(optimal.memory), 变化: \(optimal.memory - baseMemory)")
+        Logger.debug("意志 - 当前总值: \(attrs.willpower), 基础值: \(baseWillpower), 植入体加成: \(bonuses.willpowerBonus), 最优基础值: \(optimal.willpower), 变化: \(optimal.willpower - baseWillpower)")
+        Logger.debug("智力 - 当前总值: \(attrs.intelligence), 基础值: \(baseIntelligence), 植入体加成: \(bonuses.intelligenceBonus), 最优基础值: \(optimal.intelligence), 变化: \(optimal.intelligence - baseIntelligence)")
+        Logger.debug("魅力 - 当前总值: \(attrs.charisma), 基础值: \(baseCharisma), 植入体加成: \(bonuses.charismaBonus), 最优基础值: \(optimal.charisma), 变化: \(optimal.charisma - baseCharisma)")
+        
         return [
-            (NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception", attrs.perception, optimal.perception, optimal.perception - attrs.perception),
-            (NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory", attrs.memory, optimal.memory, optimal.memory - attrs.memory),
-            (NSLocalizedString("Character_Attribute_Willpower", comment: ""), "willpower", attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
-            (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), "intelligence", attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
-            (NSLocalizedString("Character_Attribute_Charisma", comment: ""), "charisma", attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
+            (NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception", 
+             attrs.perception, optimal.perception + bonuses.perceptionBonus, optimal.perception - basePerception),
+            (NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory", 
+             attrs.memory, optimal.memory + bonuses.memoryBonus, optimal.memory - baseMemory),
+            (NSLocalizedString("Character_Attribute_Willpower", comment: ""), "willpower", 
+             attrs.willpower, optimal.willpower + bonuses.willpowerBonus, optimal.willpower - baseWillpower),
+            (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), "intelligence", 
+             attrs.intelligence, optimal.intelligence + bonuses.intelligenceBonus, optimal.intelligence - baseIntelligence),
+            (NSLocalizedString("Character_Attribute_Charisma", comment: ""), "charisma", 
+             attrs.charisma, optimal.charisma + bonuses.charismaBonus, optimal.charisma - baseCharisma)
         ]
     }
     
@@ -363,6 +394,9 @@ struct CharacterSkillsView: View {
             // 加载角色属性
             characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
             
+            // 加载植入体加成
+            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
+            
             Logger.debug("开始加载技能队列...")
             // 加载技能队列
             skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
@@ -410,10 +444,11 @@ struct CharacterSkillsView: View {
                     )
                 }
                 
-                if let optimal = SkillTrainingCalculator.calculateOptimalAttributes(
+                if let optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
                     skillQueue: queueInfo,
                     databaseManager: databaseManager,
-                    currentAttributes: attrs
+                    currentAttributes: attrs,
+                    characterId: characterId
                 ) {
                     await MainActor.run {
                         optimalAttributes = OptimalAttributeAllocation(

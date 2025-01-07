@@ -11,23 +11,46 @@ struct SkillTrainingCalculator {
         static let willpower = 168
     }
     
+    /// 植入体属性ID常量
+    private struct ImplantAttributeID {
+        // 植入体属性加成的属性ID
+        static let charisma = 175      // 魅力加成
+        static let intelligence = 176   // 智力加成
+        static let memory = 177        // 记忆加成
+        static let perception = 178     // 感知加成
+        static let willpower = 179      // 意志加成
+        
+        // 验证属性ID是否存在
+        static func validateAttributeIds() {
+            let query = """
+                SELECT attribute_id, attribute_name
+                FROM attributeTypes
+                WHERE attribute_id IN (175, 176, 177, 178, 179)
+            """
+            
+            if case .success(let rows) = DatabaseManager().executeQuery(query) {
+                Logger.debug("植入体属性ID验证结果:")
+                for row in rows {
+                    if let attrId = row["attribute_id"] as? Int,
+                       let attrName = row["attribute_name"] as? String {
+                        Logger.debug("属性ID: \(attrId), 名称: \(attrName)")
+                    }
+                }
+            } else {
+                Logger.error("无法验证植入体属性ID")
+            }
+        }
+    }
+    
     /// 最优属性分配结果
     public struct OptimalAttributes {
-        public let perception: Int
-        public let memory: Int
-        public let willpower: Int
-        public let intelligence: Int
         public let charisma: Int
+        public let intelligence: Int
+        public let memory: Int
+        public let perception: Int
+        public let willpower: Int
         public let totalTrainingTime: TimeInterval
         public let currentTrainingTime: TimeInterval
-        
-        public var savedTime: TimeInterval {
-            currentTrainingTime - totalTrainingTime
-        }
-        
-        public var asArray: [Int] {
-            [perception, memory, willpower, intelligence, charisma]
-        }
     }
     
     /// 技能训练信息
@@ -38,17 +61,125 @@ struct SkillTrainingCalculator {
         let secondaryAttr: Int
     }
     
+    /// 获取植入体属性加成
+    public static func getImplantBonuses(characterId: Int) async -> ImplantAttributes {
+        // 验证植入体属性ID
+        ImplantAttributeID.validateAttributeIds()
+        
+        var bonuses = ImplantAttributes()
+        
+        do {
+            // 获取角色的植入体
+            let implants = try await CharacterImplantsAPI.shared.fetchCharacterImplants(
+                characterId: characterId,
+                forceRefresh: false
+            )
+            
+            Logger.debug("获取到植入体列表: \(implants)")
+            
+            // 如果有植入体，查询它们的属性加成
+            if !implants.isEmpty {
+                let query = """
+                    SELECT type_id, attribute_id, value
+                    FROM typeAttributes
+                    WHERE type_id IN (\(implants.map { String($0) }.joined(separator: ",")))
+                    AND attribute_id IN (\(ImplantAttributeID.charisma), \(ImplantAttributeID.intelligence), 
+                                      \(ImplantAttributeID.memory), \(ImplantAttributeID.perception), 
+                                      \(ImplantAttributeID.willpower))
+                """
+                
+                Logger.debug("执行植入体属性查询: \(query)")
+                
+                if case .success(let rows) = DatabaseManager().executeQuery(query) {
+                    Logger.debug("查询结果行数: \(rows.count)")
+                    
+                    // 为每个属性保存最大值
+                    var maxBonuses: [Int: Int] = [:]
+                    
+                    for row in rows {
+                        guard let attributeId = row["attribute_id"] as? Int,
+                              let value = row["value"] as? Double else {
+                            Logger.debug("无法解析行数据: \(row)")
+                            continue
+                        }
+                        
+                        // 将加成值转换为整数
+                        let bonus = Int(value)
+                        Logger.debug("解析到植入体属性 - ID: \(attributeId), 值: \(bonus)")
+                        
+                        // 更新最大值
+                        maxBonuses[attributeId] = max(maxBonuses[attributeId] ?? 0, bonus)
+                    }
+                    
+                    // 设置最终的加成值
+                    if let charismaBonus = maxBonuses[ImplantAttributeID.charisma] {
+                        bonuses.charismaBonus = charismaBonus
+                        Logger.debug("设置最终魅力加成: \(charismaBonus)")
+                    }
+                    if let intelligenceBonus = maxBonuses[ImplantAttributeID.intelligence] {
+                        bonuses.intelligenceBonus = intelligenceBonus
+                        Logger.debug("设置最终智力加成: \(intelligenceBonus)")
+                    }
+                    if let memoryBonus = maxBonuses[ImplantAttributeID.memory] {
+                        bonuses.memoryBonus = memoryBonus
+                        Logger.debug("设置最终记忆加成: \(memoryBonus)")
+                    }
+                    if let perceptionBonus = maxBonuses[ImplantAttributeID.perception] {
+                        bonuses.perceptionBonus = perceptionBonus
+                        Logger.debug("设置最终感知加成: \(perceptionBonus)")
+                    }
+                    if let willpowerBonus = maxBonuses[ImplantAttributeID.willpower] {
+                        bonuses.willpowerBonus = willpowerBonus
+                        Logger.debug("设置最终意志加成: \(willpowerBonus)")
+                    }
+                } else {
+                    Logger.debug("查询植入体属性失败")
+                }
+            } else {
+                Logger.debug("未找到植入体")
+            }
+            
+            Logger.debug("最终植入体加成结果: 感知:\(bonuses.perceptionBonus), 记忆:\(bonuses.memoryBonus), 意志:\(bonuses.willpowerBonus), 智力:\(bonuses.intelligenceBonus), 魅力:\(bonuses.charismaBonus)")
+        } catch {
+            Logger.error("获取植入体信息失败: \(error)")
+        }
+        
+        return bonuses
+    }
+    
     /// 计算最优属性分配
     /// - Parameters:
     ///   - skillQueue: 技能队列信息数组，每个元素包含：技能ID、剩余SP、开始训练时间、结束训练时间
     ///   - databaseManager: 数据库管理器
     ///   - currentAttributes: 当前角色属性
+    ///   - characterId: 角色ID
     /// - Returns: 最优属性分配结果
     public static func calculateOptimalAttributes(
         skillQueue: [(skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)],
         databaseManager: DatabaseManager,
-        currentAttributes: CharacterAttributes
-    ) -> OptimalAttributes? {
+        currentAttributes: CharacterAttributes,
+        characterId: Int
+    ) async -> OptimalAttributes? {
+        // 获取植入体加成
+        let implantBonuses = await getImplantBonuses(characterId: characterId)
+        
+        // 计算实际的基础属性（当前属性减去植入体加成）
+        let baseCharisma = currentAttributes.charisma - implantBonuses.charismaBonus
+        let baseIntelligence = currentAttributes.intelligence - implantBonuses.intelligenceBonus
+        let baseMemory = currentAttributes.memory - implantBonuses.memoryBonus
+        let basePerception = currentAttributes.perception - implantBonuses.perceptionBonus
+        let baseWillpower = currentAttributes.willpower - implantBonuses.willpowerBonus
+        
+        Logger.debug("计算最优属性分配 - 初始状态:")
+        Logger.debug("当前基础属性 - 感知: \(basePerception), 记忆: \(baseMemory), 意志: \(baseWillpower), 智力: \(baseIntelligence), 魅力: \(baseCharisma)")
+        Logger.debug("植入体加成 - 感知: \(implantBonuses.perceptionBonus), 记忆: \(implantBonuses.memoryBonus), 意志: \(implantBonuses.willpowerBonus), 智力: \(implantBonuses.intelligenceBonus), 魅力: \(implantBonuses.charismaBonus)")
+        
+        // 计算可分配的总点数（不包括植入体加成）
+        let totalBasePoints = baseCharisma + baseIntelligence + baseMemory + basePerception + baseWillpower
+        let pointsToAllocate = totalBasePoints - (17 * 5) // 每个属性最少17点
+        
+        Logger.debug("总基础点数: \(totalBasePoints), 可分配点数: \(pointsToAllocate)")
+        
         var skillTrainingInfo: [SkillTrainingInfo] = []
         
         // 处理每个技能的训练信息
@@ -155,11 +286,11 @@ struct SkillTrainingCalculator {
                     if totalTime < shortestTime {
                         shortestTime = totalTime
                         bestAllocation = OptimalAttributes(
-                            perception: perception,
-                            memory: memory,
-                            willpower: willpower,
-                            intelligence: intelligence,
                             charisma: charisma,
+                            intelligence: intelligence,
+                            memory: memory,
+                            perception: perception,
+                            willpower: willpower,
                             totalTrainingTime: totalTime,
                             currentTrainingTime: currentTime
                         )
@@ -252,6 +383,13 @@ struct SkillTrainingCalculator {
             currentAttr: 0
         )
         
+        if let best = bestAllocation {
+            Logger.debug("找到最优分配方案:")
+            Logger.debug("基础属性 - 感知: \(best.perception), 记忆: \(best.memory), 意志: \(best.willpower), 智力: \(best.intelligence), 魅力: \(best.charisma)")
+            Logger.debug("训练时间 - 当前: \(formatTimeInterval(best.currentTrainingTime)), 最优: \(formatTimeInterval(best.totalTrainingTime)), 节省: \(formatTimeInterval(best.currentTrainingTime - best.totalTrainingTime))")
+        }
+        
+        // 返回最优属性分配结果，不包含植入体加成
         return bestAllocation
     }
     
@@ -319,5 +457,28 @@ struct SkillTrainingCalculator {
         }
         
         return nil
+    }
+    
+    /// 格式化时间间隔
+    private static func formatTimeInterval(_ interval: TimeInterval) -> String {
+        let days = Int(interval) / (24 * 3600)
+        let hours = Int(interval) / 3600 % 24
+        let minutes = Int(interval) / 60 % 60
+        
+        if days > 0 {
+            if hours > 0 {
+                return "\(days)天\(hours)小时"
+            } else {
+                return "\(days)天"
+            }
+        } else if hours > 0 {
+            if minutes > 0 {
+                return "\(hours)小时\(minutes)分钟"
+            } else {
+                return "\(hours)小时"
+            }
+        } else {
+            return "\(minutes)分钟"
+        }
     }
 } 
