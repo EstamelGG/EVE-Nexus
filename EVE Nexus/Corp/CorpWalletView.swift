@@ -16,13 +16,13 @@ struct CorpWalletView: View {
         return formatter.string(from: NSNumber(value: balance)) ?? "0.00"
     }
     
-    private func loadWallets() {
+    private func loadWallets(forceRefresh: Bool = false) {
         isLoading = true
         error = nil
         
         Task {
             do {
-                let result = try await CorpWalletAPI.shared.fetchCorpWallets(characterId: characterId)
+                let result = try await CorpWalletAPI.shared.fetchCorpWallets(characterId: characterId, forceRefresh: forceRefresh)
                 await MainActor.run {
                     self.wallets = result.sorted { $0.division < $1.division }
                     self.isLoading = false
@@ -77,7 +77,7 @@ struct CorpWalletView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_wallet", comment: ""))
         .refreshable {
-            loadWallets()
+            loadWallets(forceRefresh: true)
         }
         .alert(isPresented: $showError) {
             Alert(
