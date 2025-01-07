@@ -664,7 +664,7 @@ struct ContentView: View {
                             }
                         case "corporation_wallet":
                             if let character = viewModel.selectedCharacter {
-                                Text("Corporation Wallet View") // 待实现
+                                CorpWalletView(characterId: character.CharacterID)
                             }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
