@@ -170,4 +170,187 @@ class CorpWalletAPI {
         
         Logger.info("已清理军团钱包缓存")
     }
+    
+    /// 从服务器获取军团钱包日志
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - division: 部门编号
+    /// - Returns: 钱包日志数组
+    private func fetchCorpJournalFromServer(characterId: Int, division: Int) async throws -> [[String: Any]] {
+        var allJournalEntries: [[String: Any]] = []
+        var page = 1
+        
+        // 1. 获取角色的军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
+        while true {
+            do {
+                let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility&page=\(page)"
+                guard let url = URL(string: urlString) else {
+                    throw NetworkError.invalidURL
+                }
+                
+                let data = try await NetworkManager.shared.fetchDataWithToken(
+                    from: url,
+                    characterId: characterId,
+                    noRetryKeywords: ["Requested page does not exist"]
+                )
+                
+                // 解析JSON数据
+                guard let pageEntries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                    throw NetworkError.invalidResponse
+                }
+                
+                allJournalEntries.append(contentsOf: pageEntries)
+                Logger.info("成功获取军团钱包第\(division)部门第\(page)页日志，本页包含\(pageEntries.count)条记录")
+                
+                page += 1
+                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
+                
+            } catch let error as NetworkError {
+                if case .httpError(let statusCode, let message) = error,
+                   statusCode == 500,
+                   message?.contains("Requested page does not exist") == true {
+                    // 这是正常的分页结束情况
+                    Logger.info("军团钱包第\(division)部门日志获取完成，共\(allJournalEntries.count)条记录")
+                    break
+                }
+                // 其他网络错误则抛出
+                throw error
+            } catch {
+                throw error
+            }
+        }
+        
+        return allJournalEntries
+    }
+    
+    /// 从数据库获取军团钱包日志
+    /// - Parameters:
+    ///   - corporationId: 军团ID
+    ///   - division: 部门编号
+    /// - Returns: 钱包日志数组
+    private func getCorpWalletJournalFromDB(corporationId: Int, division: Int) -> [[String: Any]]? {
+        let query = """
+            SELECT id, amount, balance, context_id, context_id_type,
+                   date, description, first_party_id, reason, ref_type,
+                   second_party_id, last_updated
+            FROM corp_wallet_journal 
+            WHERE corporation_id = ? AND division = ?
+            ORDER BY date DESC 
+            LIMIT 1000
+        """
+        
+        if case .success(let results) = CharacterDatabaseManager.shared.executeQuery(query, parameters: [corporationId, division]) {
+            return results
+        }
+        return nil
+    }
+    
+    /// 保存军团钱包日志到数据库
+    /// - Parameters:
+    ///   - corporationId: 军团ID
+    ///   - division: 部门编号
+    ///   - entries: 日志条目
+    /// - Returns: 是否保存成功
+    private func saveCorpWalletJournalToDB(corporationId: Int, division: Int, entries: [[String: Any]]) -> Bool {
+        // 首先获取已存在的日志ID
+        let checkQuery = "SELECT id FROM corp_wallet_journal WHERE corporation_id = ? AND division = ?"
+        guard case .success(let existingResults) = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [corporationId, division]) else {
+            Logger.error("查询现有军团钱包日志失败")
+            return false
+        }
+        
+        let existingIds = Set(existingResults.compactMap { ($0["id"] as? Int64) })
+        
+        let insertSQL = """
+            INSERT OR REPLACE INTO corp_wallet_journal (
+                id, corporation_id, division, amount, balance, context_id,
+                context_id_type, date, description, first_party_id,
+                reason, ref_type, second_party_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        var newCount = 0
+        for entry in entries {
+            let journalId = entry["id"] as? Int64 ?? 0
+            // 如果日志ID已存在，跳过
+            if existingIds.contains(journalId) {
+                continue
+            }
+            
+            let parameters: [Any] = [
+                journalId,
+                corporationId,
+                division,
+                entry["amount"] as? Double ?? 0.0,
+                entry["balance"] as? Double ?? 0.0,
+                entry["context_id"] as? Int ?? 0,
+                entry["context_id_type"] as? String ?? "",
+                entry["date"] as? String ?? "",
+                entry["description"] as? String ?? "",
+                entry["first_party_id"] as? Int ?? 0,
+                entry["reason"] as? String ?? "",
+                entry["ref_type"] as? String ?? "",
+                entry["second_party_id"] as? Int ?? 0
+            ]
+            
+            if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存军团钱包日志到数据库失败: \(message)")
+                return false
+            }
+            newCount += 1
+        }
+        
+        if newCount > 0 {
+            Logger.info("新增\(newCount)条军团钱包日志到数据库")
+        } else {
+            Logger.info("无需新增军团钱包日志")
+        }
+        return true
+    }
+    
+    /// 获取军团钱包日志（公开方法）
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - division: 部门编号
+    ///   - forceRefresh: 是否强制刷新
+    /// - Returns: JSON格式的日志数据
+    public func getCorpWalletJournal(characterId: Int, division: Int, forceRefresh: Bool = false) async throws -> String? {
+        // 1. 获取军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
+        // 2. 检查数据库中是否有数据
+        let checkQuery = "SELECT COUNT(*) as count FROM corp_wallet_journal WHERE corporation_id = ? AND division = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [corporationId, division])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
+        
+        // 3. 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("军团钱包日志为空或需要刷新，从网络获取数据")
+            let journalData = try await fetchCorpJournalFromServer(characterId: characterId, division: division)
+            if !saveCorpWalletJournalToDB(corporationId: corporationId, division: division, entries: journalData) {
+                Logger.error("保存军团钱包日志到数据库失败")
+            }
+        } else {
+            Logger.debug("使用数据库中的军团钱包日志数据")
+        }
+        
+        // 4. 从数据库获取数据并返回
+        if let results = getCorpWalletJournalFromDB(corporationId: corporationId, division: division) {
+            let jsonData = try JSONSerialization.data(withJSONObject: results, options: [.prettyPrinted, .sortedKeys])
+            return String(data: jsonData, encoding: .utf8)
+        }
+        return nil
+    }
 } 
