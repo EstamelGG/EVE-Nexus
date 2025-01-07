@@ -152,8 +152,9 @@ struct CorpWalletJournalView: View {
     let characterId: Int
     let division: Int
     let divisionName: String
+    let skipInitialLoad: Bool
     
-    @StateObject private var viewModel: CorpWalletJournalViewModel
+    @ObservedObject var viewModel: CorpWalletJournalViewModel
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -163,11 +164,12 @@ struct CorpWalletJournalView: View {
         return formatter
     }()
     
-    init(characterId: Int, division: Int, divisionName: String) {
+    init(characterId: Int, division: Int, divisionName: String, viewModel: CorpWalletJournalViewModel? = nil, skipInitialLoad: Bool = false) {
         self.characterId = characterId
         self.division = division
         self.divisionName = divisionName
-        _viewModel = StateObject(wrappedValue: CorpWalletJournalViewModel(characterId: characterId, division: division))
+        self.skipInitialLoad = skipInitialLoad
+        self.viewModel = viewModel ?? CorpWalletJournalViewModel(characterId: characterId, division: division)
     }
     
     var summarySection: some View {
@@ -246,7 +248,9 @@ struct CorpWalletJournalView: View {
             await viewModel.loadJournalData(forceRefresh: true)
         }
         .task {
-            await viewModel.loadJournalData()
+            if !skipInitialLoad {
+                await viewModel.loadJournalData()
+            }
         }
         .navigationTitle(divisionName)
     }

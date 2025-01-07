@@ -174,8 +174,9 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
 }
 
 struct CorpWalletTransactionsView: View {
-    @StateObject private var viewModel: CorpWalletTransactionsViewModel
+    @ObservedObject var viewModel: CorpWalletTransactionsViewModel
     let divisionName: String
+    let skipInitialLoad: Bool
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -185,9 +186,10 @@ struct CorpWalletTransactionsView: View {
         return formatter
     }()
     
-    init(characterId: Int, division: Int, divisionName: String, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(wrappedValue: CorpWalletTransactionsViewModel(characterId: characterId, division: division, databaseManager: databaseManager))
+    init(characterId: Int, division: Int, divisionName: String, viewModel: CorpWalletTransactionsViewModel? = nil, skipInitialLoad: Bool = false) {
         self.divisionName = divisionName
+        self.skipInitialLoad = skipInitialLoad
+        self.viewModel = viewModel ?? CorpWalletTransactionsViewModel(characterId: characterId, division: division, databaseManager: DatabaseManager.shared)
     }
     
     var body: some View {
@@ -232,7 +234,9 @@ struct CorpWalletTransactionsView: View {
             await viewModel.loadTransactionData(forceRefresh: true)
         }
         .task {
-            await viewModel.loadTransactionData()
+            if !skipInitialLoad {
+                await viewModel.loadTransactionData()
+            }
         }
     }
 }
