@@ -226,6 +226,7 @@ class ServerStatusViewModel: ObservableObject {
 
 struct ServerStatusView: View {
     @StateObject private var viewModel = ServerStatusViewModel()
+    @ObservedObject var mainViewModel: MainViewModel
     
     var body: some View {
         HStack(spacing: 4) {
@@ -252,7 +253,7 @@ struct ServerStatusView: View {
     }
     
     private var statusText: Text {
-        if let status = viewModel.status {
+        if let status = mainViewModel.serverStatus {
             if status.isOnline {
                 let formattedPlayers = NumberFormatter.localizedString(
                     from: NSNumber(value: status.players),
@@ -287,6 +288,7 @@ struct LoginButtonView: View {
     @State private var allianceInfo: AllianceInfo?
     @State private var allianceLogo: UIImage?
     @State private var tokenExpired = false
+    @ObservedObject var mainViewModel: MainViewModel
     
     var body: some View {
         HStack {
@@ -400,7 +402,7 @@ struct LoginButtonView: View {
                         .font(.headline)
                         .lineLimit(1)
                 }
-                ServerStatusView()
+                ServerStatusView(mainViewModel: mainViewModel)
             }
             .frame(height: 72)
             Spacer()
@@ -717,7 +719,8 @@ struct ContentView: View {
                     serverStatus: viewModel.serverStatus,
                     selectedCharacter: viewModel.selectedCharacter,
                     characterPortrait: viewModel.characterPortrait,
-                    isRefreshing: viewModel.isRefreshing
+                    isRefreshing: viewModel.isRefreshing,
+                    mainViewModel: viewModel
                 )
             }
             .onDisappear {
