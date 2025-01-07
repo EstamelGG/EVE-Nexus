@@ -195,7 +195,6 @@ struct CharacterSkillsView: View {
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             } header: {
                 if skillQueue.isEmpty {
@@ -212,6 +211,7 @@ struct CharacterSkillsView: View {
                               activeSkills.count))
                 }
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             
             // 第三个列表 - 注入器需求（只在有技能队列时显示）
             if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation {

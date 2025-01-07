@@ -277,9 +277,9 @@ struct CharacterIndustryView: View {
                                 locationInfo: viewModel.locationInfoCache[job.station_id],
                                 currentTime: viewModel.currentTime
                             )
-                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }

@@ -94,11 +94,11 @@ struct CharacterLoyaltyPointsView: View {
                                     }
                                 }
                                 .padding(.vertical, 2)
-                                .frame(height: 36)
                             }
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else if viewModel.isLoading {
                 Section {
                     HStack {

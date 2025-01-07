@@ -81,6 +81,7 @@ struct CharacterWealthView: View {
                     }
                 }
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             
             // 资产分布饼图
             if hasLoadedInitialData && !isRefreshing {
@@ -182,6 +183,5 @@ struct WealthItemRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .frame(height: 36)
     }
 } 

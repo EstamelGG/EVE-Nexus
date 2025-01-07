@@ -40,10 +40,9 @@ struct FactionDetailView: View {
                             Text(corporation.name)
                                 .padding(.leading, 8)
                         }
-                        .padding(.vertical, 2)
-                        .frame(height: 36)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(faction.name)

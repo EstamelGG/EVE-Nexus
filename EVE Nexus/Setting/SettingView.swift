@@ -360,7 +360,6 @@ struct SettingView: View {
                 }
                 .tint(.green)
             }
-            .frame(height: 36)
         }
     }
     
@@ -492,16 +491,15 @@ struct SettingView: View {
                         if let icon = item.icon {
                             if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                 ProgressView()
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 36)
                             } else {
                                 Image(systemName: icon)
                                     .font(.system(size: 20))
-                                    .frame(width: 36, height: 36)
+                                    .frame(width: 36)
                                     .foregroundColor(item.iconColor)
                             }
                         }
                     }
-                    .frame(height: 36)
                 }
                 .disabled(isCleaningCache || showingLoadingView)
             }
@@ -527,6 +525,7 @@ struct SettingView: View {
                         .foregroundColor(.primary)
                         .textCase(nil)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .listStyle(.insetGrouped)

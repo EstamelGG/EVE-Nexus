@@ -33,15 +33,15 @@ struct CharacterLoyaltyPointsStoreView: View {
                             IconManager.shared.loadImage(for: faction.iconName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 36, height: 36)
+                                .frame(width: 36)
                             
                             Text(faction.name)
                                 .padding(.leading, 8)
                         }
                         .padding(.vertical, 2)
                     }
-                    .frame(height: 36)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))

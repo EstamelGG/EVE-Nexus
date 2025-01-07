@@ -1029,7 +1029,6 @@ struct ContentView: View {
                 }
                 Spacer()
             }
-            .frame(height: 36)
         }
     }
 }

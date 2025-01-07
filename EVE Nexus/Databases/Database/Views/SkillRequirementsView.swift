@@ -55,7 +55,7 @@ struct SkillRequirementRow: View {
                     Text("Lv \(level)")
                         .font(.body)
                         .foregroundColor(.secondary)
-                }.frame(height: 36)
+                }
             }
         }
     }

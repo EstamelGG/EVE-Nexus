@@ -111,11 +111,11 @@ struct WealthDetailView: View {
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
-                                    .frame(height: 36)
                                 }
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // 只在资产类型时显示无市场价格的物品
@@ -139,10 +139,10 @@ struct WealthDetailView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
-                                .frame(height: 36)
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // 如果两个列表都为空

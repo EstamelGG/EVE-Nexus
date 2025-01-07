@@ -29,7 +29,7 @@ struct LPStoreOfferView: View {
                         .resizable()
                         .scaledToFit()
                         .cornerRadius(6)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 36)
                     
                     VStack(alignment: .leading) {
                         Text("\(offer.quantity)x \(itemInfo.name)")
@@ -189,7 +189,7 @@ struct CorporationLPStoreView: View {
                             IconManager.shared.loadImage(for: categoryInfo.iconFileName)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 36, height: 36)
+                                .frame(width: 36)
                                 .cornerRadius(6)
                             Text(categoryInfo.name)
                                 .padding(.leading, 8)
@@ -200,8 +200,8 @@ struct CorporationLPStoreView: View {
                         }
                         .padding(.vertical, 2)
                     }
-                    .frame(height: 36)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(corporationName)

@@ -122,6 +122,7 @@ struct LocationAssetsView: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(location.name ?? location.system_name ?? "\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(location.location_id))")
@@ -179,7 +180,6 @@ struct AssetItemView: View {
                     }
                 }
             }
-            .frame(height: 36)
         }
     }
 }
@@ -240,6 +240,7 @@ struct SubLocationAssetsView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }

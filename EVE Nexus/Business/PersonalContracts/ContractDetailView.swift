@@ -225,7 +225,6 @@ struct ContractDetailView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        .frame(height: 36)
                         
                         // 地点信息
                         if let startInfo = viewModel.startLocationInfo {
@@ -239,7 +238,6 @@ struct ContractDetailView: View {
                                         security: startInfo.security
                                     )
                                 }
-                                .frame(height: 36)
                             } else {
                                 // 显示起点
                                 VStack(alignment: .leading, spacing: 2) {
@@ -250,8 +248,6 @@ struct ContractDetailView: View {
                                         security: startInfo.security
                                     )
                                 }
-                                .frame(height: 36)
-                                
                                 // 显示终点（如果存在）
                                 if let endInfo = viewModel.endLocationInfo {
                                     VStack(alignment: .leading, spacing: 2) {
@@ -262,7 +258,6 @@ struct ContractDetailView: View {
                                             security: endInfo.security
                                         )
                                     }
-                                    .frame(height: 36)
                                 }
                             }
                         }
@@ -279,7 +274,6 @@ struct ContractDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         }
-                        .frame(height: 36)
                         
                         // 合同对象（如果存在）
                         if let assigneeId = contract.assignee_id,
@@ -291,7 +285,6 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
                         
                         // 如果接收人存在且与对象不同，显示接收人
@@ -305,7 +298,6 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
                         
                         // 合同价格（如果有）
@@ -316,7 +308,6 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
                         
                         // 合同报酬（如果有）
@@ -327,7 +318,6 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
                         
                         // 保证金（如果有）
@@ -338,19 +328,7 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
-                        
-                        // 体积
-//                        if contract.volume > 0 {
-//                            VStack(alignment: .leading, spacing: 4) {
-//                                Text(NSLocalizedString("Contract_Volume", comment: ""))
-//                                Text("\(FormatUtil.format(contract.volume)) m3")
-//                                    .font(.caption)
-//                                    .foregroundColor(.secondary)
-//                            }
-//                            .frame(height: 36)
-//                        }
                         
                         // 完成期限
                         if contract.days_to_complete > 0 {
@@ -360,7 +338,6 @@ struct ContractDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            .frame(height: 36)
                         }
                     } header: {
                         Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
@@ -369,6 +346,7 @@ struct ContractDetailView: View {
                             .foregroundColor(.primary)
                             .textCase(.none)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     
                     // 提供的物品列表
                     if !viewModel.sortedIncludedItems.isEmpty {
@@ -376,7 +354,6 @@ struct ContractDetailView: View {
                             ForEach(viewModel.sortedIncludedItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
                                     ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
-                                        .frame(height: 36)
                                 }
                             }
                         } header: {
@@ -386,6 +363,7 @@ struct ContractDetailView: View {
                                 .foregroundColor(.primary)
                                 .textCase(.none)
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                     
                     // 需求的物品列表
@@ -394,7 +372,6 @@ struct ContractDetailView: View {
                             ForEach(viewModel.sortedRequiredItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
                                     ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
-                                        .frame(height: 36)
                                 }
                             }
                         } header: {
@@ -404,6 +381,7 @@ struct ContractDetailView: View {
                                 .foregroundColor(.primary)
                                 .textCase(.none)
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                 }
                 .refreshable {
@@ -417,6 +395,7 @@ struct ContractDetailView: View {
                 }
                 .listStyle(.insetGrouped)
             }
+            
         }
         .task {
             Logger.debug("ContractDetailView.task 开始执行")

@@ -55,13 +55,12 @@ struct WormholeView: View {
                                 
                                 Spacer()
                             }
-                            .frame(height: 36)
                             .padding(.vertical, 0)
                         }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     }
                 }
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
         .listStyle(.insetGrouped)
         .searchable(

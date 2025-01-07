@@ -308,7 +308,6 @@ struct CharacterSheetView: View {
                     }
                     .padding(.leading, 2)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // 出生日期信息
                 if let birthday = birthday {
@@ -330,7 +329,6 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // 安全等级信息
@@ -351,7 +349,6 @@ struct CharacterSheetView: View {
                                 .foregroundColor(getSecurityStatusColor(security))
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // 位置信息
@@ -428,7 +425,6 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // 当前飞船信息
                 HStack {
@@ -460,10 +456,10 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } header: {
                 Text(NSLocalizedString("Common_info", comment: ""))
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             
             // 跳跃疲劳信息 Section
             if let fatigue = fatigue,
@@ -504,8 +500,8 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
             
             // 奖章信息 Section
@@ -546,10 +542,10 @@ struct CharacterSheetView: View {
                         }
                         .padding(.vertical, 2)
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 } header: {
                     Text(NSLocalizedString("Character_Medals", comment: ""))
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
