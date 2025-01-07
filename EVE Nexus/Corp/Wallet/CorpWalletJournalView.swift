@@ -40,15 +40,7 @@ struct CorpWalletJournalView: View {
     @State private var showError = false
     @State private var totalIncome: Double = 0.0
     @State private var totalExpense: Double = 0.0
-    
-    // 格式化金额
-    private func formatAmount(_ amount: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: abs(amount))) ?? "0.00"
-    }
+
     
     // 格式化日期
     private func formatDate(_ dateString: String) -> String {
@@ -120,7 +112,7 @@ struct CorpWalletJournalView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("+ \(formatAmount(totalIncome)) ISK")
+                Text("+ \(FormatUtil.format(totalIncome)) ISK")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.green)
             }
@@ -131,7 +123,7 @@ struct CorpWalletJournalView: View {
                     .font(.system(size: 14))
                     .foregroundColor(.secondary)
                 Spacer()
-                Text("- \(formatAmount(totalExpense)) ISK")
+                Text("- \(FormatUtil.format(totalExpense)) ISK")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.red)
             }
@@ -167,7 +159,7 @@ struct CorpWalletJournalView: View {
                                 Spacer()
                                 
                                 // 金额
-                                Text("\(entry.amount >= 0 ? "+" : "")\(formatAmount(entry.amount)) ISK")
+                                Text("\(entry.amount >= 0 ? "+" : "")\(FormatUtil.format(entry.amount)) ISK")
                                     .font(.system(.caption, design: .monospaced))
                                     .foregroundColor(entry.amount >= 0 ? .green : .red)
                             }
@@ -192,7 +184,7 @@ struct CorpWalletJournalView: View {
                             }
                             
                             // 余额
-                            Text(String(format: NSLocalizedString("Balance: %@ ISK", comment: ""), formatAmount(entry.balance)))
+                            Text(String(format: NSLocalizedString("Balance: %@ ISK", comment: ""), FormatUtil.format(entry.balance)))
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }

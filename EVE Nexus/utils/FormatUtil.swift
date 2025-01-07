@@ -6,7 +6,7 @@ struct FormatUtil {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 3  // 最多3位小数
+        formatter.maximumFractionDigits = 2  // 最多2位小数
         formatter.groupingSeparator = ","    // 千位分隔符
         formatter.groupingSize = 3
         formatter.decimalSeparator = "."
@@ -23,9 +23,9 @@ struct FormatUtil {
             return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
         }
         
-        // 对于小数，显示最多3位有效小数（去除末尾的0）
-        formatter.maximumFractionDigits = 3
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.3g", value)
+        // 对于小数，显示最多2位有效小数（去除末尾的0）
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2g", value)
     }
     
     /// 格式化带单位的数值
