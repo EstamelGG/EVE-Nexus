@@ -95,7 +95,6 @@ struct CharacterSkillsView: View {
                         Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
                     }
                 }
-                .frame(height: 36)
                 
                 NavigationLink {
                     SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
@@ -109,7 +108,6 @@ struct CharacterSkillsView: View {
                         Text(NSLocalizedString("Main_Skills_Category", comment: ""))
                     }
                 }
-                .frame(height: 36)
             } header: {
                 Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
             }
@@ -119,11 +117,9 @@ struct CharacterSkillsView: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .frame(height: 36)
                 } else if skillQueue.isEmpty {
                     Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
                         .foregroundColor(.secondary)
-                        .frame(height: 36)
                 } else {
                     ForEach(activeSkills) { item in
                         NavigationLink {
@@ -197,9 +193,9 @@ struct CharacterSkillsView: View {
                                     }
                                 }
                             }
-                            .frame(height: item.isCurrentlyTraining ? 44 : 36)
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             } header: {
                 if skillQueue.isEmpty {
@@ -238,7 +234,6 @@ struct CharacterSkillsView: View {
                                 Text("\(calculation.largeInjectorCount)")
                                     .font(.body)
                             }
-                            .frame(height: 36)
                         }
                     }
                     
@@ -260,7 +255,6 @@ struct CharacterSkillsView: View {
                                 Text("\(calculation.smallInjectorCount)")
                                     .font(.body)
                             }
-                            .frame(height: 36)
                         }
                     }
                     

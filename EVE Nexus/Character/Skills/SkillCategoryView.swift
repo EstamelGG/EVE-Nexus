@@ -94,8 +94,8 @@ struct SkillCategoryView: View {
                             }
                         }
                     }
-                    .frame(height: 36)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Category", comment: ""))
@@ -279,9 +279,9 @@ struct SkillGroupDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         }
-                        .frame(height: 36)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(group.name)

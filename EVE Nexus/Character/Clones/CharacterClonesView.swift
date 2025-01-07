@@ -117,7 +117,6 @@ struct CharacterClonesView: View {
                                     )
                                 }
                             }
-                            .frame(height: 36)
                         }
                         
                         // 最后跳跃时间
@@ -136,7 +135,6 @@ struct CharacterClonesView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .frame(height: 36)
                         }
                         
                         // 最后空间站变更时间
@@ -160,9 +158,9 @@ struct CharacterClonesView: View {
                                 }
                             }
                         }
-                        .frame(height: 36)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // 当前植入体信息
                 Section(NSLocalizedString("Character_Current_Implants", comment: "")) {
@@ -186,7 +184,6 @@ struct CharacterClonesView: View {
                                         .fixedSize(horizontal: false, vertical: true) // 添加这行以确保正确换行
                                     Spacer()
                                 }
-                                .frame(height: 36)
                             }
                         }
                     } else {
@@ -194,6 +191,7 @@ struct CharacterClonesView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // 克隆体列表
                 if let _ = cloneInfo, !mergedCloneLocations.isEmpty {
@@ -216,6 +214,7 @@ struct CharacterClonesView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }
@@ -382,7 +381,6 @@ struct CloneLocationRow: View {
                 ProgressView()
             }
         }
-        .frame(height: 36) // 增加高度以适应新的文本行
         .task {
             await loadLocationInfo()
         }
@@ -473,7 +471,6 @@ struct CloneLocationDetailView: View {
                                     
                                     Spacer(minLength: 0)
                                 }
-                                .frame(height: 36)
                             }
                         }
                     } else {
