@@ -175,7 +175,7 @@ struct SkillTrainingCalculator {
         // Logger.debug("植入体加成 - 感知: \(implantBonuses.perceptionBonus), 记忆: \(implantBonuses.memoryBonus), 意志: \(implantBonuses.willpowerBonus), 智力: \(implantBonuses.intelligenceBonus), 魅力: \(implantBonuses.charismaBonus)")
         
         // 计算可分配的总点数（不包括植入体加成）
-        let totalBasePoints = baseCharisma + baseIntelligence + baseMemory + basePerception + baseWillpower
+        // let totalBasePoints = baseCharisma + baseIntelligence + baseMemory + basePerception + baseWillpower
         // let pointsToAllocate = totalBasePoints - (17 * 5) // 每个属性最少17点
         
         // Logger.debug("总基础点数: \(totalBasePoints), 可分配点数: \(pointsToAllocate)")
