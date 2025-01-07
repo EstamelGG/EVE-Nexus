@@ -237,6 +237,27 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 PRIMARY KEY (character_id, id)
             );
 
+            -- 军团钱包日志表
+            CREATE TABLE IF NOT EXISTS corp_wallet_journal (
+                id INTEGER,
+                corporation_id INTEGER,
+                division INTEGER,
+                amount REAL,
+                balance REAL,
+                context_id INTEGER,
+                context_id_type TEXT,
+                date TEXT,
+                description TEXT,
+                first_party_id INTEGER,
+                reason TEXT,
+                ref_type TEXT,
+                second_party_id INTEGER,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (corporation_id, division, id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_corp_wallet_journal_date ON corp_wallet_journal(date);
+            CREATE INDEX IF NOT EXISTS idx_corp_wallet_journal_division ON corp_wallet_journal(corporation_id, division);
+
             -- 钱包交易记录表
             CREATE TABLE IF NOT EXISTS wallet_transactions (
                 transaction_id INTEGER,
