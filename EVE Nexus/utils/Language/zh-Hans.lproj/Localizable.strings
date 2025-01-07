@@ -503,7 +503,7 @@
 "Character_Attributes_Remap" = "属性重映射";
 "Character_Attribute_Perception" = "感知";
 "Character_Attribute_Memory" = "记忆";
-"Character_Attribute_Willpower" = "意志";
+"Character_Attribute_Willpower" = "毅力";
 "Character_Attribute_Intelligence" = "智力";
 "Character_Attribute_Charisma" = "魅力";
 "Character_Attributes_Bonus_Remaps" = "额外可用重置次数";
