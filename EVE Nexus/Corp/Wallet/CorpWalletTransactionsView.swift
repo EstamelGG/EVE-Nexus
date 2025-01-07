@@ -287,12 +287,9 @@ struct CorpWalletTransactionEntryRow: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        // 物品名称
-                        Text(itemInfo?.name ?? "Loading...")
+                        Text(itemInfo?.name ?? NSLocalizedString("Main_Market_Transactions_Loading", comment: ""))
                             .font(.body)
-                        
-                        // 交易信息
-                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                        Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
                             .foregroundColor(entry.is_buy ? .red : .green)
                             .font(.system(.caption, design: .monospaced))
                     }
