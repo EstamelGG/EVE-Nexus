@@ -639,15 +639,15 @@
 "Main_Corporation_Industry" = "Corp Industry";
 
 // Corporation Divisions
-"Main_Corporation_Wallet_Division1" = "Main Wallet";
+"Main_Corporation_Wallet_Division1" = "Master Wallet";
 "Main_Corporation_Wallet_Division2" = "Corp Wallet 2";
 "Main_Corporation_Wallet_Division3" = "Corp Wallet 3";
 "Main_Corporation_Wallet_Division4" = "Corp Wallet 4";
 "Main_Corporation_Wallet_Division5" = "Corp Wallet 5";
 "Main_Corporation_Wallet_Division6" = "Corp Wallet 6";
 "Main_Corporation_Wallet_Division7" = "Corp Wallet 7";
-"Main_Corporation_Hangar_Default" = "Corp hangar %d";
-"Main_Corporation_Wallet_Default" = "Corp wallet %d";
+"Main_Corporation_Hangar_Default" = "Corp Hangar %d";
+"Main_Corporation_Wallet_Default" = "Wallet Division %d";
 "Balance: %@ ISK" = "Balance: %@ ISK";
 
 // Wallet Journal
