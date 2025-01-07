@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CorpWalletView: View {
     let characterId: Int
+    @Environment(\.dismiss) private var dismiss
     @State private var wallets: [CorpWallet] = []
     @State private var isLoading = true
     @State private var error: Error?
@@ -89,7 +90,9 @@ struct CorpWalletView: View {
             Alert(
                 title: Text(NSLocalizedString("Common_Error", comment: "")),
                 message: Text(error?.localizedDescription ?? NSLocalizedString("Common_Unknown_Error", comment: "")),
-                dismissButton: .default(Text(NSLocalizedString("Common_OK", comment: "")))
+                dismissButton: .default(Text(NSLocalizedString("Common_OK", comment: ""))) {
+                    dismiss()
+                }
             )
         }
         .onAppear {
