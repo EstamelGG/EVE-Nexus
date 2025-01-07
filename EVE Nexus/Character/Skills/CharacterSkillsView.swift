@@ -28,9 +28,19 @@ struct CharacterSkillsView: View {
         } ?? 0
         
         // 从当前位置开始的所有技能
-        return skillQueue
+        let activeQueue = skillQueue
             .filter { $0.queue_position >= currentPosition }
             .sorted { $0.queue_position < $1.queue_position }
+        
+        // 如果有正在训练的技能，将其移到第一位
+        if let trainingIndex = activeQueue.firstIndex(where: { $0.isCurrentlyTraining }) {
+            var reorderedQueue = activeQueue
+            let trainingSkill = reorderedQueue.remove(at: trainingIndex)
+            reorderedQueue.insert(trainingSkill, at: 0)
+            return reorderedQueue
+        }
+        
+        return activeQueue
     }
     
     private var isQueuePaused: Bool {
@@ -121,6 +131,34 @@ struct CharacterSkillsView: View {
                     Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
                         .foregroundColor(.secondary)
                 } else {
+                    // 添加最优属性分配按钮
+                    Button(action: {
+                        if let optimalAllocation = calculateOptimalAttributeAllocation() {
+                            let alert = UIAlertController(
+                                title: NSLocalizedString("Main_Skills_Optimal_Attributes", comment: "最优属性分配"),
+                                message: optimalAllocation.description,
+                                preferredStyle: .alert
+                            )
+                            alert.addAction(UIAlertAction(
+                                title: NSLocalizedString("Common_OK", comment: "确定"),
+                                style: .default
+                            ))
+                            
+                            // 获取当前视图控制器并显示警告框
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let viewController = windowScene.windows.first?.rootViewController {
+                                viewController.present(alert, animated: true)
+                            }
+                        }
+                    }) {
+                        Label(
+                            NSLocalizedString("Main_Skills_Calculate_Optimal", comment: "计算最优属性"),
+                            systemImage: "chart.bar.fill"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.vertical, 4)
+                    
                     ForEach(activeSkills) { item in
                         NavigationLink {
                             ShowItemInfo(
@@ -566,5 +604,124 @@ struct CharacterSkillsView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
+    private struct OptimalAttributeAllocation {
+        let charisma: Int
+        let intelligence: Int
+        let memory: Int
+        let perception: Int
+        let willpower: Int
+        let totalTrainingTime: TimeInterval
+        let currentTrainingTime: TimeInterval
+        
+        var savedTime: TimeInterval {
+            currentTrainingTime - totalTrainingTime
+        }
+        
+        var description: String {
+            let components = Self.formatTimeComponents(totalTrainingTime)
+            let timeString: String
+            if components.days > 0 {
+                if components.hours > 0 {
+                    timeString = String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                                     components.days, components.hours)
+                } else {
+                    timeString = String(format: NSLocalizedString("Time_Days", comment: ""), 
+                                     components.days)
+                }
+            } else if components.hours > 0 {
+                if components.minutes > 0 {
+                    timeString = String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                                     components.hours, components.minutes)
+                } else {
+                    timeString = String(format: NSLocalizedString("Time_Hours", comment: ""), 
+                                     components.hours)
+                }
+            } else {
+                timeString = String(format: NSLocalizedString("Time_Minutes", comment: ""), 
+                                 components.minutes)
+            }
+            
+            // 计算节省时间的显示字符串
+            let savedComponents = Self.formatTimeComponents(savedTime)
+            let savedTimeString: String
+            if savedComponents.days > 0 {
+                if savedComponents.hours > 0 {
+                    savedTimeString = String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                                          savedComponents.days, savedComponents.hours)
+                } else {
+                    savedTimeString = String(format: NSLocalizedString("Time_Days", comment: ""), 
+                                          savedComponents.days)
+                }
+            } else if savedComponents.hours > 0 {
+                if savedComponents.minutes > 0 {
+                    savedTimeString = String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                                          savedComponents.hours, savedComponents.minutes)
+                } else {
+                    savedTimeString = String(format: NSLocalizedString("Time_Hours", comment: ""), 
+                                          savedComponents.hours)
+                }
+            } else {
+                savedTimeString = String(format: NSLocalizedString("Time_Minutes", comment: ""), 
+                                      savedComponents.minutes)
+            }
+            
+            return """
+            魅力: \(charisma)
+            智力: \(intelligence)
+            记忆: \(memory)
+            感知: \(perception)
+            意志: \(willpower)
+            预计训练时间: \(timeString)
+            节省时间: \(savedTimeString)
+            """
+        }
+        
+        private static func formatTimeComponents(_ interval: TimeInterval) -> (days: Int, hours: Int, minutes: Int) {
+            let days = Int(interval) / (24 * 3600)
+            let hours = Int(interval) / 3600 % 24
+            let minutes = Int(interval) / 60 % 60
+            return (days, hours, minutes)
+        }
+    }
+    
+    /// 计算最优属性分配
+    private func calculateOptimalAttributeAllocation() -> OptimalAttributeAllocation? {
+        // 准备技能队列信息
+        let queueInfo = activeSkills.compactMap { item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
+            guard let levelEndSp = item.level_end_sp,
+                  let trainingStartSp = item.training_start_sp else {
+                return nil
+            }
+            
+            return (
+                skillId: item.skill_id,
+                remainingSP: levelEndSp - trainingStartSp,
+                startDate: item.start_date,
+                finishDate: item.finish_date
+            )
+        }
+        
+        // 使用SkillTrainingCalculator计算最优属性
+        guard let characterAttributes = characterAttributes,
+              let optimal = SkillTrainingCalculator.calculateOptimalAttributes(
+                skillQueue: queueInfo,
+                databaseManager: databaseManager,
+                currentAttributes: characterAttributes
+              ) else {
+            return nil
+        }
+        
+        // 转换为视图使用的OptimalAttributeAllocation格式
+        return OptimalAttributeAllocation(
+            charisma: optimal.charisma,
+            intelligence: optimal.intelligence,
+            memory: optimal.memory,
+            perception: optimal.perception,
+            willpower: optimal.willpower,
+            totalTrainingTime: optimal.totalTrainingTime,
+            currentTrainingTime: optimal.currentTrainingTime
+        )
     }
 }
