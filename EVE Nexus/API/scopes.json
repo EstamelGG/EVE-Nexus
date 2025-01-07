@@ -48,5 +48,8 @@
     "scope_market": [
         "esi-markets.structure_markets.v1",
         "esi-markets.read_character_orders.v1"
+    ],
+    "scope_corp": [
+        "esi-wallet.read_corporation_wallets.v1"
     ]
 }
