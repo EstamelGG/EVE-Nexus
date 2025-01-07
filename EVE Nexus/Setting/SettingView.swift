@@ -343,15 +343,31 @@ struct SettingView: View {
         }
     }
     
+    private struct CorporationAffairsToggle: View {
+        @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
+        
+        var body: some View {
+            HStack {
+                Image(systemName: "building.2")
+                    .foregroundColor(.blue)
+                Toggle(NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""), isOn: $showCorporationAffairs)
+                    .tint(.blue)
+            }
+            .frame(height: 36)
+        }
+    }
+    
     private func createCorporationAffairsGroup() -> SettingGroup {
         SettingGroup(header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
                 detail: nil,
-                icon: nil,
+                icon: "building.2",
                 iconColor: .blue,
-                action: { showCorporationAffairs.toggle() }
-            )
+                action: {}
+            ) { _ in
+                AnyView(CorporationAffairsToggle())
+            }
         ])
     }
     
@@ -448,7 +464,6 @@ struct SettingView: View {
         let item: SettingItem
         let isCleaningCache: Bool
         let showingLoadingView: Bool
-        @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
         
         var body: some View {
             if let customView = item.customView {
@@ -468,13 +483,7 @@ struct SettingView: View {
                             }
                         }
                         Spacer()
-                        if item.title == NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: "") {
-                            Toggle("", isOn: .init(
-                                get: { showCorporationAffairs },
-                                set: { _ in item.action() }
-                            ))
-                            .labelsHidden()
-                        } else if let icon = item.icon {
+                        if let icon = item.icon {
                             if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache {
                                 ProgressView()
                                     .frame(width: 36, height: 36)
