@@ -359,7 +359,7 @@ struct SettingView: View {
         SettingGroup(header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
-                detail: nil,
+                detail: NSLocalizedString("Main_Setting_Show_Corporation_Affairs_detail", comment: ""),
                 iconColor: .blue,
                 action: {}
             ) { _ in
@@ -372,7 +372,7 @@ struct SettingView: View {
         SettingGroup(header: NSLocalizedString("Main_Setting_Others", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Language", comment: ""),
-                detail: NSLocalizedString("Main_Setting_Select your language", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Select_your_language", comment: ""),
                 icon: "globe",
                 action: { showingLanguageView = true }
             ),

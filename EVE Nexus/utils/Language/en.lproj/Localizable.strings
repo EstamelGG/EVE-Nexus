@@ -75,7 +75,7 @@
 "Main_Setting" = "Setting";
 "Main_Setting_Title" = "Setting";
 "Main_Setting_Language" = "Language";
-"Main_Setting_Select your language" = "Select your language";
+"Main_Setting_Select_your_language" = "Select your language";
 "Main_Setting_Appearance" = "Appearance";
 "Main_Setting_ColorMode" = "Appearance Mode";
 "Main_Setting_Others" = "Others";
@@ -631,6 +631,7 @@
 
 // Corporation Section
 "Main_Corporation" = "Corporation";
+"Main_Setting_Show_Corporation_Affairs_detail" = "Whether to show the list of corporation affairs on the home page";
 "Main_Corporation_wallet" = "Corp Wallet";
 "Main_Corporation_Members" = "Corp Members";
 "Main_Corporation_Structures" = "Corp Structures";

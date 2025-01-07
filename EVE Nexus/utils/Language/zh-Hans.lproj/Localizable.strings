@@ -72,7 +72,7 @@
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
 "Main_Setting_Language" = "语言";
-"Main_Setting_Select your language" = "选择语言";
+"Main_Setting_Select_your_language" = "选择语言";
 "Main_Setting_Appearance" = "外观";
 "Main_Setting_ColorMode" = "颜色模式";
 "Main_Setting_Others" = "其他";
@@ -627,6 +627,7 @@
 
 // Corporation Section
 "Main_Corporation" = "军团";
+"Main_Setting_Show_Corporation_Affairs_detail" = "是否需要在首页展示军团管理相关的列表";
 "Main_Corporation_wallet" = "军团账户";
 "Main_Corporation_Members" = "军团成员";
 "Main_Corporation_Structures" = "军团建筑";
