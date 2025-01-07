@@ -348,8 +348,17 @@ struct SettingView: View {
         
         var body: some View {
             HStack {
-                Toggle(NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""), isOn: $showCorporationAffairs)
-                    .tint(.green)
+                Toggle(isOn: $showCorporationAffairs) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""))
+                            .font(.system(size: 16))
+                            .foregroundColor(.primary)
+                        Text(NSLocalizedString("Main_Setting_Show_Corporation_Affairs_detail", comment: ""))
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                    }
+                }
+                .tint(.green)
             }
             .frame(height: 36)
         }
@@ -359,7 +368,7 @@ struct SettingView: View {
         SettingGroup(header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""), items: [
             SettingItem(
                 title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
-                detail: NSLocalizedString("Main_Setting_Show_Corporation_Affairs_detail", comment: ""),
+                detail: nil,
                 iconColor: .blue,
                 action: {}
             ) { _ in
