@@ -49,7 +49,7 @@ struct CorpWalletView: View {
                 }
             } else {
                 ForEach(wallets, id: \.division) { wallet in
-                    NavigationLink(destination: CorpWalletJournalView(
+                    NavigationLink(destination: CorpWalletDivisionDetails(
                         characterId: characterId,
                         division: wallet.division,
                         divisionName: wallet.name ?? String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), wallet.division)
