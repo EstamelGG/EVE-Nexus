@@ -285,7 +285,6 @@ struct WalletJournalEntryRow: View {
             Text(entry.description)
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .lineLimit(1)
             
             Text("Balance: \(FormatUtil.format(entry.balance)) ISK")
                 .font(.caption)

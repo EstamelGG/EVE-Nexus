@@ -304,7 +304,6 @@ struct CorpWalletJournalEntryRow: View {
             Text(entry.description)
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .lineLimit(1)
             
             // 余额
             Text(String(format: NSLocalizedString("Balance: %@ ISK", comment: ""), FormatUtil.format(entry.balance)))
