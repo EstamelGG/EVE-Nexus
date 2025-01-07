@@ -92,15 +92,74 @@ struct UTCTimeView: View {
 }
 
 // 优化 ServerStatusView
+class ServerStatusViewModel: ObservableObject {
+    @Published var status: ServerStatus?
+    @Published var currentTime = Date()
+    private var timer: Timer?
+    private var statusTimer: Timer?
+    
+    func startTimers() {
+        // 停止现有的计时器
+        stopTimers()
+        
+        // 创建时间更新计时器
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.currentTime = Date()
+        }
+        
+        // 创建状态更新计时器
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            Task {
+                await self?.refreshServerStatus()
+            }
+        }
+        
+        // 立即刷新一次服务器状态
+        Task {
+            await refreshServerStatus()
+        }
+    }
+    
+    func stopTimers() {
+        timer?.invalidate()
+        timer = nil
+        statusTimer?.invalidate()
+        statusTimer = nil
+    }
+    
+    private func refreshServerStatus() async {
+        do {
+            let newStatus = try await ServerStatusAPI.shared.fetchServerStatus()
+            await MainActor.run {
+                self.status = newStatus
+            }
+        } catch {
+            Logger.error("刷新服务器状态失败: \(error)")
+        }
+    }
+    
+    deinit {
+        stopTimers()
+    }
+}
+
 struct ServerStatusView: View {
-    let status: ServerStatus?
+    @StateObject private var viewModel = ServerStatusViewModel()
     
     var body: some View {
-        Text(formattedUTCTime)
-            .font(.monospacedDigit(.caption)()) +
-        Text(" - ")
-            .font(.caption) +
-        statusText
+        HStack(spacing: 4) {
+            Text(formattedUTCTime)
+                .font(.monospacedDigit(.caption)())
+            Text("-")
+                .font(.caption)
+            statusText
+        }
+        .onAppear {
+            viewModel.startTimers()
+        }
+        .onDisappear {
+            viewModel.stopTimers()
+        }
     }
     
     private var formattedUTCTime: String {
@@ -108,11 +167,11 @@ struct ServerStatusView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateStyle = .none
         formatter.timeStyle = .medium
-        return formatter.string(from: Date())
+        return formatter.string(from: viewModel.currentTime)
     }
     
     private var statusText: Text {
-        if let status = status {
+        if let status = viewModel.status {
             if status.isOnline {
                 let formattedPlayers = NumberFormatter.localizedString(
                     from: NSNumber(value: status.players),
@@ -260,7 +319,7 @@ struct LoginButtonView: View {
                         .font(.headline)
                         .lineLimit(1)
                 }
-                ServerStatusView(status: serverStatus)
+                ServerStatusView()
             }
             .frame(height: 72)
             Spacer()
