@@ -633,3 +633,14 @@
 "Main_Corporation_Contracts" = "军团合同";
 "Main_Corporation_Market_Orders" = "军团市场订单";
 "Main_Corporation_Industry" = "军团工业";
+
+// Corporation Divisions
+"Main_Corporation_Wallet_Division1" = "军团钱包 1";
+"Main_Corporation_Wallet_Division2" = "军团钱包 2";
+"Main_Corporation_Wallet_Division3" = "军团钱包 3";
+"Main_Corporation_Wallet_Division4" = "军团钱包 4";
+"Main_Corporation_Wallet_Division5" = "军团钱包 5";
+"Main_Corporation_Wallet_Division6" = "军团钱包 6";
+"Main_Corporation_Wallet_Division7" = "军团钱包 7";
+"Main_Corporation_Hangar_Default" = "军团机库 %d";
+"Main_Corporation_Wallet_Default" = "军团钱包 %d";

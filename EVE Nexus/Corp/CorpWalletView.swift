@@ -58,7 +58,7 @@ struct CorpWalletView: View {
                         
                         VStack(alignment: .leading, spacing: 2) {
                             // 钱包分部名称
-                            Text(String(format: NSLocalizedString("Corp_Wallet_Division", comment: ""), wallet.division))
+                            Text(wallet.name ?? String(format: NSLocalizedString("Main_Corporation_Wallet_Default", comment: ""), wallet.division))
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
                             
