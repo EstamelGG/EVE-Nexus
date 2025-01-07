@@ -170,7 +170,7 @@ struct WalletJournalView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text("+ \(FormatUtil.format(viewModel.totalIncome)) ISK")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.green)
             }
             
@@ -181,7 +181,7 @@ struct WalletJournalView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text("- \(FormatUtil.format(viewModel.totalExpense)) ISK")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.red)
             }
         }

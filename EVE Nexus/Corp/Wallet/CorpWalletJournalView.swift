@@ -121,7 +121,7 @@ struct CorpWalletJournalView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text("+ \(formatAmount(totalIncome)) ISK")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.green)
             }
             
@@ -132,7 +132,7 @@ struct CorpWalletJournalView: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Text("- \(formatAmount(totalExpense)) ISK")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.red)
             }
         }
@@ -168,7 +168,7 @@ struct CorpWalletJournalView: View {
                                 
                                 // 金额
                                 Text("\(entry.amount >= 0 ? "+" : "")\(formatAmount(entry.amount)) ISK")
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(.caption, design: .monospaced))
                                     .foregroundColor(entry.amount >= 0 ? .green : .red)
                             }
                             
