@@ -17,18 +17,18 @@ struct CharacterSkillsView: View {
     @State private var hasLoadedData = false
     @State private var optimalAttributes: OptimalAttributeAllocation?
     
-    private var attributeComparisons: [(name: String, current: Int, optimal: Int, diff: Int)] {
+    private var attributeComparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] {
         guard let attrs = characterAttributes,
               let optimal = optimalAttributes else {
             return []
         }
         
         return [
-            (NSLocalizedString("Character_Attribute_Perception", comment: ""), attrs.perception, optimal.perception, optimal.perception - attrs.perception),
-            (NSLocalizedString("Character_Attribute_Memory", comment: ""), attrs.memory, optimal.memory, optimal.memory - attrs.memory),
-            (NSLocalizedString("Character_Attribute_Willpower", comment: ""), attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
-            (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
-            (NSLocalizedString("Character_Attribute_Charisma", comment: ""), attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
+            (NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception", attrs.perception, optimal.perception, optimal.perception - attrs.perception),
+            (NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory", attrs.memory, optimal.memory, optimal.memory - attrs.memory),
+            (NSLocalizedString("Character_Attribute_Willpower", comment: ""), "willpower", attrs.willpower, optimal.willpower, optimal.willpower - attrs.willpower),
+            (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), "intelligence", attrs.intelligence, optimal.intelligence, optimal.intelligence - attrs.intelligence),
+            (NSLocalizedString("Character_Attribute_Charisma", comment: ""), "charisma", attrs.charisma, optimal.charisma, optimal.charisma - attrs.charisma)
         ]
     }
     
@@ -303,6 +303,10 @@ struct CharacterSkillsView: View {
                 Section {
                     ForEach(attributeComparisons, id: \.name) { attr in
                         HStack {
+                            Image(attr.icon)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(4)
                             Text(attr.name)
                             Spacer()
                             if attr.diff == 0 {
