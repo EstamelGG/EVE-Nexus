@@ -105,7 +105,7 @@ struct SkillTrainingCalculator {
                         
                         // 将加成值转换为整数
                         let bonus = Int(value)
-                        Logger.debug("解析到植入体属性 - ID: \(attributeId), 值: \(bonus)")
+                        // Logger.debug("解析到植入体属性 - ID: \(attributeId), 值: \(bonus)")
                         
                         // 更新最大值
                         maxBonuses[attributeId] = max(maxBonuses[attributeId] ?? 0, bonus)
@@ -114,23 +114,23 @@ struct SkillTrainingCalculator {
                     // 设置最终的加成值
                     if let charismaBonus = maxBonuses[ImplantAttributeID.charisma] {
                         bonuses.charismaBonus = charismaBonus
-                        Logger.debug("设置最终魅力加成: \(charismaBonus)")
+                        // Logger.debug("设置最终魅力加成: \(charismaBonus)")
                     }
                     if let intelligenceBonus = maxBonuses[ImplantAttributeID.intelligence] {
                         bonuses.intelligenceBonus = intelligenceBonus
-                        Logger.debug("设置最终智力加成: \(intelligenceBonus)")
+                        // Logger.debug("设置最终智力加成: \(intelligenceBonus)")
                     }
                     if let memoryBonus = maxBonuses[ImplantAttributeID.memory] {
                         bonuses.memoryBonus = memoryBonus
-                        Logger.debug("设置最终记忆加成: \(memoryBonus)")
+                        // Logger.debug("设置最终记忆加成: \(memoryBonus)")
                     }
                     if let perceptionBonus = maxBonuses[ImplantAttributeID.perception] {
                         bonuses.perceptionBonus = perceptionBonus
-                        Logger.debug("设置最终感知加成: \(perceptionBonus)")
+                        // Logger.debug("设置最终感知加成: \(perceptionBonus)")
                     }
                     if let willpowerBonus = maxBonuses[ImplantAttributeID.willpower] {
                         bonuses.willpowerBonus = willpowerBonus
-                        Logger.debug("设置最终意志加成: \(willpowerBonus)")
+                        // Logger.debug("设置最终意志加成: \(willpowerBonus)")
                     }
                 } else {
                     Logger.debug("查询植入体属性失败")
@@ -139,7 +139,7 @@ struct SkillTrainingCalculator {
                 Logger.debug("未找到植入体")
             }
             
-            Logger.debug("最终植入体加成结果: 感知:\(bonuses.perceptionBonus), 记忆:\(bonuses.memoryBonus), 意志:\(bonuses.willpowerBonus), 智力:\(bonuses.intelligenceBonus), 魅力:\(bonuses.charismaBonus)")
+            // Logger.debug("最终植入体加成结果: 感知:\(bonuses.perceptionBonus), 记忆:\(bonuses.memoryBonus), 意志:\(bonuses.willpowerBonus), 智力:\(bonuses.intelligenceBonus), 魅力:\(bonuses.charismaBonus)")
         } catch {
             Logger.error("获取植入体信息失败: \(error)")
         }
@@ -170,15 +170,15 @@ struct SkillTrainingCalculator {
         let basePerception = currentAttributes.perception - implantBonuses.perceptionBonus
         let baseWillpower = currentAttributes.willpower - implantBonuses.willpowerBonus
         
-        Logger.debug("计算最优属性分配 - 初始状态:")
-        Logger.debug("当前基础属性 - 感知: \(basePerception), 记忆: \(baseMemory), 意志: \(baseWillpower), 智力: \(baseIntelligence), 魅力: \(baseCharisma)")
-        Logger.debug("植入体加成 - 感知: \(implantBonuses.perceptionBonus), 记忆: \(implantBonuses.memoryBonus), 意志: \(implantBonuses.willpowerBonus), 智力: \(implantBonuses.intelligenceBonus), 魅力: \(implantBonuses.charismaBonus)")
+        // Logger.debug("计算最优属性分配 - 初始状态:")
+        // Logger.debug("当前基础属性 - 感知: \(basePerception), 记忆: \(baseMemory), 意志: \(baseWillpower), 智力: \(baseIntelligence), 魅力: \(baseCharisma)")
+        // Logger.debug("植入体加成 - 感知: \(implantBonuses.perceptionBonus), 记忆: \(implantBonuses.memoryBonus), 意志: \(implantBonuses.willpowerBonus), 智力: \(implantBonuses.intelligenceBonus), 魅力: \(implantBonuses.charismaBonus)")
         
         // 计算可分配的总点数（不包括植入体加成）
         let totalBasePoints = baseCharisma + baseIntelligence + baseMemory + basePerception + baseWillpower
-        let pointsToAllocate = totalBasePoints - (17 * 5) // 每个属性最少17点
+        // let pointsToAllocate = totalBasePoints - (17 * 5) // 每个属性最少17点
         
-        Logger.debug("总基础点数: \(totalBasePoints), 可分配点数: \(pointsToAllocate)")
+        // Logger.debug("总基础点数: \(totalBasePoints), 可分配点数: \(pointsToAllocate)")
         
         var skillTrainingInfo: [SkillTrainingInfo] = []
         

@@ -27,12 +27,14 @@ struct CharacterSkillsView: View {
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
     @State private var hasLoadedData = false
     @State private var optimalAttributes: OptimalAttributeAllocation?
+    @State private var attributeComparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
     
-    private var attributeComparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] {
+    private func updateAttributeComparisons() {
         guard let attrs = characterAttributes,
               let optimal = optimalAttributes,
               let bonuses = implantBonuses else {
-            return []
+            attributeComparisons = []
+            return
         }
         
         // 计算基础属性（当前属性减去植入体加成）
@@ -42,14 +44,14 @@ struct CharacterSkillsView: View {
         let basePerception = attrs.perception - bonuses.perceptionBonus
         let baseWillpower = attrs.willpower - bonuses.willpowerBonus
         
-        Logger.debug("属性计算详情:")
-        Logger.debug("感知 - 当前总值: \(attrs.perception), 基础值: \(basePerception), 植入体加成: \(bonuses.perceptionBonus), 最优基础值: \(optimal.perception), 变化: \(optimal.perception - basePerception)")
-        Logger.debug("记忆 - 当前总值: \(attrs.memory), 基础值: \(baseMemory), 植入体加成: \(bonuses.memoryBonus), 最优基础值: \(optimal.memory), 变化: \(optimal.memory - baseMemory)")
-        Logger.debug("意志 - 当前总值: \(attrs.willpower), 基础值: \(baseWillpower), 植入体加成: \(bonuses.willpowerBonus), 最优基础值: \(optimal.willpower), 变化: \(optimal.willpower - baseWillpower)")
-        Logger.debug("智力 - 当前总值: \(attrs.intelligence), 基础值: \(baseIntelligence), 植入体加成: \(bonuses.intelligenceBonus), 最优基础值: \(optimal.intelligence), 变化: \(optimal.intelligence - baseIntelligence)")
-        Logger.debug("魅力 - 当前总值: \(attrs.charisma), 基础值: \(baseCharisma), 植入体加成: \(bonuses.charismaBonus), 最优基础值: \(optimal.charisma), 变化: \(optimal.charisma - baseCharisma)")
+        // Logger.debug("属性计算详情:")
+        // Logger.debug("感知 - 当前总值: \(attrs.perception), 基础值: \(basePerception), 植入体加成: \(bonuses.perceptionBonus), 最优基础值: \(optimal.perception), 变化: \(optimal.perception - basePerception)")
+        // Logger.debug("记忆 - 当前总值: \(attrs.memory), 基础值: \(baseMemory), 植入体加成: \(bonuses.memoryBonus), 最优基础值: \(optimal.memory), 变化: \(optimal.memory - baseMemory)")
+        // Logger.debug("意志 - 当前总值: \(attrs.willpower), 基础值: \(baseWillpower), 植入体加成: \(bonuses.willpowerBonus), 最优基础值: \(optimal.willpower), 变化: \(optimal.willpower - baseWillpower)")
+        // Logger.debug("智力 - 当前总值: \(attrs.intelligence), 基础值: \(baseIntelligence), 植入体加成: \(bonuses.intelligenceBonus), 最优基础值: \(optimal.intelligence), 变化: \(optimal.intelligence - baseIntelligence)")
+        // Logger.debug("魅力 - 当前总值: \(attrs.charisma), 基础值: \(baseCharisma), 植入体加成: \(bonuses.charismaBonus), 最优基础值: \(optimal.charisma), 变化: \(optimal.charisma - baseCharisma)")
         
-        return [
+        attributeComparisons = [
             (NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception", 
              attrs.perception, optimal.perception + bonuses.perceptionBonus, optimal.perception - basePerception),
             (NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory", 
@@ -139,227 +141,16 @@ struct CharacterSkillsView: View {
     var body: some View {
         List {
             // 第一个列表 - 属性和技能目录导航
-            Section {
-                NavigationLink {
-                    CharacterAttributesView(characterId: characterId)
-                } label: {
-                    HStack {
-                        Image("attributes")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                            .drawingGroup()
-                        Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
-                    }
-                }
-                
-                NavigationLink {
-                    SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
-                } label: {
-                    HStack {
-                        Image("skills")
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                            .cornerRadius(6)
-                            .drawingGroup()
-                        Text(NSLocalizedString("Main_Skills_Category", comment: ""))
-                    }
-                }
-            } header: {
-                Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
-            }
+            navigationSection
             
             // 第二个列表 - 技能队列
-            Section {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                } else if skillQueue.isEmpty {
-                    Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(activeSkills) { item in
-                        NavigationLink {
-                            ShowItemInfo(
-                                databaseManager: databaseManager,
-                                itemID: item.skill_id
-                            )
-                        } label: {
-                            HStack(spacing: 8) {
-                                if let icon = skillIcon {
-                                    icon
-                                        .resizable()
-                                        .frame(width: 36, height: 36)
-                                        .cornerRadius(6)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    HStack(spacing: 2) {
-                                        Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
-                                            .lineLimit(1)
-                                        Spacer()
-                                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
-                                            .foregroundColor(.secondary)
-                                            .font(.caption)
-                                            .padding(.trailing, 2)
-                                        SkillLevelIndicator(
-                                            currentLevel: getCurrentLevel(for: item.skill_id),
-                                            trainingLevel: item.finished_level,
-                                            isTraining: item.isCurrentlyTraining
-                                        )
-                                        .padding(.trailing, 4)
-                                    }
-                                    
-                                    if let progress = calculateProgress(item) {
-                                        HStack(spacing: 2) {
-                                            Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
-                                                      formatNumber(Int(progress.current)), 
-                                                      formatNumber(progress.total)))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            if let rate = trainingRates[item.skill_id] {
-                                                Text("(\(formatNumber(rate))/h)")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            Spacer()
-                                            if item.isCurrentlyTraining {
-                                                if let remainingTime = item.remainingTime {
-                                                    Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
-                                                              formatTimeInterval(remainingTime)))
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            } else if let startDate = item.start_date,
-                                                      let finishDate = item.finish_date {
-                                                let trainingTime = finishDate.timeIntervalSince(startDate)
-                                                Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                          formatTimeInterval(trainingTime)))
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        
-                                        if item.isCurrentlyTraining {
-                                            ProgressView(value: progress.percentage)
-                                                .progressViewStyle(LinearProgressViewStyle())
-                                                .padding(.top, 1)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } header: {
-                if skillQueue.isEmpty {
-                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""), 0))
-                } else if isQueuePaused {
-                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
-                              activeSkills.count))
-                } else if let totalTime = totalRemainingTime {
-                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
-                              activeSkills.count,
-                              formatTimeInterval(totalTime)))
-                } else {
-                    Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
-                              activeSkills.count))
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            skillQueueSection
             
-            // 第二个列表 - 注入器需求
-            if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation {
-                Section {
-                    // 大型注入器
-                    if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
-                        NavigationLink {
-                            ShowItemInfo(
-                                databaseManager: databaseManager,
-                                itemID: SkillInjectorCalculator.largeInjectorTypeId
-                            )
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: largeInfo.iconFilename)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(largeInfo.name)
-                                Spacer()
-                                Text("\(calculation.largeInjectorCount)")
-                                    .font(.body)
-                            }
-                        }
-                    }
-                    
-                    // 小型注入器
-                    if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
-                        NavigationLink {
-                            ShowItemInfo(
-                                databaseManager: databaseManager,
-                                itemID: SkillInjectorCalculator.smallInjectorTypeId
-                            )
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: smallInfo.iconFilename)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(smallInfo.name)
-                                Spacer()
-                                Text("\(calculation.smallInjectorCount)")
-                                    .font(.body)
-                            }
-                        }
-                    }
-                    
-                    // 总计所需技能点和预计价格
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), 
-                                  FormatUtil.format(Double(calculation.totalSkillPoints))))
-                        if let totalCost = totalInjectorCost {
-                            Text(String(format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""), 
-                                      FormatUtil.formatISK(totalCost)))
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                } header: {
-                    Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
-                }
-            }
+            // 第三个列表 - 注入器需求
+            injectorSection
             
-            // 第三个列表 - 属性对比
-            if !attributeComparisons.isEmpty {
-                Section {
-                    ForEach(attributeComparisons, id: \.name) { attr in
-                        HStack {
-                            Image(attr.icon)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(4)
-                            Text(attr.name)
-                            Spacer()
-                            if attr.diff == 0 {
-                                Text("\(attr.current)")
-                                    .foregroundColor(.secondary)
-                            } else {
-                                Text("\(attr.current)(\(attr.diff > 0 ? "+" : "-")\(abs(attr.diff)))")
-                                    .foregroundColor(attr.diff > 0 ? .green : .red)
-                            }
-                        }
-                    }
-                    
-                    if let optimal = optimalAttributes {
-                        Text(String(format: NSLocalizedString("Main_Skills_Optimal_Attributes_Time_Saved", comment: ""), 
-                                  formatTimeInterval(optimal.savedTime)))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                } header: {
-                    Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
-                }
-            }
+            // 第四个列表 - 属性对比
+            attributeComparisonSection
         }
         .navigationTitle(NSLocalizedString("Main_Skills", comment: ""))
         .refreshable {
@@ -369,6 +160,258 @@ struct CharacterSkillsView: View {
             if !hasLoadedData {
                 await loadSkillQueue()
                 hasLoadedData = true
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var navigationSection: some View {
+        Section {
+            NavigationLink {
+                CharacterAttributesView(characterId: characterId)
+            } label: {
+                HStack {
+                    Image("attributes")
+                        .resizable()
+                        .frame(width: 36, height: 36)
+                        .cornerRadius(6)
+                        .drawingGroup()
+                    Text(NSLocalizedString("Main_Skills_Attribute", comment: ""))
+                }
+            }
+            
+            NavigationLink {
+                SkillCategoryView(characterId: characterId, databaseManager: databaseManager)
+            } label: {
+                HStack {
+                    Image("skills")
+                        .resizable()
+                        .frame(width: 36, height: 36)
+                        .cornerRadius(6)
+                        .drawingGroup()
+                    Text(NSLocalizedString("Main_Skills_Category", comment: ""))
+                }
+            }
+        } header: {
+            Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
+        }
+    }
+    
+    @ViewBuilder
+    private var skillQueueSection: some View {
+        Section {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if skillQueue.isEmpty {
+                Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(activeSkills) { item in
+                    NavigationLink {
+                        ShowItemInfo(
+                            databaseManager: databaseManager,
+                            itemID: item.skill_id
+                        )
+                    } label: {
+                        skillQueueItemView(item)
+                    }
+                }
+            }
+        } header: {
+            skillQueueHeader
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+    
+    @ViewBuilder
+    private var injectorSection: some View {
+        if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation {
+            Section {
+                // 大型注入器
+                if let largeInfo = getInjectorInfo(typeId: SkillInjectorCalculator.largeInjectorTypeId) {
+                    injectorItemView(info: largeInfo, count: calculation.largeInjectorCount, typeId: SkillInjectorCalculator.largeInjectorTypeId)
+                }
+                
+                // 小型注入器
+                if let smallInfo = getInjectorInfo(typeId: SkillInjectorCalculator.smallInjectorTypeId) {
+                    injectorItemView(info: smallInfo, count: calculation.smallInjectorCount, typeId: SkillInjectorCalculator.smallInjectorTypeId)
+                }
+                
+                // 总计所需技能点和预计价格
+                injectorSummaryView(calculation: calculation)
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var attributeComparisonSection: some View {
+        if !attributeComparisons.isEmpty {
+            Section {
+                ForEach(attributeComparisons, id: \.name) { attr in
+                    attributeComparisonItemView(attr)
+                }
+                
+                if let optimal = optimalAttributes {
+                    Text(String(format: NSLocalizedString("Main_Skills_Optimal_Attributes_Time_Saved", comment: ""), 
+                              formatTimeInterval(optimal.savedTime)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } header: {
+                Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var skillQueueHeader: some View {
+        if skillQueue.isEmpty {
+            Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""), 0))
+        } else if isQueuePaused {
+            Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
+                      activeSkills.count))
+        } else if let totalTime = totalRemainingTime {
+            Text(String(format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
+                      activeSkills.count,
+                      formatTimeInterval(totalTime)))
+        } else {
+            Text(String(format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
+                      activeSkills.count))
+        }
+    }
+    
+    @ViewBuilder
+    private func skillQueueItemView(_ item: SkillQueueItem) -> some View {
+        HStack(spacing: 8) {
+            if let icon = skillIcon {
+                icon
+                    .resizable()
+                    .frame(width: 36, height: 36)
+                    .cornerRadius(6)
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 2) {
+                    Text(skillNames[item.skill_id] ?? NSLocalizedString("Main_Database_Loading", comment: ""))
+                        .lineLimit(1)
+                    Spacer()
+                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), item.finished_level))
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                        .padding(.trailing, 2)
+                    SkillLevelIndicator(
+                        currentLevel: getCurrentLevel(for: item.skill_id),
+                        trainingLevel: item.finished_level,
+                        isTraining: item.isCurrentlyTraining
+                    )
+                    .padding(.trailing, 4)
+                }
+                
+                if let progress = calculateProgress(item) {
+                    skillProgressView(item: item, progress: progress)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func skillProgressView(item: SkillQueueItem, progress: ProgressInfo) -> some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 2) {
+                Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""), 
+                          formatNumber(Int(progress.current)), 
+                          formatNumber(progress.total)))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                if let rate = trainingRates[item.skill_id] {
+                    Text("(\(formatNumber(rate))/h)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                skillTimeView(item: item)
+            }
+            
+            if item.isCurrentlyTraining {
+                ProgressView(value: progress.percentage)
+                    .progressViewStyle(LinearProgressViewStyle())
+                    .padding(.top, 1)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func skillTimeView(item: SkillQueueItem) -> some View {
+        if item.isCurrentlyTraining {
+            if let remainingTime = item.remainingTime {
+                Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
+                          formatTimeInterval(remainingTime)))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        } else if let startDate = item.start_date,
+                  let finishDate = item.finish_date {
+            let trainingTime = finishDate.timeIntervalSince(startDate)
+            Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                      formatTimeInterval(trainingTime)))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    @ViewBuilder
+    private func injectorItemView(info: InjectorInfo, count: Int, typeId: Int) -> some View {
+        NavigationLink {
+            ShowItemInfo(
+                databaseManager: databaseManager,
+                itemID: typeId
+            )
+        } label: {
+            HStack {
+                IconManager.shared.loadImage(for: info.iconFilename)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                Text(info.name)
+                Spacer()
+                Text("\(count)")
+                    .font(.body)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func injectorSummaryView(calculation: InjectorCalculation) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(String(format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""), 
+                      FormatUtil.format(Double(calculation.totalSkillPoints))))
+            if let totalCost = totalInjectorCost {
+                Text(String(format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""), 
+                          FormatUtil.formatISK(totalCost)))
+            }
+        }
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+    
+    @ViewBuilder
+    private func attributeComparisonItemView(_ attr: (name: String, icon: String, current: Int, optimal: Int, diff: Int)) -> some View {
+        HStack {
+            Image(attr.icon)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(4)
+            Text(attr.name)
+            Spacer()
+            if attr.diff == 0 {
+                Text("\(attr.current)")
+                    .foregroundColor(.secondary)
+            } else {
+                Text("\(attr.current)(\(attr.diff > 0 ? "+" : "-")\(abs(attr.diff)))")
+                    .foregroundColor(attr.diff > 0 ? .green : .red)
             }
         }
     }
@@ -460,6 +503,8 @@ struct CharacterSkillsView: View {
                             totalTrainingTime: optimal.totalTrainingTime,
                             currentTrainingTime: optimal.currentTrainingTime
                         )
+                        // 更新属性比较
+                        updateAttributeComparisons()
                     }
                 }
             }
