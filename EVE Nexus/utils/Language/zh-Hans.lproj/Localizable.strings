@@ -645,3 +645,9 @@
 "Main_Corporation_Hangar_Default" = "军团机库 %d";
 "Main_Corporation_Wallet_Default" = "军团钱包 %d";
 "Balance: %@ ISK" = "余额: %@ ISK";
+
+// Wallet Journal
+"Summary" = "汇总";
+"Total Income" = "总收入";
+"Total Expense" = "总支出";
+"Transactions" = "交易记录";

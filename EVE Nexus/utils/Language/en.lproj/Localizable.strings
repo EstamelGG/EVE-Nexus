@@ -649,3 +649,9 @@
 "Main_Corporation_Hangar_Default" = "Corp hangar %d";
 "Main_Corporation_Wallet_Default" = "Corp wallet %d";
 "Balance: %@ ISK" = "Balance: %@ ISK";
+
+// Wallet Journal
+"Summary" = "Summary";
+"Total Income" = "Total Income";
+"Total Expense" = "Total Expense";
+"Transactions" = "Transactions";

@@ -27,6 +27,8 @@ final class WalletJournalViewModel: ObservableObject {
     @Published private(set) var journalGroups: [WalletJournalGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published private(set) var totalIncome: Double = 0.0
+    @Published private(set) var totalExpense: Double = 0.0
     private var loadingTask: Task<Void, Never>?
     
     private let characterId: Int
@@ -53,6 +55,23 @@ final class WalletJournalViewModel: ObservableObject {
         loadingTask?.cancel()
     }
     
+    // 计算总收支
+    private func calculateTotals(from entries: [WalletJournalEntry]) {
+        var income: Double = 0
+        var expense: Double = 0
+        
+        for entry in entries {
+            if entry.amount > 0 {
+                income += entry.amount
+            } else {
+                expense += abs(entry.amount)
+            }
+        }
+        
+        totalIncome = income
+        totalExpense = expense
+    }
+    
     func loadJournalData(forceRefresh: Bool = false) async {
         // 取消之前的加载任务
         loadingTask?.cancel()
@@ -75,6 +94,9 @@ final class WalletJournalViewModel: ObservableObject {
                 }
                 
                 if Task.isCancelled { return }
+                
+                // 计算总收支
+                calculateTotals(from: entries)
                 
                 var groupedEntries: [Date: [WalletJournalEntry]] = [:]
                 for entry in entries {
@@ -134,6 +156,37 @@ struct WalletJournalView: View {
         _viewModel = StateObject(wrappedValue: WalletJournalViewModel(characterId: characterId))
     }
     
+    var summarySection: some View {
+        Section(header: Text(NSLocalizedString("Summary", comment: ""))
+            .fontWeight(.bold)
+            .font(.system(size: 18))
+            .foregroundColor(.primary)
+            .textCase(.none)
+        ) {
+            // 总收入
+            HStack {
+                Text(NSLocalizedString("Total Income", comment: ""))
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("+ \(FormatUtil.format(viewModel.totalIncome)) ISK")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.green)
+            }
+            
+            // 总支出
+            HStack {
+                Text(NSLocalizedString("Total Expense", comment: ""))
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("- \(FormatUtil.format(viewModel.totalExpense)) ISK")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.red)
+            }
+        }
+    }
+    
     var body: some View {
         List {
             if viewModel.isLoading {
@@ -155,6 +208,8 @@ struct WalletJournalView: View {
                     }
                 }
             } else {
+                summarySection
+                
                 ForEach(viewModel.journalGroups) { group in
                     Section(header: Text(displayDateFormatter.string(from: group.date))
                         .fontWeight(.bold)
