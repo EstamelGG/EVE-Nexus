@@ -167,7 +167,6 @@ struct WalletJournalView: View {
             HStack {
                 Text(NSLocalizedString("Total Income", comment: ""))
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary)
                 Spacer()
                 Text("+ \(FormatUtil.format(viewModel.totalIncome)) ISK")
                     .font(.system(.caption, design: .monospaced))
@@ -178,7 +177,6 @@ struct WalletJournalView: View {
             HStack {
                 Text(NSLocalizedString("Total Expense", comment: ""))
                     .font(.system(size: 14))
-                    .foregroundColor(.secondary)
                 Spacer()
                 Text("- \(FormatUtil.format(viewModel.totalExpense)) ISK")
                     .font(.system(.caption, design: .monospaced))
