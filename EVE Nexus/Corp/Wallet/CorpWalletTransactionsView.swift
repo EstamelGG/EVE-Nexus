@@ -281,36 +281,37 @@ struct CorpWalletTransactionEntryRow: View {
                             .frame(width: 36, height: 36)
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                     } else {
-                        Image(systemName: "photo")
-                            .resizable()
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
                             .frame(width: 36, height: 36)
-                            .foregroundColor(.gray)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                     
                     VStack(alignment: .leading, spacing: 2) {
                         // 物品名称
                         Text(itemInfo?.name ?? "Loading...")
-                            .font(.system(size: 16))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
+                            .font(.body)
                         
                         // 交易信息
+                        Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
+                            .foregroundColor(entry.is_buy ? .red : .green)
+                            .font(.system(.caption, design: .monospaced))
+                    }
+                }
+                // 位置信息
+                if let locationView = viewModel.getLocationView(for: entry.location_id) {
+                    locationView
+                        .lineLimit(1)
+                }
+                
+                // 时间信息
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack {
+                        // 交易类型和数量
                         Text("\(entry.is_buy ? NSLocalizedString("Main_Market_Transactions_Buy", comment: "") : NSLocalizedString("Main_Market_Transactions_Sell", comment: "")) - \(entry.quantity) × \(FormatUtil.format(entry.unit_price)) ISK")
                             .font(.caption2)
                             .foregroundColor(.gray)
                             .lineLimit(1)
-                        
-                        // 位置信息
-                        if let locationView = viewModel.getLocationView(for: entry.location_id) {
-                            locationView
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // 时间信息
-                    VStack(alignment: .trailing, spacing: 2) {
+                        Spacer()
                         if let date = dateFormatter.date(from: entry.date) {
                             Text("\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))")
                                 .font(.caption)
@@ -318,6 +319,7 @@ struct CorpWalletTransactionEntryRow: View {
                         }
                     }
                 }
+                
             }
             .padding(.vertical, 2)
         }
@@ -330,4 +332,4 @@ struct CorpWalletTransactionEntryRow: View {
             }
         }
     }
-} 
+}
