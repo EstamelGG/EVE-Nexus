@@ -579,7 +579,8 @@ struct ContentView: View {
                         case "accounts":
                             AccountsView(
                                 databaseManager: databaseManager,
-                                mainViewModel: viewModel
+                                mainViewModel: viewModel,
+                                selectedItem: $selectedItem
                             ) { character, portrait in
                                 viewModel.resetCharacterInfo()
                                 viewModel.selectedCharacter = character

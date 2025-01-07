@@ -13,7 +13,7 @@ struct AccountsView: View {
     @State private var refreshingCharacters: Set<Int> = []
     @State private var expiredTokenCharacters: Set<Int> = []
     @State private var isLoggingIn = false
-    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedItem: String?
     
     // 添加角色选择回调
     var onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)?
@@ -21,10 +21,12 @@ struct AccountsView: View {
     init(
         databaseManager: DatabaseManager = DatabaseManager(),
         mainViewModel: MainViewModel,
+        selectedItem: Binding<String?>,
         onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)? = nil
     ) {
         _viewModel = StateObject(wrappedValue: EVELoginViewModel(databaseManager: databaseManager))
         self.mainViewModel = mainViewModel
+        self._selectedItem = selectedItem
         self.onCharacterSelect = onCharacterSelect
     }
     
@@ -175,7 +177,7 @@ struct AccountsView: View {
                                     }
                                 }
                                 onCharacterSelect?(character, portrait)
-                                dismiss()
+                                selectedItem = nil
                             } label: {
                                 CharacterRowView(character: character, 
                                                portrait: viewModel.characterPortraits[character.CharacterID], 
