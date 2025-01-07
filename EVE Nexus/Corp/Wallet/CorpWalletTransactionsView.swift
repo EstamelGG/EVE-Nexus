@@ -174,8 +174,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
 }
 
 struct CorpWalletTransactionsView: View {
-    @StateObject private var viewModel: CorpWalletTransactionsViewModel
-    let divisionName: String
+    @ObservedObject var viewModel: CorpWalletTransactionsViewModel
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -184,11 +183,6 @@ struct CorpWalletTransactionsView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
-    init(characterId: Int, division: Int, divisionName: String, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(wrappedValue: CorpWalletTransactionsViewModel(characterId: characterId, division: division, databaseManager: databaseManager))
-        self.divisionName = divisionName
-    }
     
     var body: some View {
         List {
@@ -228,12 +222,6 @@ struct CorpWalletTransactionsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .refreshable {
-            await viewModel.loadTransactionData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadTransactionData()
-        }
     }
 }
 

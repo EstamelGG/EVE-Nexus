@@ -149,11 +149,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
 }
 
 struct CorpWalletJournalView: View {
-    let characterId: Int
-    let division: Int
-    let divisionName: String
-    
-    @StateObject private var viewModel: CorpWalletJournalViewModel
+    @ObservedObject var viewModel: CorpWalletJournalViewModel
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -162,13 +158,6 @@ struct CorpWalletJournalView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
-    init(characterId: Int, division: Int, divisionName: String) {
-        self.characterId = characterId
-        self.division = division
-        self.divisionName = divisionName
-        _viewModel = StateObject(wrappedValue: CorpWalletJournalViewModel(characterId: characterId, division: division))
-    }
     
     var summarySection: some View {
         Section(header: Text(NSLocalizedString("Summary", comment: ""))
@@ -242,13 +231,6 @@ struct CorpWalletJournalView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .refreshable {
-            await viewModel.loadJournalData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadJournalData()
-        }
-        .navigationTitle(divisionName)
     }
 }
 

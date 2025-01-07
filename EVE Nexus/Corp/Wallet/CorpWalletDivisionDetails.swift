@@ -1,10 +1,47 @@
 import SwiftUI
 
+@MainActor
+final class CorpWalletDivisionViewModel: ObservableObject {
+    let journalViewModel: CorpWalletJournalViewModel
+    let transactionsViewModel: CorpWalletTransactionsViewModel
+    
+    init(characterId: Int, division: Int, databaseManager: DatabaseManager) {
+        self.journalViewModel = CorpWalletJournalViewModel(characterId: characterId, division: division)
+        self.transactionsViewModel = CorpWalletTransactionsViewModel(characterId: characterId, division: division, databaseManager: databaseManager)
+    }
+    
+    func loadInitialData() async {
+        // 同时加载两个视图的数据
+        async let journalTask = journalViewModel.loadJournalData()
+        async let transactionsTask = transactionsViewModel.loadTransactionData()
+        _ = await (journalTask, transactionsTask)
+    }
+    
+    func refreshData() async {
+        // 同时刷新两个视图的数据
+        async let journalTask = journalViewModel.loadJournalData(forceRefresh: true)
+        async let transactionsTask = transactionsViewModel.loadTransactionData(forceRefresh: true)
+        _ = await (journalTask, transactionsTask)
+    }
+}
+
 struct CorpWalletDivisionDetails: View {
     let characterId: Int
     let division: Int
     let divisionName: String
     @State private var selectedTab = 0
+    @StateObject private var viewModel: CorpWalletDivisionViewModel
+    
+    init(characterId: Int, division: Int, divisionName: String) {
+        self.characterId = characterId
+        self.division = division
+        self.divisionName = divisionName
+        self._viewModel = StateObject(wrappedValue: CorpWalletDivisionViewModel(
+            characterId: characterId,
+            division: division,
+            databaseManager: DatabaseManager.shared
+        ))
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -22,15 +59,10 @@ struct CorpWalletDivisionDetails: View {
             
             // 内容视图
             TabView(selection: $selectedTab) {
-                CorpWalletJournalView(characterId: characterId,
-                                    division: division,
-                                    divisionName: divisionName)
+                CorpWalletJournalView(viewModel: viewModel.journalViewModel)
                     .tag(0)
                 
-                CorpWalletTransactionsView(characterId: characterId,
-                                         division: division,
-                                         divisionName: divisionName,
-                                         databaseManager: DatabaseManager.shared)
+                CorpWalletTransactionsView(viewModel: viewModel.transactionsViewModel)
                     .tag(1)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -39,5 +71,11 @@ struct CorpWalletDivisionDetails: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(divisionName)
         .ignoresSafeArea(edges: .bottom)
+        .task {
+            await viewModel.loadInitialData()
+        }
+        .refreshable {
+            await viewModel.refreshData()
+        }
     }
 } 
