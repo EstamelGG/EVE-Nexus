@@ -195,8 +195,12 @@ struct WalletTransactionsView: View {
     var body: some View {
         List {
             if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                    Spacer()
+                }
             } else if viewModel.transactionGroups.isEmpty {
                 Section {
                     HStack {
@@ -237,6 +241,7 @@ struct WalletTransactionsView: View {
             await viewModel.loadTransactionData()
         }
         .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
+        .ignoresSafeArea(edges: .bottom)
     }
 }
 
