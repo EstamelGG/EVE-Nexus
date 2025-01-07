@@ -410,7 +410,7 @@ struct CharacterSkillsView: View {
                 Text("\(attr.current)")
                     .foregroundColor(.secondary)
             } else {
-                Text("\(attr.current)(\(attr.diff > 0 ? "+" : "-")\(abs(attr.diff)))")
+                Text("\(attr.current)(\(attr.diff > 0 ? "+" : "-")\(abs(attr.diff))) → \(attr.current + attr.diff)")
                     .foregroundColor(attr.diff > 0 ? .green : .red)
             }
         }
