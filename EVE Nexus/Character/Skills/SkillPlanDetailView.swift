@@ -14,7 +14,7 @@ struct SkillPlanDetailView: View {
     @State private var characterAttributes: CharacterAttributes?
     @State private var implantBonuses: ImplantAttributes?
     @State private var trainingRates: [Int: Int] = [:]  // [skillId: pointsPerHour]
-    @State private var skillTimeMultipliers: [Int: Double] = [:]  // [skillId: timeMultiplier]
+    @State private var skillTimeMultipliers: [Int: Int] = [:]  // [skillId: timeMultiplier]
     
     var body: some View {
         List {
@@ -354,14 +354,15 @@ struct SkillPlanDetailView: View {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                    let value = row["value"] as? Double {
-                    skillTimeMultipliers[typeId] = value
+                    skillTimeMultipliers[typeId] = Int(value)
                 }
             }
         }
+        // Logger.debug("\(skillTimeMultipliers)")
     }
     
-    private func getSkillTimeMultiplier(_ skillId: Int) -> Double {
-        return skillTimeMultipliers[skillId] ?? 1.0
+    private func getSkillTimeMultiplier(_ skillId: Int) -> Int {
+        return skillTimeMultipliers[skillId] ?? 1
     }
     
     private func updateSkillPlan() {
@@ -442,7 +443,7 @@ struct SkillPlanDetailView: View {
         for level in (currentLevel + 1)...targetLevel {
             if let baseSpForLevel = getBaseSkillPointsForLevel(level) {
                 // 根据训练倍增系数计算实际所需技能点
-                let spForLevel = Int(Double(baseSpForLevel) * timeMultiplier)
+                let spForLevel = Int(baseSpForLevel) * timeMultiplier
                 totalSP += spForLevel
                 if trainingRate > 0 {
                     totalTime += Double(spForLevel) / Double(trainingRate) * 3600 // 转换为秒
@@ -463,7 +464,7 @@ struct SkillPlanDetailView: View {
         if startLevel > 0 {
             for level in 1...startLevel {
                 if let baseSP = getBaseSkillPointsForLevel(level) {
-                    startSP += Int(Double(baseSP) * timeMultiplier)
+                    startSP += Int(baseSP) * timeMultiplier
                 }
             }
         }
@@ -472,7 +473,7 @@ struct SkillPlanDetailView: View {
         if skill.targetLevel > 0 {
             for level in 1...skill.targetLevel {
                 if let baseSP = getBaseSkillPointsForLevel(level) {
-                    endSP += Int(Double(baseSP) * timeMultiplier)
+                    endSP += Int(baseSP) * timeMultiplier
                 }
             }
         }
