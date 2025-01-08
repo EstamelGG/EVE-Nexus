@@ -514,7 +514,14 @@ struct SkillPlanDetailView: View {
         // 使用目标等级-1作为起始等级，目标等级作为结束等级
         let startLevel = skill.targetLevel - 1
         let endLevel = skill.targetLevel
-        let startSP = (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier
+        
+        // 获取实际的技能点数
+        let learnedSkills = getLearnedSkills(skillIds: [skill.skillID])
+        let actualSkillPoints = learnedSkills[skill.skillID]?.skillpoints_in_skill ?? 0
+        let actualLevel = learnedSkills[skill.skillID]?.trained_skill_level ?? 0
+        
+        // 如果实际等级等于计划的起始等级，使用实际技能点数作为起始点
+        let startSP = (actualLevel == startLevel) ? actualSkillPoints : (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier
         let endSP = (getBaseSkillPointsForLevel(endLevel) ?? 0) * timeMultiplier
         return (startSP, endSP)
     }
