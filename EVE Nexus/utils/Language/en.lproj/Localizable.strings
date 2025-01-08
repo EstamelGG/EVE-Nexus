@@ -196,6 +196,7 @@
 "Time_Days_Hours" = "%dd %dh";
 "Time_Days" = "%dd";
 "Time_Hours" = "%dh";
+"Time_Seconds" = "%ds";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
 "Time_Minutes_Seconds" = "%dm %ds";
