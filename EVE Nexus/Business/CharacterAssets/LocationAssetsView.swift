@@ -206,7 +206,7 @@ struct SubLocationAssetsView: View {
                                     itemInfo: viewModel.itemInfo(for: parentNode.type_id), 
                                     showItemCount: false,
                                     showCustomName: false)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                 } header: {
                     Text(NSLocalizedString("Container_Basic_Info", comment: ""))

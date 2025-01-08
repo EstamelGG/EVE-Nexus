@@ -215,7 +215,7 @@ struct MiningLedgerView: View {
                     Section {
                         ForEach(group.entries) { entry in
                             MiningItemRow(entry: entry, databaseManager: viewModel.databaseManager)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     } header: {
                         Text(String(format: NSLocalizedString("Mining_Monthly_Summary", comment: ""), monthFormatter.string(from: group.yearMonth)))

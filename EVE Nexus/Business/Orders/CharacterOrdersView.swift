@@ -250,7 +250,7 @@ struct CharacterOrdersView: View {
                                 itemInfo: itemInfoCache[order.typeId],
                                 locationInfo: locationInfoCache[order.locationId]
                             )
-                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     .listSectionSpacing(.compact)

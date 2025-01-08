@@ -202,6 +202,7 @@ struct SkillPlanView: View {
                     }
                 }
                 .onDelete(perform: deletePlan)
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Plan", comment: ""))
