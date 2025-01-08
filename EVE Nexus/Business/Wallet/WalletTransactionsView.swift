@@ -34,6 +34,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [WalletTransactionGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    private var initialLoadDone = false
     
     private let characterId: Int
     let databaseManager: DatabaseManager
@@ -103,6 +104,11 @@ final class WalletTransactionsViewModel: ObservableObject {
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -159,6 +165,7 @@ final class WalletTransactionsViewModel: ObservableObject {
                 await MainActor.run {
                     self.transactionGroups = groups
                     self.isLoading = false
+                    self.initialLoadDone = true
                 }
                 
             } catch {
