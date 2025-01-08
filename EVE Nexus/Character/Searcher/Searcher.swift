@@ -133,11 +133,17 @@ struct SearcherView: View {
                         if viewModel.isSearching {
                             HStack {
                                 Spacer()
-                                ProgressView()
-                                Text(NSLocalizedString("Main_Search_Searching", comment: ""))
-                                    .foregroundColor(.secondary)
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                    if !viewModel.searchingStatus.isEmpty {
+                                        Text(viewModel.searchingStatus)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
                                 Spacer()
                             }
+                            .padding(.vertical, 8)
                         } else if viewModel.error != nil {
                             HStack {
                                 Spacer()
@@ -260,6 +266,7 @@ class SearcherViewModel: ObservableObject {
     @Published var searchResults: [SearcherView.SearchResult] = []
     @Published var filteredResults: [SearcherView.SearchResult] = []
     @Published var isSearching = false
+    @Published var searchingStatus = "" // 添加搜索状态描述
     @Published var error: Error?
     
     private var searchTask: Task<Void, Never>?
@@ -313,6 +320,7 @@ class SearcherViewModel: ObservableObject {
         guard !isSearching else { return }
         
         isSearching = true
+        searchingStatus = NSLocalizedString("Main_Search_Status_Searching", comment: "")
         defer { isSearching = false }
         
         do {
@@ -320,6 +328,7 @@ class SearcherViewModel: ObservableObject {
             
             switch type {
             case .character:
+                searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
                 let data = try await CharacterSearchAPI.shared.search(
                     characterId: characterId,
                     categories: [.character],
@@ -334,6 +343,7 @@ class SearcherViewModel: ObservableObject {
                 
                 if let characters = searchResponse.character {
                     // 获取所有角色名称
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
                     let characterNames = try await fetchNamesFromESI(ids: characters)
                     
                     // 先创建基本的搜索结果并排序
@@ -350,6 +360,7 @@ class SearcherViewModel: ObservableObject {
                     let limitedResults = Array(basicResults.prefix(100))
                     
                     // 获取所有角色的公开信息
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
                     let publicInfos = try await withThrowingTaskGroup(of: (Int, CharacterPublicInfo).self) { group in
                         for result in limitedResults {
                             group.addTask {
@@ -379,19 +390,32 @@ class SearcherViewModel: ObservableObject {
                     }
                     
                     // 一次性获取所有军团和联盟名称
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
                     let corpNames = try await fetchNamesFromESI(ids: Array(corporationIds))
-                    let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
                     
-                    if Task.isCancelled { return }
-                    
-                    // 组装最终结果
-                    for var result in limitedResults {
-                        if let publicInfo = publicInfos[result.id] {
-                            result.corporationName = corpNames[publicInfo.corporation_id]
-                            if let allianceId = publicInfo.alliance_id {
-                                result.allianceName = allianceNames[allianceId]
+                    if !allianceIds.isEmpty {
+                        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
+                        let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
+                        
+                        if Task.isCancelled { return }
+                        
+                        // 组装最终结果
+                        for var result in limitedResults {
+                            if let publicInfo = publicInfos[result.id] {
+                                result.corporationName = corpNames[publicInfo.corporation_id]
+                                if let allianceId = publicInfo.alliance_id {
+                                    result.allianceName = allianceNames[allianceId]
+                                }
+                                results.append(result)
                             }
-                            results.append(result)
+                        }
+                    } else {
+                        // 如果没有联盟，直接组装结果
+                        for var result in limitedResults {
+                            if let publicInfo = publicInfos[result.id] {
+                                result.corporationName = corpNames[publicInfo.corporation_id]
+                                results.append(result)
+                            }
                         }
                     }
                 }
@@ -413,6 +437,7 @@ class SearcherViewModel: ObservableObject {
             Logger.error("搜索失败: \(error)")
             self.error = error
         }
+        searchingStatus = "" // 清除搜索状态
     }
     
     // 添加过滤方法

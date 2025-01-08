@@ -714,3 +714,18 @@
 "Main_Search_Filter_Station" = "Station";
 "Main_Search_Filter_Structure" = "Structure";
 "Main_Search_Filter_Clear" = "Clear Filters";
+
+// Search Status
+"Main_Search_Status_Searching" = "Searching...";
+"Main_Search_Status_Finding_Characters" = "Finding characters...";
+"Main_Search_Status_Loading_Names" = "Loading names...";
+"Main_Search_Status_Loading_Details" = "Loading details...";
+"Main_Search_Status_Loading_Corps" = "Loading corporation info...";
+"Main_Search_Status_Loading_Alliances" = "Loading alliance info...";
+
+// Search Results
+"Main_Search_Results" = "Search Results";
+"Main_Search_Failed" = "Search Failed";
+"Main_Search_Min_Length" = "Please enter at least 3 characters";
+"Main_Search_No_Results" = "No matching results found";
+"Main_Search_No_Filtered_Results" = "No results match the filter criteria";

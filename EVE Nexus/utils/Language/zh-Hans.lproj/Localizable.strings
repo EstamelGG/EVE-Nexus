@@ -715,3 +715,18 @@
 "Main_Search_Filter_Station" = "空间站";
 "Main_Search_Filter_Structure" = "建筑";
 "Main_Search_Filter_Clear" = "清除过滤";
+
+// 搜索状态
+"Main_Search_Status_Searching" = "正在搜索...";
+"Main_Search_Status_Finding_Characters" = "正在查找角色...";
+"Main_Search_Status_Loading_Names" = "正在加载名称...";
+"Main_Search_Status_Loading_Details" = "正在加载详细信息...";
+"Main_Search_Status_Loading_Corps" = "正在加载军团信息...";
+"Main_Search_Status_Loading_Alliances" = "正在加载联盟信息...";
+
+// 搜索结果
+"Main_Search_Results" = "搜索结果";
+"Main_Search_Failed" = "搜索失败";
+"Main_Search_Min_Length" = "请至少输入3个字符";
+"Main_Search_No_Results" = "未找到匹配结果";
+"Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
