@@ -170,14 +170,31 @@ struct SkillPlanView: View {
     @State private var isShowingDeleteAlert = false
     @State private var selectedPlan: SkillPlan?
     @State private var newPlanName = ""
+    @State private var searchText = ""  // 添加搜索文本状态
+    
+    // 添加过滤后的计划列表计算属性
+    private var filteredPlans: [SkillPlan] {
+        if searchText.isEmpty {
+            return skillPlans
+        } else {
+            return skillPlans.filter { plan in
+                plan.name.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
     
     var body: some View {
         List {
-            if skillPlans.isEmpty {
-                Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
-                    .foregroundColor(.secondary)
+            if filteredPlans.isEmpty {
+                if searchText.isEmpty {
+                    Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(String(format: NSLocalizedString("Main_EVE_Mail_No_Results", comment: "")))
+                        .foregroundColor(.secondary)
+                }
             } else {
-                ForEach(skillPlans) { plan in
+                ForEach(filteredPlans) { plan in
                     NavigationLink {
                         SkillPlanDetailView(plan: plan, characterId: characterId, databaseManager: databaseManager)
                     } label: {
@@ -188,6 +205,9 @@ struct SkillPlanView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Plan", comment: ""))
+        .searchable(text: $searchText, 
+                   placement: .navigationBarDrawer(displayMode: .always),
+                   prompt: NSLocalizedString("Main_Database_Search", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -249,11 +269,15 @@ struct SkillPlanView: View {
     }
     
     private func deletePlan(at offsets: IndexSet) {
-        for index in offsets {
-            let plan = skillPlans[index]
-            SkillPlanFileManager.shared.deleteSkillPlan(characterId: characterId, planId: plan.id)
+        // 将 filteredPlans 的索引转换为 skillPlans 的索引
+        let planIdsToDelete = offsets.map { filteredPlans[$0].id }
+        skillPlans.removeAll { plan in
+            if planIdsToDelete.contains(plan.id) {
+                SkillPlanFileManager.shared.deleteSkillPlan(characterId: characterId, planId: plan.id)
+                return true
+            }
+            return false
         }
-        skillPlans.remove(atOffsets: offsets)
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
