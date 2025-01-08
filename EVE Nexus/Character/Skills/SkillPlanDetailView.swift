@@ -427,7 +427,7 @@ struct SkillPlanDetailView: View {
         return 1 // 默认返回1，避免除以0
     }
     
-    private func calculateSkillRequirements(_ skill: PlannedSkill) -> (requiredSP: Int, trainingTime: TimeInterval) {
+    private func calculateSkillDetails(_ skill: PlannedSkill) -> (startSP: Int, endSP: Int, requiredSP: Int, trainingTime: TimeInterval) {
         // 获取训练速度
         let trainingRate = trainingRates[skill.skillID] ?? 0
         
@@ -447,20 +447,17 @@ struct SkillPlanDetailView: View {
         // 计算训练时间（如果有训练速度）
         let trainingTime: TimeInterval = trainingRate > 0 ? Double(requiredSP) / Double(trainingRate) * 3600 : 0 // 转换为秒
         
-        return (requiredSP, trainingTime)
+        return (startSP, endSP, requiredSP, trainingTime)
+    }
+    
+    private func calculateSkillRequirements(_ skill: PlannedSkill) -> (requiredSP: Int, trainingTime: TimeInterval) {
+        let details = calculateSkillDetails(skill)
+        return (details.requiredSP, details.trainingTime)
     }
     
     private func getSkillPointRange(_ skill: PlannedSkill) -> (start: Int, end: Int) {
-        let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
-        
-        // 获取前一级的完成点数（作为起始点数）
-        let startLevel = skill.targetLevel - 1
-        let startSP = startLevel > 0 ? (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier : 0
-        
-        // 获取目标等级的完成点数
-        let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
-        
-        return (startSP, endSP)
+        let details = calculateSkillDetails(skill)
+        return (details.startSP, details.endSP)
     }
     
     private func deleteSkill(at offsets: IndexSet) {
