@@ -1,13 +1,37 @@
 import SwiftUI
 import Foundation
+import UniformTypeIdentifiers
 
 struct SkillPlanDetailView: View {
     let plan: SkillPlan
     let characterId: Int
     @ObservedObject var databaseManager: DatabaseManager
+    @State private var isEditing = false
     
     var body: some View {
         List {
+            if isEditing {
+                Section(header: Text(NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))) {
+                    NavigationLink {
+                        Text("占位1")
+                    } label: {
+                        Text("占位1")
+                    }
+                    NavigationLink {
+                        Text("占位2")
+                    } label: {
+                        Text("占位2")
+                    }
+                    Button {
+                        if let clipboardString = UIPasteboard.general.string {
+                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
+                        }
+                    } label: {
+                        Text("从剪贴板导入")
+                    }
+                }
+            }
+            
             Section(header: Text(NSLocalizedString("Main_Skills_Plan_Total_Time", comment: ""))) {
                 Text(formatTimeInterval(plan.totalTrainingTime))
             }
@@ -28,6 +52,15 @@ struct SkillPlanDetailView: View {
             }
         }
         .navigationTitle(plan.name)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    isEditing.toggle()
+                } label: {
+                    Text(isEditing ? NSLocalizedString("Main_EVE_Mail_Done", comment: "") : NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))
+                }
+            }
+        }
     }
     
     private func skillRowView(_ skill: PlannedSkill) -> some View {
@@ -86,4 +119,4 @@ struct SkillPlanDetailView: View {
         }
         return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
     }
-} 
+}
