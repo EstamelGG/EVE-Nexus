@@ -64,8 +64,7 @@ struct CorpWalletDivisionDetails: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color(.systemGroupedBackground))
+            .padding(.vertical, 4)
             
             // 内容视图
             TabView(selection: $selectedTab) {
@@ -78,6 +77,7 @@ struct CorpWalletDivisionDetails: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(edges: .bottom)
         }
+        .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle(divisionName)
         .ignoresSafeArea(edges: .bottom)

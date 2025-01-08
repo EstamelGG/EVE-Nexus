@@ -186,7 +186,7 @@ struct CharacterOrdersView: View {
                         Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(viewModel.orders.filter { $0.isBuyOrder ?? false }.count))").tag(true)
                     }
                     .pickerStyle(.segmented)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal)
                     .padding(.vertical, 4)
                 }
                 .background(Color(.systemGroupedBackground))
