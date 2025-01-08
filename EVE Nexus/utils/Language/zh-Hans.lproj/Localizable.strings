@@ -491,11 +491,11 @@
 "Main_Skills_Not_Injected" = "未吸收";
 
 // 时间显示
-"Time_Days_Hours" = "%dd %dh";
-"Time_Days" = "%dd";
-"Time_Hours" = "%dh";
-"Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
+"Time_Days_Hours" = "%d天%d小时";
+"Time_Days" = "%d天";
+"Time_Hours" = "%d小时";
+"Time_Hours_Minutes" = "%d小时%d分钟";
+"Time_Minutes" = "%d分钟";
 
 // Character Attributes
 "Character_Attributes_Title" = "人物属性";

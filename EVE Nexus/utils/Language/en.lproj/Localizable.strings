@@ -450,9 +450,6 @@
 "Character_Jump_Fatigue" = "Jump Fatigue";
 "Character_No_Jump_Fatigue" = "No Jump Fatigue";
 "Character_Last_Jump" = "Last Jump: %@";
-"Time_Days_Hours_Minutes" = "%dd %dh %dm";
-"Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
 
 // Character Info
 "Character_Birthday" = "Birthday";
@@ -500,7 +497,6 @@
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
-"Main_Skills_Categories" = "Categories";
 
 // Character Attributes Time
 "Character_Attributes_Ready_Now" = "Now";
