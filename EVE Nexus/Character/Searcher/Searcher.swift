@@ -66,6 +66,12 @@ struct SearcherView: View {
         let type: SearchType
         var corporationName: String?
         var allianceName: String?
+        
+        init(id: Int, name: String, type: SearchType) {
+            self.id = id
+            self.name = name
+            self.type = type
+        }
     }
     
     // 搜索响应数据结构
@@ -267,6 +273,8 @@ class SearcherViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
+    private var corporationNames: [Int: String] = [:]
+    private var allianceNames: [Int: String] = [:]
     
     // 直接从ESI获取名称的方法
     private func fetchNamesFromESI(ids: [Int]) async throws -> [Int: String] {
@@ -323,6 +331,8 @@ class SearcherViewModel: ObservableObject {
         do {
             error = nil
             searchResults = [] // 清空当前结果
+            corporationNames = [:] // 清空缓存的名称
+            allianceNames = [:]
             
             switch type {
             case .character:
@@ -344,7 +354,7 @@ class SearcherViewModel: ObservableObject {
                     let characterNames = try await fetchNamesFromESI(ids: characters)
                     
                     // 创建基本的搜索结果
-                    let basicResults = characters.compactMap { id -> SearcherView.SearchResult? in
+                    let results = characters.compactMap { id -> SearcherView.SearchResult? in
                         guard let name = characterNames[id] else { return nil }
                         return SearcherView.SearchResult(
                             id: id,
@@ -353,75 +363,50 @@ class SearcherViewModel: ObservableObject {
                         )
                     }.sorted { $0.name < $1.name }
                     
-                    // 获取角色详细信息
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
-                    let publicInfos = try await withThrowingTaskGroup(of: (Int, CharacterPublicInfo).self) { group in
-                        for result in basicResults {
-                            group.addTask {
-                                let info = try await self.fetchCharacterInfoFromESI(characterId: result.id)
-                                return (result.id, info)
-                            }
-                        }
-                        
-                        var infos: [Int: CharacterPublicInfo] = [:]
-                        for try await (id, info) in group {
-                            infos[id] = info
-                        }
-                        return infos
-                    }
-                    
-                    if Task.isCancelled { return }
-                    
-                    // 收集军团和联盟ID
-                    var corporationIds: Set<Int> = []
-                    var allianceIds: Set<Int> = []
-                    
-                    for info in publicInfos.values {
-                        corporationIds.insert(info.corporation_id)
-                        if let allianceId = info.alliance_id {
-                            allianceIds.insert(allianceId)
-                        }
-                    }
-                    
-                    // 获取军团和联盟名称
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
-                    let corpNames = try await fetchNamesFromESI(ids: Array(corporationIds))
-                    
-                    var results: [SearcherView.SearchResult] = []
-                    
-                    if !allianceIds.isEmpty {
-                        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
-                        let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
-                        
-                        // 组装结果
-                        for var result in basicResults {
-                            if let publicInfo = publicInfos[result.id] {
-                                result.corporationName = corpNames[publicInfo.corporation_id]
-                                if let allianceId = publicInfo.alliance_id {
-                                    result.allianceName = allianceNames[allianceId]
-                                }
-                                results.append(result)
-                            }
-                        }
-                    } else {
-                        // 如果没有联盟，直接组装结果
-                        for var result in basicResults {
-                            if let publicInfo = publicInfos[result.id] {
-                                result.corporationName = corpNames[publicInfo.corporation_id]
-                                results.append(result)
-                            }
-                        }
-                    }
-                    
                     if Task.isCancelled { return }
                     
                     // 更新结果
                     searchResults = results
                     
+                    // 一次性获取所有角色的军团和联盟信息
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
+                    let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliationsInBatches(characterIds: characters)
+                    
+                    // 收集所有需要查询的军团和联盟ID
+                    var corpIds = Set<Int>()
+                    var allianceIds = Set<Int>()
+                    
+                    for affiliation in affiliations {
+                        corpIds.insert(affiliation.corporation_id)
+                        if let allianceId = affiliation.alliance_id {
+                            allianceIds.insert(allianceId)
+                        }
+                    }
+                    
+                    // 获取军团名称
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
+                    corporationNames = try await fetchNamesFromESI(ids: Array(corpIds))
+                    
+                    // 获取联盟名称
+                    if !allianceIds.isEmpty {
+                        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
+                        allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
+                    }
+                    
+                    // 更新搜索结果的军团和联盟信息
+                    for affiliation in affiliations {
+                        if let index = searchResults.firstIndex(where: { $0.id == affiliation.character_id }) {
+                            searchResults[index].corporationName = corporationNames[affiliation.corporation_id]
+                            if let allianceId = affiliation.alliance_id {
+                                searchResults[index].allianceName = allianceNames[allianceId]
+                            }
+                        }
+                    }
+                    
                     // 应用当前的过滤条件
                     filterResults(corporationFilter: currentCorpFilter, allianceFilter: currentAllianceFilter)
                     
-                    Logger.info("搜索完成，加载了 \(searchResults.count) 个结果，过滤后显示 \(filteredResults.count) 个结果")
+                    Logger.info("搜索完成，找到 \(searchResults.count) 个结果")
                     
                 } else {
                     searchResults = []
