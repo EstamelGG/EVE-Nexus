@@ -91,16 +91,31 @@ struct SkillPlanDetailView: View {
     
     private func skillRowView(_ skill: PlannedSkill) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(skill.skillName)
-                .font(.headline)
+            HStack(spacing: 2) {
+                Text(skill.skillName)
+                    .font(.headline)
+                    .lineLimit(1)
+                Spacer()
+                Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), skill.targetLevel))
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .padding(.trailing, 2)
+                SkillLevelIndicator(
+                    currentLevel: skill.currentLevel,
+                    trainingLevel: skill.targetLevel,
+                    isTraining: false
+                )
+                .padding(.trailing, 4)
+            }
             
             HStack {
-                Text("\(NSLocalizedString("Main_Skills_Plan_Current_Level", comment: "")): \(skill.currentLevel)")
-                Text("→")
-                Text("\(NSLocalizedString("Main_Skills_Plan_Target_Level", comment: "")): \(skill.targetLevel)")
+                Text("\(NSLocalizedString("Main_Skills_Plan_Required_SP", comment: "")): \(FormatUtil.format(Double(skill.requiredSP)))")
+                Spacer()
+                Text("\(NSLocalizedString("Main_Skills_Plan_Training_Time", comment: "")): \(formatTimeInterval(skill.trainingTime))")
             }
-            .font(.subheadline)
+            .font(.caption)
             .foregroundColor(.secondary)
+            .padding(.top, 2)
             
             if !skill.prerequisites.isEmpty {
                 Text(NSLocalizedString("Main_Skills_Plan_Prerequisites", comment: ""))
@@ -109,20 +124,24 @@ struct SkillPlanDetailView: View {
                     .padding(.top, 2)
                 
                 ForEach(skill.prerequisites) { prereq in
-                    Text("• \(prereq.skillName) \(prereq.targetLevel)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 2) {
+                        Text("• \(prereq.skillName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), prereq.targetLevel))
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .padding(.trailing, 2)
+                        SkillLevelIndicator(
+                            currentLevel: prereq.currentLevel,
+                            trainingLevel: prereq.targetLevel,
+                            isTraining: false
+                        )
+                        .padding(.trailing, 4)
+                    }
                 }
             }
-            
-            HStack {
-                Text("\(NSLocalizedString("Main_Skills_Plan_Training_Time", comment: "")): \(formatTimeInterval(skill.trainingTime))")
-                Spacer()
-                Text("\(NSLocalizedString("Main_Skills_Plan_Required_SP", comment: "")): \(FormatUtil.format(Double(skill.requiredSP)))")
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
-            .padding(.top, 2)
         }
         .padding(.vertical, 4)
     }
