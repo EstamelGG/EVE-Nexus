@@ -690,3 +690,28 @@
 "Main_Skills_Plan_Import_Parse_Failed" = "以下内容解析失败：";
 "Main_Skills_Plan_Import_Not_Found" = "以下技能未找到：";
 "Main_Skills_Plan_Import_Success" = "成功导入";
+
+"Main_Search" = "搜索";
+
+// 搜索页面
+"Main_Search_Title" = "搜索";
+"Main_Search_Placeholder" = "输入搜索内容...";
+"Main_Search_Type_Character" = "人物";
+"Main_Search_Type_Corporation" = "军团";
+"Main_Search_Type_Alliance" = "联盟";
+"Main_Search_Type_Structure" = "建筑";
+
+// 搜索过滤
+"Main_Search_Filter_Title" = "过滤条件";
+"Main_Search_Filter_Corporation" = "所属军团";
+"Main_Search_Filter_Alliance" = "所属联盟";
+"Main_Search_Filter_Ticker" = "简写";
+"Main_Search_Filter_Security" = "安全等级";
+"Main_Search_Filter_Structure_Type" = "建筑类型";
+"Main_Search_Filter_All" = "全部";
+"Main_Search_Filter_High_Sec" = "高安";
+"Main_Search_Filter_Low_Sec" = "低安";
+"Main_Search_Filter_Null_Sec" = "零安";
+"Main_Search_Filter_Station" = "空间站";
+"Main_Search_Filter_Structure" = "建筑";
+"Main_Search_Filter_Clear" = "清除过滤";

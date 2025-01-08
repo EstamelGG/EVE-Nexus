@@ -689,3 +689,28 @@
 "Main_Skills_Plan_Import_Parse_Failed" = "Failed to parse the following content:";
 "Main_Skills_Plan_Import_Not_Found" = "The following skills were not found:";
 "Main_Skills_Plan_Import_Success" = "Import successfully";
+
+"Main_Search" = "Search";
+
+// Searcher View
+"Main_Search_Title" = "Search";
+"Main_Search_Placeholder" = "Enter search content...";
+"Main_Search_Type_Character" = "Character";
+"Main_Search_Type_Corporation" = "Corp";
+"Main_Search_Type_Alliance" = "Alliance";
+"Main_Search_Type_Structure" = "Structure";
+
+// Search Filters
+"Main_Search_Filter_Title" = "Filters";
+"Main_Search_Filter_Corporation" = "Corporation";
+"Main_Search_Filter_Alliance" = "Alliance";
+"Main_Search_Filter_Ticker" = "Ticker";
+"Main_Search_Filter_Security" = "Security Status";
+"Main_Search_Filter_Structure_Type" = "Structure Type";
+"Main_Search_Filter_All" = "All";
+"Main_Search_Filter_High_Sec" = "High Sec";
+"Main_Search_Filter_Low_Sec" = "Low Sec";
+"Main_Search_Filter_Null_Sec" = "Null Sec";
+"Main_Search_Filter_Station" = "Station";
+"Main_Search_Filter_Structure" = "Structure";
+"Main_Search_Filter_Clear" = "Clear Filters";

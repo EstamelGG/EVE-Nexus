@@ -622,6 +622,10 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CharacterLoyaltyPointsView(characterId: character.CharacterID)
                             }
+                        case "searcher":
+                            if let character = viewModel.selectedCharacter {
+                                SearcherView(character: character)
+                            }
                         case "database":
                             DatabaseBrowserView(
                                 databaseManager: databaseManager,
@@ -791,6 +795,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
                     icon: "lpstore"
+                )
+            }
+            
+            NavigationLink(value: "searcher") {
+                RowView(
+                    title: NSLocalizedString("Main_Search", comment: ""),
+                    icon: "peopleandplaces"
                 )
             }
         } header: {
