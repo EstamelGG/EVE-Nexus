@@ -49,16 +49,16 @@ struct SkillPointForLevelView: View {
             parameters: [skillId]
         )
         
-        var timeMultiplier: Double = 1.0
+        var timeMultiplier = 1
         if case .success(let rows) = result,
            let row = rows.first,
            let value = row["value"] as? Double {
-            timeMultiplier = value
+            timeMultiplier = Int(value)
         }
         
         // 使用基准点数乘以倍增系数
         let basePoints = SkillProgressCalculator.baseSkillPoints[level - 1]
-        let totalPoints = Int(Double(basePoints) * timeMultiplier)
+        let totalPoints = basePoints * timeMultiplier
         Logger.debug("基准点数: \(basePoints), 倍增系数: \(timeMultiplier), 总点数: \(totalPoints)")
         return totalPoints
     }
