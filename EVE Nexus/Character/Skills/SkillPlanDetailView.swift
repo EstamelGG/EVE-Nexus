@@ -194,7 +194,8 @@ struct SkillPlanDetailView: View {
                 
                 // 只有在有有效技能时才更新计划
                 if !validSkills.isEmpty {
-                    updatedPlan.skills = validSkills
+                    // 将新技能添加到现有技能列表末尾
+                    updatedPlan.skills.append(contentsOf: validSkills)
                     
                     // 保存更新后的计划
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)

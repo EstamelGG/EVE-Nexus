@@ -16,11 +16,11 @@ class SkillPlanReaderTool {
         var notFoundSkills: [String] = []
         var skills: [String] = []
         
-        // 收集所有技能名称
+        // 收集所有技能名称和等级
         let lines = text.components(separatedBy: .newlines)
-        var skillNames: Set<String> = []
-        var skillLevels: [String: Int] = [:]
+        var skillEntries: [(name: String, level: Int)] = []
         
+        // 第一步：解析每一行，收集技能名称和等级
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
             if trimmedLine.isEmpty { continue }
@@ -36,8 +36,7 @@ class SkillPlanReaderTool {
                 let skillName = String(trimmedLine[nameRange]).trimmingCharacters(in: .whitespaces)
                 if let level = Int(trimmedLine[levelRange]),
                    level >= 1 && level <= 5 {
-                    skillNames.insert(skillName)
-                    skillLevels[skillName] = level
+                    skillEntries.append((name: skillName, level: level))
                 } else {
                     parseFailedLines.append(trimmedLine)
                 }
@@ -46,9 +45,11 @@ class SkillPlanReaderTool {
             }
         }
         
-        // 如果有技能名称，查询它们的 type_id
-        if !skillNames.isEmpty {
-            let skillNamesString = skillNames.map { "'\($0)'" }.joined(separator: " UNION SELECT ")
+        // 如果有技能条目，查询它们的 type_id
+        if !skillEntries.isEmpty {
+            // 获取唯一的技能名称用于查询
+            let uniqueSkillNames = Set(skillEntries.map { $0.name })
+            let skillNamesString = uniqueSkillNames.map { "'\($0)'" }.joined(separator: " UNION SELECT ")
             let query = """
                 SELECT t.type_id, t.name
                 FROM types t
@@ -71,13 +72,12 @@ class SkillPlanReaderTool {
                 Logger.error("查询技能失败: \(error)")
             }
             
-            // 检查哪些技能未找到
-            for skillName in skillNames {
-                if let typeId = typeIdMap[skillName],
-                   let level = skillLevels[skillName] {
-                    skills.append("\(typeId):\(level)")
+            // 按原始顺序处理每个技能条目
+            for entry in skillEntries {
+                if let typeId = typeIdMap[entry.name] {
+                    skills.append("\(typeId):\(entry.level)")
                 } else {
-                    notFoundSkills.append(skillName)
+                    notFoundSkills.append(entry.name)
                 }
             }
         }
