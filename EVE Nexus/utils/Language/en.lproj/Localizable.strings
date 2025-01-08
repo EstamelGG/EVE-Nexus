@@ -493,6 +493,7 @@
 "Main_Skills_Time_Required" = "Required: %@";
 "Main_Skills_Categories" = "Skill Categories";
 "Main_Skills_Not_Injected" = "Not Injected";
+"Main_Skills_Completed" = "Completed";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";

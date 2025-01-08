@@ -490,6 +490,7 @@
 "Main_Skills_Time_Required" = "需要: %@";
 "Main_Skills_Categories" = "技能目录";
 "Main_Skills_Not_Injected" = "未吸收";
+"Main_Skills_Completed" = "已完成";
 
 // 时间显示
 "Time_Days_Hours" = "%d天%d小时";

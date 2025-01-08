@@ -126,7 +126,12 @@ struct SkillPlanDetailView: View {
                     Text("\(FormatUtil.format(Double(spRange.start)))/\(FormatUtil.format(Double(spRange.end))) SP")
                 }
                 Spacer()
-                Text(formatTimeInterval(skill.trainingTime))
+                if skill.isCompleted {
+                    Text(NSLocalizedString("Main_Skills_Completed", comment: ""))
+                        .foregroundColor(.green)
+                } else {
+                    Text(formatTimeInterval(skill.trainingTime))
+                }
             }
             .font(.caption)
             .foregroundColor(.secondary)
@@ -199,6 +204,9 @@ struct SkillPlanDetailView: View {
                     return components.count == 2 ? Int(components[0]) : nil
                 }
                 
+                // 获取已学习的技能信息
+                let learnedSkills = getLearnedSkills(skillIds: newSkillIds)
+                
                 // 批量加载新技能的倍增系数
                 loadSkillTimeMultipliers(newSkillIds)
                 
@@ -208,12 +216,12 @@ struct SkillPlanDetailView: View {
                     let components = skillString.split(separator: ":")
                     guard components.count == 2,
                           let typeId = Int(components[0]),
-                          let level = Int(components[1]) else {
+                          let targetLevel = Int(components[1]) else {
                         return nil
                     }
                     
                     // 检查是否已存在相同技能和等级
-                    if updatedPlan.skills.contains(where: { $0.skillID == typeId && $0.targetLevel == level }) {
+                    if updatedPlan.skills.contains(where: { $0.skillID == typeId && $0.targetLevel == targetLevel }) {
                         return nil
                     }
                     
@@ -230,6 +238,26 @@ struct SkillPlanDetailView: View {
                         }
                     case .error(let error):
                         Logger.error("获取技能名称失败: \(error)")
+                    }
+                    
+                    // 获取已学习的技能信息
+                    let learnedSkill = learnedSkills[typeId]
+                    let currentLevel = learnedSkill?.trained_skill_level ?? 0
+                    let currentSkillPoints = learnedSkill?.skillpoints_in_skill ?? 0
+                    
+                    // 如果目标等级小于等于当前等级，说明已完成
+                    if targetLevel <= currentLevel {
+                        return PlannedSkill(
+                            id: UUID(),
+                            skillID: typeId,
+                            skillName: skillName,
+                            currentLevel: currentLevel,
+                            targetLevel: targetLevel,
+                            trainingTime: 0,
+                            requiredSP: 0,
+                            prerequisites: [],
+                            isCompleted: true
+                        )
                     }
                     
                     // 计算训练速度（如果还没有）
@@ -251,11 +279,13 @@ struct SkillPlanDetailView: View {
                         id: UUID(),
                         skillID: typeId,
                         skillName: skillName,
-                        currentLevel: 0,
-                        targetLevel: level,
+                        currentLevel: currentLevel,
+                        targetLevel: targetLevel,
                         trainingTime: 0,
                         requiredSP: 0,
-                        prerequisites: []
+                        prerequisites: [],
+                        currentSkillPoints: currentSkillPoints,
+                        isCompleted: false
                     )
                     
                     // 计算训练时间和所需技能点
@@ -269,7 +299,9 @@ struct SkillPlanDetailView: View {
                         targetLevel: skill.targetLevel,
                         trainingTime: trainingTime,
                         requiredSP: requiredSP,
-                        prerequisites: skill.prerequisites
+                        prerequisites: skill.prerequisites,
+                        currentSkillPoints: currentSkillPoints,
+                        isCompleted: false
                     )
                 }
                 
@@ -279,8 +311,8 @@ struct SkillPlanDetailView: View {
                     updatedPlan.skills.append(contentsOf: validSkills)
                     
                     // 更新计划的总训练时间和总技能点
-                    updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + $1.trainingTime }
-                    updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + $1.requiredSP }
+                    updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + ($1.isCompleted ? 0 : $1.trainingTime) }
+                    updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + ($1.isCompleted ? 0 : $1.requiredSP) }
                     
                     // 保存更新后的计划
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
@@ -334,6 +366,32 @@ struct SkillPlanDetailView: View {
                 showErrorAlert = true
                 shouldDismissSheet = false
             }
+        }
+    }
+    
+    private func getLearnedSkills(skillIds: [Int]) -> [Int: CharacterSkill] {
+        // 从character_skills表获取技能数据
+        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        
+        guard case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(skillsQuery, parameters: [characterId]),
+              let row = rows.first,
+              let skillsJson = row["skills_data"] as? String,
+              let data = skillsJson.data(using: .utf8) else {
+            return [:]
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
+            
+            // 创建技能ID到技能信息的映射
+            let skillsDict = Dictionary(uniqueKeysWithValues: skillsResponse.skills.map { ($0.skill_id, $0) })
+            
+            // 只返回请求的技能ID对应的技能信息
+            return skillsDict.filter { skillIds.contains($0.key) }
+        } catch {
+            Logger.error("解析技能数据失败: \(error)")
+            return [:]
         }
     }
     
@@ -400,22 +458,62 @@ struct SkillPlanDetailView: View {
         var totalTrainingTime: TimeInterval = 0
         var totalSkillPoints = 0
         
+        // 获取已学习的技能信息
+        let skillIds = updatedPlan.skills.map { $0.skillID }
+        let learnedSkills = getLearnedSkills(skillIds: skillIds)
+    
         // 更新每个技能的训练时间和所需技能点
         updatedPlan.skills = updatedPlan.skills.map { skill in
-            let (requiredSP, trainingTime) = calculateSkillRequirements(skill)
+            // 获取已学习的技能信息
+            let learnedSkill = learnedSkills[skill.skillID]
+            let currentLevel = learnedSkill?.trained_skill_level ?? 0
+            let currentSkillPoints = learnedSkill?.skillpoints_in_skill ?? 0
             
-            totalTrainingTime += trainingTime
-            totalSkillPoints += requiredSP
+            // 如果目标等级小于等于当前等级，说明已完成
+            if skill.targetLevel <= currentLevel {
+                return PlannedSkill(
+                    id: skill.id,
+                    skillID: skill.skillID,
+                    skillName: skill.skillName,
+                    currentLevel: currentLevel,
+                    targetLevel: skill.targetLevel,
+                    trainingTime: 0,
+                    requiredSP: 0,
+                    prerequisites: skill.prerequisites,
+                    currentSkillPoints: currentSkillPoints,
+                    isCompleted: true
+                )
+            }
+            
+            let (requiredSP, trainingTime) = calculateSkillRequirements(PlannedSkill(
+                id: skill.id,
+                skillID: skill.skillID,
+                skillName: skill.skillName,
+                currentLevel: currentLevel,
+                targetLevel: skill.targetLevel,
+                trainingTime: 0,
+                requiredSP: 0,
+                prerequisites: skill.prerequisites,
+                currentSkillPoints: currentSkillPoints,
+                isCompleted: false
+            ))
+            
+            if !skill.isCompleted {
+                totalTrainingTime += trainingTime
+                totalSkillPoints += requiredSP
+            }
             
             return PlannedSkill(
                 id: skill.id,
                 skillID: skill.skillID,
                 skillName: skill.skillName,
-                currentLevel: skill.currentLevel,
+                currentLevel: currentLevel,
                 targetLevel: skill.targetLevel,
                 trainingTime: trainingTime,
                 requiredSP: requiredSP,
-                prerequisites: skill.prerequisites
+                prerequisites: skill.prerequisites,
+                currentSkillPoints: currentSkillPoints,
+                isCompleted: skill.targetLevel <= currentLevel
             )
         }
         
@@ -464,12 +562,11 @@ struct SkillPlanDetailView: View {
         // 获取技能的训练倍增系数
         let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
         
-        // 获取前一级的完成点数（作为起始点数）
-        let startLevel = skill.targetLevel - 1
-        let startSP = startLevel > 0 ? (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier : 0
-        
         // 获取目标等级的完成点数
         let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
+        
+        // 使用当前技能点数作为起始点数（如果有）
+        let startSP = skill.currentSkillPoints ?? 0
         
         // 计算需要训练的技能点数
         let requiredSP = endSP - startSP
@@ -495,8 +592,8 @@ struct SkillPlanDetailView: View {
         updatedPlan.skills.remove(atOffsets: offsets)
         
         // 重新计算总时间和技能点
-        updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + $1.trainingTime }
-        updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + $1.requiredSP }
+        updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + ($1.isCompleted ? 0 : $1.trainingTime) }
+        updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + ($1.isCompleted ? 0 : $1.requiredSP) }
         
         // 保存更新后的计划
         SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)

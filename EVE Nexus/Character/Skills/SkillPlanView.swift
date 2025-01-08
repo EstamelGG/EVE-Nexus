@@ -20,6 +20,8 @@ struct PlannedSkill: Identifiable {
     var trainingTime: TimeInterval
     var requiredSP: Int
     var prerequisites: [PlannedSkill]
+    var currentSkillPoints: Int?
+    var isCompleted: Bool
 }
 
 struct SkillPlanData: Codable {
@@ -137,7 +139,9 @@ class SkillPlanFileManager {
                             targetLevel: level,
                             trainingTime: 0,  // 这里需要计算训练时间
                             requiredSP: 0,    // 这里需要计算所需技能点
-                            prerequisites: [] // 这里需要获取前置技能
+                            prerequisites: [], // 这里需要获取前置技能
+                            currentSkillPoints: nil,
+                            isCompleted: false
                         )
                     }
                     
