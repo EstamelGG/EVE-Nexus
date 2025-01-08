@@ -4,6 +4,7 @@ import SwiftUI
 struct ShowItemInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     var itemID: Int
     
     @State private var itemDetails: ItemDetails?
@@ -85,6 +86,16 @@ struct ShowItemInfo: View {
                 // 如果是技能，显示依赖该技能的物品列表
                 if let categoryID = itemDetails.categoryID,
                    categoryID == 16 {
+                    // 技能点数和训练时间列表
+                    Section(header: Text(NSLocalizedString("Main_Database_Training_Time", comment: "")).font(.headline)) {
+                        SkillPointForLevelView(
+                            skillId: itemID,
+                            characterId: currentCharacterId == 0 ? nil : currentCharacterId,
+                            databaseManager: databaseManager
+                        )
+                    }
+                    
+                    // 依赖该技能的物品列表
                     SkillDependencySection(
                         skillID: itemID,
                         databaseManager: databaseManager

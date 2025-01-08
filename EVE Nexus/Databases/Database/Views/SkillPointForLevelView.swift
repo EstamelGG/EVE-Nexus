@@ -4,63 +4,37 @@ struct SkillPointForLevelView: View {
     let skillId: Int
     let characterId: Int?
     let databaseManager: DatabaseManager
+    @State private var characterAttributes: CharacterAttributes?
     
-    private static let defaultAttributes: [Int: Int] = [
-        3: 20, // 感知
-        4: 20, // 记忆
-        1: 20, // 毅力
-        2: 20, // 智力
-        5: 19  // 魅力
-    ]
+    private static let defaultAttributes = CharacterAttributes(
+        charisma: 19,
+        intelligence: 20,
+        memory: 20,
+        perception: 20,
+        willpower: 20,
+        bonus_remaps: 0,
+        accrued_remap_cooldown_date: nil,
+        last_remap_date: nil
+    )
     
-    private var skillAttributes: (primary: Int, secondary: Int, timeModifier: Int)? {
-        let result = databaseManager.executeQuery(
-            "SELECT primary_attribute, secondary_attribute, time_modifier FROM types WHERE type_id = ?",
-            parameters: [skillId]
+    private var skillAttributes: (primary: Int, secondary: Int)? {
+        return SkillTrainingCalculator.getSkillAttributes(
+            skillId: skillId,
+            databaseManager: databaseManager
         )
-        
-        if case .success(let rows) = result,
-           let row = rows.first,
-           let primary = row["primary_attribute"] as? Int,
-           let secondary = row["secondary_attribute"] as? Int,
-           let timeModifier = row["time_modifier"] as? Int {
-            return (primary, secondary, timeModifier)
-        }
-        return nil
-    }
-    
-    private var characterAttributes: [Int: Int] {
-        // 如果没有角色ID或查询失败，直接返回默认值
-        guard let characterId = characterId else {
-            return Self.defaultAttributes
-        }
-        
-        let result = CharacterDatabaseManager.shared.executeQuery(
-            "SELECT attribute_id, value FROM character_attributes WHERE character_id = ?",
-            parameters: [characterId]
-        )
-        
-        var attributes: [Int: Int] = [:]
-        if case .success(let rows) = result {
-            for row in rows {
-                if let attributeId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Int {
-                    attributes[attributeId] = value
-                }
-            }
-        }
-        
-        return attributes.isEmpty ? Self.defaultAttributes : attributes
     }
     
     private var skillPointsPerHour: Double {
-        guard let attrs = skillAttributes,
-              let primary = characterAttributes[attrs.primary],
-              let secondary = characterAttributes[attrs.secondary] else {
+        guard let attrs = skillAttributes else {
             return 0
         }
         
-        return Double(primary * 60 + secondary * 30) / Double(attrs.timeModifier)
+        let attributes = characterAttributes ?? Self.defaultAttributes
+        return Double(SkillTrainingCalculator.calculateTrainingRate(
+            primaryAttrId: attrs.primary,
+            secondaryAttrId: attrs.secondary,
+            attributes: attributes
+        ) ?? 0)
     }
     
     private func getSkillPointsForLevel(_ level: Int) -> Int {
@@ -78,6 +52,11 @@ struct SkillPointForLevelView: View {
     }
     
     private func formatTrainingTime(skillPoints: Int) -> String {
+        Logger.debug("SkillPointsPerHour: \(skillPointsPerHour)")
+        guard skillPointsPerHour > 0 else {
+            return "N/A"
+        }
+        
         let hours = Double(skillPoints) / skillPointsPerHour
         
         if hours < 1 {
@@ -122,5 +101,14 @@ struct SkillPointForLevelView: View {
             }
         }
         .listStyle(.plain)
+        .task {
+            if let characterId = characterId {
+                do {
+                    characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+                } catch {
+                    Logger.error("获取角色属性失败: \(error)")
+                }
+            }
+        }
     }
 } 
