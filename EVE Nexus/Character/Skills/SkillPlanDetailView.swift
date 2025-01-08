@@ -336,9 +336,20 @@ struct SkillPlanDetailView: View {
                     // 保存更新后的计划
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
                     
-                    // 更新父视图中的计划列表
-                    if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-                        skillPlans[index] = updatedPlan
+                    // 在主线程中更新UI状态
+                    DispatchQueue.main.async {
+                        // 更新当前视图的计划
+                        plan = updatedPlan
+                        
+                        // 更新父视图中的计划列表
+                        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
+                            skillPlans[index] = updatedPlan
+                        }
+                        
+                        // 重新加载所有数据并计算注入器需求
+                        Task {
+                            await loadCharacterData()
+                        }
                     }
                 }
                 
