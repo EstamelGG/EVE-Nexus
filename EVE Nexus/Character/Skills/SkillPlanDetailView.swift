@@ -181,6 +181,11 @@ struct SkillPlanDetailView: View {
                         return nil
                     }
                     
+                    // 检查是否已存在相同技能和等级
+                    if updatedPlan.skills.contains(where: { $0.skillID == typeId && $0.targetLevel == level }) {
+                        return nil
+                    }
+                    
                     // 从数据库获取技能名称
                     let query = "SELECT name FROM types WHERE type_id = \(typeId)"
                     let queryResult = databaseManager.executeQuery(query)

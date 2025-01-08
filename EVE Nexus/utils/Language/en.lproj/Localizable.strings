@@ -686,3 +686,4 @@
 "Main_Skills_Plan_Import_Alert_Title" = "Import Result";
 "Main_Skills_Plan_Import_Parse_Failed" = "Failed to parse the following content:";
 "Main_Skills_Plan_Import_Not_Found" = "The following skills were not found:";
+"Main_Skills_Plan_Import_Success" = "Import successfully";
