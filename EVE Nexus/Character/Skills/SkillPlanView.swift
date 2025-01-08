@@ -23,9 +23,10 @@ struct SkillPlanView: View {
     let characterId: Int
     @ObservedObject var databaseManager: DatabaseManager
     @State private var skillPlans: [SkillPlan] = []
-    @State private var isAddingPlan = false
+    @State private var isShowingAddAlert = false
     @State private var isShowingDeleteAlert = false
     @State private var selectedPlan: SkillPlan?
+    @State private var newPlanName = ""
     
     var body: some View {
         List {
@@ -47,19 +48,34 @@ struct SkillPlanView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    isAddingPlan = true
+                    newPlanName = ""
+                    isShowingAddAlert = true
                 } label: {
                     Image(systemName: "plus")
                 }
             }
         }
-        .sheet(isPresented: $isAddingPlan) {
-            NavigationView {
-                AddSkillPlanView(characterId: characterId, databaseManager: databaseManager) { newPlan in
+        .alert(NSLocalizedString("Main_Skills_Plan_Add", comment: ""), isPresented: $isShowingAddAlert) {
+            TextField(NSLocalizedString("Main_Skills_Plan_Name", comment: ""), text: $newPlanName)
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
+                newPlanName = ""
+            }
+            Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                if !newPlanName.isEmpty {
+                    let newPlan = SkillPlan(
+                        id: UUID(),
+                        name: newPlanName,
+                        skills: [],
+                        totalTrainingTime: 0,
+                        totalSkillPoints: 0
+                    )
                     skillPlans.append(newPlan)
-                    isAddingPlan = false
+                    newPlanName = ""
                 }
             }
+            .disabled(newPlanName.isEmpty)
+        } message: {
+            Text(NSLocalizedString("Main_Skills_Plan_Name", comment: ""))
         }
     }
     
