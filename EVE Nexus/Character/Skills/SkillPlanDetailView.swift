@@ -18,6 +18,7 @@ struct SkillPlanDetailView: View {
     @State private var injectorCalculation: InjectorCalculation?
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     @State private var isLoadingInjectors = true
+    @State private var learnedSkills: [Int: CharacterSkill] = [:]  // 添加缓存
     
     init(plan: SkillPlan, characterId: Int, databaseManager: DatabaseManager, skillPlans: Binding<[SkillPlan]>) {
         _plan = State(initialValue: plan)
@@ -231,8 +232,10 @@ struct SkillPlanDetailView: View {
                     return components.count == 2 ? Int(components[0]) : nil
                 }
                 
-                // 获取已学习的技能信息
-                let learnedSkills = getLearnedSkills(skillIds: newSkillIds)
+                // 获取新技能的已学习信息
+                let newLearnedSkills = getLearnedSkills(skillIds: newSkillIds)
+                // 更新缓存
+                learnedSkills.merge(newLearnedSkills) { current, _ in current }
                 
                 // 批量加载新技能的倍增系数
                 loadSkillTimeMultipliers(newSkillIds)
@@ -381,6 +384,49 @@ struct SkillPlanDetailView: View {
     }
     
     private func loadCharacterData() async {
+        // 先加载已学习的技能数据
+        if learnedSkills.isEmpty {
+            learnedSkills = getLearnedSkills(skillIds: plan.skills.map { $0.skillID })
+        }
+        
+        // 加载技能名称
+        var updatedSkills = plan.skills
+        let skillIds = plan.skills.map { $0.skillID }
+        let query = """
+            SELECT type_id, name
+            FROM types
+            WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            let nameDict = Dictionary(uniqueKeysWithValues: rows.compactMap { row -> (Int, String)? in
+                guard let typeId = row["type_id"] as? Int,
+                      let name = row["name"] as? String else {
+                    return nil
+                }
+                return (typeId, name)
+            })
+            
+            // 更新技能名称
+            updatedSkills = updatedSkills.map { skill in
+                if let name = nameDict[skill.skillID] {
+                    return PlannedSkill(
+                        id: skill.id,
+                        skillID: skill.skillID,
+                        skillName: name,
+                        currentLevel: skill.currentLevel,
+                        targetLevel: skill.targetLevel,
+                        trainingTime: skill.trainingTime,
+                        requiredSP: skill.requiredSP,
+                        prerequisites: skill.prerequisites,
+                        currentSkillPoints: skill.currentSkillPoints,
+                        isCompleted: skill.isCompleted
+                    )
+                }
+                return skill
+            }
+        }
+        
         // 加载角色属性
         characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
         
@@ -388,12 +434,11 @@ struct SkillPlanDetailView: View {
         implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
         
         // 批量获取所有技能的倍增系数
-        let skillIds = plan.skills.map { $0.skillID }
         loadSkillTimeMultipliers(skillIds)
         
         // 计算所有技能的训练速度
         if let attrs = characterAttributes {
-            for skill in plan.skills {
+            for skill in updatedSkills {
                 if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
                     skillId: skill.skillID,
                     databaseManager: databaseManager
@@ -410,7 +455,7 @@ struct SkillPlanDetailView: View {
         }
         
         // 更新计划中的技能
-        let updatedSkills = plan.skills.map { skill in
+        let finalSkills = updatedSkills.map { skill in
             createPlannedSkill(
                 typeId: skill.skillID,
                 skillName: skill.skillName,
@@ -419,7 +464,7 @@ struct SkillPlanDetailView: View {
             )
         }
         
-        let updatedPlan = updatePlanWithSkills(plan, skills: updatedSkills)
+        let updatedPlan = updatePlanWithSkills(plan, skills: finalSkills)
         
         // 在主线程更新状态
         await MainActor.run {
@@ -517,8 +562,7 @@ struct SkillPlanDetailView: View {
         let startLevel = skill.targetLevel - 1
         let endLevel = skill.targetLevel
         
-        // 获取实际的技能点数
-        let learnedSkills = getLearnedSkills(skillIds: [skill.skillID])
+        // 使用缓存的技能数据
         let actualSkillPoints = learnedSkills[skill.skillID]?.skillpoints_in_skill ?? 0
         let actualLevel = learnedSkills[skill.skillID]?.trained_skill_level ?? 0
         
