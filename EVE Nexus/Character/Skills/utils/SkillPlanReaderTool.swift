@@ -1,7 +1,17 @@
 import Foundation
 
+struct SkillPlanParseResult {
+    let skills: [String]
+    let parseErrors: [String]
+    let notFoundSkills: [String]
+    
+    var hasErrors: Bool {
+        return !parseErrors.isEmpty || !notFoundSkills.isEmpty
+    }
+}
+
 class SkillPlanReaderTool {
-    static func parseSkillPlan(from text: String, databaseManager: DatabaseManager) -> [String] {
+    static func parseSkillPlan(from text: String, databaseManager: DatabaseManager) -> SkillPlanParseResult {
         Logger.debug("开始解析技能计划文本...")
         
         // 将输入文本按行分割
@@ -47,18 +57,21 @@ class SkillPlanReaderTool {
             skillsWithLevel.append((name: skillName, level: level))
         }
         
-        // 显示解析失败的行
+        // 收集解析失败的行
+        var parseErrors: [String] = []
         if !parseFailedLines.isEmpty {
             Logger.debug("以下行解析失败:")
             for failedLine in parseFailedLines {
-                Logger.debug("- 第 \(failedLine.lineNumber) 行: \(failedLine.content)")
+                let errorMessage = "第 \(failedLine.lineNumber) 行: \(failedLine.content)"
+                parseErrors.append(errorMessage)
+                Logger.debug("- \(errorMessage)")
             }
         }
         
-        // 如果没有解析出任何技能，直接返回空数组
+        // 如果没有解析出任何技能，返回空结果
         if skillsWithLevel.isEmpty {
             Logger.debug("技能计划解析失败 - 未找到任何有效的技能行")
-            return []
+            return SkillPlanParseResult(skills: [], parseErrors: parseErrors, notFoundSkills: [])
         }
         
         // 获取去重后的技能名称集合
@@ -72,7 +85,6 @@ class SkillPlanReaderTool {
             FROM (\(skillNamesValues)) s
             LEFT JOIN types t ON t.name = s.name
         """
-        // Logger.debug("执行SQL查询: \(query)")
         
         // 执行查询
         var typeIdMap: [String: Int] = [:]
@@ -90,29 +102,30 @@ class SkillPlanReaderTool {
             
         case .error(let error):
             Logger.error("SQL查询失败: \(error)")
-            return []
+            return SkillPlanParseResult(skills: [], parseErrors: ["SQL查询失败: \(error)"], notFoundSkills: [])
         }
         
         // 构建最终结果
         var finalResult: [String] = []
-        var notFoundSkills: [(name: String, level: Int)] = []
+        var notFoundSkills: [String] = []
         
         for skill in skillsWithLevel {
             let typeId = typeIdMap[skill.name] ?? 0
             finalResult.append("\(typeId):\(skill.level)")
             if typeId == 0 {
-                notFoundSkills.append(skill)
+                notFoundSkills.append(skill.name)
             }
         }
-        // 显示未找到的技能及其等级
+        
+        // 记录未找到的技能
         if !notFoundSkills.isEmpty {
             Logger.debug("以下技能在数据库中未找到:")
-            for skill in notFoundSkills {
-                Logger.debug("- \(skill.name) (等级 \(skill.level))")
+            for skillName in notFoundSkills {
+                Logger.debug("- \(skillName)")
             }
         }
         
         Logger.debug("技能计划解析完成，返回 \(finalResult.count) 个结果")
-        return finalResult
+        return SkillPlanParseResult(skills: finalResult, parseErrors: parseErrors, notFoundSkills: notFoundSkills)
     }
 } 
