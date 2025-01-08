@@ -136,22 +136,52 @@ struct SkillPlanDetailView: View {
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let days = Int(interval) / (24 * 3600)
-        let hours = Int(interval) / 3600 % 24
-        let minutes = Int(interval) / 60 % 60
+        if interval < 1 {
+            return String(format: NSLocalizedString("Time_Seconds", comment: ""), 1)
+        }
         
+        let totalSeconds = interval
+        let days = Int(totalSeconds) / (24 * 3600)
+        var hours = Int(totalSeconds) / 3600 % 24
+        var minutes = Int(totalSeconds) / 60 % 60
+        let seconds = Int(totalSeconds) % 60
+        
+        // 当显示两个单位时，对第二个单位进行四舍五入
         if days > 0 {
+            // 对小时进行四舍五入
+            if minutes >= 30 {
+                hours += 1
+                if hours == 24 { // 如果四舍五入后小时数达到24
+                    return String(format: NSLocalizedString("Time_Days", comment: ""), days + 1)
+                }
+            }
             if hours > 0 {
                 return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours)
             }
             return String(format: NSLocalizedString("Time_Days", comment: ""), days)
         } else if hours > 0 {
+            // 对分钟进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+                if minutes == 60 { // 如果四舍五入后分钟数达到60
+                    return String(format: NSLocalizedString("Time_Hours", comment: ""), hours + 1)
+                }
+            }
             if minutes > 0 {
                 return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes)
             }
             return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        } else if minutes > 0 {
+            // 对秒进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+            }
+            if seconds > 0 {
+                return String(format: NSLocalizedString("Time_Minutes_Seconds", comment: ""), minutes, seconds)
+            }
+            return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
         }
-        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
+        return String(format: NSLocalizedString("Time_Seconds", comment: ""), seconds)
     }
     
     private func importSkillsFromClipboard() {
