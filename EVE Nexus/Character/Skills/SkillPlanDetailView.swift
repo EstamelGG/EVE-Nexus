@@ -18,12 +18,8 @@ struct SkillPlanDetailView: View {
     
     var body: some View {
         List {
-            Section(header: Text(NSLocalizedString("Main_Skills_Plan_Total_Time", comment: ""))) {
-                Text(formatTimeInterval(plan.totalTrainingTime))
-            }
-            
             Section(header: Text(NSLocalizedString("Main_Skills_Plan_Total_SP", comment: ""))) {
-                Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP")
+                Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP(\(formatTimeInterval(plan.totalTrainingTime)))")
             }
             
             Section(header: Text("\(NSLocalizedString("Main_Skills_Plan", comment:""))(\(plan.skills.count))")) {
