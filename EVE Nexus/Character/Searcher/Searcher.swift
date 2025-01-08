@@ -64,6 +64,8 @@ struct SearcherView: View {
         let id: Int
         let name: String
         let type: SearchType
+        var corporationName: String?
+        var allianceName: String?
     }
     
     // 搜索响应数据结构
@@ -220,11 +222,20 @@ struct SearchResultRow: View {
     var body: some View {
         HStack {
             UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(result.name)
-                Text(result.type.localizedName)
+                if let corpName = result.corporationName {
+                    HStack(spacing: 4) {
+                        Text(corpName)
+                        if let allianceName = result.allianceName {
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            Text(allianceName)
+                        }
+                    }
                     .font(.caption)
                     .foregroundColor(.secondary)
+                }
             }
         }
     }
@@ -278,18 +289,47 @@ class SearcherViewModel: ObservableObject {
                 var results: [SearcherView.SearchResult] = []
                 
                 if let characters = searchResponse.character {
+                    // 获取角色名称
                     let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
-                    results.append(contentsOf: characters.compactMap { id in
+                    
+                    // 先创建基本的搜索结果并排序
+                    let basicResults = characters.compactMap { id -> SearcherView.SearchResult? in
                         guard let info = characterNames[id] else { return nil }
-                        return SearcherView.SearchResult(id: id, name: info.name, type: .character)
-                    })
+                        return SearcherView.SearchResult(
+                            id: id,
+                            name: info.name,
+                            type: .character
+                        )
+                    }.sorted { $0.name < $1.name }
+                    
+                    // 限制为前10个结果
+                    let limitedResults = Array(basicResults.prefix(10))
+                    
+                    // 只为前10个结果获取详细信息
+                    for var result in limitedResults {
+                        if Task.isCancelled { return }
+                        
+                        // 获取角色的公开信息（包括军团和联盟ID）
+                        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: result.id)
+                        
+                        // 获取军团名称
+                        let corpInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [publicInfo.corporation_id])
+                        result.corporationName = corpInfo[publicInfo.corporation_id]?.name
+                        
+                        // 获取联盟名称（如果有）
+                        if let allianceId = publicInfo.alliance_id {
+                            let allianceInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+                            result.allianceName = allianceInfo[allianceId]?.name
+                        }
+                        
+                        results.append(result)
+                    }
                 }
                 
                 if Task.isCancelled { return }
                 
-                results.sort { $0.name < $1.name }
                 searchResults = results
-                Logger.info("搜索完成，找到 \(results.count) 个结果")
+                Logger.info("搜索完成，找到并加载了 \(results.count) 个结果的详细信息")
             default:
                 break // 其他类型的搜索暂未实现
             }
