@@ -297,7 +297,7 @@ struct SkillPlanView: View {
             
             // 右侧：技能数量和训练时间
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(plan.skills.count) \(NSLocalizedString("Main_Skills_Plan_Skills", comment: ""))")
+                Text(String(format: "%d %@", plan.skills.count, NSLocalizedString("Main_Skills_Plan_Skills", comment: "")))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
@@ -379,9 +379,14 @@ struct SkillPlanDetailView: View {
                 Text(FormatUtil.format(Double(plan.totalSkillPoints)))
             }
             
-            Section(header: Text(NSLocalizedString("Main_Skills_Plan_Skills", comment: ""))) {
-                ForEach(plan.skills) { skill in
-                    skillRowView(skill)
+            Section(header: Text("\(NSLocalizedString("Main_Skills_Plan", comment:""))(\(plan.skills.count))")) {
+                if plan.skills.isEmpty {
+                    Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(plan.skills) { skill in
+                        skillRowView(skill)
+                    }
                 }
             }
         }
