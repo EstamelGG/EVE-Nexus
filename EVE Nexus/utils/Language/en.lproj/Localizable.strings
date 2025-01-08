@@ -667,3 +667,5 @@
 "Main_Skills_Optimal_Attributes_Difference" = "Difference";
 "Main_Skills_Optimal_Attributes_No_Queue" = "Cannot calculate optimal attributes with empty skill queue";
 "Main_Skills_Optimal_Attributes_Loading" = "Calculating optimal attributes...";
+
+"Main_Database_Skill_Level_Detail" = "Detail of skill level";

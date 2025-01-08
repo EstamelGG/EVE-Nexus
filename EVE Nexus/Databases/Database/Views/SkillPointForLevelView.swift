@@ -92,25 +92,27 @@ struct SkillPointForLevelView: View {
     }
     
     var body: some View {
-        List {
+        Section(header: Text(NSLocalizedString("Main_Database_Skill_Level_Detail", comment: "")).font(.headline)) {
             ForEach(1...5, id: \.self) { level in
                 let requiredSP = getSkillPointsForLevel(level)
                 
                 HStack {
-                    Text("等级 \(level)")
-                        .frame(width: 60, alignment: .leading)
-                    
-                    Text("\(FormatUtil.format(Double(requiredSP)))点")
-                        .frame(width: 80, alignment: .trailing)
-                        .foregroundColor(.secondary)
-                    
+                    VStack(alignment: .leading) {
+                        Text("\(FormatUtil.format(Double(requiredSP)))点")
+                            .font(.body)
+                        
+                        Text(formatTrainingTime(skillPoints: requiredSP))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
-                    
-                    Text(formatTrainingTime(skillPoints: requiredSP))
+                    Text("Lv \(level)")
+                        .font(.body)
                         .foregroundColor(.secondary)
+                        .frame(width: 50, alignment: .leading)
                 }
-                .font(.system(.body, design: .monospaced))
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
         .listStyle(.plain)
         .task {

@@ -87,13 +87,11 @@ struct ShowItemInfo: View {
                 if let categoryID = itemDetails.categoryID,
                    categoryID == 16 {
                     // 技能点数和训练时间列表
-                    Section(header: Text(NSLocalizedString("Main_Database_Training_Time", comment: "")).font(.headline)) {
-                        SkillPointForLevelView(
-                            skillId: itemID,
-                            characterId: currentCharacterId == 0 ? nil : currentCharacterId,
-                            databaseManager: databaseManager
-                        )
-                    }
+                    SkillPointForLevelView(
+                        skillId: itemID,
+                        characterId: currentCharacterId == 0 ? nil : currentCharacterId,
+                        databaseManager: databaseManager
+                    )
                     
                     // 依赖该技能的物品列表
                     SkillDependencySection(
