@@ -28,6 +28,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [CorpWalletTransactionGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    private var initialLoadDone = false
     
     private let characterId: Int
     private let division: Int
@@ -99,6 +100,11 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     }
     
     func loadTransactionData(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -155,6 +161,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
                 await MainActor.run {
                     self.transactionGroups = groups
                     self.isLoading = false
+                    self.initialLoadDone = true
                 }
                 
             } catch {
