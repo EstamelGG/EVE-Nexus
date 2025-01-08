@@ -6,9 +6,11 @@ struct SkillPlanDetailView: View {
     let plan: SkillPlan
     let characterId: Int
     @ObservedObject var databaseManager: DatabaseManager
+    @Binding var skillPlans: [SkillPlan]
     @State private var isShowingEditSheet = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
+    @State private var shouldDismissSheet = false
     
     var body: some View {
         List {
@@ -57,33 +59,7 @@ struct SkillPlanDetailView: View {
                     }
                     
                     Button {
-                        if let clipboardString = UIPasteboard.general.string {
-                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
-                            let result = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
-                            
-                            if result.hasErrors {
-                                var message = ""
-                                
-                                if !result.parseErrors.isEmpty {
-                                    message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
-                                }
-                                
-                                if !result.notFoundSkills.isEmpty {
-                                    if !message.isEmpty {
-                                        message += "\n\n"
-                                    }
-                                    message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
-                                }
-                                
-                                errorMessage = message
-                                showErrorAlert = true
-                            }
-                            
-                            // 继续处理成功解析的技能
-                            if !result.skills.isEmpty {
-                                Logger.debug("解析技能计划结果: \(result.skills)")
-                            }
-                        }
+                        importSkillsFromClipboard()
                     } label: {
                         Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
                     }
@@ -100,7 +76,12 @@ struct SkillPlanDetailView: View {
                     }
                 }
                 .alert(NSLocalizedString("Main_Skills_Plan_Import_Alert_Title", comment: ""), isPresented: $showErrorAlert) {
-                    Button("确定", role: .cancel) { }
+                    Button("OK", role: .cancel) {
+                        if shouldDismissSheet {
+                            isShowingEditSheet = false
+                            shouldDismissSheet = false
+                        }
+                    }
                 } message: {
                     Text(errorMessage)
                 }
@@ -163,5 +144,92 @@ struct SkillPlanDetailView: View {
             return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
         }
         return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
+    }
+    
+    private func importSkillsFromClipboard() {
+        if let clipboardString = UIPasteboard.general.string {
+            Logger.debug("从剪贴板读取内容: \(clipboardString)")
+            let result = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
+            
+            if result.hasErrors {
+                var message = ""
+                
+                if !result.parseErrors.isEmpty {
+                    message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
+                }
+                
+                if !result.notFoundSkills.isEmpty {
+                    if !message.isEmpty {
+                        message += "\n\n"
+                    }
+                    message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
+                }
+                
+                errorMessage = message
+                showErrorAlert = true
+                shouldDismissSheet = false
+                return
+            }
+            
+            // 继续处理成功解析的技能
+            if !result.skills.isEmpty {
+                Logger.debug("解析技能计划结果: \(result.skills)")
+                
+                // 更新计划数据
+                var updatedPlan = plan
+                let validSkills = result.skills.compactMap { skillString -> PlannedSkill? in
+                    let components = skillString.split(separator: ":")
+                    guard components.count == 2,
+                          let typeId = Int(components[0]),
+                          let level = Int(components[1]) else {
+                        return nil
+                    }
+                    
+                    // 从数据库获取技能名称
+                    let query = "SELECT name FROM types WHERE type_id = \(typeId)"
+                    let queryResult = databaseManager.executeQuery(query)
+                    var skillName = "Unknown Skill (\(typeId))"
+                    
+                    switch queryResult {
+                    case .success(let rows):
+                        if let row = rows.first,
+                           let name = row["name"] as? String {
+                            skillName = name
+                        }
+                    case .error(let error):
+                        Logger.error("获取技能名称失败: \(error)")
+                    }
+                    
+                    return PlannedSkill(
+                        id: UUID(),
+                        skillID: typeId,
+                        skillName: skillName,
+                        currentLevel: 0,
+                        targetLevel: level,
+                        trainingTime: 0,
+                        requiredSP: 0,
+                        prerequisites: []
+                    )
+                }
+                
+                // 只有在有有效技能时才更新计划
+                if !validSkills.isEmpty {
+                    updatedPlan.skills = validSkills
+                    
+                    // 保存更新后的计划
+                    SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
+                    
+                    // 更新父视图中的计划列表
+                    if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
+                        skillPlans[index] = updatedPlan
+                    }
+                    
+                    // 设置成功导入的提示
+                    errorMessage = String(format: NSLocalizedString("Main_Skills_Plan_Import_Success", comment: ""), validSkills.count)
+                    showErrorAlert = true
+                    shouldDismissSheet = true
+                }
+            }
+        }
     }
 }

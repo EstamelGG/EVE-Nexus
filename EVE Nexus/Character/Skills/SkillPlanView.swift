@@ -8,7 +8,7 @@ struct SkillPlan: Identifiable {
     var totalTrainingTime: TimeInterval
     var totalSkillPoints: Int
     var lastUpdated: Date
-    var isPublic: Bool  // 添加是否为公共计划的标记
+    var isPublic: Bool
 }
 
 struct PlannedSkill: Identifiable {
@@ -25,8 +25,8 @@ struct PlannedSkill: Identifiable {
 struct SkillPlanData: Codable {
     let name: String
     let lastUpdated: Date
-    let skills: [Int]  // 技能ID列表，保持顺序
-    let isPublic: Bool  // 添加是否为公共计划的标记
+    var skills: [String]  // 格式: "type_id:level"
+    let isPublic: Bool
 }
 
 class SkillPlanFileManager {
@@ -53,7 +53,7 @@ class SkillPlanFileManager {
         let planData = SkillPlanData(
             name: plan.name,
             lastUpdated: Date(),
-            skills: [],  // 目前为空列表，后续实现添加技能功能时会更新
+            skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" },
             isPublic: plan.isPublic
         )
         
@@ -72,7 +72,7 @@ class SkillPlanFileManager {
         }
     }
     
-    func loadSkillPlans(characterId: Int) -> [SkillPlan] {
+    func loadSkillPlans(characterId: Int, databaseManager: DatabaseManager) -> [SkillPlan] {
         let fileManager = FileManager.default
         
         do {
@@ -82,43 +82,75 @@ class SkillPlanFileManager {
             
             let plans = files.filter { url in
                 let fileName = url.lastPathComponent
-                // 匹配角色ID开头或public开头的json文件
                 return (fileName.hasPrefix("\(characterId)_") || fileName.hasPrefix("public_")) 
                     && url.pathExtension == "json"
             }.compactMap { url -> SkillPlan? in
                 do {
                     Logger.debug("尝试解析文件: \(url.lastPathComponent)")
                     let data = try Data(contentsOf: url)
-                    Logger.debug("文件内容: \(String(data: data, encoding: .utf8) ?? "无法读取")")
                     
                     let decoder = JSONDecoder()
                     decoder.dateDecodingStrategy = .formatted(DateFormatter.iso8601Full)
                     let planData = try decoder.decode(SkillPlanData.self, from: data)
-                    Logger.debug("成功解析计划数据 - 名称: \(planData.name), 更新时间: \(planData.lastUpdated), 技能数量: \(planData.skills.count)")
                     
                     let fileName = url.lastPathComponent
                     let prefix = planData.isPublic ? "public" : "\(characterId)"
                     let planIdString = fileName
                         .replacingOccurrences(of: "\(prefix)_", with: "")
                         .replacingOccurrences(of: ".json", with: "")
-                    Logger.debug("提取的计划ID: \(planIdString)")
                     
                     guard let planId = UUID(uuidString: planIdString) else {
                         Logger.error("无效的计划ID: \(planIdString)")
                         try? FileManager.default.removeItem(at: url)
-                        Logger.debug("已删除无效ID的文件: \(url.lastPathComponent)")
                         return nil
+                    }
+                    
+                    // 将技能字符串转换为 PlannedSkill 对象
+                    let skills = planData.skills.compactMap { skillString -> PlannedSkill? in
+                        let components = skillString.split(separator: ":")
+                        guard components.count == 2,
+                              let typeId = Int(components[0]),
+                              let level = Int(components[1]) else {
+                            return nil
+                        }
+                        
+                        // 从数据库获取技能名称
+                        let query = "SELECT name FROM types WHERE type_id = \(typeId)"
+                        let queryResult = databaseManager.executeQuery(query)
+                        var skillName = "Unknown Skill (\(typeId))"
+                        
+                        switch queryResult {
+                        case .success(let rows):
+                            if let row = rows.first,
+                               let name = row["name"] as? String {
+                                skillName = name
+                            }
+                        case .error(let error):
+                            Logger.error("获取技能名称失败: \(error)")
+                        }
+                        
+                        return PlannedSkill(
+                            id: UUID(),
+                            skillID: typeId,
+                            skillName: skillName,
+                            currentLevel: 0,  // 这里需要从角色当前技能获取
+                            targetLevel: level,
+                            trainingTime: 0,  // 这里需要计算训练时间
+                            requiredSP: 0,    // 这里需要计算所需技能点
+                            prerequisites: [] // 这里需要获取前置技能
+                        )
                     }
                     
                     let plan = SkillPlan(
                         id: planId,
                         name: planData.name,
-                        skills: [],
-                        totalTrainingTime: 0,
-                        totalSkillPoints: 0,
+                        skills: skills,
+                        totalTrainingTime: 0, // 这里需要计算总训练时间
+                        totalSkillPoints: 0,  // 这里需要计算总技能点
                         lastUpdated: planData.lastUpdated,
                         isPublic: planData.isPublic
                     )
+                    
                     Logger.debug("成功创建技能计划对象: \(plan.name)")
                     return plan
                     
@@ -138,9 +170,7 @@ class SkillPlanFileManager {
                             Logger.error("未知解码错误: \(decodingError)")
                         }
                     }
-                    // 删除损坏的文件
                     try? FileManager.default.removeItem(at: url)
-                    Logger.debug("已删除损坏的文件: \(url.lastPathComponent)")
                     return nil
                 }
             }
@@ -177,8 +207,8 @@ struct SkillPlanView: View {
     @State private var isShowingDeleteAlert = false
     @State private var selectedPlan: SkillPlan?
     @State private var newPlanName = ""
-    @State private var searchText = ""  // 添加搜索文本状态
-    @State private var isPublicPlan = false  // 添加是否为公共计划的状态
+    @State private var searchText = ""
+    @State private var isPublicPlan = false
     
     // 添加过滤后的计划列表计算属性
     private var filteredPlans: [SkillPlan] {
@@ -204,7 +234,12 @@ struct SkillPlanView: View {
             } else {
                 ForEach(filteredPlans) { plan in
                     NavigationLink {
-                        SkillPlanDetailView(plan: plan, characterId: characterId, databaseManager: databaseManager)
+                        SkillPlanDetailView(
+                            plan: plan,
+                            characterId: characterId,
+                            databaseManager: databaseManager,
+                            skillPlans: $skillPlans
+                        )
                     } label: {
                         planRowView(plan)
                     }
@@ -274,7 +309,7 @@ struct SkillPlanView: View {
         }
         .task {
             // 加载已保存的技能计划
-            skillPlans = SkillPlanFileManager.shared.loadSkillPlans(characterId: characterId)
+            skillPlans = SkillPlanFileManager.shared.loadSkillPlans(characterId: characterId, databaseManager: databaseManager)
         }
     }
     

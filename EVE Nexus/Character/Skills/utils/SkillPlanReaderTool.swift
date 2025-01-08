@@ -12,120 +12,80 @@ struct SkillPlanParseResult {
 
 class SkillPlanReaderTool {
     static func parseSkillPlan(from text: String, databaseManager: DatabaseManager) -> SkillPlanParseResult {
-        Logger.debug("开始解析技能计划文本...")
+        var parseFailedLines: [String] = []
+        var notFoundSkills: [String] = []
+        var skills: [String] = []
         
-        // 将输入文本按行分割
+        // 收集所有技能名称
         let lines = text.components(separatedBy: .newlines)
-        Logger.debug("总行数: \(lines.count)")
+        var skillNames: Set<String> = []
+        var skillLevels: [String: Int] = [:]
         
-        // 存储解析出的技能名称和等级
-        var skillsWithLevel: [(name: String, level: Int)] = []
-        var parseFailedLines: [(lineNumber: Int, content: String)] = []
-        
-        // 解析每一行
-        for (index, line) in lines.enumerated() {
-            // 跳过空行
+        for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            if trimmedLine.isEmpty {
-                Logger.debug("第 \(index + 1) 行: 空行，已跳过")
-                continue
-            }
+            if trimmedLine.isEmpty { continue }
             
-            // 使用正则表达式匹配行尾的数字
-            let pattern = #"^(.+?)\s+(\d+)$"#
-            guard let regex = try? NSRegularExpression(pattern: pattern),
-                  let match = regex.firstMatch(in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) else {
-                parseFailedLines.append((index + 1, trimmedLine))
-                continue
-            }
-            
-            // 提取技能名称和等级
-            guard let nameRange = Range(match.range(at: 1), in: trimmedLine),
-                  let levelRange = Range(match.range(at: 2), in: trimmedLine),
-                  let level = Int(trimmedLine[levelRange]),
-                  level >= 1 && level <= 5 else {
-                parseFailedLines.append((index + 1, trimmedLine))
-                continue
-            }
-            
-            let skillName = String(trimmedLine[nameRange]).trimmingCharacters(in: .whitespaces)
-            if skillName.isEmpty {
-                parseFailedLines.append((index + 1, trimmedLine))
-                continue
-            }
-            
-            skillsWithLevel.append((name: skillName, level: level))
-        }
-        
-        // 收集解析失败的行
-        var parseErrors: [String] = []
-        if !parseFailedLines.isEmpty {
-            Logger.debug("以下行解析失败:")
-            for failedLine in parseFailedLines {
-                let errorMessage = "第 \(failedLine.lineNumber) 行: \(failedLine.content)"
-                parseErrors.append(errorMessage)
-                Logger.debug("- \(errorMessage)")
+            // 使用正则表达式匹配技能名称和等级
+            let pattern = "^(.+?)\\s+(\\d+)$"
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) {
+                
+                let nameRange = Range(match.range(at: 1), in: trimmedLine)!
+                let levelRange = Range(match.range(at: 2), in: trimmedLine)!
+                
+                let skillName = String(trimmedLine[nameRange]).trimmingCharacters(in: .whitespaces)
+                if let level = Int(trimmedLine[levelRange]),
+                   level >= 1 && level <= 5 {
+                    skillNames.insert(skillName)
+                    skillLevels[skillName] = level
+                } else {
+                    parseFailedLines.append(trimmedLine)
+                }
+            } else {
+                parseFailedLines.append(trimmedLine)
             }
         }
         
-        // 如果没有解析出任何技能，返回空结果
-        if skillsWithLevel.isEmpty {
-            Logger.debug("技能计划解析失败 - 未找到任何有效的技能行")
-            return SkillPlanParseResult(skills: [], parseErrors: parseErrors, notFoundSkills: [])
-        }
-        
-        // 获取去重后的技能名称集合
-        let uniqueSkillNames = Set(skillsWithLevel.map { $0.name })
-        Logger.debug("解析出 \(skillsWithLevel.count) 个技能条目，去重后剩余 \(uniqueSkillNames.count) 个不同技能")
-        
-        // 构建SQL查询，使用子查询和UNION来处理未找到的技能名称
-        let skillNamesValues = uniqueSkillNames.map { "SELECT '\($0)' as name" }.joined(separator: " UNION ")
-        let query = """
-            SELECT COALESCE(t.type_id, 0) as type_id, s.name
-            FROM (\(skillNamesValues)) s
-            LEFT JOIN types t ON t.name = s.name
-        """
-        
-        // 执行查询
-        var typeIdMap: [String: Int] = [:]
-        let queryResult = databaseManager.executeQuery(query)
-        
-        switch queryResult {
-        case .success(let rows):
-            Logger.debug("SQL查询成功，返回 \(rows.count) 条结果")
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String {
-                    typeIdMap[name] = typeId
+        // 如果有技能名称，查询它们的 type_id
+        if !skillNames.isEmpty {
+            let skillNamesString = skillNames.map { "'\($0)'" }.joined(separator: " UNION SELECT ")
+            let query = """
+                SELECT t.type_id, t.name
+                FROM types t
+                WHERE t.name IN (SELECT \(skillNamesString))
+                AND t.categoryID = 16
+            """
+            
+            let queryResult = databaseManager.executeQuery(query)
+            var typeIdMap: [String: Int] = [:]
+            
+            switch queryResult {
+            case .success(let rows):
+                for row in rows {
+                    if let typeId = row["type_id"] as? Int,
+                       let name = row["name"] as? String {
+                        typeIdMap[name] = typeId
+                    }
+                }
+            case .error(let error):
+                Logger.error("查询技能失败: \(error)")
+            }
+            
+            // 检查哪些技能未找到
+            for skillName in skillNames {
+                if let typeId = typeIdMap[skillName],
+                   let level = skillLevels[skillName] {
+                    skills.append("\(typeId):\(level)")
+                } else {
+                    notFoundSkills.append(skillName)
                 }
             }
-            
-        case .error(let error):
-            Logger.error("SQL查询失败: \(error)")
-            return SkillPlanParseResult(skills: [], parseErrors: ["SQL查询失败: \(error)"], notFoundSkills: [])
         }
         
-        // 构建最终结果
-        var finalResult: [String] = []
-        var notFoundSkills: [String] = []
-        
-        for skill in skillsWithLevel {
-            let typeId = typeIdMap[skill.name] ?? 0
-            finalResult.append("\(typeId):\(skill.level)")
-            if typeId == 0 {
-                notFoundSkills.append(skill.name)
-            }
-        }
-        
-        // 记录未找到的技能
-        if !notFoundSkills.isEmpty {
-            Logger.debug("以下技能在数据库中未找到:")
-            for skillName in notFoundSkills {
-                Logger.debug("- \(skillName)")
-            }
-        }
-        
-        Logger.debug("技能计划解析完成，返回 \(finalResult.count) 个结果")
-        return SkillPlanParseResult(skills: finalResult, parseErrors: parseErrors, notFoundSkills: notFoundSkills)
+        return SkillPlanParseResult(
+            skills: skills,
+            parseErrors: parseFailedLines,
+            notFoundSkills: notFoundSkills
+        )
     }
 } 
