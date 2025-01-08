@@ -683,3 +683,6 @@
 "Main_Skills_Plan_Save_As_Private" = "保存为私有计划";
 "Main_Skills_Plan_Public_Tag" = "(共享)";
 "Main_Skills_Plan_Import_From_Clipboard" = "从剪贴板导入";
+"Main_Skills_Plan_Import_Alert_Title" = "导入结果";
+"Main_Skills_Plan_Import_Parse_Failed" = "以下内容解析失败：";
+"Main_Skills_Plan_Import_Not_Found" = "以下技能未找到：";

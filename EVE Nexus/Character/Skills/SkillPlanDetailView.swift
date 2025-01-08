@@ -65,14 +65,14 @@ struct SkillPlanDetailView: View {
                                 var message = ""
                                 
                                 if !result.parseErrors.isEmpty {
-                                    message += "以下内容解析失败：\n" + result.parseErrors.joined(separator: "\n")
+                                    message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
                                 }
                                 
                                 if !result.notFoundSkills.isEmpty {
                                     if !message.isEmpty {
                                         message += "\n\n"
                                     }
-                                    message += "以下技能未找到：\n" + result.notFoundSkills.joined(separator: "\n")
+                                    message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
                                 }
                                 
                                 errorMessage = message
@@ -99,7 +99,7 @@ struct SkillPlanDetailView: View {
                         }
                     }
                 }
-                .alert("导入提示", isPresented: $showErrorAlert) {
+                .alert(NSLocalizedString("Main_Skills_Plan_Import_Alert_Title", comment: ""), isPresented: $showErrorAlert) {
                     Button("确定", role: .cancel) { }
                 } message: {
                     Text(errorMessage)
