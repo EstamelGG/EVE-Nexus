@@ -5,6 +5,9 @@ struct SkillPointForLevelView: View {
     let characterId: Int?
     let databaseManager: DatabaseManager
     @State private var characterAttributes: CharacterAttributes?
+    @State private var timeMultiplier: Int = 1
+    @State private var skillPrimaryAttr: Int = 0
+    @State private var skillSecondaryAttr: Int = 0
     
     private static let defaultAttributes = CharacterAttributes(
         charisma: 19,
@@ -17,54 +20,25 @@ struct SkillPointForLevelView: View {
         last_remap_date: nil
     )
     
-    private var skillAttributes: (primary: Int, secondary: Int)? {
-        return SkillTrainingCalculator.getSkillAttributes(
-            skillId: skillId,
-            databaseManager: databaseManager
-        )
-    }
-    
     private var skillPointsPerHour: Double {
-        guard let attrs = skillAttributes else {
+        guard skillPrimaryAttr > 0 && skillSecondaryAttr > 0 else {
             return 0
         }
         
         let attributes = characterAttributes ?? Self.defaultAttributes
         return Double(SkillTrainingCalculator.calculateTrainingRate(
-            primaryAttrId: attrs.primary,
-            secondaryAttrId: attrs.secondary,
+            primaryAttrId: skillPrimaryAttr,
+            secondaryAttrId: skillSecondaryAttr,
             attributes: attributes
         ) ?? 0)
     }
     
     private func getSkillPointsForLevel(_ level: Int) -> Int {
-        Logger.debug("获取技能\(skillId)等级\(level)所需技能点")
-        // 获取技能倍增系数
-        let result = databaseManager.executeQuery(
-            """
-            SELECT value
-            FROM typeAttributes
-            WHERE type_id = ? AND attribute_id = 275
-            """,
-            parameters: [skillId]
-        )
-        
-        var timeMultiplier = 1
-        if case .success(let rows) = result,
-           let row = rows.first,
-           let value = row["value"] as? Double {
-            timeMultiplier = Int(value)
-        }
-        
-        // 使用基准点数乘以倍增系数
         let basePoints = SkillProgressCalculator.baseSkillPoints[level - 1]
-        let totalPoints = basePoints * timeMultiplier
-        Logger.debug("基准点数: \(basePoints), 倍增系数: \(timeMultiplier), 总点数: \(totalPoints)")
-        return totalPoints
+        return basePoints * timeMultiplier
     }
     
     private func formatTrainingTime(skillPoints: Int) -> String {
-        Logger.debug("SkillPointsPerHour: \(skillPointsPerHour)")
         guard skillPointsPerHour > 0 else {
             return "N/A"
         }
@@ -91,13 +65,6 @@ struct SkillPointForLevelView: View {
         }
     }
     
-    private func formatNumber(_ number: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        return formatter.string(from: NSNumber(value: number)) ?? String(number)
-    }
-    
     var body: some View {
         Section(header: Text(NSLocalizedString("Main_Database_Skill_Level_Detail", comment: "")).font(.headline)) {
             ForEach(1...5, id: \.self) { level in
@@ -107,7 +74,7 @@ struct SkillPointForLevelView: View {
                     VStack(alignment: .leading) {
                         Text("\(FormatUtil.format(Double(requiredSP))) SP")
                             .font(.body)
-                        Text("\(formatTrainingTime(skillPoints: requiredSP))(\(formatNumber(Int(skillPointsPerHour)))/h)")
+                        Text("\(formatTrainingTime(skillPoints: requiredSP))(\(FormatUtil.format(skillPointsPerHour))/h)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -120,8 +87,33 @@ struct SkillPointForLevelView: View {
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
-        .listStyle(.plain)
         .task {
+            // 获取技能倍增系数
+            let result = databaseManager.executeQuery(
+                """
+                SELECT value
+                FROM typeAttributes
+                WHERE type_id = ? AND attribute_id = 275
+                """,
+                parameters: [skillId]
+            )
+            
+            if case .success(let rows) = result,
+               let row = rows.first,
+               let value = row["value"] as? Double {
+                timeMultiplier = Int(value)
+            }
+            
+            // 获取技能主副属性
+            if let attrs = SkillTrainingCalculator.getSkillAttributes(
+                skillId: skillId,
+                databaseManager: databaseManager
+            ) {
+                skillPrimaryAttr = attrs.primary
+                skillSecondaryAttr = attrs.secondary
+            }
+            
+            // 获取角色属性
             if let characterId = characterId {
                 do {
                     characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
