@@ -234,7 +234,7 @@ struct RecipientPickerView: View {
                         HStack {
                             Spacer()
                             ProgressView()
-                            Text(NSLocalizedString("Main_EVE_Mail_Searching", comment: ""))
+                            Text(viewModel.searchingStatus)
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
@@ -310,14 +310,30 @@ private struct QuickSelectRow: View {
             onSelect(MailRecipient(id: recipient.id, name: recipient.name, type: recipient.type))
             dismiss()
         } label: {
-            HStack {
+            HStack(spacing: 8) {
                 UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(recipient.name)
-                    Text(recipient.type.rawValue)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if recipient.type == .character {
+                        if let corpName = recipient.corporationName {
+                            HStack(spacing: 4) {
+                                Text(corpName)
+                                if let allianceName = recipient.allianceName {
+                                    Text("•")
+                                        .foregroundColor(.secondary)
+                                    Text(allianceName)
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Text(recipient.type.rawValue)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
+                Spacer()
             }
         }
         .foregroundColor(.primary)
@@ -425,6 +441,7 @@ class RecipientPickerViewModel: ObservableObject {
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
     @Published var error: Error?
+    @Published var searchingStatus = ""
     
     // 快速选择相关
     @Published var isLoadingQuickSelect = false
@@ -432,11 +449,15 @@ class RecipientPickerViewModel: ObservableObject {
     
     // 用于防抖的任务
     private var searchTask: Task<Void, Never>?
+    private var corporationNames: [Int: String] = [:]
+    private var allianceNames: [Int: String] = [:]
     
     struct SearchResult: Identifiable {
         let id: Int
         let name: String
         let type: MailRecipient.RecipientType
+        var corporationName: String?
+        var allianceName: String?
     }
     
     // 加载快速选择收件人
@@ -521,80 +542,121 @@ class RecipientPickerViewModel: ObservableObject {
             return
         }
         
-        // 如果已经在搜索中，就不要重复搜索
-        guard !isSearching else {
-            return
-        }
+        guard !isSearching else { return }
         
         isSearching = true
+        searchingStatus = NSLocalizedString("Main_Search_Status_Searching", comment: "")
         defer { isSearching = false }
         
         do {
-            // 清除之前的错误
             error = nil
+            searchResults = []
+            corporationNames = [:]
+            allianceNames = [:]
             
+            // 使用新的搜索API
+            searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
                 categories: [.character, .corporation, .alliance],
                 searchText: searchText
             )
             
-            // 如果任务已经被取消，直接返回
             if Task.isCancelled { return }
-            
-            Logger.debug("收到搜索响应数据: \(String(data: data, encoding: .utf8) ?? "无法解码")")
             
             // 解析搜索结果
             let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
             var results: [SearchResult] = []
             
+            // 获取所有需要查询的ID
+            var allIds: Set<Int> = []
+            if let characters = searchResponse.character { allIds.formUnion(characters) }
+            if let corporations = searchResponse.corporation { allIds.formUnion(corporations) }
+            if let alliances = searchResponse.alliance { allIds.formUnion(alliances) }
+            
+            // 一次性获取所有名称
+            searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
+            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(allIds))
+            
+            if Task.isCancelled { return }
+            
             // 处理角色搜索结果
             if let characters = searchResponse.character {
-                let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
-                results.append(contentsOf: characters.compactMap { id in
-                    guard let info = characterNames[id] else { return nil }
-                    return SearchResult(id: id, name: info.name, type: .character)
-                })
+                // 获取角色的军团和联盟信息
+                searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
+                let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliationsInBatches(characterIds: characters)
+                
+                // 收集所有需要查询的军团和联盟ID
+                var corpIds = Set<Int>()
+                var allianceIds = Set<Int>()
+                
+                for affiliation in affiliations {
+                    corpIds.insert(affiliation.corporation_id)
+                    if let allianceId = affiliation.alliance_id {
+                        allianceIds.insert(allianceId)
+                    }
+                }
+                
+                // 获取军团名称
+                searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
+                corporationNames = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(corpIds))
+                    .mapValues { $0.name }
+                
+                // 获取联盟名称
+                if !allianceIds.isEmpty {
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
+                    allianceNames = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(allianceIds))
+                        .mapValues { $0.name }
+                }
+                
+                // 创建角色搜索结果
+                for character in characters {
+                    if let info = names[character] {
+                        var result = SearchResult(id: character, name: info.name, type: .character)
+                        if let affiliation = affiliations.first(where: { $0.character_id == character }) {
+                            result.corporationName = corporationNames[affiliation.corporation_id]
+                            if let allianceId = affiliation.alliance_id {
+                                result.allianceName = allianceNames[allianceId]
+                            }
+                        }
+                        results.append(result)
+                    }
+                }
             }
             
             // 处理军团搜索结果
             if let corporations = searchResponse.corporation {
-                let corpNames = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
                 results.append(contentsOf: corporations.compactMap { id in
-                    guard let info = corpNames[id] else { return nil }
+                    guard let info = names[id] else { return nil }
                     return SearchResult(id: id, name: info.name, type: .corporation)
                 })
             }
             
             // 处理联盟搜索结果
             if let alliances = searchResponse.alliance {
-                let allianceNames = try await UniverseAPI.shared.getNamesWithFallback(ids: alliances)
                 results.append(contentsOf: alliances.compactMap { id in
-                    guard let info = allianceNames[id] else { return nil }
+                    guard let info = names[id] else { return nil }
                     return SearchResult(id: id, name: info.name, type: .alliance)
                 })
             }
             
-            // 如果任务已经被取消，直接返回
             if Task.isCancelled { return }
             
             // 按名称排序结果
             results.sort { $0.name < $1.name }
             
-            // 更新搜索结果
             searchResults = results
             Logger.info("搜索完成，找到 \(results.count) 个结果")
             
         } catch {
-            // 如果是取消错误，就不显示错误信息
             if error is CancellationError {
                 Logger.debug("搜索任务被取消")
                 return
             }
             Logger.error("搜索收件人失败: \(error)")
             self.error = error
-            // 保持旧的搜索结果，而不是清空
         }
+        searchingStatus = ""
     }
 }
 
