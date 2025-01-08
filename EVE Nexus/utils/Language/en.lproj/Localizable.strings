@@ -651,7 +651,7 @@
 "Balance: %@ ISK" = "Balance: %@ ISK";
 
 // Wallet Journal
-"Summary" = "Summary";
+"Summary" = "Summary(30d)";
 "Total Income" = "Total Income";
 "Total Expense" = "Total Expense";
 "Transactions" = "Transactions";

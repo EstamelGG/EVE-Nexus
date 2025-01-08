@@ -647,7 +647,7 @@
 "Balance: %@ ISK" = "余额: %@ ISK";
 
 // Wallet Journal
-"Summary" = "汇总";
+"Summary" = "汇总(30天)";
 "Total Income" = "总收入";
 "Total Expense" = "总支出";
 "Transactions" = "交易记录";
