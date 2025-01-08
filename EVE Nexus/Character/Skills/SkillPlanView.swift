@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct SkillPlan: Identifiable {
     let id: UUID
@@ -17,6 +18,109 @@ struct PlannedSkill: Identifiable {
     let trainingTime: TimeInterval
     let requiredSP: Int
     var prerequisites: [PlannedSkill]
+}
+
+struct SkillPlanData: Codable {
+    let name: String
+    let lastUpdated: Date
+    let skills: [Int]  // 技能ID列表，保持顺序
+}
+
+class SkillPlanFileManager {
+    static let shared = SkillPlanFileManager()
+    
+    private init() {
+        createSkillPlansDirectory()
+    }
+    
+    private var skillPlansDirectory: URL {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        return paths[0].appendingPathComponent("SkillPlans", isDirectory: true)
+    }
+    
+    private func createSkillPlansDirectory() {
+        do {
+            try FileManager.default.createDirectory(at: skillPlansDirectory, withIntermediateDirectories: true)
+        } catch {
+            Logger.error("创建技能计划目录失败: \(error)")
+        }
+    }
+    
+    func saveSkillPlan(characterId: Int, plan: SkillPlan) {
+        let planData = SkillPlanData(
+            name: plan.name,
+            lastUpdated: Date(),
+            skills: []  // 目前为空列表，后续实现添加技能功能时会更新
+        )
+        
+        let fileName = "\(characterId)_\(plan.id).json"
+        let fileURL = skillPlansDirectory.appendingPathComponent(fileName)
+        
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .formatted(DateFormatter.iso8601Full)
+            let data = try encoder.encode(planData)
+            try data.write(to: fileURL)
+            Logger.debug("保存技能计划成功: \(fileName)")
+        } catch {
+            Logger.error("保存技能计划失败: \(error)")
+        }
+    }
+    
+    func loadSkillPlans(characterId: Int) -> [SkillPlan] {
+        let fileManager = FileManager.default
+        let characterPrefix = "\(characterId)_"
+        
+        do {
+            let files = try fileManager.contentsOfDirectory(at: skillPlansDirectory, includingPropertiesForKeys: nil)
+            let plans = files.filter { url in
+                url.lastPathComponent.hasPrefix(characterPrefix) && url.pathExtension == "json"
+            }.compactMap { url -> SkillPlan? in
+                do {
+                    let data = try Data(contentsOf: url)
+                    let decoder = JSONDecoder()
+                    decoder.dateDecodingStrategy = .formatted(DateFormatter.iso8601Full)
+                    let planData = try decoder.decode(SkillPlanData.self, from: data)
+                    
+                    let planIdString = url.lastPathComponent
+                        .replacingOccurrences(of: characterPrefix, with: "")
+                        .replacingOccurrences(of: ".json", with: "")
+                    
+                    guard let planId = UUID(uuidString: planIdString) else {
+                        Logger.error("无效的计划ID: \(planIdString)")
+                        return nil
+                    }
+                    
+                    return SkillPlan(
+                        id: planId,
+                        name: planData.name,
+                        skills: [],  // 目前为空列表，后续实现添加技能功能时会更新
+                        totalTrainingTime: 0,
+                        totalSkillPoints: 0
+                    )
+                } catch {
+                    Logger.error("读取技能计划失败: \(error)")
+                    return nil
+                }
+            }
+            return plans
+        } catch {
+            Logger.error("读取技能计划目录失败: \(error)")
+            return []
+        }
+    }
+    
+    func deleteSkillPlan(characterId: Int, planId: UUID) {
+        let fileName = "\(characterId)_\(planId).json"
+        let fileURL = skillPlansDirectory.appendingPathComponent(fileName)
+        
+        do {
+            try FileManager.default.removeItem(at: fileURL)
+            Logger.debug("删除技能计划成功: \(fileName)")
+        } catch {
+            Logger.error("删除技能计划失败: \(error)")
+        }
+    }
 }
 
 struct SkillPlanView: View {
@@ -70,12 +174,17 @@ struct SkillPlanView: View {
                         totalSkillPoints: 0
                     )
                     skillPlans.append(newPlan)
+                    SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: newPlan)
                     newPlanName = ""
                 }
             }
             .disabled(newPlanName.isEmpty)
         } message: {
             Text(NSLocalizedString("Main_Skills_Plan_Name", comment: ""))
+        }
+        .task {
+            // 加载已保存的技能计划
+            skillPlans = SkillPlanFileManager.shared.loadSkillPlans(characterId: characterId)
         }
     }
     
@@ -100,6 +209,10 @@ struct SkillPlanView: View {
     }
     
     private func deletePlan(at offsets: IndexSet) {
+        for index in offsets {
+            let plan = skillPlans[index]
+            SkillPlanFileManager.shared.deleteSkillPlan(characterId: characterId, planId: plan.id)
+        }
         skillPlans.remove(atOffsets: offsets)
     }
     
@@ -242,5 +355,16 @@ struct AddSkillPlanView: View {
                 .disabled(planName.isEmpty)
             }
         }
-    }
-} 
+    } 
+}
+
+extension DateFormatter {
+    static let iso8601Full: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ"
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+}
