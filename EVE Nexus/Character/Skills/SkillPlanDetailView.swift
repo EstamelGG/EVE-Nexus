@@ -14,6 +14,7 @@ struct SkillPlanDetailView: View {
     @State private var characterAttributes: CharacterAttributes?
     @State private var implantBonuses: ImplantAttributes?
     @State private var trainingRates: [Int: Int] = [:]  // [skillId: pointsPerHour]
+    @State private var skillTimeMultipliers: [Int: Double] = [:]  // [skillId: timeMultiplier]
     
     var body: some View {
         List {
@@ -115,10 +116,14 @@ struct SkillPlanDetailView: View {
                 .padding(.trailing, 4)
             }
             
+            let spRange = getSkillPointRange(skill)
             HStack {
-                Text("\(NSLocalizedString("Main_Skills_Plan_Required_SP", comment: "")): \(FormatUtil.format(Double(skill.requiredSP)))")
+                Text("\(FormatUtil.format(Double(spRange.start)))/\(FormatUtil.format(Double(spRange.end))) SP")
+                if let rate = trainingRates[skill.skillID] {
+                    Text("(\(FormatUtil.format(Double(rate)))/h)")
+                }
                 Spacer()
-                Text("\(NSLocalizedString("Main_Skills_Plan_Training_Time", comment: "")): \(formatTimeInterval(skill.trainingTime))")
+                Text(formatTimeInterval(skill.trainingTime))
             }
             .font(.caption)
             .foregroundColor(.secondary)
@@ -180,6 +185,15 @@ struct SkillPlanDetailView: View {
             // 继续处理成功解析的技能
             if !result.skills.isEmpty {
                 Logger.debug("解析技能计划结果: \(result.skills)")
+                
+                // 获取所有新技能的ID
+                let newSkillIds = result.skills.compactMap { skillString -> Int? in
+                    let components = skillString.split(separator: ":")
+                    return components.count == 2 ? Int(components[0]) : nil
+                }
+                
+                // 批量加载新技能的倍增系数
+                loadSkillTimeMultipliers(newSkillIds)
                 
                 // 更新计划数据
                 var updatedPlan = plan
@@ -318,6 +332,10 @@ struct SkillPlanDetailView: View {
         // 加载植入体加成
         implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
         
+        // 批量获取所有技能的倍增系数
+        let skillIds = plan.skills.map { $0.skillID }
+        loadSkillTimeMultipliers(skillIds)
+        
         // 计算所有技能的训练速度
         if let attrs = characterAttributes {
             for skill in plan.skills {
@@ -338,6 +356,30 @@ struct SkillPlanDetailView: View {
         
         // 更新技能计划
         updateSkillPlan()
+    }
+    
+    private func loadSkillTimeMultipliers(_ skillIds: [Int]) {
+        guard !skillIds.isEmpty else { return }
+        
+        let query = """
+            SELECT type_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+            AND attribute_id = 275
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let value = row["value"] as? Double {
+                    skillTimeMultipliers[typeId] = value
+                }
+            }
+        }
+    }
+    
+    private func getSkillTimeMultiplier(_ skillId: Int) -> Double {
+        return skillTimeMultipliers[skillId] ?? 1.0
     }
     
     private func updateSkillPlan() {
@@ -402,21 +444,6 @@ struct SkillPlanDetailView: View {
         return 1 // 默认返回1，避免除以0
     }
     
-    private func getSkillTimeMultiplier(_ skillId: Int) -> Double {
-        let query = """
-            SELECT value
-            FROM typeAttributes
-            WHERE type_id = ? AND attribute_id = 275
-        """
-        
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skillId]),
-           let row = rows.first,
-           let value = row["value"] as? Double {
-            return value
-        }
-        return 1.0  // 默认返回1.0
-    }
-    
     private func calculateSkillRequirements(_ skill: PlannedSkill) -> (requiredSP: Int, trainingTime: TimeInterval) {
         let currentLevel = skill.currentLevel
         let targetLevel = skill.targetLevel
@@ -442,5 +469,32 @@ struct SkillPlanDetailView: View {
         }
         
         return (totalSP, totalTime)
+    }
+    
+    private func getSkillPointRange(_ skill: PlannedSkill) -> (start: Int, end: Int) {
+        let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
+        var startSP = 0
+        var endSP = 0
+        
+        // 计算起始技能点（目标等级-1的完成点数）
+        let startLevel = skill.targetLevel - 1
+        if startLevel > 0 {
+            for level in 1...startLevel {
+                if let baseSP = getBaseSkillPointsForLevel(level) {
+                    startSP += Int(Double(baseSP) * timeMultiplier)
+                }
+            }
+        }
+        
+        // 计算目标等级的完成点数
+        if skill.targetLevel > 0 {
+            for level in 1...skill.targetLevel {
+                if let baseSP = getBaseSkillPointsForLevel(level) {
+                    endSP += Int(Double(baseSP) * timeMultiplier)
+                }
+            }
+        }
+        
+        return (startSP, endSP)
     }
 }

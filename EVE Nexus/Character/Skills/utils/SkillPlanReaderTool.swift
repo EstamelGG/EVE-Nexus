@@ -26,7 +26,7 @@ class SkillPlanReaderTool {
             if trimmedLine.isEmpty { continue }
             
             // 使用正则表达式匹配技能名称和等级
-            let pattern = "^(.+?)\\s+(\\d+)$"
+            let pattern = "^(.+?)\\s+([1-5])$"
             if let regex = try? NSRegularExpression(pattern: pattern),
                let match = regex.firstMatch(in: trimmedLine, range: NSRange(trimmedLine.startIndex..., in: trimmedLine)) {
                 
