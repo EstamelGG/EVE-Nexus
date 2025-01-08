@@ -669,7 +669,7 @@
 // 技能计划相关
 "Main_Skills_Plan" = "技能计划";
 "Main_Skills_Plan_Add" = "添加计划";
-"Main_Skills_Plan_Edit" = "编辑计划";
+"Main_Skills_Plan_Edit" = "编辑";
 "Main_Skills_Plan_Delete" = "删除计划";
 "Main_Skills_Plan_Empty" = "暂无技能计划";
 "Main_Skills_Plan_Name" = "计划名称";

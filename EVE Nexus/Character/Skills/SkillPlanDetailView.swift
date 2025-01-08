@@ -6,32 +6,10 @@ struct SkillPlanDetailView: View {
     let plan: SkillPlan
     let characterId: Int
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var isEditing = false
+    @State private var isShowingEditSheet = false
     
     var body: some View {
         List {
-            if isEditing {
-                Section(header: Text(NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))) {
-                    NavigationLink {
-                        Text("占位1")
-                    } label: {
-                        Text("占位1")
-                    }
-                    NavigationLink {
-                        Text("占位2")
-                    } label: {
-                        Text("占位2")
-                    }
-                    Button {
-                        if let clipboardString = UIPasteboard.general.string {
-                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
-                        }
-                    } label: {
-                        Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
-                    }
-                }
-            }
-            
             Section(header: Text(NSLocalizedString("Main_Skills_Plan_Total_Time", comment: ""))) {
                 Text(formatTimeInterval(plan.totalTrainingTime))
             }
@@ -55,9 +33,45 @@ struct SkillPlanDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    isEditing.toggle()
+                    isShowingEditSheet = true
                 } label: {
-                    Text(isEditing ? NSLocalizedString("Main_EVE_Mail_Done", comment: "") : NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))
+                    Text(NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingEditSheet) {
+            NavigationView {
+                List {
+                    NavigationLink {
+                        // 占位1
+                    } label: {
+                        Text("占位1")
+                    }
+                    
+                    NavigationLink {
+                        // 占位2
+                    } label: {
+                        Text("占位2")
+                    }
+                    
+                    Button {
+                        if let clipboardString = UIPasteboard.general.string {
+                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
+                        }
+                    } label: {
+                        Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
+                    }
+                }
+                .navigationTitle(NSLocalizedString("Main_Skills_Plan_Edit", comment: ""))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            isShowingEditSheet = false
+                        } label: {
+                            Text(NSLocalizedString("Main_EVE_Mail_Done", comment: ""))
+                        }
+                    }
                 }
             }
         }
