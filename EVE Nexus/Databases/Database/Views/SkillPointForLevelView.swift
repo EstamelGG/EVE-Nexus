@@ -91,6 +91,13 @@ struct SkillPointForLevelView: View {
         }
     }
     
+    private func formatNumber(_ number: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
     var body: some View {
         Section(header: Text(NSLocalizedString("Main_Database_Skill_Level_Detail", comment: "")).font(.headline)) {
             ForEach(1...5, id: \.self) { level in
@@ -98,10 +105,9 @@ struct SkillPointForLevelView: View {
                 
                 HStack {
                     VStack(alignment: .leading) {
-                        Text("\(FormatUtil.format(Double(requiredSP)))点")
+                        Text("\(FormatUtil.format(Double(requiredSP))) SP")
                             .font(.body)
-                        
-                        Text(formatTrainingTime(skillPoints: requiredSP))
+                        Text("\(formatTrainingTime(skillPoints: requiredSP))(\(formatNumber(Int(skillPointsPerHour)))/h)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
