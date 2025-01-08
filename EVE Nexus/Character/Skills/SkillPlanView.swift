@@ -249,23 +249,56 @@ struct SkillPlanView: View {
     }
     
     private func planRowView(_ plan: SkillPlan) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(plan.name)
-                .font(.headline)
+        HStack(alignment: .center, spacing: 8) {
+            // 左侧：计划名称和更新时间
+            VStack(alignment: .leading, spacing: 4) {
+                Text(plan.name)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                Text(formatDate(plan.lastUpdated))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             
-            HStack {
+            Spacer()
+            
+            // 右侧：技能数量和训练时间
+            VStack(alignment: .trailing, spacing: 4) {
                 Text("\(plan.skills.count) \(NSLocalizedString("Main_Skills_Plan_Skills", comment: ""))")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                Spacer()
-                
                 Text(formatTimeInterval(plan.totalTrainingTime))
-                    .font(.subheadline)
+                    .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let now = Date()
+        let components = Calendar.current.dateComponents([.minute, .hour, .day], from: date, to: now)
+        
+        if let days = components.day {
+            if days > 30 {
+                // 超过30天显示具体日期
+                let formatter = DateFormatter()
+                formatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
+                return formatter.string(from: date)
+            } else if days > 0 {
+                return String(format: NSLocalizedString("Time_Days_Ago", comment: ""), days)
+            }
+        }
+        
+        if let hours = components.hour, hours > 0 {
+            return String(format: NSLocalizedString("Time_Hours_Ago", comment: ""), hours)
+        } else if let minutes = components.minute, minutes > 0 {
+            return String(format: NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
+        } else {
+            return NSLocalizedString("Time_Just_Now", comment: "")
+        }
     }
     
     private func deletePlan(at offsets: IndexSet) {
