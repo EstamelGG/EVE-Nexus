@@ -136,8 +136,8 @@ struct SkillPlanDetailView: View {
                     .font(.caption)
                     .padding(.trailing, 2)
                 SkillLevelIndicator(
-                    currentLevel: skill.currentLevel,
-                    trainingLevel: skill.targetLevel,
+                    currentLevel: skill.targetLevel - 1,  // 计划中的当前等级
+                    trainingLevel: skill.targetLevel,     // 计划中的目标等级
                     isTraining: false
                 )
                 .padding(.trailing, 2)
@@ -271,20 +271,20 @@ struct SkillPlanDetailView: View {
                     let currentSkillPoints = learnedSkill?.skillpoints_in_skill ?? 0
                     
                     // 如果目标等级小于等于当前等级，说明已完成
-                    if targetLevel <= currentLevel {
-                        return PlannedSkill(
-                            id: UUID(),
-                            skillID: typeId,
-                            skillName: skillName,
-                            currentLevel: currentLevel,
-                            targetLevel: targetLevel,
-                            trainingTime: 0,
-                            requiredSP: 0,
-                            prerequisites: [],
-                            currentSkillPoints: currentSkillPoints,
-                            isCompleted: true
-                        )
-                    }
+                    let isCompleted = targetLevel <= currentLevel
+                    
+                    let skill = PlannedSkill(
+                        id: UUID(),
+                        skillID: typeId,
+                        skillName: skillName,
+                        currentLevel: targetLevel - 1,  // 计划中的当前等级始终是目标等级-1
+                        targetLevel: targetLevel,
+                        trainingTime: 0,
+                        requiredSP: 0,
+                        prerequisites: [],
+                        currentSkillPoints: getBaseSkillPointsForLevel(targetLevel - 1) ?? 0,  // 使用计划等级的基础点数
+                        isCompleted: isCompleted
+                    )
                     
                     // 计算训练速度（如果还没有）
                     if trainingRates[typeId] == nil,
@@ -301,19 +301,6 @@ struct SkillPlanDetailView: View {
                         trainingRates[typeId] = rate
                     }
                     
-                    let skill = PlannedSkill(
-                        id: UUID(),
-                        skillID: typeId,
-                        skillName: skillName,
-                        currentLevel: currentLevel,
-                        targetLevel: targetLevel,
-                        trainingTime: 0,
-                        requiredSP: 0,
-                        prerequisites: [],
-                        currentSkillPoints: currentSkillPoints,
-                        isCompleted: false
-                    )
-                    
                     // 计算训练时间和所需技能点
                     let (requiredSP, trainingTime) = calculateSkillRequirements(skill)
                     
@@ -327,7 +314,7 @@ struct SkillPlanDetailView: View {
                         requiredSP: requiredSP,
                         prerequisites: skill.prerequisites,
                         currentSkillPoints: currentSkillPoints,
-                        isCompleted: false
+                        isCompleted: isCompleted
                     )
                 }
                 
@@ -556,11 +543,9 @@ struct SkillPlanDetailView: View {
         // 获取技能的训练倍增系数
         let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
         
-        // 获取目标等级的完成点数
+        // 获取起始和目标等级的技能点数
+        let startSP = (getBaseSkillPointsForLevel(skill.currentLevel) ?? 0) * timeMultiplier
         let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
-        
-        // 使用当前技能点数作为起始点数（如果有）
-        let startSP = skill.currentSkillPoints ?? 0
         
         // 计算需要训练的技能点数
         let requiredSP = endSP - startSP
@@ -577,8 +562,10 @@ struct SkillPlanDetailView: View {
     }
     
     private func getSkillPointRange(_ skill: PlannedSkill) -> (start: Int, end: Int) {
-        let details = calculateSkillDetails(skill)
-        return (details.startSP, details.endSP)
+        let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
+        let startSP = (getBaseSkillPointsForLevel(skill.currentLevel) ?? 0) * timeMultiplier
+        let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
+        return (startSP, endSP)
     }
     
     private func deleteSkill(at offsets: IndexSet) {
