@@ -52,16 +52,45 @@ class SkillPlanFileManager {
     }
     
     func saveSkillPlan(characterId: Int, plan: SkillPlan) {
-        let planData = SkillPlanData(
-            name: plan.name,
-            lastUpdated: Date(),
-            skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" },
-            isPublic: plan.isPublic
-        )
-        
         let prefix = plan.isPublic ? "public" : "\(characterId)"
         let fileName = "\(prefix)_\(plan.id).json"
         let fileURL = skillPlansDirectory.appendingPathComponent(fileName)
+        
+        // 检查文件是否存在，如果存在则读取当前内容进行对比
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            do {
+                let existingData = try Data(contentsOf: fileURL)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .formatted(DateFormatter.iso8601Full)
+                let existingPlanData = try decoder.decode(SkillPlanData.self, from: existingData)
+                
+                // 创建新的计划数据，但保持原有的lastUpdated
+                let newPlanData = SkillPlanData(
+                    name: plan.name,
+                    lastUpdated: existingPlanData.lastUpdated,  // 保持原有的lastUpdated
+                    skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" },
+                    isPublic: plan.isPublic
+                )
+                
+                // 比较内容是否相同（除了lastUpdated）
+                if existingPlanData.name == newPlanData.name &&
+                   Set(existingPlanData.skills) == Set(newPlanData.skills) &&
+                   existingPlanData.isPublic == newPlanData.isPublic {
+                    Logger.debug("技能计划内容未变化，跳过保存: \(fileName)")
+                    return
+                }
+            } catch {
+                Logger.error("读取现有技能计划失败: \(error)")
+            }
+        }
+        
+        // 如果文件不存在或内容有变化，则创建新的计划数据并保存
+        let planData = SkillPlanData(
+            name: plan.name,
+            lastUpdated: Date(),  // 只有在内容真正变化时才更新时间
+            skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" },
+            isPublic: plan.isPublic
+        )
         
         do {
             let encoder = JSONEncoder()
