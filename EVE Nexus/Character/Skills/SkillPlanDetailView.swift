@@ -56,7 +56,8 @@ struct SkillPlanDetailView: View {
                     
                     Button {
                         if let clipboardString = UIPasteboard.general.string {
-                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
+                            let results = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
+                            Logger.debug("解析技能计划结果: \(results)")
                         }
                     } label: {
                         Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
