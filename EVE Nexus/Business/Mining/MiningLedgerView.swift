@@ -28,6 +28,7 @@ final class MiningLedgerViewModel: ObservableObject {
     @Published private(set) var monthGroups: [MiningMonthGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    private var initialLoadDone = false
     
     private let characterId: Int
     let databaseManager: DatabaseManager
@@ -82,6 +83,11 @@ final class MiningLedgerViewModel: ObservableObject {
     }
     
     func loadMiningData(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -149,6 +155,7 @@ final class MiningLedgerViewModel: ObservableObject {
                     self.monthGroups = groups
                     Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
                     self.isLoading = false
+                    self.initialLoadDone = true
                 }
                 
             } catch {
@@ -208,7 +215,7 @@ struct MiningLedgerView: View {
                     Section {
                         ForEach(group.entries) { entry in
                             MiningItemRow(entry: entry, databaseManager: viewModel.databaseManager)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     } header: {
                         Text(String(format: NSLocalizedString("Mining_Monthly_Summary", comment: ""), monthFormatter.string(from: group.yearMonth)))

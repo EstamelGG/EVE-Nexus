@@ -105,26 +105,49 @@ struct FormatUtil {
     /// - Parameter totalSeconds: 总秒数
     /// - Returns: 格式化后的时间字符串
     static func formatTime(_ totalSeconds: Int) -> String {
-        let days = totalSeconds / 86400
-        let hours = (totalSeconds % 86400) / 3600
-        let minutes = (totalSeconds % 3600) / 60
+        if totalSeconds < 1 {
+            return "1s"
+        }
+        
+        var days = totalSeconds / 86400
+        var hours = (totalSeconds % 86400) / 3600
+        var minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
         
-        var components: [String] = []
-        
+        // 当显示两个单位时，对第二个单位进行四舍五入
         if days > 0 {
-            components.append("\(days)d")
+            // 对小时进行四舍五入
+            if minutes >= 30 {
+                hours += 1
+                if hours == 24 { // 如果四舍五入后小时数达到24
+                    days += 1
+                    hours = 0
+                }
+            }
+            if hours > 0 {
+                return "\(days)d \(hours)h"
+            }
+            return "\(days)d"
+        } else if hours > 0 {
+            // 对分钟进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+                if minutes == 60 { // 如果四舍五入后分钟数达到60
+                    hours += 1
+                    minutes = 0
+                }
+            }
+            if minutes > 0 {
+                return "\(hours)h \(minutes)m"
+            }
+            return "\(hours)h"
+        } else if minutes > 0 {
+            // 对秒进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+            }
+            return "\(minutes)m"
         }
-        if hours > 0 {
-            components.append("\(hours)h")
-        }
-        if minutes > 0 {
-            components.append("\(minutes)m")
-        }
-        if seconds > 0 || components.isEmpty {
-            components.append("\(seconds)s")
-        }
-        
-        return components.joined(separator: " ")
+        return "\(seconds)s"
     }
 } 

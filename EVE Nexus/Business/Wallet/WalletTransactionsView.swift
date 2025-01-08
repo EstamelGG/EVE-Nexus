@@ -234,7 +234,7 @@ struct WalletTransactionsView: View {
                     ) {
                         ForEach(group.entries) { entry in
                             WalletTransactionEntryRow(entry: entry, viewModel: viewModel)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }

@@ -192,6 +192,18 @@ struct CharacterSkillsView: View {
                     Text(NSLocalizedString("Main_Skills_Category", comment: ""))
                 }
             }
+            
+            NavigationLink {
+                SkillPlanView(characterId: characterId, databaseManager: databaseManager)
+            } label: {
+                HStack {
+                    Image("notegroup")
+                        .resizable()
+                        .frame(width: 32, height: 36)
+                        .foregroundColor(.blue)
+                    Text(NSLocalizedString("Main_Skills_Plan", comment: ""))
+                }
+            }
         } header: {
             Text(NSLocalizedString("Main_Skills_Categories", comment: ""))
         }
@@ -378,7 +390,7 @@ struct CharacterSkillsView: View {
                 Text(info.name)
                 Spacer()
                 Text("\(count)")
-                    .font(.body)
+                    .foregroundColor(.secondary)
             }
         }
     }

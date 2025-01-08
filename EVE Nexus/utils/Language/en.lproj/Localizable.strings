@@ -196,8 +196,10 @@
 "Time_Days_Hours" = "%dd %dh";
 "Time_Days" = "%dd";
 "Time_Hours" = "%dh";
+"Time_Seconds" = "%ds";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+"Time_Minutes_Seconds" = "%dm %ds";
 
 // Network Errors
 "Network_Error_Invalid_URL" = "Invalid URL";
@@ -450,9 +452,6 @@
 "Character_Jump_Fatigue" = "Jump Fatigue";
 "Character_No_Jump_Fatigue" = "No Jump Fatigue";
 "Character_Last_Jump" = "Last Jump: %@";
-"Time_Days_Hours_Minutes" = "%dd %dh %dm";
-"Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
 
 // Character Info
 "Character_Birthday" = "Birthday";
@@ -495,12 +494,11 @@
 "Main_Skills_Time_Required" = "Required: %@";
 "Main_Skills_Categories" = "Skill Categories";
 "Main_Skills_Not_Injected" = "Not Injected";
+"Main_Skills_Completed" = "Completed";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
-"Main_Skills_Categories" = "Categories";
 
 // Character Attributes Time
 "Character_Attributes_Ready_Now" = "Now";
@@ -667,3 +665,27 @@
 "Main_Skills_Optimal_Attributes_Difference" = "Difference";
 "Main_Skills_Optimal_Attributes_No_Queue" = "Cannot calculate optimal attributes with empty skill queue";
 "Main_Skills_Optimal_Attributes_Loading" = "Calculating optimal attributes...";
+
+"Main_Database_Skill_Level_Detail" = "Detail of skill level";
+
+// Skill Plan
+"Main_Skills_Plan" = "Skill Plans";
+"Main_Skills_Plan_Add" = "Add Plan";
+"Main_Skills_Plan_Edit" = "Edit Plan";
+"Main_Skills_Plan_Delete" = "Delete Plan";
+"Main_Skills_Plan_Empty" = "No Skill Plans";
+"Main_Skills_Plan_Name" = "Plan Name";
+"Main_Skills_Plan_Skills" = "skills";
+"Main_Skills_Plan_Total_Time" = "Total Training Time";
+"Main_Skills_Plan_Total_SP" = "Total Skill Points";
+"Main_Skills_Plan_Set_Public" = "Set as Public Plan";
+"Main_Skills_Plan_Public" = "Public Plan";
+"Main_Skills_Plan_Private" = "Private Plan";
+"Main_Skills_Plan_Save_As_Public" = "Save as Public Plan";
+"Main_Skills_Plan_Save_As_Private" = "Save as Private Plan";
+"Main_Skills_Plan_Public_Tag" = "(Public)";
+"Main_Skills_Plan_Import_From_Clipboard" = "Import from Clipboard";
+"Main_Skills_Plan_Import_Alert_Title" = "Import Result";
+"Main_Skills_Plan_Import_Parse_Failed" = "Failed to parse the following content:";
+"Main_Skills_Plan_Import_Not_Found" = "The following skills were not found:";
+"Main_Skills_Plan_Import_Success" = "Import successfully";

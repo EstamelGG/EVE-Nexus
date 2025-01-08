@@ -448,6 +448,7 @@
 "Time_Days_Hours_Minutes" = "%d天%d小时%d分钟";
 "Time_Hours_Minutes" = "%d小时%d分钟";
 "Time_Minutes" = "%d分钟";
+"Time_Minutes_Seconds" = "%d分%d秒";
 
 // 角色信息
 "Character_Birthday" = "出生日期";
@@ -489,13 +490,15 @@
 "Main_Skills_Time_Required" = "需要: %@";
 "Main_Skills_Categories" = "技能目录";
 "Main_Skills_Not_Injected" = "未吸收";
+"Main_Skills_Completed" = "已完成";
 
 // 时间显示
-"Time_Days_Hours" = "%dd %dh";
-"Time_Days" = "%dd";
-"Time_Hours" = "%dh";
-"Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
+"Time_Days_Hours" = "%d天%d小时";
+"Time_Days" = "%d天";
+"Time_Hours" = "%d小时";
+"Time_Seconds" = "%d秒";
+"Time_Hours_Minutes" = "%d小时%d分钟";
+"Time_Minutes" = "%d分钟";
 
 // Character Attributes
 "Character_Attributes_Title" = "人物属性";
@@ -663,3 +666,27 @@
 "Main_Skills_Optimal_Attributes_Difference" = "差值";
 "Main_Skills_Optimal_Attributes_No_Queue" = "技能队列为空，无法计算最优属性";
 "Main_Skills_Optimal_Attributes_Loading" = "正在计算最优属性...";
+
+"Main_Database_Skill_Level_Detail" = "技能等级细节";
+
+// 技能计划相关
+"Main_Skills_Plan" = "技能计划";
+"Main_Skills_Plan_Add" = "添加计划";
+"Main_Skills_Plan_Edit" = "编辑";
+"Main_Skills_Plan_Delete" = "删除计划";
+"Main_Skills_Plan_Empty" = "暂无技能计划";
+"Main_Skills_Plan_Name" = "计划名称";
+"Main_Skills_Plan_Skills" = "个技能";
+"Main_Skills_Plan_Total_Time" = "总训练时间";
+"Main_Skills_Plan_Total_SP" = "总技能点数";
+"Main_Skills_Plan_Set_Public" = "设为公共计划";
+"Main_Skills_Plan_Public" = "公共计划";
+"Main_Skills_Plan_Private" = "私人计划";
+"Main_Skills_Plan_Save_As_Public" = "保存为公共计划";
+"Main_Skills_Plan_Save_As_Private" = "保存为私有计划";
+"Main_Skills_Plan_Public_Tag" = "(共享)";
+"Main_Skills_Plan_Import_From_Clipboard" = "从剪贴板导入";
+"Main_Skills_Plan_Import_Alert_Title" = "导入结果";
+"Main_Skills_Plan_Import_Parse_Failed" = "以下内容解析失败：";
+"Main_Skills_Plan_Import_Not_Found" = "以下技能未找到：";
+"Main_Skills_Plan_Import_Success" = "成功导入";

@@ -222,7 +222,7 @@ struct CorpWalletTransactionsView: View {
                     ) {
                         ForEach(group.entries) { entry in
                             CorpWalletTransactionEntryRow(entry: entry, viewModel: viewModel)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }

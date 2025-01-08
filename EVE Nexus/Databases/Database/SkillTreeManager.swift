@@ -191,9 +191,14 @@ class SkillTreeManager {
         let skillIDs = Array(skillMap.keys)
         let multipliers = getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
         
-        // 转换为数组并按等级排序
+        // 转换为数组并按等级排序，等级相同时按type_id从大到小排序
         return skillMap.map { (skillID: $0.key, level: $0.value, timeMultiplier: multipliers[$0.key]) }
-            .sorted { $0.level > $1.level }
+            .sorted { first, second in
+                if first.level == second.level {
+                    return first.skillID > second.skillID  // type_id从大到小
+                }
+                return first.level > second.level  // 等级从高到低
+            }
     }
     
     /// 批量获取技能的训练时间倍增系数
