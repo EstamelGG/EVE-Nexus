@@ -79,10 +79,9 @@ struct SkillPointForLevelView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Text("Lv \(level)")
+                    Text("Lv0 → Lv\(level)")
                         .font(.body)
                         .foregroundColor(.secondary)
-                        .frame(width: 50, alignment: .leading)
                 }
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
