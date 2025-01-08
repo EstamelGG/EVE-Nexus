@@ -34,6 +34,7 @@ struct SkillPlanDetailView: View {
                     ForEach(plan.skills) { skill in
                         skillRowView(skill)
                     }
+                    .onDelete(perform: deleteSkill)
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
@@ -477,5 +478,22 @@ struct SkillPlanDetailView: View {
         }
         
         return (startSP, endSP)
+    }
+    
+    private func deleteSkill(at offsets: IndexSet) {
+        var updatedPlan = plan
+        updatedPlan.skills.remove(atOffsets: offsets)
+        
+        // 重新计算总时间和技能点
+        updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + $1.trainingTime }
+        updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + $1.requiredSP }
+        
+        // 保存更新后的计划
+        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
+        
+        // 更新父视图中的计划列表
+        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
+            skillPlans[index] = updatedPlan
+        }
     }
 }
