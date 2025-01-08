@@ -23,7 +23,7 @@ struct SkillPlanDetailView: View {
             }
             
             Section(header: Text(NSLocalizedString("Main_Skills_Plan_Total_SP", comment: ""))) {
-                Text(FormatUtil.format(Double(plan.totalSkillPoints)))
+                Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP")
             }
             
             Section(header: Text("\(NSLocalizedString("Main_Skills_Plan", comment:""))(\(plan.skills.count))")) {
@@ -141,7 +141,7 @@ struct SkillPlanDetailView: View {
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
         if interval < 1 {
-            return String(format: NSLocalizedString("Time_Seconds", comment: ""), 1)
+            return String(format: NSLocalizedString("Time_Seconds", comment: ""), 0)
         }
         
         let totalSeconds = interval
