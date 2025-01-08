@@ -11,6 +11,9 @@ struct SkillPlanDetailView: View {
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var shouldDismissSheet = false
+    @State private var characterAttributes: CharacterAttributes?
+    @State private var implantBonuses: ImplantAttributes?
+    @State private var trainingRates: [Int: Int] = [:]  // [skillId: pointsPerHour]
     
     var body: some View {
         List {
@@ -86,6 +89,10 @@ struct SkillPlanDetailView: View {
                     Text(errorMessage)
                 }
             }
+        }
+        .task {
+            // 加载角色属性和植入体加成
+            await loadCharacterData()
         }
     }
     
@@ -199,7 +206,22 @@ struct SkillPlanDetailView: View {
                         Logger.error("获取技能名称失败: \(error)")
                     }
                     
-                    return PlannedSkill(
+                    // 计算训练速度（如果还没有）
+                    if trainingRates[typeId] == nil,
+                       let attrs = characterAttributes,
+                       let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+                           skillId: typeId,
+                           databaseManager: databaseManager
+                       ),
+                       let rate = SkillTrainingCalculator.calculateTrainingRate(
+                           primaryAttrId: primary,
+                           secondaryAttrId: secondary,
+                           attributes: attrs
+                       ) {
+                        trainingRates[typeId] = rate
+                    }
+                    
+                    let skill = PlannedSkill(
                         id: UUID(),
                         skillID: typeId,
                         skillName: skillName,
@@ -209,12 +231,30 @@ struct SkillPlanDetailView: View {
                         requiredSP: 0,
                         prerequisites: []
                     )
+                    
+                    // 计算训练时间和所需技能点
+                    let (requiredSP, trainingTime) = calculateSkillRequirements(skill)
+                    
+                    return PlannedSkill(
+                        id: skill.id,
+                        skillID: skill.skillID,
+                        skillName: skill.skillName,
+                        currentLevel: skill.currentLevel,
+                        targetLevel: skill.targetLevel,
+                        trainingTime: trainingTime,
+                        requiredSP: requiredSP,
+                        prerequisites: skill.prerequisites
+                    )
                 }
                 
                 // 只有在有有效技能时才更新计划
                 if !validSkills.isEmpty {
                     // 将新技能添加到现有技能列表末尾
                     updatedPlan.skills.append(contentsOf: validSkills)
+                    
+                    // 更新计划的总训练时间和总技能点
+                    updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + $1.trainingTime }
+                    updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { $0 + $1.requiredSP }
                     
                     // 保存更新后的计划
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
@@ -269,5 +309,138 @@ struct SkillPlanDetailView: View {
                 shouldDismissSheet = false
             }
         }
+    }
+    
+    private func loadCharacterData() async {
+        // 加载角色属性
+        characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+        
+        // 加载植入体加成
+        implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
+        
+        // 计算所有技能的训练速度
+        if let attrs = characterAttributes {
+            for skill in plan.skills {
+                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+                    skillId: skill.skillID,
+                    databaseManager: databaseManager
+                ) {
+                    if let rate = SkillTrainingCalculator.calculateTrainingRate(
+                        primaryAttrId: primary,
+                        secondaryAttrId: secondary,
+                        attributes: attrs
+                    ) {
+                        trainingRates[skill.skillID] = rate
+                    }
+                }
+            }
+        }
+        
+        // 更新技能计划
+        updateSkillPlan()
+    }
+    
+    private func updateSkillPlan() {
+        var updatedPlan = plan
+        var totalTrainingTime: TimeInterval = 0
+        var totalSkillPoints = 0
+        
+        // 更新每个技能的训练时间和所需技能点
+        updatedPlan.skills = updatedPlan.skills.map { skill in
+            let (requiredSP, trainingTime) = calculateSkillRequirements(skill)
+            
+            totalTrainingTime += trainingTime
+            totalSkillPoints += requiredSP
+            
+            return PlannedSkill(
+                id: skill.id,
+                skillID: skill.skillID,
+                skillName: skill.skillName,
+                currentLevel: skill.currentLevel,
+                targetLevel: skill.targetLevel,
+                trainingTime: trainingTime,
+                requiredSP: requiredSP,
+                prerequisites: skill.prerequisites
+            )
+        }
+        
+        // 更新计划总时间和总技能点
+        updatedPlan.totalTrainingTime = totalTrainingTime
+        updatedPlan.totalSkillPoints = totalSkillPoints
+        
+        // 保存更新后的计划
+        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
+        
+        // 更新父视图中的计划列表
+        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
+            skillPlans[index] = updatedPlan
+        }
+    }
+    
+    private func getBaseSkillPointsForLevel(_ level: Int) -> Int? {
+        switch level {
+        case 1: return 250
+        case 2: return 1_415
+        case 3: return 8_000
+        case 4: return 45_255
+        case 5: return 256_000
+        default: return nil
+        }
+    }
+    
+    private func getSkillRank(_ skillId: Int) -> Int {
+        let query = """
+            SELECT rank
+            FROM types
+            WHERE type_id = ?
+        """
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skillId]),
+           let row = rows.first,
+           let rank = row["rank"] as? Int {
+            return rank
+        }
+        return 1 // 默认返回1，避免除以0
+    }
+    
+    private func getSkillTimeMultiplier(_ skillId: Int) -> Double {
+        let query = """
+            SELECT value
+            FROM typeAttributes
+            WHERE type_id = ? AND attribute_id = 275
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skillId]),
+           let row = rows.first,
+           let value = row["value"] as? Double {
+            return value
+        }
+        return 1.0  // 默认返回1.0
+    }
+    
+    private func calculateSkillRequirements(_ skill: PlannedSkill) -> (requiredSP: Int, trainingTime: TimeInterval) {
+        let currentLevel = skill.currentLevel
+        let targetLevel = skill.targetLevel
+        var totalSP = 0
+        var totalTime: TimeInterval = 0
+        
+        // 获取训练速度
+        let trainingRate = trainingRates[skill.skillID] ?? 0
+        
+        // 获取技能的训练倍增系数
+        let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
+        
+        // 计算从当前等级到目标等级所需的技能点和时间
+        for level in (currentLevel + 1)...targetLevel {
+            if let baseSpForLevel = getBaseSkillPointsForLevel(level) {
+                // 根据训练倍增系数计算实际所需技能点
+                let spForLevel = Int(Double(baseSpForLevel) * timeMultiplier)
+                totalSP += spForLevel
+                if trainingRate > 0 {
+                    totalTime += Double(spForLevel) / Double(trainingRate) * 3600 // 转换为秒
+                }
+            }
+        }
+        
+        return (totalSP, totalTime)
     }
 }

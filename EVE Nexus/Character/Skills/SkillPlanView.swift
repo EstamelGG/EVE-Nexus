@@ -17,8 +17,8 @@ struct PlannedSkill: Identifiable {
     let skillName: String
     let currentLevel: Int
     let targetLevel: Int
-    let trainingTime: TimeInterval
-    let requiredSP: Int
+    var trainingTime: TimeInterval
+    var requiredSP: Int
     var prerequisites: [PlannedSkill]
 }
 
