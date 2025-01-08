@@ -38,17 +38,29 @@ struct SkillPointForLevelView: View {
     }
     
     private func getSkillPointsForLevel(_ level: Int) -> Int {
+        Logger.debug("获取技能\(skillId)等级\(level)所需技能点")
+        // 获取技能倍增系数
         let result = databaseManager.executeQuery(
-            "SELECT sp_level\(level) as sp FROM skill_points WHERE type_id = ?",
+            """
+            SELECT value
+            FROM typeAttributes
+            WHERE type_id = ? AND attribute_id = 275
+            """,
             parameters: [skillId]
         )
         
+        var timeMultiplier: Double = 1.0
         if case .success(let rows) = result,
            let row = rows.first,
-           let sp = row["sp"] as? Int {
-            return sp
+           let value = row["value"] as? Double {
+            timeMultiplier = value
         }
-        return 0
+        
+        // 使用基准点数乘以倍增系数
+        let basePoints = SkillProgressCalculator.baseSkillPoints[level - 1]
+        let totalPoints = Int(Double(basePoints) * timeMultiplier)
+        Logger.debug("基准点数: \(basePoints), 倍增系数: \(timeMultiplier), 总点数: \(totalPoints)")
+        return totalPoints
     }
     
     private func formatTrainingTime(skillPoints: Int) -> String {
