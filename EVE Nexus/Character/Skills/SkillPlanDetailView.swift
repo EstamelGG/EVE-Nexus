@@ -79,17 +79,17 @@ struct SkillPlanDetailView: View {
         .sheet(isPresented: $isShowingEditSheet) {
             NavigationView {
                 List {
-                    NavigationLink {
-                        // 占位1
-                    } label: {
-                        Text("占位1")
-                    }
-                    
-                    NavigationLink {
-                        // 占位2
-                    } label: {
-                        Text("占位2")
-                    }
+//                    NavigationLink {
+//                        // 占位1
+//                    } label: {
+//                        Text("占位1")
+//                    }
+//                    
+//                    NavigationLink {
+//                        // 占位2
+//                    } label: {
+//                        Text("占位2")
+//                    }
                     
                     Button {
                         importSkillsFromClipboard()
