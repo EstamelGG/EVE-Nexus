@@ -390,7 +390,6 @@ struct CharacterSkillsView: View {
                 Text(info.name)
                 Spacer()
                 Text("\(count)")
-                    .font(.body)
             }
         }
     }
