@@ -2,9 +2,9 @@ import SwiftUI
 
 struct SearcherView: View {
     let character: EVECharacterInfo
+    @StateObject private var viewModel = SearcherViewModel()
     @State private var searchText = ""
     @State private var selectedSearchType = SearchType.character
-    @State private var isSearching = false
     
     // 过滤条件
     @State private var corporationFilter = ""
@@ -21,6 +21,20 @@ struct SearcherView: View {
         
         var localizedName: String {
             NSLocalizedString(self.rawValue, comment: "")
+        }
+        
+        // 转换为MailRecipient.RecipientType
+        var recipientType: MailRecipient.RecipientType {
+            switch self {
+            case .character:
+                return .character
+            case .corporation:
+                return .corporation
+            case .alliance:
+                return .alliance
+            case .structure:
+                return .character // 建筑物没有对应的类型，暂时使用character
+            }
         }
     }
     
@@ -45,6 +59,20 @@ struct SearcherView: View {
         }
     }
     
+    // 搜索结果数据模型
+    struct SearchResult: Identifiable {
+        let id: Int
+        let name: String
+        let type: SearchType
+    }
+    
+    // 搜索响应数据结构
+    struct SearchResponse: Codable {
+        let character: [Int]?
+        let corporation: [Int]?
+        let alliance: [Int]?
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             // 搜索类型选择器
@@ -65,7 +93,9 @@ struct SearcherView: View {
                     TextField(NSLocalizedString("Main_Search_Placeholder", comment: ""), text: $searchText)
                         .submitLabel(.search)
                         .onSubmit {
-                            performSearch()
+                            if !searchText.isEmpty && searchText.count > 2 {
+                                viewModel.debounceSearch(characterId: character.CharacterID, searchText: searchText, type: selectedSearchType)
+                            }
                         }
                     
                     if !searchText.isEmpty {
@@ -84,8 +114,8 @@ struct SearcherView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             
-            // 过滤条件部分
             List {
+                // 过滤条件部分
                 Section(header: Text(NSLocalizedString("Main_Search_Filter_Title", comment: ""))) {
                     filterView
                     
@@ -94,16 +124,58 @@ struct SearcherView: View {
                             .foregroundColor(.red)
                     }
                 }
-            }
-            
-            if isSearching {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .padding()
+                
+                // 搜索结果部分
+                if !searchText.isEmpty {
+                    Section(header: Text(NSLocalizedString("Main_Search_Results", comment: ""))) {
+                        if viewModel.isSearching {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Text(NSLocalizedString("Main_Search_Searching", comment: ""))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                        } else if viewModel.error != nil {
+                            HStack {
+                                Spacer()
+                                VStack {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .font(.largeTitle)
+                                        .foregroundColor(.red)
+                                    Text(NSLocalizedString("Main_Search_Failed", comment: ""))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        } else if searchText.count <= 2 {
+                            Text(NSLocalizedString("Main_Search_Min_Length", comment: ""))
+                                .foregroundColor(.secondary)
+                        } else if viewModel.searchResults.isEmpty {
+                            Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                                .foregroundColor(.secondary)
+                        } else {
+                            ForEach(viewModel.searchResults) { result in
+                                SearchResultRow(result: result)
+                            }
+                        }
+                    }
+                }
             }
         }
         .navigationTitle(NSLocalizedString("Main_Search_Title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: searchText) { _, newValue in
+            if newValue.isEmpty || newValue.count <= 2 {
+                viewModel.searchResults = []
+                if !newValue.isEmpty {
+                    viewModel.error = nil
+                    viewModel.isSearching = false
+                }
+            } else {
+                viewModel.debounceSearch(characterId: character.CharacterID, searchText: newValue, type: selectedSearchType)
+            }
+        }
     }
     
     @ViewBuilder
@@ -139,33 +211,96 @@ struct SearcherView: View {
         selectedSecurityLevel = .all
         selectedStructureType = .all
     }
+}
+
+// 搜索结果行视图
+struct SearchResultRow: View {
+    let result: SearcherView.SearchResult
     
-    private func performSearch() {
-        guard !searchText.isEmpty else { return }
-        isSearching = true
+    var body: some View {
+        HStack {
+            UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
+            VStack(alignment: .leading) {
+                Text(result.name)
+                Text(result.type.localizedName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
+
+// 视图模型
+@MainActor
+class SearcherViewModel: ObservableObject {
+    @Published var searchResults: [SearcherView.SearchResult] = []
+    @Published var isSearching = false
+    @Published var error: Error?
+    
+    private var searchTask: Task<Void, Never>?
+    
+    func debounceSearch(characterId: Int, searchText: String, type: SearcherView.SearchType) {
+        searchTask?.cancel()
         
-        // TODO: 实现搜索逻辑
-        Task {
-            do {
-                switch selectedSearchType {
-                case .character:
-                    // 搜索人物
-                    break
-                case .corporation:
-                    // 搜索军团
-                    break
-                case .alliance:
-                    // 搜索联盟
-                    break
-                case .structure:
-                    // 搜索建筑与空间站
-                    break
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            if Task.isCancelled { return }
+            await search(characterId: characterId, searchText: searchText, type: type)
+        }
+    }
+    
+    func search(characterId: Int, searchText: String, type: SearcherView.SearchType) async {
+        guard !searchText.isEmpty else {
+            searchResults = []
+            return
+        }
+        
+        guard !isSearching else { return }
+        
+        isSearching = true
+        defer { isSearching = false }
+        
+        do {
+            error = nil
+            
+            switch type {
+            case .character:
+                let data = try await CharacterSearchAPI.shared.search(
+                    characterId: characterId,
+                    categories: [.character],
+                    searchText: searchText
+                )
+                
+                if Task.isCancelled { return }
+                
+                // 解析搜索结果
+                let searchResponse = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
+                var results: [SearcherView.SearchResult] = []
+                
+                if let characters = searchResponse.character {
+                    let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
+                    results.append(contentsOf: characters.compactMap { id in
+                        guard let info = characterNames[id] else { return nil }
+                        return SearcherView.SearchResult(id: id, name: info.name, type: .character)
+                    })
                 }
-            } catch {
-                Logger.error("搜索失败: \(error)")
+                
+                if Task.isCancelled { return }
+                
+                results.sort { $0.name < $1.name }
+                searchResults = results
+                Logger.info("搜索完成，找到 \(results.count) 个结果")
+            default:
+                break // 其他类型的搜索暂未实现
             }
             
-            isSearching = false
+        } catch {
+            if error is CancellationError {
+                Logger.debug("搜索任务被取消")
+                return
+            }
+            Logger.error("搜索失败: \(error)")
+            self.error = error
         }
     }
 }
