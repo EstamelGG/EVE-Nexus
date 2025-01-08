@@ -103,7 +103,6 @@ struct SkillPlanDetailView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 2) {
                 Text(skill.skillName)
-                    .font(.headline)
                     .lineLimit(1)
                 Spacer()
                 Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), skill.targetLevel))
