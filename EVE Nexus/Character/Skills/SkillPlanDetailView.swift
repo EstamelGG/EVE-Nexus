@@ -255,6 +255,7 @@ struct SkillPlanDetailView: View {
                             trainingTime: 0,
                             requiredSP: 0,
                             prerequisites: [],
+                            currentSkillPoints: currentSkillPoints,
                             isCompleted: true
                         )
                     }

@@ -74,7 +74,7 @@ class SkillPlanFileManager {
         }
     }
     
-    func loadSkillPlans(characterId: Int, databaseManager: DatabaseManager) -> [SkillPlan] {
+    func loadSkillPlans(characterId: Int, databaseManager: DatabaseManager, learnedSkills: [Int: CharacterSkill] = [:]) -> [SkillPlan] {
         let fileManager = FileManager.default
         
         do {
@@ -131,17 +131,23 @@ class SkillPlanFileManager {
                             Logger.error("获取技能名称失败: \(error)")
                         }
                         
+                        // 获取已学习的技能信息
+                        let learnedSkill = learnedSkills[typeId]
+                        let currentLevel = learnedSkill?.trained_skill_level ?? 0
+                        let currentSkillPoints = learnedSkill?.skillpoints_in_skill ?? 0
+                        let isCompleted = level <= currentLevel
+                        
                         return PlannedSkill(
                             id: UUID(),
                             skillID: typeId,
                             skillName: skillName,
-                            currentLevel: 0,  // 这里需要从角色当前技能获取
+                            currentLevel: currentLevel,
                             targetLevel: level,
                             trainingTime: 0,  // 这里需要计算训练时间
                             requiredSP: 0,    // 这里需要计算所需技能点
                             prerequisites: [], // 这里需要获取前置技能
-                            currentSkillPoints: nil,
-                            isCompleted: false
+                            currentSkillPoints: currentSkillPoints,
+                            isCompleted: isCompleted
                         )
                     }
                     
@@ -213,6 +219,7 @@ struct SkillPlanView: View {
     @State private var newPlanName = ""
     @State private var searchText = ""
     @State private var isPublicPlan = false
+    @State private var learnedSkills: [Int: CharacterSkill] = [:]  // 添加已学习技能的状态变量
     
     // 添加过滤后的计划列表计算属性
     private var filteredPlans: [SkillPlan] {
@@ -312,8 +319,14 @@ struct SkillPlanView: View {
             Text(NSLocalizedString("Main_Skills_Plan_Name", comment: ""))
         }
         .task {
-            // 加载已保存的技能计划
-            skillPlans = SkillPlanFileManager.shared.loadSkillPlans(characterId: characterId, databaseManager: databaseManager)
+            // 先加载角色已学习的技能
+            await loadLearnedSkills()
+            // 然后加载已保存的技能计划
+            skillPlans = SkillPlanFileManager.shared.loadSkillPlans(
+                characterId: characterId,
+                databaseManager: databaseManager,
+                learnedSkills: learnedSkills  // 传入已学习的技能
+            )
         }
     }
     
@@ -396,6 +409,30 @@ struct SkillPlanView: View {
             return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
         }
         return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
+    }
+    
+    // 添加加载已学习技能的方法
+    private func loadLearnedSkills() async {
+        // 从character_skills表获取技能数据
+        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        
+        guard case .success(let rows) = CharacterDatabaseManager.shared.executeQuery(skillsQuery, parameters: [characterId]),
+              let row = rows.first,
+              let skillsJson = row["skills_data"] as? String,
+              let data = skillsJson.data(using: .utf8) else {
+            return
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
+            
+            // 创建技能ID到技能信息的映射
+            learnedSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skills.map { ($0.skill_id, $0) })
+            Logger.debug("成功加载角色技能数量: \(learnedSkills.count)")
+        } catch {
+            Logger.error("解析技能数据失败: \(error)")
+        }
     }
 }
 
