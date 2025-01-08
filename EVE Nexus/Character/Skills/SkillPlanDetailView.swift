@@ -617,22 +617,23 @@ struct SkillPlanDetailView: View {
         var updatedPlan = plan
         updatedPlan.skills.remove(atOffsets: offsets)
         
-        // 重新计算总时间和技能点
-        updatedPlan.totalTrainingTime = updatedPlan.skills.reduce(0) { $0 + ($1.isCompleted ? 0 : $1.trainingTime) }
-        updatedPlan.totalSkillPoints = updatedPlan.skills.reduce(0) { total, skill in
-            if skill.isCompleted {
-                return total
-            }
-            let spRange = getSkillPointRange(skill)
-            return total + (spRange.end - spRange.start)
-        }
+        // 使用通用函数更新计划
+        updatedPlan = updatePlanWithSkills(updatedPlan, skills: updatedPlan.skills)
         
         // 保存更新后的计划
         SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
         
+        // 更新当前视图的计划
+        plan = updatedPlan
+        
         // 更新父视图中的计划列表
         if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
             skillPlans[index] = updatedPlan
+        }
+        
+        // 重新计算注入器需求
+        Task {
+            await calculateInjectors()
         }
     }
     
