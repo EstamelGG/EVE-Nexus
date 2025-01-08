@@ -335,10 +335,6 @@ struct SkillPlanView: View {
                 Text(String(format: "%d %@", plan.skills.count, NSLocalizedString("Main_Skills_Plan_Skills", comment: "")))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                
-                Text(formatTimeInterval(plan.totalTrainingTime))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 4)
