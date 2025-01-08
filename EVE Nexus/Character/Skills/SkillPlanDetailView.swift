@@ -460,12 +460,16 @@ struct SkillPlanDetailView: View {
         updatedPlan.totalSkillPoints = 0
         
         updatedPlan.skills = plan.skills.map { skill in
-            let details = calculateSkillDetails(skill)
-            let isCompleted = skill.isCompleted
+            let spRange = getSkillPointRange(skill)
+            let requiredSP = spRange.end - spRange.start
             
-            if !isCompleted {
-                updatedPlan.totalTrainingTime += details.trainingTime
-                updatedPlan.totalSkillPoints += details.requiredSP
+            // 计算训练时间
+            let trainingRate = trainingRates[skill.skillID] ?? 0
+            let trainingTime: TimeInterval = trainingRate > 0 ? Double(requiredSP) / Double(trainingRate) * 3600 : 0
+            
+            if !skill.isCompleted {
+                updatedPlan.totalTrainingTime += trainingTime
+                updatedPlan.totalSkillPoints += requiredSP
             }
             
             return PlannedSkill(
@@ -474,11 +478,11 @@ struct SkillPlanDetailView: View {
                 skillName: skill.skillName,
                 currentLevel: skill.currentLevel,
                 targetLevel: skill.targetLevel,
-                trainingTime: details.trainingTime,
-                requiredSP: details.requiredSP,
+                trainingTime: trainingTime,
+                requiredSP: requiredSP,
                 prerequisites: skill.prerequisites,
-                currentSkillPoints: skill.currentSkillPoints,
-                isCompleted: isCompleted
+                currentSkillPoints: getBaseSkillPointsForLevel(skill.targetLevel - 1) ?? 0,  // 使用计划等级的基础点数
+                isCompleted: skill.isCompleted
             )
         }
         
