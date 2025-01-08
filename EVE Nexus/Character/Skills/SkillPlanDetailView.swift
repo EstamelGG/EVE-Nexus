@@ -151,26 +151,6 @@ struct SkillPlanDetailView: View {
             Logger.debug("从剪贴板读取内容: \(clipboardString)")
             let result = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
             
-            if result.hasErrors {
-                var message = ""
-                
-                if !result.parseErrors.isEmpty {
-                    message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
-                }
-                
-                if !result.notFoundSkills.isEmpty {
-                    if !message.isEmpty {
-                        message += "\n\n"
-                    }
-                    message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
-                }
-                
-                errorMessage = message
-                showErrorAlert = true
-                shouldDismissSheet = false
-                return
-            }
-            
             // 继续处理成功解析的技能
             if !result.skills.isEmpty {
                 Logger.debug("解析技能计划结果: \(result.skills)")
@@ -223,12 +203,50 @@ struct SkillPlanDetailView: View {
                     if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
                         skillPlans[index] = updatedPlan
                     }
+                }
+                
+                // 构建提示消息
+                var message = String(format: NSLocalizedString("Main_Skills_Plan_Import_Success", comment: ""), validSkills.count)
+                
+                if result.hasErrors {
+                    message += "\n\n"
                     
-                    // 设置成功导入的提示
-                    errorMessage = String(format: NSLocalizedString("Main_Skills_Plan_Import_Success", comment: ""), validSkills.count)
-                    showErrorAlert = true
+                    if !result.parseErrors.isEmpty {
+                        message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
+                    }
+                    
+                    if !result.notFoundSkills.isEmpty {
+                        if !result.parseErrors.isEmpty {
+                            message += "\n\n"
+                        }
+                        message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
+                    }
+                    
+                    shouldDismissSheet = false
+                } else {
                     shouldDismissSheet = true
                 }
+                
+                errorMessage = message
+                showErrorAlert = true
+            } else if result.hasErrors {
+                // 如果没有成功导入任何技能，但有错误
+                var message = ""
+                
+                if !result.parseErrors.isEmpty {
+                    message += NSLocalizedString("Main_Skills_Plan_Import_Parse_Failed", comment: "") + "\n" + result.parseErrors.joined(separator: "\n")
+                }
+                
+                if !result.notFoundSkills.isEmpty {
+                    if !message.isEmpty {
+                        message += "\n\n"
+                    }
+                    message += NSLocalizedString("Main_Skills_Plan_Import_Not_Found", comment: "") + "\n" + result.notFoundSkills.joined(separator: "\n")
+                }
+                
+                errorMessage = message
+                showErrorAlert = true
+                shouldDismissSheet = false
             }
         }
     }
