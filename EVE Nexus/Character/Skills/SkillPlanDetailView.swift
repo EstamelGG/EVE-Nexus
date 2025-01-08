@@ -7,6 +7,8 @@ struct SkillPlanDetailView: View {
     let characterId: Int
     @ObservedObject var databaseManager: DatabaseManager
     @State private var isShowingEditSheet = false
+    @State private var showErrorAlert = false
+    @State private var errorMessage = ""
     
     var body: some View {
         List {
@@ -56,8 +58,31 @@ struct SkillPlanDetailView: View {
                     
                     Button {
                         if let clipboardString = UIPasteboard.general.string {
-                            let results = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
-                            Logger.debug("解析技能计划结果: \(results)")
+                            Logger.debug("从剪贴板读取内容: \(clipboardString)")
+                            let result = SkillPlanReaderTool.parseSkillPlan(from: clipboardString, databaseManager: databaseManager)
+                            
+                            if result.hasErrors {
+                                var message = ""
+                                
+                                if !result.parseErrors.isEmpty {
+                                    message += "以下内容解析失败：\n" + result.parseErrors.joined(separator: "\n")
+                                }
+                                
+                                if !result.notFoundSkills.isEmpty {
+                                    if !message.isEmpty {
+                                        message += "\n\n"
+                                    }
+                                    message += "以下技能未找到：\n" + result.notFoundSkills.joined(separator: "\n")
+                                }
+                                
+                                errorMessage = message
+                                showErrorAlert = true
+                            }
+                            
+                            // 继续处理成功解析的技能
+                            if !result.skills.isEmpty {
+                                Logger.debug("解析技能计划结果: \(result.skills)")
+                            }
                         }
                     } label: {
                         Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
@@ -73,6 +98,11 @@ struct SkillPlanDetailView: View {
                             Text(NSLocalizedString("Main_EVE_Mail_Done", comment: ""))
                         }
                     }
+                }
+                .alert("导入提示", isPresented: $showErrorAlert) {
+                    Button("确定", role: .cancel) { }
+                } message: {
+                    Text(errorMessage)
                 }
             }
         }
