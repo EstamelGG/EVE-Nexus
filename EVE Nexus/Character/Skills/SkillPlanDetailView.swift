@@ -563,8 +563,11 @@ struct SkillPlanDetailView: View {
     
     private func getSkillPointRange(_ skill: PlannedSkill) -> (start: Int, end: Int) {
         let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
-        let startSP = (getBaseSkillPointsForLevel(skill.currentLevel) ?? 0) * timeMultiplier
-        let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
+        // 使用目标等级-1作为起始等级，目标等级作为结束等级
+        let startLevel = skill.targetLevel - 1
+        let endLevel = skill.targetLevel
+        let startSP = (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier
+        let endSP = (getBaseSkillPointsForLevel(endLevel) ?? 0) * timeMultiplier
         return (startSP, endSP)
     }
     
