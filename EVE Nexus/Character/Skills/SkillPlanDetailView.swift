@@ -118,10 +118,11 @@ struct SkillPlanDetailView: View {
             }
             
             let spRange = getSkillPointRange(skill)
-            HStack {
-                Text("\(FormatUtil.format(Double(spRange.start)))/\(FormatUtil.format(Double(spRange.end))) SP")
+            HStack(spacing: 4) {
                 if let rate = trainingRates[skill.skillID] {
-                    Text("(\(FormatUtil.format(Double(rate)))/h)")
+                    Text("\(FormatUtil.format(Double(spRange.start)))/\(FormatUtil.format(Double(spRange.end))) SP (\(FormatUtil.format(Double(rate)))/h)")
+                } else {
+                    Text("\(FormatUtil.format(Double(spRange.start)))/\(FormatUtil.format(Double(spRange.end))) SP")
                 }
                 Spacer()
                 Text(formatTimeInterval(skill.trainingTime))
