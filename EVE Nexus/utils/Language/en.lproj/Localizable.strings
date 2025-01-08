@@ -729,3 +729,5 @@
 "Main_Search_Min_Length" = "Please enter at least 3 characters";
 "Main_Search_No_Results" = "No matching results found";
 "Main_Search_No_Filtered_Results" = "No results match the filter criteria";
+"Main_Search_Load_More" = "Load More";
+"Main_Search_Load_More_Status" = "Loading more results...";

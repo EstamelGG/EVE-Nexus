@@ -125,6 +125,25 @@ struct SearcherView: View {
                         Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
                             .foregroundColor(.red)
                     }
+                    
+                    if viewModel.hasMoreResults {
+                        Button(action: {
+                            Task {
+                                await viewModel.loadMoreResults()
+                            }
+                        }) {
+                            if viewModel.isSearching {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text(NSLocalizedString("Main_Search_Load_More_Status", comment: ""))
+                                }
+                            } else {
+                                Text(NSLocalizedString("Main_Search_Load_More", comment: ""))
+                            }
+                        }
+                        .disabled(viewModel.isSearching)
+                    }
                 }
                 
                 // 搜索结果部分
@@ -266,10 +285,19 @@ class SearcherViewModel: ObservableObject {
     @Published var searchResults: [SearcherView.SearchResult] = []
     @Published var filteredResults: [SearcherView.SearchResult] = []
     @Published var isSearching = false
-    @Published var searchingStatus = "" // 添加搜索状态描述
+    @Published var searchingStatus = ""
     @Published var error: Error?
+    @Published var hasMoreResults = false
     
     private var searchTask: Task<Void, Never>?
+    private var allCharacterIds: [Int] = [] // 存储所有搜索到的角色ID
+    private var currentOffset = 0 // 当前加载的偏移量
+    private let batchSize = 100 // 每批加载的数量
+    private var characterNames: [Int: String] = [:] // 缓存所有角色名称
+    
+    // 添加属性来保存当前的过滤条件
+    private var currentCorpFilter = ""
+    private var currentAllianceFilter = ""
     
     // 直接从ESI获取名称的方法
     private func fetchNamesFromESI(ids: [Int]) async throws -> [Int: String] {
@@ -325,6 +353,8 @@ class SearcherViewModel: ObservableObject {
         
         do {
             error = nil
+            currentOffset = 0 // 重置偏移量
+            searchResults = [] // 清空当前结果
             
             switch type {
             case .character:
@@ -339,15 +369,20 @@ class SearcherViewModel: ObservableObject {
                 
                 // 解析搜索结果
                 let searchResponse = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
-                var results: [SearcherView.SearchResult] = []
                 
                 if let characters = searchResponse.character {
-                    // 获取所有角色名称
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-                    let characterNames = try await fetchNamesFromESI(ids: characters)
+                    allCharacterIds = characters // 保存所有角色ID
+                    hasMoreResults = characters.count > batchSize
                     
-                    // 先创建基本的搜索结果并排序
-                    let basicResults = characters.compactMap { id -> SearcherView.SearchResult? in
+                    // 一次性获取所有角色名称
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
+                    characterNames = try await fetchNamesFromESI(ids: characters)
+                    
+                    // 获取前100个角色的详细信息
+                    let initialBatch = Array(characters.prefix(batchSize))
+                    
+                    // 创建基本的搜索结果（使用已缓存的名称）
+                    let basicResults = initialBatch.compactMap { id -> SearcherView.SearchResult? in
                         guard let name = characterNames[id] else { return nil }
                         return SearcherView.SearchResult(
                             id: id,
@@ -356,13 +391,10 @@ class SearcherViewModel: ObservableObject {
                         )
                     }.sorted { $0.name < $1.name }
                     
-                    // 限制为前100个结果
-                    let limitedResults = Array(basicResults.prefix(100))
-                    
-                    // 获取所有角色的公开信息
+                    // 获取角色详细信息
                     searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
                     let publicInfos = try await withThrowingTaskGroup(of: (Int, CharacterPublicInfo).self) { group in
-                        for result in limitedResults {
+                        for result in basicResults {
                             group.addTask {
                                 let info = try await self.fetchCharacterInfoFromESI(characterId: result.id)
                                 return (result.id, info)
@@ -378,7 +410,7 @@ class SearcherViewModel: ObservableObject {
                     
                     if Task.isCancelled { return }
                     
-                    // 收集所有需要查询的军团和联盟ID
+                    // 收集军团和联盟ID
                     var corporationIds: Set<Int> = []
                     var allianceIds: Set<Int> = []
                     
@@ -389,44 +421,57 @@ class SearcherViewModel: ObservableObject {
                         }
                     }
                     
-                    // 一次性获取所有军团和联盟名称
+                    // 获取军团和联盟名称
                     searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
                     let corpNames = try await fetchNamesFromESI(ids: Array(corporationIds))
+                    
+                    var initialResults: [SearcherView.SearchResult] = []
                     
                     if !allianceIds.isEmpty {
                         searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
                         let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
                         
-                        if Task.isCancelled { return }
-                        
-                        // 组装最终结果
-                        for var result in limitedResults {
+                        // 组装结果
+                        for var result in basicResults {
                             if let publicInfo = publicInfos[result.id] {
                                 result.corporationName = corpNames[publicInfo.corporation_id]
                                 if let allianceId = publicInfo.alliance_id {
                                     result.allianceName = allianceNames[allianceId]
                                 }
-                                results.append(result)
+                                initialResults.append(result)
                             }
                         }
                     } else {
                         // 如果没有联盟，直接组装结果
-                        for var result in limitedResults {
+                        for var result in basicResults {
                             if let publicInfo = publicInfos[result.id] {
                                 result.corporationName = corpNames[publicInfo.corporation_id]
-                                results.append(result)
+                                initialResults.append(result)
                             }
                         }
                     }
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 更新结果
+                    searchResults = initialResults
+                    currentOffset = initialBatch.count
+                    
+                    // 应用当前的过滤条件
+                    filterResults(corporationFilter: currentCorpFilter, allianceFilter: currentAllianceFilter)
+                    
+                    Logger.info("初始搜索完成，已加载 \(searchResults.count)/\(allCharacterIds.count) 个结果，过滤后显示 \(filteredResults.count) 个结果")
+                    
+                } else {
+                    allCharacterIds = []
+                    characterNames = [:]
+                    searchResults = []
+                    filteredResults = []
+                    hasMoreResults = false
                 }
                 
-                if Task.isCancelled { return }
-                
-                searchResults = results
-                filteredResults = results // 初始时过滤结果等于搜索结果
-                Logger.info("搜索完成，找到并加载了 \(results.count) 个结果的详细信息")
             default:
-                break // 其他类型的搜索暂未实现
+                break
             }
             
         } catch {
@@ -437,11 +482,120 @@ class SearcherViewModel: ObservableObject {
             Logger.error("搜索失败: \(error)")
             self.error = error
         }
-        searchingStatus = "" // 清除搜索状态
+        searchingStatus = ""
+    }
+    
+    func loadMoreResults() async {
+        guard !isSearching && hasMoreResults else { return }
+        
+        isSearching = true
+        searchingStatus = NSLocalizedString("Main_Search_Load_More_Status", comment: "")
+        defer { isSearching = false }
+        
+        do {
+            // 获取下一批角色ID
+            let endIndex = min(currentOffset + batchSize, allCharacterIds.count)
+            let nextBatch = Array(allCharacterIds[currentOffset..<endIndex])
+            
+            // 创建基本的搜索结果（使用已缓存的名称）
+            let basicResults = nextBatch.compactMap { id -> SearcherView.SearchResult? in
+                guard let name = characterNames[id] else { return nil }
+                return SearcherView.SearchResult(
+                    id: id,
+                    name: name,
+                    type: .character
+                )
+            }.sorted { $0.name < $1.name }
+            
+            // 获取角色详细信息
+            searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
+            let publicInfos = try await withThrowingTaskGroup(of: (Int, CharacterPublicInfo).self) { group in
+                for result in basicResults {
+                    group.addTask {
+                        let info = try await self.fetchCharacterInfoFromESI(characterId: result.id)
+                        return (result.id, info)
+                    }
+                }
+                
+                var infos: [Int: CharacterPublicInfo] = [:]
+                for try await (id, info) in group {
+                    infos[id] = info
+                }
+                return infos
+            }
+            
+            if Task.isCancelled { return }
+            
+            // 收集军团和联盟ID
+            var corporationIds: Set<Int> = []
+            var allianceIds: Set<Int> = []
+            
+            for info in publicInfos.values {
+                corporationIds.insert(info.corporation_id)
+                if let allianceId = info.alliance_id {
+                    allianceIds.insert(allianceId)
+                }
+            }
+            
+            // 获取军团和联盟名称
+            searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
+            let corpNames = try await fetchNamesFromESI(ids: Array(corporationIds))
+            
+            var newResults: [SearcherView.SearchResult] = []
+            
+            if !allianceIds.isEmpty {
+                searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
+                let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
+                
+                // 组装结果
+                for var result in basicResults {
+                    if let publicInfo = publicInfos[result.id] {
+                        result.corporationName = corpNames[publicInfo.corporation_id]
+                        if let allianceId = publicInfo.alliance_id {
+                            result.allianceName = allianceNames[allianceId]
+                        }
+                        newResults.append(result)
+                    }
+                }
+            } else {
+                // 如果没有联盟，直接组装结果
+                for var result in basicResults {
+                    if let publicInfo = publicInfos[result.id] {
+                        result.corporationName = corpNames[publicInfo.corporation_id]
+                        newResults.append(result)
+                    }
+                }
+            }
+            
+            if Task.isCancelled { return }
+            
+            // 更新结果
+            searchResults.append(contentsOf: newResults)
+            currentOffset = endIndex
+            hasMoreResults = currentOffset < allCharacterIds.count
+            
+            // 应用当前的过滤条件
+            filterResults(corporationFilter: currentCorpFilter, allianceFilter: currentAllianceFilter)
+            
+            Logger.info("加载更多完成，当前已加载 \(searchResults.count)/\(allCharacterIds.count) 个结果，过滤后显示 \(filteredResults.count) 个结果")
+            
+        } catch {
+            if error is CancellationError {
+                Logger.debug("加载更多任务被取消")
+                return
+            }
+            Logger.error("加载更多失败: \(error)")
+            self.error = error
+        }
+        searchingStatus = ""
     }
     
     // 添加过滤方法
     func filterResults(corporationFilter: String, allianceFilter: String) {
+        // 保存当前的过滤条件
+        currentCorpFilter = corporationFilter
+        currentAllianceFilter = allianceFilter
+        
         let corpFilter = corporationFilter.lowercased()
         let allianceFilter = allianceFilter.lowercased()
         

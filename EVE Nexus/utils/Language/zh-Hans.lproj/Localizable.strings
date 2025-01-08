@@ -730,3 +730,5 @@
 "Main_Search_Min_Length" = "请至少输入3个字符";
 "Main_Search_No_Results" = "未找到匹配结果";
 "Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
+"Main_Search_Load_More" = "加载更多";
+"Main_Search_Load_More_Status" = "正在加载更多结果...";
