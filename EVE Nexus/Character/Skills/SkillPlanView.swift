@@ -283,15 +283,9 @@ struct SkillPlanView: View {
             // 左侧：计划名称和更新时间
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(plan.name)
+                    Text(plan.isPublic ? "\(plan.name)\(NSLocalizedString("Main_Skills_Plan_Public_Tag", comment: ""))" : plan.name)
                         .font(.headline)
                         .lineLimit(1)
-                    
-                    if plan.isPublic {
-                        Image(systemName: "globe")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-                    }
                 }
                 
                 Text(formatDate(plan.lastUpdated))
