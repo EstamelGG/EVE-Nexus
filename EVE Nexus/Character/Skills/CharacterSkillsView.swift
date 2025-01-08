@@ -390,6 +390,7 @@ struct CharacterSkillsView: View {
                 Text(info.name)
                 Spacer()
                 Text("\(count)")
+                    .foregroundColor(.secondary)
             }
         }
     }

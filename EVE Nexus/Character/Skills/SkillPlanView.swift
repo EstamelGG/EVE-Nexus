@@ -8,6 +8,7 @@ struct SkillPlan: Identifiable {
     var totalTrainingTime: TimeInterval
     var totalSkillPoints: Int
     var lastUpdated: Date
+    var isPublic: Bool  // 添加是否为公共计划的标记
 }
 
 struct PlannedSkill: Identifiable {
@@ -25,6 +26,7 @@ struct SkillPlanData: Codable {
     let name: String
     let lastUpdated: Date
     let skills: [Int]  // 技能ID列表，保持顺序
+    let isPublic: Bool  // 添加是否为公共计划的标记
 }
 
 class SkillPlanFileManager {
@@ -51,10 +53,12 @@ class SkillPlanFileManager {
         let planData = SkillPlanData(
             name: plan.name,
             lastUpdated: Date(),
-            skills: []  // 目前为空列表，后续实现添加技能功能时会更新
+            skills: [],  // 目前为空列表，后续实现添加技能功能时会更新
+            isPublic: plan.isPublic
         )
         
-        let fileName = "\(characterId)_\(plan.id).json"
+        let prefix = plan.isPublic ? "public" : "\(characterId)"
+        let fileName = "\(prefix)_\(plan.id).json"
         let fileURL = skillPlansDirectory.appendingPathComponent(fileName)
         
         do {
@@ -70,7 +74,6 @@ class SkillPlanFileManager {
     
     func loadSkillPlans(characterId: Int) -> [SkillPlan] {
         let fileManager = FileManager.default
-        let characterPrefix = "\(characterId)_"
         
         do {
             Logger.debug("开始加载技能计划，角色ID: \(characterId)")
@@ -78,9 +81,10 @@ class SkillPlanFileManager {
             Logger.debug("找到文件数量: \(files.count)")
             
             let plans = files.filter { url in
-                let isMatch = url.lastPathComponent.hasPrefix(characterPrefix) && url.pathExtension == "json"
-                Logger.debug("检查文件: \(url.lastPathComponent), 是否匹配: \(isMatch)")
-                return isMatch
+                let fileName = url.lastPathComponent
+                // 匹配角色ID开头或public开头的json文件
+                return (fileName.hasPrefix("\(characterId)_") || fileName.hasPrefix("public_")) 
+                    && url.pathExtension == "json"
             }.compactMap { url -> SkillPlan? in
                 do {
                     Logger.debug("尝试解析文件: \(url.lastPathComponent)")
@@ -92,14 +96,15 @@ class SkillPlanFileManager {
                     let planData = try decoder.decode(SkillPlanData.self, from: data)
                     Logger.debug("成功解析计划数据 - 名称: \(planData.name), 更新时间: \(planData.lastUpdated), 技能数量: \(planData.skills.count)")
                     
-                    let planIdString = url.lastPathComponent
-                        .replacingOccurrences(of: characterPrefix, with: "")
+                    let fileName = url.lastPathComponent
+                    let prefix = planData.isPublic ? "public" : "\(characterId)"
+                    let planIdString = fileName
+                        .replacingOccurrences(of: "\(prefix)_", with: "")
                         .replacingOccurrences(of: ".json", with: "")
                     Logger.debug("提取的计划ID: \(planIdString)")
                     
                     guard let planId = UUID(uuidString: planIdString) else {
                         Logger.error("无效的计划ID: \(planIdString)")
-                        // 删除无效的文件
                         try? FileManager.default.removeItem(at: url)
                         Logger.debug("已删除无效ID的文件: \(url.lastPathComponent)")
                         return nil
@@ -108,10 +113,11 @@ class SkillPlanFileManager {
                     let plan = SkillPlan(
                         id: planId,
                         name: planData.name,
-                        skills: [],  // 目前为空列表，后续实现添加技能功能时会更新
+                        skills: [],
                         totalTrainingTime: 0,
                         totalSkillPoints: 0,
-                        lastUpdated: planData.lastUpdated
+                        lastUpdated: planData.lastUpdated,
+                        isPublic: planData.isPublic
                     )
                     Logger.debug("成功创建技能计划对象: \(plan.name)")
                     return plan
@@ -149,8 +155,9 @@ class SkillPlanFileManager {
         }
     }
     
-    func deleteSkillPlan(characterId: Int, planId: UUID) {
-        let fileName = "\(characterId)_\(planId).json"
+    func deleteSkillPlan(characterId: Int, plan: SkillPlan) {
+        let prefix = plan.isPublic ? "public" : "\(characterId)"
+        let fileName = "\(prefix)_\(plan.id).json"
         let fileURL = skillPlansDirectory.appendingPathComponent(fileName)
         
         do {
@@ -171,6 +178,7 @@ struct SkillPlanView: View {
     @State private var selectedPlan: SkillPlan?
     @State private var newPlanName = ""
     @State private var searchText = ""  // 添加搜索文本状态
+    @State private var isPublicPlan = false  // 添加是否为公共计划的状态
     
     // 添加过滤后的计划列表计算属性
     private var filteredPlans: [SkillPlan] {
@@ -221,10 +229,8 @@ struct SkillPlanView: View {
         }
         .alert(NSLocalizedString("Main_Skills_Plan_Add", comment: ""), isPresented: $isShowingAddAlert) {
             TextField(NSLocalizedString("Main_Skills_Plan_Name", comment: ""), text: $newPlanName)
-            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
-                newPlanName = ""
-            }
-            Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+            
+            Button(NSLocalizedString("Main_Skills_Plan_Save_As_Public", comment: "")) {
                 if !newPlanName.isEmpty {
                     let newPlan = SkillPlan(
                         id: UUID(),
@@ -232,7 +238,8 @@ struct SkillPlanView: View {
                         skills: [],
                         totalTrainingTime: 0,
                         totalSkillPoints: 0,
-                        lastUpdated: Date()
+                        lastUpdated: Date(),
+                        isPublic: true
                     )
                     skillPlans.append(newPlan)
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: newPlan)
@@ -240,6 +247,28 @@ struct SkillPlanView: View {
                 }
             }
             .disabled(newPlanName.isEmpty)
+            
+            Button(NSLocalizedString("Main_Skills_Plan_Save_As_Private", comment: "")) {
+                if !newPlanName.isEmpty {
+                    let newPlan = SkillPlan(
+                        id: UUID(),
+                        name: newPlanName,
+                        skills: [],
+                        totalTrainingTime: 0,
+                        totalSkillPoints: 0,
+                        lastUpdated: Date(),
+                        isPublic: false
+                    )
+                    skillPlans.append(newPlan)
+                    SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: newPlan)
+                    newPlanName = ""
+                }
+            }
+            .disabled(newPlanName.isEmpty)
+            
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
+                newPlanName = ""
+            }
         } message: {
             Text(NSLocalizedString("Main_Skills_Plan_Name", comment: ""))
         }
@@ -253,9 +282,17 @@ struct SkillPlanView: View {
         HStack(alignment: .center, spacing: 8) {
             // 左侧：计划名称和更新时间
             VStack(alignment: .leading, spacing: 4) {
-                Text(plan.name)
-                    .font(.headline)
-                    .lineLimit(1)
+                HStack {
+                    Text(plan.name)
+                        .font(.headline)
+                        .lineLimit(1)
+                    
+                    if plan.isPublic {
+                        Image(systemName: "globe")
+                            .foregroundColor(.blue)
+                            .font(.caption)
+                    }
+                }
                 
                 Text(formatDate(plan.lastUpdated))
                     .font(.caption)
@@ -303,11 +340,10 @@ struct SkillPlanView: View {
     }
     
     private func deletePlan(at offsets: IndexSet) {
-        // 将 filteredPlans 的索引转换为 skillPlans 的索引
         let planIdsToDelete = offsets.map { filteredPlans[$0].id }
         skillPlans.removeAll { plan in
             if planIdsToDelete.contains(plan.id) {
-                SkillPlanFileManager.shared.deleteSkillPlan(characterId: characterId, planId: plan.id)
+                SkillPlanFileManager.shared.deleteSkillPlan(characterId: characterId, plan: plan)
                 return true
             }
             return false
@@ -422,12 +458,14 @@ struct AddSkillPlanView: View {
     let onAdd: (SkillPlan) -> Void
     
     @State private var planName = ""
+    @State private var isPublic = false  // 添加isPublic状态
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         Form {
             Section {
                 TextField(NSLocalizedString("Main_Skills_Plan_Name", comment: ""), text: $planName)
+                Toggle(NSLocalizedString("Main_Skills_Plan_Set_Public", comment: ""), isOn: $isPublic)
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Plan_Add", comment: ""))
@@ -447,7 +485,8 @@ struct AddSkillPlanView: View {
                         skills: [],
                         totalTrainingTime: 0,
                         totalSkillPoints: 0,
-                        lastUpdated: Date()
+                        lastUpdated: Date(),
+                        isPublic: isPublic
                     )
                     onAdd(newPlan)
                 }
