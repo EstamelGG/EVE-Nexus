@@ -198,6 +198,7 @@
 "Time_Hours" = "%dh";
 "Time_Hours_Minutes" = "%dh %dm";
 "Time_Minutes" = "%dm";
+"Time_Minutes_Seconds" = "%dm %ds";
 
 // Network Errors
 "Network_Error_Invalid_URL" = "Invalid URL";
@@ -496,7 +497,6 @@
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
 "Time_Hours_Minutes" = "%dh %dm";
-"Time_Minutes" = "%dm";
 
 // Character Attributes Time
 "Character_Attributes_Ready_Now" = "Now";
