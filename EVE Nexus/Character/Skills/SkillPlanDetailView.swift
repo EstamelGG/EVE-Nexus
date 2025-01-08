@@ -27,7 +27,7 @@ struct SkillPlanDetailView: View {
                             Logger.debug("从剪贴板读取内容: \(clipboardString)")
                         }
                     } label: {
-                        Text("从剪贴板导入")
+                        Text(NSLocalizedString("Main_Skills_Plan_Import_From_Clipboard", comment: ""))
                     }
                 }
             }
