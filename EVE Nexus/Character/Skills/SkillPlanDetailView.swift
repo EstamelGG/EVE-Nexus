@@ -456,11 +456,18 @@ struct SkillPlanDetailView: View {
         
         // 更新计划中的技能
         let finalSkills = updatedSkills.map { skill in
-            createPlannedSkill(
+            // 获取已学习的技能信息
+            let learnedSkill = learnedSkills[skill.skillID]
+            let currentLevel = learnedSkill?.trained_skill_level ?? 0
+            
+            // 如果目标等级小于等于当前等级，说明已完成
+            let isCompleted = skill.targetLevel <= currentLevel
+            
+            return createPlannedSkill(
                 typeId: skill.skillID,
                 skillName: skill.skillName,
                 targetLevel: skill.targetLevel,
-                isCompleted: skill.isCompleted
+                isCompleted: isCompleted
             )
         }
         
