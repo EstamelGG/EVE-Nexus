@@ -45,20 +45,19 @@ class SkillPlanReaderTool {
             }
             
             skillsWithLevel.append((name: skillName, level: level))
-            // Logger.debug("第 \(index + 1) 行: 成功解析 - 技能: \(skillName), 等级: \(level)")
         }
         
         // 显示解析失败的行
         if !parseFailedLines.isEmpty {
-            Logger.error("以下行解析失败:")
+            Logger.debug("以下行解析失败:")
             for failedLine in parseFailedLines {
-                Logger.error("- 第 \(failedLine.lineNumber) 行: \(failedLine.content)")
+                Logger.debug("- 第 \(failedLine.lineNumber) 行: \(failedLine.content)")
             }
         }
         
         // 如果没有解析出任何技能，直接返回空数组
         if skillsWithLevel.isEmpty {
-            Logger.error("技能计划解析失败 - 未找到任何有效的技能行")
+            Logger.debug("技能计划解析失败 - 未找到任何有效的技能行")
             return []
         }
         
@@ -73,7 +72,7 @@ class SkillPlanReaderTool {
             FROM (\(skillNamesValues)) s
             LEFT JOIN types t ON t.name = s.name
         """
-        Logger.debug("执行SQL查询: \(query)")
+        // Logger.debug("执行SQL查询: \(query)")
         
         // 执行查询
         var typeIdMap: [String: Int] = [:]
@@ -86,9 +85,6 @@ class SkillPlanReaderTool {
                 if let typeId = row["type_id"] as? Int,
                    let name = row["name"] as? String {
                     typeIdMap[name] = typeId
-                    if typeId == 0 {
-                        Logger.error("未找到技能: \(name)")
-                    }
                 }
             }
             
@@ -99,9 +95,21 @@ class SkillPlanReaderTool {
         
         // 构建最终结果
         var finalResult: [String] = []
+        var notFoundSkills: [(name: String, level: Int)] = []
+        
         for skill in skillsWithLevel {
             let typeId = typeIdMap[skill.name] ?? 0
             finalResult.append("\(typeId):\(skill.level)")
+            if typeId == 0 {
+                notFoundSkills.append(skill)
+            }
+        }
+        // 显示未找到的技能及其等级
+        if !notFoundSkills.isEmpty {
+            Logger.debug("以下技能在数据库中未找到:")
+            for skill in notFoundSkills {
+                Logger.debug("- \(skill.name) (等级 \(skill.level))")
+            }
         }
         
         Logger.debug("技能计划解析完成，返回 \(finalResult.count) 个结果")
