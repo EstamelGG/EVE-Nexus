@@ -34,6 +34,7 @@ struct SkillPlanDetailView: View {
                     ForEach(plan.skills) { skill in
                         skillRowView(skill)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }
@@ -113,7 +114,7 @@ struct SkillPlanDetailView: View {
                     trainingLevel: skill.targetLevel,
                     isTraining: false
                 )
-                .padding(.trailing, 4)
+                .padding(.trailing, 2)
             }
             
             let spRange = getSkillPointRange(skill)
@@ -128,34 +129,8 @@ struct SkillPlanDetailView: View {
             .font(.caption)
             .foregroundColor(.secondary)
             .padding(.top, 2)
-            
-            if !skill.prerequisites.isEmpty {
-                Text(NSLocalizedString("Main_Skills_Plan_Prerequisites", comment: ""))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 2)
-                
-                ForEach(skill.prerequisites) { prereq in
-                    HStack(spacing: 2) {
-                        Text("• \(prereq.skillName)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), prereq.targetLevel))
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                            .padding(.trailing, 2)
-                        SkillLevelIndicator(
-                            currentLevel: prereq.currentLevel,
-                            trainingLevel: prereq.targetLevel,
-                            isTraining: false
-                        )
-                        .padding(.trailing, 4)
-                    }
-                }
-            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
