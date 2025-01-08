@@ -665,3 +665,21 @@
 "Main_Skills_Optimal_Attributes_Loading" = "正在计算最优属性...";
 
 "Main_Database_Skill_Level_Detail" = "技能等级细节";
+
+// 技能计划相关
+"Main_Skills_Plan" = "技能计划";
+"Main_Skills_Plan_Add" = "添加计划";
+"Main_Skills_Plan_Edit" = "编辑计划";
+"Main_Skills_Plan_Delete" = "删除计划";
+"Main_Skills_Plan_Empty" = "暂无技能计划";
+"Main_Skills_Plan_Name" = "计划名称";
+"Main_Skills_Plan_Skills" = "计划技能";
+"Main_Skills_Plan_Total_Time" = "总训练时间";
+"Main_Skills_Plan_Total_SP" = "总技能点数";
+"Main_Skills_Plan_Add_Skill" = "添加技能";
+"Main_Skills_Plan_Remove_Skill" = "移除技能";
+"Main_Skills_Plan_Current_Level" = "当前等级";
+"Main_Skills_Plan_Target_Level" = "目标等级";
+"Main_Skills_Plan_Prerequisites" = "前置技能";
+"Main_Skills_Plan_Training_Time" = "训练时间";
+"Main_Skills_Plan_Required_SP" = "所需技能点";
