@@ -42,9 +42,16 @@ public enum SkillInjectorCalculator {
         }
         
         // 计算所需注入器数量
-        let largeCount = requiredSkillPoints / largeInjectorSP
+        var largeCount = requiredSkillPoints / largeInjectorSP
         let remainingPoints = requiredSkillPoints % largeInjectorSP
-        let smallCount = (remainingPoints + smallInjectorSP - 1) / smallInjectorSP
+        var smallCount = (remainingPoints + smallInjectorSP - 1) / smallInjectorSP
+        
+        // 如果小型注入器数量达到5个，转换为1个大型注入器
+        if smallCount >= 5 {
+            largeCount += 1
+            smallCount = 0
+        }
+        
         Logger.debug("largeCount: \(largeCount), smallCount: \(smallCount), totalSkillPoints: \(requiredSkillPoints)")
         return InjectorCalculation(
             largeInjectorCount: largeCount,
