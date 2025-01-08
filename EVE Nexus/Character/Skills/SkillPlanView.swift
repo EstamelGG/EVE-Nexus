@@ -7,6 +7,7 @@ struct SkillPlan: Identifiable {
     var skills: [PlannedSkill]
     var totalTrainingTime: TimeInterval
     var totalSkillPoints: Int
+    var lastUpdated: Date
 }
 
 struct PlannedSkill: Identifiable {
@@ -72,40 +73,78 @@ class SkillPlanFileManager {
         let characterPrefix = "\(characterId)_"
         
         do {
+            Logger.debug("开始加载技能计划，角色ID: \(characterId)")
             let files = try fileManager.contentsOfDirectory(at: skillPlansDirectory, includingPropertiesForKeys: nil)
+            Logger.debug("找到文件数量: \(files.count)")
+            
             let plans = files.filter { url in
-                url.lastPathComponent.hasPrefix(characterPrefix) && url.pathExtension == "json"
+                let isMatch = url.lastPathComponent.hasPrefix(characterPrefix) && url.pathExtension == "json"
+                Logger.debug("检查文件: \(url.lastPathComponent), 是否匹配: \(isMatch)")
+                return isMatch
             }.compactMap { url -> SkillPlan? in
                 do {
+                    Logger.debug("尝试解析文件: \(url.lastPathComponent)")
                     let data = try Data(contentsOf: url)
+                    Logger.debug("文件内容: \(String(data: data, encoding: .utf8) ?? "无法读取")")
+                    
                     let decoder = JSONDecoder()
                     decoder.dateDecodingStrategy = .formatted(DateFormatter.iso8601Full)
                     let planData = try decoder.decode(SkillPlanData.self, from: data)
+                    Logger.debug("成功解析计划数据 - 名称: \(planData.name), 更新时间: \(planData.lastUpdated), 技能数量: \(planData.skills.count)")
                     
                     let planIdString = url.lastPathComponent
                         .replacingOccurrences(of: characterPrefix, with: "")
                         .replacingOccurrences(of: ".json", with: "")
+                    Logger.debug("提取的计划ID: \(planIdString)")
                     
                     guard let planId = UUID(uuidString: planIdString) else {
                         Logger.error("无效的计划ID: \(planIdString)")
+                        // 删除无效的文件
+                        try? FileManager.default.removeItem(at: url)
+                        Logger.debug("已删除无效ID的文件: \(url.lastPathComponent)")
                         return nil
                     }
                     
-                    return SkillPlan(
+                    let plan = SkillPlan(
                         id: planId,
                         name: planData.name,
                         skills: [],  // 目前为空列表，后续实现添加技能功能时会更新
                         totalTrainingTime: 0,
-                        totalSkillPoints: 0
+                        totalSkillPoints: 0,
+                        lastUpdated: planData.lastUpdated
                     )
+                    Logger.debug("成功创建技能计划对象: \(plan.name)")
+                    return plan
+                    
                 } catch {
-                    Logger.error("读取技能计划失败: \(error)")
+                    Logger.error("读取技能计划失败: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        switch decodingError {
+                        case .dataCorrupted(let context):
+                            Logger.error("数据损坏: \(context.debugDescription)")
+                        case .keyNotFound(let key, let context):
+                            Logger.error("未找到键: \(key.stringValue), 路径: \(context.codingPath)")
+                        case .typeMismatch(let type, let context):
+                            Logger.error("类型不匹配: 期望 \(type), 路径: \(context.codingPath)")
+                        case .valueNotFound(let type, let context):
+                            Logger.error("值未找到: 类型 \(type), 路径: \(context.codingPath)")
+                        @unknown default:
+                            Logger.error("未知解码错误: \(decodingError)")
+                        }
+                    }
+                    // 删除损坏的文件
+                    try? FileManager.default.removeItem(at: url)
+                    Logger.debug("已删除损坏的文件: \(url.lastPathComponent)")
                     return nil
                 }
             }
+            .sorted { $0.lastUpdated > $1.lastUpdated }
+            
+            Logger.debug("成功加载技能计划数量: \(plans.count)")
             return plans
+            
         } catch {
-            Logger.error("读取技能计划目录失败: \(error)")
+            Logger.error("读取技能计划目录失败: \(error.localizedDescription)")
             return []
         }
     }
@@ -171,7 +210,8 @@ struct SkillPlanView: View {
                         name: newPlanName,
                         skills: [],
                         totalTrainingTime: 0,
-                        totalSkillPoints: 0
+                        totalSkillPoints: 0,
+                        lastUpdated: Date()
                     )
                     skillPlans.append(newPlan)
                     SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: newPlan)
@@ -348,7 +388,8 @@ struct AddSkillPlanView: View {
                         name: planName,
                         skills: [],
                         totalTrainingTime: 0,
-                        totalSkillPoints: 0
+                        totalSkillPoints: 0,
+                        lastUpdated: Date()
                     )
                     onAdd(newPlan)
                 }
