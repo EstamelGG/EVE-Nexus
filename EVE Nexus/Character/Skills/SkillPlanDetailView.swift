@@ -119,9 +119,11 @@ struct SkillPlanDetailView: View {
                 }
             }
         }
-        .task {
-            // 加载角色属性和植入体加成，并计算技能点数
-            await loadCharacterData()
+        .onAppear {
+            // 在视图出现时加载数据
+            Task {
+                await loadCharacterData()
+            }
         }
     }
     

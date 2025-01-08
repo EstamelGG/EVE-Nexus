@@ -136,7 +136,7 @@ class SkillPlanFileManager {
                         return nil
                     }
                     
-                    // 将技能字符串转换为 PlannedSkill 对象
+                    // 在列表页面只创建基本的技能对象，不查询数据库
                     let skills = planData.skills.compactMap { skillString -> PlannedSkill? in
                         let components = skillString.split(separator: ":")
                         guard components.count == 2,
@@ -145,38 +145,17 @@ class SkillPlanFileManager {
                             return nil
                         }
                         
-                        // 从数据库获取技能名称
-                        let query = "SELECT name FROM types WHERE type_id = \(typeId)"
-                        let queryResult = databaseManager.executeQuery(query)
-                        var skillName = "Unknown Skill (\(typeId))"
-                        
-                        switch queryResult {
-                        case .success(let rows):
-                            if let row = rows.first,
-                               let name = row["name"] as? String {
-                                skillName = name
-                            }
-                        case .error(let error):
-                            Logger.error("获取技能名称失败: \(error)")
-                        }
-                        
-                        // 获取已学习的技能信息
-                        let learnedSkill = learnedSkills[typeId]
-                        let currentLevel = learnedSkill?.trained_skill_level ?? 0
-                        let currentSkillPoints = learnedSkill?.skillpoints_in_skill ?? 0
-                        let isCompleted = level <= currentLevel
-                        
                         return PlannedSkill(
                             id: UUID(),
                             skillID: typeId,
-                            skillName: skillName,
-                            currentLevel: currentLevel,
+                            skillName: "Unknown Skill (\(typeId))",  // 使用临时名称
+                            currentLevel: 0,  // 使用默认值
                             targetLevel: level,
-                            trainingTime: 0,  // 这里需要计算训练时间
-                            requiredSP: 0,    // 这里需要计算所需技能点
-                            prerequisites: [], // 这里需要获取前置技能
-                            currentSkillPoints: currentSkillPoints,
-                            isCompleted: isCompleted
+                            trainingTime: 0,
+                            requiredSP: 0,
+                            prerequisites: [],
+                            currentSkillPoints: nil,
+                            isCompleted: false
                         )
                     }
                     
@@ -184,8 +163,8 @@ class SkillPlanFileManager {
                         id: planId,
                         name: planData.name,
                         skills: skills,
-                        totalTrainingTime: 0, // 这里需要计算总训练时间
-                        totalSkillPoints: 0,  // 这里需要计算总技能点
+                        totalTrainingTime: 0,
+                        totalSkillPoints: 0,
                         lastUpdated: planData.lastUpdated,
                         isPublic: planData.isPublic
                     )
