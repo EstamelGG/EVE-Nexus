@@ -428,30 +428,26 @@ struct SkillPlanDetailView: View {
     }
     
     private func calculateSkillRequirements(_ skill: PlannedSkill) -> (requiredSP: Int, trainingTime: TimeInterval) {
-        let currentLevel = skill.currentLevel
-        let targetLevel = skill.targetLevel
-        var totalSP = 0
-        var totalTime: TimeInterval = 0
-        
         // 获取训练速度
         let trainingRate = trainingRates[skill.skillID] ?? 0
         
         // 获取技能的训练倍增系数
         let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
         
-        // 计算从当前等级到目标等级所需的技能点和时间
-        for level in (currentLevel + 1)...targetLevel {
-            if let baseSpForLevel = getBaseSkillPointsForLevel(level) {
-                // 根据训练倍增系数计算实际所需技能点
-                let spForLevel = Int(baseSpForLevel) * timeMultiplier
-                totalSP += spForLevel
-                if trainingRate > 0 {
-                    totalTime += Double(spForLevel) / Double(trainingRate) * 3600 // 转换为秒
-                }
-            }
-        }
+        // 获取前一级的完成点数（作为起始点数）
+        let startLevel = skill.targetLevel - 1
+        let startSP = startLevel > 0 ? (getBaseSkillPointsForLevel(startLevel) ?? 0) * timeMultiplier : 0
         
-        return (totalSP, totalTime)
+        // 获取目标等级的完成点数
+        let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
+        
+        // 计算需要训练的技能点数
+        let requiredSP = endSP - startSP
+        
+        // 计算训练时间（如果有训练速度）
+        let trainingTime: TimeInterval = trainingRate > 0 ? Double(requiredSP) / Double(trainingRate) * 3600 : 0 // 转换为秒
+        
+        return (requiredSP, trainingTime)
     }
     
     private func getSkillPointRange(_ skill: PlannedSkill) -> (start: Int, end: Int) {
