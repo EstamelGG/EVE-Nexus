@@ -436,20 +436,54 @@ struct SkillPlanDetailView: View {
         // 批量获取所有技能的倍增系数
         loadSkillTimeMultipliers(skillIds)
         
+        // 批量获取所有技能的主副属性
+        let attributesQuery = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+            AND attribute_id IN (180, 181)
+        """
+        
+        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
+        if case .success(let rows) = databaseManager.executeQuery(attributesQuery) {
+            // 按技能ID分组
+            var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
+            for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let attributeId = row["attribute_id"] as? Int,
+                      let value = row["value"] as? Double else {
+                    continue
+                }
+                groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
+            }
+            
+            // 处理每个技能的属性
+            for (typeId, attributes) in groupedAttributes {
+                var primary: Int?
+                var secondary: Int?
+                for attr in attributes {
+                    if attr.attributeId == 180 {
+                        primary = attr.value
+                    } else if attr.attributeId == 181 {
+                        secondary = attr.value
+                    }
+                }
+                if let p = primary, let s = secondary {
+                    skillAttributes[typeId] = (p, s)
+                }
+            }
+        }
+        
         // 计算所有技能的训练速度
         if let attrs = characterAttributes {
             for skill in updatedSkills {
-                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
-                    skillId: skill.skillID,
-                    databaseManager: databaseManager
-                ) {
-                    if let rate = SkillTrainingCalculator.calculateTrainingRate(
-                        primaryAttrId: primary,
-                        secondaryAttrId: secondary,
-                        attributes: attrs
-                    ) {
-                        trainingRates[skill.skillID] = rate
-                    }
+                if let (primary, secondary) = skillAttributes[skill.skillID],
+                   let rate = SkillTrainingCalculator.calculateTrainingRate(
+                    primaryAttrId: primary,
+                    secondaryAttrId: secondary,
+                    attributes: attrs
+                   ) {
+                    trainingRates[skill.skillID] = rate
                 }
             }
         }
