@@ -18,6 +18,7 @@ class CharacterIndustryViewModel: ObservableObject {
     private let databaseManager: DatabaseManager
     private var updateTask: Task<Void, Never>?
     private var loadingTask: Task<Void, Never>?
+    private var initialLoadDone = false
     
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
@@ -108,6 +109,11 @@ class CharacterIndustryViewModel: ObservableObject {
     }
     
     func loadJobs(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -140,6 +146,7 @@ class CharacterIndustryViewModel: ObservableObject {
                 startUpdateTask()
                 
                 self.isLoading = false
+                self.initialLoadDone = true
                 
             } catch {
                 if !Task.isCancelled {

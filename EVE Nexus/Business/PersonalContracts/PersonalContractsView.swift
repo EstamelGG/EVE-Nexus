@@ -13,6 +13,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     private var loadingTask: Task<Void, Never>?
+    private var initialLoadDone = false
     
     let characterId: Int
     
@@ -27,6 +28,11 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务（如果存在）
         loadingTask?.cancel()
         
@@ -69,6 +75,7 @@ final class PersonalContractsViewModel: ObservableObject {
                     self.contractGroups = groups
                     Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
                     self.isLoading = false
+                    self.initialLoadDone = true
                 }
                 
             } catch {
