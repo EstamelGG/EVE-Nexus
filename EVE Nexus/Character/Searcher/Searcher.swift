@@ -153,11 +153,16 @@ struct SearcherView: View {
                         } else if searchText.count <= 2 {
                             Text(NSLocalizedString("Main_Search_Min_Length", comment: ""))
                                 .foregroundColor(.secondary)
-                        } else if viewModel.searchResults.isEmpty {
-                            Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
-                                .foregroundColor(.secondary)
+                        } else if viewModel.filteredResults.isEmpty {
+                            if viewModel.searchResults.isEmpty {
+                                Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text(NSLocalizedString("Main_Search_No_Filtered_Results", comment: ""))
+                                    .foregroundColor(.secondary)
+                            }
                         } else {
-                            ForEach(viewModel.searchResults) { result in
+                            ForEach(viewModel.filteredResults) { result in
                                 SearchResultRow(result: result)
                             }
                         }
@@ -177,6 +182,12 @@ struct SearcherView: View {
             } else {
                 viewModel.debounceSearch(characterId: character.CharacterID, searchText: newValue, type: selectedSearchType)
             }
+        }
+        .onChange(of: corporationFilter) { _, _ in
+            viewModel.filterResults(corporationFilter: corporationFilter, allianceFilter: allianceFilter)
+        }
+        .onChange(of: allianceFilter) { _, _ in
+            viewModel.filterResults(corporationFilter: corporationFilter, allianceFilter: allianceFilter)
         }
     }
     
@@ -212,6 +223,8 @@ struct SearcherView: View {
         tickerFilter = ""
         selectedSecurityLevel = .all
         selectedStructureType = .all
+        // 清除过滤器时重置过滤结果
+        viewModel.filterResults(corporationFilter: "", allianceFilter: "")
     }
 }
 
@@ -245,19 +258,50 @@ struct SearchResultRow: View {
 @MainActor
 class SearcherViewModel: ObservableObject {
     @Published var searchResults: [SearcherView.SearchResult] = []
+    @Published var filteredResults: [SearcherView.SearchResult] = []
     @Published var isSearching = false
     @Published var error: Error?
     
     private var searchTask: Task<Void, Never>?
     
-    func debounceSearch(characterId: Int, searchText: String, type: SearcherView.SearchType) {
-        searchTask?.cancel()
-        
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            if Task.isCancelled { return }
-            await search(characterId: characterId, searchText: searchText, type: type)
+    // 直接从ESI获取名称的方法
+    private func fetchNamesFromESI(ids: [Int]) async throws -> [Int: String] {
+        let urlString = "https://esi.evetech.net/latest/universe/names/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
         }
+        
+        // 准备请求数据
+        let jsonData = try JSONEncoder().encode(ids)
+        
+        // 发送POST请求
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            method: "POST",
+            body: jsonData
+        )
+        
+        // 解析响应数据
+        let responses = try JSONDecoder().decode([UniverseNameResponse].self, from: data)
+        
+        // 转换为字典
+        var namesMap: [Int: String] = [:]
+        for response in responses {
+            namesMap[response.id] = response.name
+        }
+        
+        return namesMap
+    }
+    
+    // 直接从ESI获取角色公开信息的方法
+    private func fetchCharacterInfoFromESI(characterId: Int) async throws -> CharacterPublicInfo {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        return try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
     }
     
     func search(characterId: Int, searchText: String, type: SearcherView.SearchType) async {
@@ -289,46 +333,73 @@ class SearcherViewModel: ObservableObject {
                 var results: [SearcherView.SearchResult] = []
                 
                 if let characters = searchResponse.character {
-                    // 获取角色名称
-                    let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
+                    // 获取所有角色名称
+                    let characterNames = try await fetchNamesFromESI(ids: characters)
                     
                     // 先创建基本的搜索结果并排序
                     let basicResults = characters.compactMap { id -> SearcherView.SearchResult? in
-                        guard let info = characterNames[id] else { return nil }
+                        guard let name = characterNames[id] else { return nil }
                         return SearcherView.SearchResult(
                             id: id,
-                            name: info.name,
+                            name: name,
                             type: .character
                         )
                     }.sorted { $0.name < $1.name }
                     
-                    // 限制为前10个结果
-                    let limitedResults = Array(basicResults.prefix(10))
+                    // 限制为前100个结果
+                    let limitedResults = Array(basicResults.prefix(100))
                     
-                    // 只为前10个结果获取详细信息
-                    for var result in limitedResults {
-                        if Task.isCancelled { return }
-                        
-                        // 获取角色的公开信息（包括军团和联盟ID）
-                        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: result.id)
-                        
-                        // 获取军团名称
-                        let corpInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [publicInfo.corporation_id])
-                        result.corporationName = corpInfo[publicInfo.corporation_id]?.name
-                        
-                        // 获取联盟名称（如果有）
-                        if let allianceId = publicInfo.alliance_id {
-                            let allianceInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
-                            result.allianceName = allianceInfo[allianceId]?.name
+                    // 获取所有角色的公开信息
+                    let publicInfos = try await withThrowingTaskGroup(of: (Int, CharacterPublicInfo).self) { group in
+                        for result in limitedResults {
+                            group.addTask {
+                                let info = try await self.fetchCharacterInfoFromESI(characterId: result.id)
+                                return (result.id, info)
+                            }
                         }
                         
-                        results.append(result)
+                        var infos: [Int: CharacterPublicInfo] = [:]
+                        for try await (id, info) in group {
+                            infos[id] = info
+                        }
+                        return infos
+                    }
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 收集所有需要查询的军团和联盟ID
+                    var corporationIds: Set<Int> = []
+                    var allianceIds: Set<Int> = []
+                    
+                    for info in publicInfos.values {
+                        corporationIds.insert(info.corporation_id)
+                        if let allianceId = info.alliance_id {
+                            allianceIds.insert(allianceId)
+                        }
+                    }
+                    
+                    // 一次性获取所有军团和联盟名称
+                    let corpNames = try await fetchNamesFromESI(ids: Array(corporationIds))
+                    let allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 组装最终结果
+                    for var result in limitedResults {
+                        if let publicInfo = publicInfos[result.id] {
+                            result.corporationName = corpNames[publicInfo.corporation_id]
+                            if let allianceId = publicInfo.alliance_id {
+                                result.allianceName = allianceNames[allianceId]
+                            }
+                            results.append(result)
+                        }
                     }
                 }
                 
                 if Task.isCancelled { return }
                 
                 searchResults = results
+                filteredResults = results // 初始时过滤结果等于搜索结果
                 Logger.info("搜索完成，找到并加载了 \(results.count) 个结果的详细信息")
             default:
                 break // 其他类型的搜索暂未实现
@@ -341,6 +412,38 @@ class SearcherViewModel: ObservableObject {
             }
             Logger.error("搜索失败: \(error)")
             self.error = error
+        }
+    }
+    
+    // 添加过滤方法
+    func filterResults(corporationFilter: String, allianceFilter: String) {
+        let corpFilter = corporationFilter.lowercased()
+        let allianceFilter = allianceFilter.lowercased()
+        
+        if corpFilter.isEmpty && allianceFilter.isEmpty {
+            // 如果没有过滤条件，显示所有结果
+            filteredResults = searchResults
+        } else {
+            // 根据过滤条件筛选结果
+            filteredResults = searchResults.filter { result in
+                let matchCorp = corpFilter.isEmpty || 
+                    (result.corporationName?.lowercased().contains(corpFilter) ?? false)
+                let matchAlliance = allianceFilter.isEmpty || 
+                    (result.allianceName?.lowercased().contains(allianceFilter) ?? false)
+                return matchCorp && matchAlliance
+            }
+        }
+        
+        Logger.debug("过滤结果：原有 \(searchResults.count) 个结果，过滤后剩余 \(filteredResults.count) 个结果")
+    }
+    
+    func debounceSearch(characterId: Int, searchText: String, type: SearcherView.SearchType) {
+        searchTask?.cancel()
+        
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+            if Task.isCancelled { return }
+            await search(characterId: characterId, searchText: searchText, type: type)
         }
     }
 }
