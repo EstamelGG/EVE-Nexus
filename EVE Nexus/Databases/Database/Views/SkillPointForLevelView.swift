@@ -40,28 +40,28 @@ struct SkillPointForLevelView: View {
     
     private func formatTrainingTime(skillPoints: Int) -> String {
         guard skillPointsPerHour > 0 else {
-            return "N/A"
+            return NSLocalizedString("Main_Database_Not_Available", comment: "N/A")
         }
         
         let hours = Double(skillPoints) / skillPointsPerHour
         
         if hours < 1 {
             let minutes = Int(hours * 60)
-            return "\(minutes)分钟"
+            return String(format: NSLocalizedString("Time_Minutes", comment: "%dm"), minutes)
         } else if hours < 24 {
             let intHours = Int(hours)
             let minutes = Int((hours - Double(intHours)) * 60)
             if minutes > 0 {
-                return "\(intHours)小时\(minutes)分钟"
+                return String(format: NSLocalizedString("Time_Hours_Minutes", comment: "%dh %dm"), intHours, minutes)
             }
-            return "\(intHours)小时"
+            return String(format: NSLocalizedString("Time_Hours", comment: "%dh"), intHours)
         } else {
             let days = Int(hours / 24)
             let remainingHours = Int(hours.truncatingRemainder(dividingBy: 24))
             if remainingHours > 0 {
-                return "\(days)天\(remainingHours)小时"
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: "%dd %dh"), days, remainingHours)
             }
-            return "\(days)天"
+            return String(format: NSLocalizedString("Time_Days", comment: "%dd"), days)
         }
     }
     
@@ -74,7 +74,7 @@ struct SkillPointForLevelView: View {
                     VStack(alignment: .leading) {
                         Text("\(FormatUtil.format(Double(requiredSP))) SP")
                             .font(.body)
-                        Text("\(formatTrainingTime(skillPoints: requiredSP))(\(FormatUtil.format(skillPointsPerHour))/h)")
+                        Text("\(formatTrainingTime(skillPoints: requiredSP)) (\(FormatUtil.format(skillPointsPerHour))/h)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
