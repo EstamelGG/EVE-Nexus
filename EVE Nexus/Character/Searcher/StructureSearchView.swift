@@ -41,27 +41,31 @@ struct StructureSearchView {
         return row["icon_filename"] as! String
     }
     
-    // 从数据库加载空间站信息
-    private func loadStationInfo(stationId: Int) throws -> (name: String, typeId: Int, systemId: Int) {
+    // 从数据库批量加载空间站信息
+    private func loadStationsInfo(stationIds: [Int]) throws -> [(id: Int, name: String, typeId: Int, systemId: Int)] {
+        let placeholders = String(repeating: "?,", count: stationIds.count).dropLast()
         let sql = """
             SELECT 
+                stationID,
                 stationName,
                 stationTypeID,
                 solarSystemID
             FROM stations
-            WHERE stationID = ?
+            WHERE stationID IN (\(placeholders))
         """
         
-        guard case .success(let rows) = DatabaseManager.shared.executeQuery(sql, parameters: [stationId]),
-              let row = rows.first else {
+        guard case .success(let rows) = DatabaseManager.shared.executeQuery(sql, parameters: stationIds) else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到空间站信息"])
         }
         
-        return (
-            name: row["stationName"] as! String,
-            typeId: row["stationTypeID"] as! Int,
-            systemId: row["solarSystemID"] as! Int
-        )
+        return rows.map { row in
+            (
+                id: row["stationID"] as! Int,
+                name: row["stationName"] as! String,
+                typeId: row["stationTypeID"] as! Int,
+                systemId: row["solarSystemID"] as! Int
+            )
+        }
     }
     
     func search() async throws {
@@ -130,30 +134,34 @@ struct StructureSearchView {
         // 处理空间站结果
         if typeToProcess == .all || typeToProcess == .station {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Station_Info", comment: "")
-            for stationId in stationIds {
-                do {
-                    // 从数据库获取空间站信息
-                    let info = try loadStationInfo(stationId: stationId)
-                    
-                    // 获取位置信息
-                    let locationInfo = try await loadLocationInfo(systemId: info.systemId)
-                    
-                    // 获取建筑类型图标
-                    let iconFilename = try loadTypeIcon(typeId: info.typeId)
-                    
-                    let result = SearcherView.SearchResult(
-                        id: stationId,
-                        name: info.name,
-                        type: .structure,
-                        structureType: .station,
-                        locationInfo: locationInfo,
-                        typeInfo: iconFilename
-                    )
-                    results.append(result)
-                } catch {
-                    Logger.error("获取空间站信息失败: \(error)")
-                    continue
+            do {
+                // 批量获取空间站信息
+                let stationsInfo = try loadStationsInfo(stationIds: stationIds)
+                
+                for info in stationsInfo {
+                    do {
+                        // 获取位置信息
+                        let locationInfo = try await loadLocationInfo(systemId: info.systemId)
+                        
+                        // 获取建筑类型图标
+                        let iconFilename = try loadTypeIcon(typeId: info.typeId)
+                        
+                        let result = SearcherView.SearchResult(
+                            id: info.id,
+                            name: info.name,
+                            type: .structure,
+                            structureType: .station,
+                            locationInfo: locationInfo,
+                            typeInfo: iconFilename
+                        )
+                        results.append(result)
+                    } catch {
+                        Logger.error("获取空间站附加信息失败: \(error)")
+                        continue
+                    }
                 }
+            } catch {
+                Logger.error("批量获取空间站信息失败: \(error)")
             }
         }
         
