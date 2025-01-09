@@ -251,7 +251,7 @@ struct StructureSearchView: View {
             
             // 使用 TaskGroup 并发处理建筑物信息
             try await withThrowingTaskGroup(of: SearcherView.SearchResult?.self) { group in
-                let batchSize = 3 // 每批处理3个
+                let batchSize = 5 // 每批处理5个
                 var processedCount = 0
                 
                 for batch in structureIds.chunked(into: batchSize) {
