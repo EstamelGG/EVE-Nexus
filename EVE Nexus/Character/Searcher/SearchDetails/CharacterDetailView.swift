@@ -30,6 +30,7 @@ struct CharacterDetailView: View {
     @State private var allianceInfo: (name: String, icon: UIImage?)?
     @State private var isLoading = true
     @State private var error: Error?
+    @State private var selectedTab = 0 // 添加选项卡状态
     
     var body: some View {
         List {
@@ -140,6 +141,26 @@ struct CharacterDetailView: View {
                         .frame(height: 96) // 与头像等高
                     }
                     .padding(.vertical, 4)
+                }
+                
+                // 添加Picker组件
+                Section {
+                    Picker(selection: $selectedTab, label: Text("")) {
+                        Text(NSLocalizedString("Standings", comment: ""))
+                            .tag(0)
+                        Text(NSLocalizedString("Employment History", comment: ""))
+                            .tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 4)
+                    
+                    if selectedTab == 0 {
+                        Text("声望内容将在这里显示")
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("雇佣记录将在这里显示")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
