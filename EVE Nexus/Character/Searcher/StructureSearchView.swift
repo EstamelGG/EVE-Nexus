@@ -45,7 +45,7 @@ struct StructureSearchView {
         guard !searchText.isEmpty else { return }
         
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
-        searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
+        searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Structures", comment: "")
         
         // 使用CharacterSearchAPI进行搜索
         let data = try await CharacterSearchAPI.shared.search(
