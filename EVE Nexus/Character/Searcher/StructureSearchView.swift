@@ -7,7 +7,6 @@ struct StructureSearchView: View {
     @Binding var searchResults: [SearcherView.SearchResult]
     @Binding var filteredResults: [SearcherView.SearchResult]
     @Binding var searchingStatus: String
-    @Binding var isSearching: Bool
     @Binding var error: Error?
     let structureType: SearcherView.StructureType
     
@@ -16,7 +15,6 @@ struct StructureSearchView: View {
          searchResults: Binding<[SearcherView.SearchResult]>,
          filteredResults: Binding<[SearcherView.SearchResult]>,
          searchingStatus: Binding<String>,
-         isSearching: Binding<Bool>,
          error: Binding<Error?>,
          structureType: SearcherView.StructureType) {
         self.characterId = characterId
@@ -24,7 +22,6 @@ struct StructureSearchView: View {
         self._searchResults = searchResults
         self._filteredResults = filteredResults
         self._searchingStatus = searchingStatus
-        self._isSearching = isSearching
         self._error = error
         self.structureType = structureType
     }
@@ -32,7 +29,6 @@ struct StructureSearchView: View {
     var body: some View {
         EmptyView() // 这个视图不需要UI，只是用于处理搜索逻辑
             .task {
-                isSearching = true
                 do {
                     try await search()
                 } catch is CancellationError {
@@ -42,7 +38,6 @@ struct StructureSearchView: View {
                     self.error = error
                 }
                 searchingStatus = ""
-                isSearching = false
             }
     }
     
@@ -109,12 +104,10 @@ struct StructureSearchView: View {
         
         guard !searchText.isEmpty else { 
             searchingStatus = ""
-            isSearching = false
             return 
         }
         
         // 设置搜索状态
-        isSearching = true
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
         searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Structures", comment: "")
         
@@ -174,7 +167,6 @@ struct StructureSearchView: View {
             searchResults = []
             filteredResults = []
             searchingStatus = ""
-            isSearching = false
             return
         }
         
@@ -293,6 +285,5 @@ struct StructureSearchView: View {
         
         // 清除搜索状态
         searchingStatus = ""
-        isSearching = false
     }
 } 

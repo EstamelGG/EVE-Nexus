@@ -6,7 +6,6 @@ struct CharacterSearchView: View {
     @Binding var searchResults: [SearcherView.SearchResult]
     @Binding var filteredResults: [SearcherView.SearchResult]
     @Binding var searchingStatus: String
-    @Binding var isSearching: Bool
     @Binding var error: Error?
     
     var corporationFilter: String
@@ -18,7 +17,6 @@ struct CharacterSearchView: View {
     
     func search() async {
         do {
-            isSearching = true
             searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
@@ -123,7 +121,6 @@ struct CharacterSearchView: View {
         }
         
         searchingStatus = ""
-        isSearching = false
     }
     
     private func filterResults() {

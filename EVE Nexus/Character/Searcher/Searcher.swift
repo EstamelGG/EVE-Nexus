@@ -95,7 +95,6 @@ struct SearcherView: View {
                 viewModel.searchResults = []
                 viewModel.filteredResults = []
                 viewModel.error = nil
-                viewModel.isSearching = false
                 viewModel.searchingStatus = ""
                 
                 // 如果有搜索文本，则重新搜索
@@ -315,7 +314,6 @@ struct SearchResultRow: View {
 class SearcherViewModel: ObservableObject {
     @Published var searchResults: [SearcherView.SearchResult] = []
     @Published var filteredResults: [SearcherView.SearchResult] = []
-    @Published var isSearching = false
     @Published var searchingStatus = ""
     @Published var error: Error?
     
@@ -372,11 +370,7 @@ class SearcherViewModel: ObservableObject {
             return
         }
         
-        guard !isSearching else { return }
-        
-        isSearching = true
         searchingStatus = NSLocalizedString("Main_Search_Status_Searching", comment: "")
-        defer { isSearching = false }
         
         do {
             error = nil
@@ -398,10 +392,6 @@ class SearcherViewModel: ObservableObject {
                     searchingStatus: Binding(
                         get: { self.searchingStatus },
                         set: { self.searchingStatus = $0 }
-                    ),
-                    isSearching: Binding(
-                        get: { self.isSearching },
-                        set: { self.isSearching = $0 }
                     ),
                     error: Binding(
                         get: { self.error },
@@ -428,10 +418,6 @@ class SearcherViewModel: ObservableObject {
                         get: { self.searchingStatus },
                         set: { self.searchingStatus = $0 }
                     ),
-                    isSearching: Binding(
-                        get: { self.isSearching },
-                        set: { self.isSearching = $0 }
-                    ),
                     error: Binding(
                         get: { self.error },
                         set: { self.error = $0 }
@@ -455,10 +441,6 @@ class SearcherViewModel: ObservableObject {
                         get: { self.searchingStatus },
                         set: { self.searchingStatus = $0 }
                     ),
-                    isSearching: Binding(
-                        get: { self.isSearching },
-                        set: { self.isSearching = $0 }
-                    ),
                     error: Binding(
                         get: { self.error },
                         set: { self.error = $0 }
@@ -481,10 +463,6 @@ class SearcherViewModel: ObservableObject {
                     searchingStatus: Binding(
                         get: { self.searchingStatus },
                         set: { self.searchingStatus = $0 }
-                    ),
-                    isSearching: Binding(
-                        get: { self.isSearching },
-                        set: { self.isSearching = $0 }
                     ),
                     error: Binding(
                         get: { self.error },
