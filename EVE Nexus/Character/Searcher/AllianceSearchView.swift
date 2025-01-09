@@ -15,6 +15,7 @@ struct AllianceSearchView: View {
     
     func search() async {
         do {
+            isSearching = true
             searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Alliances", comment: "")
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
@@ -71,5 +72,8 @@ struct AllianceSearchView: View {
             Logger.error("搜索失败: \(error)")
             self.error = error
         }
+        
+        searchingStatus = ""
+        isSearching = false
     }
 } 

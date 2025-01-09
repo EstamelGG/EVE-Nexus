@@ -107,8 +107,14 @@ struct StructureSearchView: View {
         // 检查是否被取消
         try Task.checkCancellation()
         
-        guard !searchText.isEmpty else { return }
+        guard !searchText.isEmpty else { 
+            searchingStatus = ""
+            isSearching = false
+            return 
+        }
         
+        // 设置搜索状态
+        isSearching = true
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
         searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Structures", comment: "")
         
@@ -167,6 +173,8 @@ struct StructureSearchView: View {
             Logger.debug("根据过滤条件，没有需要处理的建筑")
             searchResults = []
             filteredResults = []
+            searchingStatus = ""
+            isSearching = false
             return
         }
         
@@ -282,5 +290,9 @@ struct StructureSearchView: View {
                 Logger.debug("\(index + 1). ID: \(result.id), 名称: \(result.name), 类型: \(result.structureType?.rawValue ?? "unknown")")
             }
         }
+        
+        // 清除搜索状态
+        searchingStatus = ""
+        isSearching = false
     }
 } 

@@ -18,6 +18,7 @@ struct CharacterSearchView: View {
     
     func search() async {
         do {
+            isSearching = true
             searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
@@ -33,12 +34,12 @@ struct CharacterSearchView: View {
             if let characters = searchResponse.character {
                 // 一次性获取所有角色名称
                 searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-                let characterNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
-                let characterNames = characterNamesWithCategories.mapValues { $0.name }
+                let namesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: characters)
+                let names = namesWithCategories.mapValues { $0.name }
                 
                 // 创建基本的搜索结果
                 let results = characters.compactMap { id -> SearcherView.SearchResult? in
-                    guard let name = characterNames[id] else { return nil }
+                    guard let name = names[id] else { return nil }
                     return SearcherView.SearchResult(
                         id: id,
                         name: name,
@@ -120,6 +121,9 @@ struct CharacterSearchView: View {
             Logger.error("搜索失败: \(error)")
             self.error = error
         }
+        
+        searchingStatus = ""
+        isSearching = false
     }
     
     private func filterResults() {
