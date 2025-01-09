@@ -21,7 +21,7 @@ struct StructureSearchView {
         
         // 构建搜索URL
         let encodedSearch = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://esi.evetech.net/latest/search/?categories=structure&search=\(encodedSearch)&strict=false"
+        let urlString = "https://esi.evetech.net/latest/search/?categories=station,structure&search=\(encodedSearch)&strict=false"
         
         guard let url = URL(string: urlString) else {
             Logger.error("无效的URL: \(urlString)")
@@ -36,23 +36,45 @@ struct StructureSearchView {
         let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
         
         // 获取建筑ID列表
-        guard let structureIds = response.structure else {
+        var allIds: [Int] = []
+        var idToType: [Int: SearcherView.StructureType] = [:]
+        
+        // 处理空间站
+        if let stationIds = response.station {
+            allIds.append(contentsOf: stationIds)
+            for id in stationIds {
+                idToType[id] = .station
+            }
+            Logger.debug("找到 \(stationIds.count) 个空间站")
+            Logger.debug("空间站ID列表: \(stationIds.map { String($0) }.joined(separator: ", "))")
+        }
+        
+        // 处理建筑物
+        if let structureIds = response.structure {
+            allIds.append(contentsOf: structureIds)
+            for id in structureIds {
+                idToType[id] = .structure
+            }
+            Logger.debug("找到 \(structureIds.count) 个建筑物")
+            Logger.debug("建筑物ID列表: \(structureIds.map { String($0) }.joined(separator: ", "))")
+        }
+        
+        guard !allIds.isEmpty else {
             Logger.debug("未找到任何建筑")
             searchResults = []
             filteredResults = []
             return
         }
         
-        Logger.debug("找到 \(structureIds.count) 个建筑")
-        
         // 获取建筑名称
         searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-        let namesResponse = try await UniverseAPI.shared.getNamesWithFallback(ids: structureIds)
+        let namesResponse = try await UniverseAPI.shared.getNamesWithFallback(ids: allIds)
         Logger.debug("成功获取 \(namesResponse.count) 个建筑的名称")
         
         // 创建搜索结果
-        var results = structureIds.compactMap { id -> SearcherView.SearchResult? in
-            guard let nameInfo = namesResponse[id] else { return nil }
+        var results = allIds.compactMap { id -> SearcherView.SearchResult? in
+            guard let nameInfo = namesResponse[id],
+                  let type = idToType[id] else { return nil }
             return SearcherView.SearchResult(id: id, name: nameInfo.name, type: .structure)
         }
         

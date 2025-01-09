@@ -80,6 +80,8 @@ struct SearcherView: View {
         let character: [Int]?
         let corporation: [Int]?
         let alliance: [Int]?
+        let station: [Int]?
+        let structure: [Int]?
     }
     
     var body: some View {
