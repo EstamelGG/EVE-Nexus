@@ -1,5 +1,14 @@
 import SwiftUI
 
+// 数组分块扩展
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
+    }
+}
+
 @MainActor
 struct StructureSearchView: View {
     let characterId: Int
@@ -181,37 +190,53 @@ struct StructureSearchView: View {
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: stationIds)
                 
-                for (index, info) in stationsInfo.enumerated() {
-                    try Task.checkCancellation()
+                // 使用 TaskGroup 并发处理空间站信息
+                try await withThrowingTaskGroup(of: SearcherView.SearchResult?.self) { group in
+                    let batchSize = 3 // 每批处理3个
+                    var processedCount = 0
                     
-                    searchingStatus = String(
-                        format: NSLocalizedString("Main_Search_Status_Loading_Station_Progress", comment: ""),
-                        index + 1,
-                        stationsInfo.count
-                    )
-                    
-                    do {
-                        // 获取位置信息
-                        let locationInfo = try await loadLocationInfo(systemId: info.systemId)
+                    for batch in stationsInfo.chunked(into: batchSize) {
+                        for info in batch {
+                            group.addTask {
+                                try Task.checkCancellation()
+                                
+                                do {
+                                    // 获取位置信息
+                                    let locationInfo = try await loadLocationInfo(systemId: info.systemId)
+                                    
+                                    try Task.checkCancellation()
+                                    
+                                    // 获取建筑类型图标
+                                    let iconFilename = try await loadTypeIcon(typeId: info.typeId)
+                                    
+                                    return SearcherView.SearchResult(
+                                        id: info.id,
+                                        name: info.name,
+                                        type: .structure,
+                                        structureType: .station,
+                                        locationInfo: locationInfo,
+                                        typeInfo: iconFilename
+                                    )
+                                } catch {
+                                    if error is CancellationError { throw error }
+                                    Logger.error("获取空间站附加信息失败: \(error)")
+                                    return nil
+                                }
+                            }
+                        }
                         
-                        try Task.checkCancellation()
-                        
-                        // 获取建筑类型图标
-                        let iconFilename = try loadTypeIcon(typeId: info.typeId)
-                        
-                        let result = SearcherView.SearchResult(
-                            id: info.id,
-                            name: info.name,
-                            type: .structure,
-                            structureType: .station,
-                            locationInfo: locationInfo,
-                            typeInfo: iconFilename
-                        )
-                        results.append(result)
-                    } catch {
-                        if error is CancellationError { throw error }
-                        Logger.error("获取空间站附加信息失败: \(error)")
-                        continue
+                        // 等待当前批次完成
+                        for try await result in group {
+                            if let result = result {
+                                results.append(result)
+                            }
+                            processedCount += 1
+                            searchingStatus = String(
+                                format: NSLocalizedString("Main_Search_Status_Loading_Station_Progress", comment: ""),
+                                processedCount,
+                                stationsInfo.count
+                            )
+                        }
                     }
                 }
             } catch {
@@ -223,41 +248,58 @@ struct StructureSearchView: View {
         // 处理建筑物结果
         if typeToProcess == .all || typeToProcess == .structure {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
-            for (index, structureId) in structureIds.enumerated() {
-                try Task.checkCancellation()
+            
+            // 使用 TaskGroup 并发处理建筑物信息
+            try await withThrowingTaskGroup(of: SearcherView.SearchResult?.self) { group in
+                let batchSize = 3 // 每批处理3个
+                var processedCount = 0
                 
-                searchingStatus = String(
-                    format: NSLocalizedString("Main_Search_Status_Loading_Structure_Progress", comment: ""),
-                    index + 1,
-                    structureIds.count
-                )
-                
-                do {
-                    let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
+                for batch in structureIds.chunked(into: batchSize) {
+                    for structureId in batch {
+                        group.addTask {
+                            try Task.checkCancellation()
+                            
+                            do {
+                                let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
+                                
+                                try Task.checkCancellation()
+                                
+                                // 获取位置信息
+                                let locationInfo = try await loadLocationInfo(systemId: info.solar_system_id)
+                                
+                                try Task.checkCancellation()
+                                
+                                // 获取建筑类型图标
+                                let iconFilename = try await loadTypeIcon(typeId: info.type_id)
+                                
+                                return SearcherView.SearchResult(
+                                    id: structureId,
+                                    name: info.name,
+                                    type: .structure,
+                                    structureType: .structure,
+                                    locationInfo: locationInfo,
+                                    typeInfo: iconFilename
+                                )
+                            } catch {
+                                if error is CancellationError { throw error }
+                                Logger.error("获取建筑信息失败: \(error)")
+                                return nil
+                            }
+                        }
+                    }
                     
-                    try Task.checkCancellation()
-                    
-                    // 获取位置信息
-                    let locationInfo = try await loadLocationInfo(systemId: info.solar_system_id)
-                    
-                    try Task.checkCancellation()
-                    
-                    // 获取建筑类型图标
-                    let iconFilename = try loadTypeIcon(typeId: info.type_id)
-                    
-                    let result = SearcherView.SearchResult(
-                        id: structureId,
-                        name: info.name,
-                        type: .structure,
-                        structureType: .structure,
-                        locationInfo: locationInfo,
-                        typeInfo: iconFilename
-                    )
-                    results.append(result)
-                } catch {
-                    if error is CancellationError { throw error }
-                    Logger.error("获取建筑信息失败: \(error)")
-                    continue
+                    // 等待当前批次完成
+                    for try await result in group {
+                        if let result = result {
+                            results.append(result)
+                        }
+                        processedCount += 1
+                        searchingStatus = String(
+                            format: NSLocalizedString("Main_Search_Status_Loading_Structure_Progress", comment: ""),
+                            processedCount,
+                            structureIds.count
+                        )
+                    }
                 }
             }
         }
