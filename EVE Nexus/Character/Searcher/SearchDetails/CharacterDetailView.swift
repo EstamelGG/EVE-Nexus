@@ -1,5 +1,26 @@
 import SwiftUI
 
+// 移除HTML标签的扩展
+fileprivate extension String {
+    func removeHTMLTags() -> String {
+        // 移除所有HTML标签
+        let text = self.replacingOccurrences(
+            of: "<[^>]+>",
+            with: "",
+            options: .regularExpression,
+            range: nil
+        )
+        // 将HTML实体转换为对应字符
+        return text.replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct CharacterDetailView: View {
     let characterId: Int
     @State private var portrait: UIImage?
@@ -56,7 +77,7 @@ struct CharacterDetailView: View {
                             
                             // 人物头衔
                             if let title = characterInfo.title, !title.isEmpty {
-                                Text(title)
+                                Text(title.removeHTMLTags())
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
