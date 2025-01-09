@@ -499,9 +499,14 @@ struct SearchResultRow: View {
                 // 只有当结果类型是军团时才加载军团信息
                 if result.type == .corporation && !hasAttemptedCorpInfoLoad {
                     await loadCorporationInfo()
+                    // 如果加载到了联盟ID，继续加载联盟名称
+                    if allianceId != nil && !hasAttemptedAllianceLoad {
+                        await loadAllianceName()
+                    }
                 }
-                // 只有当有联盟ID且结果类型不是建筑时才加载联盟信息
-                if allianceId != nil && result.type != .structure && !hasAttemptedAllianceLoad {
+                // 如果是角色搜索结果且已有联盟ID，直接加载联盟名称
+                else if result.type == .character && result.allianceId != nil && !hasAttemptedAllianceLoad {
+                    allianceId = result.allianceId
                     await loadAllianceName()
                 }
             }

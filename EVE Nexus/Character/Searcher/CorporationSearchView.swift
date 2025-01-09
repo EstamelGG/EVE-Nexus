@@ -34,26 +34,14 @@ struct CorporationSearchView: View {
                 let corporationNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
                 
                 // 创建搜索结果
-                var results = corporations.compactMap { corpId -> SearcherView.SearchResult? in
+                let results = corporations.compactMap { corpId -> SearcherView.SearchResult? in
                     guard let info = corporationNamesWithCategories[corpId] else { return nil }
                     return SearcherView.SearchResult(
                         id: corpId,
                         name: info.name,
                         type: .corporation
                     )
-                }
-                
-                // 获取军团详细信息（包括联盟ID）
-                for corpId in corporations {
-                    if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
-                        if let index = results.firstIndex(where: { $0.id == corpId }) {
-                            results[index].allianceId = corpInfo.alliance_id
-                        }
-                    }
-                }
-                
-                // 按名称排序
-                results.sort { result1, result2 in
+                }.sorted { result1, result2 in
                     // 检查是否以搜索文本开头
                     let searchTextLower = searchText.lowercased()
                     let name1Lower = result1.name.lowercased()
