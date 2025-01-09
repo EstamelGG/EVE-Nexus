@@ -229,8 +229,12 @@ struct SearcherView: View {
                 }
             }
         }
-        .task {
-            await loadContactsData()
+        .onAppear {
+            if !hasLoadedContacts {
+                Task {
+                    await loadContactsData()
+                }
+            }
         }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty || newValue.count <= 2 {
