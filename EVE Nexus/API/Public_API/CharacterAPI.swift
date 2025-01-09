@@ -13,8 +13,9 @@ struct CharacterPublicInfo: Codable {
     let name: String
     let race_id: Int
     let security_status: Double?
+    let title: String?
     
-    // 添加CodingKeys来忽略API返回的description和title字段
+    // 添加CodingKeys来忽略API返回的description字段
     private enum CodingKeys: String, CodingKey {
         case alliance_id
         case birthday
@@ -25,6 +26,7 @@ struct CharacterPublicInfo: Codable {
         case name
         case race_id
         case security_status
+        case title
     }
 }
 
@@ -139,7 +141,8 @@ final class CharacterAPI: @unchecked Sendable {
                 gender: gender,
                 name: name,
                 race_id: raceId,
-                security_status: securityStatus
+                security_status: securityStatus,
+                title: nil
             )
         }
         return nil

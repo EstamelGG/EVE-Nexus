@@ -55,7 +55,7 @@ struct CharacterDetailView: View {
                                 .bold()
                             
                             // 人物头衔
-                            Text("Capsuleer")
+                            Text(characterInfo.title ?? "")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
