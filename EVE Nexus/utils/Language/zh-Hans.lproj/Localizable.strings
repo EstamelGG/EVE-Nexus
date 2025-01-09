@@ -702,7 +702,7 @@
 "Main_Search_Type_Structure" = "建筑";
 
 // 搜索过滤
-"Main_Search_Filter_Title" = "过滤条件";
+"Main_Search_Filter_Title" = "过滤条件(可留空)";
 "Main_Search_Filter_Corporation" = "所属军团";
 "Main_Search_Filter_Alliance" = "所属联盟";
 "Main_Search_Filter_Ticker" = "简写";

@@ -701,7 +701,7 @@
 "Main_Search_Type_Structure" = "Structure";
 
 // Search Filters
-"Main_Search_Filter_Title" = "Filters";
+"Main_Search_Filter_Title" = "Filters(can be empty)";
 "Main_Search_Filter_Corporation" = "Corporation";
 "Main_Search_Filter_Alliance" = "Alliance";
 "Main_Search_Filter_Ticker" = "Ticker";
