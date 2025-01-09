@@ -297,35 +297,34 @@ struct SkillGroupDetailView: View {
                                 }
                             }
                             
-                            if let currentLevel = skill.currentLevel {
-                                VStack(spacing: 2) {
-                                    HStack(spacing: 2) {
-                                        let maxSkillPoints = Int(256000 * skill.timeMultiplier)
-                                        Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                                  formatNumber(skill.currentSkillPoints ?? 0),
-                                                  formatNumber(maxSkillPoints)))
-                                        if let rate = skill.trainingRate {
-                                            Text("(\(formatNumber(rate))/h)")
-                                        }
-                                        Spacer()
+                            VStack(spacing: 2) {
+                                HStack(spacing: 2) {
+                                    let maxSkillPoints = Int(256000 * skill.timeMultiplier)
+                                    let currentPoints = skill.currentSkillPoints ?? 0
+                                    Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
+                                              formatNumber(currentPoints),
+                                              formatNumber(maxSkillPoints)))
+                                    if let rate = skill.trainingRate {
+                                        Text("(\(formatNumber(rate))/h)")
+                                    }
+                                    Spacer()
+                                    
+                                    // 添加下一级训练时间显示
+                                    let currentLevel = skill.currentLevel ?? 0
+                                    if currentLevel < 5,  // 只有当前等级小于5时才显示
+                                       let rate = skill.trainingRate {
+                                        let nextLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[currentLevel]) * skill.timeMultiplier)
+                                        let remainingSP = nextLevelPoints - currentPoints
+                                        let trainingTimeHours = Double(remainingSP) / Double(rate)
+                                        let trainingTime = trainingTimeHours * 3600 // 转换为秒
                                         
-                                        // 添加下一级训练时间显示
-                                        if currentLevel < 5,  // 只有当前等级小于5时才显示
-                                           let rate = skill.trainingRate {
-                                            let nextLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[currentLevel]) * skill.timeMultiplier)
-                                            let currentPoints = skill.currentSkillPoints ?? 0
-                                            let remainingSP = nextLevelPoints - currentPoints
-                                            let trainingTimeHours = Double(remainingSP) / Double(rate)
-                                            let trainingTime = trainingTimeHours * 3600 // 转换为秒
-                                            
-                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                      formatTimeInterval(trainingTime)))
-                                        }
+                                        Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                  formatTimeInterval(trainingTime)))
                                     }
                                 }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                             }
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                         }
                     }
                 }
