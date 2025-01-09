@@ -284,14 +284,7 @@ struct SearchResultRow: View {
                             .foregroundColor(getSecurityColor(locationInfo.security))
                         
                         // 星系名
-                        Text(locationInfo.systemName)
-                            .foregroundColor(.secondary)
-                        
-                        Text("•")
-                            .foregroundColor(.secondary)
-                        
-                        // 星域名
-                        Text(locationInfo.regionName)
+                        Text("\(locationInfo.systemName) / \(locationInfo.regionName)")
                             .foregroundColor(.secondary)
                     }
                     .font(.caption)
