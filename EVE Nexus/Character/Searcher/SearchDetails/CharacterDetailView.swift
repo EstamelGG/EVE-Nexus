@@ -112,11 +112,11 @@ struct CharacterDetailView: View {
                                 } else {
                                     Image(systemName: "square.dashed")
                                         .resizable()
-                                        .frame(width: 16, height: 16)
+                                        .frame(width: 24, height: 24)
                                         .foregroundColor(.gray)
-                                    Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+                                    Text("\(NSLocalizedString("No Alliance", comment: ""))")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
                                         .lineLimit(1)
                                 }
                             }
