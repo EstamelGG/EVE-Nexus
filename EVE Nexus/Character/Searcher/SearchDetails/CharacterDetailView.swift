@@ -69,22 +69,32 @@ struct CharacterDetailView: View {
                         }
                         
                         // 右侧信息
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Spacer()
+                                .frame(height: 8)
+                            
                             // 人物名称
                             Text(characterInfo.name)
-                                .font(.title3)
-                                .bold()
+                                .font(.system(size: 20, weight: .bold))
+                                .lineLimit(1)
                             
                             // 人物头衔
                             if let title = characterInfo.title, !title.isEmpty {
                                 Text(title.removeHTMLTags())
-                                    .font(.subheadline)
+                                    .font(.system(size: 14))
                                     .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .padding(.top, 2)
                             } else {
                                 Text("[No title]")
-                                    .font(.subheadline)
+                                    .font(.system(size: 14))
                                     .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .padding(.top, 2)
                             }
+                            
+                            Spacer()
+                                .frame(minHeight: 8)
                             
                             // 军团信息
                             if let corpInfo = corporationInfo {
@@ -92,11 +102,12 @@ struct CharacterDetailView: View {
                                     if let icon = corpInfo.icon {
                                         Image(uiImage: icon)
                                             .resizable()
-                                            .frame(width: 24, height: 24)
+                                            .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
                                     Text(corpInfo.name)
-                                        .font(.subheadline)
+                                        .font(.system(size: 14))
+                                        .lineLimit(1)
                                 }
                             }
                             
@@ -105,22 +116,28 @@ struct CharacterDetailView: View {
                                 if let allianceInfo = allianceInfo, let icon = allianceInfo.icon {
                                     Image(uiImage: icon)
                                         .resizable()
-                                        .frame(width: 24, height: 24)
+                                        .frame(width: 20, height: 20)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
-                                        .font(.subheadline)
+                                        .font(.system(size: 14))
+                                        .lineLimit(1)
                                 } else {
                                     Image(systemName: "square.dashed")
                                         .resizable()
-                                        .frame(width: 24, height: 24)
+                                        .frame(width: 20, height: 20)
                                         .foregroundColor(.gray)
                                     Text("\(NSLocalizedString("No Alliance", comment: ""))")
-                                        .font(.subheadline)
+                                        .font(.system(size: 14))
                                         .foregroundColor(.secondary)
                                         .lineLimit(1)
                                 }
                             }
+                            .padding(.top, 4)
+                            
+                            Spacer()
+                                .frame(height: 8)
                         }
+                        .frame(height: 96) // 与头像等高
                     }
                     .padding(.vertical, 4)
                 }
