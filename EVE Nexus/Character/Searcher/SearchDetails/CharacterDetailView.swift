@@ -55,9 +55,11 @@ struct CharacterDetailView: View {
                                 .bold()
                             
                             // 人物头衔
-                            Text(characterInfo.title ?? "")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                            if let title = characterInfo.title, !title.isEmpty {
+                                Text(title)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
                             
                             // 军团信息
                             if let corpInfo = corporationInfo {
@@ -105,7 +107,7 @@ struct CharacterDetailView: View {
         
         do {
             // 并发加载所有需要的数据
-            async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
+            async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId, forceRefresh: true)
             async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId)
             async let historyTask = CharacterAPI.shared.fetchEmploymentHistory(characterId: characterId)
             
