@@ -471,9 +471,12 @@ struct SearchResultRow: View {
             Spacer()
             
             // 声望图标
-            Image(standingIcon)
-                .resizable()
-                .frame(width: 10, height: 10)
+            ZStack {
+                // 前景图标
+                Image(standingIcon)
+                    .resizable()
+                    .frame(width: 12, height: 12)
+            }
         }
         .padding(.vertical, 4)
         .onAppear {
