@@ -332,6 +332,11 @@ struct SkillGroupDetailView: View {
     }
     
     private func loadAllSkills() async {
+        // 如果已经加载过数据，就不再重新加载
+        if !allSkills.isEmpty {
+            return
+        }
+        
         isLoading = true
         defer { isLoading = false }
         
@@ -350,6 +355,54 @@ struct SkillGroupDetailView: View {
             return
         }
         
+        // 收集所有技能ID
+        let skillIds = rows.compactMap { row -> Int? in
+            return row["type_id"] as? Int
+        }
+        
+        // 批量查询所有技能的训练时间倍数
+        let timeMultiplierQuery = """
+            SELECT type_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+            AND attribute_id = 275
+        """
+        
+        var timeMultipliers: [Int: Double] = [:]
+        if case .success(let attrRows) = databaseManager.executeQuery(timeMultiplierQuery) {
+            for row in attrRows {
+                if let typeId = row["type_id"] as? Int,
+                   let value = row["value"] as? Double {
+                    timeMultipliers[typeId] = value
+                }
+            }
+        }
+        
+        // 批量查询所有技能的主要和次要属性
+        let skillAttributesQuery = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+            AND attribute_id IN (180, 181)
+        """
+        
+        var skillAttributes: [Int: (primary: Int?, secondary: Int?)] = [:]
+        if case .success(let attrRows) = databaseManager.executeQuery(skillAttributesQuery) {
+            for row in attrRows {
+                if let typeId = row["type_id"] as? Int,
+                   let attrId = row["attribute_id"] as? Int,
+                   let value = row["value"] as? Int {
+                    var current = skillAttributes[typeId] ?? (primary: nil, secondary: nil)
+                    if attrId == 180 {
+                        current.primary = value
+                    } else if attrId == 181 {
+                        current.secondary = value
+                    }
+                    skillAttributes[typeId] = current
+                }
+            }
+        }
+        
         var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?, trainingRate: Int?)] = []
         
         for row in rows {
@@ -358,31 +411,15 @@ struct SkillGroupDetailView: View {
                 continue
             }
             
-            // 获取训练时间倍数
-            let attrQuery = """
-                SELECT value
-                FROM typeAttributes
-                WHERE type_id = ? AND attribute_id = 275
-            """
-            
-            var timeMultiplier: Double = 1.0
-            
-            if case .success(let attrRows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]),
-               let row = attrRows.first,
-               let value = row["value"] as? Double {
-                timeMultiplier = value
-            }
-            
-            // 获取已学习的技能信息（如果有）
+            let timeMultiplier = timeMultipliers[typeId] ?? 1.0
             let learnedSkill = learnedSkills[typeId]
             
             // 计算训练速度
             var trainingRate: Int?
             if let attrs = characterAttributes,
-               let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
-                   skillId: typeId,
-                   databaseManager: databaseManager
-               ) {
+               let skillAttrs = skillAttributes[typeId],
+               let primary = skillAttrs.primary,
+               let secondary = skillAttrs.secondary {
                 trainingRate = SkillTrainingCalculator.calculateTrainingRate(
                     primaryAttrId: primary,
                     secondaryAttrId: secondary,

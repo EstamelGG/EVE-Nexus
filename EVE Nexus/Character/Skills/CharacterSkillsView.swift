@@ -457,28 +457,38 @@ struct CharacterSkillsView: View {
             skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
             Logger.debug("获取到技能队列，数量: \(skillQueue.count)")
             
-            // 加载技能名称和训练速度
-            for item in skillQueue {
-                // 加载技能名称
-                let nameQuery = "SELECT name FROM types WHERE type_id = ?"
-                if case .success(let rows) = databaseManager.executeQuery(nameQuery, parameters: [item.skill_id]),
-                   let row = rows.first,
-                   let name = row["name"] as? String {
-                    skillNames[item.skill_id] = name
+            // 收集所有技能ID
+            let skillIds = skillQueue.map { $0.skill_id }
+            
+            // 批量加载技能名称
+            let nameQuery = """
+                SELECT type_id, name
+                FROM types
+                WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+            """
+            
+            if case .success(let rows) = databaseManager.executeQuery(nameQuery) {
+                for row in rows {
+                    if let typeId = row["type_id"] as? Int,
+                       let name = row["name"] as? String {
+                        skillNames[typeId] = name
+                    }
                 }
-                
-                // 加载训练速度
-                if let attrs = characterAttributes,
-                   let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
-                       skillId: item.skill_id,
-                       databaseManager: databaseManager
-                   ) {
-                    if let rate = SkillTrainingCalculator.calculateTrainingRate(
+            }
+            
+            // 预加载所有技能属性到缓存
+            SkillTrainingCalculator.preloadSkillAttributes(skillIds: skillIds, databaseManager: databaseManager)
+            
+            // 计算训练速度
+            if let attrs = characterAttributes {
+                for skillId in skillIds {
+                    if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(skillId: skillId, databaseManager: databaseManager),
+                       let rate = SkillTrainingCalculator.calculateTrainingRate(
                         primaryAttrId: primary,
                         secondaryAttrId: secondary,
                         attributes: attrs
                     ) {
-                        trainingRates[item.skill_id] = rate
+                        trainingRates[skillId] = rate
                     }
                 }
             }

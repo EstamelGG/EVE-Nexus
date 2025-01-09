@@ -96,7 +96,7 @@ struct CharacterDetailView: View {
                     .padding()
                     .background(Color(.systemBackground))
                     .cornerRadius(12)
-                    .shadow(color: Color.primary.opacity(0.1), radius: 5, x: 0, y: 2)
+                    .shadow(color: Color.primary.opacity(0.5), radius: 8, x: 0, y: 4)
                 }
                 .padding()
             }

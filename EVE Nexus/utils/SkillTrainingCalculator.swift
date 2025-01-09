@@ -61,6 +61,91 @@ struct SkillTrainingCalculator {
         let secondaryAttr: Int
     }
     
+    /// 添加缓存
+    private static var skillAttributesCache: [Int: (primary: Int, secondary: Int)] = [:]
+    
+    /// 清除缓存
+    public static func clearCache() {
+        skillAttributesCache.removeAll()
+    }
+    
+    /// 批量加载技能属性到缓存
+    public static func preloadSkillAttributes(skillIds: [Int], databaseManager: DatabaseManager) {
+        let attributesQuery = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+            AND attribute_id IN (180, 181)
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(attributesQuery) {
+            var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
+            for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let attributeId = row["attribute_id"] as? Int,
+                      let value = row["value"] as? Double else {
+                    continue
+                }
+                groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
+            }
+            
+            for (typeId, attributes) in groupedAttributes {
+                var primary: Int?
+                var secondary: Int?
+                for attr in attributes {
+                    if attr.attributeId == 180 {
+                        primary = attr.value
+                    } else if attr.attributeId == 181 {
+                        secondary = attr.value
+                    }
+                }
+                if let p = primary, let s = secondary {
+                    skillAttributesCache[typeId] = (p, s)
+                }
+            }
+        }
+    }
+    
+    /// 获取技能的训练属性（优先从缓存获取）
+    static func getSkillAttributes(skillId: Int, databaseManager: DatabaseManager) -> (primary: Int, secondary: Int)? {
+        // 先从缓存中查找
+        if let cached = skillAttributesCache[skillId] {
+            return cached
+        }
+        
+        // 如果缓存中没有，则从数据库查询
+        let query = """
+            SELECT attribute_id, value
+            FROM typeAttributes
+            WHERE type_id = ? AND attribute_id IN (180, 181)
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skillId]) {
+            var primaryAttrId: Int?
+            var secondaryAttrId: Int?
+            
+            for row in rows {
+                guard let attrId = row["attribute_id"] as? Int,
+                      let value = row["value"] as? Double else { continue }
+                
+                switch attrId {
+                case 180: primaryAttrId = Int(value)
+                case 181: secondaryAttrId = Int(value)
+                default: break
+                }
+            }
+            
+            if let primary = primaryAttrId, let secondary = secondaryAttrId {
+                // 将结果存入缓存
+                let result = (primary, secondary)
+                skillAttributesCache[skillId] = result
+                return result
+            }
+        }
+        
+        return nil
+    }
+    
     /// 获取植入体属性加成
     public static func getImplantBonuses(characterId: Int) async -> ImplantAttributes {
         // 验证植入体属性ID
@@ -160,31 +245,50 @@ struct SkillTrainingCalculator {
         currentAttributes: CharacterAttributes,
         characterId: Int
     ) async -> OptimalAttributes? {
-        // 获取植入体加成
-        // let implantBonuses = await getImplantBonuses(characterId: characterId)
-        
-        // 计算实际的基础属性（当前属性减去植入体加成）
-        // let baseCharisma = currentAttributes.charisma - implantBonuses.charismaBonus
-        // let baseIntelligence = currentAttributes.intelligence - implantBonuses.intelligenceBonus
-        // let baseMemory = currentAttributes.memory - implantBonuses.memoryBonus
-        // let basePerception = currentAttributes.perception - implantBonuses.perceptionBonus
-        // let baseWillpower = currentAttributes.willpower - implantBonuses.willpowerBonus
-        
-        // Logger.debug("计算最优属性分配 - 初始状态:")
-        // Logger.debug("当前基础属性 - 感知: \(basePerception), 记忆: \(baseMemory), 意志: \(baseWillpower), 智力: \(baseIntelligence), 魅力: \(baseCharisma)")
-        // Logger.debug("植入体加成 - 感知: \(implantBonuses.perceptionBonus), 记忆: \(implantBonuses.memoryBonus), 意志: \(implantBonuses.willpowerBonus), 智力: \(implantBonuses.intelligenceBonus), 魅力: \(implantBonuses.charismaBonus)")
-        
-        // 计算可分配的总点数（不包括植入体加成）
-        // let totalBasePoints = baseCharisma + baseIntelligence + baseMemory + basePerception + baseWillpower
-        // let pointsToAllocate = totalBasePoints - (17 * 5) // 每个属性最少17点
-        
-        // Logger.debug("总基础点数: \(totalBasePoints), 可分配点数: \(pointsToAllocate)")
-        
         var skillTrainingInfo: [SkillTrainingInfo] = []
+        
+        // 批量获取所有技能的属性
+        let skillIds = skillQueue.map { $0.skillId }
+        let attributesQuery = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+            AND attribute_id IN (180, 181)
+        """
+        
+        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
+        if case .success(let rows) = databaseManager.executeQuery(attributesQuery) {
+            // 按技能ID分组
+            var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
+            for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let attributeId = row["attribute_id"] as? Int,
+                      let value = row["value"] as? Double else {
+                    continue
+                }
+                groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
+            }
+            
+            // 处理每个技能的属性
+            for (typeId, attributes) in groupedAttributes {
+                var primary: Int?
+                var secondary: Int?
+                for attr in attributes {
+                    if attr.attributeId == 180 {
+                        primary = attr.value
+                    } else if attr.attributeId == 181 {
+                        secondary = attr.value
+                    }
+                }
+                if let p = primary, let s = secondary {
+                    skillAttributes[typeId] = (p, s)
+                }
+            }
+        }
         
         // 处理每个技能的训练信息
         for skill in skillQueue {
-            guard let attrs = getSkillAttributes(skillId: skill.skillId, databaseManager: databaseManager) else {
+            guard let attrs = skillAttributes[skill.skillId] else {
                 continue
             }
             
@@ -422,41 +526,6 @@ struct SkillTrainingCalculator {
         let pointsPerMinute = Double(primaryValue) + Double(secondaryValue) / 2.0
         // 转换为每小时
         return Int(pointsPerMinute * 60)
-    }
-    
-    /// 获取技能的训练属性
-    /// - Parameters:
-    ///   - skillId: 技能ID
-    ///   - databaseManager: 数据库管理器
-    /// - Returns: 主属性ID和副属性ID，如果查询失败则返回nil
-    static func getSkillAttributes(skillId: Int, databaseManager: DatabaseManager) -> (primary: Int, secondary: Int)? {
-        let query = """
-            SELECT attribute_id, value
-            FROM typeAttributes
-            WHERE type_id = ? AND attribute_id IN (180, 181)
-        """
-        
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [skillId]) {
-            var primaryAttrId: Int?
-            var secondaryAttrId: Int?
-            
-            for row in rows {
-                guard let attrId = row["attribute_id"] as? Int,
-                      let value = row["value"] as? Double else { continue }
-                
-                switch attrId {
-                case 180: primaryAttrId = Int(value)
-                case 181: secondaryAttrId = Int(value)
-                default: break
-                }
-            }
-            
-            if let primary = primaryAttrId, let secondary = secondaryAttrId {
-                return (primary, secondary)
-            }
-        }
-        
-        return nil
     }
     
     /// 格式化时间间隔
