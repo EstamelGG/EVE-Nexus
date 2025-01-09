@@ -708,6 +708,7 @@
 "Main_Search_Filter_Ticker" = "简写";
 "Main_Search_Filter_Security" = "安全等级";
 "Main_Search_Filter_Structure_Type" = "建筑类型";
+"Main_Search_Filter_Location" = "地点（星系/星座/星域）";
 "Main_Search_Filter_All" = "全部";
 "Main_Search_Filter_High_Sec" = "高安";
 "Main_Search_Filter_Low_Sec" = "低安";

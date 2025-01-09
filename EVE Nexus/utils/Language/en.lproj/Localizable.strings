@@ -707,6 +707,7 @@
 "Main_Search_Filter_Ticker" = "Ticker";
 "Main_Search_Filter_Security" = "Security Status";
 "Main_Search_Filter_Structure_Type" = "Structure Type";
+"Main_Search_Filter_Location" = "Location (System/Constellation/Region)";
 "Main_Search_Filter_All" = "All";
 "Main_Search_Filter_High_Sec" = "High Sec";
 "Main_Search_Filter_Low_Sec" = "Low Sec";
