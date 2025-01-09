@@ -80,6 +80,10 @@ struct CharacterDetailView: View {
                                 Text(title.removeHTMLTags())
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
+                            } else {
+                                Text("[No title]")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
                             }
                             
                             // 军团信息
@@ -97,16 +101,23 @@ struct CharacterDetailView: View {
                             }
                             
                             // 联盟信息
-                            if let allianceInfo = allianceInfo {
-                                HStack(spacing: 8) {
-                                    if let icon = allianceInfo.icon {
-                                        Image(uiImage: icon)
-                                            .resizable()
-                                            .frame(width: 24, height: 24)
-                                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                                    }
+                            HStack(spacing: 8) {
+                                if let allianceInfo = allianceInfo, let icon = allianceInfo.icon {
+                                    Image(uiImage: icon)
+                                        .resizable()
+                                        .frame(width: 24, height: 24)
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
                                         .font(.subheadline)
+                                } else {
+                                    Image(systemName: "square.dashed")
+                                        .resizable()
+                                        .frame(width: 16, height: 16)
+                                        .foregroundColor(.gray)
+                                    Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .lineLimit(1)
                                 }
                             }
                         }
