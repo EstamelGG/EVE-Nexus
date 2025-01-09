@@ -336,10 +336,12 @@ struct SearchResultRow: View {
         loadTask = Task {
             try? await Task.sleep(nanoseconds: 500_000_000) // 500ms delay
             if !Task.isCancelled {
-                if !hasAttemptedCorpInfoLoad {
+                // 只有当结果类型是军团时才加载军团信息
+                if result.type == .corporation && !hasAttemptedCorpInfoLoad {
                     await loadCorporationInfo()
                 }
-                if allianceId != nil && !hasAttemptedAllianceLoad {
+                // 只有当有联盟ID且结果类型不是建筑时才加载联盟信息
+                if allianceId != nil && result.type != .structure && !hasAttemptedAllianceLoad {
                     await loadAllianceName()
                 }
             }
