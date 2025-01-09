@@ -264,6 +264,7 @@ struct SearchResultRow: View {
     @State private var isLoadingCorpInfo = false
     @State private var hasAttemptedCorpInfoLoad = false
     @State private var hasAttemptedAllianceLoad = false
+    @State private var loadTask: Task<Void, Never>?
     
     var body: some View {
         HStack(spacing: 12) {
@@ -302,30 +303,6 @@ struct SearchResultRow: View {
                         Text("[\(allianceName)]")
                             .foregroundColor(.secondary)
                             .font(.caption)
-                    } else if allianceId != nil {
-                        if isLoadingAlliance {
-                            Text("...")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        } else if !hasAttemptedAllianceLoad {
-                            Text("...")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                                .onAppear {
-                                    Task {
-                                        await loadAllianceName()
-                                    }
-                                }
-                        }
-                    } else if !isLoadingCorpInfo && !hasAttemptedCorpInfoLoad {
-                        // 加载军团详细信息
-                        Color.clear
-                            .frame(height: 0)
-                            .onAppear {
-                                Task {
-                                    await loadCorporationInfo()
-                                }
-                            }
                     }
                 }
                 
@@ -345,6 +322,28 @@ struct SearchResultRow: View {
             }
         }
         .padding(.vertical, 4)
+        .onAppear {
+            scheduleLoad()
+        }
+        .onDisappear {
+            loadTask?.cancel()
+            loadTask = nil
+        }
+    }
+    
+    private func scheduleLoad() {
+        loadTask?.cancel()
+        loadTask = Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms delay
+            if !Task.isCancelled {
+                if !hasAttemptedCorpInfoLoad {
+                    await loadCorporationInfo()
+                }
+                if allianceId != nil && !hasAttemptedAllianceLoad {
+                    await loadAllianceName()
+                }
+            }
+        }
     }
     
     private func loadCorporationInfo() async {
@@ -354,8 +353,10 @@ struct SearchResultRow: View {
         hasAttemptedCorpInfoLoad = true
         do {
             if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: result.id) {
-                await MainActor.run {
-                    self.allianceId = corpInfo.alliance_id
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.allianceId = corpInfo.alliance_id
+                    }
                 }
             }
         } catch {
@@ -372,8 +373,10 @@ struct SearchResultRow: View {
         do {
             let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
             if let allianceName = allianceNamesWithCategories[allianceId]?.name {
-                await MainActor.run {
-                    self.allianceName = allianceName
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.allianceName = allianceName
+                    }
                 }
             }
         } catch {
