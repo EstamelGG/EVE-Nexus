@@ -54,19 +54,25 @@ struct SearcherView: View {
         let type: SearchType
         var corporationName: String?
         var allianceName: String?
+        var allianceId: Int?
         var structureType: StructureType?
         var locationInfo: (security: Double, systemName: String, regionName: String)?
         var typeInfo: String? // 图标文件名
+        var additionalInfo: String?
         
         init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil, 
              locationInfo: (security: Double, systemName: String, regionName: String)? = nil, 
-             typeInfo: String? = nil) {
+             typeInfo: String? = nil,
+             additionalInfo: String? = nil,
+             allianceId: Int? = nil) {
             self.id = id
             self.name = name
             self.type = type
             self.structureType = structureType
             self.locationInfo = locationInfo
             self.typeInfo = typeInfo
+            self.additionalInfo = additionalInfo
+            self.allianceId = allianceId
         }
     }
     
@@ -252,6 +258,12 @@ struct SearcherView: View {
 struct SearchResultRow: View {
     let result: SearcherView.SearchResult
     let character: EVECharacterInfo
+    @State private var allianceName: String?
+    @State private var isLoadingAlliance = false
+    @State private var allianceId: Int?
+    @State private var isLoadingCorpInfo = false
+    @State private var hasAttemptedCorpInfoLoad = false
+    @State private var hasAttemptedAllianceLoad = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -271,7 +283,7 @@ struct SearchResultRow: View {
                 Text(result.name)
                     .font(.body)
                 
-                // 第二行：军团和联盟信息（仅角色搜索时显示）
+                // 第二行：军团和联盟信息
                 if result.type == .character {
                     HStack(spacing: 4) {
                         if let corpName = result.corporationName {
@@ -284,6 +296,37 @@ struct SearchResultRow: View {
                         }
                     }
                     .font(.caption)
+                } else if result.type == .corporation {
+                    // 军团搜索时显示联盟信息
+                    if let allianceName = allianceName {
+                        Text("[\(allianceName)]")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    } else if allianceId != nil {
+                        if isLoadingAlliance {
+                            Text("...")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        } else if !hasAttemptedAllianceLoad {
+                            Text("...")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .onAppear {
+                                    Task {
+                                        await loadAllianceName()
+                                    }
+                                }
+                        }
+                    } else if !isLoadingCorpInfo && !hasAttemptedCorpInfoLoad {
+                        // 加载军团详细信息
+                        Color.clear
+                            .frame(height: 0)
+                            .onAppear {
+                                Task {
+                                    await loadCorporationInfo()
+                                }
+                            }
+                    }
                 }
                 
                 // 第三行：位置信息（仅建筑搜索时显示）
@@ -302,6 +345,41 @@ struct SearchResultRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+    
+    private func loadCorporationInfo() async {
+        guard !isLoadingCorpInfo && !hasAttemptedCorpInfoLoad else { return }
+        
+        isLoadingCorpInfo = true
+        hasAttemptedCorpInfoLoad = true
+        do {
+            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: result.id) {
+                await MainActor.run {
+                    self.allianceId = corpInfo.alliance_id
+                }
+            }
+        } catch {
+            Logger.error("加载军团信息失败: \(error)")
+        }
+        isLoadingCorpInfo = false
+    }
+    
+    private func loadAllianceName() async {
+        guard let allianceId = allianceId, !isLoadingAlliance && !hasAttemptedAllianceLoad else { return }
+        
+        isLoadingAlliance = true
+        hasAttemptedAllianceLoad = true
+        do {
+            let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+            if let allianceName = allianceNamesWithCategories[allianceId]?.name {
+                await MainActor.run {
+                    self.allianceName = allianceName
+                }
+            }
+        } catch {
+            Logger.error("加载联盟名称失败: \(error)")
+        }
+        isLoadingAlliance = false
     }
 }
 

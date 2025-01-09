@@ -725,6 +725,7 @@
 "Main_Search_Status_Loading_Details" = "Loading details...";
 "Main_Search_Status_Loading_Corps" = "Loading corporation info...";
 "Main_Search_Status_Loading_Alliances" = "Loading alliance info...";
+"Main_Search_Status_Loading_Alliance_Names" = "Loading alliance names...";
 
 // Search Results
 "Main_Search_Results" = "Search Results";
