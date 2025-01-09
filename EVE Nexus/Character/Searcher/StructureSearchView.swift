@@ -155,24 +155,8 @@ struct StructureSearchView: View {
             Logger.debug("建筑物ID列表: \(structures.map { String($0) }.joined(separator: ", "))")
         }
         
-        // 根据过滤条件选择要处理的ID
-        var idsToProcess: [Int] = []
-        var typeToProcess: SearcherView.StructureType = .all
-        
-        switch structureType {
-        case .all:
-            idsToProcess = stationIds + structureIds
-            typeToProcess = .all
-        case .station:
-            idsToProcess = stationIds
-            typeToProcess = .station
-        case .structure:
-            idsToProcess = structureIds
-            typeToProcess = .structure
-        }
-        
-        guard !idsToProcess.isEmpty else {
-            Logger.debug("根据过滤条件，没有需要处理的建筑")
+        guard !stationIds.isEmpty || !structureIds.isEmpty else {
+            Logger.debug("没有找到任何建筑")
             searchResults = []
             filteredResults = []
             searchingStatus = ""
@@ -182,7 +166,7 @@ struct StructureSearchView: View {
         var results: [SearcherView.SearchResult] = []
         
         // 处理空间站结果
-        if typeToProcess == .all || typeToProcess == .station {
+        if !stationIds.isEmpty {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Station_Info", comment: "")
             do {
                 try Task.checkCancellation()
@@ -246,7 +230,7 @@ struct StructureSearchView: View {
         }
         
         // 处理建筑物结果
-        if typeToProcess == .all || typeToProcess == .structure {
+        if !structureIds.isEmpty {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
             
             // 使用 TaskGroup 并发处理建筑物信息
