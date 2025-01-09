@@ -271,7 +271,7 @@ struct SkillGroupDetailView: View {
                         )
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
-                            HStack {
+                            HStack(spacing: 2) {
                                 Text(skill.name)
                                     .lineLimit(1)
                                 if skill.timeMultiplier >= 1 {
@@ -279,19 +279,35 @@ struct SkillGroupDetailView: View {
                                 }
                                 Spacer()
                                 if let currentLevel = skill.currentLevel {
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        HStack {
-                                            Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
-                                                .foregroundColor(.secondary)
-                                                .font(.caption)
-                                                .padding(.trailing, 2)
-                                            SkillLevelIndicator(
-                                                currentLevel: currentLevel,
-                                                trainingLevel: currentLevel,
-                                                isTraining: false
-                                            )
-                                            .padding(.trailing, 4)
+                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .padding(.trailing, 2)
+                                    SkillLevelIndicator(
+                                        currentLevel: currentLevel,
+                                        trainingLevel: currentLevel,
+                                        isTraining: false
+                                    )
+                                    .padding(.trailing, 4)
+                                } else {
+                                    Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .padding(.trailing, 4)
+                                }
+                            }
+                            
+                            if let currentLevel = skill.currentLevel {
+                                VStack(spacing: 2) {
+                                    HStack(spacing: 2) {
+                                        let maxSkillPoints = Int(256000 * skill.timeMultiplier)
+                                        Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
+                                                  formatNumber(skill.currentSkillPoints ?? 0),
+                                                  formatNumber(maxSkillPoints)))
+                                        if let rate = skill.trainingRate {
+                                            Text("(\(formatNumber(rate))/h)")
                                         }
+                                        Spacer()
                                         
                                         // 添加下一级训练时间显示
                                         if currentLevel < 5,  // 只有当前等级小于5时才显示
@@ -304,29 +320,12 @@ struct SkillGroupDetailView: View {
                                             
                                             Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
                                                       formatTimeInterval(trainingTime)))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
                                         }
                                     }
-                                } else {
-                                    Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .padding(.trailing, 4)
                                 }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
-                            
-                            let maxSkillPoints = Int(256000 * skill.timeMultiplier)
-                            HStack {
-                                Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                          formatNumber(skill.currentSkillPoints ?? 0),
-                                          formatNumber(maxSkillPoints)))
-                                if let rate = skill.trainingRate {
-                                    Text("(\(formatNumber(rate))/h)")
-                                }
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                         }
                     }
                 }
