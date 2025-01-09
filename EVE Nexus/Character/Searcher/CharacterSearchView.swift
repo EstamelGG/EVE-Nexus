@@ -94,8 +94,10 @@ struct CharacterSearchView: View {
                 // 更新搜索结果的军团和联盟信息
                 for affiliation in affiliations {
                     if let index = searchResults.firstIndex(where: { $0.id == affiliation.character_id }) {
+                        searchResults[index].corporationId = affiliation.corporation_id
                         searchResults[index].corporationName = corporationNames[affiliation.corporation_id]
                         if let allianceId = affiliation.alliance_id {
+                            searchResults[index].allianceId = allianceId
                             searchResults[index].allianceName = allianceNames[allianceId]
                         }
                     }

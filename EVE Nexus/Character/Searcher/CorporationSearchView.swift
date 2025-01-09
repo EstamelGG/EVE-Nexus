@@ -30,19 +30,30 @@ struct CorporationSearchView: View {
                 // 获取军团名称
                 searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
                 
-                // 只获取基本名称信息
-                let corpNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
-                let corpResults = corporations.compactMap { corpId -> SearcherView.SearchResult? in
-                    guard let name = corpNamesWithCategories[corpId]?.name else { return nil }
+                // 获取军团基本信息
+                let corporationNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(ids: corporations)
+                
+                // 创建搜索结果
+                var results = corporations.compactMap { corpId -> SearcherView.SearchResult? in
+                    guard let info = corporationNamesWithCategories[corpId] else { return nil }
                     return SearcherView.SearchResult(
                         id: corpId,
-                        name: name,
+                        name: info.name,
                         type: .corporation
                     )
                 }
                 
+                // 获取军团详细信息（包括联盟ID）
+                for corpId in corporations {
+                    if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
+                        if let index = results.firstIndex(where: { $0.id == corpId }) {
+                            results[index].allianceId = corpInfo.alliance_id
+                        }
+                    }
+                }
+                
                 // 按名称排序
-                let sortedResults = corpResults.sorted { result1, result2 in
+                results.sort { result1, result2 in
                     // 检查是否以搜索文本开头
                     let searchTextLower = searchText.lowercased()
                     let name1Lower = result1.name.lowercased()
@@ -57,7 +68,7 @@ struct CorporationSearchView: View {
                     return result1.name < result2.name // 其次按字母顺序排序
                 }
                 
-                searchResults = sortedResults
+                searchResults = results
                 filteredResults = searchResults // 对于军团搜索，不进行二次过滤
             } else {
                 searchResults = []
