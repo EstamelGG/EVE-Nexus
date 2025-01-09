@@ -344,7 +344,7 @@ struct CharacterSkillsView: View {
                         .foregroundColor(.secondary)
                 }
                 Spacer()
-                skillTimeView(item: item)
+                skillTimeView(item: item, progress: progress)
             }
             
             if item.isCurrentlyTraining {
@@ -356,7 +356,7 @@ struct CharacterSkillsView: View {
     }
     
     @ViewBuilder
-    private func skillTimeView(item: SkillQueueItem) -> some View {
+    private func skillTimeView(item: SkillQueueItem, progress: ProgressInfo) -> some View {
         if item.isCurrentlyTraining {
             if let remainingTime = item.remainingTime {
                 Text(String(format: NSLocalizedString("Main_Skills_Time_Remaining", comment: ""), 
@@ -366,11 +366,24 @@ struct CharacterSkillsView: View {
             }
         } else if let startDate = item.start_date,
                   let finishDate = item.finish_date {
+            // 如果有服务器时间，使用服务器时间
             let trainingTime = finishDate.timeIntervalSince(startDate)
             Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
                       formatTimeInterval(trainingTime)))
                 .font(.caption)
                 .foregroundColor(.secondary)
+        } else if isQueuePaused {
+            // 如果队列暂停且没有服务器时间，才使用计算的时间
+            if let rate = trainingRates[item.skill_id] {
+                let remainingSP = progress.total - Int(progress.current)
+                let trainingTimeHours = Double(remainingSP) / Double(rate)
+                let trainingTime = trainingTimeHours * 3600 // 转换为秒
+                
+                Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                          formatTimeInterval(trainingTime)))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
     
