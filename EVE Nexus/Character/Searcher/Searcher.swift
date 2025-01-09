@@ -92,6 +92,19 @@ struct SearcherView: View {
             .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal)
             .padding(.top)
+            .onChange(of: selectedSearchType) { _, _ in
+                // 清空搜索结果和状态
+                viewModel.searchResults = []
+                viewModel.filteredResults = []
+                viewModel.error = nil
+                viewModel.isSearching = false
+                viewModel.searchingStatus = ""
+                
+                // 如果有搜索文本，则重新搜索
+                if !searchText.isEmpty && searchText.count > 2 {
+                    viewModel.debounceSearch(characterId: character.CharacterID, searchText: searchText, type: selectedSearchType)
+                }
+            }
             
             // 搜索框
             HStack(spacing: 12) {
@@ -118,14 +131,16 @@ struct SearcherView: View {
             .padding(.vertical, 8)
             
             List {
-                // 过滤条件部分
-                Section(header: Text(NSLocalizedString("Main_Search_Filter_Title", comment: ""))) {
-                    filterView
-                    
-                    if selectedSearchType == .character {
-                        Button(action: clearFilters) {
-                            Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
-                                .foregroundColor(.red)
+                // 过滤条件部分，只在角色搜索和建筑搜索时显示
+                if selectedSearchType == .character || selectedSearchType == .structure {
+                    Section(header: Text(NSLocalizedString("Main_Search_Filter_Title", comment: ""))) {
+                        filterView
+                        
+                        if selectedSearchType == .character {
+                            Button(action: clearFilters) {
+                                Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                 }
