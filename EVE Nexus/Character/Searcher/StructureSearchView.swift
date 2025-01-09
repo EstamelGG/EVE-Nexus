@@ -9,7 +9,6 @@ struct StructureSearchView {
     @Binding var searchingStatus: String
     @Binding var isSearching: Bool
     @Binding var error: Error?
-    let locationFilter: String
     let securityLevel: SearcherView.SecurityLevel
     let structureType: SearcherView.StructureType
     
@@ -112,19 +111,8 @@ struct StructureSearchView {
         var filtered = searchResults
         
         Logger.debug("开始应用过滤器:")
-        Logger.debug("- 地点过滤: \(locationFilter.isEmpty ? "无" : locationFilter)")
         Logger.debug("- 安全等级: \(securityLevel)")
         Logger.debug("- 建筑类型: \(structureType)")
-        
-        // 应用地点过滤
-        if !locationFilter.isEmpty {
-            filtered = filtered.filter { result in
-                // TODO: 实现地点过滤逻辑
-                // 需要获取建筑的位置信息并与过滤条件匹配
-                return true
-            }
-            Logger.debug("应用地点过滤后剩余: \(filtered.count) 个结果")
-        }
         
         // 应用安全等级过滤
         if securityLevel != .all {
