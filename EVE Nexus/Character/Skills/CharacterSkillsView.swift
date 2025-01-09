@@ -441,13 +441,6 @@ struct CharacterSkillsView: View {
         }
     }
     
-    private func formatTimeComponents(_ interval: TimeInterval) -> (days: Int, hours: Int, minutes: Int) {
-        let days = Int(interval) / (24 * 3600)
-        let hours = Int(interval) / 3600 % 24
-        let minutes = Int(interval) / 60 % 60
-        return (days, hours, minutes)
-    }
-    
     private func refreshSkillQueue() async {
         isRefreshing = true
         await loadSkillQueue(forceRefresh: true)
@@ -743,28 +736,31 @@ struct CharacterSkillsView: View {
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let components = formatTimeComponents(interval)
+        // 先转换为分钟
+        let totalMinutes = Int(ceil(interval / 60))
+        let days = totalMinutes / (24 * 60)
+        let remainingMinutes = totalMinutes % (24 * 60)
+        let hours = remainingMinutes / 60
+        let minutes = remainingMinutes % 60
         
-        if components.days > 0 {
-            if components.hours > 0 {
+        if days > 0 {
+            // 如果有剩余分钟，小时数要加1
+            let adjustedHours = (remainingMinutes % 60 > 0) ? hours + 1 : hours
+            if adjustedHours > 0 {
                 return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
-                            components.days, components.hours)
-            } else {
-                return String(format: NSLocalizedString("Time_Days", comment: ""), 
-                            components.days)
+                            days, adjustedHours)
             }
-        } else if components.hours > 0 {
-            if components.minutes > 0 {
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        } else if hours > 0 {
+            // 如果有剩余分钟，分钟数要向上取整
+            if minutes > 0 {
                 return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
-                            components.hours, components.minutes)
-            } else {
-                return String(format: NSLocalizedString("Time_Hours", comment: ""), 
-                            components.hours)
+                            hours, minutes)
             }
-        } else {
-            return String(format: NSLocalizedString("Time_Minutes", comment: ""), 
-                        components.minutes)
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
         }
+        // 分钟数已经在一开始就向上取整了
+        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
     }
     
     private func formatNumber(_ number: Int) -> String {
