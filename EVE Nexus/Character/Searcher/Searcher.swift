@@ -64,8 +64,8 @@ struct SearcherView: View {
         var typeInfo: String? // 图标文件名
         var additionalInfo: String?
         
-        init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil, 
-             locationInfo: (security: Double, systemName: String, regionName: String)? = nil, 
+        init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil,
+             locationInfo: (security: Double, systemName: String, regionName: String)? = nil,
              typeInfo: String? = nil,
              additionalInfo: String? = nil,
              allianceId: Int? = nil,
@@ -417,24 +417,31 @@ struct SearchResultRow: View {
             }
             
             // 信息
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 // 第一行：名称
                 Text(result.name)
                     .font(.body)
                 
                 // 第二行：军团和联盟信息
                 if result.type == .character {
-                    HStack(spacing: 4) {
-                        if let corpName = result.corporationName {
-                            Text(corpName)
-                                .foregroundColor(.secondary)
-                        }
-                        if let allianceName = result.allianceName {
-                            Text("[\(allianceName)]")
-                                .foregroundColor(.secondary)
-                        }
+                    if let corpName = result.corporationName {
+                        Text(corpName)
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    } else {
+                        Text("[No Corp]")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
                     }
-                    .font(.caption)
+                    if let allianceName = result.allianceName {
+                        Text("\(allianceName)")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    } else {
+                        Text("[No Alliance]")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
                 } else if result.type == .corporation {
                     // 军团搜索时显示联盟信息
                     if let allianceName = allianceName {
@@ -464,7 +471,7 @@ struct SearchResultRow: View {
             // 声望图标
             Image(standingIcon)
                 .resizable()
-                .frame(width: 16, height: 16)
+                .frame(width: 8, height: 8)
         }
         .padding(.vertical, 4)
         .onAppear {
@@ -729,10 +736,10 @@ class SearcherViewModel: ObservableObject {
         } else {
             // 根据过滤条件筛选结果
             filteredResults = searchResults.filter { result in
-                let matchCorp = corpFilter.isEmpty || 
-                    (result.corporationName?.lowercased().contains(corpFilter) ?? false)
-                let matchAlliance = allianceFilter.isEmpty || 
-                    (result.allianceName?.lowercased().contains(allianceFilter) ?? false)
+                let matchCorp = corpFilter.isEmpty ||
+                (result.corporationName?.lowercased().contains(corpFilter) ?? false)
+                let matchAlliance = allianceFilter.isEmpty ||
+                (result.allianceName?.lowercased().contains(allianceFilter) ?? false)
                 return matchCorp && matchAlliance
             }
         }
