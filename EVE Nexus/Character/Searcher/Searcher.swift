@@ -58,6 +58,7 @@ struct SearcherView: View {
         var corporationName: String?
         var allianceName: String?
         var allianceId: Int?
+        var corporationId: Int?
         var structureType: StructureType?
         var locationInfo: (security: Double, systemName: String, regionName: String)?
         var typeInfo: String? // 图标文件名
@@ -67,7 +68,8 @@ struct SearcherView: View {
              locationInfo: (security: Double, systemName: String, regionName: String)? = nil, 
              typeInfo: String? = nil,
              additionalInfo: String? = nil,
-             allianceId: Int? = nil) {
+             allianceId: Int? = nil,
+             corporationId: Int? = nil) {
             self.id = id
             self.name = name
             self.type = type
@@ -76,6 +78,7 @@ struct SearcherView: View {
             self.typeInfo = typeInfo
             self.additionalInfo = additionalInfo
             self.allianceId = allianceId
+            self.corporationId = corporationId
         }
     }
     
@@ -334,6 +337,72 @@ struct SearchResultRow: View {
     @State private var hasAttemptedCorpInfoLoad = false
     @State private var hasAttemptedAllianceLoad = false
     @State private var loadTask: Task<Void, Never>?
+    @State private var standingIcon: String = "ColorTag-Neutral"
+    
+    private func determineStandingIcon() async {
+        // 1. 检查是否同军团
+        if let corpId = character.corporationId,
+           let resultCorpId = (result.type == .character ? result.corporationId : (result.type == .corporation ? result.id : nil)),
+           corpId == resultCorpId {
+            standingIcon = "ColorTag-StarGreen9"
+            return
+        }
+        
+        // 2. 检查是否同联盟
+        if let allianceId = character.allianceId,
+           let resultAllianceId = (result.type == .character ? result.allianceId : (result.type == .alliance ? result.id : nil)),
+           allianceId == resultAllianceId {
+            standingIcon = "ColorTag-StarBlue9"
+            return
+        }
+        
+        // 3. 检查联盟声望
+        if let allianceId = character.allianceId {
+            if let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId),
+               let contact = contacts.first(where: { $0.contact_id == result.id }) {
+                standingIcon = getStandingIcon(standing: contact.standing)
+                return
+            }
+        }
+        
+        // 4. 检查军团声望
+        if let corpId = character.corporationId {
+            if let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId),
+               let contact = contacts.first(where: { $0.contact_id == result.id }) {
+                standingIcon = getStandingIcon(standing: contact.standing)
+                return
+            }
+        }
+        
+        // 5. 检查个人声望
+        if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID),
+           let contact = contacts.first(where: { $0.contact_id == result.id }) {
+            standingIcon = getStandingIcon(standing: contact.standing)
+            return
+        }
+        
+        // 默认图标
+        standingIcon = "ColorTag-Neutral"
+    }
+    
+    private func getStandingIcon(standing: Double) -> String {
+        let standingValues = [-10.0, -5.0, 0.0, 5.0, 10.0]
+        let icons = ["ColorTag-MinusRed9", "ColorTag-MinusOrange9", "ColorTag-Neutral", "ColorTag-PlusLightBlue9", "ColorTag-PlusDarkBlue9"]
+        
+        // 找到最接近的声望值
+        var closestIndex = 0
+        var minDiff = abs(standing - standingValues[0])
+        
+        for (index, value) in standingValues.enumerated() {
+            let diff = abs(standing - value)
+            if diff < minDiff {
+                minDiff = diff
+                closestIndex = index
+            }
+        }
+        
+        return icons[closestIndex]
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -389,10 +458,21 @@ struct SearchResultRow: View {
                     .font(.caption)
                 }
             }
+            
+            Spacer()
+            
+            // 声望图标
+            Image(standingIcon)
+                .resizable()
+                .frame(width: 16, height: 16)
         }
         .padding(.vertical, 4)
         .onAppear {
             scheduleLoad()
+            // 加载声望图标
+            Task {
+                await determineStandingIcon()
+            }
         }
         .onDisappear {
             loadTask?.cancel()
