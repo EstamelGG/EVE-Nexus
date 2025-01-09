@@ -145,16 +145,13 @@ struct SearcherView: View {
                 // 搜索结果部分
                 if !searchText.isEmpty {
                     Section(header: Text(NSLocalizedString("Main_Search_Results", comment: ""))) {
-                        if viewModel.isSearching {
+                        if !viewModel.searchingStatus.isEmpty {
                             HStack {
                                 Spacer()
                                 VStack(spacing: 8) {
-                                    ProgressView()
-                                    if !viewModel.searchingStatus.isEmpty {
-                                        Text(viewModel.searchingStatus)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
+                                    Text(viewModel.searchingStatus)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
                                 Spacer()
                             }
@@ -199,7 +196,6 @@ struct SearcherView: View {
                 viewModel.searchResults = []
                 if !newValue.isEmpty {
                     viewModel.error = nil
-                    viewModel.isSearching = false
                 }
             } else {
                 viewModel.debounceSearch(characterId: character.CharacterID, searchText: newValue, type: selectedSearchType)
