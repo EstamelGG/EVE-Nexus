@@ -279,16 +279,35 @@ struct SkillGroupDetailView: View {
                                 }
                                 Spacer()
                                 if let currentLevel = skill.currentLevel {
-                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .padding(.trailing, 2)
-                                    SkillLevelIndicator(
-                                        currentLevel: currentLevel,
-                                        trainingLevel: currentLevel,
-                                        isTraining: false
-                                    )
-                                    .padding(.trailing, 4)
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        HStack {
+                                            Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
+                                                .foregroundColor(.secondary)
+                                                .font(.caption)
+                                                .padding(.trailing, 2)
+                                            SkillLevelIndicator(
+                                                currentLevel: currentLevel,
+                                                trainingLevel: currentLevel,
+                                                isTraining: false
+                                            )
+                                            .padding(.trailing, 4)
+                                        }
+                                        
+                                        // 添加下一级训练时间显示
+                                        if currentLevel < 5,  // 只有当前等级小于5时才显示
+                                           let rate = skill.trainingRate {
+                                            let nextLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[currentLevel]) * skill.timeMultiplier)
+                                            let currentPoints = skill.currentSkillPoints ?? 0
+                                            let remainingSP = nextLevelPoints - currentPoints
+                                            let trainingTimeHours = Double(remainingSP) / Double(rate)
+                                            let trainingTime = trainingTimeHours * 3600 // 转换为秒
+                                            
+                                            Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                                      formatTimeInterval(trainingTime)))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
                                 } else {
                                     Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
                                         .foregroundColor(.secondary)
@@ -423,5 +442,33 @@ struct SkillGroupDetailView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
+    private func formatTimeInterval(_ interval: TimeInterval) -> String {
+        // 先转换为分钟
+        let totalMinutes = Int(ceil(interval / 60))
+        let days = totalMinutes / (24 * 60)
+        let remainingMinutes = totalMinutes % (24 * 60)
+        let hours = remainingMinutes / 60
+        let minutes = remainingMinutes % 60
+        
+        if days > 0 {
+            // 如果有剩余分钟，小时数要加1
+            let adjustedHours = (remainingMinutes % 60 > 0) ? hours + 1 : hours
+            if adjustedHours > 0 {
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                            days, adjustedHours)
+            }
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        } else if hours > 0 {
+            // 如果有剩余分钟，分钟数要向上取整
+            if minutes > 0 {
+                return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                            hours, minutes)
+            }
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        }
+        // 分钟数已经在一开始就向上取整了
+        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
     }
 }
