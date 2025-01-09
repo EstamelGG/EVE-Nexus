@@ -214,6 +214,27 @@ struct SearcherView: View {
         .onChange(of: allianceFilter) { _, _ in
             viewModel.filterResults(corporationFilter: corporationFilter, allianceFilter: allianceFilter)
         }
+        .onChange(of: locationFilter) { _, _ in
+            viewModel.updateStructureFilters(
+                locationFilter: locationFilter,
+                securityLevel: selectedSecurityLevel,
+                structureType: selectedStructureType
+            )
+        }
+        .onChange(of: selectedSecurityLevel) { _, _ in
+            viewModel.updateStructureFilters(
+                locationFilter: locationFilter,
+                securityLevel: selectedSecurityLevel,
+                structureType: selectedStructureType
+            )
+        }
+        .onChange(of: selectedStructureType) { _, _ in
+            viewModel.updateStructureFilters(
+                locationFilter: locationFilter,
+                securityLevel: selectedSecurityLevel,
+                structureType: selectedStructureType
+            )
+        }
     }
     
     @ViewBuilder
@@ -240,6 +261,11 @@ struct SearcherView: View {
                 ForEach(StructureType.allCases, id: \.self) { type in
                     Text(type.localizedName).tag(type)
                 }
+            }
+            
+            Button(action: clearFilters) {
+                Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
+                    .foregroundColor(.red)
             }
         }
     }
@@ -294,6 +320,9 @@ class SearcherViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
+    private var currentLocationFilter = ""
+    private var currentSecurityLevel: SearcherView.SecurityLevel = SearcherView.SecurityLevel.all
+    private var currentStructureType: SearcherView.StructureType = SearcherView.StructureType.all
     private var corporationNames: [Int: String] = [:]
     private var allianceNames: [Int: String] = [:]
     
@@ -381,7 +410,7 @@ class SearcherViewModel: ObservableObject {
                     corporationFilter: currentCorpFilter,
                     allianceFilter: currentAllianceFilter
                 )
-                await characterSearch.search()
+                try await characterSearch.search()
                 
             case .corporation:
                 let corporationSearch = CorporationSearchView(
@@ -408,7 +437,7 @@ class SearcherViewModel: ObservableObject {
                         set: { self.error = $0 }
                     )
                 )
-                await corporationSearch.search()
+                try await corporationSearch.search()
                 
             case .alliance:
                 let allianceSearch = AllianceSearchView(
@@ -435,7 +464,37 @@ class SearcherViewModel: ObservableObject {
                         set: { self.error = $0 }
                     )
                 )
-                await allianceSearch.search()
+                try await allianceSearch.search()
+                
+            case .structure:
+                let structureSearch = StructureSearchView(
+                    characterId: characterId,
+                    searchText: searchText,
+                    searchResults: Binding(
+                        get: { self.searchResults },
+                        set: { self.searchResults = $0 }
+                    ),
+                    filteredResults: Binding(
+                        get: { self.filteredResults },
+                        set: { self.filteredResults = $0 }
+                    ),
+                    searchingStatus: Binding(
+                        get: { self.searchingStatus },
+                        set: { self.searchingStatus = $0 }
+                    ),
+                    isSearching: Binding(
+                        get: { self.isSearching },
+                        set: { self.isSearching = $0 }
+                    ),
+                    error: Binding(
+                        get: { self.error },
+                        set: { self.error = $0 }
+                    ),
+                    locationFilter: currentLocationFilter,
+                    securityLevel: currentSecurityLevel,
+                    structureType: currentStructureType
+                )
+                try await structureSearch.search()
                 
             default:
                 break
@@ -485,5 +544,11 @@ class SearcherViewModel: ObservableObject {
             if Task.isCancelled { return }
             await search(characterId: characterId, searchText: searchText, type: type)
         }
+    }
+    
+    func updateStructureFilters(locationFilter: String, securityLevel: SearcherView.SecurityLevel, structureType: SearcherView.StructureType) {
+        currentLocationFilter = locationFilter
+        currentSecurityLevel = securityLevel
+        currentStructureType = structureType
     }
 }
