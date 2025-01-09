@@ -471,12 +471,11 @@ struct SearchResultRow: View {
             Spacer()
             
             // 声望图标
-            ZStack {
-                // 前景图标
-                Image(standingIcon)
-                    .resizable()
-                    .frame(width: 12, height: 12)
-            }
+            Image(standingIcon)
+                .resizable()
+                .cornerRadius(1)
+                .frame(width: 12, height: 12)
+                .shadow(color: Color.secondary, radius: 1, x: 1, y: 1)
         }
         .padding(.vertical, 4)
         .onAppear {
