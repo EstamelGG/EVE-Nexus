@@ -332,145 +332,90 @@ class SearcherViewModel: ObservableObject {
         do {
             error = nil
             searchResults = [] // 清空当前结果
-            corporationNames = [:] // 清空缓存的名称
-            allianceNames = [:]
             
             switch type {
             case .character:
-                searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
-                let data = try await CharacterSearchAPI.shared.search(
+                let characterSearch = CharacterSearchView(
                     characterId: characterId,
-                    categories: [.character],
-                    searchText: searchText
+                    searchText: searchText,
+                    searchResults: Binding(
+                        get: { self.searchResults },
+                        set: { self.searchResults = $0 }
+                    ),
+                    filteredResults: Binding(
+                        get: { self.filteredResults },
+                        set: { self.filteredResults = $0 }
+                    ),
+                    searchingStatus: Binding(
+                        get: { self.searchingStatus },
+                        set: { self.searchingStatus = $0 }
+                    ),
+                    isSearching: Binding(
+                        get: { self.isSearching },
+                        set: { self.isSearching = $0 }
+                    ),
+                    error: Binding(
+                        get: { self.error },
+                        set: { self.error = $0 }
+                    ),
+                    corporationFilter: currentCorpFilter,
+                    allianceFilter: currentAllianceFilter
                 )
-                
-                if Task.isCancelled { return }
-                
-                // 解析搜索结果
-                let searchResponse = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
-                
-                if let characters = searchResponse.character {
-                    // 一次性获取所有角色名称
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-                    let characterNames = try await fetchNamesFromESI(ids: characters)
-                    
-                    // 创建基本的搜索结果
-                    let results = characters.compactMap { id -> SearcherView.SearchResult? in
-                        guard let name = characterNames[id] else { return nil }
-                        return SearcherView.SearchResult(
-                            id: id,
-                            name: name,
-                            type: .character
-                        )
-                    }.sorted { result1, result2 in
-                        // 检查是否以搜索文本开头
-                        let searchTextLower = searchText.lowercased()
-                        let name1Lower = result1.name.lowercased()
-                        let name2Lower = result2.name.lowercased()
-                        
-                        let starts1 = name1Lower.hasPrefix(searchTextLower)
-                        let starts2 = name2Lower.hasPrefix(searchTextLower)
-                        
-                        if starts1 != starts2 {
-                            return starts1 // 以搜索文本开头的排在前面
-                        }
-                        return result1.name < result2.name // 其次按字母顺序排序
-                    }
-                    
-                    if Task.isCancelled { return }
-                    
-                    // 更新结果
-                    searchResults = results
-                    
-                    // 一次性获取所有角色的军团和联盟信息
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
-                    let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliationsInBatches(characterIds: characters)
-                    
-                    // 收集所有需要查询的军团和联盟ID
-                    var corpIds = Set<Int>()
-                    var allianceIds = Set<Int>()
-                    
-                    for affiliation in affiliations {
-                        corpIds.insert(affiliation.corporation_id)
-                        if let allianceId = affiliation.alliance_id {
-                            allianceIds.insert(allianceId)
-                        }
-                    }
-                    
-                    // 获取军团名称
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
-                    corporationNames = try await fetchNamesFromESI(ids: Array(corpIds))
-                    
-                    // 获取联盟名称
-                    if !allianceIds.isEmpty {
-                        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
-                        allianceNames = try await fetchNamesFromESI(ids: Array(allianceIds))
-                    }
-                    
-                    // 更新搜索结果的军团和联盟信息
-                    for affiliation in affiliations {
-                        if let index = searchResults.firstIndex(where: { $0.id == affiliation.character_id }) {
-                            searchResults[index].corporationName = corporationNames[affiliation.corporation_id]
-                            if let allianceId = affiliation.alliance_id {
-                                searchResults[index].allianceName = allianceNames[allianceId]
-                            }
-                        }
-                    }
-                    
-                    // 应用当前的过滤条件
-                    filterResults(corporationFilter: currentCorpFilter, allianceFilter: currentAllianceFilter)
-                    
-                    Logger.info("搜索完成，找到 \(searchResults.count) 个结果")
-                    
-                } else {
-                    searchResults = []
-                    filteredResults = []
-                }
+                await characterSearch.search()
                 
             case .corporation:
-                searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Corporations", comment: "")
-                let data = try await CharacterSearchAPI.shared.search(
+                let corporationSearch = CorporationSearchView(
                     characterId: characterId,
-                    categories: [.corporation],
-                    searchText: searchText
+                    searchText: searchText,
+                    searchResults: Binding(
+                        get: { self.searchResults },
+                        set: { self.searchResults = $0 }
+                    ),
+                    filteredResults: Binding(
+                        get: { self.filteredResults },
+                        set: { self.filteredResults = $0 }
+                    ),
+                    searchingStatus: Binding(
+                        get: { self.searchingStatus },
+                        set: { self.searchingStatus = $0 }
+                    ),
+                    isSearching: Binding(
+                        get: { self.isSearching },
+                        set: { self.isSearching = $0 }
+                    ),
+                    error: Binding(
+                        get: { self.error },
+                        set: { self.error = $0 }
+                    )
                 )
+                await corporationSearch.search()
                 
-                if Task.isCancelled { return }
-                
-                // 解析搜索结果
-                let searchResponse = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
-                
-                if let corporations = searchResponse.corporation {
-                    // 获取军团名称
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-                    let corpNames = try await fetchNamesFromESI(ids: corporations)
-                    
-                    // 创建搜索结果
-                    let results = corporations.compactMap { corpId -> SearcherView.SearchResult? in
-                        guard let name = corpNames[corpId] else { return nil }
-                        return SearcherView.SearchResult(
-                            id: corpId,
-                            name: name,
-                            type: .corporation
-                        )
-                    }.sorted { result1, result2 in
-                        // 检查是否以搜索文本开头
-                        let searchTextLower = searchText.lowercased()
-                        let name1Lower = result1.name.lowercased()
-                        let name2Lower = result2.name.lowercased()
-                        
-                        let starts1 = name1Lower.hasPrefix(searchTextLower)
-                        let starts2 = name2Lower.hasPrefix(searchTextLower)
-                        
-                        if starts1 != starts2 {
-                            return starts1 // 以搜索文本开头的排在前面
-                        }
-                        return result1.name < result2.name // 其次按字母顺序排序
-                    }
-                    
-                    searchResults = results
-                    filteredResults = searchResults // 对于军团搜索，不进行二次过滤
-                }
+            case .alliance:
+                let allianceSearch = AllianceSearchView(
+                    characterId: characterId,
+                    searchText: searchText,
+                    searchResults: Binding(
+                        get: { self.searchResults },
+                        set: { self.searchResults = $0 }
+                    ),
+                    filteredResults: Binding(
+                        get: { self.filteredResults },
+                        set: { self.filteredResults = $0 }
+                    ),
+                    searchingStatus: Binding(
+                        get: { self.searchingStatus },
+                        set: { self.searchingStatus = $0 }
+                    ),
+                    isSearching: Binding(
+                        get: { self.isSearching },
+                        set: { self.isSearching = $0 }
+                    ),
+                    error: Binding(
+                        get: { self.error },
+                        set: { self.error = $0 }
+                    )
+                )
+                await allianceSearch.search()
                 
             default:
                 break

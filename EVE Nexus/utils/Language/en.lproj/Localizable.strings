@@ -719,6 +719,7 @@
 "Main_Search_Status_Searching" = "Searching...";
 "Main_Search_Status_Finding_Characters" = "Finding characters...";
 "Main_Search_Status_Finding_Corporations" = "Finding corporations...";
+"Main_Search_Status_Finding_Alliances" = "Finding alliances...";
 "Main_Search_Status_Loading_Names" = "Loading names...";
 "Main_Search_Status_Loading_Details" = "Loading details...";
 "Main_Search_Status_Loading_Corps" = "Loading corporation info...";

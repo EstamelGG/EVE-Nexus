@@ -724,6 +724,7 @@
 "Main_Search_Status_Loading_Corps" = "正在加载军团信息...";
 "Main_Search_Status_Loading_Alliances" = "正在加载联盟信息...";
 "Main_Search_Status_Finding_Corporations" = "正在查找军团...";
+"Main_Search_Status_Finding_Alliances" = "正在查找联盟...";
 
 // 搜索结果
 "Main_Search_Results" = "搜索结果";
