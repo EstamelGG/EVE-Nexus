@@ -187,7 +187,16 @@ struct SearcherView: View {
                             }
                         } else {
                             ForEach(viewModel.filteredResults) { result in
-                                SearchResultRow(result: result, character: character)
+                                NavigationLink(destination: {
+                                    if result.type == .character {
+                                        CharacterDetailView(characterId: result.id)
+                                    } else {
+                                        SearchResultRow(result: result, character: character)
+                                    }
+                                }) {
+                                    SearchResultRow(result: result, character: character)
+                                }
+                                .buttonStyle(.plain)
                             }
                             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
