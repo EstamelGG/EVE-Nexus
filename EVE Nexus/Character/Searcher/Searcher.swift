@@ -122,9 +122,11 @@ struct SearcherView: View {
                 Section(header: Text(NSLocalizedString("Main_Search_Filter_Title", comment: ""))) {
                     filterView
                     
-                    Button(action: clearFilters) {
-                        Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
-                            .foregroundColor(.red)
+                    if selectedSearchType == .character {
+                        Button(action: clearFilters) {
+                            Text(NSLocalizedString("Main_Search_Filter_Clear", comment: ""))
+                                .foregroundColor(.red)
+                        }
                     }
                 }
                 
