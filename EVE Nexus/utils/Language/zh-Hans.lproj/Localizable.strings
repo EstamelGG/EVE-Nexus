@@ -739,4 +739,10 @@
 // Structure Search Status
 "Main_Search_Status_Finding_Structures" = "正在搜索建筑...";
 "Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息...";
+"Main_Search_Status_Loading_Station_Progress" = "正在处理空间站信息(%d/%d)";
+"Main_Search_Status_Loading_Structure_Progress" = "正在处理建筑信息(%d/%d)";
+
+
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
 "Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 

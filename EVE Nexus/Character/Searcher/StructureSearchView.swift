@@ -181,8 +181,14 @@ struct StructureSearchView: View {
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: stationIds)
                 
-                for info in stationsInfo {
+                for (index, info) in stationsInfo.enumerated() {
                     try Task.checkCancellation()
+                    
+                    searchingStatus = String(
+                        format: NSLocalizedString("Main_Search_Status_Loading_Station_Progress", comment: ""),
+                        index + 1,
+                        stationsInfo.count
+                    )
                     
                     do {
                         // 获取位置信息
@@ -217,8 +223,14 @@ struct StructureSearchView: View {
         // 处理建筑物结果
         if typeToProcess == .all || typeToProcess == .structure {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
-            for structureId in structureIds {
+            for (index, structureId) in structureIds.enumerated() {
                 try Task.checkCancellation()
+                
+                searchingStatus = String(
+                    format: NSLocalizedString("Main_Search_Status_Loading_Structure_Progress", comment: ""),
+                    index + 1,
+                    structureIds.count
+                )
                 
                 do {
                     let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
