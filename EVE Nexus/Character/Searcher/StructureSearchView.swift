@@ -9,7 +9,6 @@ struct StructureSearchView {
     @Binding var searchingStatus: String
     @Binding var isSearching: Bool
     @Binding var error: Error?
-    let securityLevel: SearcherView.SecurityLevel
     let structureType: SearcherView.StructureType
     
     func search() async throws {
@@ -111,18 +110,7 @@ struct StructureSearchView {
         var filtered = searchResults
         
         Logger.debug("开始应用过滤器:")
-        Logger.debug("- 安全等级: \(securityLevel)")
         Logger.debug("- 建筑类型: \(structureType)")
-        
-        // 应用安全等级过滤
-        if securityLevel != .all {
-            filtered = filtered.filter { result in
-                // TODO: 实现安全等级过滤逻辑
-                // 需要获取建筑所在星系的安全等级并与过滤条件匹配
-                return true
-            }
-            Logger.debug("应用安全等级过滤后剩余: \(filtered.count) 个结果")
-        }
         
         // 应用建筑类型过滤
         if structureType != .all {

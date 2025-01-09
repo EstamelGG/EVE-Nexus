@@ -10,7 +10,6 @@ struct SearcherView: View {
     @State private var corporationFilter = ""
     @State private var allianceFilter = ""
     @State private var tickerFilter = ""
-    @State private var selectedSecurityLevel = SecurityLevel.all
     @State private var selectedStructureType = StructureType.all
     
     enum SearchType: String, CaseIterable {
@@ -35,17 +34,6 @@ struct SearcherView: View {
             case .structure:
                 return .character // 建筑物没有对应的类型，暂时使用character
             }
-        }
-    }
-    
-    enum SecurityLevel: String, CaseIterable {
-        case all = "Main_Search_Filter_All"
-        case highSec = "Main_Search_Filter_High_Sec"
-        case lowSec = "Main_Search_Filter_Low_Sec"
-        case nullSec = "Main_Search_Filter_Null_Sec"
-        
-        var localizedName: String {
-            NSLocalizedString(self.rawValue, comment: "")
         }
     }
     
@@ -215,15 +203,8 @@ struct SearcherView: View {
         .onChange(of: allianceFilter) { _, _ in
             viewModel.filterResults(corporationFilter: corporationFilter, allianceFilter: allianceFilter)
         }
-        .onChange(of: selectedSecurityLevel) { _, _ in
-            viewModel.updateStructureFilters(
-                securityLevel: selectedSecurityLevel,
-                structureType: selectedStructureType
-            )
-        }
         .onChange(of: selectedStructureType) { _, _ in
             viewModel.updateStructureFilters(
-                securityLevel: selectedSecurityLevel,
                 structureType: selectedStructureType
             )
         }
@@ -240,12 +221,6 @@ struct SearcherView: View {
         case .alliance:
             EmptyView()
         case .structure:
-            Picker(NSLocalizedString("Main_Search_Filter_Security", comment: ""), selection: $selectedSecurityLevel) {
-                ForEach(SecurityLevel.allCases, id: \.self) { level in
-                    Text(level.localizedName).tag(level)
-                }
-            }
-            
             Picker(NSLocalizedString("Main_Search_Filter_Structure_Type", comment: ""), selection: $selectedStructureType) {
                 ForEach(StructureType.allCases, id: \.self) { type in
                     Text(type.localizedName).tag(type)
@@ -263,7 +238,6 @@ struct SearcherView: View {
         corporationFilter = ""
         allianceFilter = ""
         tickerFilter = ""
-        selectedSecurityLevel = .all
         selectedStructureType = .all
         // 清除过滤器时重置过滤结果
         viewModel.filterResults(corporationFilter: "", allianceFilter: "")
@@ -308,7 +282,6 @@ class SearcherViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
-    private var currentSecurityLevel: SearcherView.SecurityLevel = SearcherView.SecurityLevel.all
     private var currentStructureType: SearcherView.StructureType = SearcherView.StructureType.all
     private var corporationNames: [Int: String] = [:]
     private var allianceNames: [Int: String] = [:]
@@ -477,7 +450,6 @@ class SearcherViewModel: ObservableObject {
                         get: { self.error },
                         set: { self.error = $0 }
                     ),
-                    securityLevel: currentSecurityLevel,
                     structureType: currentStructureType
                 )
                 try await structureSearch.search()
@@ -532,8 +504,7 @@ class SearcherViewModel: ObservableObject {
         }
     }
     
-    func updateStructureFilters(securityLevel: SearcherView.SecurityLevel, structureType: SearcherView.StructureType) {
-        currentSecurityLevel = securityLevel
+    func updateStructureFilters(structureType: SearcherView.StructureType) {
         currentStructureType = structureType
     }
 }
