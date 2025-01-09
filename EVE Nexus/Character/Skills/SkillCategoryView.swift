@@ -28,87 +28,30 @@ struct DetailedSkillInfo {
     let maxSkillPoints: Int  // 256000 * timeMultiplier
 }
 
-struct SkillCategoryView: View {
-    let characterId: Int
-    let databaseManager: DatabaseManager
-    @StateObject private var characterDatabaseManager = CharacterDatabaseManager.shared
-    @State private var skillGroups: [SkillGroup] = []
-    @State private var isLoading = true
+// 技能目录视图模型
+@MainActor
+class SkillCategoryViewModel: ObservableObject {
+    @Published var skillGroups: [SkillGroup] = []
+    @Published var isLoading = true
     
-    // 技能组图标映射
-    private let skillGroupIcons: [Int: String] = [
-        255: "1_42",    // 射击学
-        256: "1_48",    // 导弹
-        257: "1_26",    // 飞船操控学
-        258: "1_36",    // 舰队支援
-        266: "1_12",    // 军团管理
-        268: "1_25",    // 生产
-        269: "1_37",    // 改装件
-        270: "1_49",    // 科学
-        272: "1_24",    // 电子系统
-        273: "1_18",    // 无人机
-        274: "1_50",    // 贸易学
-        275: "1_05",    // 导航学
-        278: "1_20",    // 社会学
-        1209: "1_14",   // 护盾
-        1210: "1_03",   // 装甲
-        1213: "1_44",   // 锁定系统
-        1216: "1_30",   // 工程学
-        1217: "1_43",   // 扫描
-        1218: "1_31",   // 资源处理
-        1220: "1_13",   // 神经增强
-        1240: "1_38",   // 子系统
-        1241: "1_19",   // 行星管理
-        1545: "1_32",   // 建筑管理
-        4734: "1_07"    // 排序
-    ]
+    private let characterId: Int
+    private let databaseManager: DatabaseManager
+    private let characterDatabaseManager: CharacterDatabaseManager
     
-    var body: some View {
-        List {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else if skillGroups.isEmpty {
-                Text(NSLocalizedString("Main_Skills_No_Skills", comment: ""))
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(skillGroups.sorted(by: { $0.id < $1.id })) { group in
-                    NavigationLink {
-                        SkillGroupDetailView(group: group, databaseManager: databaseManager, characterId: characterId)
-                    } label: {
-                        HStack(spacing: 12) {
-                            // 显示技能组图标
-                            if let iconName = skillGroupIcons[group.id] {
-                                Image(iconName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 32)
-                                    .cornerRadius(8)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(group.name)
-                                Text("\(group.skills.count)/\(group.totalSkillsInGroup) Skills - \(formatNumber(group.totalSkillPoints)) SP")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-        }
-        .navigationTitle(NSLocalizedString("Main_Skills_Category", comment: ""))
-        .onAppear {
-            Task {
-                await loadSkills()
-            }
-        }
+    init(characterId: Int, databaseManager: DatabaseManager, characterDatabaseManager: CharacterDatabaseManager) {
+        self.characterId = characterId
+        self.databaseManager = databaseManager
+        self.characterDatabaseManager = characterDatabaseManager
     }
     
-    private func loadSkills() async {
+    func loadSkills() async {
         isLoading = true
         defer { isLoading = false }
+        
+        // 如果已经加载过数据，就不再重新加载
+        if !skillGroups.isEmpty {
+            return
+        }
         
         // 1. 从character_skills表获取技能数据
         let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
@@ -200,6 +143,93 @@ struct SkillCategoryView: View {
             
         } catch {
             Logger.error("解析技能数据失败: \(error)")
+        }
+    }
+}
+
+struct SkillCategoryView: View {
+    let characterId: Int
+    let databaseManager: DatabaseManager
+    @StateObject private var viewModel: SkillCategoryViewModel
+    
+    // 技能组图标映射
+    private let skillGroupIcons: [Int: String] = [
+        255: "1_42",    // 射击学
+        256: "1_48",    // 导弹
+        257: "1_26",    // 飞船操控学
+        258: "1_36",    // 舰队支援
+        266: "1_12",    // 军团管理
+        268: "1_25",    // 生产
+        269: "1_37",    // 改装件
+        270: "1_49",    // 科学
+        272: "1_24",    // 电子系统
+        273: "1_18",    // 无人机
+        274: "1_50",    // 贸易学
+        275: "1_05",    // 导航学
+        278: "1_20",    // 社会学
+        1209: "1_14",   // 护盾
+        1210: "1_03",   // 装甲
+        1213: "1_44",   // 锁定系统
+        1216: "1_30",   // 工程学
+        1217: "1_43",   // 扫描
+        1218: "1_31",   // 资源处理
+        1220: "1_13",   // 神经增强
+        1240: "1_38",   // 子系统
+        1241: "1_19",   // 行星管理
+        1545: "1_32",   // 建筑管理
+        4734: "1_07"    // 排序
+    ]
+    
+    init(characterId: Int, databaseManager: DatabaseManager) {
+        self.characterId = characterId
+        self.databaseManager = databaseManager
+        _viewModel = StateObject(wrappedValue: SkillCategoryViewModel(
+            characterId: characterId,
+            databaseManager: databaseManager,
+            characterDatabaseManager: CharacterDatabaseManager.shared
+        ))
+    }
+    
+    var body: some View {
+        List {
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if viewModel.skillGroups.isEmpty {
+                Text(NSLocalizedString("Main_Skills_No_Skills", comment: ""))
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(viewModel.skillGroups.sorted(by: { $0.id < $1.id })) { group in
+                    NavigationLink {
+                        SkillGroupDetailView(group: group, databaseManager: databaseManager, characterId: characterId)
+                    } label: {
+                        HStack(spacing: 12) {
+                            // 显示技能组图标
+                            if let iconName = skillGroupIcons[group.id] {
+                                Image(iconName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 32)
+                                    .cornerRadius(8)
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(group.name)
+                                Text("\(group.skills.count)/\(group.totalSkillsInGroup) Skills - \(formatNumber(group.totalSkillPoints)) SP")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
+        }
+        .navigationTitle(NSLocalizedString("Main_Skills_Category", comment: ""))
+        .onAppear {
+            Task {
+                await viewModel.loadSkills()
+            }
         }
     }
     
