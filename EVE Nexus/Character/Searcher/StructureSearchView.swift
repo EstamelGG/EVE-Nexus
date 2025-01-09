@@ -19,20 +19,18 @@ struct StructureSearchView {
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
         searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
         
-        // 构建搜索URL
-        let encodedSearch = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://esi.evetech.net/latest/search/?categories=station,structure&search=\(encodedSearch)&strict=false"
+        // 使用CharacterSearchAPI进行搜索
+        let data = try await CharacterSearchAPI.shared.search(
+            characterId: characterId,
+            categories: [.station, .structure],
+            searchText: searchText
+        )
         
-        guard let url = URL(string: urlString) else {
-            Logger.error("无效的URL: \(urlString)")
-            throw NetworkError.invalidURL
+        // 打印响应结果
+        if let responseString = String(data: data, encoding: .utf8) {
+            Logger.debug("搜索响应结果: \(responseString)")
         }
         
-        // 发送搜索请求
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
-            characterId: characterId
-        )
         let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
         
         // 获取建筑ID列表
