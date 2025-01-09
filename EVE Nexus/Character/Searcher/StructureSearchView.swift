@@ -31,32 +31,42 @@ struct StructureSearchView {
         
         let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
         
-        // 获取建筑ID列表
-        var allIds: [Int] = []
-        var idToType: [Int: SearcherView.StructureType] = [:]
+        // 分别存储空间站和建筑物ID
+        var stationIds: [Int] = []
+        var structureIds: [Int] = []
         
         // 处理空间站
-        if let stationIds = response.station {
-            allIds.append(contentsOf: stationIds)
-            for id in stationIds {
-                idToType[id] = .station
-            }
-            Logger.debug("找到 \(stationIds.count) 个空间站")
-            Logger.debug("空间站ID列表: \(stationIds.map { String($0) }.joined(separator: ", "))")
+        if let stations = response.station {
+            stationIds = stations
+            Logger.debug("找到 \(stations.count) 个空间站")
+            Logger.debug("空间站ID列表: \(stations.map { String($0) }.joined(separator: ", "))")
         }
         
         // 处理建筑物
-        if let structureIds = response.structure {
-            allIds.append(contentsOf: structureIds)
-            for id in structureIds {
-                idToType[id] = .structure
-            }
-            Logger.debug("找到 \(structureIds.count) 个建筑物")
-            Logger.debug("建筑物ID列表: \(structureIds.map { String($0) }.joined(separator: ", "))")
+        if let structures = response.structure {
+            structureIds = structures
+            Logger.debug("找到 \(structures.count) 个建筑物")
+            Logger.debug("建筑物ID列表: \(structures.map { String($0) }.joined(separator: ", "))")
         }
         
-        guard !allIds.isEmpty else {
-            Logger.debug("未找到任何建筑")
+        // 根据过滤条件选择要处理的ID
+        var idsToProcess: [Int] = []
+        var typeToProcess: SearcherView.StructureType = .all
+        
+        switch structureType {
+        case .all:
+            idsToProcess = stationIds + structureIds
+            typeToProcess = .all
+        case .station:
+            idsToProcess = stationIds
+            typeToProcess = .station
+        case .structure:
+            idsToProcess = structureIds
+            typeToProcess = .structure
+        }
+        
+        guard !idsToProcess.isEmpty else {
+            Logger.debug("根据过滤条件，没有需要处理的建筑")
             searchResults = []
             filteredResults = []
             return
@@ -64,14 +74,38 @@ struct StructureSearchView {
         
         // 获取建筑名称
         searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-        let namesResponse = try await UniverseAPI.shared.getNamesWithFallback(ids: allIds)
+        let namesResponse = try await UniverseAPI.shared.getNamesWithFallback(ids: idsToProcess)
         Logger.debug("成功获取 \(namesResponse.count) 个建筑的名称")
         
         // 创建搜索结果
-        var results = allIds.compactMap { id -> SearcherView.SearchResult? in
-            guard let nameInfo = namesResponse[id],
-                  let type = idToType[id] else { return nil }
-            return SearcherView.SearchResult(id: id, name: nameInfo.name, type: .structure)
+        var results: [SearcherView.SearchResult] = []
+        
+        // 处理空间站结果
+        if typeToProcess == .all || typeToProcess == .station {
+            let stationResults = stationIds.compactMap { id -> SearcherView.SearchResult? in
+                guard let nameInfo = namesResponse[id] else { return nil }
+                return SearcherView.SearchResult(
+                    id: id,
+                    name: nameInfo.name,
+                    type: .structure,
+                    structureType: .station
+                )
+            }
+            results.append(contentsOf: stationResults)
+        }
+        
+        // 处理建筑物结果
+        if typeToProcess == .all || typeToProcess == .structure {
+            let structureResults = structureIds.compactMap { id -> SearcherView.SearchResult? in
+                guard let nameInfo = namesResponse[id] else { return nil }
+                return SearcherView.SearchResult(
+                    id: id,
+                    name: nameInfo.name,
+                    type: .structure,
+                    structureType: .structure
+                )
+            }
+            results.append(contentsOf: structureResults)
         }
         
         Logger.debug("成功创建 \(results.count) 个搜索结果")
@@ -91,37 +125,17 @@ struct StructureSearchView {
             return name1 < name2
         }
         
-        // 应用过滤器
         searchResults = results
-        applyFilters()
+        filteredResults = results
         
-        Logger.debug("建筑搜索完成，过滤前: \(results.count) 个结果，过滤后: \(filteredResults.count) 个结果")
+        Logger.debug("建筑搜索完成，共有 \(results.count) 个结果")
         
         // 打印前5个结果的详细信息
         if !results.isEmpty {
             Logger.debug("前 \(min(5, results.count)) 个搜索结果:")
             for (index, result) in results.prefix(5).enumerated() {
-                Logger.debug("\(index + 1). ID: \(result.id), 名称: \(result.name)")
+                Logger.debug("\(index + 1). ID: \(result.id), 名称: \(result.name), 类型: \(result.structureType?.rawValue ?? "unknown")")
             }
         }
-    }
-    
-    private func applyFilters() {
-        var filtered = searchResults
-        
-        Logger.debug("开始应用过滤器:")
-        Logger.debug("- 建筑类型: \(structureType)")
-        
-        // 应用建筑类型过滤
-        if structureType != .all {
-            filtered = filtered.filter { result in
-                // TODO: 实现建筑类型过滤逻辑
-                // 需要获取建筑类型信息并与过滤条件匹配
-                return true
-            }
-            Logger.debug("应用建筑类型过滤后剩余: \(filtered.count) 个结果")
-        }
-        
-        filteredResults = filtered
     }
 } 

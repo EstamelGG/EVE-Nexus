@@ -54,11 +54,30 @@ struct SearcherView: View {
         let type: SearchType
         var corporationName: String?
         var allianceName: String?
+        var structureType: StructureType?
         
-        init(id: Int, name: String, type: SearchType) {
+        // 建筑物详细信息（懒加载）
+        @MainActor
+        func loadStructureDetails(characterId: Int) async throws -> (systemId: Int, typeId: Int, ownerId: Int) {
+            switch structureType {
+            case .station:
+                let info = try await StationInfoAPI.shared.fetchStationInfo(stationId: id)
+                return (info.system_id, info.type_id, info.owner)
+            case .structure:
+                let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: id, characterId: characterId)
+                return (info.solar_system_id, info.type_id, info.owner_id)
+            case .all:
+                throw NetworkError.invalidData
+            case .none:
+                throw NetworkError.invalidData
+            }
+        }
+        
+        init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil) {
             self.id = id
             self.name = name
             self.type = type
+            self.structureType = structureType
         }
     }
     
@@ -177,7 +196,7 @@ struct SearcherView: View {
                             }
                         } else {
                             ForEach(viewModel.filteredResults) { result in
-                                SearchResultRow(result: result)
+                                SearchResultRow(result: result, character: character)
                             }
                         }
                     }
@@ -247,25 +266,54 @@ struct SearcherView: View {
 // 搜索结果行视图
 struct SearchResultRow: View {
     let result: SearcherView.SearchResult
+    let character: EVECharacterInfo
+    @State private var structureDetails: (systemId: Int, typeId: Int, ownerId: Int)?
+    @State private var isLoading = false
+    @State private var error: Error?
     
     var body: some View {
         HStack {
             UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.name)
-                if let corpName = result.corporationName {
+                if let details = structureDetails {
                     HStack(spacing: 4) {
-                        Text(corpName)
-                        if let allianceName = result.allianceName {
-                            Text("•")
-                                .foregroundColor(.secondary)
-                            Text(allianceName)
-                        }
+                        Text("System ID: \(details.systemId)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("•")
+                            .foregroundColor(.secondary)
+                        Text("Type ID: \(details.typeId)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                } else if isLoading {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                } else if error != nil {
+                    Text("加载失败")
+                        .font(.caption)
+                        .foregroundColor(.red)
                 }
             }
+        }
+        .onAppear {
+            loadDetails()
+        }
+    }
+    
+    private func loadDetails() {
+        guard structureDetails == nil, !isLoading else { return }
+        
+        isLoading = true
+        Task {
+            do {
+                structureDetails = try await result.loadStructureDetails(characterId: character.CharacterID)
+            } catch {
+                self.error = error
+                Logger.error("加载建筑详情失败: \(error)")
+            }
+            isLoading = false
         }
     }
 }
@@ -508,3 +556,4 @@ class SearcherViewModel: ObservableObject {
         currentStructureType = structureType
     }
 }
+
