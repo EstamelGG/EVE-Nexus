@@ -209,39 +209,22 @@ struct SearcherView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Search_Title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .overlay {
-            if isLoadingContacts {
-                ZStack {
-                    Color.black.opacity(0.3)
-                        .edgesIgnoringSafeArea(.all)
-                        .allowsHitTesting(true)
-                    
-                    if let error = loadingError {
-                        VStack(spacing: 16) {
-                            Text(NSLocalizedString("Main_Search_Loading_Failed", comment: ""))
-                                .foregroundColor(.secondary)
-                            
-                            Button(action: {
-                                Task {
-                                    isLoadingContacts = true
-                                    hasLoadedContacts = false
-                                    await loadContactsData()
-                                }
-                            }) {
-                                Text(NSLocalizedString("Common_OK", comment: ""))
-                                    .foregroundColor(.accentColor)
-                            }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if isLoadingContacts {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.8)
+                } else if loadingError != nil {
+                    Button(action: {
+                        Task {
+                            isLoadingContacts = true
+                            hasLoadedContacts = false
+                            await loadContactsData()
                         }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 10)
-                    } else {
-                        ProgressView(NSLocalizedString("Main_Search_Loading_Contacts", comment: ""))
-                            .progressViewStyle(.automatic)
-                            .padding()
-                            .background(Color(.systemGray6).opacity(0.8))
-                            .cornerRadius(8)
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundColor(.red)
                     }
                 }
             }
