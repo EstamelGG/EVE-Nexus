@@ -41,6 +41,29 @@ struct StructureSearchView {
         return row["icon_filename"] as! String
     }
     
+    // 从数据库加载空间站信息
+    private func loadStationInfo(stationId: Int) throws -> (name: String, typeId: Int, systemId: Int) {
+        let sql = """
+            SELECT 
+                stationName,
+                stationTypeID,
+                solarSystemID
+            FROM stations
+            WHERE stationID = ?
+        """
+        
+        guard case .success(let rows) = DatabaseManager.shared.executeQuery(sql, parameters: [stationId]),
+              let row = rows.first else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到空间站信息"])
+        }
+        
+        return (
+            name: row["stationName"] as! String,
+            typeId: row["stationTypeID"] as! Int,
+            systemId: row["solarSystemID"] as! Int
+        )
+    }
+    
     func search() async throws {
         guard !searchText.isEmpty else { return }
         
@@ -109,13 +132,14 @@ struct StructureSearchView {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Station_Info", comment: "")
             for stationId in stationIds {
                 do {
-                    let info = try await StationInfoAPI.shared.fetchStationInfo(stationId: stationId)
+                    // 从数据库获取空间站信息
+                    let info = try loadStationInfo(stationId: stationId)
                     
                     // 获取位置信息
-                    let locationInfo = try await loadLocationInfo(systemId: info.system_id)
+                    let locationInfo = try await loadLocationInfo(systemId: info.systemId)
                     
                     // 获取建筑类型图标
-                    let iconFilename = try loadTypeIcon(typeId: info.type_id)
+                    let iconFilename = try loadTypeIcon(typeId: info.typeId)
                     
                     let result = SearcherView.SearchResult(
                         id: stationId,
