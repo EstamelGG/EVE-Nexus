@@ -734,3 +734,8 @@
 "Main_Search_No_Filtered_Results" = "No results match the filter criteria";
 "Main_Search_Load_More" = "Load More";
 "Main_Search_Load_More_Status" = "Loading more results...";
+
+// Structure Search Status
+"Main_Search_Status_Finding_Structures" = "Searching for structures...";
+"Main_Search_Status_Loading_Station_Info" = "Loading station information...";
+"Main_Search_Status_Loading_Structure_Info" = "Loading structure information..."; 

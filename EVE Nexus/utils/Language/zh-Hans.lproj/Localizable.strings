@@ -735,3 +735,8 @@
 "Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
 "Main_Search_Load_More" = "加载更多";
 "Main_Search_Load_More_Status" = "正在加载更多结果...";
+
+// Structure Search Status
+"Main_Search_Status_Finding_Structures" = "正在搜索建筑...";
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
