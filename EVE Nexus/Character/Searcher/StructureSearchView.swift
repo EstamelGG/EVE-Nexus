@@ -174,9 +174,11 @@ struct StructureSearchView: View {
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: stationIds)
                 
+                // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
+                let batchSize = min(max(stationsInfo.count / 5, 1), 10)
+                
                 // 使用 TaskGroup 并发处理空间站信息
                 try await withThrowingTaskGroup(of: SearcherView.SearchResult?.self) { group in
-                    let batchSize = 3 // 每批处理3个
                     var processedCount = 0
                     
                     for batch in stationsInfo.chunked(into: batchSize) {
@@ -233,9 +235,11 @@ struct StructureSearchView: View {
         if !structureIds.isEmpty {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
             
+            // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
+            let batchSize = min(max(structureIds.count / 5, 1), 10)
+            
             // 使用 TaskGroup 并发处理建筑物信息
             try await withThrowingTaskGroup(of: SearcherView.SearchResult?.self) { group in
-                let batchSize = 5 // 每批处理5个
                 var processedCount = 0
                 
                 for batch in structureIds.chunked(into: batchSize) {
