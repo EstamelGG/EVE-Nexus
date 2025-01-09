@@ -11,6 +11,36 @@ struct StructureSearchView {
     @Binding var error: Error?
     let structureType: SearcherView.StructureType
     
+    // 加载位置信息
+    private func loadLocationInfo(systemId: Int) async throws -> (security: Double, systemName: String, regionName: String) {
+        guard let solarSystemInfo = await getSolarSystemInfo(solarSystemId: systemId, databaseManager: DatabaseManager.shared) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到位置信息"])
+        }
+        
+        return (
+            security: solarSystemInfo.security,
+            systemName: solarSystemInfo.systemName,
+            regionName: solarSystemInfo.regionName
+        )
+    }
+    
+    // 加载类型图标
+    private func loadTypeIcon(typeId: Int) throws -> String {
+        let sql = """
+            SELECT 
+                icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        
+        guard case .success(let rows) = DatabaseManager.shared.executeQuery(sql, parameters: [typeId]),
+              let row = rows.first else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到类型图标"])
+        }
+        
+        return row["icon_filename"] as! String
+    }
+    
     func search() async throws {
         guard !searchText.isEmpty else { return }
         
@@ -72,40 +102,64 @@ struct StructureSearchView {
             return
         }
         
-        // 获取建筑名称
-        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
-        let namesResponse = try await UniverseAPI.shared.getNamesWithFallback(ids: idsToProcess)
-        Logger.debug("成功获取 \(namesResponse.count) 个建筑的名称")
-        
-        // 创建搜索结果
         var results: [SearcherView.SearchResult] = []
         
         // 处理空间站结果
         if typeToProcess == .all || typeToProcess == .station {
-            let stationResults = stationIds.compactMap { id -> SearcherView.SearchResult? in
-                guard let nameInfo = namesResponse[id] else { return nil }
-                return SearcherView.SearchResult(
-                    id: id,
-                    name: nameInfo.name,
-                    type: .structure,
-                    structureType: .station
-                )
+            searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Station_Info", comment: "")
+            for stationId in stationIds {
+                do {
+                    let info = try await StationInfoAPI.shared.fetchStationInfo(stationId: stationId)
+                    
+                    // 获取位置信息
+                    let locationInfo = try await loadLocationInfo(systemId: info.system_id)
+                    
+                    // 获取建筑类型图标
+                    let iconFilename = try loadTypeIcon(typeId: info.type_id)
+                    
+                    let result = SearcherView.SearchResult(
+                        id: stationId,
+                        name: info.name,
+                        type: .structure,
+                        structureType: .station,
+                        locationInfo: locationInfo,
+                        typeInfo: iconFilename
+                    )
+                    results.append(result)
+                } catch {
+                    Logger.error("获取空间站信息失败: \(error)")
+                    continue
+                }
             }
-            results.append(contentsOf: stationResults)
         }
         
         // 处理建筑物结果
         if typeToProcess == .all || typeToProcess == .structure {
-            let structureResults = structureIds.compactMap { id -> SearcherView.SearchResult? in
-                guard let nameInfo = namesResponse[id] else { return nil }
-                return SearcherView.SearchResult(
-                    id: id,
-                    name: nameInfo.name,
-                    type: .structure,
-                    structureType: .structure
-                )
+            searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
+            for structureId in structureIds {
+                do {
+                    let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
+                    
+                    // 获取位置信息
+                    let locationInfo = try await loadLocationInfo(systemId: info.solar_system_id)
+                    
+                    // 获取建筑类型图标
+                    let iconFilename = try loadTypeIcon(typeId: info.type_id)
+                    
+                    let result = SearcherView.SearchResult(
+                        id: structureId,
+                        name: info.name,
+                        type: .structure,
+                        structureType: .structure,
+                        locationInfo: locationInfo,
+                        typeInfo: iconFilename
+                    )
+                    results.append(result)
+                } catch {
+                    Logger.error("获取建筑信息失败: \(error)")
+                    continue
+                }
             }
-            results.append(contentsOf: structureResults)
         }
         
         Logger.debug("成功创建 \(results.count) 个搜索结果")

@@ -55,29 +55,18 @@ struct SearcherView: View {
         var corporationName: String?
         var allianceName: String?
         var structureType: StructureType?
+        var locationInfo: (security: Double, systemName: String, regionName: String)?
+        var typeInfo: String? // 图标文件名
         
-        // 建筑物详细信息（懒加载）
-        @MainActor
-        func loadStructureDetails(characterId: Int) async throws -> (systemId: Int, typeId: Int, ownerId: Int) {
-            switch structureType {
-            case .station:
-                let info = try await StationInfoAPI.shared.fetchStationInfo(stationId: id)
-                return (info.system_id, info.type_id, info.owner)
-            case .structure:
-                let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: id, characterId: characterId)
-                return (info.solar_system_id, info.type_id, info.owner_id)
-            case .all:
-                throw NetworkError.invalidData
-            case .none:
-                throw NetworkError.invalidData
-            }
-        }
-        
-        init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil) {
+        init(id: Int, name: String, type: SearchType, structureType: StructureType? = nil, 
+             locationInfo: (security: Double, systemName: String, regionName: String)? = nil, 
+             typeInfo: String? = nil) {
             self.id = id
             self.name = name
             self.type = type
             self.structureType = structureType
+            self.locationInfo = locationInfo
+            self.typeInfo = typeInfo
         }
     }
     
@@ -198,6 +187,7 @@ struct SearcherView: View {
                             ForEach(viewModel.filteredResults) { result in
                                 SearchResultRow(result: result, character: character)
                             }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }
@@ -267,54 +257,48 @@ struct SearcherView: View {
 struct SearchResultRow: View {
     let result: SearcherView.SearchResult
     let character: EVECharacterInfo
-    @State private var structureDetails: (systemId: Int, typeId: Int, ownerId: Int)?
-    @State private var isLoading = false
-    @State private var error: Error?
     
     var body: some View {
-        HStack {
-            UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            // 建筑图标
+            if let iconFilename = result.typeInfo {
+                IconManager.shared.loadImage(for: iconFilename)
+                    .resizable()
+                    .frame(width: 36, height: 36)
+                    .cornerRadius(6)
+            } else {
+                UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
+            }
+            
+            // 建筑信息
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：建筑名称
                 Text(result.name)
-                if let details = structureDetails {
+                    .font(.body)
+                
+                // 第二行：位置信息
+                if let locationInfo = result.locationInfo {
                     HStack(spacing: 4) {
-                        Text("System ID: \(details.systemId)")
-                            .font(.caption)
+                        // 安全等级
+                        Text(formatSystemSecurity(locationInfo.security))
+                            .foregroundColor(getSecurityColor(locationInfo.security))
+                        
+                        // 星系名
+                        Text(locationInfo.systemName)
                             .foregroundColor(.secondary)
+                        
                         Text("•")
                             .foregroundColor(.secondary)
-                        Text("Type ID: \(details.typeId)")
-                            .font(.caption)
+                        
+                        // 星域名
+                        Text(locationInfo.regionName)
                             .foregroundColor(.secondary)
                     }
-                } else if isLoading {
-                    ProgressView()
-                        .scaleEffect(0.5)
-                } else if error != nil {
-                    Text("加载失败")
-                        .font(.caption)
-                        .foregroundColor(.red)
+                    .font(.caption)
                 }
             }
         }
-        .onAppear {
-            loadDetails()
-        }
-    }
-    
-    private func loadDetails() {
-        guard structureDetails == nil, !isLoading else { return }
-        
-        isLoading = true
-        Task {
-            do {
-                structureDetails = try await result.loadStructureDetails(characterId: character.CharacterID)
-            } catch {
-                self.error = error
-                Logger.error("加载建筑详情失败: \(error)")
-            }
-            isLoading = false
-        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -556,4 +540,6 @@ class SearcherViewModel: ObservableObject {
         currentStructureType = structureType
     }
 }
+
+
 
