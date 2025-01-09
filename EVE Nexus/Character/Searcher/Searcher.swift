@@ -205,10 +205,9 @@ struct SearcherView: View {
             TextField(NSLocalizedString("Main_Search_Filter_Corporation", comment: ""), text: $corporationFilter)
             TextField(NSLocalizedString("Main_Search_Filter_Alliance", comment: ""), text: $allianceFilter)
         case .corporation:
-            TextField(NSLocalizedString("Main_Search_Filter_Alliance", comment: ""), text: $allianceFilter)
-            TextField(NSLocalizedString("Main_Search_Filter_Ticker", comment: ""), text: $tickerFilter)
+            EmptyView()
         case .alliance:
-            TextField(NSLocalizedString("Main_Search_Filter_Ticker", comment: ""), text: $tickerFilter)
+            EmptyView()
         case .structure:
             Picker(NSLocalizedString("Main_Search_Filter_Security", comment: ""), selection: $selectedSecurityLevel) {
                 ForEach(SecurityLevel.allCases, id: \.self) { level in
@@ -361,7 +360,20 @@ class SearcherViewModel: ObservableObject {
                             name: name,
                             type: .character
                         )
-                    }.sorted { $0.name < $1.name }
+                    }.sorted { result1, result2 in
+                        // 检查是否以搜索文本开头
+                        let searchTextLower = searchText.lowercased()
+                        let name1Lower = result1.name.lowercased()
+                        let name2Lower = result2.name.lowercased()
+                        
+                        let starts1 = name1Lower.hasPrefix(searchTextLower)
+                        let starts2 = name2Lower.hasPrefix(searchTextLower)
+                        
+                        if starts1 != starts2 {
+                            return starts1 // 以搜索文本开头的排在前面
+                        }
+                        return result1.name < result2.name // 其次按字母顺序排序
+                    }
                     
                     if Task.isCancelled { return }
                     
@@ -411,6 +423,51 @@ class SearcherViewModel: ObservableObject {
                 } else {
                     searchResults = []
                     filteredResults = []
+                }
+                
+            case .corporation:
+                searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Corporations", comment: "")
+                let data = try await CharacterSearchAPI.shared.search(
+                    characterId: characterId,
+                    categories: [.corporation],
+                    searchText: searchText
+                )
+                
+                if Task.isCancelled { return }
+                
+                // 解析搜索结果
+                let searchResponse = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
+                
+                if let corporations = searchResponse.corporation {
+                    // 获取军团名称
+                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
+                    let corpNames = try await fetchNamesFromESI(ids: corporations)
+                    
+                    // 创建搜索结果
+                    let results = corporations.compactMap { corpId -> SearcherView.SearchResult? in
+                        guard let name = corpNames[corpId] else { return nil }
+                        return SearcherView.SearchResult(
+                            id: corpId,
+                            name: name,
+                            type: .corporation
+                        )
+                    }.sorted { result1, result2 in
+                        // 检查是否以搜索文本开头
+                        let searchTextLower = searchText.lowercased()
+                        let name1Lower = result1.name.lowercased()
+                        let name2Lower = result2.name.lowercased()
+                        
+                        let starts1 = name1Lower.hasPrefix(searchTextLower)
+                        let starts2 = name2Lower.hasPrefix(searchTextLower)
+                        
+                        if starts1 != starts2 {
+                            return starts1 // 以搜索文本开头的排在前面
+                        }
+                        return result1.name < result2.name // 其次按字母顺序排序
+                    }
+                    
+                    searchResults = results
+                    filteredResults = searchResults // 对于军团搜索，不进行二次过滤
                 }
                 
             default:
