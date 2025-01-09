@@ -28,6 +28,13 @@ struct CharacterPublicInfo: Codable {
     }
 }
 
+// 角色雇佣历史记录数据模型
+struct CharacterEmploymentHistory: Codable {
+    let corporation_id: Int
+    let record_id: Int
+    let start_date: String
+}
+
 final class CharacterAPI: @unchecked Sendable {
     static let shared = CharacterAPI()
     
@@ -244,5 +251,19 @@ final class CharacterAPI: @unchecked Sendable {
                 }
             }
         }
+    }
+    
+    // 获取角色雇佣历史
+    func fetchEmploymentHistory(characterId: Int) async throws -> [CharacterEmploymentHistory] {
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/corporationhistory/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let history = try JSONDecoder().decode([CharacterEmploymentHistory].self, from: data)
+        
+        // 按开始日期降序排序（最新的在前）
+        return history.sorted { $0.start_date > $1.start_date }
     }
 } 
