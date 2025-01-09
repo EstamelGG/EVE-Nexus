@@ -475,7 +475,7 @@ struct SearchResultRow: View {
                 .resizable()
                 .cornerRadius(1)
                 .frame(width: 12, height: 12)
-                .shadow(color: Color.secondary, radius: 1, x: 1, y: 1)
+                .shadow(color: Color.secondary, radius: 2, x: 0, y: 0)
         }
         .padding(.vertical, 4)
         .onAppear {
