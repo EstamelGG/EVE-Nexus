@@ -759,3 +759,6 @@
 
 "Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
 "Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
+
+"Main_Search_Loading_Contacts" = "正在加载声望数据...";
+"Main_Search_Loading_Failed" = "无法加载声望数据";

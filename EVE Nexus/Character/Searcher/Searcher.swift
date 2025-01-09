@@ -214,38 +214,35 @@ struct SearcherView: View {
                 ZStack {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
+                        .allowsHitTesting(true)
                     
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        
-                        Text(NSLocalizedString("Main_Search_Loading_Contacts", comment: ""))
-                            .foregroundColor(.white)
-                        
-                        if let error = loadingError {
+                    if let error = loadingError {
+                        VStack(spacing: 16) {
                             Text(NSLocalizedString("Main_Search_Loading_Failed", comment: ""))
-                                .foregroundColor(.red)
-                                .font(.caption)
+                                .foregroundColor(.secondary)
                             
                             Button(action: {
                                 Task {
                                     isLoadingContacts = true
+                                    hasLoadedContacts = false
                                     await loadContactsData()
                                 }
                             }) {
                                 Text(NSLocalizedString("Common_OK", comment: ""))
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color(.systemBackground))
-                                    .cornerRadius(8)
+                                    .foregroundColor(.accentColor)
                             }
                         }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                        .shadow(radius: 10)
+                    } else {
+                        ProgressView(NSLocalizedString("Main_Search_Loading_Contacts", comment: ""))
+                            .progressViewStyle(.automatic)
+                            .padding()
+                            .background(Color(.systemGray6).opacity(0.8))
+                            .cornerRadius(8)
                     }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(10)
-                    .shadow(radius: 10)
                 }
             }
         }
