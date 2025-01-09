@@ -410,10 +410,12 @@ struct SearchResultRow: View {
             if let iconFilename = result.typeInfo {
                 IconManager.shared.loadImage(for: iconFilename)
                     .resizable()
-                    .frame(width: 36, height: 36)
+                    .frame(width: 38, height: 38)
                     .cornerRadius(6)
             } else {
                 UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
+                    .frame(width: 38, height: 38)
+                    .cornerRadius(6)
             }
             
             // 信息
@@ -471,7 +473,7 @@ struct SearchResultRow: View {
             // 声望图标
             Image(standingIcon)
                 .resizable()
-                .frame(width: 8, height: 8)
+                .frame(width: 10, height: 10)
         }
         .padding(.vertical, 4)
         .onAppear {
