@@ -5,6 +5,9 @@ struct SearcherView: View {
     @StateObject private var viewModel = SearcherViewModel()
     @State private var searchText = ""
     @State private var selectedSearchType = SearchType.character
+    @State private var isLoadingContacts = true
+    @State private var loadingError: Error?
+    @State private var hasLoadedContacts = false
     
     // 过滤条件
     @State private var corporationFilter = ""
@@ -206,6 +209,49 @@ struct SearcherView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Search_Title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if isLoadingContacts {
+                ZStack {
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        
+                        Text(NSLocalizedString("Main_Search_Loading_Contacts", comment: ""))
+                            .foregroundColor(.white)
+                        
+                        if let error = loadingError {
+                            Text(NSLocalizedString("Main_Search_Loading_Failed", comment: ""))
+                                .foregroundColor(.red)
+                                .font(.caption)
+                            
+                            Button(action: {
+                                Task {
+                                    isLoadingContacts = true
+                                    await loadContactsData()
+                                }
+                            }) {
+                                Text(NSLocalizedString("Common_OK", comment: ""))
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(Color(.systemBackground))
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .shadow(radius: 10)
+                }
+            }
+        }
+        .task {
+            await loadContactsData()
+        }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty || newValue.count <= 2 {
                 viewModel.searchResults = []
@@ -226,6 +272,36 @@ struct SearcherView: View {
             viewModel.updateStructureFilters(
                 structureType: selectedStructureType
             )
+        }
+    }
+    
+    private func loadContactsData() async {
+        guard !hasLoadedContacts else { return }
+        
+        do {
+            // 并行加载所有联系人数据
+            async let characterContacts = GetCharContacts.shared.fetchContacts(characterId: character.CharacterID)
+            async let corporationContacts = GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: character.corporationId ?? 0)
+            
+            // 如果角色有联盟，也加载联盟联系人
+            if let allianceId = character.allianceId {
+                async let allianceContacts = GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId)
+                _ = try await [characterContacts, corporationContacts, allianceContacts]
+            } else {
+                _ = try await [characterContacts, corporationContacts]
+            }
+            
+            await MainActor.run {
+                isLoadingContacts = false
+                loadingError = nil
+                hasLoadedContacts = true
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingContacts = false
+                loadingError = error
+                Logger.error("加载联系人数据失败: \(error)")
+            }
         }
     }
     

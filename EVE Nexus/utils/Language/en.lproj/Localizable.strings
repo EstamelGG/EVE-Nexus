@@ -746,3 +746,6 @@
 // Character Detail View
 "Character_Detail_Organization" = "Organization";
 "Character_Detail_Employment_History" = "Employment History";
+
+"Main_Search_Loading_Contacts" = "Loading contacts data...";
+"Main_Search_Loading_Failed" = "Failed to load contacts data";
