@@ -601,6 +601,15 @@ class SearcherViewModel: ObservableObject {
     
     func updateStructureFilters(structureType: SearcherView.StructureType) {
         currentStructureType = structureType
+        
+        // 根据建筑类型过滤结果
+        if structureType == .all {
+            filteredResults = searchResults
+        } else {
+            filteredResults = searchResults.filter { result in
+                result.structureType == structureType
+            }
+        }
     }
 }
 
