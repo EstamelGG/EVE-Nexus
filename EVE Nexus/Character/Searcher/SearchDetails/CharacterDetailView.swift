@@ -11,49 +11,51 @@ struct CharacterDetailView: View {
     @State private var error: Error?
     
     var body: some View {
-        ScrollView {
+        List {
             if isLoading {
-                ProgressView()
-                    .padding()
-            } else if let error = error {
-                VStack {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.red)
-                    Text(error.localizedDescription)
-                        .foregroundColor(.secondary)
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
                 }
-                .padding()
+            } else if let error = error {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.largeTitle)
+                                .foregroundColor(.red)
+                            Text(error.localizedDescription)
+                                .multilineTextAlignment(.center)
+                        }
+                        Spacer()
+                    }
+                }
             } else if let characterInfo = characterInfo {
-                VStack(spacing: 16) {
-                    // 基本信息部分
+                // 基本信息和组织信息合并到一个 Section
+                Section {
                     HStack(alignment: .top, spacing: 16) {
                         // 左侧头像
                         if let portrait = portrait {
                             Image(uiImage: portrait)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
-                                .frame(width: 128, height: 128)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
-                                )
-                        } else {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 128, height: 128)
+                                .frame(width: 96, height: 96)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
                         
                         // 右侧信息
                         VStack(alignment: .leading, spacing: 8) {
                             // 人物名称
                             Text(characterInfo.name)
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.title3)
+                                .bold()
                             
-                            // 人物头衔（暂时留空，后续可以添加）
-                            Text("Character")
+                            // 人物头衔
+                            Text("Capsuleer")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
@@ -63,18 +65,11 @@ struct CharacterDetailView: View {
                                     if let icon = corpInfo.icon {
                                         Image(uiImage: icon)
                                             .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .clipShape(Circle())
+                                            .frame(width: 24, height: 24)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(corpInfo.name)
-                                            .font(.subheadline)
-                                        if let firstEmployment = employmentHistory.first {
-                                            Text(formatDuration(since: firstEmployment.start_date))
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
+                                    Text(corpInfo.name)
+                                        .font(.subheadline)
                                 }
                             }
                             
@@ -84,8 +79,8 @@ struct CharacterDetailView: View {
                                     if let icon = allianceInfo.icon {
                                         Image(uiImage: icon)
                                             .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .clipShape(Circle())
+                                            .frame(width: 24, height: 24)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
                                     Text(allianceInfo.name)
                                         .font(.subheadline)
@@ -93,14 +88,11 @@ struct CharacterDetailView: View {
                             }
                         }
                     }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .shadow(color: Color.primary.opacity(0.5), radius: 8, x: 0, y: 4)
+                    .padding(.vertical, 4)
                 }
-                .padding()
             }
         }
+        .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadCharacterDetails()

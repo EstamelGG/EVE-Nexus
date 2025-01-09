@@ -742,3 +742,7 @@
 "Main_Search_Status_Loading_Structure_Info" = "Loading structure information...";
 "Main_Search_Status_Loading_Station_Progress" = "Processing station info (%d/%d)";
 "Main_Search_Status_Loading_Structure_Progress" = "Processing structure info (%d/%d)";
+
+// Character Detail View
+"Character_Detail_Organization" = "Organization";
+"Character_Detail_Employment_History" = "Employment History";

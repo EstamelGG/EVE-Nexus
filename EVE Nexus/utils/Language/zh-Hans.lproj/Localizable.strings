@@ -751,3 +751,11 @@
 
 "Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
 "Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
+
+// Character Detail View
+"Character_Detail_Organization" = "所属组织";
+"Character_Detail_Employment_History" = "就职历史";
+
+
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
