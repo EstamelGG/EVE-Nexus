@@ -1,7 +1,7 @@
 import SwiftUI
 
 @MainActor
-struct StructureSearchView {
+struct StructureSearchView: View {
     let characterId: Int
     let searchText: String
     @Binding var searchResults: [SearcherView.SearchResult]
@@ -10,6 +10,41 @@ struct StructureSearchView {
     @Binding var isSearching: Bool
     @Binding var error: Error?
     let structureType: SearcherView.StructureType
+    
+    init(characterId: Int, 
+         searchText: String,
+         searchResults: Binding<[SearcherView.SearchResult]>,
+         filteredResults: Binding<[SearcherView.SearchResult]>,
+         searchingStatus: Binding<String>,
+         isSearching: Binding<Bool>,
+         error: Binding<Error?>,
+         structureType: SearcherView.StructureType) {
+        self.characterId = characterId
+        self.searchText = searchText
+        self._searchResults = searchResults
+        self._filteredResults = filteredResults
+        self._searchingStatus = searchingStatus
+        self._isSearching = isSearching
+        self._error = error
+        self.structureType = structureType
+    }
+    
+    var body: some View {
+        EmptyView() // 这个视图不需要UI，只是用于处理搜索逻辑
+            .task {
+                isSearching = true
+                do {
+                    try await search()
+                } catch is CancellationError {
+                    Logger.debug("搜索任务被取消")
+                } catch {
+                    Logger.error("搜索失败: \(error)")
+                    self.error = error
+                }
+                searchingStatus = ""
+                isSearching = false
+            }
+    }
     
     // 加载位置信息
     private func loadLocationInfo(systemId: Int) async throws -> (security: Double, systemName: String, regionName: String) {
@@ -69,6 +104,9 @@ struct StructureSearchView {
     }
     
     func search() async throws {
+        // 检查是否被取消
+        try Task.checkCancellation()
+        
         guard !searchText.isEmpty else { return }
         
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
@@ -80,6 +118,9 @@ struct StructureSearchView {
             categories: [.station, .structure],
             searchText: searchText
         )
+        
+        // 检查是否被取消
+        try Task.checkCancellation()
         
         // 打印响应结果
         if let responseString = String(data: data, encoding: .utf8) {
@@ -135,13 +176,19 @@ struct StructureSearchView {
         if typeToProcess == .all || typeToProcess == .station {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Station_Info", comment: "")
             do {
+                try Task.checkCancellation()
+                
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: stationIds)
                 
                 for info in stationsInfo {
+                    try Task.checkCancellation()
+                    
                     do {
                         // 获取位置信息
                         let locationInfo = try await loadLocationInfo(systemId: info.systemId)
+                        
+                        try Task.checkCancellation()
                         
                         // 获取建筑类型图标
                         let iconFilename = try loadTypeIcon(typeId: info.typeId)
@@ -156,11 +203,13 @@ struct StructureSearchView {
                         )
                         results.append(result)
                     } catch {
+                        if error is CancellationError { throw error }
                         Logger.error("获取空间站附加信息失败: \(error)")
                         continue
                     }
                 }
             } catch {
+                if error is CancellationError { throw error }
                 Logger.error("批量获取空间站信息失败: \(error)")
             }
         }
@@ -169,11 +218,17 @@ struct StructureSearchView {
         if typeToProcess == .all || typeToProcess == .structure {
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
             for structureId in structureIds {
+                try Task.checkCancellation()
+                
                 do {
                     let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
                     
+                    try Task.checkCancellation()
+                    
                     // 获取位置信息
                     let locationInfo = try await loadLocationInfo(systemId: info.solar_system_id)
+                    
+                    try Task.checkCancellation()
                     
                     // 获取建筑类型图标
                     let iconFilename = try loadTypeIcon(typeId: info.type_id)
@@ -188,11 +243,15 @@ struct StructureSearchView {
                     )
                     results.append(result)
                 } catch {
+                    if error is CancellationError { throw error }
                     Logger.error("获取建筑信息失败: \(error)")
                     continue
                 }
             }
         }
+        
+        // 最后一次检查是否被取消
+        try Task.checkCancellation()
         
         Logger.debug("成功创建 \(results.count) 个搜索结果")
         
