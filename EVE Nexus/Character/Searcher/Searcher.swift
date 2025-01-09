@@ -260,7 +260,7 @@ struct SearchResultRow: View {
     
     var body: some View {
         HStack(spacing: 12) {
-            // 建筑图标
+            // 头像/图标
             if let iconFilename = result.typeInfo {
                 IconManager.shared.loadImage(for: iconFilename)
                     .resizable()
@@ -270,13 +270,28 @@ struct SearchResultRow: View {
                 UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
             }
             
-            // 建筑信息
+            // 信息
             VStack(alignment: .leading, spacing: 4) {
-                // 第一行：建筑名称
+                // 第一行：名称
                 Text(result.name)
                     .font(.body)
                 
-                // 第二行：位置信息
+                // 第二行：军团和联盟信息（仅角色搜索时显示）
+                if result.type == .character {
+                    HStack(spacing: 4) {
+                        if let corpName = result.corporationName {
+                            Text(corpName)
+                                .foregroundColor(.secondary)
+                        }
+                        if let allianceName = result.allianceName {
+                            Text("[\(allianceName)]")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .font(.caption)
+                }
+                
+                // 第三行：位置信息（仅建筑搜索时显示）
                 if let locationInfo = result.locationInfo {
                     HStack(spacing: 4) {
                         // 安全等级
