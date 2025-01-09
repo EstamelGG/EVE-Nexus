@@ -300,8 +300,8 @@ struct SkillGroupDetailView: View {
                             let maxSkillPoints = Int(256000 * skill.timeMultiplier)
                             HStack {
                                 Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                            formatNumber(skill.currentSkillPoints ?? 0),
-                                            formatNumber(maxSkillPoints)))
+                                          formatNumber(skill.currentSkillPoints ?? 0),
+                                          formatNumber(maxSkillPoints)))
                                 if let rate = skill.trainingRate {
                                     Text("(\(formatNumber(rate))/h)")
                                 }
@@ -378,30 +378,8 @@ struct SkillGroupDetailView: View {
             }
         }
         
-        // 批量查询所有技能的主要和次要属性
-        let skillAttributesQuery = """
-            SELECT type_id, attribute_id, value
-            FROM typeAttributes
-            WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
-            AND attribute_id IN (180, 181)
-        """
-        
-        var skillAttributes: [Int: (primary: Int?, secondary: Int?)] = [:]
-        if case .success(let attrRows) = databaseManager.executeQuery(skillAttributesQuery) {
-            for row in attrRows {
-                if let typeId = row["type_id"] as? Int,
-                   let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Int {
-                    var current = skillAttributes[typeId] ?? (primary: nil, secondary: nil)
-                    if attrId == 180 {
-                        current.primary = value
-                    } else if attrId == 181 {
-                        current.secondary = value
-                    }
-                    skillAttributes[typeId] = current
-                }
-            }
-        }
+        // 预加载所有技能属性到缓存
+        SkillTrainingCalculator.preloadSkillAttributes(skillIds: skillIds, databaseManager: databaseManager)
         
         var skills: [(typeId: Int, name: String, timeMultiplier: Double, currentSkillPoints: Int?, currentLevel: Int?, trainingRate: Int?)] = []
         
@@ -417,9 +395,7 @@ struct SkillGroupDetailView: View {
             // 计算训练速度
             var trainingRate: Int?
             if let attrs = characterAttributes,
-               let skillAttrs = skillAttributes[typeId],
-               let primary = skillAttrs.primary,
-               let secondary = skillAttrs.secondary {
+               let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(skillId: typeId, databaseManager: databaseManager) {
                 trainingRate = SkillTrainingCalculator.calculateTrainingRate(
                     primaryAttrId: primary,
                     secondaryAttrId: secondary,
