@@ -309,14 +309,22 @@ struct StructureSearchView: View {
         }
         
         searchResults = results
-        filteredResults = results
         
-        Logger.debug("建筑搜索完成，共有 \(results.count) 个结果")
+        // 根据当前的过滤条件设置过滤后的结果
+        if structureType == .all {
+            filteredResults = results
+        } else {
+            filteredResults = results.filter { result in
+                result.structureType == structureType
+            }
+        }
+        
+        Logger.debug("建筑搜索完成，共有 \(results.count) 个结果，过滤后显示 \(filteredResults.count) 个结果")
         
         // 打印前5个结果的详细信息
-        if !results.isEmpty {
-            Logger.debug("前 \(min(5, results.count)) 个搜索结果:")
-            for (index, result) in results.prefix(5).enumerated() {
+        if !filteredResults.isEmpty {
+            Logger.debug("前 \(min(5, filteredResults.count)) 个过滤后的结果:")
+            for (index, result) in filteredResults.prefix(5).enumerated() {
                 Logger.debug("\(index + 1). ID: \(result.id), 名称: \(result.name), 类型: \(result.structureType?.rawValue ?? "unknown")")
             }
         }
