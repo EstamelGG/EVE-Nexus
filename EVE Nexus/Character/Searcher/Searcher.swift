@@ -861,6 +861,7 @@ class SearcherViewModel: ObservableObject {
     func search(characterId: Int, searchText: String, type: SearcherView.SearchType) async {
         guard !searchText.isEmpty else {
             searchResults = []
+            filteredResults = []  // 同时清空过滤后的结果
             return
         }
         
@@ -869,6 +870,7 @@ class SearcherViewModel: ObservableObject {
         do {
             error = nil
             searchResults = [] // 清空当前结果
+            filteredResults = [] // 同时清空过滤后的结果
             
             switch type {
             case .character:
