@@ -349,9 +349,12 @@ struct SearchResultRow: View {
                 finalStanding = directContact.standing
             }
             
-            // 如果目标是角色，检查其所属军团和联盟的声望
-            if result.type == .character {
-                if let corpId = result.corporationId,
+            // 如果目标是角色或军团，检查其所属军团和联盟的声望
+            if result.type == .character || result.type == .corporation {
+                let targetCorpId = result.type == .character ? result.corporationId : result.id
+                let targetAllianceId = result.type == .character ? result.allianceId : nil
+                
+                if let corpId = targetCorpId,
                    let corpContact = contacts.first(where: { $0.contact_id == corpId }) {
                     // 如果是负面声望，直接采用
                     if corpContact.standing < 0 {
@@ -361,7 +364,7 @@ struct SearchResultRow: View {
                     }
                 }
                 
-                if let allianceId = result.allianceId,
+                if let allianceId = targetAllianceId,
                    let allianceContact = contacts.first(where: { $0.contact_id == allianceId }) {
                     if allianceContact.standing < 0 {
                         finalStanding = allianceContact.standing
@@ -381,9 +384,12 @@ struct SearchResultRow: View {
                 finalStanding = directContact.standing
             }
             
-            // 如果目标是角色，检查其所属军团和联盟的声望
-            if result.type == .character {
-                if let targetCorpId = result.corporationId,
+            // 如果目标是角色或军团，检查其所属军团和联盟的声望
+            if result.type == .character || result.type == .corporation {
+                let targetCorpId = result.type == .character ? result.corporationId : result.id
+                let targetAllianceId = result.type == .character ? result.allianceId : nil
+                
+                if let targetCorpId = targetCorpId,
                    let corpContact = contacts.first(where: { $0.contact_id == targetCorpId }) {
                     if corpContact.standing < 0 {
                         finalStanding = corpContact.standing
@@ -392,7 +398,7 @@ struct SearchResultRow: View {
                     }
                 }
                 
-                if let targetAllianceId = result.allianceId,
+                if let targetAllianceId = targetAllianceId,
                    let allianceContact = contacts.first(where: { $0.contact_id == targetAllianceId }) {
                     if allianceContact.standing < 0 {
                         finalStanding = allianceContact.standing
@@ -412,9 +418,12 @@ struct SearchResultRow: View {
                 finalStanding = directContact.standing
             }
             
-            // 如果目标是角色，检查其所属军团和联盟的声望
-            if result.type == .character {
-                if let targetCorpId = result.corporationId,
+            // 如果目标是角色或军团，检查其所属军团和联盟的声望
+            if result.type == .character || result.type == .corporation {
+                let targetCorpId = result.type == .character ? result.corporationId : result.id
+                let targetAllianceId = result.type == .character ? result.allianceId : nil
+                
+                if let targetCorpId = targetCorpId,
                    let corpContact = contacts.first(where: { $0.contact_id == targetCorpId }) {
                     if corpContact.standing < 0 {
                         finalStanding = corpContact.standing
@@ -423,7 +432,7 @@ struct SearchResultRow: View {
                     }
                 }
                 
-                if let targetAllianceId = result.allianceId,
+                if let targetAllianceId = targetAllianceId,
                    let allianceContact = contacts.first(where: { $0.contact_id == targetAllianceId }) {
                     if allianceContact.standing < 0 {
                         finalStanding = allianceContact.standing
@@ -436,20 +445,38 @@ struct SearchResultRow: View {
         
         // 4. 检查是否同军团（如果没有其他声望设置）
         if finalStanding == nil,
-           let corpId = character.corporationId,
-           let resultCorpId = (result.type == .character ? result.corporationId : (result.type == .corporation ? result.id : nil)),
-           corpId == resultCorpId {
-            standingIcon = "ColorTag-StarGreen9"
-            return
+           let corpId = character.corporationId {
+            if result.type == .character {
+                if let resultCorpId = result.corporationId, corpId == resultCorpId {
+                    standingIcon = "ColorTag-StarGreen9"
+                    return
+                }
+            } else if result.type == .corporation && corpId == result.id {
+                standingIcon = "ColorTag-StarGreen9"
+                return
+            }
         }
         
         // 5. 检查是否同联盟（如果没有其他声望设置）
         if finalStanding == nil,
-           let allianceId = character.allianceId,
-           let resultAllianceId = (result.type == .character ? result.allianceId : (result.type == .alliance ? result.id : nil)),
-           allianceId == resultAllianceId {
-            standingIcon = "ColorTag-StarBlue9"
-            return
+           let allianceId = character.allianceId {
+            if result.type == .character {
+                if let resultAllianceId = result.allianceId, allianceId == resultAllianceId {
+                    standingIcon = "ColorTag-StarBlue9"
+                    return
+                }
+            } else if result.type == .corporation {
+                // 获取军团的联盟信息
+                if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: result.id),
+                   let corpAllianceId = corpInfo.alliance_id,
+                   corpAllianceId == allianceId {
+                    standingIcon = "ColorTag-StarBlue9"
+                    return
+                }
+            } else if result.type == .alliance && allianceId == result.id {
+                standingIcon = "ColorTag-StarBlue9"
+                return
+            }
         }
         
         // 6. 设置最终图标
