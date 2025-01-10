@@ -357,7 +357,3 @@ struct MarketGroupLabel: View {
         }
     }
 }
-
-#Preview {
-    MarketBrowserView(databaseManager: DatabaseManager())
-} 
