@@ -615,18 +615,22 @@ struct CharacterDetailView: View {
                     .foregroundColor(.secondary)
                     .padding()
             } else {
-                VStack(alignment: .leading, spacing: 8) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
                         if let startDate = parseDate(record.start_date) {
                             let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
-                            EmploymentHistoryRowView(
-                                corporationId: record.corporation_id,
-                                startDate: startDate,
-                                endDate: endDate
-                            )
                             
-                            if index < history.count {
-                                Divider()
+                            VStack(spacing: 0) {
+                                EmploymentHistoryRowView(
+                                    corporationId: record.corporation_id,
+                                    startDate: startDate,
+                                    endDate: endDate
+                                )
+                                .padding(.vertical, 4)
+                                
+                                if index < history.count - 1 {
+                                    Divider()
+                                }
                             }
                         }
                     }
@@ -637,27 +641,9 @@ struct CharacterDetailView: View {
         private func parseDate(_ dateString: String) -> Date? {
             let dateFormatter = DateFormatter()
             dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            
-            // 尝试第一种格式 (带Z的UTC时间)
             dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
             dateFormatter.timeZone = TimeZone(identifier: "UTC")
-            if let date = dateFormatter.date(from: dateString) {
-                return date
-            }
-            
-            // 尝试第二种格式 (带时区偏移的格式)
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-            if let date = dateFormatter.date(from: dateString) {
-                return date
-            }
-            
-            // 尝试第三种格式 (不带时区的格式)
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-            if let date = dateFormatter.date(from: dateString) {
-                return date
-            }
-            
-            return nil
+            return dateFormatter.date(from: dateString)
         }
     }
     
@@ -669,7 +655,7 @@ struct CharacterDetailView: View {
         @State private var corporationInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
-            HStack(alignment: .top, spacing: 6) {
+            HStack(spacing: 6) {
                 // 军团图标
                 if let icon = corporationInfo?.icon {
                     Image(uiImage: icon)
@@ -699,8 +685,10 @@ struct CharacterDetailView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                Spacer()
             }
-            .padding(.vertical, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .task {
                 await loadCorporationInfo()
             }
