@@ -177,17 +177,21 @@ struct CharacterDetailView: View {
     }
     
     private func loadCharacterDetails() async {
+        Logger.info("开始加载角色详细信息 - 角色ID: \(characterId)")
         isLoading = true
         error = nil
         
         do {
             // 并发加载所有需要的数据
+            Logger.info("开始并发加载角色信息、头像和雇佣历史")
             async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId, forceRefresh: true)
             async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId)
             async let historyTask = CharacterAPI.shared.fetchEmploymentHistory(characterId: characterId)
             
             // 等待所有数据加载完成
             let (info, portrait, history) = try await (characterInfoTask, portraitTask, historyTask)
+            Logger.info("成功加载角色基本信息")
+            Logger.info("雇佣历史记录数: \(history.count)")
             
             // 更新状态
             self.characterInfo = info
@@ -196,6 +200,7 @@ struct CharacterDetailView: View {
             
             // 加载军团信息
             if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: info.corporation_id) {
+                Logger.info("成功加载军团信息: \(corpInfo.name)")
                 let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: info.corporation_id)
                 self.corporationInfo = (name: corpInfo.name, icon: corpIcon)
             }
@@ -204,16 +209,19 @@ struct CharacterDetailView: View {
             if let allianceId = info.alliance_id {
                 let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
                 if let allianceName = allianceNames?[allianceId]?.name {
+                    Logger.info("成功加载联盟信息: \(allianceName)")
                     let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
                     self.allianceInfo = (name: allianceName, icon: allianceIcon)
                 }
             }
             
         } catch {
+            Logger.error("加载角色详细信息失败: \(error)")
             self.error = error
         }
         
         isLoading = false
+        Logger.info("角色详细信息加载完成")
     }
     
     private func formatDuration(since dateString: String) -> String {
@@ -368,7 +376,7 @@ struct CharacterDetailView: View {
         @State private var myAllianceInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
                 if isLoading {
                     ProgressView()
                 } else if let targetCharacter = targetCharacter {
@@ -596,6 +604,72 @@ struct CharacterDetailView: View {
         }
     }
     
+    // 雇佣历史视图
+    struct EmploymentHistoryView: View {
+        let history: [CharacterEmploymentHistory]
+        
+        var body: some View {
+            if history.isEmpty {
+                Text("暂无雇佣历史记录")
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(NSLocalizedString("Employment History", comment: ""))
+                        .font(.headline)
+                        .padding(.bottom, 4)
+                        
+                    ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
+                        if let startDate = parseDate(record.start_date) {
+                            let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
+                            EmploymentHistoryRowView(
+                                corporationId: record.corporation_id,
+                                startDate: startDate,
+                                endDate: endDate
+                            )
+                            
+                            if index < history.count - 1 {
+                                Divider()
+                            }
+                        }
+                    }
+                }
+                .onAppear {
+                    Logger.info("雇佣历史视图显示，记录数: \(history.count)")
+                    for (index, record) in history.enumerated() {
+                        Logger.info("记录 \(index + 1): 军团ID: \(record.corporation_id), 开始日期: \(record.start_date)")
+                    }
+                }
+            }
+        }
+        
+        private func parseDate(_ dateString: String) -> Date? {
+            let dateFormatter = DateFormatter()
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            
+            // 尝试第一种格式 (带Z的UTC时间)
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            dateFormatter.timeZone = TimeZone(identifier: "UTC")
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+            
+            // 尝试第二种格式 (带时区偏移的格式)
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+            
+            // 尝试第三种格式 (不带时区的格式)
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+            
+            return nil
+        }
+    }
+    
     // 雇佣历史行视图
     struct EmploymentHistoryRowView: View {
         let corporationId: Int
@@ -604,8 +678,8 @@ struct CharacterDetailView: View {
         @State private var corporationInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
-            VStack(alignment: .leading, spacing: 4) {
-                // 第一行：军团图标和名称
+            HStack {
+                // 左侧军团图标和名称
                 HStack(spacing: 6) {
                     if let icon = corporationInfo?.icon {
                         Image(uiImage: icon)
@@ -617,14 +691,23 @@ struct CharacterDetailView: View {
                             .frame(width: 24, height: 24)
                             .cornerRadius(3)
                     }
-                    Text(corporationInfo?.name ?? "[加载中...]")
+                    Text(corporationInfo?.name ?? "加载中...")
                         .font(.system(size: 12))
+                        .lineLimit(1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // 第二行：时间范围
+                // 中间时间信息
                 Text(formatDateRange(start: startDate, end: endDate))
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
+                    .frame(width: 120)
+                
+                // 右侧持续时间
+                Text(formatDuration(start: startDate, end: endDate))
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .frame(width: 80, alignment: .trailing)
             }
             .padding(.vertical, 2)
             .task {
@@ -643,48 +726,20 @@ struct CharacterDetailView: View {
         
         private func formatDateRange(start: Date, end: Date?) -> String {
             let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy.MM.dd HH:mm"
+            dateFormatter.dateFormat = "yyyy.MM.dd"
             let startStr = dateFormatter.string(from: start)
-            
-            let days = Calendar.current.dateComponents([.day], from: start, to: end ?? Date()).day ?? 0
             
             if let end = end {
                 let endStr = dateFormatter.string(from: end)
-                return "从\(startStr)到\(endStr)（\(days)天）"
+                return "\(startStr) - \(endStr)"
             } else {
-                return "从\(startStr)直到现在（\(days)天）"
-            }
-        }
-    }
-    
-    // 雇佣历史视图
-    struct EmploymentHistoryView: View {
-        let history: [CharacterEmploymentHistory]
-        
-        var body: some View {
-            VStack(spacing: 0) {
-                ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
-                    if let startDate = parseDate(record.start_date) {
-                        let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
-                        EmploymentHistoryRowView(
-                            corporationId: record.corporation_id,
-                            startDate: startDate,
-                            endDate: endDate
-                        )
-                        
-                        if index < history.count - 1 {
-                            Divider()
-                        }
-                    }
-                }
+                return "\(startStr) - 至今"
             }
         }
         
-        private func parseDate(_ dateString: String) -> Date? {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-            dateFormatter.timeZone = TimeZone(identifier: "UTC")
-            return dateFormatter.date(from: dateString)
+        private func formatDuration(start: Date, end: Date?) -> String {
+            let days = Calendar.current.dateComponents([.day], from: start, to: end ?? Date()).day ?? 0
+            return "(\(days)天)"
         }
     }
 } 
