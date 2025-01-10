@@ -180,29 +180,18 @@ struct CorporationDetailView: View {
                             .font(.system(size: 14))
                     }
                 }
-                
-                // 添加Picker组件
-                Section {
-                    Picker(selection: $selectedTab, label: Text("")) {
-                        Text(NSLocalizedString("Standings", comment: ""))
-                            .tag(0)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.vertical, 4)
-                    
-                    if selectedTab == 0 {
-                        StandingsView(
-                            corporationId: corporationId,
-                            character: character,
-                            corporationInfo: corporationInfo,
-                            allianceInfo: allianceInfo,
-                            personalStandings: personalStandings,
-                            corpStandings: corpStandings,
-                            allianceStandings: allianceStandings,
-                            myCorpInfo: myCorpInfo,
-                            myAllianceInfo: myAllianceInfo
-                        )
-                    }
+                Section(header: Text(NSLocalizedString("Standings", comment: ""))) {
+                    StandingsView(
+                        corporationId: corporationId,
+                        character: character,
+                        corporationInfo: corporationInfo,
+                        allianceInfo: allianceInfo,
+                        personalStandings: personalStandings,
+                        corpStandings: corpStandings,
+                        allianceStandings: allianceStandings,
+                        myCorpInfo: myCorpInfo,
+                        myAllianceInfo: myAllianceInfo
+                    )
                 }
             }
         }
@@ -372,12 +361,12 @@ struct CorporationDetailView: View {
                 
                 // 中间声望值
                 if let standing = standing {
-                    Text(standing > 0 ? "+\(String(format: "%.0f", standing))" : 
-                         standing < 0 ? "\(String(format: "%.0f", standing))" :
-                         "0")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(getStandingColor(standing: standing))
-                        .frame(width: 40)
+                    Text(standing > 0 ? "+\(String(format: "%.0f", standing))" :
+                            standing < 0 ? "\(String(format: "%.0f", standing))" :
+                            "0")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(getStandingColor(standing: standing))
+                    .frame(width: 40)
                 } else {
                     Text("0")
                         .font(.system(size: 12))
@@ -437,22 +426,22 @@ struct CorporationDetailView: View {
         
         private func getStandingColor(standing: Double) -> Color {
             switch standing {
-                case 10.0:
-                    return Color.blue  // 深蓝
-                case 5.0..<10.0:
-                    return Color.blue  // 深蓝
-                case 0.1..<5.0:
-                    return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
-                case 0.0:
-                    return Color.secondary  // 次要颜色
-                case (-5.0)..<0.0:
-                    return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
-                case (-10.0)...(-5.0):
-                    return Color.red  // 红色
-                case ..<(-10.0):
-                    return Color.red  // 红色
-                default:
-                    return Color.secondary
+            case 10.0:
+                return Color.blue  // 深蓝
+            case 5.0..<10.0:
+                return Color.blue  // 深蓝
+            case 0.1..<5.0:
+                return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
+            case 0.0:
+                return Color.secondary  // 次要颜色
+            case (-5.0)..<0.0:
+                return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
+            case (-10.0)...(-5.0):
+                return Color.red  // 红色
+            case ..<(-10.0):
+                return Color.red  // 红色
+            default:
+                return Color.secondary
             }
         }
     }
@@ -555,4 +544,4 @@ struct CorporationDetailView: View {
             }
         }
     }
-} 
+}
