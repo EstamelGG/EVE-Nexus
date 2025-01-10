@@ -634,6 +634,7 @@ struct CharacterDetailView: View {
                         }
                     }
                 }
+                .padding(.horizontal, 16)
                 .onAppear {
                     Logger.info("雇佣历史视图显示，记录数: \(history.count)")
                     for (index, record) in history.enumerated() {
