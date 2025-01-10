@@ -199,6 +199,8 @@ struct SearcherView: View {
                                         CharacterDetailView(characterId: result.id, character: character)
                                     case .corporation:
                                         CorporationDetailView(corporationId: result.id, character: character)
+                                    case .alliance:
+                                        AllianceDetailView(allianceId: result.id, character: character)
                                     default:
                                         SearchResultRow(result: result, character: character)
                                     }
