@@ -679,36 +679,36 @@ struct CharacterDetailView: View {
         @State private var corporationInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
-            HStack {
-                // 左侧军团图标和名称
-                HStack(spacing: 6) {
-                    if let icon = corporationInfo?.icon {
-                        Image(uiImage: icon)
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
-                    } else {
-                        Color.gray
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
-                    }
+            HStack(alignment: .top, spacing: 6) {
+                // 军团图标
+                if let icon = corporationInfo?.icon {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .cornerRadius(3)
+                } else {
+                    Color.gray
+                        .frame(width: 24, height: 24)
+                        .cornerRadius(3)
+                }
+                
+                // 右侧信息
+                VStack(alignment: .leading, spacing: 2) {
+                    // 军团名称
                     Text(corporationInfo?.name ?? "加载中...")
                         .font(.system(size: 12))
                         .lineLimit(1)
+                    
+                    // 时间信息
+                    HStack(spacing: 4) {
+                        Text(formatDateRange(start: startDate, end: endDate))
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text(formatDuration(start: startDate, end: endDate))
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // 中间时间信息
-                Text(formatDateRange(start: startDate, end: endDate))
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .frame(width: 120)
-                
-                // 右侧持续时间
-                Text(formatDuration(start: startDate, end: endDate))
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                    .frame(width: 80, alignment: .trailing)
             }
             .padding(.vertical, 2)
             .task {
@@ -739,8 +739,15 @@ struct CharacterDetailView: View {
         }
         
         private func formatDuration(start: Date, end: Date?) -> String {
-            let days = Calendar.current.dateComponents([.day], from: start, to: end ?? Date()).day ?? 0
-            return "(\(days)天)"
+            let components = Calendar.current.dateComponents([.day, .hour], from: start, to: end ?? Date())
+            let days = components.day ?? 0
+            let hours = components.hour ?? 0
+            
+            if days == 0 {
+                return "(\(hours)小时)"
+            } else {
+                return "(\(days)天)"
+            }
         }
     }
 } 
