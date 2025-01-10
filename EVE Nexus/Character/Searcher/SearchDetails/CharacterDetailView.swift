@@ -376,132 +376,133 @@ struct CharacterDetailView: View {
         @State private var myAllianceInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack {
                 if isLoading {
                     ProgressView()
                 } else if let targetCharacter = targetCharacter {
-                    // 个人声望
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Personal Standings", comment: ""))
-                            .font(.headline)
-                            .padding(.bottom, 4)
-                        
-                        // 我对目标角色
-                        StandingRowView(
-                            leftPortrait: (id: character.CharacterID, type: .character),
-                            rightPortrait: (id: characterId, type: .character),
-                            leftName: character.CharacterName,
-                            rightName: targetCharacter.name,
-                            standing: personalStandings[characterId]
-                        )
-                        
-                        // 我军团对目标角色
-                        if let corpId = character.corporationId {
-                            StandingRowView(
-                                leftPortrait: (id: corpId, type: .corporation),
-                                rightPortrait: (id: characterId, type: .character),
-                                leftName: myCorpInfo?.name ?? "[Unknown]",
-                                rightName: targetCharacter.name,
-                                standing: corpStandings[characterId]
-                            )
-                        }
-                        
-                        // 我联盟对目标角色
-                        if let allianceId = character.allianceId {
-                            StandingRowView(
-                                leftPortrait: (id: allianceId, type: .alliance),
-                                rightPortrait: (id: characterId, type: .character),
-                                leftName: myAllianceInfo?.name ?? "[Unknown]",
-                                rightName: targetCharacter.name,
-                                standing: allianceStandings[characterId]
-                            )
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    // 军团声望
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Corporation Standings", comment: ""))
-                            .font(.headline)
-                            .padding(.bottom, 4)
-                        
-                        // 我对目标军团
-                        StandingRowView(
-                            leftPortrait: (id: character.CharacterID, type: .character),
-                            rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                            leftName: character.CharacterName,
-                            rightName: corporationInfo?.name ?? "[Unknown]",
-                            standing: personalStandings[targetCharacter.corporation_id]
-                        )
-                        
-                        // 我军团对目标军团
-                        if let corpId = character.corporationId {
-                            StandingRowView(
-                                leftPortrait: (id: corpId, type: .corporation),
-                                rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                leftName: myCorpInfo?.name ?? "[Unknown]",
-                                rightName: corporationInfo?.name ?? "[Unknown]",
-                                standing: corpStandings[targetCharacter.corporation_id]
-                            )
-                        }
-                        
-                        // 我联盟对目标军团
-                        if let allianceId = character.allianceId {
-                            StandingRowView(
-                                leftPortrait: (id: allianceId, type: .alliance),
-                                rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                leftName: myAllianceInfo?.name ?? "[Unknown]",
-                                rightName: corporationInfo?.name ?? "[Unknown]",
-                                standing: allianceStandings[targetCharacter.corporation_id]
-                            )
-                        }
-                    }
-                    
-                    if let targetAllianceId = targetCharacter.alliance_id {
-                        Divider()
-                        
-                        // 联盟声望
+                        // 个人声望
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(NSLocalizedString("Alliance Standings", comment: ""))
+                            Text(NSLocalizedString("Personal Standings", comment: ""))
                                 .font(.headline)
                                 .padding(.bottom, 4)
                             
-                            // 我对目标联盟
+                            // 我对目标角色
                             StandingRowView(
                                 leftPortrait: (id: character.CharacterID, type: .character),
-                                rightPortrait: (id: targetAllianceId, type: .alliance),
+                                rightPortrait: (id: characterId, type: .character),
                                 leftName: character.CharacterName,
-                                rightName: allianceInfo?.name ?? "[Unknown]",
-                                standing: personalStandings[targetAllianceId]
+                                rightName: targetCharacter.name,
+                                standing: personalStandings[characterId]
                             )
                             
-                            // 我军团对目标联盟
+                            // 我军团对目标角色
                             if let corpId = character.corporationId {
                                 StandingRowView(
                                     leftPortrait: (id: corpId, type: .corporation),
-                                    rightPortrait: (id: targetAllianceId, type: .alliance),
+                                    rightPortrait: (id: characterId, type: .character),
                                     leftName: myCorpInfo?.name ?? "[Unknown]",
-                                    rightName: allianceInfo?.name ?? "[Unknown]",
-                                    standing: corpStandings[targetAllianceId]
+                                    rightName: targetCharacter.name,
+                                    standing: corpStandings[characterId]
                                 )
                             }
                             
-                            // 我联盟对目标联盟
+                            // 我联盟对目标角色
                             if let allianceId = character.allianceId {
                                 StandingRowView(
                                     leftPortrait: (id: allianceId, type: .alliance),
-                                    rightPortrait: (id: targetAllianceId, type: .alliance),
+                                    rightPortrait: (id: characterId, type: .character),
                                     leftName: myAllianceInfo?.name ?? "[Unknown]",
-                                    rightName: allianceInfo?.name ?? "[Unknown]",
-                                    standing: allianceStandings[targetAllianceId]
+                                    rightName: targetCharacter.name,
+                                    standing: allianceStandings[characterId]
                                 )
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        // 军团声望
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("Corporation Standings", comment: ""))
+                                .font(.headline)
+                                .padding(.bottom, 4)
+                            
+                            // 我对目标军团
+                            StandingRowView(
+                                leftPortrait: (id: character.CharacterID, type: .character),
+                                rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
+                                leftName: character.CharacterName,
+                                rightName: corporationInfo?.name ?? "[Unknown]",
+                                standing: personalStandings[targetCharacter.corporation_id]
+                            )
+                            
+                            // 我军团对目标军团
+                            if let corpId = character.corporationId {
+                                StandingRowView(
+                                    leftPortrait: (id: corpId, type: .corporation),
+                                    rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
+                                    leftName: myCorpInfo?.name ?? "[Unknown]",
+                                    rightName: corporationInfo?.name ?? "[Unknown]",
+                                    standing: corpStandings[targetCharacter.corporation_id]
+                                )
+                            }
+                            
+                            // 我联盟对目标军团
+                            if let allianceId = character.allianceId {
+                                StandingRowView(
+                                    leftPortrait: (id: allianceId, type: .alliance),
+                                    rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
+                                    leftName: myAllianceInfo?.name ?? "[Unknown]",
+                                    rightName: corporationInfo?.name ?? "[Unknown]",
+                                    standing: allianceStandings[targetCharacter.corporation_id]
+                                )
+                            }
+                        }
+                        
+                        if let targetAllianceId = targetCharacter.alliance_id {
+                            Divider()
+                            
+                            // 联盟声望
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(NSLocalizedString("Alliance Standings", comment: ""))
+                                    .font(.headline)
+                                    .padding(.bottom, 4)
+                                
+                                // 我对目标联盟
+                                StandingRowView(
+                                    leftPortrait: (id: character.CharacterID, type: .character),
+                                    rightPortrait: (id: targetAllianceId, type: .alliance),
+                                    leftName: character.CharacterName,
+                                    rightName: allianceInfo?.name ?? "[Unknown]",
+                                    standing: personalStandings[targetAllianceId]
+                                )
+                                
+                                // 我军团对目标联盟
+                                if let corpId = character.corporationId {
+                                    StandingRowView(
+                                        leftPortrait: (id: corpId, type: .corporation),
+                                        rightPortrait: (id: targetAllianceId, type: .alliance),
+                                        leftName: myCorpInfo?.name ?? "[Unknown]",
+                                        rightName: allianceInfo?.name ?? "[Unknown]",
+                                        standing: corpStandings[targetAllianceId]
+                                    )
+                                }
+                                
+                                // 我联盟对目标联盟
+                                if let allianceId = character.allianceId {
+                                    StandingRowView(
+                                        leftPortrait: (id: allianceId, type: .alliance),
+                                        rightPortrait: (id: targetAllianceId, type: .alliance),
+                                        leftName: myAllianceInfo?.name ?? "[Unknown]",
+                                        rightName: allianceInfo?.name ?? "[Unknown]",
+                                        standing: allianceStandings[targetAllianceId]
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-            .padding(.horizontal)
             .task {
                 await loadStandings()
             }
@@ -634,7 +635,6 @@ struct CharacterDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 16)
                 .onAppear {
                     Logger.info("雇佣历史视图显示，记录数: \(history.count)")
                     for (index, record) in history.enumerated() {
