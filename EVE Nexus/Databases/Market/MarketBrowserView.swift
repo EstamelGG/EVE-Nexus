@@ -78,18 +78,6 @@ struct MarketBaseView<Content: View>: View {
                     }
                 }
             } else {
-                Section {
-                    NavigationLink {
-                        Text("关注的物品组") // TODO: 实现关注物品组视图
-                    } label: {
-                        HStack {
-                            Image("searchmarket")
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                            Text("关注的物品组")
-                        }
-                    }
-                }
                 content()  // 显示常规内容
             }
         }
