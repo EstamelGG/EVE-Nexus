@@ -32,6 +32,13 @@ struct CharacterDetailView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var selectedTab = 0 // 添加选项卡状态
+    // 添加声望相关的状态
+    @State private var personalStandings: [Int: Double] = [:]
+    @State private var corpStandings: [Int: Double] = [:]
+    @State private var allianceStandings: [Int: Double] = [:]
+    @State private var myCorpInfo: (name: String, icon: UIImage?)?
+    @State private var myAllianceInfo: (name: String, icon: UIImage?)?
+    @State private var standingsLoaded = false
     
     var body: some View {
         List {
@@ -161,7 +168,12 @@ struct CharacterDetailView: View {
                             character: character,
                             targetCharacter: characterInfo,
                             corporationInfo: corporationInfo,
-                            allianceInfo: allianceInfo
+                            allianceInfo: allianceInfo,
+                            personalStandings: personalStandings,
+                            corpStandings: corpStandings,
+                            allianceStandings: allianceStandings,
+                            myCorpInfo: myCorpInfo,
+                            myAllianceInfo: myAllianceInfo
                         )
                     } else if selectedTab == 1 {
                         EmploymentHistoryView(history: employmentHistory)
@@ -214,6 +226,12 @@ struct CharacterDetailView: View {
                     self.allianceInfo = (name: allianceName, icon: allianceIcon)
                 }
             }
+
+            // 加载声望数据
+            if !standingsLoaded {
+                await loadStandings()
+                standingsLoaded = true
+            }
             
         } catch {
             Logger.error("加载角色详细信息失败: \(error)")
@@ -241,6 +259,90 @@ struct CharacterDetailView: View {
             return "\(months) month\(months > 1 ? "s" : "")"
         } else {
             return "Less than a month"
+        }
+    }
+    
+    private func loadStandings() async {
+        // 加载我的军团信息
+        if let corpId = character.corporationId {
+            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
+                let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
+                myCorpInfo = (name: corpInfo.name, icon: corpIcon)
+            }
+        }
+        
+        // 加载我的联盟信息
+        if let allianceId = character.allianceId {
+            let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+            if let allianceName = allianceNames?[allianceId]?.name {
+                let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                myAllianceInfo = (name: allianceName, icon: allianceIcon)
+            }
+        }
+        
+        // 加载个人声望
+        if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
+            for contact in contacts {
+                if contact.standing < 0 {
+                    personalStandings[contact.contact_id] = contact.standing
+                } else {
+                    if personalStandings[contact.contact_id] == nil || personalStandings[contact.contact_id]! >= 0 {
+                        personalStandings[contact.contact_id] = contact.standing
+                    }
+                }
+            }
+        }
+        
+        // 加载军团声望
+        if let corpId = character.corporationId,
+           let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId) {
+            for contact in contacts {
+                if contact.standing < 0 {
+                    corpStandings[contact.contact_id] = contact.standing
+                } else {
+                    if corpStandings[contact.contact_id] == nil || corpStandings[contact.contact_id]! >= 0 {
+                        corpStandings[contact.contact_id] = contact.standing
+                    }
+                }
+            }
+        }
+        
+        // 加载联盟声望
+        if let allianceId = character.allianceId,
+           let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId) {
+            for contact in contacts {
+                if contact.standing < 0 {
+                    allianceStandings[contact.contact_id] = contact.standing
+                } else {
+                    if allianceStandings[contact.contact_id] == nil || allianceStandings[contact.contact_id]! >= 0 {
+                        allianceStandings[contact.contact_id] = contact.standing
+                    }
+                }
+            }
+        }
+        
+        // 处理声望继承
+        if let targetCharacter = characterInfo {
+            if let corpStanding = personalStandings[targetCharacter.corporation_id] {
+                if corpStanding < 0 || personalStandings[characterId] == nil {
+                    personalStandings[characterId] = corpStanding
+                }
+            }
+            
+            if let allianceId = targetCharacter.alliance_id,
+               let allianceStanding = personalStandings[allianceId] {
+                if allianceStanding < 0 {
+                    personalStandings[characterId] = allianceStanding
+                    personalStandings[targetCharacter.corporation_id] = allianceStanding
+                } else {
+                    if personalStandings[characterId] == nil {
+                        personalStandings[characterId] = allianceStanding
+                    }
+                    if personalStandings[targetCharacter.corporation_id] == nil {
+                        personalStandings[targetCharacter.corporation_id] = allianceStanding
+                    }
+                }
+            }
         }
     }
     
@@ -368,18 +470,15 @@ struct CharacterDetailView: View {
         let targetCharacter: CharacterPublicInfo?
         let corporationInfo: (name: String, icon: UIImage?)?
         let allianceInfo: (name: String, icon: UIImage?)?
-        @State private var personalStandings: [Int: Double] = [:]
-        @State private var corpStandings: [Int: Double] = [:]
-        @State private var allianceStandings: [Int: Double] = [:]
-        @State private var isLoading = true
-        @State private var myCorpInfo: (name: String, icon: UIImage?)?
-        @State private var myAllianceInfo: (name: String, icon: UIImage?)?
+        let personalStandings: [Int: Double]
+        let corpStandings: [Int: Double]
+        let allianceStandings: [Int: Double]
+        let myCorpInfo: (name: String, icon: UIImage?)?
+        let myAllianceInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
             VStack {
-                if isLoading {
-                    ProgressView()
-                } else if let targetCharacter = targetCharacter {
+                if let targetCharacter = targetCharacter {
                     VStack(alignment: .leading, spacing: 8) {
                         // 个人声望
                         VStack(alignment: .leading, spacing: 8) {
@@ -503,105 +602,6 @@ struct CharacterDetailView: View {
                     }
                 }
             }
-            .task {
-                await loadStandings()
-            }
-        }
-        
-        private func loadStandings() async {
-            isLoading = true
-            
-            // 加载我的军团信息
-            if let corpId = character.corporationId {
-                if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
-                    let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
-                    myCorpInfo = (name: corpInfo.name, icon: corpIcon)
-                }
-            }
-            
-            // 加载我的联盟信息
-            if let allianceId = character.allianceId {
-                let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
-                if let allianceName = allianceNames?[allianceId]?.name {
-                    let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                    myAllianceInfo = (name: allianceName, icon: allianceIcon)
-                }
-            }
-            
-            // 加载个人声望
-            if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
-                for contact in contacts {
-                    // 如果是负面声望，直接覆盖
-                    if contact.standing < 0 {
-                        personalStandings[contact.contact_id] = contact.standing
-                    } else {
-                        // 如果是正面声望，且没有已存在的负面声望，才设置
-                        if personalStandings[contact.contact_id] == nil || personalStandings[contact.contact_id]! >= 0 {
-                            personalStandings[contact.contact_id] = contact.standing
-                        }
-                    }
-                }
-            }
-            
-            // 加载军团声望
-            if let corpId = character.corporationId,
-               let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId) {
-                for contact in contacts {
-                    // 如果是负面声望，直接覆盖
-                    if contact.standing < 0 {
-                        corpStandings[contact.contact_id] = contact.standing
-                    } else {
-                        // 如果是正面声望，且没有已存在的负面声望，才设置
-                        if corpStandings[contact.contact_id] == nil || corpStandings[contact.contact_id]! >= 0 {
-                            corpStandings[contact.contact_id] = contact.standing
-                        }
-                    }
-                }
-            }
-            
-            // 加载联盟声望
-            if let allianceId = character.allianceId,
-               let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId) {
-                for contact in contacts {
-                    // 如果是负面声望，直接覆盖
-                    if contact.standing < 0 {
-                        allianceStandings[contact.contact_id] = contact.standing
-                    } else {
-                        // 如果是正面声望，且没有已存在的负面声望，才设置
-                        if allianceStandings[contact.contact_id] == nil || allianceStandings[contact.contact_id]! >= 0 {
-                            allianceStandings[contact.contact_id] = contact.standing
-                        }
-                    }
-                }
-            }
-            
-            // 处理声望继承
-            if let targetCharacter = targetCharacter {
-                // 如果对军团有声望设置，继承给角色
-                if let corpStanding = personalStandings[targetCharacter.corporation_id] {
-                    if corpStanding < 0 || personalStandings[characterId] == nil {
-                        personalStandings[characterId] = corpStanding
-                    }
-                }
-                
-                // 如果对联盟有声望设置，继承给角色和军团
-                if let allianceId = targetCharacter.alliance_id,
-                   let allianceStanding = personalStandings[allianceId] {
-                    if allianceStanding < 0 {
-                        personalStandings[characterId] = allianceStanding
-                        personalStandings[targetCharacter.corporation_id] = allianceStanding
-                    } else {
-                        if personalStandings[characterId] == nil {
-                            personalStandings[characterId] = allianceStanding
-                        }
-                        if personalStandings[targetCharacter.corporation_id] == nil {
-                            personalStandings[targetCharacter.corporation_id] = allianceStanding
-                        }
-                    }
-                }
-            }
-            
-            isLoading = false
         }
     }
     
