@@ -288,21 +288,21 @@ struct CharacterDetailView: View {
         private func getStandingColor(standing: Double) -> Color {
             switch standing {
                 case 10.0:
-                    return Color.blue
+                    return Color.blue  // 深蓝
                 case 5.0..<10.0:
-                    return Color.blue.opacity(0.7)
+                    return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
                 case 0.1..<5.0:
-                    return Color.blue.opacity(0.5)
+                    return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
                 case 0.0:
-                    return Color.gray
+                    return Color.secondary  // 次要颜色
                 case (-5.0)..<0.0:
-                    return Color.red.opacity(0.5)
+                    return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
                 case (-10.0)...(-5.0):
-                    return Color.red.opacity(0.7)
+                    return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
                 case ..<(-10.0):
-                    return Color.red
+                    return Color.red  // 红色
                 default:
-                    return Color.gray
+                    return Color.secondary
             }
         }
     }
