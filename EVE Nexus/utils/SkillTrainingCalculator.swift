@@ -147,7 +147,7 @@ struct SkillTrainingCalculator {
     }
     
     /// 获取植入体属性加成
-    public static func getImplantBonuses(characterId: Int) async -> ImplantAttributes {
+    public static func getImplantBonuses(characterId: Int, forceRefresh: Bool = false) async -> ImplantAttributes {
         // 验证植入体属性ID
         ImplantAttributeID.validateAttributeIds()
         
@@ -157,7 +157,7 @@ struct SkillTrainingCalculator {
             // 获取角色的植入体
             let implants = try await CharacterImplantsAPI.shared.fetchCharacterImplants(
                 characterId: characterId,
-                forceRefresh: false
+                forceRefresh: forceRefresh
             )
             
             Logger.debug("获取到植入体列表: \(implants)")

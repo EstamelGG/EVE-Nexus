@@ -451,7 +451,19 @@ struct CharacterSkillsView: View {
     
     private func refreshSkillQueue() async {
         isRefreshing = true
-        await loadSkillQueue(forceRefresh: true)
+        // 强制刷新技能队列和人物属性
+        do {
+            // 强制刷新人物属性
+            characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId, forceRefresh: true)
+            
+            // 强制刷新植入体加成
+            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId, forceRefresh: true)
+            
+            // 强制刷新技能队列
+            await loadSkillQueue(forceRefresh: true)
+        } catch {
+            Logger.error("刷新数据失败: \(error)")
+        }
         isRefreshing = false
     }
     
