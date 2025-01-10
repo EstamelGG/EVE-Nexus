@@ -156,7 +156,7 @@ struct SearcherView: View {
                 
                 // 搜索结果部分
                 if !searchText.isEmpty {
-                    Section(header: Text(NSLocalizedString("Main_Search_Results", comment: ""))) {
+                    Section(header: Text("\(NSLocalizedString("Main_Search_Results", comment: "")) (\(viewModel.filteredResults.count)/\(viewModel.searchResults.count))")) {
                         if !viewModel.searchingStatus.isEmpty {
                             HStack {
                                 Spacer()
