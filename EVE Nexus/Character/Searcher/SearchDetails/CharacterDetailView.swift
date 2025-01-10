@@ -197,7 +197,7 @@ struct CharacterDetailView: View {
             // 并发加载所有需要的数据
             Logger.info("开始并发加载角色信息、头像和雇佣历史")
             async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId, forceRefresh: true)
-            async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId)
+            async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, catchImage: false)
             async let historyTask = CharacterAPI.shared.fetchEmploymentHistory(characterId: characterId)
             
             // 等待所有数据加载完成
@@ -431,7 +431,7 @@ struct CharacterDetailView: View {
             // 加载右侧头像
             switch rightPortrait.type {
             case .character:
-                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id)
+                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id, catchImage: false)
             case .corporation:
                 rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: rightPortrait.id)
             case .alliance:

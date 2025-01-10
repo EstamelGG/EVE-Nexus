@@ -224,7 +224,7 @@ struct CorporationDetailView: View {
             // 加载CEO信息
             if let ceoInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: info.ceo_id) {
                 Logger.info("成功加载CEO信息: \(ceoInfo.name)")
-                let ceoPortrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: info.ceo_id)
+                let ceoPortrait = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: info.ceo_id, catchImage: false)
                 self.ceoInfo = ceoInfo
                 self.ceoPortrait = ceoPortrait
             }
@@ -414,7 +414,7 @@ struct CorporationDetailView: View {
             // 加载右侧头像
             switch rightPortrait.type {
             case .character:
-                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id)
+                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id, catchImage: false)
             case .corporation:
                 rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: rightPortrait.id)
             case .alliance:

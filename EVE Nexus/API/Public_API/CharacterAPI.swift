@@ -180,7 +180,7 @@ final class CharacterAPI: @unchecked Sendable {
     }
     
     // 获取角色头像
-    func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false) async throws -> UIImage {
+    func fetchCharacterPortrait(characterId: Int, size: Int = 128, forceRefresh: Bool = false, catchImage: Bool = true) async throws -> UIImage {
         let portraitURL = getPortraitURL(characterId: characterId, size: size)
         let cacheKey = "character_portrait_\(characterId)_\(size)"
         

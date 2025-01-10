@@ -79,7 +79,7 @@ struct StandingRowView: View {
             // 加载右侧头像
             switch rightPortrait.type {
             case .character:
-                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id)
+                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id, catchImage: false)
             case .corporation:
                 rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: rightPortrait.id)
             case .alliance:
@@ -346,7 +346,7 @@ struct AllianceDetailView: View {
             // 加载创建者信息
             let creatorNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [info.creator_id])
             let creatorName = creatorNames[info.creator_id]?.name ?? NSLocalizedString("Unknown", comment: "")
-            let creatorIcon = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: info.creator_id)
+            let creatorIcon = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: info.creator_id, catchImage: false)
             
             // 等待所有信息加载完成
             let (executorCorpInfo, executorCorpLogo) = try await (executorCorpInfoTask, executorCorpLogoTask)

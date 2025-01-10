@@ -30,7 +30,7 @@ class UniversePortraitViewModel: ObservableObject {
             let portrait: UIImage
             switch type {
             case .character:
-                portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: id, size: size)
+                portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: id, size: size, catchImage: false)
             case .corporation:
                 portrait = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: id, size: size)
             case .alliance:

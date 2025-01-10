@@ -43,7 +43,7 @@ class CharacterPortraitViewModel: ObservableObject {
         
         // 先尝试获取角色头像
         do {
-            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size)
+            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: characterId, size: size, catchImage: false)
             // 保存到缓存
             await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
             self.image = portrait
