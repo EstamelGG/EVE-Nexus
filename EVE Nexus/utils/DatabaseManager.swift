@@ -1578,6 +1578,35 @@ class DatabaseManager: ObservableObject {
         
         return hasData ? damages : nil
     }
+    
+    // 获取具有特定属性值的物品
+    func getItemsByAttributeValue(attributeID: Int, value: Double) -> [(typeID: Int, name: String, iconFileName: String)] {
+        let query = """
+            SELECT t.type_id, t.name, t.icon_filename
+            FROM typeAttributes ta
+            JOIN types t ON ta.type_id = t.type_id
+            WHERE ta.attribute_id = ? AND ta.value = ?
+            ORDER BY t.name
+        """
+        
+        var items: [(typeID: Int, name: String, iconFileName: String)] = []
+        
+        if case .success(let rows) = executeQuery(query, parameters: [attributeID, value]) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    items.append((
+                        typeID: typeID,
+                        name: name,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    ))
+                }
+            }
+        }
+        
+        return items
+    }
 }
 
 // 虫洞信息结构体

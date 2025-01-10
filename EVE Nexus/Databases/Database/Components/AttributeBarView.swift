@@ -323,6 +323,30 @@ struct AttributesView: View {
         }
     }
     
+    // 检查是否有衍生矿石属性
+    private var hasDerivativeOre: Bool {
+        for group in attributeGroups {
+            for attribute in group.attributes {
+                if attribute.id == 2711 {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    
+    // 获取衍生矿石属性值
+    private var derivativeOreValue: Double? {
+        for group in attributeGroups {
+            for attribute in group.attributes {
+                if attribute.id == 2711 {
+                    return attribute.value
+                }
+            }
+        }
+        return nil
+    }
+    
     var body: some View {
         ForEach(sortedGroups) { group in
             if group.id == 8 {
@@ -357,6 +381,27 @@ struct AttributesView: View {
                     databaseManager: databaseManager,
                     isSimplifiedMode: isSimplifiedMode
                 )
+            }
+        }
+        
+        // 添加衍生矿石列表
+        if hasDerivativeOre, let value = derivativeOreValue {
+            let items = databaseManager.getItemsByAttributeValue(attributeID: 2711, value: value)
+            if !items.isEmpty {
+                Section(header: Text("衍生矿石").font(.headline)) {
+                    ForEach(items, id: \.typeID) { item in
+                        NavigationLink(destination: ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)) {
+                            HStack {
+                                IconManager.shared.loadImage(for: item.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                Text(item.name)
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                }
             }
         }
     }
