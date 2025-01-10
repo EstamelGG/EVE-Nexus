@@ -267,21 +267,21 @@ struct CharacterSkillsView: View {
                 }
                 
                 if let optimal = optimalAttributes {
-                    if optimal.savedTime > 0 {
-                        Text(String(format: NSLocalizedString("Main_Skills_Optimal_Attributes_Time_Saved", comment: ""), 
-                                  formatTimeInterval(optimal.savedTime)))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Already_Optimal", comment: ""))
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if optimal.savedTime > 0 {
+                            Text(String(format: NSLocalizedString("Main_Skills_Optimal_Attributes_Time_Saved", comment: ""),
+                                      formatTimeInterval(optimal.savedTime)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Already_Optimal", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Note", comment: ""))
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
-                    
-                    Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Note", comment: ""))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
                 }
             } header: {
                 Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
