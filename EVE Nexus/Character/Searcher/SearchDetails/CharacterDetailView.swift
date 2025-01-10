@@ -500,7 +500,7 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: corpId, type: .corporation),
                                     rightPortrait: (id: characterId, type: .character),
-                                    leftName: myCorpInfo?.name ?? "[Unknown]",
+                                    leftName: myCorpInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                     rightName: targetCharacter.name,
                                     standing: corpStandings[characterId]
                                 )
@@ -511,7 +511,7 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: allianceId, type: .alliance),
                                     rightPortrait: (id: characterId, type: .character),
-                                    leftName: myAllianceInfo?.name ?? "[Unknown]",
+                                    leftName: myAllianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                     rightName: targetCharacter.name,
                                     standing: allianceStandings[characterId]
                                 )
@@ -531,7 +531,7 @@ struct CharacterDetailView: View {
                                 leftPortrait: (id: character.CharacterID, type: .character),
                                 rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
                                 leftName: character.CharacterName,
-                                rightName: corporationInfo?.name ?? "[Unknown]",
+                                rightName: corporationInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                 standing: personalStandings[targetCharacter.corporation_id]
                             )
                             
@@ -540,8 +540,8 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: corpId, type: .corporation),
                                     rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                    leftName: myCorpInfo?.name ?? "[Unknown]",
-                                    rightName: corporationInfo?.name ?? "[Unknown]",
+                                    leftName: myCorpInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                                    rightName: corporationInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                     standing: corpStandings[targetCharacter.corporation_id]
                                 )
                             }
@@ -551,8 +551,8 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: allianceId, type: .alliance),
                                     rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                    leftName: myAllianceInfo?.name ?? "[Unknown]",
-                                    rightName: corporationInfo?.name ?? "[Unknown]",
+                                    leftName: myAllianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                                    rightName: corporationInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                     standing: allianceStandings[targetCharacter.corporation_id]
                                 )
                             }
@@ -572,7 +572,7 @@ struct CharacterDetailView: View {
                                     leftPortrait: (id: character.CharacterID, type: .character),
                                     rightPortrait: (id: targetAllianceId, type: .alliance),
                                     leftName: character.CharacterName,
-                                    rightName: allianceInfo?.name ?? "[Unknown]",
+                                    rightName: allianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                     standing: personalStandings[targetAllianceId]
                                 )
                                 
@@ -581,8 +581,8 @@ struct CharacterDetailView: View {
                                     StandingRowView(
                                         leftPortrait: (id: corpId, type: .corporation),
                                         rightPortrait: (id: targetAllianceId, type: .alliance),
-                                        leftName: myCorpInfo?.name ?? "[Unknown]",
-                                        rightName: allianceInfo?.name ?? "[Unknown]",
+                                        leftName: myCorpInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                                        rightName: allianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                         standing: corpStandings[targetAllianceId]
                                     )
                                 }
@@ -592,8 +592,8 @@ struct CharacterDetailView: View {
                                     StandingRowView(
                                         leftPortrait: (id: allianceId, type: .alliance),
                                         rightPortrait: (id: targetAllianceId, type: .alliance),
-                                        leftName: myAllianceInfo?.name ?? "[Unknown]",
-                                        rightName: allianceInfo?.name ?? "[Unknown]",
+                                        leftName: myAllianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                                        rightName: allianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
                                         standing: allianceStandings[targetAllianceId]
                                     )
                                 }

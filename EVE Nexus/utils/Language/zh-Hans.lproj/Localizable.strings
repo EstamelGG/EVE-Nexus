@@ -762,3 +762,14 @@
 
 "Main_Search_Loading_Contacts" = "正在加载声望数据...";
 "Main_Search_Loading_Failed" = "无法加载声望数据";
+
+// 声望相关
+"Standings" = "声望";
+"Employment History" = "雇佣历史";
+"Personal Standings" = "个人声望";
+"Corporation Standings" = "军团声望";
+"Alliance Standings" = "联盟声望";
+"Standing_Loading" = "正在加载声望数据...";
+"Standing_Loading_Failed" = "加载声望数据失败";
+"Standing_No_Data" = "暂无声望数据";
+"Standing_Unknown" = "[未知]";

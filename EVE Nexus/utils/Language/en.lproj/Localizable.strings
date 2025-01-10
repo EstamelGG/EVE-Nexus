@@ -749,3 +749,14 @@
 
 "Main_Search_Loading_Contacts" = "Loading contacts data...";
 "Main_Search_Loading_Failed" = "Failed to load contacts data";
+
+// Standings Related
+"Standings" = "Standings";
+"Employment History" = "Employment History";
+"Personal Standings" = "Personal Standings";
+"Corporation Standings" = "Corporation Standings";
+"Alliance Standings" = "Alliance Standings";
+"Standing_Loading" = "Loading standings data...";
+"Standing_Loading_Failed" = "Failed to load standings data";
+"Standing_No_Data" = "No standings data available";
+"Standing_Unknown" = "[Unknown]";
