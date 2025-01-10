@@ -121,7 +121,7 @@ private struct AllianceStandingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(NSLocalizedString("Personal Standings", comment: ""))
+            Text(NSLocalizedString("Alliance Standings", comment: ""))
                 .font(.headline)
                 .padding(.bottom, 4)
             

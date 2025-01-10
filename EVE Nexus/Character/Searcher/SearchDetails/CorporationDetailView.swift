@@ -461,9 +461,9 @@ struct CorporationDetailView: View {
         var body: some View {
             VStack {
                 VStack(alignment: .leading, spacing: 8) {
-                    // 个人声望
+                    // 军团声望
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Personal Standings", comment: ""))
+                        Text(NSLocalizedString("Corporation Standings", comment: ""))
                             .font(.headline)
                             .padding(.bottom, 4)
                         
