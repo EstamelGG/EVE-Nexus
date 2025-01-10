@@ -340,49 +340,124 @@ struct SearchResultRow: View {
     @State private var standingIcon: String = "ColorTag-Neutral"
     
     private func determineStandingIcon() async {
-        // 1. 检查是否同军团
-        if let corpId = character.corporationId,
+        var finalStanding: Double? = nil
+        
+        // 1. 检查个人声望
+        if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
+            // 直接检查目标ID
+            if let directContact = contacts.first(where: { $0.contact_id == result.id }) {
+                finalStanding = directContact.standing
+            }
+            
+            // 如果目标是角色，检查其所属军团和联盟的声望
+            if result.type == .character {
+                if let corpId = result.corporationId,
+                   let corpContact = contacts.first(where: { $0.contact_id == corpId }) {
+                    // 如果是负面声望，直接采用
+                    if corpContact.standing < 0 {
+                        finalStanding = corpContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = corpContact.standing
+                    }
+                }
+                
+                if let allianceId = result.allianceId,
+                   let allianceContact = contacts.first(where: { $0.contact_id == allianceId }) {
+                    if allianceContact.standing < 0 {
+                        finalStanding = allianceContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = allianceContact.standing
+                    }
+                }
+            }
+        }
+        
+        // 2. 检查军团声望
+        if finalStanding == nil,
+           let corpId = character.corporationId,
+           let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId) {
+            // 直接检查目标ID
+            if let directContact = contacts.first(where: { $0.contact_id == result.id }) {
+                finalStanding = directContact.standing
+            }
+            
+            // 如果目标是角色，检查其所属军团和联盟的声望
+            if result.type == .character {
+                if let targetCorpId = result.corporationId,
+                   let corpContact = contacts.first(where: { $0.contact_id == targetCorpId }) {
+                    if corpContact.standing < 0 {
+                        finalStanding = corpContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = corpContact.standing
+                    }
+                }
+                
+                if let targetAllianceId = result.allianceId,
+                   let allianceContact = contacts.first(where: { $0.contact_id == targetAllianceId }) {
+                    if allianceContact.standing < 0 {
+                        finalStanding = allianceContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = allianceContact.standing
+                    }
+                }
+            }
+        }
+        
+        // 3. 检查联盟声望
+        if finalStanding == nil,
+           let allianceId = character.allianceId,
+           let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId) {
+            // 直接检查目标ID
+            if let directContact = contacts.first(where: { $0.contact_id == result.id }) {
+                finalStanding = directContact.standing
+            }
+            
+            // 如果目标是角色，检查其所属军团和联盟的声望
+            if result.type == .character {
+                if let targetCorpId = result.corporationId,
+                   let corpContact = contacts.first(where: { $0.contact_id == targetCorpId }) {
+                    if corpContact.standing < 0 {
+                        finalStanding = corpContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = corpContact.standing
+                    }
+                }
+                
+                if let targetAllianceId = result.allianceId,
+                   let allianceContact = contacts.first(where: { $0.contact_id == targetAllianceId }) {
+                    if allianceContact.standing < 0 {
+                        finalStanding = allianceContact.standing
+                    } else if finalStanding == nil {
+                        finalStanding = allianceContact.standing
+                    }
+                }
+            }
+        }
+        
+        // 4. 检查是否同军团（如果没有其他声望设置）
+        if finalStanding == nil,
+           let corpId = character.corporationId,
            let resultCorpId = (result.type == .character ? result.corporationId : (result.type == .corporation ? result.id : nil)),
            corpId == resultCorpId {
             standingIcon = "ColorTag-StarGreen9"
             return
         }
         
-        // 2. 检查是否同联盟
-        if let allianceId = character.allianceId,
+        // 5. 检查是否同联盟（如果没有其他声望设置）
+        if finalStanding == nil,
+           let allianceId = character.allianceId,
            let resultAllianceId = (result.type == .character ? result.allianceId : (result.type == .alliance ? result.id : nil)),
            allianceId == resultAllianceId {
             standingIcon = "ColorTag-StarBlue9"
             return
         }
         
-        // 3. 检查联盟声望
-        if let allianceId = character.allianceId {
-            if let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId),
-               let contact = contacts.first(where: { $0.contact_id == result.id }) {
-                standingIcon = getStandingIcon(standing: contact.standing)
-                return
-            }
+        // 6. 设置最终图标
+        if let standing = finalStanding {
+            standingIcon = getStandingIcon(standing: standing)
+        } else {
+            standingIcon = "ColorTag-Neutral"
         }
-        
-        // 4. 检查军团声望
-        if let corpId = character.corporationId {
-            if let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId),
-               let contact = contacts.first(where: { $0.contact_id == result.id }) {
-                standingIcon = getStandingIcon(standing: contact.standing)
-                return
-            }
-        }
-        
-        // 5. 检查个人声望
-        if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID),
-           let contact = contacts.first(where: { $0.contact_id == result.id }) {
-            standingIcon = getStandingIcon(standing: contact.standing)
-            return
-        }
-        
-        // 默认图标
-        standingIcon = "ColorTag-Neutral"
     }
     
     private func getStandingIcon(standing: Double) -> String {
