@@ -164,8 +164,7 @@ struct CharacterDetailView: View {
                             allianceInfo: allianceInfo
                         )
                     } else if selectedTab == 1 {
-                        Text("雇佣记录将在这里显示")
-                            .foregroundColor(.secondary)
+                        EmploymentHistoryView(history: employmentHistory)
                     }
                 }
             }
@@ -575,6 +574,98 @@ struct CharacterDetailView: View {
             }
             
             isLoading = false
+        }
+    }
+    
+    // 雇佣历史行视图
+    struct EmploymentHistoryRowView: View {
+        let corporationId: Int
+        let startDate: Date
+        let endDate: Date?
+        @State private var corporationInfo: (name: String, icon: UIImage?)?
+        
+        var body: some View {
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：军团图标和名称
+                HStack(spacing: 6) {
+                    if let icon = corporationInfo?.icon {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    } else {
+                        Color.gray
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    }
+                    Text(corporationInfo?.name ?? "[加载中...]")
+                        .font(.system(size: 12))
+                }
+                
+                // 第二行：时间范围
+                Text(formatDateRange(start: startDate, end: endDate))
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 2)
+            .task {
+                await loadCorporationInfo()
+            }
+        }
+        
+        private func loadCorporationInfo() async {
+            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corporationId) {
+                let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
+                await MainActor.run {
+                    self.corporationInfo = (name: corpInfo.name, icon: corpIcon)
+                }
+            }
+        }
+        
+        private func formatDateRange(start: Date, end: Date?) -> String {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy.MM.dd HH:mm"
+            let startStr = dateFormatter.string(from: start)
+            
+            let days = Calendar.current.dateComponents([.day], from: start, to: end ?? Date()).day ?? 0
+            
+            if let end = end {
+                let endStr = dateFormatter.string(from: end)
+                return "从\(startStr)到\(endStr)（\(days)天）"
+            } else {
+                return "从\(startStr)直到现在（\(days)天）"
+            }
+        }
+    }
+    
+    // 雇佣历史视图
+    struct EmploymentHistoryView: View {
+        let history: [CharacterEmploymentHistory]
+        
+        var body: some View {
+            VStack(spacing: 0) {
+                ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
+                    if let startDate = parseDate(record.start_date) {
+                        let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
+                        EmploymentHistoryRowView(
+                            corporationId: record.corporation_id,
+                            startDate: startDate,
+                            endDate: endDate
+                        )
+                        
+                        if index < history.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        
+        private func parseDate(_ dateString: String) -> Date? {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            dateFormatter.timeZone = TimeZone(identifier: "UTC")
+            return dateFormatter.date(from: dateString)
         }
     }
 } 
