@@ -195,7 +195,7 @@ struct SearcherView: View {
                             ForEach(viewModel.filteredResults) { result in
                                 NavigationLink(destination: {
                                     if result.type == .character {
-                                        CharacterDetailView(characterId: result.id)
+                                        CharacterDetailView(characterId: result.id, character: character)
                                     } else {
                                         SearchResultRow(result: result, character: character)
                                     }
