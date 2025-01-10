@@ -233,7 +233,7 @@ struct SkillTrainingCalculator {
     }
     
     /// 检测加速器提供的属性加成值
-    private static func detectBoosterBonus(
+    static func detectBoosterBonus(
         currentAttributes: CharacterAttributes,
         implantBonuses: ImplantAttributes
     ) -> Int {
@@ -459,7 +459,8 @@ struct SkillTrainingCalculator {
             var nextValue: Int
             switch currentAttr {
             case 0: // 感知
-                for i in 0...min(remainingPoints, maxAttr - minAttr) {
+                // 最多只能加到27,也就是最多加10点
+                for i in 0...min(remainingPoints, 10) {
                     nextValue = minAttr + i
                     tryAllocatePoints(
                         perception: nextValue,
@@ -467,12 +468,12 @@ struct SkillTrainingCalculator {
                         willpower: willpower,
                         intelligence: intelligence,
                         charisma: charisma,
-                        remainingPoints: remainingPoints - (nextValue - minAttr),
+                        remainingPoints: remainingPoints - i,
                         currentAttr: currentAttr + 1
                     )
                 }
             case 1: // 记忆
-                for i in 0...min(remainingPoints, maxAttr - minAttr) {
+                for i in 0...min(remainingPoints, 10) {
                     nextValue = minAttr + i
                     tryAllocatePoints(
                         perception: perception,
@@ -480,12 +481,12 @@ struct SkillTrainingCalculator {
                         willpower: willpower,
                         intelligence: intelligence,
                         charisma: charisma,
-                        remainingPoints: remainingPoints - (nextValue - minAttr),
+                        remainingPoints: remainingPoints - i,
                         currentAttr: currentAttr + 1
                     )
                 }
             case 2: // 意志
-                for i in 0...min(remainingPoints, maxAttr - minAttr) {
+                for i in 0...min(remainingPoints, 10) {
                     nextValue = minAttr + i
                     tryAllocatePoints(
                         perception: perception,
@@ -493,12 +494,12 @@ struct SkillTrainingCalculator {
                         willpower: nextValue,
                         intelligence: intelligence,
                         charisma: charisma,
-                        remainingPoints: remainingPoints - (nextValue - minAttr),
+                        remainingPoints: remainingPoints - i,
                         currentAttr: currentAttr + 1
                     )
                 }
             case 3: // 智力
-                for i in 0...min(remainingPoints, maxAttr - minAttr) {
+                for i in 0...min(remainingPoints, 10) {
                     nextValue = minAttr + i
                     tryAllocatePoints(
                         perception: perception,
@@ -506,12 +507,14 @@ struct SkillTrainingCalculator {
                         willpower: willpower,
                         intelligence: nextValue,
                         charisma: charisma,
-                        remainingPoints: remainingPoints - (nextValue - minAttr),
+                        remainingPoints: remainingPoints - i,
                         currentAttr: currentAttr + 1
                     )
                 }
             case 4: // 魅力
-                nextValue = minAttr + remainingPoints
+                // 最后一个属性,直接分配剩余点数,但不能超过10点
+                let points = min(remainingPoints, 10)
+                nextValue = minAttr + points
                 if nextValue <= maxAttr {
                     tryAllocatePoints(
                         perception: perception,
@@ -519,7 +522,7 @@ struct SkillTrainingCalculator {
                         willpower: willpower,
                         intelligence: intelligence,
                         charisma: nextValue,
-                        remainingPoints: 0,
+                        remainingPoints: remainingPoints - points,
                         currentAttr: currentAttr + 1
                     )
                 }
@@ -541,7 +544,7 @@ struct SkillTrainingCalculator {
         
         if let best = bestAllocation {
             Logger.debug("找到最优分配方案:")
-            Logger.debug("基础属性 - 感知: \(best.perception), 记忆: \(best.memory), 意志: \(best.willpower), 智力: \(best.intelligence), 魅力: \(best.charisma)")
+            Logger.debug("属性点分配 - 感知: +\(best.perception - minAttr), 记忆: +\(best.memory - minAttr), 意志: +\(best.willpower - minAttr), 智力: +\(best.intelligence - minAttr), 魅力: +\(best.charisma - minAttr)")
             Logger.debug("训练时间 - 当前: \(formatTimeInterval(best.currentTrainingTime)), 最优: \(formatTimeInterval(best.totalTrainingTime)), 节省: \(formatTimeInterval(best.currentTrainingTime - best.totalTrainingTime))")
         }
         

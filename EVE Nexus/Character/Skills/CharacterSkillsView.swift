@@ -37,32 +37,32 @@ struct CharacterSkillsView: View {
             return
         }
         
-        // 计算基础属性（当前属性减去植入体加成）
-        let baseCharisma = attrs.charisma - bonuses.charismaBonus
-        let baseIntelligence = attrs.intelligence - bonuses.intelligenceBonus
-        let baseMemory = attrs.memory - bonuses.memoryBonus
-        let basePerception = attrs.perception - bonuses.perceptionBonus
-        let baseWillpower = attrs.willpower - bonuses.willpowerBonus
+        let minAttr = 17  // 基础属性值
         
-        // Logger.debug("属性计算详情:")
-        // Logger.debug("感知 - 当前总值: \(attrs.perception), 基础值: \(basePerception), 植入体加成: \(bonuses.perceptionBonus), 最优基础值: \(optimal.perception), 变化: \(optimal.perception - basePerception)")
-        // Logger.debug("记忆 - 当前总值: \(attrs.memory), 基础值: \(baseMemory), 植入体加成: \(bonuses.memoryBonus), 最优基础值: \(optimal.memory), 变化: \(optimal.memory - baseMemory)")
-        // Logger.debug("意志 - 当前总值: \(attrs.willpower), 基础值: \(baseWillpower), 植入体加成: \(bonuses.willpowerBonus), 最优基础值: \(optimal.willpower), 变化: \(optimal.willpower - baseWillpower)")
-        // Logger.debug("智力 - 当前总值: \(attrs.intelligence), 基础值: \(baseIntelligence), 植入体加成: \(bonuses.intelligenceBonus), 最优基础值: \(optimal.intelligence), 变化: \(optimal.intelligence - baseIntelligence)")
-        // Logger.debug("魅力 - 当前总值: \(attrs.charisma), 基础值: \(baseCharisma), 植入体加成: \(bonuses.charismaBonus), 最优基础值: \(optimal.charisma), 变化: \(optimal.charisma - baseCharisma)")
+        // 只添加需要分配点数的属性
+        var comparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
         
-        attributeComparisons = [
+        let attributes = [
             (NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception", 
-             attrs.perception, optimal.perception + bonuses.perceptionBonus, optimal.perception - basePerception),
+             attrs.perception, optimal.perception, optimal.perception - minAttr),
             (NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory", 
-             attrs.memory, optimal.memory + bonuses.memoryBonus, optimal.memory - baseMemory),
+             attrs.memory, optimal.memory, optimal.memory - minAttr),
             (NSLocalizedString("Character_Attribute_Willpower", comment: ""), "willpower", 
-             attrs.willpower, optimal.willpower + bonuses.willpowerBonus, optimal.willpower - baseWillpower),
+             attrs.willpower, optimal.willpower, optimal.willpower - minAttr),
             (NSLocalizedString("Character_Attribute_Intelligence", comment: ""), "intelligence", 
-             attrs.intelligence, optimal.intelligence + bonuses.intelligenceBonus, optimal.intelligence - baseIntelligence),
+             attrs.intelligence, optimal.intelligence, optimal.intelligence - minAttr),
             (NSLocalizedString("Character_Attribute_Charisma", comment: ""), "charisma", 
-             attrs.charisma, optimal.charisma + bonuses.charismaBonus, optimal.charisma - baseCharisma)
+             attrs.charisma, optimal.charisma, optimal.charisma - minAttr)
         ]
+        
+        // 只添加有分配点数的属性
+        for attr in attributes {
+            if attr.4 > 0 {  // 只显示分配了点数的属性
+                comparisons.append(attr)
+            }
+        }
+        
+        attributeComparisons = comparisons
     }
     
     private var activeSkills: [SkillQueueItem] {
@@ -431,12 +431,9 @@ struct CharacterSkillsView: View {
                 .cornerRadius(4)
             Text(attr.name)
             Spacer()
-            if attr.diff == 0 {
-                Text("\(attr.current)")
-                    .foregroundColor(.secondary)
-            } else {
-                Text("\(attr.current)(\(attr.diff > 0 ? "+" : "-")\(abs(attr.diff))) → \(attr.current + attr.diff)")
-                    .foregroundColor(attr.diff > 0 ? .green : .red)
+            if attr.diff != 0 {
+                Text("+\(attr.diff)")
+                    .foregroundColor(.green)
             }
         }
     }
