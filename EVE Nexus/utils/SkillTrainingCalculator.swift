@@ -232,6 +232,45 @@ struct SkillTrainingCalculator {
         return bonuses
     }
     
+    /// 检测加速器提供的属性加成值
+    private static func detectBoosterBonus(
+        currentAttributes: CharacterAttributes,
+        implantBonuses: ImplantAttributes
+    ) -> Int {
+        // 计算当前所有属性总和
+        let totalAttributes = currentAttributes.charisma +
+                             currentAttributes.intelligence +
+                             currentAttributes.memory +
+                             currentAttributes.perception +
+                             currentAttributes.willpower
+        
+        // 计算植入体加成总和
+        let totalImplantBonuses = implantBonuses.charismaBonus +
+                                   implantBonuses.intelligenceBonus +
+                                   implantBonuses.memoryBonus +
+                                   implantBonuses.perceptionBonus +
+                                   implantBonuses.willpowerBonus
+        
+        // 基础值总和 (17 × 5 = 85)
+        let baseTotal = 85
+        
+        // 可分配点数总和 (14)
+        let allocatablePoints = 14
+        
+        // 计算加速器加成值
+        // (总属性值 - 基础值总和 - 可分配点数 - 植入体加成总和) ÷ 5
+        let boosterBonus = (totalAttributes - baseTotal - allocatablePoints - totalImplantBonuses) / 5
+        
+        Logger.debug("属性加成计算:")
+        Logger.debug("当前属性总和: \(totalAttributes)")
+        Logger.debug("植入体加成总和: \(totalImplantBonuses)")
+        Logger.debug("基础值总和: \(baseTotal)")
+        Logger.debug("可分配点数: \(allocatablePoints)")
+        Logger.debug("计算得到的加速器加成值: \(boosterBonus)")
+        
+        return max(0, boosterBonus) // 确保不返回负值
+    }
+    
     /// 计算最优属性分配
     /// - Parameters:
     ///   - skillQueue: 技能队列信息数组，每个元素包含：技能ID、剩余SP、开始训练时间、结束训练时间
@@ -245,6 +284,19 @@ struct SkillTrainingCalculator {
         currentAttributes: CharacterAttributes,
         characterId: Int
     ) async -> OptimalAttributes? {
+        // 获取植入体加成
+        let implantBonuses = await getImplantBonuses(characterId: characterId)
+        
+        // 检测加速器加成值
+        let boosterBonus = detectBoosterBonus(
+            currentAttributes: currentAttributes,
+            implantBonuses: implantBonuses
+        )
+        
+        if boosterBonus > 0 {
+            Logger.debug("检测到加速器，每个属性增加: \(boosterBonus)点")
+        }
+        
         var skillTrainingInfo: [SkillTrainingInfo] = []
         
         // 批量获取所有技能的属性
