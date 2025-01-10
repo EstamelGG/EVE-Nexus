@@ -645,6 +645,10 @@ class SearcherViewModel: ObservableObject {
                     allianceFilter: currentAllianceFilter
                 )
                 try await characterSearch.search()
+                // 搜索完成后应用当前过滤条件
+                if type == .character {
+                    filterResults(corporationFilter: currentCorpFilter, allianceFilter: currentAllianceFilter)
+                }
                 
             case .corporation:
                 let corporationSearch = CorporationSearchView(
@@ -715,9 +719,10 @@ class SearcherViewModel: ObservableObject {
                     structureType: currentStructureType
                 )
                 try await structureSearch.search()
-                
-            default:
-                break
+                // 搜索完成后应用当前建筑类型过滤条件
+                if type == .structure {
+                    updateStructureFilters(structureType: currentStructureType)
+                }
             }
             
         } catch {
