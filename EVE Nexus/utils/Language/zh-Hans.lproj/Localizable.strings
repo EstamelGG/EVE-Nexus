@@ -666,6 +666,7 @@
 "Main_Skills_Optimal_Attributes_Difference" = "差值";
 "Main_Skills_Optimal_Attributes_No_Queue" = "技能队列为空，无法计算最优属性";
 "Main_Skills_Optimal_Attributes_Loading" = "正在计算最优属性...";
+"Main_Skills_Optimal_Attributes_Already_Optimal" = "当前已是最优分配";
 
 "Main_Database_Skill_Level_Detail" = "技能等级细节";
 
