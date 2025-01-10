@@ -244,45 +244,92 @@ struct CharacterDetailView: View {
         let leftName: String
         let rightName: String
         let standing: Double?
+        @State private var leftImage: UIImage?
+        @State private var rightImage: UIImage?
         
         var body: some View {
             HStack {
                 // 左侧头像和名称
-                HStack(spacing: 8) {
-                    UniversePortrait(id: leftPortrait.id, type: leftPortrait.type, size: 32)
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(4)
+                HStack(spacing: 6) {
+                    if let image = leftImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    } else {
+                        Color.gray
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    }
                     Text(leftName)
-                        .font(.system(size: 14))
+                        .font(.system(size: 12))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
                 // 中间声望值
                 if let standing = standing {
-                    Text(String(format: "%.0f", standing))
-                        .font(.system(size: 14, weight: .medium))
+                    Text(standing > 0 ? "+\(String(format: "%.0f", standing))" : 
+                         standing < 0 ? "\(String(format: "%.0f", standing))" :
+                         "0")
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundColor(getStandingColor(standing: standing))
-                        .frame(width: 60)
+                        .frame(width: 40)
                 } else {
                     Text("0")
-                        .font(.system(size: 14))
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
-                        .frame(width: 60)
+                        .frame(width: 40)
                 }
                 
                 // 右侧头像和名称
-                HStack(spacing: 8) {
-                    UniversePortrait(id: rightPortrait.id, type: rightPortrait.type, size: 32)
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(4)
+                HStack(spacing: 6) {
+                    if let image = rightImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    } else {
+                        Color.gray
+                            .frame(width: 24, height: 24)
+                            .cornerRadius(3)
+                    }
                     Text(rightName)
-                        .font(.system(size: 14))
+                        .font(.system(size: 12))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 2)
+            .task {
+                await loadImages()
+            }
+        }
+        
+        private func loadImages() async {
+            // 加载左侧头像
+            switch leftPortrait.type {
+            case .character:
+                leftImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: leftPortrait.id)
+            case .corporation:
+                leftImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: leftPortrait.id)
+            case .alliance:
+                leftImage = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: leftPortrait.id)
+            default:
+                break
+            }
+            
+            // 加载右侧头像
+            switch rightPortrait.type {
+            case .character:
+                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id)
+            case .corporation:
+                rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: rightPortrait.id)
+            case .alliance:
+                rightImage = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: rightPortrait.id)
+            default:
+                break
+            }
         }
         
         private func getStandingColor(standing: Double) -> Color {
@@ -290,7 +337,7 @@ struct CharacterDetailView: View {
                 case 10.0:
                     return Color.blue  // 深蓝
                 case 5.0..<10.0:
-                    return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
+                    return Color.blue  // 深蓝
                 case 0.1..<5.0:
                     return Color(red: 0.3, green: 0.7, blue: 1.0)  // 浅蓝
                 case 0.0:
@@ -298,7 +345,7 @@ struct CharacterDetailView: View {
                 case (-5.0)..<0.0:
                     return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
                 case (-10.0)...(-5.0):
-                    return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
+                    return Color.red  // 红色
                 case ..<(-10.0):
                     return Color.red  // 红色
                 default:
