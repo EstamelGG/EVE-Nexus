@@ -193,21 +193,25 @@ struct SearcherView: View {
                             }
                         } else {
                             ForEach(viewModel.filteredResults) { result in
-                                NavigationLink(destination: {
-                                    switch result.type {
-                                    case .character:
-                                        CharacterDetailView(characterId: result.id, character: character)
-                                    case .corporation:
-                                        CorporationDetailView(corporationId: result.id, character: character)
-                                    case .alliance:
-                                        AllianceDetailView(allianceId: result.id, character: character)
-                                    default:
+                                if result.type == .structure {
+                                    SearchResultRow(result: result, character: character)
+                                } else {
+                                    NavigationLink(destination: {
+                                        switch result.type {
+                                        case .character:
+                                            CharacterDetailView(characterId: result.id, character: character)
+                                        case .corporation:
+                                            CorporationDetailView(corporationId: result.id, character: character)
+                                        case .alliance:
+                                            AllianceDetailView(allianceId: result.id, character: character)
+                                        default:
+                                            SearchResultRow(result: result, character: character)
+                                        }
+                                    }) {
                                         SearchResultRow(result: result, character: character)
                                     }
-                                }) {
-                                    SearchResultRow(result: result, character: character)
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
