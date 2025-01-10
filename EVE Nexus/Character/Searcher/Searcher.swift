@@ -340,6 +340,12 @@ struct SearchResultRow: View {
     @State private var standingIcon: String = "ColorTag-Neutral"
     
     private func determineStandingIcon() async {
+        // 如果是建筑搜索，直接返回中立图标
+        if result.type == .structure {
+            standingIcon = "ColorTag-Neutral"
+            return
+        }
+        
         var finalStanding: Double? = nil
         
         // 1. 检查个人声望
@@ -572,19 +578,23 @@ struct SearchResultRow: View {
             
             Spacer()
             
-            // 声望图标
-            Image(standingIcon)
-                .resizable()
-                .cornerRadius(1)
-                .frame(width: 12, height: 12)
-                .shadow(color: Color.secondary, radius: 2, x: 0, y: 0)
+            // 声望图标（非建筑搜索时显示）
+            if result.type != .structure {
+                Image(standingIcon)
+                    .resizable()
+                    .cornerRadius(1)
+                    .frame(width: 12, height: 12)
+                    .shadow(color: Color.secondary, radius: 2, x: 0, y: 0)
+            }
         }
         .padding(.vertical, 4)
         .onAppear {
             scheduleLoad()
-            // 加载声望图标
-            Task {
-                await determineStandingIcon()
+            // 只在非建筑搜索时加载声望
+            if result.type != .structure {
+                Task {
+                    await determineStandingIcon()
+                }
             }
         }
         .onDisappear {
