@@ -44,7 +44,7 @@ struct MarketBaseView<Content: View>: View {
         
         // 添加未分组的物品
         if !ungroupedItems.isEmpty {
-            result.append((id: -1, name: "未分组", items: ungroupedItems))
+            result.append((id: -1, name: "No group", items: ungroupedItems))
         }
         
         return result
