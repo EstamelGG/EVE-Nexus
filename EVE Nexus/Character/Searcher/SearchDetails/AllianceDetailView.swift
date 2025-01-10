@@ -331,7 +331,7 @@ struct AllianceDetailView: View {
         do {
             // 加载联盟基本信息和图标
             async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 128)
             
             let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
             

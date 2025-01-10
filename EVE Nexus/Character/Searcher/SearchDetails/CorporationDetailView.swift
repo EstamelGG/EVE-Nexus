@@ -404,7 +404,7 @@ struct CorporationDetailView: View {
             case .character:
                 leftImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: leftPortrait.id)
             case .corporation:
-                leftImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: leftPortrait.id)
+                leftImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: leftPortrait.id, size: 128)
             case .alliance:
                 leftImage = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: leftPortrait.id)
             default:
