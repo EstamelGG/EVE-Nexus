@@ -625,16 +625,10 @@ struct CharacterDetailView: View {
                                 endDate: endDate
                             )
                             
-                            if index < history.count - 1 {
+                            if index < history.count {
                                 Divider()
                             }
                         }
-                    }
-                }
-                .onAppear {
-                    Logger.info("雇佣历史视图显示，记录数: \(history.count)")
-                    for (index, record) in history.enumerated() {
-                        Logger.info("记录 \(index + 1): 军团ID: \(record.corporation_id), 开始日期: \(record.start_date)")
                     }
                 }
             }
