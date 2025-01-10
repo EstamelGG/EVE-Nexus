@@ -1586,7 +1586,7 @@ class DatabaseManager: ObservableObject {
             FROM typeAttributes ta
             JOIN types t ON ta.type_id = t.type_id
             WHERE ta.attribute_id = ? AND ta.value = ?
-            ORDER BY t.name
+            ORDER BY t.type_id
         """
         
         var items: [(typeID: Int, name: String, iconFileName: String)] = []
