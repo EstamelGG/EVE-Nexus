@@ -194,9 +194,12 @@ struct SearcherView: View {
                         } else {
                             ForEach(viewModel.filteredResults) { result in
                                 NavigationLink(destination: {
-                                    if result.type == .character {
+                                    switch result.type {
+                                    case .character:
                                         CharacterDetailView(characterId: result.id, character: character)
-                                    } else {
+                                    case .corporation:
+                                        CorporationDetailView(corporationId: result.id, character: character)
+                                    default:
                                         SearchResultRow(result: result, character: character)
                                     }
                                 }) {
