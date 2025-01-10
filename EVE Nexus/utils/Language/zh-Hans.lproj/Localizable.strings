@@ -775,3 +775,13 @@
 "Standing_Loading_Failed" = "加载声望数据失败";
 "Standing_No_Data" = "暂无声望数据";
 "Standing_Unknown" = "[未知]";
+
+"CEO" = "CEO";
+"No Alliance" = "无联盟";
+"Member Count" = "成员数量";
+"Tax Rate" = "税率";
+"Description" = "描述";
+"Creator Corp" = "创建者军团";
+"Creator" = "创建者";
+"Executor" = "执行军团";
+"Unknown" = "未知";

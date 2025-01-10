@@ -762,3 +762,13 @@
 "Standing_Loading_Failed" = "Failed to load standings data";
 "Standing_No_Data" = "No standings data available";
 "Standing_Unknown" = "[Unknown]";
+
+"CEO" = "CEO";
+"No Alliance" = "No Alliance";
+"Member Count" = "Member Count";
+"Tax Rate" = "Tax Rate";
+"Description" = "Description";
+"Creator Corp" = "Creator Corp";
+"Creator" = "Creator";
+"Unknown" = "Unknown";
+"Executor" = "Executor";
