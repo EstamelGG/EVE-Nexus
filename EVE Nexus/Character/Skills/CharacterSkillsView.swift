@@ -32,7 +32,7 @@ struct CharacterSkillsView: View {
     private func updateAttributeComparisons() {
         guard let attrs = characterAttributes,
               let optimal = optimalAttributes,
-              let bonuses = implantBonuses else {
+              let _ = implantBonuses else {
             attributeComparisons = []
             return
         }
