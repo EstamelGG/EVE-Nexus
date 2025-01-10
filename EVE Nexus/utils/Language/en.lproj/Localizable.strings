@@ -666,6 +666,7 @@
 "Main_Skills_Optimal_Attributes_No_Queue" = "Cannot calculate optimal attributes with empty skill queue";
 "Main_Skills_Optimal_Attributes_Loading" = "Calculating optimal attributes...";
 "Main_Skills_Optimal_Attributes_Already_Optimal" = "Current attributes are already optimal";
+"Main_Skills_Optimal_Attributes_Note" = "Results may be inaccurate due to items like accelerator, for reference only";
 
 "Main_Database_Skill_Level_Detail" = "Detail of skill level";
 

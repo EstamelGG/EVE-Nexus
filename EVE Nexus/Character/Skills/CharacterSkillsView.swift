@@ -277,6 +277,11 @@ struct CharacterSkillsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    
+                    Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Note", comment: ""))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                 }
             } header: {
                 Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
