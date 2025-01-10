@@ -272,7 +272,7 @@ struct CharacterDetailView: View {
                         .font(.system(size: 12))
                         .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 150, alignment: .leading)
                 
                 // 中间声望值
                 if let standing = standing {
@@ -305,7 +305,7 @@ struct CharacterDetailView: View {
                         .font(.system(size: 12))
                         .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 2)
             .task {
@@ -616,10 +616,6 @@ struct CharacterDetailView: View {
                     .padding()
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(NSLocalizedString("Employment History", comment: ""))
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                        
                     ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
                         if let startDate = parseDate(record.start_date) {
                             let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
