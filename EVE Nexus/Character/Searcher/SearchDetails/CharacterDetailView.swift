@@ -364,6 +364,8 @@ struct CharacterDetailView: View {
         @State private var corpStandings: [Int: Double] = [:]
         @State private var allianceStandings: [Int: Double] = [:]
         @State private var isLoading = true
+        @State private var myCorpInfo: (name: String, icon: UIImage?)?
+        @State private var myAllianceInfo: (name: String, icon: UIImage?)?
         
         var body: some View {
             VStack(spacing: 16) {
@@ -390,7 +392,7 @@ struct CharacterDetailView: View {
                             StandingRowView(
                                 leftPortrait: (id: corpId, type: .corporation),
                                 rightPortrait: (id: characterId, type: .character),
-                                leftName: corporationInfo?.name ?? "[Unknown]",
+                                leftName: myCorpInfo?.name ?? "[Unknown]",
                                 rightName: targetCharacter.name,
                                 standing: corpStandings[characterId]
                             )
@@ -401,7 +403,7 @@ struct CharacterDetailView: View {
                             StandingRowView(
                                 leftPortrait: (id: allianceId, type: .alliance),
                                 rightPortrait: (id: characterId, type: .character),
-                                leftName: allianceInfo?.name ?? "[Unknown]",
+                                leftName: myAllianceInfo?.name ?? "[Unknown]",
                                 rightName: targetCharacter.name,
                                 standing: allianceStandings[characterId]
                             )
@@ -430,7 +432,7 @@ struct CharacterDetailView: View {
                             StandingRowView(
                                 leftPortrait: (id: corpId, type: .corporation),
                                 rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                leftName: corporationInfo?.name ?? "[Unknown]",
+                                leftName: myCorpInfo?.name ?? "[Unknown]",
                                 rightName: corporationInfo?.name ?? "[Unknown]",
                                 standing: corpStandings[targetCharacter.corporation_id]
                             )
@@ -441,7 +443,7 @@ struct CharacterDetailView: View {
                             StandingRowView(
                                 leftPortrait: (id: allianceId, type: .alliance),
                                 rightPortrait: (id: targetCharacter.corporation_id, type: .corporation),
-                                leftName: allianceInfo?.name ?? "[Unknown]",
+                                leftName: myAllianceInfo?.name ?? "[Unknown]",
                                 rightName: corporationInfo?.name ?? "[Unknown]",
                                 standing: allianceStandings[targetCharacter.corporation_id]
                             )
@@ -471,7 +473,7 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: corpId, type: .corporation),
                                     rightPortrait: (id: targetAllianceId, type: .alliance),
-                                    leftName: corporationInfo?.name ?? "[Unknown]",
+                                    leftName: myCorpInfo?.name ?? "[Unknown]",
                                     rightName: allianceInfo?.name ?? "[Unknown]",
                                     standing: corpStandings[targetAllianceId]
                                 )
@@ -482,7 +484,7 @@ struct CharacterDetailView: View {
                                 StandingRowView(
                                     leftPortrait: (id: allianceId, type: .alliance),
                                     rightPortrait: (id: targetAllianceId, type: .alliance),
-                                    leftName: allianceInfo?.name ?? "[Unknown]",
+                                    leftName: myAllianceInfo?.name ?? "[Unknown]",
                                     rightName: allianceInfo?.name ?? "[Unknown]",
                                     standing: allianceStandings[targetAllianceId]
                                 )
@@ -499,6 +501,23 @@ struct CharacterDetailView: View {
         
         private func loadStandings() async {
             isLoading = true
+            
+            // 加载我的军团信息
+            if let corpId = character.corporationId {
+                if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
+                    let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
+                    myCorpInfo = (name: corpInfo.name, icon: corpIcon)
+                }
+            }
+            
+            // 加载我的联盟信息
+            if let allianceId = character.allianceId {
+                let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+                if let allianceName = allianceNames?[allianceId]?.name {
+                    let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                    myAllianceInfo = (name: allianceName, icon: allianceIcon)
+                }
+            }
             
             // 加载个人声望
             if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
