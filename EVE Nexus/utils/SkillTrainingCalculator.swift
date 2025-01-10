@@ -371,16 +371,27 @@ struct SkillTrainingCalculator {
             return nil
         }
         
-        // 计算当前属性下的训练时间
+        // 计算当前属性下的训练时间(去掉加速器影响，保留植入体)
         var currentTime: TimeInterval = 0
+        let currentAttributesWithoutBooster = CharacterAttributes(
+            charisma: currentAttributes.charisma - boosterBonus,
+            intelligence: currentAttributes.intelligence - boosterBonus,
+            memory: currentAttributes.memory - boosterBonus,
+            perception: currentAttributes.perception - boosterBonus,
+            willpower: currentAttributes.willpower - boosterBonus,
+            bonus_remaps: currentAttributes.bonus_remaps,
+            accrued_remap_cooldown_date: currentAttributes.accrued_remap_cooldown_date,
+            last_remap_date: currentAttributes.last_remap_date
+        )
+        
         for info in skillTrainingInfo {
             if let pointsPerHour = calculateTrainingRate(
                 primaryAttrId: info.primaryAttr,
                 secondaryAttrId: info.secondaryAttr,
-                attributes: currentAttributes
+                attributes: currentAttributesWithoutBooster  // 使用去掉加速器影响的属性
             ) {
                 let trainingTimeHours = Double(info.remainingSP) / Double(pointsPerHour)
-                currentTime += trainingTimeHours * 3600 // 转换为秒
+                currentTime += trainingTimeHours * 3600
             }
         }
         
@@ -415,11 +426,11 @@ struct SkillTrainingCalculator {
             if currentAttr > 4 {
                 if remainingPoints == 0 {
                     let attributes = CharacterAttributes(
-                        charisma: charisma,
-                        intelligence: intelligence,
-                        memory: memory,
-                        perception: perception,
-                        willpower: willpower,
+                        charisma: charisma + implantBonuses.charismaBonus,
+                        intelligence: intelligence + implantBonuses.intelligenceBonus,
+                        memory: memory + implantBonuses.memoryBonus,
+                        perception: perception + implantBonuses.perceptionBonus,
+                        willpower: willpower + implantBonuses.willpowerBonus,
                         bonus_remaps: 0,
                         accrued_remap_cooldown_date: nil,
                         last_remap_date: nil
