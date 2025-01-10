@@ -643,8 +643,6 @@ struct SearchResultRow: View {
                     }
                 }
             }
-        } catch {
-            Logger.error("加载军团信息失败: \(error)")
         }
         isLoadingCorpInfo = false
     }
