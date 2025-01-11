@@ -158,7 +158,7 @@ struct DatabaseListView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                            Text("返回")
+                            Text(NSLocalizedString("Misc_back", comment: ""))
                         }
                     }
                 }
