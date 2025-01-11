@@ -357,59 +357,61 @@ struct CharacterDetailView: View {
         @State private var rightImage: UIImage?
         
         var body: some View {
-            HStack {
-                // 左侧头像和名称
-                HStack(spacing: 6) {
-                    if let image = leftImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
-                    } else {
-                        Color.gray
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    // 左侧头像和名称
+                    HStack(spacing: 6) {
+                        Text(leftName)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                        if let image = leftImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .cornerRadius(3)
+                        } else {
+                            Color.gray
+                                .frame(width: 24, height: 24)
+                                .cornerRadius(3)
+                        }
                     }
-                    Text(leftName)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
-                }
-                .frame(width: 150, alignment: .leading)
-                
-                // 中间声望值
-                if let standing = standing {
-                    Text(standing > 0 ? "+\(String(format: "%.0f", standing))" : 
-                         standing < 0 ? "\(String(format: "%.0f", standing))" :
-                         "0")
+                    .frame(width: geometry.size.width * 0.4, alignment: .trailing)
+                    
+                    // 中间声望值
+                    if let standing = standing {
+                        Text(standing > 0 ? "+\(String(format: "%.0f", standing))" :
+                                standing < 0 ? "\(String(format: "%.0f", standing))" :
+                                "0")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(getStandingColor(standing: standing))
-                        .frame(width: 40)
-                } else {
-                    Text("0")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .frame(width: 40)
-                }
-                
-                // 右侧头像和名称
-                HStack(spacing: 6) {
-                    if let image = rightImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
+                        .frame(width: geometry.size.width * 0.2, alignment: .center)
                     } else {
-                        Color.gray
-                            .frame(width: 24, height: 24)
-                            .cornerRadius(3)
+                        Text("0")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .frame(width: geometry.size.width * 0.2, alignment: .center)
                     }
-                    Text(rightName)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
+                    
+                    // 右侧头像和名称
+                    HStack(spacing: 6) {
+                        if let image = rightImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .cornerRadius(3)
+                        } else {
+                            Color.gray
+                                .frame(width: 24, height: 24)
+                                .cornerRadius(3)
+                        }
+                        Text(rightName)
+                            .font(.system(size: 12))
+                            .lineLimit(1)
+                    }
+                    .frame(width: geometry.size.width * 0.4, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, 2)
+            .frame(height: 32)  // 设置固定高度以确保一致性
             .task {
                 await loadImages()
             }
