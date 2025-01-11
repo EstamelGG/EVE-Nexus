@@ -560,9 +560,11 @@ struct MarketQuickbarView: View {
                 if searchText.isEmpty {
                     Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                         .foregroundColor(.secondary)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 } else {
                     Text(String(format: NSLocalizedString("Main_EVE_Mail_No_Results", comment: "")))
                         .foregroundColor(.secondary)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             } else {
                 ForEach(filteredQuickbars) { quickbar in
@@ -574,6 +576,7 @@ struct MarketQuickbarView: View {
                     } label: {
                         quickbarRowView(quickbar)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 .onDelete(perform: deleteQuickbar)
             }
