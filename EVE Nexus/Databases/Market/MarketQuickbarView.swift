@@ -1037,9 +1037,9 @@ struct MarketQuickbarDetailView: View {
                 ))
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.leading)
-                .frame(width: 80)
+                .frame(width: 60)
                 .background(Color(uiColor: .secondarySystemBackground))
-                .cornerRadius(8)
+                .cornerRadius(2)
             }
         } else {
             NavigationLink {
