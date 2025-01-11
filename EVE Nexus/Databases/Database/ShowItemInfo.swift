@@ -4,7 +4,12 @@ import SwiftUI
 struct ShowItemInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    private let currentCharacterId: Int = {
+        guard let id = UserDefaults.standard.object(forKey: "currentCharacterId") as? Int else {
+            return 0
+        }
+        return id
+    }()
     var itemID: Int
     
     @State private var itemDetails: ItemDetails?
