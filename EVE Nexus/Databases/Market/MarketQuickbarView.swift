@@ -177,7 +177,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                                 HStack {
                                     DatabaseListItemView(
                                         item: item,
-                                        showDetails: true
+                                        showDetails: false
                                     )
                                     
                                     Spacer()
@@ -481,7 +481,7 @@ struct MarketItemSelectorItemListView: View {
                                 HStack {
                                     DatabaseListItemView(
                                         item: item,
-                                        showDetails: true
+                                        showDetails: false
                                     )
                                     
                                     Spacer()
@@ -677,7 +677,7 @@ struct MarketQuickbarDetailView: View {
                 ForEach(sortedItems, id: \.id) { item in
                     DatabaseListItemView(
                         item: item,
-                        showDetails: true
+                        showDetails: false
                     )
                 }
                 .onDelete { indexSet in
