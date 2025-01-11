@@ -670,16 +670,17 @@ struct MarketQuickbarDetailView: View {
                 Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                     .foregroundColor(.secondary)
             } else {
-                ForEach(items, id: \.id) { item in
+                ForEach(items.sorted(by: { $0.id < $1.id }), id: \.id) { item in
                     DatabaseListItemView(
                         item: item,
                         showDetails: true
                     )
                 }
                 .onDelete { indexSet in
-                    let itemsToDelete = indexSet.map { items[$0].id }
+                    let sortedItems = items.sorted(by: { $0.id < $1.id })
+                    let itemsToDelete = indexSet.map { sortedItems[$0].id }
                     quickbar.items.removeAll { itemsToDelete.contains($0) }
-                    items.remove(atOffsets: indexSet)
+                    items.removeAll { itemsToDelete.contains($0.id) }
                     MarketQuickbarManager.shared.saveQuickbar(quickbar)
                 }
             }
@@ -700,8 +701,14 @@ struct MarketQuickbarDetailView: View {
                 existingItems: Set(quickbar.items),
                 onItemSelected: { item in
                     if !quickbar.items.contains(item.id) {
-                        quickbar.items.append(item.id)
-                        items.append(item)
+                        // 找到正确的插入位置
+                        if let insertIndex = items.firstIndex(where: { $0.id > item.id }) {
+                            items.insert(item, at: insertIndex)
+                            quickbar.items.insert(item.id, at: insertIndex)
+                        } else {
+                            items.append(item)
+                            quickbar.items.append(item.id)
+                        }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 },
@@ -725,9 +732,12 @@ struct MarketQuickbarDetailView: View {
         if !quickbar.items.isEmpty {
             let itemIDs = quickbar.items.map { String($0) }.joined(separator: ",")
             items = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(itemIDs))",
+                whereClause: "t.type_id IN (\(itemIDs)) ORDER BY t.type_id",
                 parameters: []
             )
+            // 确保 quickbar.items 的顺序与加载的物品顺序一致
+            quickbar.items = items.map { $0.id }
+            MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
     }
 } 
