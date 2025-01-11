@@ -174,6 +174,7 @@ struct ShowItemInfo: View {
                                         .frame(alignment: .trailing)
                                 }
                             }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                         
                         // 源物品下拉列表
