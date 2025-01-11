@@ -990,22 +990,23 @@ struct MarketQuickbarDetailView: View {
     @ViewBuilder
     private func itemRow(_ item: DatabaseListItem) -> some View {
         if isEditingQuantity {
-            HStack {
+            HStack(spacing: 12) {
                 Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
+                
                 VStack(alignment: .leading, spacing: 2) {
-                    
                     Text(item.name)
+                        .lineLimit(1)
                     
                     if let price = getLowestSellPrice(for: item) {
-                            Text("单价: " + formatPrice(price))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        Text("单价: " + formatPrice(price))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     } else {
                         Text("库存不足")
                             .font(.caption)
@@ -1047,22 +1048,23 @@ struct MarketQuickbarDetailView: View {
                     itemID: item.id
                 )
             } label: {
-                HStack {
+                HStack(spacing: 12) {
+                    Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                    
                     VStack(alignment: .leading, spacing: 2) {
-                        DatabaseListItemView(
-                            item: item,
-                            showDetails: false
-                        )
+                        Text(item.name)
+                            .lineLimit(1)
                         
                         if let price = getLowestSellPrice(for: item) {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("单价: " + formatPrice(price))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            Text("单价: " + formatPrice(price))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         } else {
                             Text("库存不足")
                                 .font(.caption)
