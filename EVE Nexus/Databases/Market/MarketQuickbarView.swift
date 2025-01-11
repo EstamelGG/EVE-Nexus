@@ -878,7 +878,7 @@ struct MarketQuickbarDetailView: View {
         marketOrders.removeAll()
         
         // 计算并发数
-        let concurrency = max(1, min(10, items.count / 10))
+        let concurrency = max(1, min(10, items.count))
         
         // 创建任务组
         await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
@@ -987,23 +987,23 @@ struct MarketQuickbarDetailView: View {
                 )
             } label: {
                 HStack {
-                    DatabaseListItemView(
-                        item: item,
-                        showDetails: false
-                    )
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing) {
-                        Text(getItemQuantity(for: item))
-                            .foregroundColor(.secondary)
+                    // 加载并显示图标
+                    Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.name)
+                        let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                         if let price = getLowestSellPrice(for: item) {
-                            Text(formatPrice(price))
+                            Text(formatPrice(price * Double(quantity)))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                     }
-                    .frame(width: 80)
+                    Spacer()
+                    Text(getItemQuantity(for: item))
+                        .foregroundColor(.secondary)
                 }
             }
         }
