@@ -691,27 +691,30 @@ struct MarketQuickbarDetailView: View {
             } else {
                 Section {
                     // 星域选择器
-                    Picker("", selection: $selectedRegion) {
-                        // 主要交易中心
-                        Text("Jita").tag("Jita")
-                        Text("Amarr").tag("Amarr")
-                        Text("Rens").tag("Rens")
-                        Text("Hek").tag("Hek")
-                        
-                        Divider()
-                        
-                        // 所有星域
-                        ForEach(regions, id: \.id) { region in
-                            Text(region.name).tag(region.name)
+                    HStack {
+                        Text("市场地点")
+                            .foregroundColor(.secondary)
+                        Picker("", selection: $selectedRegion) {
+                            // 主要交易中心
+                            Text("Jita").tag("Jita")
+                            Text("Amarr").tag("Amarr")
+                            Text("Rens").tag("Rens")
+                            Text("Hek").tag("Hek")
+                            
+                            Divider()
+                            
+                            // 所有星域
+                            ForEach(regions, id: \.id) { region in
+                                Text(region.name).tag(region.name)
+                            }
                         }
+                        .pickerStyle(.menu)
                     }
-                    .pickerStyle(.menu)
                     
                     // 第二行（暂时留空）
                     HStack {
                         Spacer()
                     }
-                    .frame(height: 44)
                 } header: {
                     Text("市场信息")
                         .fontWeight(.bold)
