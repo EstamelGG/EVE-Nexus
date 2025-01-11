@@ -779,9 +779,10 @@ struct MarketQuickbarDetailView: View {
                             ProgressView()
                                 .scaleEffect(0.7)
                         } else {
-                            let totalPrice = calculateTotalPrice()
-                            if totalPrice > 0 {
-                                Text("\(formatTotalPrice(totalPrice)) ISK")
+                            let priceInfo = calculateTotalPrice()
+                            if priceInfo.total > 0 {
+                                Text("\(formatTotalPrice(priceInfo.total)) ISK")
+                                    .foregroundColor(priceInfo.hasInsufficientStock ? .red : .primary)
                             } else {
                                 Text("计算中...")
                                     .foregroundColor(.secondary)
@@ -943,9 +944,9 @@ struct MarketQuickbarDetailView: View {
         }
     }
     
-    // 获取物品的最低卖价
-    private func getLowestSellPrice(for item: DatabaseListItem) -> Double? {
-        guard let orders = marketOrders[item.id] else { return nil }
+    // 获取物品的最低卖价和库存状态
+    private func getLowestSellPrice(for item: DatabaseListItem) -> (price: Double?, insufficientStock: Bool) {
+        guard let orders = marketOrders[item.id] else { return (nil, true) }
         let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
         
         // 过滤卖单并按价格排序
@@ -962,6 +963,7 @@ struct MarketQuickbarDetailView: View {
         
         var remainingQuantity = quantity
         var totalPrice: Double = 0
+        var availableQuantity: Int64 = 0
         
         // 从最低价开始累加，直到满足需求数量
         for order in sellOrders {
@@ -972,15 +974,18 @@ struct MarketQuickbarDetailView: View {
             let orderQuantity = min(remainingQuantity, Int64(order.volumeRemain))
             totalPrice += Double(orderQuantity) * order.price
             remainingQuantity -= orderQuantity
+            availableQuantity += orderQuantity
         }
         
-        // 如果没有足够的订单满足数量需求，返回 nil
-        if remainingQuantity > 0 {
-            return nil
+        // 如果没有足够的订单满足数量需求，但有部分订单
+        if remainingQuantity > 0 && availableQuantity > 0 {
+            return (totalPrice / Double(availableQuantity), true)
+        } else if remainingQuantity > 0 {
+            return (nil, true)
         }
         
-        // 返回平均单价
-        return totalPrice / Double(quantity)
+        // 返回平均单价和库存充足状态
+        return (totalPrice / Double(quantity), false)
     }
     
     // 格式化价格显示
@@ -1019,15 +1024,23 @@ struct MarketQuickbarDetailView: View {
                     Text(item.name)
                         .lineLimit(1)
                     
-                    if let price = getLowestSellPrice(for: item) {
+                    let priceInfo = getLowestSellPrice(for: item)
+                    if let price = priceInfo.price {
                         Text("单价: " + formatPrice(price))
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if priceInfo.insufficientStock {
+                                Text("(库存不足)")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                            }
+                        }
                     } else {
-                        Text("库存不足")
+                        Text("暂无订单")
                             .font(.caption)
                             .foregroundColor(.red)
                     }
@@ -1077,15 +1090,23 @@ struct MarketQuickbarDetailView: View {
                         Text(item.name)
                             .lineLimit(1)
                         
-                        if let price = getLowestSellPrice(for: item) {
+                        let priceInfo = getLowestSellPrice(for: item)
+                        if let price = priceInfo.price {
                             Text("单价: " + formatPrice(price))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            HStack(spacing: 4) {
+                                Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                if priceInfo.insufficientStock {
+                                    Text("(库存不足)")
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                }
+                            }
                         } else {
-                            Text("库存不足")
+                            Text("暂无订单")
                                 .font(.caption)
                                 .foregroundColor(.red)
                         }
@@ -1150,15 +1171,21 @@ struct MarketQuickbarDetailView: View {
         }
     }
     
-    // 计算所有物品的总价格
-    private func calculateTotalPrice() -> Double {
+    // 计算所有物品的总价格和库存状态
+    private func calculateTotalPrice() -> (total: Double, hasInsufficientStock: Bool) {
         var total: Double = 0
+        var hasInsufficientStock = false
+        
         for item in items {
-            if let price = getLowestSellPrice(for: item) {
+            let priceInfo = getLowestSellPrice(for: item)
+            if let price = priceInfo.price {
                 let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                 total += price * Double(quantity)
             }
+            if priceInfo.insufficientStock {
+                hasInsufficientStock = true
+            }
         }
-        return total
+        return (total, hasInsufficientStock)
     }
 }
