@@ -882,34 +882,48 @@ struct MarketQuickbarDetailView: View {
         
         // 创建任务组
         await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
-            // 限制并发数
-            let semaphore = DispatchSemaphore(value: concurrency)
+            var pendingItems = items
             
-            // 添加所有加载任务
-            for item in items {
-                group.addTask {
-                    // 等待信号量
-                    semaphore.wait()
-                    defer { semaphore.signal() }
-                    
-                    do {
-                        let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
-                            typeID: item.id,
-                            regionID: currentRegionID,
-                            forceRefresh: false
-                        )
-                        return (item.id, orders)
-                    } catch {
-                        Logger.error("加载市场订单失败: \(error)")
-                        return nil
+            // 初始添加并发数量的任务
+            for _ in 0..<concurrency {
+                if let item = pendingItems.popLast() {
+                    group.addTask {
+                        do {
+                            let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                                typeID: item.id,
+                                regionID: currentRegionID,
+                                forceRefresh: false
+                            )
+                            return (item.id, orders)
+                        } catch {
+                            Logger.error("加载市场订单失败: \(error)")
+                            return nil
+                        }
                     }
                 }
             }
             
-            // 收集结果
-            for await result in group {
+            // 处理结果并添加新任务
+            while let result = await group.next() {
                 if let (typeID, orders) = result {
                     marketOrders[typeID] = orders
+                }
+                
+                // 如果还有待处理的物品，添加新任务
+                if let item = pendingItems.popLast() {
+                    group.addTask {
+                        do {
+                            let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                                typeID: item.id,
+                                regionID: currentRegionID,
+                                forceRefresh: false
+                            )
+                            return (item.id, orders)
+                        } catch {
+                            Logger.error("加载市场订单失败: \(error)")
+                            return nil
+                        }
+                    }
                 }
             }
         }
@@ -918,7 +932,19 @@ struct MarketQuickbarDetailView: View {
     // 获取物品的最低卖价
     private func getLowestSellPrice(for item: DatabaseListItem) -> Double? {
         guard let orders = marketOrders[item.id] else { return nil }
-        return orders.filter { !$0.isBuyOrder }.map { $0.price }.min()
+        
+        // 过滤卖单
+        let sellOrders = orders.filter { !$0.isBuyOrder }
+        
+        // 如果是特殊市场（Jita, Amarr, Rens, Hek），则只取对应星系的订单
+        if quickbar.marketLocation.hasPrefix("system_id:") {
+            let systemID = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
+            let filteredOrders = sellOrders.filter { $0.systemId == systemID }
+            return filteredOrders.map { $0.price }.min()
+        }
+        
+        // 如果是普通星域，则取所有卖单中最低价
+        return sellOrders.map { $0.price }.min()
     }
     
     // 格式化价格显示
