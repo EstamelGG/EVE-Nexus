@@ -110,6 +110,8 @@ struct MarketItemSelectorBaseView<Content: View>: View {
     let searchParameters: (String) -> [Any]
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: () -> Void
     
     @State private var items: [DatabaseListItem] = []
     @State private var marketGroupNames: [Int: String] = [:]
@@ -166,7 +168,9 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                     ) {
                         ForEach(group.items) { item in
                             Button {
-                                if !existingItems.contains(item.id) {
+                                if existingItems.contains(item.id) {
+                                    onItemDeselected(item)
+                                } else {
                                     onItemSelected(item)
                                 }
                             } label: {
@@ -182,8 +186,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                                         .foregroundColor(existingItems.contains(item.id) ? .accentColor : .secondary)
                                 }
                             }
-                            .disabled(existingItems.contains(item.id))
-                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
+                            .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
@@ -236,6 +239,13 @@ struct MarketItemSelectorBaseView<Content: View>: View {
             }
         }
         .navigationTitle(title)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                    onDismiss()
+                }
+            }
+        }
         .onAppear {
             setupSearch()
         }
@@ -270,6 +280,7 @@ struct MarketItemSelectorView: View {
     @State private var marketGroups: [MarketGroup] = []
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -284,7 +295,9 @@ struct MarketItemSelectorView: View {
                             allGroups: marketGroups,
                             databaseManager: databaseManager,
                             existingItems: existingItems,
-                            onItemSelected: onItemSelected
+                            onItemSelected: onItemSelected,
+                            onItemDeselected: onItemDeselected,
+                            onDismiss: { dismiss() }
                         )
                     }
                 },
@@ -295,19 +308,14 @@ struct MarketItemSelectorView: View {
                     ["%\(text)%", "%\(text)%", "\(text)"]
                 },
                 existingItems: existingItems,
-                onItemSelected: onItemSelected
+                onItemSelected: onItemSelected,
+                onItemDeselected: onItemDeselected,
+                onDismiss: { dismiss() }
             )
             .onAppear {
                 marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
             }
             .interactiveDismissDisabled()
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
-                        dismiss()
-                    }
-                }
-            }
         }
     }
 }
@@ -319,6 +327,8 @@ struct MarketItemSelectorGroupView: View {
     let allGroups: [MarketGroup]
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: () -> Void
     
     var body: some View {
         MarketItemSelectorBaseView(
@@ -331,7 +341,9 @@ struct MarketItemSelectorGroupView: View {
                         allGroups: allGroups,
                         databaseManager: databaseManager,
                         existingItems: existingItems,
-                        onItemSelected: onItemSelected
+                        onItemSelected: onItemSelected,
+                        onItemDeselected: onItemDeselected,
+                        onDismiss: onDismiss
                     )
                 }
             },
@@ -344,7 +356,9 @@ struct MarketItemSelectorGroupView: View {
                 ["%\(text)%", "%\(text)%"]
             },
             existingItems: existingItems,
-            onItemSelected: onItemSelected
+            onItemSelected: onItemSelected,
+            onItemDeselected: onItemDeselected,
+            onDismiss: onDismiss
         )
     }
 }
@@ -356,6 +370,8 @@ struct MarketItemSelectorGroupRow: View {
     let databaseManager: DatabaseManager
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: () -> Void
     
     var body: some View {
         if MarketManager.shared.isLeafGroup(group, in: allGroups) {
@@ -366,7 +382,9 @@ struct MarketItemSelectorGroupRow: View {
                     marketGroupID: group.id,
                     title: group.name,
                     existingItems: existingItems,
-                    onItemSelected: onItemSelected
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: onDismiss
                 )
             } label: {
                 MarketGroupLabel(group: group)
@@ -379,7 +397,9 @@ struct MarketItemSelectorGroupRow: View {
                     group: group,
                     allGroups: allGroups,
                     existingItems: existingItems,
-                    onItemSelected: onItemSelected
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: onDismiss
                 )
             } label: {
                 MarketGroupLabel(group: group)
@@ -395,6 +415,8 @@ struct MarketItemSelectorItemListView: View {
     let title: String
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: () -> Void
     
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
@@ -450,7 +472,9 @@ struct MarketItemSelectorItemListView: View {
                     ) {
                         ForEach(group.items) { item in
                             Button {
-                                if !existingItems.contains(item.id) {
+                                if existingItems.contains(item.id) {
+                                    onItemDeselected(item)
+                                } else {
                                     onItemSelected(item)
                                 }
                             } label: {
@@ -466,8 +490,7 @@ struct MarketItemSelectorItemListView: View {
                                         .foregroundColor(existingItems.contains(item.id) ? .accentColor : .secondary)
                                 }
                             }
-                            .disabled(existingItems.contains(item.id))
-                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
+                            .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
@@ -480,7 +503,9 @@ struct MarketItemSelectorItemListView: View {
                 [marketGroupID, "%\(text)%", "%\(text)%"]
             },
             existingItems: existingItems,
-            onItemSelected: onItemSelected
+            onItemSelected: onItemSelected,
+            onItemDeselected: onItemDeselected,
+            onDismiss: onDismiss
         )
         .onAppear {
             loadItems()
@@ -677,6 +702,15 @@ struct MarketQuickbarDetailView: View {
                     if !quickbar.items.contains(item.id) {
                         quickbar.items.append(item.id)
                         items.append(item)
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    }
+                },
+                onItemDeselected: { item in
+                    if let index = quickbar.items.firstIndex(of: item.id) {
+                        quickbar.items.remove(at: index)
+                        if let itemIndex = items.firstIndex(where: { $0.id == item.id }) {
+                            items.remove(at: itemIndex)
+                        }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 }
