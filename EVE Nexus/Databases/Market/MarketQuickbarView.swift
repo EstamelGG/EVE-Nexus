@@ -101,6 +101,386 @@ class MarketQuickbarManager {
     }
 }
 
+// 市场物品选择器基础视图
+struct MarketItemSelectorBaseView<Content: View>: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    let title: String
+    let content: () -> Content
+    let searchQuery: (String) -> String
+    let searchParameters: (String) -> [Any]
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    
+    @State private var items: [DatabaseListItem] = []
+    @State private var marketGroupNames: [Int: String] = [:]
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var isLoading = false
+    @State private var isShowingSearchResults = false
+    @StateObject private var searchController = SearchController()
+    
+    // 搜索结果分组
+    var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
+        guard !items.isEmpty else { return [] }
+        
+        // 按物品组分类
+        var groupItems: [Int: (name: String, items: [DatabaseListItem])] = [:]
+        var ungroupedItems: [DatabaseListItem] = []
+        
+        for item in items {
+            if let groupID = item.groupID, let groupName = item.groupName {
+                if groupItems[groupID] == nil {
+                    groupItems[groupID] = (name: groupName, items: [])
+                }
+                groupItems[groupID]?.items.append(item)
+            } else {
+                ungroupedItems.append(item)
+            }
+        }
+        
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+        
+        // 添加有物品组的物品
+        for (groupID, group) in groupItems.sorted(by: { $0.value.name < $1.value.name }) {
+            result.append((id: groupID, name: group.name, items: group.items))
+        }
+        
+        // 添加未分组的物品
+        if !ungroupedItems.isEmpty {
+            result.append((id: -1, name: "No group", items: ungroupedItems))
+        }
+        
+        return result
+    }
+    
+    var body: some View {
+        List {
+            if isShowingSearchResults {
+                // 搜索结果视图，按市场组分类显示
+                ForEach(groupedSearchResults, id: \.id) { group in
+                    Section(header: Text(group.name)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.items) { item in
+                            DatabaseListItemView(
+                                item: item,
+                                showDetails: true
+                            )
+                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
+                            .onTapGesture {
+                                if !existingItems.contains(item.id) {
+                                    onItemSelected(item)
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                    }
+                }
+            } else {
+                content()
+            }
+        }
+        .searchable(
+            text: $searchText,
+            isPresented: $isSearchActive,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+        )
+        .onChange(of: searchText) { _, newValue in
+            if newValue.isEmpty {
+                isShowingSearchResults = false
+                isLoading = false
+                items = []
+            } else {
+                isLoading = true
+                items = []
+                if newValue.count >= 1 {
+                    searchController.processSearchInput(newValue)
+                }
+            }
+        }
+        .overlay {
+            if isLoading {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
+                    .overlay {
+                        VStack {
+                            ProgressView()
+                            Text(NSLocalizedString("Main_Database_Searching", comment: ""))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 8)
+                        }
+                    }
+            } else if items.isEmpty && !searchText.isEmpty {
+                ContentUnavailableView {
+                    Label("Not found", systemImage: "magnifyingglass")
+                }
+            } else if searchText.isEmpty && isSearchActive {
+                Color.black.opacity(0.2)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        isSearchActive = false
+                    }
+            }
+        }
+        .navigationTitle(title)
+        .onAppear {
+            setupSearch()
+        }
+    }
+    
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { query in
+                guard !searchText.isEmpty else { return }
+                performSearch(with: query)
+            }
+            .store(in: &searchController.cancellables)
+    }
+    
+    private func performSearch(with text: String) {
+        isLoading = true
+        
+        let whereClause = searchQuery(text)
+        let parameters = searchParameters(text)
+        
+        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
+        isShowingSearchResults = true
+        
+        isLoading = false
+    }
+}
+
+// 市场物品选择器视图
+struct MarketItemSelectorView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    @State private var marketGroups: [MarketGroup] = []
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            MarketItemSelectorBaseView(
+                databaseManager: databaseManager,
+                title: NSLocalizedString("Main_Market_Watch_List_Add_Item", comment: ""),
+                content: {
+                    ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
+                        MarketItemSelectorGroupRow(
+                            group: group,
+                            allGroups: marketGroups,
+                            databaseManager: databaseManager,
+                            existingItems: existingItems,
+                            onItemSelected: onItemSelected
+                        )
+                    }
+                },
+                searchQuery: { _ in
+                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                },
+                searchParameters: { text in
+                    ["%\(text)%", "%\(text)%", "\(text)"]
+                },
+                existingItems: existingItems,
+                onItemSelected: onItemSelected
+            )
+            .onAppear {
+                marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+            }
+            .interactiveDismissDisabled()
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 市场物品选择器组视图
+struct MarketItemSelectorGroupView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    let group: MarketGroup
+    let allGroups: [MarketGroup]
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    
+    var body: some View {
+        MarketItemSelectorBaseView(
+            databaseManager: databaseManager,
+            title: group.name,
+            content: {
+                ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
+                    MarketItemSelectorGroupRow(
+                        group: subGroup,
+                        allGroups: allGroups,
+                        databaseManager: databaseManager,
+                        existingItems: existingItems,
+                        onItemSelected: onItemSelected
+                    )
+                }
+            },
+            searchQuery: { _ in
+                let groupIDs = MarketManager.shared.getAllSubGroupIDs(allGroups, startingFrom: group.id)
+                let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
+                return "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+            },
+            searchParameters: { text in
+                ["%\(text)%", "%\(text)%"]
+            },
+            existingItems: existingItems,
+            onItemSelected: onItemSelected
+        )
+    }
+}
+
+// 市场物品选择器组行视图
+struct MarketItemSelectorGroupRow: View {
+    let group: MarketGroup
+    let allGroups: [MarketGroup]
+    let databaseManager: DatabaseManager
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    
+    var body: some View {
+        if MarketManager.shared.isLeafGroup(group, in: allGroups) {
+            // 最后一级目录，显示物品列表
+            NavigationLink {
+                MarketItemSelectorItemListView(
+                    databaseManager: databaseManager,
+                    marketGroupID: group.id,
+                    title: group.name,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected
+                )
+            } label: {
+                MarketGroupLabel(group: group)
+            }
+        } else {
+            // 非最后一级目录，显示子目录
+            NavigationLink {
+                MarketItemSelectorGroupView(
+                    databaseManager: databaseManager,
+                    group: group,
+                    allGroups: allGroups,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected
+                )
+            } label: {
+                MarketGroupLabel(group: group)
+            }
+        }
+    }
+}
+
+// 市场物品选择器物品列表视图
+struct MarketItemSelectorItemListView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    let marketGroupID: Int
+    let title: String
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    
+    @State private var items: [DatabaseListItem] = []
+    @State private var metaGroupNames: [Int: String] = [:]
+    
+    var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
+        let publishedItems = items.filter { $0.published }
+        let unpublishedItems = items.filter { !$0.published }
+        
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+        
+        // 按科技等级分组
+        var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
+        for item in publishedItems {
+            let techLevel = item.metaGroupID
+            if techLevelGroups[techLevel] == nil {
+                techLevelGroups[techLevel] = []
+            }
+            techLevelGroups[techLevel]?.append(item)
+        }
+        
+        // 添加已发布物品组
+        for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
+            if let techLevel = techLevel {
+                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                result.append((id: techLevel, name: name, items: items))
+            }
+        }
+        
+        // 添加未分组的物品
+        if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
+            result.append((id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"), items: ungroupedItems))
+        }
+        
+        // 添加未发布物品组
+        if !unpublishedItems.isEmpty {
+            result.append((id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"), items: unpublishedItems))
+        }
+        
+        return result
+    }
+    
+    var body: some View {
+        MarketItemSelectorBaseView(
+            databaseManager: databaseManager,
+            title: title,
+            content: {
+                ForEach(groupedItems, id: \.id) { group in
+                    Section(header: Text(group.name)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                    ) {
+                        ForEach(group.items) { item in
+                            DatabaseListItemView(
+                                item: item,
+                                showDetails: true
+                            )
+                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
+                            .onTapGesture {
+                                if !existingItems.contains(item.id) {
+                                    onItemSelected(item)
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                    }
+                }
+            },
+            searchQuery: { _ in
+                "t.marketGroupID = ? AND (t.name LIKE ? OR t.en_name LIKE ?)"
+            },
+            searchParameters: { text in
+                [marketGroupID, "%\(text)%", "%\(text)%"]
+            },
+            existingItems: existingItems,
+            onItemSelected: onItemSelected
+        )
+        .onAppear {
+            loadItems()
+        }
+    }
+    
+    private func loadItems() {
+        items = databaseManager.loadMarketItems(
+            whereClause: "t.marketGroupID = ?",
+            parameters: [marketGroupID]
+        )
+        
+        // 加载科技等级名称
+        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+        metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
+    }
+}
+
 // 市场关注列表主视图
 struct MarketQuickbarView: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -238,6 +618,8 @@ struct MarketQuickbarView: View {
 struct MarketQuickbarDetailView: View {
     let databaseManager: DatabaseManager
     @State var quickbar: MarketQuickbar
+    @State private var isShowingItemSelector = false
+    @State private var items: [DatabaseListItem] = []
     
     var body: some View {
         List {
@@ -245,11 +627,16 @@ struct MarketQuickbarDetailView: View {
                 Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                     .foregroundColor(.secondary)
             } else {
-                ForEach(quickbar.items, id: \.self) { typeID in
-                    Text("\(typeID)")  // 临时显示 typeID，后续会改为显示物品名称和图标
+                ForEach(items, id: \.id) { item in
+                    DatabaseListItemView(
+                        item: item,
+                        showDetails: true
+                    )
                 }
                 .onDelete { indexSet in
-                    quickbar.items.remove(atOffsets: indexSet)
+                    let itemsToDelete = indexSet.map { items[$0].id }
+                    quickbar.items.removeAll { itemsToDelete.contains($0) }
+                    items.remove(atOffsets: indexSet)
                     MarketQuickbarManager.shared.saveQuickbar(quickbar)
                 }
             }
@@ -258,11 +645,37 @@ struct MarketQuickbarDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    // TODO: 添加物品的功能
+                    isShowingItemSelector = true
                 } label: {
                     Image(systemName: "plus")
                 }
             }
+        }
+        .sheet(isPresented: $isShowingItemSelector) {
+            MarketItemSelectorView(
+                databaseManager: databaseManager,
+                existingItems: Set(quickbar.items),
+                onItemSelected: { item in
+                    if !quickbar.items.contains(item.id) {
+                        quickbar.items.append(item.id)
+                        items.append(item)
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    }
+                }
+            )
+        }
+        .task {
+            loadItems()
+        }
+    }
+    
+    private func loadItems() {
+        if !quickbar.items.isEmpty {
+            let itemIDs = quickbar.items.map { String($0) }.joined(separator: ",")
+            items = databaseManager.loadMarketItems(
+                whereClause: "t.type_id IN (\(itemIDs))",
+                parameters: []
+            )
         }
     }
 } 
