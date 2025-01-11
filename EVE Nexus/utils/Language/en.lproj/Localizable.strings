@@ -778,3 +778,24 @@
 "Creator" = "Creator";
 "Unknown" = "Unknown";
 "Executor" = "Executor";
+
+// Market Watch List
+"Main_Market_Watch_List" = "Market Watch List";
+"Main_Market_Watch_List_Empty" = "No items in watch list";
+"Main_Market_Watch_List_Add" = "Add Watch List";
+"Main_Market_Watch_List_Name" = "Watch List Name";
+"Main_Market_Watch_List_Items" = "%d items";
+"Main_Market_Watch_List_Add_Item" = "Add Item";
+
+// Market Location
+"Main_Market_Location" = "Market Location";
+"Main_Market_Order_Type" = "Order Type";
+"Main_Market_Price" = "Market Price";
+"Main_Market_Item_List" = "Item List";
+"Main_Market_Edit_Quantity" = "Edit Quantity";
+"Main_Market_Done_Edit" = "Done";
+"Main_Market_No_Orders" = "No orders";
+"Main_Market_Insufficient_Stock" = "(Insufficient stock)";
+"Main_Market_Avg_Price" = "Avg price: ";
+"Main_Market_Total_Price" = "Total price: ";
+"Main_Market_Calculating" = "Calculating..."; 

@@ -750,7 +750,7 @@ struct MarketQuickbarDetailView: View {
                 Section {
                     // 星域选择器
                     HStack {
-                        Text("市场地点")
+                        Text(NSLocalizedString("Main_Market_Location", comment: ""))
                         Picker("", selection: $selectedRegion) {
                             // 主要交易中心
                             Text("Jita").tag("Jita")
@@ -781,9 +781,9 @@ struct MarketQuickbarDetailView: View {
                         }
                     }
 
-                    // 新增：订单类型选择器
+                    // 订单类型选择器
                     HStack {
-                        Text("订单类型")
+                        Text(NSLocalizedString("Main_Market_Order_Type", comment: ""))
                         Picker("", selection: $orderType) {
                             ForEach(OrderType.allCases, id: \.self) { type in
                                 Text(type.rawValue).tag(type)
@@ -797,7 +797,7 @@ struct MarketQuickbarDetailView: View {
                     
                     // 价格显示行
                     HStack {
-                        Text("市场价格")
+                        Text(NSLocalizedString("Main_Market_Price", comment: ""))
                         Spacer()
                         if isLoadingOrders {
                             ProgressView()
@@ -808,13 +808,13 @@ struct MarketQuickbarDetailView: View {
                                 Text("\(formatTotalPrice(priceInfo.total)) ISK")
                                     .foregroundColor(priceInfo.hasInsufficientStock ? .red : .primary)
                             } else {
-                                Text("计算中...")
+                                Text(NSLocalizedString("Main_Market_Calculating", comment: ""))
                                     .foregroundColor(.secondary)
                             }
                         }
                     }
                 } header: {
-                    Text("市场信息")
+                    Text(NSLocalizedString("Main_Market_Item_List", comment: ""))
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
@@ -838,13 +838,13 @@ struct MarketQuickbarDetailView: View {
                     }
                 } header: {
                     HStack {
-                        Text("物品列表")
+                        Text(NSLocalizedString("Main_Market_Item_List", comment: ""))
                             .fontWeight(.bold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)
                         Spacer()
-                        Button(isEditingQuantity ? "完成" : "编辑数量") {
+                        Button(isEditingQuantity ? NSLocalizedString("Main_Market_Done_Edit", comment: "") : NSLocalizedString("Main_Market_Edit_Quantity", comment: "")) {
                             withAnimation {
                                 isEditingQuantity.toggle()
                             }
@@ -1050,21 +1050,21 @@ struct MarketQuickbarDetailView: View {
                     
                     let priceInfo = getLowestSellPrice(for: item)
                     if let price = priceInfo.price {
-                        Text("单价: " + formatPrice(price))
+                        Text(NSLocalizedString("Main_Market_Avg_Price", comment: "") + formatPrice(price))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         HStack(spacing: 4) {
-                            Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
+                            Text(NSLocalizedString("Main_Market_Total_Price", comment: "") + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             if priceInfo.insufficientStock {
-                                Text("(库存不足)")
+                                Text(NSLocalizedString("Main_Market_Insufficient_Stock", comment: ""))
                                     .font(.caption)
                                     .foregroundColor(.red)
                             }
                         }
                     } else {
-                        Text("暂无订单")
+                        Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
                             .font(.caption)
                             .foregroundColor(.red)
                     }
@@ -1116,21 +1116,21 @@ struct MarketQuickbarDetailView: View {
                         
                         let priceInfo = getLowestSellPrice(for: item)
                         if let price = priceInfo.price {
-                            Text("单价: " + formatPrice(price))
+                            Text(NSLocalizedString("Main_Market_Avg_Price", comment: "") + formatPrice(price))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                             HStack(spacing: 4) {
-                                Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
+                                Text(NSLocalizedString("Main_Market_Total_Price", comment: "") + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 if priceInfo.insufficientStock {
-                                    Text("(库存不足)")
+                                    Text(NSLocalizedString("Main_Market_Insufficient_Stock", comment: ""))
                                         .font(.caption)
                                         .foregroundColor(.red)
                                 }
                             }
                         } else {
-                            Text("暂无订单")
+                            Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.red)
                         }

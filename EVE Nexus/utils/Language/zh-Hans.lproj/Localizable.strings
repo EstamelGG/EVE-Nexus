@@ -792,3 +792,24 @@
 "Main_Market_Watch_List_Name" = "列表名称";
 "Main_Market_Watch_List_Add_Item" = "添加物品";
 "Main_Market_Watch_List_Items" = "%d 个物品";
+
+// Market Watch List
+"Main_Market_Watch_List" = "市场关注列表";
+"Main_Market_Watch_List_Empty" = "暂无关注物品";
+"Main_Market_Watch_List_Add" = "添加关注列表";
+"Main_Market_Watch_List_Name" = "关注列表名称";
+"Main_Market_Watch_List_Items" = "%d个物品";
+"Main_Market_Watch_List_Add_Item" = "添加物品";
+
+// Market Location
+"Main_Market_Location" = "市场地点";
+"Main_Market_Order_Type" = "订单类型";
+"Main_Market_Price" = "市场价格";
+"Main_Market_Item_List" = "物品列表";
+"Main_Market_Edit_Quantity" = "编辑数量";
+"Main_Market_Done_Edit" = "完成";
+"Main_Market_No_Orders" = "暂无订单";
+"Main_Market_Insufficient_Stock" = "(库存不足)";
+"Main_Market_Avg_Price" = "均价: ";
+"Main_Market_Total_Price" = "总价: ";
+"Main_Market_Calculating" = "计算中..."; 
