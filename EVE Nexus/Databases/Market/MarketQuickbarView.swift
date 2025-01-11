@@ -675,10 +675,17 @@ struct MarketQuickbarDetailView: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(sortedItems, id: \.id) { item in
-                    DatabaseListItemView(
-                        item: item,
-                        showDetails: false
-                    )
+                    NavigationLink {
+                        MarketItemDetailView(
+                            databaseManager: databaseManager,
+                            itemID: item.id
+                        )
+                    } label: {
+                        DatabaseListItemView(
+                            item: item,
+                            showDetails: false
+                        )
+                    }
                 }
                 .onDelete { indexSet in
                     let itemsToDelete = indexSet.map { sortedItems[$0].id }
