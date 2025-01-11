@@ -741,7 +741,6 @@ struct MarketQuickbarDetailView: View {
                     // 星域选择器
                     HStack {
                         Text("市场地点")
-                            .foregroundColor(.secondary)
                         Picker("", selection: $selectedRegion) {
                             // 主要交易中心
                             Text("Jita").tag("Jita")
@@ -775,7 +774,6 @@ struct MarketQuickbarDetailView: View {
                     // 第二行（暂时留空）
                     HStack {
                         Text("市场价格")
-                            .foregroundColor(.secondary)
                         Spacer()
                         if isLoadingOrders {
                             ProgressView()
@@ -783,8 +781,7 @@ struct MarketQuickbarDetailView: View {
                         } else {
                             let totalPrice = calculateTotalPrice()
                             if totalPrice > 0 {
-                                Text(formatTotalPrice(totalPrice))
-                                    .foregroundColor(.primary)
+                                Text("\(formatTotalPrice(totalPrice)) ISK")
                             } else {
                                 Text("计算中...")
                                     .foregroundColor(.secondary)
