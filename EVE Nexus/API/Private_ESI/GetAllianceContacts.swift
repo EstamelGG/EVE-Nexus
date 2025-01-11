@@ -9,7 +9,14 @@ class GetAllianceContacts {
     // 获取缓存文件路径
     private func getCacheFilePath(allianceId: Int) -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        return paths[0].appendingPathComponent("\(allianceId)_contacts.json")
+        let contactsCacheDir = paths[0].appendingPathComponent("ContactsCache", isDirectory: true)
+        
+        // 确保目录存在
+        if !FileManager.default.fileExists(atPath: contactsCacheDir.path) {
+            try? FileManager.default.createDirectory(at: contactsCacheDir, withIntermediateDirectories: true)
+        }
+        
+        return contactsCacheDir.appendingPathComponent("\(allianceId)_contacts.json")
     }
     
     // 从缓存加载数据
