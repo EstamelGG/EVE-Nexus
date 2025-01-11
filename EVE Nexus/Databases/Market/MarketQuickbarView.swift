@@ -700,6 +700,10 @@ struct MarketQuickbarDetailView: View {
                 } header: {
                     HStack {
                         Text("物品列表")
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
                         Spacer()
                         Button(isEditingQuantity ? "完成" : "编辑数量") {
                             withAnimation {
