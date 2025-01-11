@@ -165,16 +165,25 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                         .textCase(.none)
                     ) {
                         ForEach(group.items) { item in
-                            DatabaseListItemView(
-                                item: item,
-                                showDetails: true
-                            )
-                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
-                            .onTapGesture {
+                            Button {
                                 if !existingItems.contains(item.id) {
                                     onItemSelected(item)
                                 }
+                            } label: {
+                                HStack {
+                                    DatabaseListItemView(
+                                        item: item,
+                                        showDetails: true
+                                    )
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: existingItems.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(existingItems.contains(item.id) ? .accentColor : .secondary)
+                                }
                             }
+                            .disabled(existingItems.contains(item.id))
+                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
@@ -440,16 +449,25 @@ struct MarketItemSelectorItemListView: View {
                         .textCase(.none)
                     ) {
                         ForEach(group.items) { item in
-                            DatabaseListItemView(
-                                item: item,
-                                showDetails: true
-                            )
-                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
-                            .onTapGesture {
+                            Button {
                                 if !existingItems.contains(item.id) {
                                     onItemSelected(item)
                                 }
+                            } label: {
+                                HStack {
+                                    DatabaseListItemView(
+                                        item: item,
+                                        showDetails: true
+                                    )
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: existingItems.contains(item.id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(existingItems.contains(item.id) ? .accentColor : .secondary)
+                                }
                             }
+                            .disabled(existingItems.contains(item.id))
+                            .foregroundColor(existingItems.contains(item.id) ? .gray : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
                     }
