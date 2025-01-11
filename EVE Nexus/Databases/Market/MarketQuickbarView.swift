@@ -991,12 +991,54 @@ struct MarketQuickbarDetailView: View {
     private func itemRow(_ item: DatabaseListItem) -> some View {
         if isEditingQuantity {
             HStack {
-                DatabaseListItemView(
-                    item: item,
-                    showDetails: false
-                )
+                Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                VStack(alignment: .leading, spacing: 2) {
+                    
+                    Text(item.name)
+                    
+                    if let price = getLowestSellPrice(for: item) {
+                            Text("单价: " + formatPrice(price))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("总价: " + formatPrice(price * Double(itemQuantities[item.id] ?? 1)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                    } else {
+                        Text("库存不足")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+                
                 Spacer()
-                quantityEditor(for: item)
+                
+                TextField("", text: Binding(
+                    get: { String(itemQuantities[item.id] ?? 1) },
+                    set: { newValue in
+                        if let quantity = Int64(newValue) {
+                            let validValue = max(1, min(999999999, quantity))
+                            itemQuantities[item.id] = validValue
+                            if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
+                                quickbar.items[index].quantity = validValue
+                                MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                            }
+                        } else {
+                            itemQuantities[item.id] = 1
+                            if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
+                                quickbar.items[index].quantity = 1
+                                MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                            }
+                        }
+                    }
+                ))
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.leading)
+                .frame(width: 80)
+                .background(Color(uiColor: .secondarySystemBackground))
+                .cornerRadius(8)
             }
         } else {
             NavigationLink {
@@ -1006,20 +1048,18 @@ struct MarketQuickbarDetailView: View {
                 )
             } label: {
                 HStack {
-                    // 加载并显示图标
-                    Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.name)
-                        let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+                        DatabaseListItemView(
+                            item: item,
+                            showDetails: false
+                        )
+                        
                         if let price = getLowestSellPrice(for: item) {
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("单价: " + formatPrice(price))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text("总价: " + formatPrice(price * Double(quantity)))
+                                Text("总价: " + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -1029,46 +1069,14 @@ struct MarketQuickbarDetailView: View {
                                 .foregroundColor(.red)
                         }
                     }
+                    
                     Spacer()
+                    
                     Text(getItemQuantity(for: item))
                         .foregroundColor(.secondary)
                 }
             }
         }
-    }
-    
-    private func quantityEditor(for item: DatabaseListItem) -> some View {
-        let quantityString = Binding<String>(
-            get: {
-                let value = itemQuantities[item.id] ?? 1
-                return "\(value)"
-            },
-            set: { newValue in
-                if newValue.isEmpty {
-                    itemQuantities[item.id] = 1
-                    if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
-                        quickbar.items[index].quantity = 1
-                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                    }
-                } else if let value = Int64(newValue) {
-                    let validValue = max(1, min(value, 999_999_999))
-                    itemQuantities[item.id] = validValue
-                    if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
-                        quickbar.items[index].quantity = validValue
-                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                    }
-                }
-            }
-        )
-        
-        return TextField("", text: quantityString)
-            .keyboardType(.numberPad)
-            .multilineTextAlignment(.leading)
-            .frame(width: 60)
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .background(Color(uiColor: .secondarySystemBackground))
-            .cornerRadius(8)
     }
     
     private func getItemQuantity(for item: DatabaseListItem) -> String {
