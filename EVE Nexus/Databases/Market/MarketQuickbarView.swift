@@ -782,7 +782,7 @@ struct MarketQuickbarDetailView: View {
                     Spacer()
                     Text(getItemQuantity(for: item))
                         .foregroundColor(.secondary)
-                        .frame(minWidth: 80)
+                        .frame(width: 60, alignment: .trailing)
                 }
             }
         }
@@ -811,7 +811,7 @@ struct MarketQuickbarDetailView: View {
         
         return TextField("", value: quantity, formatter: formatter)
             .keyboardType(.numberPad)
-            .multilineTextAlignment(.trailing)
+            .multilineTextAlignment(.leading)
             .frame(width: 60)
             .padding(.vertical, 6)
             .padding(.horizontal, 8)
