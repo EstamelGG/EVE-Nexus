@@ -7,12 +7,14 @@ struct MarketQuickbar: Identifiable, Codable {
     var name: String
     var items: [QuickbarItem]  // 存储物品的 typeID 和数量
     var lastUpdated: Date
+    var marketLocation: String  // 存储市场位置，格式为 "system_id:xxx" 或 "region_id:xxx"
     
-    init(id: UUID = UUID(), name: String, items: [QuickbarItem] = []) {
+    init(id: UUID = UUID(), name: String, items: [QuickbarItem] = [], marketLocation: String = "system_id:30000142") {
         self.id = id
         self.name = name
         self.items = items
         self.lastUpdated = Date()
+        self.marketLocation = marketLocation
     }
 }
 
@@ -679,8 +681,34 @@ struct MarketQuickbarDetailView: View {
     @State private var selectedRegion: String = "Jita"  // 默认选择 Jita
     @State private var regions: [(id: Int, name: String)] = []  // 存储星域列表
     
+    // 特殊市场地点的系统ID映射
+    private let specialMarkets = [
+        "Jita": "system_id:30000142",
+        "Amarr": "system_id:30002187",
+        "Rens": "system_id:30002510",
+        "Hek": "system_id:30002053"
+    ]
+    
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
+    }
+    
+    // 根据存储的市场位置获取显示名称
+    private var initialMarketLocation: String {
+        if quickbar.marketLocation.hasPrefix("system_id:") {
+            let systemId = String(quickbar.marketLocation.dropFirst(10))
+            switch systemId {
+            case "30000142": return "Jita"
+            case "30002187": return "Amarr"
+            case "30002510": return "Rens"
+            case "30002053": return "Hek"
+            default: return "Jita"
+            }
+        } else if quickbar.marketLocation.hasPrefix("region_id:") {
+            let regionId = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
+            return regions.first(where: { $0.id == regionId })?.name ?? "Jita"
+        }
+        return "Jita"
     }
     
     var body: some View {
@@ -709,6 +737,16 @@ struct MarketQuickbarDetailView: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .onChange(of: selectedRegion) { _, newValue in
+                            // 更新市场位置
+                            if let specialLocation = specialMarkets[newValue] {
+                                quickbar.marketLocation = specialLocation
+                            } else if let region = regions.first(where: { $0.name == newValue }) {
+                                quickbar.marketLocation = "region_id:\(region.id)"
+                            }
+                            // 保存更改
+                            MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                        }
                     }
                     
                     // 第二行（暂时留空）
@@ -794,6 +832,8 @@ struct MarketQuickbarDetailView: View {
         .task {
             loadItems()
             loadRegions()
+            // 设置初始选中的市场位置
+            selectedRegion = initialMarketLocation
         }
     }
     
