@@ -689,8 +689,12 @@ struct MarketQuickbarDetailView: View {
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
-        case buy = "买单"
-        case sell = "卖单"
+        case buy = "Main_Market_Order_Buy"
+        case sell = "Main_Market_Order_Sell"
+        
+        var localizedName: String {
+            NSLocalizedString(self.rawValue, comment: "")
+        }
     }
 
     // 特殊市场地点的系统ID和星域ID映射
@@ -786,7 +790,7 @@ struct MarketQuickbarDetailView: View {
                         Text(NSLocalizedString("Main_Market_Order_Type", comment: ""))
                         Picker("", selection: $orderType) {
                             ForEach(OrderType.allCases, id: \.self) { type in
-                                Text(type.rawValue).tag(type)
+                                Text(type.localizedName).tag(type)
                             }
                         }
                         .pickerStyle(.menu)

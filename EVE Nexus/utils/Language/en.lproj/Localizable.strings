@@ -799,3 +799,7 @@
 "Main_Market_Avg_Price" = "Avg price: ";
 "Main_Market_Total_Price" = "Total price: ";
 "Main_Market_Calculating" = "Calculating..."; 
+
+// Market Order Types
+"Main_Market_Order_Buy" = "Buy Orders";
+"Main_Market_Order_Sell" = "Sell Orders";
