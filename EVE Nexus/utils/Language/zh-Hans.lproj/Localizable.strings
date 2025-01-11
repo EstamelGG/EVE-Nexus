@@ -814,6 +814,8 @@
 "Main_Market_Total_Price" = "总价: ";
 "Main_Market_Calculating" = "计算中..."; 
 
+"Main_Ore_Variations" = "衍生矿石";
+
 // Market Order Types
 "Main_Market_Order_Buy" = "买单";
 "Main_Market_Order_Sell" = "卖单";

@@ -613,7 +613,7 @@ struct CharacterDetailView: View {
         
         var body: some View {
             if history.isEmpty {
-                Text("暂无雇佣历史记录")
+                Text("Not found")
                     .foregroundColor(.secondary)
                     .padding()
             } else {

@@ -388,7 +388,7 @@ struct AttributesView: View {
         if hasDerivativeOre, let value = derivativeOreValue {
             let items = databaseManager.getItemsByAttributeValue(attributeID: 2711, value: value)
             if !items.isEmpty {
-                Section(header: Text("衍生矿石").font(.headline)) {
+                Section(header: Text(NSLocalizedString("Main_Ore_Variations", comment: "")).font(.headline)) {
                     ForEach(items, id: \.typeID) { item in
                         NavigationLink(destination: ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)) {
                             HStack {

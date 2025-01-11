@@ -105,7 +105,7 @@
 "Misc_number_point" = "points";
 "Misc_number_types" = " Items";
 "Misc_per" = "per";
-"Misc_unit" = "unit";
+"Misc_unit" = "unit(s)";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -799,6 +799,8 @@
 "Main_Market_Avg_Price" = "Avg price: ";
 "Main_Market_Total_Price" = "Sum price: ";
 "Main_Market_Calculating" = "Calculating..."; 
+
+"Main_Ore_Variations" = "Ore Variations";
 
 // Market Order Types
 "Main_Market_Order_Buy" = "Buy Orders";

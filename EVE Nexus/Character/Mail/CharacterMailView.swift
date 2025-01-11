@@ -176,7 +176,7 @@ struct MailLabelDetailView: View {
             } else {
                 ForEach(viewModel.selectedLabelMails) { mail in
                     NavigationLink {
-                        Text("邮件详情视图") // 待实现
+                        Text("Mail Details") // 待实现
                     } label: {
                         MailRowView(mail: mail)
                     }
