@@ -5,14 +5,24 @@ import Foundation
 struct MarketQuickbar: Identifiable, Codable {
     let id: UUID
     var name: String
-    var items: [Int]  // 存储物品的 typeID
+    var items: [QuickbarItem]  // 存储物品的 typeID 和数量
     var lastUpdated: Date
     
-    init(id: UUID = UUID(), name: String, items: [Int] = []) {
+    init(id: UUID = UUID(), name: String, items: [QuickbarItem] = []) {
         self.id = id
         self.name = name
         self.items = items
         self.lastUpdated = Date()
+    }
+}
+
+struct QuickbarItem: Codable, Equatable {
+    let typeID: Int
+    var quantity: Int
+    
+    init(typeID: Int, quantity: Int = 1) {
+        self.typeID = typeID
+        self.quantity = quantity
     }
 }
 
@@ -658,11 +668,14 @@ struct MarketQuickbarView: View {
     }
 }
 
+// 市场关注列表详情视图
 struct MarketQuickbarDetailView: View {
     let databaseManager: DatabaseManager
     @State var quickbar: MarketQuickbar
     @State private var isShowingItemSelector = false
     @State private var items: [DatabaseListItem] = []
+    @State private var isEditingQuantity = false
+    @State private var itemQuantities: [Int: Int] = [:]  // typeID: quantity
     
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
@@ -674,24 +687,27 @@ struct MarketQuickbarDetailView: View {
                 Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                     .foregroundColor(.secondary)
             } else {
-                ForEach(sortedItems, id: \.id) { item in
-                    NavigationLink {
-                        MarketItemDetailView(
-                            databaseManager: databaseManager,
-                            itemID: item.id
-                        )
-                    } label: {
-                        DatabaseListItemView(
-                            item: item,
-                            showDetails: false
-                        )
+                Section {
+                    ForEach(sortedItems, id: \.id) { item in
+                        itemRow(item)
                     }
-                }
-                .onDelete { indexSet in
-                    let itemsToDelete = indexSet.map { sortedItems[$0].id }
-                    quickbar.items.removeAll { itemsToDelete.contains($0) }
-                    items.removeAll { itemsToDelete.contains($0.id) }
-                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    .onDelete { indexSet in
+                        let itemsToDelete = indexSet.map { sortedItems[$0].id }
+                        quickbar.items.removeAll { itemsToDelete.contains($0.typeID) }
+                        items.removeAll { itemsToDelete.contains($0.id) }
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    }
+                } header: {
+                    HStack {
+                        Text("物品列表")
+                        Spacer()
+                        Button(isEditingQuantity ? "完成" : "编辑数量") {
+                            withAnimation {
+                                isEditingQuantity.toggle()
+                            }
+                        }
+                        .foregroundColor(.accentColor)
+                    }
                 }
             }
         }
@@ -708,22 +724,27 @@ struct MarketQuickbarDetailView: View {
         .sheet(isPresented: $isShowingItemSelector) {
             MarketItemSelectorView(
                 databaseManager: databaseManager,
-                existingItems: Set(quickbar.items),
+                existingItems: Set(quickbar.items.map { $0.typeID }),
                 onItemSelected: { item in
-                    if !quickbar.items.contains(item.id) {
+                    if !quickbar.items.contains(where: { $0.typeID == item.id }) {
                         items.append(item)
-                        quickbar.items.append(item.id)
+                        quickbar.items.append(QuickbarItem(typeID: item.id))
                         // 重新排序并保存
                         let sorted = items.sorted(by: { $0.id < $1.id })
                         items = sorted
-                        quickbar.items = sorted.map { $0.id }
+                        quickbar.items = sorted.map { item in
+                            QuickbarItem(
+                                typeID: item.id,
+                                quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+                            )
+                        }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 },
                 onItemDeselected: { item in
                     if let index = items.firstIndex(where: { $0.id == item.id }) {
                         items.remove(at: index)
-                        quickbar.items.remove(at: index)
+                        quickbar.items.removeAll { $0.typeID == item.id }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 }
@@ -734,9 +755,65 @@ struct MarketQuickbarDetailView: View {
         }
     }
     
+    @ViewBuilder
+    private func itemRow(_ item: DatabaseListItem) -> some View {
+        if isEditingQuantity {
+            HStack {
+                DatabaseListItemView(
+                    item: item,
+                    showDetails: false
+                )
+                
+                Spacer()
+                quantityEditor(for: item)
+            }
+        } else {
+            NavigationLink {
+                MarketItemDetailView(
+                    databaseManager: databaseManager,
+                    itemID: item.id
+                )
+            } label: {
+                HStack {
+                    DatabaseListItemView(
+                        item: item,
+                        showDetails: false
+                    )
+                    
+                    Spacer()
+                    Text("\(getItemQuantity(for: item))")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+    
+    private func quantityEditor(for item: DatabaseListItem) -> some View {
+        let quantity = Binding(
+            get: { itemQuantities[item.id] ?? 1 },
+            set: { newValue in
+                let validValue = max(1, newValue)
+                itemQuantities[item.id] = validValue
+                if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
+                    quickbar.items[index].quantity = validValue
+                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                }
+            }
+        )
+        
+        return TextField("", value: quantity, formatter: NumberFormatter())
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.trailing)
+            .frame(width: 60)
+    }
+    
+    private func getItemQuantity(for item: DatabaseListItem) -> Int {
+        quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+    }
+    
     private func loadItems() {
         if !quickbar.items.isEmpty {
-            let itemIDs = quickbar.items.map { String($0) }.joined(separator: ",")
+            let itemIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
             items = databaseManager.loadMarketItems(
                 whereClause: "t.type_id IN (\(itemIDs))",
                 parameters: []
@@ -744,7 +821,12 @@ struct MarketQuickbarDetailView: View {
             // 按 type_id 排序并更新
             let sorted = items.sorted(by: { $0.id < $1.id })
             items = sorted
-            quickbar.items = sorted.map { $0.id }
+            // 更新 itemQuantities
+            itemQuantities = Dictionary(uniqueKeysWithValues: quickbar.items.map { ($0.typeID, $0.quantity) })
+            // 确保 quickbar.items 的顺序与加载的物品顺序一致
+            quickbar.items = sorted.map { item in
+                QuickbarItem(typeID: item.id, quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)
+            }
             MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
     }
