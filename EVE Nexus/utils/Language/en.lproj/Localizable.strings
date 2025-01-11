@@ -797,7 +797,7 @@
 "Main_Market_No_Orders" = "No orders";
 "Main_Market_Insufficient_Stock" = "(Insufficient stock)";
 "Main_Market_Avg_Price" = "Avg price: ";
-"Main_Market_Total_Price" = "Total price: ";
+"Main_Market_Total_Price" = "Sum price: ";
 "Main_Market_Calculating" = "Calculating..."; 
 
 // Market Order Types
