@@ -680,14 +680,34 @@ struct MarketQuickbarDetailView: View {
     @State private var itemQuantities: [Int: Int64] = [:]  // typeID: quantity
     @State private var selectedRegion: String = "Jita"  // 默认选择 Jita
     @State private var regions: [(id: Int, name: String)] = []  // 存储星域列表
+    @State private var marketOrders: [Int: [MarketOrder]] = [:]  // typeID: orders
+    @State private var isLoadingOrders = false
     
-    // 特殊市场地点的系统ID映射
+    // 特殊市场地点的系统ID和星域ID映射
     private let specialMarkets = [
         "Jita": "system_id:30000142",
         "Amarr": "system_id:30002187",
         "Rens": "system_id:30002510",
         "Hek": "system_id:30002053"
     ]
+    
+    private let specialRegions = [
+        "Jita": 10000002,
+        "Amarr": 10000043,
+        "Hek": 10000042,
+        "Rens": 10000030
+    ]
+    
+    // 获取当前选择的星域ID
+    private var currentRegionID: Int {
+        if let regionName = specialMarkets.first(where: { $0.value == quickbar.marketLocation })?.key,
+           let regionID = specialRegions[regionName] {
+            return regionID
+        } else if quickbar.marketLocation.hasPrefix("region_id:") {
+            return Int(quickbar.marketLocation.dropFirst(10)) ?? 10000002
+        }
+        return 10000002  // 默认返回 The Forge (Jita所在星域)
+    }
     
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
@@ -721,6 +741,7 @@ struct MarketQuickbarDetailView: View {
                     // 星域选择器
                     HStack {
                         Text("市场地点")
+                            .foregroundColor(.secondary)
                         Picker("", selection: $selectedRegion) {
                             // 主要交易中心
                             Text("Jita").tag("Jita")
@@ -743,14 +764,23 @@ struct MarketQuickbarDetailView: View {
                             } else if let region = regions.first(where: { $0.name == newValue }) {
                                 quickbar.marketLocation = "region_id:\(region.id)"
                             }
-                            // 保存更改
+                            // 保存更改并重新加载订单
                             MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                            Task {
+                                await loadAllMarketOrders()
+                            }
                         }
                     }
                     
                     // 第二行（暂时留空）
                     HStack {
                         Text("市场价格")
+                            .foregroundColor(.secondary)
+                        if isLoadingOrders {
+                            Spacer()
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        }
                     }
                 } header: {
                     Text("市场信息")
@@ -831,8 +861,84 @@ struct MarketQuickbarDetailView: View {
         .task {
             loadItems()
             loadRegions()
-            // 设置初始选中的市场位置
             selectedRegion = initialMarketLocation
+            // 加载市场订单
+            await loadAllMarketOrders()
+        }
+    }
+    
+    // 加载所有物品的市场订单
+    private func loadAllMarketOrders() async {
+        guard !items.isEmpty else { return }
+        
+        isLoadingOrders = true
+        defer { isLoadingOrders = false }
+        
+        // 清除旧数据
+        marketOrders.removeAll()
+        
+        // 计算并发数
+        let concurrency = max(1, min(10, items.count / 10))
+        
+        // 创建任务组
+        await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
+            // 限制并发数
+            let semaphore = DispatchSemaphore(value: concurrency)
+            
+            // 添加所有加载任务
+            for item in items {
+                group.addTask {
+                    // 等待信号量
+                    semaphore.wait()
+                    defer { semaphore.signal() }
+                    
+                    do {
+                        let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                            typeID: item.id,
+                            regionID: currentRegionID,
+                            forceRefresh: false
+                        )
+                        return (item.id, orders)
+                    } catch {
+                        Logger.error("加载市场订单失败: \(error)")
+                        return nil
+                    }
+                }
+            }
+            
+            // 收集结果
+            for await result in group {
+                if let (typeID, orders) = result {
+                    marketOrders[typeID] = orders
+                }
+            }
+        }
+    }
+    
+    // 获取物品的最低卖价
+    private func getLowestSellPrice(for item: DatabaseListItem) -> Double? {
+        guard let orders = marketOrders[item.id] else { return nil }
+        return orders.filter { !$0.isBuyOrder }.map { $0.price }.min()
+    }
+    
+    // 格式化价格显示
+    private func formatPrice(_ price: Double) -> String {
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
+        
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        numberFormatter.maximumFractionDigits = 2
+        numberFormatter.minimumFractionDigits = 2
+        
+        if price >= billion {
+            let value = price / billion
+            return String(format: "%.2fB", value)
+        } else if price >= million {
+            let value = price / million
+            return String(format: "%.2fM", value)
+        } else {
+            return numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
         }
     }
     
@@ -861,9 +967,17 @@ struct MarketQuickbarDetailView: View {
                     )
                     
                     Spacer()
-                    Text(getItemQuantity(for: item))
-                        .foregroundColor(.secondary)
-                        .frame(width: 60, alignment: .trailing)
+                    
+                    VStack(alignment: .trailing) {
+                        Text(getItemQuantity(for: item))
+                            .foregroundColor(.secondary)
+                        if let price = getLowestSellPrice(for: item) {
+                            Text(formatPrice(price))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(width: 80)
                 }
             }
         }
