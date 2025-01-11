@@ -716,28 +716,30 @@ struct CharacterSkillsView: View {
     }
     
     private func calculateProgress(_ item: SkillQueueItem) -> ProgressInfo? {
+        // 1. 检查必要数据，增加 level_start_sp 的检查
         guard let levelEndSp = item.level_end_sp,
-              let trainingStartSp = item.training_start_sp else {
+              let trainingStartSp = item.training_start_sp,
+              let levelStartSp = item.level_start_sp else {
             return nil
         }
         
         var currentSP = Double(trainingStartSp)
         
-        // 如果技能正在训练中，计算当前进度
+        // 2. 计算实时进度
         if let startDate = item.start_date,
            let finishDate = item.finish_date {
             let now = Date()
             
-            // 如果还没开始训练
             if now < startDate {
+                // 2.1 还未开始训练
                 currentSP = Double(trainingStartSp)
             }
-            // 如果已经完成训练
             else if now > finishDate {
+                // 2.2 已完成训练
                 currentSP = Double(levelEndSp)
             }
-            // 正在训练中
             else {
+                // 2.3 正在训练中，使用时间比例计算当前进度
                 let totalTrainingTime = finishDate.timeIntervalSince(startDate)
                 let trainedTime = now.timeIntervalSince(startDate)
                 let timeProgress = trainedTime / totalTrainingTime
@@ -748,10 +750,14 @@ struct CharacterSkillsView: View {
             }
         }
         
+        // 3. 修改进度计算逻辑，只计算当前等级的进度
+        let levelTotalSP = levelEndSp - levelStartSp           // 该等级需要的总技能点
+        let levelCurrentSP = currentSP - Double(levelStartSp)  // 在该等级已获得的技能点
+        
         return ProgressInfo(
             current: currentSP,
             total: levelEndSp,
-            percentage: currentSP / Double(levelEndSp)
+            percentage: levelCurrentSP / Double(levelTotalSP)  // 计算该等级的实际进度
         )
     }
     

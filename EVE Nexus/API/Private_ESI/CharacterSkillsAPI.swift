@@ -34,6 +34,7 @@ public struct SkillQueueItem: Codable, Identifiable {
     public let finished_level: Int
     public let training_start_sp: Int?
     public let level_end_sp: Int?
+    public let level_start_sp: Int?
     public let start_date: Date?
     public let finish_date: Date?
     
