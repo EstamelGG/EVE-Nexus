@@ -87,7 +87,7 @@ class MarketQuickbarManager {
                     return nil
                 }
             }
-            .sorted { $0.lastUpdated > $1.lastUpdated }
+                .sorted { $0.lastUpdated > $1.lastUpdated }
             
             Logger.debug("成功加载市场关注列表数量: \(quickbars.count)")
             return quickbars
@@ -578,8 +578,8 @@ struct MarketQuickbarView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Market_Watch_List", comment: ""))
         .searchable(text: $searchText,
-                   placement: .navigationBarDrawer(displayMode: .always),
-                   prompt: NSLocalizedString("Main_Database_Search", comment: ""))
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: NSLocalizedString("Main_Database_Search", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -676,6 +676,8 @@ struct MarketQuickbarDetailView: View {
     @State private var items: [DatabaseListItem] = []
     @State private var isEditingQuantity = false
     @State private var itemQuantities: [Int: Int64] = [:]  // typeID: quantity
+    @State private var selectedRegion: String = "Jita"  // 默认选择 Jita
+    @State private var regions: [(id: Int, name: String)] = []  // 存储星域列表
     
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
@@ -687,6 +689,37 @@ struct MarketQuickbarDetailView: View {
                 Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                     .foregroundColor(.secondary)
             } else {
+                Section {
+                    // 星域选择器
+                    Picker("", selection: $selectedRegion) {
+                        // 主要交易中心
+                        Text("Jita").tag("Jita")
+                        Text("Amarr").tag("Amarr")
+                        Text("Rens").tag("Rens")
+                        Text("Hek").tag("Hek")
+                        
+                        Divider()
+                        
+                        // 所有星域
+                        ForEach(regions, id: \.id) { region in
+                            Text(region.name).tag(region.name)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    
+                    // 第二行（暂时留空）
+                    HStack {
+                        Spacer()
+                    }
+                    .frame(height: 44)
+                } header: {
+                    Text("市场信息")
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                }
+                
                 Section {
                     ForEach(sortedItems, id: \.id) { item in
                         itemRow(item)
@@ -756,6 +789,7 @@ struct MarketQuickbarDetailView: View {
         }
         .task {
             loadItems()
+            loadRegions()
         }
     }
     
@@ -853,4 +887,23 @@ struct MarketQuickbarDetailView: View {
             MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
     }
-} 
+    
+    private func loadRegions() {
+        let query = """
+            SELECT r.regionID, r.regionName
+            FROM regions r
+            WHERE r.regionID < 11000000
+            ORDER BY r.regionName
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query) {
+            regions = rows.compactMap { row in
+                guard let regionID = row["regionID"] as? Int,
+                      let regionName = row["regionName"] as? String else {
+                    return nil
+                }
+                return (id: regionID, name: regionName)
+            }
+        }
+    }
+}
