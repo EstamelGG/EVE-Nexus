@@ -940,19 +940,41 @@ struct MarketQuickbarDetailView: View {
     // 获取物品的最低卖价
     private func getLowestSellPrice(for item: DatabaseListItem) -> Double? {
         guard let orders = marketOrders[item.id] else { return nil }
+        let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
         
-        // 过滤卖单
-        let sellOrders = orders.filter { !$0.isBuyOrder }
+        // 过滤卖单并按价格排序
+        var sellOrders = orders.filter { !$0.isBuyOrder }
         
         // 如果是特殊市场（Jita, Amarr, Rens, Hek），则只取对应星系的订单
         if quickbar.marketLocation.hasPrefix("system_id:") {
             let systemID = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
-            let filteredOrders = sellOrders.filter { $0.systemId == systemID }
-            return filteredOrders.map { $0.price }.min()
+            sellOrders = sellOrders.filter { $0.systemId == systemID }
         }
         
-        // 如果是普通星域，则取所有卖单中最低价
-        return sellOrders.map { $0.price }.min()
+        // 按价格从低到高排序
+        sellOrders.sort { $0.price < $1.price }
+        
+        var remainingQuantity = quantity
+        var totalPrice: Double = 0
+        
+        // 从最低价开始累加，直到满足需求数量
+        for order in sellOrders {
+            if remainingQuantity <= 0 {
+                break
+            }
+            
+            let orderQuantity = min(remainingQuantity, Int64(order.volumeRemain))
+            totalPrice += Double(orderQuantity) * order.price
+            remainingQuantity -= orderQuantity
+        }
+        
+        // 如果没有足够的订单满足数量需求，返回 nil
+        if remainingQuantity > 0 {
+            return nil
+        }
+        
+        // 返回平均单价
+        return totalPrice / Double(quantity)
     }
     
     // 格式化价格显示
@@ -993,9 +1015,18 @@ struct MarketQuickbarDetailView: View {
                         Text(item.name)
                         let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                         if let price = getLowestSellPrice(for: item) {
-                            Text(formatPrice(price * Double(quantity)))
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("单价: " + formatPrice(price))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("总价: " + formatPrice(price * Double(quantity)))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text("库存不足")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.red)
                         }
                     }
                     Spacer()
