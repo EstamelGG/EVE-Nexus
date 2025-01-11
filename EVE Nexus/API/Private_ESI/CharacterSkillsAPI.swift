@@ -72,7 +72,8 @@ public struct SkillQueueItem: Codable, Identifiable {
         guard let startDate = start_date,
               let finishDate = finish_date,
               let trainingStartSp = training_start_sp,
-              let levelEndSp = level_end_sp else {
+              let levelEndSp = level_end_sp,
+              let levelStartSp = level_start_sp else {
             return 0
         }
         
@@ -100,7 +101,11 @@ public struct SkillQueueItem: Codable, Identifiable {
         let trainedSP = Double(remainingSP) * timeProgress
         let currentSP = Double(trainingStartSp) + trainedSP
         
-        return currentSP / Double(levelEndSp)
+        // 计算当前等级的进度
+        let levelCurrentSP = currentSP - Double(levelStartSp)  // 在该等级已获得的技能点
+        let levelTotalSP = Double(levelEndSp - levelStartSp)   // 该等级需要的总技能点
+        
+        return levelCurrentSP / levelTotalSP
     }
 }
 
