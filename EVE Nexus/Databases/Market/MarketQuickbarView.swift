@@ -18,11 +18,11 @@ struct MarketQuickbar: Identifiable, Codable {
 
 struct QuickbarItem: Codable, Equatable {
     let typeID: Int
-    var quantity: Int
+    var quantity: Int64  // 使用 Int64 来存储更大的数值
     
-    init(typeID: Int, quantity: Int = 1) {
+    init(typeID: Int, quantity: Int64 = 1) {
         self.typeID = typeID
-        self.quantity = quantity
+        self.quantity = max(1, min(quantity, 999_999_999))  // 限制最大数量为 9.99 亿
     }
 }
 
@@ -675,7 +675,7 @@ struct MarketQuickbarDetailView: View {
     @State private var isShowingItemSelector = false
     @State private var items: [DatabaseListItem] = []
     @State private var isEditingQuantity = false
-    @State private var itemQuantities: [Int: Int] = [:]  // typeID: quantity
+    @State private var itemQuantities: [Int: Int64] = [:]  // typeID: quantity
     
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
@@ -763,7 +763,6 @@ struct MarketQuickbarDetailView: View {
                     item: item,
                     showDetails: false
                 )
-                
                 Spacer()
                 quantityEditor(for: item)
             }
@@ -781,8 +780,9 @@ struct MarketQuickbarDetailView: View {
                     )
                     
                     Spacer()
-                    Text("\(getItemQuantity(for: item))")
+                    Text(getItemQuantity(for: item))
                         .foregroundColor(.secondary)
+                        .frame(minWidth: 80)
                 }
             }
         }
@@ -792,7 +792,7 @@ struct MarketQuickbarDetailView: View {
         let quantity = Binding(
             get: { itemQuantities[item.id] ?? 1 },
             set: { newValue in
-                let validValue = max(1, newValue)
+                let validValue = max(1, min(newValue, 999_999_999))  // 限制最大数量为 9.99 亿
                 itemQuantities[item.id] = validValue
                 if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
                     quickbar.items[index].quantity = validValue
@@ -801,14 +801,30 @@ struct MarketQuickbarDetailView: View {
             }
         )
         
-        return TextField("", value: quantity, formatter: NumberFormatter())
+        let formatter: NumberFormatter = {
+            let f = NumberFormatter()
+            f.numberStyle = .decimal
+            f.maximumFractionDigits = 0
+            f.maximumIntegerDigits = 9  // 限制最大 9 位数
+            return f
+        }()
+        
+        return TextField("", value: quantity, formatter: formatter)
             .keyboardType(.numberPad)
             .multilineTextAlignment(.trailing)
             .frame(width: 60)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(Color(uiColor: .secondarySystemBackground))
+            .cornerRadius(8)
     }
     
-    private func getItemQuantity(for item: DatabaseListItem) -> Int {
-        quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+    private func getItemQuantity(for item: DatabaseListItem) -> String {
+        let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: quantity)) ?? "1"
     }
     
     private func loadItems() {
@@ -825,7 +841,10 @@ struct MarketQuickbarDetailView: View {
             itemQuantities = Dictionary(uniqueKeysWithValues: quickbar.items.map { ($0.typeID, $0.quantity) })
             // 确保 quickbar.items 的顺序与加载的物品顺序一致
             quickbar.items = sorted.map { item in
-                QuickbarItem(typeID: item.id, quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)
+                QuickbarItem(
+                    typeID: item.id,
+                    quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+                )
             }
             MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
