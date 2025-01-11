@@ -786,3 +786,9 @@
 "Creator" = "创建者";
 "Executor" = "执行军团";
 "Unknown" = "未知";
+
+"Main_Market_Watch_List_Empty" = "暂无关注物品";
+"Main_Market_Watch_List_Add" = "添加关注列表";
+"Main_Market_Watch_List_Name" = "列表名称";
+"Main_Market_Watch_List_Add_Item" = "添加物品";
+"Main_Market_Watch_List_Items" = "%d 个物品";

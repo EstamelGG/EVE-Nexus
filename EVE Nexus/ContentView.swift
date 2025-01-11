@@ -634,10 +634,7 @@ struct ContentView: View {
                         case "market":
                             MarketBrowserView(databaseManager: databaseManager)
                         case "vip_market_item":
-                            RowView(
-                                title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
-                                icon: "searchmarket"
-                            )
+                            MarketQuickbarView(databaseManager: databaseManager)
                         case "npc":
                             NPCBrowserView(databaseManager: databaseManager)
                         case "wormhole":
