@@ -800,6 +800,10 @@ struct MarketQuickbarDetailView: View {
                         quickbar.items.removeAll { itemsToDelete.contains($0.typeID) }
                         items.removeAll { itemsToDelete.contains($0.id) }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                        // 删除物品后自动加载市场订单
+                        Task {
+                            await loadAllMarketOrders()
+                        }
                     }
                 } header: {
                     HStack {
@@ -847,6 +851,10 @@ struct MarketQuickbarDetailView: View {
                             )
                         }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                        // 添加物品后自动加载市场订单
+                        Task {
+                            await loadAllMarketOrders()
+                        }
                     }
                 },
                 onItemDeselected: { item in
@@ -949,23 +957,12 @@ struct MarketQuickbarDetailView: View {
     
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-        
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .decimal
         numberFormatter.maximumFractionDigits = 2
         numberFormatter.minimumFractionDigits = 2
         
-        if price >= billion {
-            let value = price / billion
-            return String(format: "%.2fB", value)
-        } else if price >= million {
-            let value = price / million
-            return String(format: "%.2fM", value)
-        } else {
-            return numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-        }
+        return numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
     }
     
     @ViewBuilder
