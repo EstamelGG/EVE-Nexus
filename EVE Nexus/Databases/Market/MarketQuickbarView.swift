@@ -682,7 +682,14 @@ struct MarketQuickbarDetailView: View {
     @State private var regions: [(id: Int, name: String)] = []  // 存储星域列表
     @State private var marketOrders: [Int: [MarketOrder]] = [:]  // typeID: orders
     @State private var isLoadingOrders = false
-    
+    @State private var orderType: OrderType = .sell  // 新增：订单类型选择
+
+    // 新增：订单类型枚举
+    private enum OrderType: String, CaseIterable {
+        case buy = "买单"
+        case sell = "卖单"
+    }
+
     // 特殊市场地点的系统ID和星域ID映射
     private let specialMarkets = [
         "Jita": "system_id:30000142",
@@ -770,8 +777,22 @@ struct MarketQuickbarDetailView: View {
                             }
                         }
                     }
+
+                    // 新增：订单类型选择器
+                    HStack {
+                        Text("订单类型")
+                        Picker("", selection: $orderType) {
+                            ForEach(OrderType.allCases, id: \.self) { type in
+                                Text(type.rawValue).tag(type)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .onChange(of: orderType) { _, _ in
+                            // 切换订单类型时不需要重新加载订单，只需要重新计算价格
+                        }
+                    }
                     
-                    // 第二行（暂时留空）
+                    // 价格显示行
                     HStack {
                         Text("市场价格")
                         Spacer()
@@ -949,24 +970,24 @@ struct MarketQuickbarDetailView: View {
         guard let orders = marketOrders[item.id] else { return (nil, true) }
         let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
         
-        // 过滤卖单并按价格排序
-        var sellOrders = orders.filter { !$0.isBuyOrder }
+        // 根据订单类型过滤订单
+        var filteredOrders = orders.filter { $0.isBuyOrder == (orderType == .buy) }
         
         // 如果是特殊市场（Jita, Amarr, Rens, Hek），则只取对应星系的订单
         if quickbar.marketLocation.hasPrefix("system_id:") {
             let systemID = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
-            sellOrders = sellOrders.filter { $0.systemId == systemID }
+            filteredOrders = filteredOrders.filter { $0.systemId == systemID }
         }
         
-        // 按价格从低到高排序
-        sellOrders.sort { $0.price < $1.price }
+        // 根据订单类型排序（买单从高到低，卖单从低到高）
+        filteredOrders.sort { orderType == .buy ? $0.price > $1.price : $0.price < $1.price }
         
         var remainingQuantity = quantity
         var totalPrice: Double = 0
         var availableQuantity: Int64 = 0
         
-        // 从最低价开始累加，直到满足需求数量
-        for order in sellOrders {
+        // 从最优价格开始累加，直到满足需求数量
+        for order in filteredOrders {
             if remainingQuantity <= 0 {
                 break
             }
