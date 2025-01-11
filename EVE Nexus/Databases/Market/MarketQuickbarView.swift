@@ -89,7 +89,7 @@ class MarketQuickbarManager {
                     return nil
                 }
             }
-                .sorted { $0.lastUpdated > $1.lastUpdated }
+                .sorted { $0.lastUpdated < $1.lastUpdated }
             
             Logger.debug("成功加载市场关注列表数量: \(quickbars.count)")
             return quickbars
@@ -623,15 +623,11 @@ struct MarketQuickbarView: View {
     }
     
     private func quickbarRowView(_ quickbar: MarketQuickbar) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack {
             Text(quickbar.name)
                 .font(.headline)
                 .lineLimit(1)
-            
-            Text(formatDate(quickbar.lastUpdated))
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
+            Spacer()
             Text(String(format: NSLocalizedString("Main_Market_Watch_List_Items", comment: ""), quickbar.items.count))
                 .font(.caption)
                 .foregroundColor(.secondary)
