@@ -776,10 +776,19 @@ struct MarketQuickbarDetailView: View {
                     HStack {
                         Text("市场价格")
                             .foregroundColor(.secondary)
+                        Spacer()
                         if isLoadingOrders {
-                            Spacer()
                             ProgressView()
                                 .scaleEffect(0.7)
+                        } else {
+                            let totalPrice = calculateTotalPrice()
+                            if totalPrice > 0 {
+                                Text(formatPrice(totalPrice))
+                                    .foregroundColor(.primary)
+                            } else {
+                                Text("计算中...")
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 } header: {
@@ -1129,5 +1138,17 @@ struct MarketQuickbarDetailView: View {
                 return (id: regionID, name: regionName)
             }
         }
+    }
+    
+    // 计算所有物品的总价格
+    private func calculateTotalPrice() -> Double {
+        var total: Double = 0
+        for item in items {
+            if let price = getLowestSellPrice(for: item) {
+                let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+                total += price * Double(quantity)
+            }
+        }
+        return total
     }
 }
