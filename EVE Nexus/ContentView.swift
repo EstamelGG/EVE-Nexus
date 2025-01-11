@@ -633,6 +633,11 @@ struct ContentView: View {
                             )
                         case "market":
                             MarketBrowserView(databaseManager: databaseManager)
+                        case "vip_market_item":
+                            RowView(
+                                title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
+                                icon: "searchmarket"
+                            )
                         case "npc":
                             NPCBrowserView(databaseManager: databaseManager)
                         case "wormhole":
@@ -878,6 +883,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Market", comment: ""),
                     icon: "market"
+                )
+            }
+            
+            NavigationLink(value: "vip_market_item") {
+                RowView(
+                    title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
+                    icon: "searchmarket"
                 )
             }
             
