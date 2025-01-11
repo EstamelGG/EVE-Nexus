@@ -664,20 +664,23 @@ struct MarketQuickbarDetailView: View {
     @State private var isShowingItemSelector = false
     @State private var items: [DatabaseListItem] = []
     
+    var sortedItems: [DatabaseListItem] {
+        items.sorted(by: { $0.id < $1.id })
+    }
+    
     var body: some View {
         List {
             if quickbar.items.isEmpty {
                 Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
                     .foregroundColor(.secondary)
             } else {
-                ForEach(items.sorted(by: { $0.id < $1.id }), id: \.id) { item in
+                ForEach(sortedItems, id: \.id) { item in
                     DatabaseListItemView(
                         item: item,
                         showDetails: true
                     )
                 }
                 .onDelete { indexSet in
-                    let sortedItems = items.sorted(by: { $0.id < $1.id })
                     let itemsToDelete = indexSet.map { sortedItems[$0].id }
                     quickbar.items.removeAll { itemsToDelete.contains($0) }
                     items.removeAll { itemsToDelete.contains($0.id) }
@@ -701,23 +704,19 @@ struct MarketQuickbarDetailView: View {
                 existingItems: Set(quickbar.items),
                 onItemSelected: { item in
                     if !quickbar.items.contains(item.id) {
-                        // 找到正确的插入位置
-                        if let insertIndex = items.firstIndex(where: { $0.id > item.id }) {
-                            items.insert(item, at: insertIndex)
-                            quickbar.items.insert(item.id, at: insertIndex)
-                        } else {
-                            items.append(item)
-                            quickbar.items.append(item.id)
-                        }
+                        items.append(item)
+                        quickbar.items.append(item.id)
+                        // 重新排序并保存
+                        let sorted = items.sorted(by: { $0.id < $1.id })
+                        items = sorted
+                        quickbar.items = sorted.map { $0.id }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 },
                 onItemDeselected: { item in
-                    if let index = quickbar.items.firstIndex(of: item.id) {
+                    if let index = items.firstIndex(where: { $0.id == item.id }) {
+                        items.remove(at: index)
                         quickbar.items.remove(at: index)
-                        if let itemIndex = items.firstIndex(where: { $0.id == item.id }) {
-                            items.remove(at: itemIndex)
-                        }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
                 }
@@ -732,11 +731,13 @@ struct MarketQuickbarDetailView: View {
         if !quickbar.items.isEmpty {
             let itemIDs = quickbar.items.map { String($0) }.joined(separator: ",")
             items = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(itemIDs)) ORDER BY t.type_id",
+                whereClause: "t.type_id IN (\(itemIDs))",
                 parameters: []
             )
-            // 确保 quickbar.items 的顺序与加载的物品顺序一致
-            quickbar.items = items.map { $0.id }
+            // 按 type_id 排序并更新
+            let sorted = items.sorted(by: { $0.id < $1.id })
+            items = sorted
+            quickbar.items = sorted.map { $0.id }
             MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
     }
