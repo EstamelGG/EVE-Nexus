@@ -721,7 +721,6 @@ struct MarketQuickbarDetailView: View {
                     // 星域选择器
                     HStack {
                         Text("市场地点")
-                            .foregroundColor(.secondary)
                         Picker("", selection: $selectedRegion) {
                             // 主要交易中心
                             Text("Jita").tag("Jita")
@@ -751,7 +750,7 @@ struct MarketQuickbarDetailView: View {
                     
                     // 第二行（暂时留空）
                     HStack {
-                        Spacer()
+                        Text("市场价格")
                     }
                 } header: {
                     Text("市场信息")
