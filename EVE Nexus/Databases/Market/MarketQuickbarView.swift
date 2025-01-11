@@ -870,27 +870,30 @@ struct MarketQuickbarDetailView: View {
     }
     
     private func quantityEditor(for item: DatabaseListItem) -> some View {
-        let quantity = Binding(
-            get: { itemQuantities[item.id] ?? 1 },
+        let quantityString = Binding<String>(
+            get: {
+                let value = itemQuantities[item.id] ?? 1
+                return "\(value)"
+            },
             set: { newValue in
-                let validValue = max(1, min(newValue, 999_999_999))  // 限制最大数量为 9.99 亿
-                itemQuantities[item.id] = validValue
-                if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
-                    quickbar.items[index].quantity = validValue
-                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                if newValue.isEmpty {
+                    itemQuantities[item.id] = 1
+                    if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
+                        quickbar.items[index].quantity = 1
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    }
+                } else if let value = Int64(newValue) {
+                    let validValue = max(1, min(value, 999_999_999))
+                    itemQuantities[item.id] = validValue
+                    if let index = quickbar.items.firstIndex(where: { $0.typeID == item.id }) {
+                        quickbar.items[index].quantity = validValue
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                    }
                 }
             }
         )
         
-        let formatter: NumberFormatter = {
-            let f = NumberFormatter()
-            f.numberStyle = .decimal
-            f.maximumFractionDigits = 0
-            f.maximumIntegerDigits = 9  // 限制最大 9 位数
-            return f
-        }()
-        
-        return TextField("", value: quantity, formatter: formatter)
+        return TextField("", text: quantityString)
             .keyboardType(.numberPad)
             .multilineTextAlignment(.leading)
             .frame(width: 60)
