@@ -783,7 +783,7 @@ struct MarketQuickbarDetailView: View {
                         } else {
                             let totalPrice = calculateTotalPrice()
                             if totalPrice > 0 {
-                                Text(formatPrice(totalPrice))
+                                Text(formatTotalPrice(totalPrice))
                                     .foregroundColor(.primary)
                             } else {
                                 Text("计算中...")
@@ -994,6 +994,19 @@ struct MarketQuickbarDetailView: View {
         numberFormatter.minimumFractionDigits = 2
         
         return numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
+    }
+    
+    // 格式化总价显示(使用缩写)
+    private func formatTotalPrice(_ price: Double) -> String {
+        if price >= 1_000_000_000 {
+            return String(format: "%.2fB", price / 1_000_000_000)
+        } else if price >= 1_000_000 {
+            return String(format: "%.2fM", price / 1_000_000)
+        } else if price >= 1_000 {
+            return String(format: "%.2fK", price / 1_000)
+        } else {
+            return String(format: "%.2f", price)
+        }
     }
     
     @ViewBuilder
