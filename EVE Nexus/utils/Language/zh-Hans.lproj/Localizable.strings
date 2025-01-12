@@ -819,3 +819,7 @@
 // Market Order Types
 "Main_Market_Order_Buy" = "买单";
 "Main_Market_Order_Sell" = "卖单";
+
+"Main_Battle" = "战斗";
+"Main_Killboard" = "击杀记录";
+"Main_ZKillboard" = "ZkillBoard";

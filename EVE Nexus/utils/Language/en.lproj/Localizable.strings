@@ -805,3 +805,7 @@
 // Market Order Types
 "Main_Market_Order_Buy" = "Buy Orders";
 "Main_Market_Order_Sell" = "Sell Orders";
+
+"Main_Battle" = "Battle";
+"Main_Killboard" = "Kill Reports";
+"Main_ZKillboard" = "ZkillBoard";

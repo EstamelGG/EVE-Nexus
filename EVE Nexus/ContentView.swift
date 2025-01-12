@@ -985,6 +985,25 @@ struct ContentView: View {
         }
     }
     
+    private var KillBoardSection: some View {
+        Section {
+            NavigationLink {
+                SettingView(databaseManager: databaseManager)
+            } label: {
+                RowView(
+                    title: NSLocalizedString("Main_Killboard", comment: ""),
+                    icon: "killreport"
+                )
+            }
+        } header: {
+            Text(NSLocalizedString("Main_Battle", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
+        }
+    }
+    
     private var otherSection: some View {
         Section {
             NavigationLink {
