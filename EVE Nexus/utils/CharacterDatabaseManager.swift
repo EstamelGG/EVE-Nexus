@@ -474,6 +474,15 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
 
+            -- 军团击杀记录表
+            CREATE TABLE IF NOT EXISTS corp_killmails (
+                corporation_id INTEGER NOT NULL,
+                killmail_id INTEGER NOT NULL,
+                killmail_hash TEXT NOT NULL,
+                PRIMARY KEY (corporation_id, killmail_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_corp_killmails_corporation_id ON corp_killmails(corporation_id);
+
             -- 击杀记录表
             CREATE TABLE IF NOT EXISTS killmails (
                 character_id INTEGER NOT NULL,
