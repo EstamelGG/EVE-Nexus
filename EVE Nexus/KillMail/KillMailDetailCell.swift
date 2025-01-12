@@ -83,7 +83,23 @@ struct KillMailDetailCell: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primary)
                     }
-                    .padding(.bottom, 6)
+                    .padding(.bottom, 2)
+                    
+                    // 添加价值显示
+                    HStack {
+                        Text("价值")
+                            .font(.system(size: 11))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.yellow)
+                            .cornerRadius(2)
+                        
+                        Text(formatISK(killMailInfo.totalValue ?? 0))
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.bottom, 4)
                     
                     // 第二行：受害者信息
                     HStack(spacing: 4) {
@@ -234,6 +250,18 @@ struct KillMailDetailCell: View {
                     Logger.error("获取攻击者信息失败: \(error)")
                 }
             }
+        }
+    }
+    
+    private func formatISK(_ value: Double) -> String {
+        if value >= 1_000_000_000 {
+            return String(format: "%.1fB ISK", value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%.1fM ISK", value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.1fK ISK", value / 1_000)
+        } else {
+            return String(format: "%.0f ISK", value)
         }
     }
     
