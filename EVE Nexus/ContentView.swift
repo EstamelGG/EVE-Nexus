@@ -676,6 +676,10 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpWalletView(characterId: character.CharacterID)
                             }
+                        case "killboard":
+                            if let character = viewModel.selectedCharacter {
+                                KillMailListView(characterId: character.CharacterID)
+                            }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -988,9 +992,7 @@ struct ContentView: View {
     
     private var KillBoardSection: some View {
         Section {
-            NavigationLink {
-                SettingView(databaseManager: databaseManager)
-            } label: {
+            NavigationLink(value: "killboard") {
                 RowView(
                     title: NSLocalizedString("Main_Killboard", comment: ""),
                     icon: "killreport"
