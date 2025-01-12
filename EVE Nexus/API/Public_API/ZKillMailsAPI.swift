@@ -492,24 +492,40 @@ class ZKillMailsAPI {
         let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
         
         do {
-            // 保存原始JSON数据到本地文件
-            let fileManager = FileManager.default
-            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let killmailsDir = documentsPath.appendingPathComponent("killmails")
-            
-            // 创建killmails目录（如果不存在）
-            try? fileManager.createDirectory(at: killmailsDir, withIntermediateDirectories: true)
-            
-            // 构建文件路径
-            let fileName = "killmail_\(killmailId).json"
-            let filePath = killmailsDir.appendingPathComponent(fileName)
-            
-            // 写入JSON数据
-            try data.write(to: filePath)
-            Logger.debug("已保存击杀详情JSON到文件: \(fileName)")
-            
-            // 解析JSON数据
             let detail = try JSONDecoder().decode(KillMailDetail.self, from: data)
+            
+            // 保存到数据库
+            let insertSQL = """
+                INSERT OR REPLACE INTO killmails (
+                    killmail_id, killmail_time, solar_system_id,
+                    victim_character_id, victim_alliance_id, victim_faction_id, victim_corporation_id,
+                    attacker_final_blow_character_id, attacker_final_blow_alliance_id, attacker_final_blow_faction_id, attacker_final_blow_corporation_id,
+                    attackers_num
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            // 获取最后一击者信息
+            let finalBlow = detail.attackers.first { $0.finalBlow }
+            
+            let parameters: [Any?] = [
+                detail.killmailId,
+                detail.killmailTime,
+                detail.solarSystemId,
+                detail.victim.characterId,
+                detail.victim.allianceId,
+                detail.victim.factionId,
+                detail.victim.corporationId,
+                finalBlow?.characterId,
+                finalBlow?.allianceId,
+                finalBlow?.factionId,
+                finalBlow?.corporationId,
+                detail.attackers.count
+            ]
+            
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+                Logger.error("保存击杀详情到数据库失败: \(error)")
+            }
+            
             Logger.info("成功获取击杀详情 - ID: \(killmailId)")
             return detail
         } catch {
