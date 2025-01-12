@@ -63,12 +63,11 @@ struct KillMailDetailCell: View {
                 // 飞船图标
                 IconManager.shared.loadImage(for: shipInfo.iconFileName)
                     .resizable()
-                    .frame(width: 64, height: 64)
+                    .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 
-                // 右侧信息：三行
-                VStack(alignment: .leading, spacing: 0) {
-                    Spacer()
+                // 右侧信息：四行
+                VStack(alignment: .leading, spacing: 6) {
                     // 第一行：飞船类型名称
                     HStack {
                         Text(detail.victim.characterId == characterId ? "损失" : "击杀")
@@ -83,9 +82,8 @@ struct KillMailDetailCell: View {
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.primary)
                     }
-                    .padding(.bottom, 2)
                     
-                    // 添加价值显示
+                    // 第二行：价值显示
                     HStack {
                         Text("价值")
                             .font(.system(size: 11))
@@ -99,9 +97,8 @@ struct KillMailDetailCell: View {
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
-                    .padding(.bottom, 4)
                     
-                    // 第二行：受害者信息
+                    // 第三行：受害者信息
                     HStack(spacing: 4) {
                         Text("受害者")
                             .font(.system(size: 11))
@@ -114,7 +111,8 @@ struct KillMailDetailCell: View {
                         if let icon = victimIcon {
                             Image(uiImage: icon)
                                 .resizable()
-                                .frame(width: 20, height: 20)
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 12, height: 12)
                                 .clipShape(RoundedRectangle(cornerRadius: 2))
                         }
                         Text(victimName)
@@ -122,9 +120,8 @@ struct KillMailDetailCell: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
-                    .padding(.bottom, 6)
                     
-                    // 第三行：攻击者信息
+                    // 第四行：攻击者信息
                     if let _ = detail.attackers.first(where: { $0.finalBlow }) {
                         HStack(spacing: 4) {
                             Text("最后一击")
@@ -138,7 +135,8 @@ struct KillMailDetailCell: View {
                             if let icon = attackerIcon {
                                 Image(uiImage: icon)
                                     .resizable()
-                                    .frame(width: 20, height: 20)
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 12, height: 12)
                                     .clipShape(RoundedRectangle(cornerRadius: 2))
                             }
                             Text(attackerName)
@@ -178,9 +176,8 @@ struct KillMailDetailCell: View {
                             }
                         }
                     }
-                    Spacer()
                 }
-                .frame(height: 64) // 确保与图标等高
+                .frame(height: 80) // 确保与图标等高
             }
             
             // 第二大行：地点和时间
