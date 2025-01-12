@@ -14,7 +14,7 @@ struct KillMailListView: View {
             // 快速访问列表
             Section {
                 NavigationLink {
-                    Text("按月查看") // TODO: 实现按月查看视图
+                    KillMailYearListView(characterId: characterId)
                 } label: {
                     Label("按月查看", systemImage: "calendar")
                 }
