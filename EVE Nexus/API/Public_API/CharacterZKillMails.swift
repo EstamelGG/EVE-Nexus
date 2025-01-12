@@ -15,6 +15,7 @@ class CharacterKillMailsAPI {
     
     private let lastKillmailsQueryKey = "LastKillmailsQuery_"
     private let cacheTimeout: TimeInterval = 8 * 3600 // 8小时缓存有效期
+    private let maxPages = 20 // zKillboard最大页数限制
     
     private init() {}
     
@@ -42,29 +43,15 @@ class CharacterKillMailsAPI {
     private func fetchKillMailsFromServer(characterId: Int) async throws -> [KillMailInfo] {
         var allKillMails: [KillMailInfo] = []
         var currentPage = 1
-        var shouldContinue = true
         
-        while shouldContinue {
-            do {
-                let pageKillMails = try await fetchKillMailsPage(characterId: characterId, page: currentPage)
-                if pageKillMails.isEmpty {
-                    shouldContinue = false
-                } else {
-                    allKillMails.append(contentsOf: pageKillMails)
-                    currentPage += 1
-                }
-                if currentPage >= 1000 { // 最多取1000页
-                    shouldContinue = false
-                    break
-                }
-            } catch let error as NetworkError {
-                if case .httpError(_, let message) = error,
-                   message?.contains("Requested page does not exist") == true {
-                    shouldContinue = false
-                } else {
-                    throw error
-                }
+        while currentPage <= maxPages {
+            let pageKillMails = try await fetchKillMailsPage(characterId: characterId, page: currentPage)
+            if pageKillMails.isEmpty {
+                break // 如果返回空数组，说明没有更多数据
             }
+            
+            allKillMails.append(contentsOf: pageKillMails)
+            currentPage += 1
         }
         
         // 更新最后查询时间
@@ -84,21 +71,19 @@ class CharacterKillMailsAPI {
             }
         }
         
-        Logger.debug("成功从服务器获取击杀记录 - 角色ID: \(characterId), 记录数量: \(allKillMails.count)")
+        Logger.debug("成功从zKillboard获取击杀记录 - 角色ID: \(characterId), 记录数量: \(allKillMails.count)")
         
         return allKillMails
     }
     
     // 获取单页击杀记录
     private func fetchKillMailsPage(characterId: Int, page: Int) async throws -> [KillMailInfo] {
-        let url = URL(string: "https://esi.evetech.net/latest/characters/\(characterId)/killmails/recent/?datasource=tranquility&page=\(page)")!
+        let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/page/\(page)/")!
         
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
-            characterId: characterId,
-            noRetryKeywords: ["Requested page does not exist"]
-        )
+        var request = URLRequest(url: url)
+        request.setValue("EVE-Nexus", forHTTPHeaderField: "User-Agent") // zKillboard要求设置User-Agent
         
+        let data = try await NetworkManager.shared.fetchData(request: request)
         let decoder = JSONDecoder()
         return try decoder.decode([KillMailInfo].self, from: data)
     }
@@ -197,7 +182,7 @@ class CharacterKillMailsAPI {
         
         // 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
-            Logger.debug("击杀记录为空或强制刷新，从网络获取数据")
+            Logger.debug("击杀记录为空或强制刷新，从zKillboard获取数据")
             return try await fetchKillMailsFromServer(characterId: characterId)
         }
         

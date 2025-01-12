@@ -15,6 +15,7 @@ class CorpKillMailsAPI {
     
     private let lastKillmailsQueryKey = "LastCorpKillmailsQuery_"
     private let cacheTimeout: TimeInterval = 8 * 3600 // 8小时缓存有效期
+    private let maxPages = 20 // zKillboard最大页数限制
     
     private init() {}
     
@@ -39,32 +40,18 @@ class CorpKillMailsAPI {
     }
     
     // 从服务器获取击杀记录
-    private func fetchKillMailsFromServer(characterId: Int, corporationId: Int) async throws -> [CorpKillMailInfo] {
+    private func fetchKillMailsFromServer(corporationId: Int) async throws -> [CorpKillMailInfo] {
         var allKillMails: [CorpKillMailInfo] = []
         var currentPage = 1
-        var shouldContinue = true
         
-        while shouldContinue {
-            do {
-                let pageKillMails = try await fetchKillMailsPage(characterId: characterId, corporationId: corporationId, page: currentPage)
-                if pageKillMails.isEmpty {
-                    shouldContinue = false
-                } else {
-                    allKillMails.append(contentsOf: pageKillMails)
-                    currentPage += 1
-                }
-                if currentPage >= 1000 { // 最多取1000页
-                    shouldContinue = false
-                    break
-                }
-            } catch let error as NetworkError {
-                if case .httpError(_, let message) = error,
-                   message?.contains("Requested page does not exist") == true {
-                    shouldContinue = false
-                } else {
-                    throw error
-                }
+        while currentPage <= maxPages {
+            let pageKillMails = try await fetchKillMailsPage(corporationId: corporationId, page: currentPage)
+            if pageKillMails.isEmpty {
+                break // 如果返回空数组，说明没有更多数据
             }
+            
+            allKillMails.append(contentsOf: pageKillMails)
+            currentPage += 1
         }
         
         // 更新最后查询时间
@@ -84,21 +71,19 @@ class CorpKillMailsAPI {
             }
         }
         
-        Logger.debug("成功从服务器获取军团击杀记录 - 军团ID: \(corporationId), 记录数量: \(allKillMails.count)")
+        Logger.debug("成功从zKillboard获取军团击杀记录 - 军团ID: \(corporationId), 记录数量: \(allKillMails.count)")
         
         return allKillMails
     }
     
     // 获取单页击杀记录
-    private func fetchKillMailsPage(characterId: Int, corporationId: Int, page: Int) async throws -> [CorpKillMailInfo] {
-        let url = URL(string: "https://esi.evetech.net/latest/corporations/\(corporationId)/killmails/recent/?datasource=tranquility&page=\(page)")!
+    private func fetchKillMailsPage(corporationId: Int, page: Int) async throws -> [CorpKillMailInfo] {
+        let url = URL(string: "https://zkillboard.com/api/corporationID/\(corporationId)/page/\(page)/")!
         
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
-            characterId: characterId,
-            noRetryKeywords: ["Requested page does not exist"]
-        )
+        var request = URLRequest(url: url)
+        request.setValue("EVE-Nexus", forHTTPHeaderField: "User-Agent") // zKillboard要求设置User-Agent
         
+        let data = try await NetworkManager.shared.fetchData(request: request)
         let decoder = JSONDecoder()
         return try decoder.decode([CorpKillMailInfo].self, from: data)
     }
@@ -202,8 +187,8 @@ class CorpKillMailsAPI {
         
         // 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
-            Logger.debug("军团击杀记录为空或强制刷新，从网络获取数据")
-            return try await fetchKillMailsFromServer(characterId: characterId, corporationId: corporationId)
+            Logger.debug("军团击杀记录为空或强制刷新，从zKillboard获取数据")
+            return try await fetchKillMailsFromServer(corporationId: corporationId)
         }
         
         // 检查是否需要在后台刷新
@@ -213,7 +198,7 @@ class CorpKillMailsAPI {
             // 在后台刷新数据
             Task {
                 do {
-                    let _ = try await fetchKillMailsFromServer(characterId: characterId, corporationId: corporationId)
+                    let _ = try await fetchKillMailsFromServer(corporationId: corporationId)
                     Logger.info("后台刷新军团击杀记录完成 - 军团ID: \(corporationId)")
                 } catch {
                     Logger.error("后台刷新军团击杀记录失败 - 军团ID: \(corporationId), 错误: \(error)")
