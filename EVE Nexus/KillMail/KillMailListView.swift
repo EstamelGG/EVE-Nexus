@@ -26,7 +26,7 @@ struct KillMailListView: View {
                 }
                 
                 NavigationLink {
-                    Text("查看全部") // TODO: 实现查看全部视图
+                    KillMailAllView(characterId: characterId)
                 } label: {
                     Label("查看全部", systemImage: "list.bullet")
                 }
