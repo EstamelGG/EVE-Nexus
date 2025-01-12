@@ -20,7 +20,7 @@ struct KillMailListView: View {
                 }
                 
                 NavigationLink {
-                    Text("最近7天") // TODO: 实现最近7天视图
+                    KillMailLastWeekView(characterId: characterId)
                 } label: {
                     Label("最近7天", systemImage: "clock")
                 }

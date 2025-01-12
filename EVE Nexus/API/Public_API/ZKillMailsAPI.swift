@@ -440,49 +440,25 @@ class ZKillMailsAPI {
     }
     
     // 获取最近一周的击杀记录
-    public func fetchLastWeekKillMails(characterId: Int, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
-        Logger.debug("开始获取最近一周的击杀记录")
-        var allKillMails: [KillMailInfo] = []
-        var currentPage = 1
+    public func fetchLastWeekKillMails(characterId: Int, page: Int = 1, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
+        let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/pastSeconds/604800/page/\(page)/")!
+        let headers = ["User-Agent": "EVE-Nexus"]
         
-        while currentPage <= maxPages {
-            let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/pastSeconds/604800/page/\(currentPage)/")!
-            Logger.debug("开始获取第 \(currentPage) 页数据")
-            
-            let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
-            
-            do {
-                let decoder = JSONDecoder()
-                let pageKillMails = try decoder.decode([KillMailInfo].self, from: data)
-                
-                if pageKillMails.isEmpty {
-                    Logger.debug("第 \(currentPage) 页数据为空，停止获取")
-                    break
-                }
-                
-                allKillMails.append(contentsOf: pageKillMails)
-                Logger.debug("累计获取 \(allKillMails.count) 条记录")
-                currentPage += 1
-                
-            } catch {
-                Logger.error("解析击杀记录失败 - 页码: \(currentPage), 错误: \(error)")
-                throw error
-            }
-        }
+        Logger.info("开始获取最近一周的击杀记录")
+        Logger.debug("开始获取第 \(page) 页数据")
+        
+        let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
+        let killMails = try JSONDecoder().decode([KillMailInfo].self, from: data)
         
         // 按killmail_id从大到小排序
-        allKillMails.sort { $0.killmail_id > $1.killmail_id }
+        let sortedKillMails = killMails.sorted { $0.killmail_id > $1.killmail_id }
         
-        if saveToDatabase && !allKillMails.isEmpty {
-            Logger.debug("开始保存 \(allKillMails.count) 条记录到数据库")
-            if !saveKillMailsToDB(queryType: .character(characterId), killmails: allKillMails) {
-                Logger.error("保存击杀记录到数据库失败")
-            } else {
-                Logger.debug("成功保存击杀记录到数据库")
-            }
+        if !sortedKillMails.isEmpty {
+            Logger.debug("成功获取第 \(page) 页数据，共 \(sortedKillMails.count) 条记录")
+        } else {
+            Logger.debug("第 \(page) 页数据为空")
         }
         
-        Logger.info("成功获取最近一周的击杀记录，共 \(allKillMails.count) 条")
-        return allKillMails
+        return sortedKillMails
     }
 } 
