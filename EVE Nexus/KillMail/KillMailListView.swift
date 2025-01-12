@@ -61,6 +61,7 @@ struct KillMailListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .navigationTitle("击杀记录")
         .refreshable {
             await viewModel.fetchRecentKillMails()
         }
