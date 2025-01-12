@@ -1,6 +1,6 @@
 import Foundation
 
-// 击杀记录数据模型
+// 战斗记录数据模型
 struct KillMailInfo: Codable, Equatable {
     let killmail_hash: String
     let killmail_id: Int
@@ -135,7 +135,7 @@ class ZKillMailsAPI {
         return Date().timeIntervalSince(lastQueryTime) >= cacheTimeout
     }
     
-    // 从服务器获取击杀记录
+    // 从服务器获取战斗记录
     private func fetchKillMailsFromServer(queryType: KillMailQueryType, saveToDatabase: Bool) async throws -> [KillMailInfo] {
         var allKillMails: [KillMailInfo] = []
         var currentPage = 1
@@ -193,9 +193,9 @@ class ZKillMailsAPI {
             
             // 保存到数据库
             if !saveKillMailsToDB(queryType: queryType, killmails: allKillMails) {
-                Logger.error("保存击杀记录到数据库失败")
+                Logger.error("保存战斗记录到数据库失败")
             } else {
-                Logger.debug("成功保存击杀记录到数据库")
+                Logger.debug("成功保存战斗记录到数据库")
                 // 发送数据更新通知
                 DispatchQueue.main.async {
                     NotificationCenter.default.post(
@@ -210,12 +210,12 @@ class ZKillMailsAPI {
             }
         }
         
-        Logger.info("成功从zKillboard获取击杀记录 - ID: \(queryType.id), 记录数量: \(allKillMails.count)")
+        Logger.info("成功从zKillboard获取战斗记录 - ID: \(queryType.id), 记录数量: \(allKillMails.count)")
         
         return allKillMails
     }
     
-    // 获取单页击杀记录
+    // 获取单页战斗记录
     private func fetchKillMailsPage(queryType: KillMailQueryType, page: Int) async throws -> [KillMailInfo] {
         let url = URL(string: "https://zkillboard.com/api/\(queryType.endpoint)/page/\(page)/")!
         
@@ -229,10 +229,10 @@ class ZKillMailsAPI {
         do {
             let decoder = JSONDecoder()
             let killmails = try decoder.decode([KillMailInfo].self, from: data)
-            Logger.debug("成功解析击杀记录 - 页码: \(page), 记录数量: \(killmails.count)")
+            Logger.debug("成功解析战斗记录 - 页码: \(page), 记录数量: \(killmails.count)")
             return killmails
         } catch {
-            Logger.error("解析击杀记录失败 - 页码: \(page), 错误: \(error)")
+            Logger.error("解析战斗记录失败 - 页码: \(page), 错误: \(error)")
             if let jsonString = String(data: data, encoding: .utf8) {
                 Logger.debug("原始JSON数据: \(jsonString)")
             }
@@ -240,9 +240,9 @@ class ZKillMailsAPI {
         }
     }
     
-    // 保存击杀记录到数据库
+    // 保存战斗记录到数据库
     private func saveKillMailsToDB(queryType: KillMailQueryType, killmails: [KillMailInfo]) -> Bool {
-        Logger.debug("开始保存击杀记录到数据库，记录数量: \(killmails.count)")
+        Logger.debug("开始保存战斗记录到数据库，记录数量: \(killmails.count)")
         var newCount = 0
         
         let insertSQL = """
@@ -269,7 +269,7 @@ class ZKillMailsAPI {
             
             Logger.debug("尝试插入记录 - killmail_id: \(killmail.killmail_id)")
             if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
-                Logger.error("保存击杀记录到数据库失败: \(message), killmail_id: \(killmail.killmail_id)")
+                Logger.error("保存战斗记录到数据库失败: \(message), killmail_id: \(killmail.killmail_id)")
                 return false
             }
             
@@ -280,14 +280,14 @@ class ZKillMailsAPI {
         }
         
         if newCount > 0 {
-            Logger.info("数据库更新：新增\(newCount)条击杀记录")
+            Logger.info("数据库更新：新增\(newCount)条战斗记录")
         } else {
-            Logger.debug("没有需要更新的击杀记录")
+            Logger.debug("没有需要更新的战斗记录")
         }
         return true
     }
     
-    // 从数据库获取击杀记录
+    // 从数据库获取战斗记录
     private func getKillMailsFromDB(queryType: KillMailQueryType) -> [KillMailInfo]? {
         let query = """
             SELECT killmail_id, killmail_hash, location_id, total_value, npc, solo, awox
@@ -323,12 +323,12 @@ class ZKillMailsAPI {
         return nil
     }
     
-    // 获取角色击杀记录（公开方法）
+    // 获取角色战斗记录（公开方法）
     public func fetchCharacterKillMails(characterId: Int, page: Int = 1, forceRefresh: Bool = false, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
         let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/page/\(page)/")!
         let headers = ["User-Agent": "EVE-Nexus"]
         
-        Logger.info("开始获取角色击杀记录")
+        Logger.info("开始获取角色战斗记录")
         Logger.debug("开始获取第 \(page) 页数据")
         
         let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
@@ -346,7 +346,7 @@ class ZKillMailsAPI {
         return sortedKillMails
     }
     
-    // 获取军团击杀记录（公开方法）
+    // 获取军团战斗记录（公开方法）
     public func fetchCorporationKillMails(characterId: Int, forceRefresh: Bool = false, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
         // 获取角色的军团ID
         guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
@@ -356,7 +356,7 @@ class ZKillMailsAPI {
         return try await fetchKillMails(queryType: .corporation(corporationId), forceRefresh: forceRefresh, saveToDatabase: saveToDatabase)
     }
     
-    // 通用获取击杀记录方法
+    // 通用获取战斗记录方法
     private func fetchKillMails(queryType: KillMailQueryType, forceRefresh: Bool, saveToDatabase: Bool) async throws -> [KillMailInfo] {
         if saveToDatabase {
             // 检查数据库中是否有数据
@@ -372,21 +372,21 @@ class ZKillMailsAPI {
             
             // 如果数据为空或强制刷新，则从网络获取
             if isEmpty || forceRefresh {
-                Logger.debug("击杀记录为空或强制刷新，从zKillboard获取数据")
+                Logger.debug("战斗记录为空或强制刷新，从zKillboard获取数据")
                 return try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
             }
             
             // 检查是否需要在后台刷新
             if shouldRefreshData(queryType: queryType) {
-                Logger.info("击杀记录数据已过期，在后台刷新 - ID: \(queryType.id)")
+                Logger.info("战斗记录数据已过期，在后台刷新 - ID: \(queryType.id)")
                 
                 // 在后台刷新数据
                 Task {
                     do {
                         let _ = try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
-                        Logger.info("后台刷新击杀记录完成 - ID: \(queryType.id)")
+                        Logger.info("后台刷新战斗记录完成 - ID: \(queryType.id)")
                     } catch {
-                        Logger.error("后台刷新击杀记录失败 - ID: \(queryType.id), 错误: \(error)")
+                        Logger.error("后台刷新战斗记录失败 - ID: \(queryType.id), 错误: \(error)")
                     }
                 }
             }
@@ -407,12 +407,12 @@ class ZKillMailsAPI {
     func clearCache(queryType: KillMailQueryType) {
         let key = lastKillmailsQueryKey + String(queryType.id)
         UserDefaults.standard.removeObject(forKey: key)
-        Logger.debug("清除击杀记录缓存 - ID: \(queryType.id)")
+        Logger.debug("清除战斗记录缓存 - ID: \(queryType.id)")
     }
     
-    // 获取最近的击杀记录（公开方法）
+    // 获取最近的战斗记录（公开方法）
     public func fetchRecentKillMails(characterId: Int, limit: Int = 5) async throws -> [KillMailInfo] {
-        Logger.debug("开始获取最近\(limit)条击杀记录")
+        Logger.debug("开始获取最近\(limit)条战斗记录")
         
         // 只获取第一页数据
         let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/page/1/")!
@@ -426,20 +426,20 @@ class ZKillMailsAPI {
             killmails.sort { $0.killmail_id > $1.killmail_id }
             killmails = Array(killmails.prefix(limit))
             
-            Logger.debug("成功获取\(killmails.count)条最近击杀记录")
+            Logger.debug("成功获取\(killmails.count)条最近战斗记录")
             return killmails
         } catch {
-            Logger.error("解析击杀记录失败: \(error)")
+            Logger.error("解析战斗记录失败: \(error)")
             throw error
         }
     }
     
-    // 获取指定月份的击杀记录
+    // 获取指定月份的战斗记录
     public func fetchMonthlyKillMails(characterId: Int, year: Int, month: Int, page: Int = 1, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
         let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/year/\(year)/month/\(month)/page/\(page)/")!
         let headers = ["User-Agent": "EVE-Nexus"]
         
-        Logger.info("开始获取 \(year)年\(month)月 的击杀记录")
+        Logger.info("开始获取 \(year)年\(month)月 的战斗记录")
         Logger.debug("开始获取第 \(page) 页数据")
         
         let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
@@ -457,12 +457,12 @@ class ZKillMailsAPI {
         return sortedKillMails
     }
     
-    // 获取最近一周的击杀记录
+    // 获取最近一周的战斗记录
     public func fetchLastWeekKillMails(characterId: Int, page: Int = 1, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
         let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/pastSeconds/604800/page/\(page)/")!
         let headers = ["User-Agent": "EVE-Nexus"]
         
-        Logger.info("开始获取最近一周的击杀记录")
+        Logger.info("开始获取最近一周的战斗记录")
         Logger.debug("开始获取第 \(page) 页数据")
         
         let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
@@ -480,15 +480,15 @@ class ZKillMailsAPI {
         return sortedKillMails
     }
     
-    /// 获取击杀详情
+    /// 获取战斗详情
     /// - Parameters:
-    ///   - killmailId: 击杀ID
-    ///   - killmailHash: 击杀哈希值
-    /// - Returns: 击杀详情数据
+    ///   - killmailId: 战斗ID
+    ///   - killmailHash: 战斗哈希值
+    /// - Returns: 战斗详情数据
     func fetchKillMailDetail(killmailId: Int, killmailHash: String) async throws -> KillMailDetail {
         let url = URL(string: "https://esi.evetech.net/latest/killmails/\(killmailId)/\(killmailHash)/?datasource=tranquility")!
         
-        Logger.info("正在获取击杀详情 - ID: \(killmailId)")
+        Logger.info("正在获取战斗详情 - ID: \(killmailId)")
         let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
         
         do {
@@ -523,19 +523,19 @@ class ZKillMailsAPI {
             ]
             
             if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters as [Any]) {
-                Logger.error("保存击杀详情到数据库失败: \(error)")
+                Logger.error("保存战斗详情到数据库失败: \(error)")
             }
             
-            Logger.info("成功获取击杀详情 - ID: \(killmailId)")
+            Logger.info("成功获取战斗详情 - ID: \(killmailId)")
             return detail
         } catch {
-            Logger.error("解析击杀详情失败 - ID: \(killmailId), 错误: \(error)")
+            Logger.error("解析战斗详情失败 - ID: \(killmailId), 错误: \(error)")
             throw error
         }
     }
 }
 
-// MARK: - 击杀详情相关结构体
+// MARK: - 战斗详情相关结构体
 struct KillMailDetail: Codable {
     let killmailId: Int
     let killmailTime: String

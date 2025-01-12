@@ -57,11 +57,11 @@ struct KillMailListView: View {
                         .foregroundColor(.secondary)
                 }
             } header: {
-                Text("最近击杀")
+                Text("最近 5 次战斗记录")
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("击杀记录")
+        .navigationTitle("战斗记录")
         .refreshable {
             await viewModel.fetchRecentKillMails()
         }
