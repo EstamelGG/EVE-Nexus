@@ -867,6 +867,10 @@ struct MarketQuickbarDetailView: View {
                 }
             }
         }
+        .refreshable {
+            // 强制刷新市场订单
+            await loadAllMarketOrders(forceRefresh: true)
+        }
         .navigationTitle(quickbar.name)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -920,7 +924,7 @@ struct MarketQuickbarDetailView: View {
     }
     
     // 加载所有物品的市场订单
-    private func loadAllMarketOrders() async {
+    private func loadAllMarketOrders(forceRefresh: Bool = false) async {
         guard !items.isEmpty else { return }
         
         isLoadingOrders = true
@@ -944,7 +948,7 @@ struct MarketQuickbarDetailView: View {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
                                 typeID: item.id,
                                 regionID: currentRegionID,
-                                forceRefresh: false
+                                forceRefresh: forceRefresh
                             )
                             return (item.id, orders)
                         } catch {
@@ -968,7 +972,7 @@ struct MarketQuickbarDetailView: View {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
                                 typeID: item.id,
                                 regionID: currentRegionID,
-                                forceRefresh: false
+                                forceRefresh: forceRefresh
                             )
                             return (item.id, orders)
                         } catch {
