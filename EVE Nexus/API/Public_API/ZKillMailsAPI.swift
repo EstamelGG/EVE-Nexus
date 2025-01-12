@@ -479,4 +479,123 @@ class ZKillMailsAPI {
         
         return sortedKillMails
     }
+    
+    /// 获取击杀详情
+    /// - Parameters:
+    ///   - killmailId: 击杀ID
+    ///   - killmailHash: 击杀哈希值
+    /// - Returns: 击杀详情数据
+    func fetchKillMailDetail(killmailId: Int, killmailHash: String) async throws -> KillMailDetail {
+        let url = URL(string: "https://esi.evetech.net/latest/killmails/\(killmailId)/\(killmailHash)/?datasource=tranquility")!
+        
+        Logger.info("正在获取击杀详情 - ID: \(killmailId)")
+        let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
+        
+        do {
+            // 保存原始JSON数据到本地文件
+            let fileManager = FileManager.default
+            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let killmailsDir = documentsPath.appendingPathComponent("killmails")
+            
+            // 创建killmails目录（如果不存在）
+            try? fileManager.createDirectory(at: killmailsDir, withIntermediateDirectories: true)
+            
+            // 构建文件路径
+            let fileName = "killmail_\(killmailId).json"
+            let filePath = killmailsDir.appendingPathComponent(fileName)
+            
+            // 写入JSON数据
+            try data.write(to: filePath)
+            Logger.debug("已保存击杀详情JSON到文件: \(fileName)")
+            
+            // 解析JSON数据
+            let detail = try JSONDecoder().decode(KillMailDetail.self, from: data)
+            Logger.info("成功获取击杀详情 - ID: \(killmailId)")
+            return detail
+        } catch {
+            Logger.error("解析击杀详情失败 - ID: \(killmailId), 错误: \(error)")
+            throw error
+        }
+    }
+}
+
+// MARK: - 击杀详情相关结构体
+struct KillMailDetail: Codable {
+    let killmailId: Int
+    let killmailTime: String
+    let solarSystemId: Int
+    let attackers: [Attacker]
+    let victim: Victim
+    
+    enum CodingKeys: String, CodingKey {
+        case killmailId = "killmail_id"
+        case killmailTime = "killmail_time"
+        case solarSystemId = "solar_system_id"
+        case attackers
+        case victim
+    }
+}
+
+struct Attacker: Codable {
+    let allianceId: Int?
+    let characterId: Int?
+    let corporationId: Int?
+    let damageDone: Int
+    let finalBlow: Bool
+    let securityStatus: Double
+    let shipTypeId: Int?
+    let weaponTypeId: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case allianceId = "alliance_id"
+        case characterId = "character_id"
+        case corporationId = "corporation_id"
+        case damageDone = "damage_done"
+        case finalBlow = "final_blow"
+        case securityStatus = "security_status"
+        case shipTypeId = "ship_type_id"
+        case weaponTypeId = "weapon_type_id"
+    }
+}
+
+struct Victim: Codable {
+    let allianceId: Int?
+    let characterId: Int?
+    let corporationId: Int?
+    let damageTaken: Int
+    let items: [Item]?
+    let position: Position?
+    let shipTypeId: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case allianceId = "alliance_id"
+        case characterId = "character_id"
+        case corporationId = "corporation_id"
+        case damageTaken = "damage_taken"
+        case items
+        case position
+        case shipTypeId = "ship_type_id"
+    }
+}
+
+struct Item: Codable {
+    let flag: Int
+    let itemTypeId: Int
+    let quantityDropped: Int?
+    let quantityDestroyed: Int?
+    let singleton: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case flag
+        case itemTypeId = "item_type_id"
+        case quantityDropped = "quantity_dropped"
+        case quantityDestroyed = "quantity_destroyed"
+        case singleton
+    }
+}
+
+struct Position: Codable {
+    let x: Double
+    let y: Double
+    let z: Double
 } 

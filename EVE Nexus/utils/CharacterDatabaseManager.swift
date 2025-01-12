@@ -476,19 +476,19 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             
             -- 击杀记录表
             CREATE TABLE IF NOT EXISTS killmails (
-                character_id INTEGER NOT NULL,
-                killmail_id INTEGER NOT NULL,
-                killmail_hash TEXT NOT NULL,
-                location_id INTEGER,
-                total_value REAL,
-                npc BOOLEAN DEFAULT 0,
-                solo BOOLEAN DEFAULT 0,
-                awox BOOLEAN DEFAULT 0,
-                PRIMARY KEY (character_id, killmail_id)
+                killmail_id INTEGER NOT NULL PRIMARY KEY,
+                killmail_time TEXT NOT NULL,
+                solar_system_id INTEGER NOT NULL,
+                victim_character_id INTEGER,
+                victim_alliance_id INTEGER,
+                attacker_final_blow_character_id INTEGER,
+                attacker_final_blow_alliance_id INTEGER,
+                attackers_num INTEGER NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_killmails_character_id ON killmails(character_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_location_id ON killmails(location_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_total_value ON killmails(total_value);
+            CREATE INDEX IF NOT EXISTS idx_killmails_time ON killmails(killmail_time);
+            CREATE INDEX IF NOT EXISTS idx_killmails_system ON killmails(solar_system_id);
+            CREATE INDEX IF NOT EXISTS idx_killmails_victim ON killmails(victim_character_id);
+            CREATE INDEX IF NOT EXISTS idx_killmails_attacker ON killmails(attacker_final_blow_character_id);
         """
         
         // 分割SQL语句并逐个执行
