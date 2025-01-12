@@ -173,8 +173,19 @@ final class IncursionsViewModel: ObservableObject {
                 }
             }
             
-            // 按影响力从大到小排序
-            result.sort { $0.incursion.influence > $1.incursion.influence }
+            // 多重排序条件：
+            // 1. 按影响力从大到小
+            // 2. 同等影响力下，有boss的优先
+            // 3. boss状态相同时，按星系名称字母顺序
+            result.sort { a, b in
+                if a.incursion.influence != b.incursion.influence {
+                    return a.incursion.influence > b.incursion.influence
+                }
+                if a.incursion.hasBoss != b.incursion.hasBoss {
+                    return a.incursion.hasBoss
+                }
+                return a.location.systemName < b.location.systemName
+            }
             return result
         }
         
