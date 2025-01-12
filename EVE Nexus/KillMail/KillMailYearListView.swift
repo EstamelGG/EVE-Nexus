@@ -61,7 +61,13 @@ struct KillMailYearListView: View {
                     if viewModel.isLoading {
                         HStack {
                             Spacer()
-                            ProgressView()
+                            VStack(spacing: 8) {
+                                if let message = viewModel.loadingMessage {
+                                    Text(message)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                             Spacer()
                         }
                     } else if let error = viewModel.errorMessage {
@@ -96,7 +102,14 @@ struct KillMailYearListView: View {
                         if viewModel.isLoadingMore {
                             HStack {
                                 Spacer()
-                                ProgressView()
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                    if let message = viewModel.loadingMessage {
+                                        Text(message)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
                                 Spacer()
                             }
                             .padding()
@@ -126,6 +139,7 @@ class KillMailYearListViewModel: ObservableObject {
     @Published var isLoadingMore = false
     @Published var errorMessage: String?
     @Published private(set) var hasSearched = false
+    @Published private(set) var loadingMessage: String?
     
     private let characterId: Int
     private var currentPage = 1
@@ -220,6 +234,7 @@ class KillMailYearListViewModel: ObservableObject {
         existingKillMailIds.removeAll()
         errorMessage = nil
         hasSearched = true
+        loadingMessage = "正在获取第1页数据"
         
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchMonthlyKillMails(
@@ -241,6 +256,7 @@ class KillMailYearListViewModel: ObservableObject {
             Logger.error("获取击杀记录失败: \(error)")
         }
         
+        loadingMessage = nil
         isLoading = false
     }
     
@@ -254,6 +270,7 @@ class KillMailYearListViewModel: ObservableObject {
         
         isLoadingMore = true
         currentPage += 1
+        loadingMessage = "正在获取第\(currentPage)页数据"
         
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchMonthlyKillMails(
@@ -279,6 +296,7 @@ class KillMailYearListViewModel: ObservableObject {
             Logger.error("加载更多击杀记录失败: \(error)")
         }
         
+        loadingMessage = nil
         isLoadingMore = false
     }
 } 
