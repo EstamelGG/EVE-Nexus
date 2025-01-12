@@ -1040,7 +1040,7 @@ struct ContentView: View {
         } label: {
             Image(systemName: "power")
                 .resizable()
-                .frame(width: 24, height: 24)
+                .frame(width: 20, height: 20)
                 .foregroundColor(.red)
         }
     }

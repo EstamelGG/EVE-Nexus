@@ -625,7 +625,6 @@ struct MarketQuickbarView: View {
     private func quickbarRowView(_ quickbar: MarketQuickbar) -> some View {
         HStack {
             Text(quickbar.name)
-                .font(.headline)
                 .lineLimit(1)
             Spacer()
             Text(String(format: NSLocalizedString("Main_Market_Watch_List_Items", comment: ""), quickbar.items.count))

@@ -473,6 +473,15 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
+
+            -- 击杀记录表
+            CREATE TABLE IF NOT EXISTS killmails (
+                character_id INTEGER NOT NULL,
+                killmail_id INTEGER NOT NULL,
+                killmail_hash TEXT NOT NULL,
+                PRIMARY KEY (character_id, killmail_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_killmails_character_id ON killmails(character_id);
         """
         
         // 分割SQL语句并逐个执行
