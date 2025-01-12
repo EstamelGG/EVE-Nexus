@@ -55,6 +55,7 @@
     ],
     "scope_corp": [
         "esi-wallet.read_corporation_wallets.v1",
-        "esi-corporations.read_divisions.v1"
+        "esi-corporations.read_divisions.v1",
+        "esi-industry.read_corporation_mining.v1"
     ]
 }
