@@ -483,12 +483,14 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 victim_alliance_id INTEGER,
                 attacker_final_blow_character_id INTEGER,
                 attacker_final_blow_alliance_id INTEGER,
-                attackers_num INTEGER NOT NULL
+                attackers_num INTEGER NOT NULL,
+                ship_type_id INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_killmails_time ON killmails(killmail_time);
             CREATE INDEX IF NOT EXISTS idx_killmails_system ON killmails(solar_system_id);
             CREATE INDEX IF NOT EXISTS idx_killmails_victim ON killmails(victim_character_id);
             CREATE INDEX IF NOT EXISTS idx_killmails_attacker ON killmails(attacker_final_blow_character_id);
+            CREATE INDEX IF NOT EXISTS idx_killmails_ship ON killmails(ship_type_id);
         """
         
         // 分割SQL语句并逐个执行
