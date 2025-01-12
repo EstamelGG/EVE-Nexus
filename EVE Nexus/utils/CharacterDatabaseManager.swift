@@ -473,23 +473,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
-
-            -- 军团击杀记录表
-            CREATE TABLE IF NOT EXISTS corp_killmails (
-                corporation_id INTEGER NOT NULL,
-                killmail_id INTEGER NOT NULL,
-                killmail_hash TEXT NOT NULL,
-                location_id INTEGER,
-                total_value REAL,
-                npc BOOLEAN DEFAULT 0,
-                solo BOOLEAN DEFAULT 0,
-                awox BOOLEAN DEFAULT 0,
-                PRIMARY KEY (corporation_id, killmail_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_corp_killmails_corporation_id ON corp_killmails(corporation_id);
-            CREATE INDEX IF NOT EXISTS idx_corp_killmails_location_id ON corp_killmails(location_id);
-            CREATE INDEX IF NOT EXISTS idx_corp_killmails_total_value ON corp_killmails(total_value);
-
+            
             -- 击杀记录表
             CREATE TABLE IF NOT EXISTS killmails (
                 character_id INTEGER NOT NULL,
