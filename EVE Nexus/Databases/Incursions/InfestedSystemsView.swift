@@ -13,6 +13,7 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
     var factionId: Int?
     @Published var icon: Image?
     @Published var isLoadingIcon: Bool = false
+    @Published var allianceName: String?
     
     init(systemName: String, security: Double, systemId: Int, influence: Double, regionName: String, constellationName: String) {
         self.id = systemId
@@ -23,42 +24,6 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
         self.regionName = regionName
         self.constellationName = constellationName
         super.init()
-    }
-    
-    @MainActor
-    func loadIcon(databaseManager: DatabaseManager) async {
-        guard !isLoadingIcon else { return }
-        isLoadingIcon = true
-        
-        if let allianceId = allianceId {
-            do {
-                Logger.debug("开始加载联盟图标: \(allianceId)")
-                let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-                if !Task.isCancelled {
-                    icon = Image(uiImage: uiImage)
-                    Logger.debug("联盟图标加载成功: \(allianceId)")
-                }
-            } catch {
-                if (error as NSError).code == NSURLErrorCancelled {
-                    Logger.debug("联盟图标加载已取消: \(allianceId)")
-                } else {
-                    Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
-                }
-            }
-        } else if let factionId = factionId {
-            let query = "SELECT iconName FROM factions WHERE id = ?"
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
-               let row = rows.first,
-               let iconName = row["iconName"] as? String {
-                Logger.debug("开始加载派系图标: \(factionId)")
-                icon = IconManager.shared.loadImage(for: iconName)
-                Logger.debug("派系图标加载成功: \(factionId)")
-            } else {
-                Logger.error("派系图标加载失败: \(factionId)")
-            }
-        }
-        
-        isLoadingIcon = false
     }
 }
 
@@ -254,6 +219,14 @@ class InfestedSystemsViewModel: ObservableObject {
                                 system.isLoadingIcon = false
                             }
                         }
+                        
+                        // 加载联盟名称
+                        if let allianceInfo = try? await AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId) {
+                            for system in systems {
+                                system.allianceName = allianceInfo.name
+                            }
+                            Logger.debug("联盟名称加载成功: \(allianceId)")
+                        }
                     }
                 }
             }
@@ -268,16 +241,18 @@ class InfestedSystemsViewModel: ObservableObject {
         for (factionId, systems) in factionToSystems {
             if systems.first != nil {
                 Logger.debug("开始加载派系图标: \(factionId)，影响 \(systems.count) 个星系")
-                let query = "SELECT iconName FROM factions WHERE id = ?"
+                let query = "SELECT iconName, name FROM factions WHERE id = ?"
                 if case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),
                    let row = rows.first,
                    let iconName = row["iconName"] as? String {
                     let icon = IconManager.shared.loadImage(for: iconName)
+                    let factionName = row["name"] as? String
                     // 更新所有使用这个派系图标的系统
                     for system in systems {
                         system.icon = icon
+                        system.allianceName = factionName
                     }
-                    Logger.debug("派系图标加载成功: \(factionId)")
+                    Logger.debug("派系图标和名称加载成功: \(factionId)")
                 } else {
                     Logger.error("派系图标加载失败: \(factionId)")
                 }
@@ -311,6 +286,7 @@ struct InfestedSystemsView: View {
                     ForEach(viewModel.systems) { system in
                         SystemRow(system: system)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 .listStyle(.insetGrouped)
                 .refreshable {
@@ -327,22 +303,38 @@ struct SystemRow: View {
     @ObservedObject var system: SystemInfo
     
     var body: some View {
-        HStack {
-            Text(formatSystemSecurity(system.security))
-                .foregroundColor(getSecurityColor(system.security))
-            Text(system.systemName)
-                .fontWeight(.medium)
-            Spacer()
+        HStack(spacing: 12) {
+            // 左侧图标
             if system.isLoadingIcon {
                 ProgressView()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
             } else if let icon = system.icon {
                 icon
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .cornerRadius(6)
             }
+            // 右侧文本区域
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：安全等级和星系名称
+                HStack(spacing: 8) {
+                    Text(formatSystemSecurity(system.security))
+                        .foregroundColor(getSecurityColor(system.security))
+                        .font(.system(.body, design: .monospaced))
+                    Text(system.systemName)
+                        .fontWeight(.medium)
+                }
+                
+                // 第二行：联盟/派系名称
+                if let allianceName = system.allianceName {
+                    Text(allianceName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
         }
+        .padding(.vertical, 2)
     }
 }

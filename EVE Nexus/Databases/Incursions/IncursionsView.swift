@@ -224,7 +224,7 @@ struct IncursionCell: View {
             HStack(spacing: 12) {
                 IconManager.shared.loadImage(for: incursion.faction.iconName)
                     .resizable()
-                    .frame(width: 48, height: 48)
+                    .frame(width: 52, height: 52)
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -232,6 +232,7 @@ struct IncursionCell: View {
                         Text(incursion.faction.name)
                         Text("[\(String(format: "%.1f", incursion.incursion.influence * 100))%]")
                             .foregroundColor(.secondary)
+                            .font(.subheadline)
                         if incursion.incursion.hasBoss {
                             IconManager.shared.loadImage(for: "items_4_64_7.png")
                                 .resizable()
@@ -244,14 +245,16 @@ struct IncursionCell: View {
                         HStack(spacing: 4) {
                             Text(formatSystemSecurity(incursion.location.security))
                                 .foregroundColor(getSecurityColor(incursion.location.security))
+                                .font(.subheadline)
                             Text(incursion.location.systemName)
                                 .fontWeight(.bold)
+                                .font(.subheadline)
                         }
                         
                         Text("\(incursion.location.constellationName) / \(incursion.location.regionName)")
                             .foregroundColor(.secondary)
+                            .font(.caption)
                     }
-                    .font(.subheadline)
                 }
             }
             .padding(.vertical, 8)
