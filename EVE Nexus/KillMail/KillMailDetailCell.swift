@@ -12,9 +12,9 @@ struct KillMailDetailCell: View {
     
     // 从API获取的信息
     @State private var victimName: String = ""
-    @State private var victimAllianceIcon: UIImage?
+    @State private var victimIcon: UIImage?
     @State private var attackerName: String = ""
-    @State private var attackerAllianceIcon: UIImage?
+    @State private var attackerIcon: UIImage?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -39,7 +39,7 @@ struct KillMailDetailCell: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 第一行: 舰船图标、受害者名称和联盟图标
+            // 第一行: 舰船图标、受害者名称和联盟/势力图标
             HStack(spacing: 8) {
                 // 受害者舰船图标（从数据库获取）
                 IconManager.shared.loadImage(for: shipInfo.iconFileName)
@@ -52,14 +52,14 @@ struct KillMailDetailCell: View {
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
                     
-                    // 受害者名称和联盟图标（从API获取）
+                    // 受害者名称和联盟/势力图标（从API获取）
                     HStack(spacing: 4) {
                         Text(victimName)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                         
-                        if let icon = victimAllianceIcon {
+                        if let icon = victimIcon {
                             Image(uiImage: icon)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -76,14 +76,14 @@ struct KillMailDetailCell: View {
                     .foregroundColor(.secondary)
             }
             
-            // 第二行: 最后一击者名称和联盟图标（从API获取）
+            // 第二行: 最后一击者名称和联盟/势力图标（从API获取）
             if let finalBlow = detail.attackers.first(where: { $0.finalBlow }) {
                 HStack(spacing: 4) {
                     Text(attackerName)
                         .font(.system(size: 14))
                         .lineLimit(1)
                     
-                    if let icon = attackerAllianceIcon {
+                    if let icon = attackerIcon {
                         Image(uiImage: icon)
                             .resizable()
                             .frame(width: 16, height: 16)
@@ -124,8 +124,14 @@ struct KillMailDetailCell: View {
                     let info = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
                     victimName = info.name
                     
+                    // 优先尝试获取联盟图标，如果没有则尝试获取势力图标
                     if let allianceId = detail.victim.allianceId {
-                        victimAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                        victimIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                    } else if let factionId = detail.victim.factionId {
+                        // 从数据库获取势力图标
+                        if let factionIcon = getFactionIcon(factionId: factionId) {
+                            victimIcon = IconManager.shared.loadUIImage(for: factionIcon)
+                        }
                     }
                 } catch {
                     Logger.error("获取受害者信息失败: \(error)")
@@ -139,8 +145,14 @@ struct KillMailDetailCell: View {
                     let info = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
                     attackerName = info.name
                     
+                    // 优先尝试获取联盟图标，如果没有则尝试获取势力图标
                     if let allianceId = finalBlow.allianceId {
-                        attackerAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                        attackerIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                    } else if let factionId = finalBlow.factionId {
+                        // 从数据库获取势力图标
+                        if let factionIcon = getFactionIcon(factionId: factionId) {
+                            attackerIcon = IconManager.shared.loadUIImage(for: factionIcon)
+                        }
                     }
                 } catch {
                     Logger.error("获取攻击者信息失败: \(error)")
@@ -163,6 +175,21 @@ struct KillMailDetailCell: View {
         }
         
         return (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+    }
+    
+    private func getFactionIcon(factionId: Int) -> String? {
+        let result = databaseManager.executeQuery(
+            "SELECT icon_filename FROM factions WHERE faction_id = ?",
+            parameters: [factionId]
+        )
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let iconFileName = row["icon_filename"] as? String {
+            return iconFileName
+        }
+        
+        return nil
     }
     
     private func formatSystemSecurity(_ security: Double) -> String {

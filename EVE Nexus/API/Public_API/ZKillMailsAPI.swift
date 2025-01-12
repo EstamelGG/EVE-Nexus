@@ -540,6 +540,7 @@ struct Attacker: Codable {
     let allianceId: Int?
     let characterId: Int?
     let corporationId: Int?
+    let factionId: Int?
     let damageDone: Int
     let finalBlow: Bool
     let securityStatus: Double
@@ -550,6 +551,7 @@ struct Attacker: Codable {
         case allianceId = "alliance_id"
         case characterId = "character_id"
         case corporationId = "corporation_id"
+        case factionId = "faction_id"
         case damageDone = "damage_done"
         case finalBlow = "final_blow"
         case securityStatus = "security_status"
@@ -562,6 +564,7 @@ struct Victim: Codable {
     let allianceId: Int?
     let characterId: Int?
     let corporationId: Int?
+    let factionId: Int?
     let damageTaken: Int
     let items: [Item]?
     let position: Position?
@@ -571,6 +574,7 @@ struct Victim: Codable {
         case allianceId = "alliance_id"
         case characterId = "character_id"
         case corporationId = "corporation_id"
+        case factionId = "faction_id"
         case damageTaken = "damage_taken"
         case items
         case position
