@@ -98,6 +98,8 @@ final class IncursionsViewModel: ObservableObject {
     
     let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
+    private var lastFetchTime: Date?
+    private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -108,6 +110,15 @@ final class IncursionsViewModel: ObservableObject {
     }
     
     func fetchIncursions(forceRefresh: Bool = false) async {
+        // 如果不是强制刷新，且缓存未过期，且已有数据，则直接返回
+        if !forceRefresh,
+           let lastFetch = lastFetchTime,
+           Date().timeIntervalSince(lastFetch) < cacheTimeout,
+           !preparedIncursions.isEmpty {
+            Logger.debug("使用缓存的入侵数据，跳过加载")
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -126,6 +137,7 @@ final class IncursionsViewModel: ObservableObject {
                 
                 if Task.isCancelled { return }
                 
+                self.lastFetchTime = Date()
                 self.isLoading = false
                 
             } catch {
