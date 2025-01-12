@@ -73,16 +73,7 @@ class ZKillMailsAPI {
     private let cacheTimeout: TimeInterval = 8 * 3600 // 8小时缓存有效期
     private let maxPages = 20 // zKillboard最大页数限制
     
-    // 添加任务追踪
-    private var ongoingTasks: [String: Task<[KillMailInfo], Error>] = [:]
-    private let taskQueue = DispatchQueue(label: "com.eve-nexus.zkillmail.taskQueue")
-    
     private init() {}
-    
-    // 获取任务键
-    private func getTaskKey(queryType: KillMailQueryType, forceRefresh: Bool) -> String {
-        return "\(queryType.id)_\(forceRefresh)"
-    }
     
     // 获取最后查询时间
     private func getLastQueryTime(queryType: KillMailQueryType) -> Date? {
@@ -309,75 +300,49 @@ class ZKillMailsAPI {
     
     // 通用获取击杀记录方法
     private func fetchKillMails(queryType: KillMailQueryType, forceRefresh: Bool, saveToDatabase: Bool) async throws -> [KillMailInfo] {
-        let taskKey = getTaskKey(queryType: queryType, forceRefresh: forceRefresh)
-        
-        // 检查是否已有相同的请求正在进行
-        if let existingTask = taskQueue.sync(execute: { ongoingTasks[taskKey] }) {
-            Logger.debug("发现正在进行的相同请求，等待其完成 - ID: \(queryType.id)")
-            let result = try await existingTask.value
-            return result
-        }
-        
-        // 创建新任务
-        let task = Task<[KillMailInfo], Error> {
-            defer {
-                taskQueue.sync {
-                    ongoingTasks.removeValue(forKey: taskKey)
-                }
+        if saveToDatabase {
+            // 检查数据库中是否有数据
+            let checkQuery = "SELECT COUNT(*) as count FROM \(queryType.tableName) WHERE \(queryType.idColumnName) = ?"
+            let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [queryType.id])
+            let isEmpty = if case .success(let rows) = result,
+                            let row = rows.first,
+                            let count = row["count"] as? Int64 {
+                count == 0
+            } else {
+                true
             }
             
-            if saveToDatabase {
-                // 检查数据库中是否有数据
-                let checkQuery = "SELECT COUNT(*) as count FROM \(queryType.tableName) WHERE \(queryType.idColumnName) = ?"
-                let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [queryType.id])
-                let isEmpty = if case .success(let rows) = result,
-                                let row = rows.first,
-                                let count = row["count"] as? Int64 {
-                    count == 0
-                } else {
-                    true
-                }
+            // 如果数据为空或强制刷新，则从网络获取
+            if isEmpty || forceRefresh {
+                Logger.debug("击杀记录为空或强制刷新，从zKillboard获取数据")
+                return try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
+            }
+            
+            // 检查是否需要在后台刷新
+            if shouldRefreshData(queryType: queryType) {
+                Logger.info("击杀记录数据已过期，在后台刷新 - ID: \(queryType.id)")
                 
-                // 如果数据为空或强制刷新，则从网络获取
-                if isEmpty || forceRefresh {
-                    Logger.debug("击杀记录为空或强制刷新，从zKillboard获取数据")
-                    return try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
-                }
-                
-                // 检查是否需要在后台刷新
-                if shouldRefreshData(queryType: queryType) {
-                    Logger.info("击杀记录数据已过期，在后台刷新 - ID: \(queryType.id)")
-                    
-                    // 在后台刷新数据
-                    Task {
-                        do {
-                            let _ = try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
-                            Logger.info("后台刷新击杀记录完成 - ID: \(queryType.id)")
-                        } catch {
-                            Logger.error("后台刷新击杀记录失败 - ID: \(queryType.id), 错误: \(error)")
-                        }
+                // 在后台刷新数据
+                Task {
+                    do {
+                        let _ = try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: saveToDatabase)
+                        Logger.info("后台刷新击杀记录完成 - ID: \(queryType.id)")
+                    } catch {
+                        Logger.error("后台刷新击杀记录失败 - ID: \(queryType.id), 错误: \(error)")
                     }
                 }
-                
-                // 从数据库获取数据
-                if let killmails = getKillMailsFromDB(queryType: queryType) {
-                    return killmails
-                }
-            } else {
-                // 如果不保存到数据库，直接从服务器获取数据
-                return try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: false)
             }
             
-            return []
+            // 从数据库获取数据
+            if let killmails = getKillMailsFromDB(queryType: queryType) {
+                return killmails
+            }
+        } else {
+            // 如果不保存到数据库，直接从服务器获取数据
+            return try await fetchKillMailsFromServer(queryType: queryType, saveToDatabase: false)
         }
         
-        // 保存任务
-        taskQueue.sync {
-            ongoingTasks[taskKey] = task
-        }
-        
-        // 等待任务完成并返回结果
-        return try await task.value
+        return []
     }
     
     // 清除缓存
