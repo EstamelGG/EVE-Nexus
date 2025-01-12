@@ -10,14 +10,54 @@ struct KillMailInfo: Codable {
     let solo: Bool?
     let awox: Bool?
     
+    private struct ZKB: Codable {
+        let locationID: Int?
+        let hash: String
+        let totalValue: Double?
+        let npc: Bool?
+        let solo: Bool?
+        let awox: Bool?
+    }
+    
     enum CodingKeys: String, CodingKey {
-        case killmail_hash
         case killmail_id
-        case locationID = "locationID"
-        case totalValue = "zkb.totalValue"
-        case npc = "zkb.npc"
-        case solo = "zkb.solo"
-        case awox = "zkb.awox"
+        case zkb
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        killmail_id = try container.decode(Int.self, forKey: .killmail_id)
+        
+        let zkb = try container.decode(ZKB.self, forKey: .zkb)
+        killmail_hash = zkb.hash
+        locationID = zkb.locationID
+        totalValue = zkb.totalValue
+        npc = zkb.npc
+        solo = zkb.solo
+        awox = zkb.awox
+    }
+    
+    init(killmail_hash: String, killmail_id: Int, locationID: Int?, totalValue: Double?, npc: Bool?, solo: Bool?, awox: Bool?) {
+        self.killmail_hash = killmail_hash
+        self.killmail_id = killmail_id
+        self.locationID = locationID
+        self.totalValue = totalValue
+        self.npc = npc
+        self.solo = solo
+        self.awox = awox
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(killmail_id, forKey: .killmail_id)
+        
+        var zkb = ZKB(locationID: locationID,
+                      hash: killmail_hash,
+                      totalValue: totalValue,
+                      npc: npc,
+                      solo: solo,
+                      awox: awox)
+        try container.encode(zkb, forKey: .zkb)
     }
 }
 

@@ -155,7 +155,7 @@ struct KillMailCell: View {
                         .font(.caption)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color.blue.opacity(0.2))
+                        .background(Color.purple.opacity(0.2))
                         .cornerRadius(4)
                 }
                 
