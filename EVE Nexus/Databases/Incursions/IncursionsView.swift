@@ -245,7 +245,7 @@ struct IncursionCell: View {
                         HStack(spacing: 4) {
                             Text(formatSystemSecurity(incursion.location.security))
                                 .foregroundColor(getSecurityColor(incursion.location.security))
-                                .font(.subheadline)
+                                .font(.system(.subheadline, design: .monospaced))
                             Text(incursion.location.systemName)
                                 .fontWeight(.bold)
                                 .font(.subheadline)
