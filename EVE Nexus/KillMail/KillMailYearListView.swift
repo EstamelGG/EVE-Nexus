@@ -13,83 +13,98 @@ struct KillMailYearListView: View {
         List {
             // 年月选择和检索按钮
             Section {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else if let error = viewModel.errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                } else {
-                    HStack {
-                        Text("选择年份")
-                        Spacer()
-                        Picker("", selection: $viewModel.selectedYear) {
-                            Text("请选择年份").tag(nil as Int?)
-                            ForEach(viewModel.yearSections.reversed(), id: \.self) { year in
-                                Text(String(format: "%d年", year)).tag(year as Int?)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    
-                    HStack {
-                        Text("选择月份")
-                        Spacer()
-                        Picker("", selection: $viewModel.selectedMonth) {
-                            Text("请选择月份").tag(nil as Int?)
-                            if let year = viewModel.selectedYear {
-                                ForEach(viewModel.getAvailableMonths(for: year), id: \.self) { month in
-                                    Text(String(format: "%d月", month)).tag(month as Int?)
-                                }
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .disabled(viewModel.selectedYear == nil)
-                    }
-                    
-                    Button {
-                        Task {
-                            await viewModel.fetchKillMails()
-                        }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if viewModel.isLoading {
-                                ProgressView()
-                            } else {
-                                Text("开始检索")
-                            }
-                            Spacer()
+                HStack {
+                    Text("选择年份")
+                    Spacer()
+                    Picker("", selection: $viewModel.selectedYear) {
+                        Text("请选择年份").tag(nil as Int?)
+                        ForEach(viewModel.yearSections.reversed(), id: \.self) { year in
+                            Text(String(format: "%d年", year)).tag(year as Int?)
                         }
                     }
-                    .disabled(viewModel.selectedYear == nil || viewModel.selectedMonth == nil || viewModel.isLoading)
+                    .pickerStyle(.menu)
                 }
+                
+                HStack {
+                    Text("选择月份")
+                    Spacer()
+                    Picker("", selection: $viewModel.selectedMonth) {
+                        Text("请选择月份").tag(nil as Int?)
+                        if let year = viewModel.selectedYear {
+                            ForEach(viewModel.getAvailableMonths(for: year), id: \.self) { month in
+                                Text(String(format: "%d月", month)).tag(month as Int?)
+                            }
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .disabled(viewModel.selectedYear == nil)
+                }
+                
+                Button {
+                    Task {
+                        await viewModel.fetchKillMails()
+                    }
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text("开始检索")
+                        Spacer()
+                    }
+                }
+                .disabled(viewModel.selectedYear == nil || viewModel.selectedMonth == nil || viewModel.isLoading)
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             
-            // 击杀记录列表
-            if !viewModel.killMails.isEmpty {
+            // 搜索结果
+            if viewModel.hasSearched {
                 Section {
-                    ForEach(viewModel.killMails, id: \.killmail_id) { killmail in
-                        KillMailCell(killmail: killmail)
-                            .onAppear {
-                                // 当显示最后一条记录时，加载更多
-                                if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
-                                    Task {
-                                        await viewModel.loadMoreKillMails()
+                    if viewModel.isLoading {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    } else if let error = viewModel.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                    } else if viewModel.killMails.isEmpty {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 8) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                                Text("没有找到击杀记录")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            Spacer()
+                        }
+                    } else {
+                        ForEach(viewModel.killMails, id: \.killmail_id) { killmail in
+                            KillMailCell(killmail: killmail)
+                                .onAppear {
+                                    // 当显示最后一条记录时，加载更多
+                                    if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
+                                        Task {
+                                            await viewModel.loadMoreKillMails()
+                                        }
                                     }
                                 }
+                        }
+                        
+                        if viewModel.isLoadingMore {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
                             }
-                    }
-                    
-                    if viewModel.isLoadingMore {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
                             .padding()
+                        }
                     }
                 } header: {
                     if let year = viewModel.selectedYear, let month = viewModel.selectedMonth {
-                        Text("\(year)年\(month)月的击杀记录")
+                        Text(String(format: "%d年%d月的击杀记录", year, month))
                     }
                 }
             }
@@ -110,6 +125,7 @@ class KillMailYearListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var isLoadingMore = false
     @Published var errorMessage: String?
+    @Published private(set) var hasSearched = false
     
     private let characterId: Int
     private var currentPage = 1
@@ -202,6 +218,8 @@ class KillMailYearListViewModel: ObservableObject {
         hasMorePages = true
         killMails.removeAll()
         existingKillMailIds.removeAll()
+        errorMessage = nil
+        hasSearched = true
         
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchMonthlyKillMails(
