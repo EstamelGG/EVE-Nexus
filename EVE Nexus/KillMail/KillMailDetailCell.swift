@@ -8,7 +8,7 @@ struct KillMailDetailCell: View {
     
     // 从数据库获取的信息
     @State private var shipInfo: (name: String, iconFileName: String) = (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
-    @State private var systemInfo: (name: String, security: Double, regionName: String) = (name: "", security: 0.0, regionName: "")
+    @State private var systemInfo: SolarSystemInfo?
     
     // 从API获取的信息
     @State private var victimName: String = ""
@@ -94,12 +94,14 @@ struct KillMailDetailCell: View {
             
             // 第三行: 击杀地点和时间（从数据库获取星系信息）
             HStack {
-                HStack(spacing: 4) {
-                    Text(formatSystemSecurity(systemInfo.security))
-                        .foregroundColor(getSecurityColor(systemInfo.security))
-                    Text("\(systemInfo.name) / \(systemInfo.regionName)")
+                if let info = systemInfo {
+                    HStack(spacing: 4) {
+                        Text(formatSystemSecurity(info.security))
+                            .foregroundColor(getSecurityColor(info.security))
+                        Text("\(info.systemName) / \(info.regionName)")
+                    }
+                    .font(.caption)
                 }
-                .font(.caption)
                 
                 Spacer()
                 
@@ -114,19 +116,7 @@ struct KillMailDetailCell: View {
             shipInfo = getItemInfo(for: detail.victim.shipTypeId)
             
             // 2. 从数据库获取星系信息
-            let systemQuery = """
-                SELECT s.name, s.security_status, r.name as region_name
-                FROM systems s
-                JOIN regions r ON s.region_id = r.region_id
-                WHERE s.system_id = ?
-            """
-            if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [detail.solarSystemId]),
-               let row = rows.first,
-               let sysName = row["name"] as? String,
-               let secStatus = row["security_status"] as? Double,
-               let regName = row["region_name"] as? String {
-                systemInfo = (name: sysName, security: secStatus, regionName: regName)
-            }
+            systemInfo = await getSolarSystemInfo(solarSystemId: detail.solarSystemId, databaseManager: databaseManager)
             
             // 3. 从API获取受害者信息
             if let characterId = detail.victim.characterId {
