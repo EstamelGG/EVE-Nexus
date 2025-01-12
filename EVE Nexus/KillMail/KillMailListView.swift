@@ -11,44 +11,68 @@ struct KillMailListView: View {
     
     var body: some View {
         List {
+            // 快速访问列表
+            Section {
+                NavigationLink {
+                    Text("按月查看") // TODO: 实现按月查看视图
+                } label: {
+                    Label("按月查看", systemImage: "calendar")
+                }
+                
+                NavigationLink {
+                    Text("最近7天") // TODO: 实现最近7天视图
+                } label: {
+                    Label("最近7天", systemImage: "clock")
+                }
+                
+                NavigationLink {
+                    Text("查看全部") // TODO: 实现查看全部视图
+                } label: {
+                    Label("查看全部", systemImage: "list.bullet")
+                }
+            } header: {
+                Text("快速访问")
+            }
+            
+            // 最近击杀预览
             Section {
                 if viewModel.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity)
-                } else if viewModel.killMails.isEmpty {
-                    Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
+                } else if viewModel.recentKillMails.isEmpty {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text")
+                                .font(.system(size: 30))
+                                .foregroundColor(.gray)
+                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                .foregroundColor(.gray)
                         }
+                        .padding()
+                        Spacer()
                     }
                 } else {
-                    ForEach(viewModel.killMails, id: \.killmail_id) { killmail in
+                    ForEach(viewModel.recentKillMails, id: \.killmail_id) { killmail in
                         KillMailCell(killmail: killmail)
                     }
                 }
+            } header: {
+                Text("最近击杀")
             } footer: {
-                if !viewModel.killMails.isEmpty {
-                    Text("\(viewModel.killMails.count) killmails found")
+                if !viewModel.recentKillMails.isEmpty {
+                    Text("显示最近5条击杀记录")
                 }
             }
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.fetchKillMails(forceRefresh: true)
+            await viewModel.fetchRecentKillMails(forceRefresh: true)
         }
         .onAppear {
-            if viewModel.killMails.isEmpty {
+            if viewModel.recentKillMails.isEmpty {
                 Task {
-                    await viewModel.fetchKillMails()
+                    await viewModel.fetchRecentKillMails()
                 }
             }
         }
@@ -59,7 +83,7 @@ struct KillMailListView: View {
 // MARK: - ViewModel
 @MainActor
 final class KillMailListViewModel: ObservableObject {
-    @Published private(set) var killMails: [KillMailInfo] = []
+    @Published private(set) var recentKillMails: [KillMailInfo] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
     
@@ -76,7 +100,7 @@ final class KillMailListViewModel: ObservableObject {
         loadingTask?.cancel()
     }
     
-    func fetchKillMails(forceRefresh: Bool = false) async {
+    func fetchRecentKillMails(forceRefresh: Bool = false) async {
         // 如果已经在加载中，等待当前任务完成
         if let existingTask = loadingTask {
             await existingTask.value
@@ -87,7 +111,7 @@ final class KillMailListViewModel: ObservableObject {
         if !forceRefresh,
            let lastFetch = lastFetchTime,
            Date().timeIntervalSince(lastFetch) < cacheTimeout,
-           !killMails.isEmpty {
+           !recentKillMails.isEmpty {
             Logger.debug("使用缓存的击杀记录数据，跳过加载")
             return
         }
@@ -98,13 +122,9 @@ final class KillMailListViewModel: ObservableObject {
             errorMessage = nil
             
             do {
-                Logger.info("开始获取击杀记录")
-                let mails = try await ZKillMailsAPI.shared.fetchCharacterKillMails(characterId: characterId, forceRefresh: forceRefresh)
-                
-                if Task.isCancelled { return }
-                
-                // 按killmail_id从大到小排序
-                self.killMails = mails.sorted { $0.killmail_id > $1.killmail_id }
+                Logger.info("开始获取最近击杀记录")
+                // 使用新的方法只获取最近5条记录
+                self.recentKillMails = try await ZKillMailsAPI.shared.fetchRecentKillMails(characterId: characterId)
                 self.lastFetchTime = Date()
                 
             } catch {

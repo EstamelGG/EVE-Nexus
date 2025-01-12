@@ -51,7 +51,7 @@ struct KillMailInfo: Codable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(killmail_id, forKey: .killmail_id)
         
-        var zkb = ZKB(locationID: locationID,
+        let zkb = ZKB(locationID: locationID,
                       hash: killmail_hash,
                       totalValue: totalValue,
                       npc: npc,
@@ -390,5 +390,29 @@ class ZKillMailsAPI {
         let key = lastKillmailsQueryKey + String(queryType.id)
         UserDefaults.standard.removeObject(forKey: key)
         Logger.debug("清除击杀记录缓存 - ID: \(queryType.id)")
+    }
+    
+    // 获取最近的击杀记录（公开方法）
+    public func fetchRecentKillMails(characterId: Int, limit: Int = 5) async throws -> [KillMailInfo] {
+        Logger.debug("开始获取最近\(limit)条击杀记录")
+        
+        // 只获取第一页数据
+        let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/page/1/")!
+        let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
+        
+        do {
+            let decoder = JSONDecoder()
+            var killmails = try decoder.decode([KillMailInfo].self, from: data)
+            
+            // 按killmail_id从大到小排序，只取指定数量
+            killmails.sort { $0.killmail_id > $1.killmail_id }
+            killmails = Array(killmails.prefix(limit))
+            
+            Logger.debug("成功获取\(killmails.count)条最近击杀记录")
+            return killmails
+        } catch {
+            Logger.error("解析击杀记录失败: \(error)")
+            throw error
+        }
     }
 } 
