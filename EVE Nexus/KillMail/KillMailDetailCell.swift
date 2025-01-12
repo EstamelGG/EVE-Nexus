@@ -4,16 +4,17 @@ import OSLog
 
 struct KillMailDetailCell: View {
     let detail: KillMailDetail
-    let databaseManager = CharacterDatabaseManager.shared
-    @State private var shipIconFilename: String = "items_7_64_15.png"
-    @State private var shipTypeName: String = ""
+    let databaseManager = DatabaseManager.shared
+    
+    // 从数据库获取的信息
+    @State private var shipInfo: (name: String, iconFileName: String) = (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+    @State private var systemInfo: (name: String, security: Double, regionName: String) = (name: "", security: 0.0, regionName: "")
+    
+    // 从API获取的信息
     @State private var victimName: String = ""
     @State private var victimAllianceIcon: UIImage?
     @State private var attackerName: String = ""
     @State private var attackerAllianceIcon: UIImage?
-    @State private var systemName: String = ""
-    @State private var regionName: String = ""
-    @State private var securityStatus: Double = 0.0
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -40,24 +41,18 @@ struct KillMailDetailCell: View {
         VStack(alignment: .leading, spacing: 8) {
             // 第一行: 舰船图标、受害者名称和联盟图标
             HStack(spacing: 8) {
-                // 舰船图标
-                AsyncImage(url: URL(string: "https://images.evetech.net/types/\(detail.victim.shipTypeId)/icon?size=64")) { image in
-                    image
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                } placeholder: {
-                    Image("items_7_64_15")
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                }
+                // 受害者舰船图标（从数据库获取）
+                IconManager.shared.loadImage(for: shipInfo.iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    // 舰船类型名称
-                    Text(shipTypeName)
+                    // 舰船类型名称（从数据库获取）
+                    Text(shipInfo.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
                     
-                    // 受害者名称和联盟图标
+                    // 受害者名称和联盟图标（从API获取）
                     HStack(spacing: 4) {
                         Text(victimName)
                             .font(.system(size: 12))
@@ -81,15 +76,14 @@ struct KillMailDetailCell: View {
                     .foregroundColor(.secondary)
             }
             
-            // 第二行: 最后一击者名称和联盟图标
+            // 第二行: 最后一击者名称和联盟图标（从API获取）
             if let finalBlow = detail.attackers.first(where: { $0.finalBlow }) {
                 HStack(spacing: 4) {
                     Text(attackerName)
                         .font(.system(size: 14))
                         .lineLimit(1)
                     
-                    if let allianceId = finalBlow.allianceId,
-                       let icon = attackerAllianceIcon {
+                    if let icon = attackerAllianceIcon {
                         Image(uiImage: icon)
                             .resizable()
                             .frame(width: 16, height: 16)
@@ -98,12 +92,12 @@ struct KillMailDetailCell: View {
                 }
             }
             
-            // 第三行: 击杀地点和时间
+            // 第三行: 击杀地点和时间（从数据库获取星系信息）
             HStack {
                 HStack(spacing: 4) {
-                    Text(formatSystemSecurity(securityStatus))
-                        .foregroundColor(getSecurityColor(securityStatus))
-                    Text("\(systemName) / \(regionName)")
+                    Text(formatSystemSecurity(systemInfo.security))
+                        .foregroundColor(getSecurityColor(systemInfo.security))
+                    Text("\(systemInfo.name) / \(systemInfo.regionName)")
                 }
                 .font(.caption)
                 
@@ -116,72 +110,69 @@ struct KillMailDetailCell: View {
         }
         .padding(.vertical, 8)
         .task {
-            // 获取舰船类型名称
-            let query = "SELECT icon_filename, name FROM types WHERE type_id = ?"
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [detail.victim.shipTypeId]),
+            // 1. 从数据库获取舰船信息
+            shipInfo = getItemInfo(for: detail.victim.shipTypeId)
+            
+            // 2. 从数据库获取星系信息
+            let systemQuery = """
+                SELECT s.name, s.security_status, r.name as region_name
+                FROM systems s
+                JOIN regions r ON s.region_id = r.region_id
+                WHERE s.system_id = ?
+            """
+            if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [detail.solarSystemId]),
                let row = rows.first,
-               let iconFilename = row["icon_filename"] as? String,
-               let name = row["name"] as? String {
-                shipIconFilename = iconFilename
-                shipTypeName = name
+               let sysName = row["name"] as? String,
+               let secStatus = row["security_status"] as? Double,
+               let regName = row["region_name"] as? String {
+                systemInfo = (name: sysName, security: secStatus, regionName: regName)
             }
             
-            // 获取受害者名称
+            // 3. 从API获取受害者信息
             if let characterId = detail.victim.characterId {
-                let victimQuery = "SELECT name FROM characters WHERE character_id = ?"
-                if case .success(let rows) = databaseManager.executeQuery(victimQuery, parameters: [characterId]),
-                   let row = rows.first,
-                   let name = row["name"] as? String {
-                    victimName = name
-                }
-            }
-            
-            // 获取受害者联盟图标
-            if let allianceId = detail.victim.allianceId {
                 do {
-                    let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
-                    victimAllianceIcon = icon
+                    let info = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
+                    victimName = info.name
+                    
+                    if let allianceId = detail.victim.allianceId {
+                        victimAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                    }
                 } catch {
-                    Logger.error("获取受害者联盟图标失败: \(error)")
+                    Logger.error("获取受害者信息失败: \(error)")
                 }
             }
             
-            // 获取最后一击者名称
+            // 4. 从API获取最后一击者信息
             if let finalBlow = detail.attackers.first(where: { $0.finalBlow }),
                let characterId = finalBlow.characterId {
                 do {
                     let info = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
                     attackerName = info.name
                     
-                    // 获取最后一击者联盟图标
                     if let allianceId = finalBlow.allianceId {
-                        let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
-                        attackerAllianceIcon = icon
+                        attackerAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
                     }
                 } catch {
                     Logger.error("获取攻击者信息失败: \(error)")
                 }
             }
-            
-            // 获取系统和区域信息
-            let systemQuery = "SELECT name, security_status, region_id FROM systems WHERE system_id = ?"
-            if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [detail.solarSystemId]),
-               let row = rows.first,
-               let sysName = row["name"] as? String,
-               let secStatus = row["security_status"] as? Double,
-               let regionId = row["region_id"] as? Int {
-                systemName = sysName
-                securityStatus = secStatus
-                
-                // 获取区域名称
-                let regionQuery = "SELECT name FROM regions WHERE region_id = ?"
-                if case .success(let regionRows) = databaseManager.executeQuery(regionQuery, parameters: [regionId]),
-                   let regionRow = regionRows.first,
-                   let regName = regionRow["name"] as? String {
-                    regionName = regName
-                }
-            }
         }
+    }
+    
+    private func getItemInfo(for typeId: Int) -> (name: String, iconFileName: String) {
+        let result = databaseManager.executeQuery(
+            "SELECT name, icon_filename FROM types WHERE type_id = ?",
+            parameters: [typeId]
+        )
+        
+        if case .success(let rows) = result,
+           let row = rows.first,
+           let name = row["name"] as? String,
+           let iconFileName = row["icon_filename"] as? String {
+            return (name: name, iconFileName: iconFileName)
+        }
+        
+        return (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
     }
     
     private func formatSystemSecurity(_ security: Double) -> String {
