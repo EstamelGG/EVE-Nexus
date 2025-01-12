@@ -1,82 +1,53 @@
 import SwiftUI
 
 struct KillMailListView: View {
-    let characterId: Int
     @StateObject private var viewModel: KillMailListViewModel
+    @StateObject private var detailViewModel = KillMailDetailViewModel()
     
     init(characterId: Int) {
-        self.characterId = characterId
         _viewModel = StateObject(wrappedValue: KillMailListViewModel(characterId: characterId))
     }
     
     var body: some View {
         List {
-            // 快速访问列表
-            Section {
-                NavigationLink {
-                    KillMailYearListView(characterId: characterId)
-                } label: {
-                    Label("按月查看", systemImage: "calendar")
-                }
-                
-                NavigationLink {
-                    KillMailLastWeekView(characterId: characterId)
-                } label: {
-                    Label("最近7天", systemImage: "clock")
-                }
-                
-                NavigationLink {
-                    KillMailAllView(characterId: characterId)
-                } label: {
-                    Label("查看全部", systemImage: "list.bullet")
-                }
-            } header: {
-                Text("快速访问")
-            }
-            
-            // 最近击杀预览
-            Section {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                } else if viewModel.recentKillMails.isEmpty {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
-                } else {
-                    ForEach(viewModel.recentKillMails, id: \.killmail_id) { killmail in
-                        KillMailCell(killmail: killmail)
+            // 最近击杀记录
+            if !viewModel.recentKillMails.isEmpty {
+                ForEach(viewModel.recentKillMails, id: \.killmail_id) { killMail in
+                    if let detail = detailViewModel.getDetail(for: killMail.killmail_id) {
+                        KillMailDetailCell(detail: detail)
+                    } else {
+                        ProgressView()
+                            .onAppear {
+                                // 如果还没有获取详情，则获取
+                                if detailViewModel.getDetail(for: killMail.killmail_id) == nil {
+                                    detailViewModel.fetchDetails(for: [killMail])
+                                }
+                            }
                     }
                 }
-            } header: {
-                Text("最近击杀")
-            } footer: {
-                if !viewModel.recentKillMails.isEmpty {
-                    Text("显示最近5条击杀记录")
-                }
+            } else if viewModel.isLoading {
+                Text("正在获取击杀记录...")
+                    .foregroundColor(.secondary)
+            } else {
+                Text("没有找到击杀记录")
+                    .foregroundColor(.secondary)
             }
         }
-        .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.fetchRecentKillMails(forceRefresh: true)
+            await viewModel.fetchKillMails()
         }
         .onAppear {
             if viewModel.recentKillMails.isEmpty {
                 Task {
-                    await viewModel.fetchRecentKillMails()
+                    await viewModel.fetchKillMails()
                 }
             }
         }
-        .navigationTitle(NSLocalizedString("Main_Killboard", comment: ""))
+        .onChange(of: viewModel.recentKillMails) { newValue in
+            if !newValue.isEmpty {
+                detailViewModel.fetchDetails(for: Array(newValue.prefix(5)))
+            }
+        }
     }
 }
 
