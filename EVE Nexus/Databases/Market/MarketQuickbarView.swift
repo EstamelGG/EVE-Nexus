@@ -862,6 +862,7 @@ struct MarketQuickbarDetailView: View {
                             }
                         }
                         .foregroundColor(.accentColor)
+                        .font(.system(size: 14))
                     }
                 }
             }
