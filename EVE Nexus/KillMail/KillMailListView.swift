@@ -38,7 +38,7 @@ struct KillMailListView: View {
                 if !viewModel.recentKillMails.isEmpty {
                     ForEach(viewModel.recentKillMails, id: \.killmail_id) { killMail in
                         if let detail = detailViewModel.getDetail(for: killMail.killmail_id) {
-                            KillMailDetailCell(detail: detail)
+                            KillMailDetailCell(detail: detail, killMailInfo: killMail, characterId: viewModel.characterId)
                         } else {
                             ProgressView()
                                 .onAppear {

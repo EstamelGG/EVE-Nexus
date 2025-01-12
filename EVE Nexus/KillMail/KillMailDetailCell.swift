@@ -4,6 +4,8 @@ import OSLog
 
 struct KillMailDetailCell: View {
     let detail: KillMailDetail
+    let killMailInfo: KillMailInfo
+    let characterId: Int
     let databaseManager = DatabaseManager.shared
     
     // 从数据库获取的信息
@@ -68,10 +70,20 @@ struct KillMailDetailCell: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Spacer()
                     // 第一行：飞船类型名称
-                    Text(shipInfo.name)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
-                        .padding(.bottom, 6)
+                    HStack {
+                        Text(detail.victim.characterId == characterId ? "损失" : "击杀")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(detail.victim.characterId == characterId ? Color.red : Color.green)
+                            .cornerRadius(2)
+                        
+                        Text(shipInfo.name)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.bottom, 6)
                     
                     // 第二行：受害者信息
                     HStack(spacing: 4) {
@@ -117,6 +129,37 @@ struct KillMailDetailCell: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)
+                            
+                            // 添加标签
+                            if killMailInfo.npc == true {
+                                Text("NPC")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.purple.opacity(0.8))
+                                    .cornerRadius(2)
+                            }
+                            
+                            if killMailInfo.solo == true {
+                                Text("SOLO")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.green.opacity(0.8))
+                                    .cornerRadius(2)
+                            }
+                            
+                            if killMailInfo.awox == true {
+                                Text("AWOX")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.red.opacity(0.8))
+                                    .cornerRadius(2)
+                            }
                         }
                     }
                     Spacer()
