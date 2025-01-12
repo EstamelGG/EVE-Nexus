@@ -179,13 +179,13 @@ struct KillMailDetailCell: View {
     
     private func getFactionIcon(factionId: Int) -> String? {
         let result = databaseManager.executeQuery(
-            "SELECT icon_filename FROM factions WHERE faction_id = ?",
+            "SELECT iconName FROM factions WHERE id = ?",
             parameters: [factionId]
         )
         
         if case .success(let rows) = result,
            let row = rows.first,
-           let iconFileName = row["icon_filename"] as? String {
+           let iconFileName = row["iconName"] as? String {
             return iconFileName
         }
         
