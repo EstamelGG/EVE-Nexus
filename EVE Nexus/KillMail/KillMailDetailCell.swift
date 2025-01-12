@@ -53,7 +53,7 @@ struct KillMailDetailCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 第一大行：飞船信息、受害者和攻击者信息
-            HStack(alignment: .top, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 // 飞船图标
                 IconManager.shared.loadImage(for: shipInfo.iconFileName)
                     .resizable()
@@ -61,11 +61,13 @@ struct KillMailDetailCell: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
                 
                 // 右侧信息：三行
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer()
                     // 第一行：飞船类型名称
                     Text(shipInfo.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
+                        .padding(.bottom, 4)
                     
                     // 第二行：受害者信息
                     HStack(spacing: 4) {
@@ -80,7 +82,7 @@ struct KillMailDetailCell: View {
                         if let icon = victimIcon {
                             Image(uiImage: icon)
                                 .resizable()
-                                .frame(width: 24, height: 24)
+                                .frame(width: 22, height: 22)
                                 .clipShape(RoundedRectangle(cornerRadius: 2))
                         }
                         Text(victimName)
@@ -88,6 +90,7 @@ struct KillMailDetailCell: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
+                    .padding(.bottom, 4)
                     
                     // 第三行：攻击者信息
                     if let _ = detail.attackers.first(where: { $0.finalBlow }) {
@@ -103,7 +106,7 @@ struct KillMailDetailCell: View {
                             if let icon = attackerIcon {
                                 Image(uiImage: icon)
                                     .resizable()
-                                    .frame(width: 24, height: 24)
+                                    .frame(width: 22, height: 22)
                                     .clipShape(RoundedRectangle(cornerRadius: 2))
                             }
                             Text(attackerName)
@@ -112,7 +115,9 @@ struct KillMailDetailCell: View {
                                 .lineLimit(1)
                         }
                     }
+                    Spacer()
                 }
+                .frame(height: 64) // 确保与图标等高
             }
             
             // 第二大行：地点和时间
