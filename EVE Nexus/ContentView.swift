@@ -553,6 +553,7 @@ struct ContentView: View {
                     // 商业部分(登录后显示)
                     if currentCharacterId != 0 {
                         businessSection
+                        KillBoardSection
                     }
                     
                     // 其他设置(始终显示)
