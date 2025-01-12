@@ -27,7 +27,7 @@ struct KillMailDetailCell: View {
     
     private let isoDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
     
@@ -35,7 +35,7 @@ struct KillMailDetailCell: View {
         if let date = isoDateFormatter.date(from: detail.killmailTime) {
             return dateFormatter.string(from: date)
         }
-        return detail.killmailTime
+        return "Unknown Date"
     }
     
     // 获取联盟图标
