@@ -187,7 +187,12 @@ struct KillMailDetailCell: View {
                     HStack(spacing: 4) {
                         Text(formatSystemSecurity(info.security))
                             .foregroundColor(getSecurityColor(info.security))
-                        Text("\(info.systemName) / \(info.regionName)")
+                        Text(info.systemName)
+                            .fontWeight(.medium)
+                        Text("/")
+                            .foregroundColor(.secondary)
+                        Text(info.regionName)
+                            .foregroundColor(.secondary)
                     }
                     .font(.system(size: 12))
                 }
