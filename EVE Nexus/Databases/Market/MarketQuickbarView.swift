@@ -682,7 +682,7 @@ struct MarketQuickbarDetailView: View {
     @State private var marketOrders: [Int: [MarketOrder]] = [:]  // typeID: orders
     @State private var isLoadingOrders = false
     @State private var orderType: OrderType = .sell  // 新增：订单类型选择
-
+    
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
         case buy = "Main_Market_Order_Buy"
@@ -692,7 +692,7 @@ struct MarketQuickbarDetailView: View {
             NSLocalizedString(self.rawValue, comment: "")
         }
     }
-
+    
     // 特殊市场地点的系统ID和星域ID映射
     private let specialMarkets = [
         "Jita": "system_id:30000142",
@@ -780,19 +780,17 @@ struct MarketQuickbarDetailView: View {
                             }
                         }
                     }
-
+                    
                     // 订单类型选择器
                     HStack {
                         Text(NSLocalizedString("Main_Market_Order_Type", comment: ""))
+                        Spacer()
                         Picker("", selection: $orderType) {
-                            ForEach(OrderType.allCases, id: \.self) { type in
-                                Text(type.localizedName).tag(type)
-                            }
+                            Text(OrderType.sell.localizedName).tag(OrderType.sell)
+                            Text(OrderType.buy.localizedName).tag(OrderType.buy)
                         }
-                        .pickerStyle(.menu)
-                        .onChange(of: orderType) { _, _ in
-                            // 切换订单类型时不需要重新加载订单，只需要重新计算价格
-                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 140)
                     }
                     
                     // 价格显示行
@@ -806,7 +804,7 @@ struct MarketQuickbarDetailView: View {
                             let priceInfo = calculateTotalPrice()
                             if priceInfo.total > 0 {
                                 Text("\(formatTotalPrice(priceInfo.total)) ISK")
-                                    .foregroundColor(priceInfo.hasInsufficientStock ? .red : .primary)
+                                    .foregroundColor(priceInfo.hasInsufficientStock ? .red : .secondary)
                             } else {
                                 Text(NSLocalizedString("Main_Market_Calculating", comment: ""))
                                     .foregroundColor(.secondary)
@@ -1119,15 +1117,13 @@ struct MarketQuickbarDetailView: View {
                             Text(NSLocalizedString("Main_Market_Avg_Price", comment: "") + formatPrice(price))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            HStack(spacing: 4) {
-                                Text(NSLocalizedString("Main_Market_Total_Price", comment: "") + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
+                            Text(NSLocalizedString("Main_Market_Total_Price", comment: "") + formatPrice(price * Double(quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1)))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if priceInfo.insufficientStock {
+                                Text(NSLocalizedString("Main_Market_Insufficient_Stock", comment: ""))
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
-                                if priceInfo.insufficientStock {
-                                    Text(NSLocalizedString("Main_Market_Insufficient_Stock", comment: ""))
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                }
+                                    .foregroundColor(.red)
                             }
                         } else {
                             Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
