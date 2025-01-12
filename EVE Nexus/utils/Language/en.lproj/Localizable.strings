@@ -792,7 +792,7 @@
 "Main_Market_Order_Type" = "Order Type";
 "Main_Market_Price" = "Market Price";
 "Main_Market_Item_List" = "Item List";
-"Main_Market_Edit_Quantity" = "Edit Quantity";
+"Main_Market_Edit_Quantity" = "Edit Qty...";
 "Main_Market_Done_Edit" = "Done";
 "Main_Market_No_Orders" = "No orders";
 "Main_Market_Insufficient_Stock" = "(Insufficient stock)";

@@ -806,7 +806,7 @@
 "Main_Market_Order_Type" = "订单类型";
 "Main_Market_Price" = "市场价格";
 "Main_Market_Item_List" = "物品列表";
-"Main_Market_Edit_Quantity" = "编辑数量";
+"Main_Market_Edit_Quantity" = "编辑数量...";
 "Main_Market_Done_Edit" = "完成";
 "Main_Market_No_Orders" = "暂无订单";
 "Main_Market_Insufficient_Stock" = "(库存不足)";
