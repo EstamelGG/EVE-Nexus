@@ -415,4 +415,98 @@ class ZKillMailsAPI {
             throw error
         }
     }
+    
+    // 获取指定月份的击杀记录
+    public func fetchMonthlyKillMails(characterId: Int, year: Int, month: Int, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
+        Logger.debug("开始获取 \(year)年\(month)月 的击杀记录")
+        var allKillMails: [KillMailInfo] = []
+        var currentPage = 1
+        
+        while currentPage <= maxPages {
+            let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/year/\(year)/month/\(month)/page/\(currentPage)/")!
+            Logger.debug("开始获取第 \(currentPage) 页数据")
+            
+            let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
+            
+            do {
+                let decoder = JSONDecoder()
+                let pageKillMails = try decoder.decode([KillMailInfo].self, from: data)
+                
+                if pageKillMails.isEmpty {
+                    Logger.debug("第 \(currentPage) 页数据为空，停止获取")
+                    break
+                }
+                
+                allKillMails.append(contentsOf: pageKillMails)
+                Logger.debug("累计获取 \(allKillMails.count) 条记录")
+                currentPage += 1
+                
+            } catch {
+                Logger.error("解析击杀记录失败 - 页码: \(currentPage), 错误: \(error)")
+                throw error
+            }
+        }
+        
+        // 按killmail_id从大到小排序
+        allKillMails.sort { $0.killmail_id > $1.killmail_id }
+        
+        if saveToDatabase && !allKillMails.isEmpty {
+            Logger.debug("开始保存 \(allKillMails.count) 条记录到数据库")
+            if !saveKillMailsToDB(queryType: .character(characterId), killmails: allKillMails) {
+                Logger.error("保存击杀记录到数据库失败")
+            } else {
+                Logger.debug("成功保存击杀记录到数据库")
+            }
+        }
+        
+        Logger.info("成功获取 \(year)年\(month)月 的击杀记录，共 \(allKillMails.count) 条")
+        return allKillMails
+    }
+    
+    // 获取最近一周的击杀记录
+    public func fetchLastWeekKillMails(characterId: Int, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
+        Logger.debug("开始获取最近一周的击杀记录")
+        var allKillMails: [KillMailInfo] = []
+        var currentPage = 1
+        
+        while currentPage <= maxPages {
+            let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/pastSeconds/604800/page/\(currentPage)/")!
+            Logger.debug("开始获取第 \(currentPage) 页数据")
+            
+            let data = try await NetworkManager.shared.fetchData(from: url, headers: ["User-Agent": "EVE-Nexus"])
+            
+            do {
+                let decoder = JSONDecoder()
+                let pageKillMails = try decoder.decode([KillMailInfo].self, from: data)
+                
+                if pageKillMails.isEmpty {
+                    Logger.debug("第 \(currentPage) 页数据为空，停止获取")
+                    break
+                }
+                
+                allKillMails.append(contentsOf: pageKillMails)
+                Logger.debug("累计获取 \(allKillMails.count) 条记录")
+                currentPage += 1
+                
+            } catch {
+                Logger.error("解析击杀记录失败 - 页码: \(currentPage), 错误: \(error)")
+                throw error
+            }
+        }
+        
+        // 按killmail_id从大到小排序
+        allKillMails.sort { $0.killmail_id > $1.killmail_id }
+        
+        if saveToDatabase && !allKillMails.isEmpty {
+            Logger.debug("开始保存 \(allKillMails.count) 条记录到数据库")
+            if !saveKillMailsToDB(queryType: .character(characterId), killmails: allKillMails) {
+                Logger.error("保存击杀记录到数据库失败")
+            } else {
+                Logger.debug("成功保存击杀记录到数据库")
+            }
+        }
+        
+        Logger.info("成功获取最近一周的击杀记录，共 \(allKillMails.count) 条")
+        return allKillMails
+    }
 } 
