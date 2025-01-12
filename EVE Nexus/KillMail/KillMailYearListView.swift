@@ -248,8 +248,8 @@ class KillMailYearListViewModel: ObservableObject {
             existingKillMailIds = Set(newKillMails.map { $0.killmail_id })
             killMails = newKillMails
             
-            // 如果获取的记录数小于预期，说明没有更多页了
-            hasMorePages = !newKillMails.isEmpty
+            // 如果第一页数据少于预期（通常是50条），说明没有更多页了
+            hasMorePages = newKillMails.count >= 50
             
         } catch {
             errorMessage = error.localizedDescription
@@ -277,13 +277,14 @@ class KillMailYearListViewModel: ObservableObject {
                 characterId: characterId,
                 year: year,
                 month: month,
+                page: currentPage,
                 saveToDatabase: false
             )
             
             // 过滤掉已经存在的记录
             let uniqueNewKillMails = newKillMails.filter { !existingKillMailIds.contains($0.killmail_id) }
             
-            if uniqueNewKillMails.isEmpty {
+            if uniqueNewKillMails.isEmpty || uniqueNewKillMails.count < 50 {
                 hasMorePages = false
             } else {
                 // 更新已存在的ID集合
