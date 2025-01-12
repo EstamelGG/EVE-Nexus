@@ -92,7 +92,6 @@ struct CharacterDetailView: View {
                                 Text(title.removeHTMLTags())
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
-                                    .lineLimit(1)
                                     .padding(.top, 2)
                             } else {
                                 Text("[No title]")

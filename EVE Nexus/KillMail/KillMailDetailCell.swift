@@ -1,134 +1,200 @@
 import SwiftUI
+import Foundation
+import OSLog
 
 struct KillMailDetailCell: View {
     let detail: KillMailDetail
-    @State private var shipTypeName: String = ""
+    let databaseManager = CharacterDatabaseManager.shared
     @State private var shipIconFilename: String = "items_7_64_15.png"
+    @State private var shipTypeName: String = ""
     @State private var victimName: String = ""
+    @State private var victimAllianceIcon: UIImage?
     @State private var attackerName: String = ""
-    @State private var systemInfo: String = ""
+    @State private var attackerAllianceIcon: UIImage?
+    @State private var systemName: String = ""
+    @State private var regionName: String = ""
+    @State private var securityStatus: Double = 0.0
+    
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    private let isoDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    
+    private var formattedDate: String {
+        if let date = isoDateFormatter.date(from: detail.killmailTime) {
+            return dateFormatter.string(from: date)
+        }
+        return detail.killmailTime
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 第一行：舰船信息和攻击者数量
-            HStack(spacing: 12) {
+            // 第一行: 舰船图标、受害者名称和联盟图标
+            HStack(spacing: 8) {
                 // 舰船图标
-                AsyncImage(url: URL(string: "https://images.evetech.net/types/\(detail.victim.shipTypeId)/\(shipIconFilename)?size=64")) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fit)
+                AsyncImage(url: URL(string: "https://images.evetech.net/types/\(detail.victim.shipTypeId)/icon?size=64")) { image in
+                    image
+                        .resizable()
+                        .frame(width: 32, height: 32)
                 } placeholder: {
-                    Color.gray.opacity(0.3)
+                    Image("items_7_64_15")
+                        .resizable()
+                        .frame(width: 32, height: 32)
                 }
-                .frame(width: 64, height: 64)
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    // 舰船名称和攻击者数量
-                    HStack {
-                        Text(shipTypeName)
-                            .lineLimit(1)
-                        Text("(\(detail.attackers.count))")
-                            .foregroundColor(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: 2) {
+                    // 舰船类型名称
+                    Text(shipTypeName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
                     
-                    // 受害者信息
+                    // 受害者名称和联盟图标
                     HStack(spacing: 4) {
-                        if let allianceId = detail.victim.allianceId {
-                            AsyncImage(url: URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=32")) { image in
-                                image.resizable()
-                                    .aspectRatio(contentMode: .fit)
-                            } placeholder: {
-                                Color.gray.opacity(0.3)
-                            }
-                            .frame(width: 20, height: 20)
-                        }
                         Text(victimName)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
                             .lineLimit(1)
-                    }
-                    
-                    // 最后一击攻击者信息
-                    if let finalBlowAttacker = detail.attackers.first(where: { $0.finalBlow }) {
-                        HStack(spacing: 4) {
-                            if let allianceId = finalBlowAttacker.allianceId {
-                                AsyncImage(url: URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=32")) { image in
-                                    image.resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                } placeholder: {
-                                    Color.gray.opacity(0.3)
-                                }
-                                .frame(width: 20, height: 20)
-                            }
-                            Text(attackerName)
-                                .lineLimit(1)
+                        
+                        if let icon = victimAllianceIcon {
+                            Image(uiImage: icon)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
                         }
+                    }
+                }
+                
+                Spacer()
+                
+                // 击杀者数量
+                Text("\(detail.attackers.count)")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            
+            // 第二行: 最后一击者名称和联盟图标
+            if let finalBlow = detail.attackers.first(where: { $0.finalBlow }) {
+                HStack(spacing: 4) {
+                    Text(attackerName)
+                        .font(.system(size: 14))
+                        .lineLimit(1)
+                    
+                    if let allianceId = finalBlow.allianceId,
+                       let icon = attackerAllianceIcon {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .frame(width: 16, height: 16)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                     }
                 }
             }
             
-            // 第二行：击杀地点
-            Text(systemInfo)
-                .foregroundColor(.secondary)
-                .font(.subheadline)
-            
-            // 第三行：击杀时间
-            Text(formatDate(detail.killmailTime))
-                .foregroundColor(.secondary)
-                .font(.subheadline)
+            // 第三行: 击杀地点和时间
+            HStack {
+                HStack(spacing: 4) {
+                    Text(formatSystemSecurity(securityStatus))
+                        .foregroundColor(getSecurityColor(securityStatus))
+                    Text("\(systemName) / \(regionName)")
+                }
+                .font(.caption)
+                
+                Spacer()
+                
+                Text(formattedDate)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(.vertical, 8)
-        .onAppear {
-            // 获取舰船类型名称和图标
-            Task {
-                let query = "SELECT icon_filename, name FROM types WHERE type_id = ?"
-                if let result = try? await DatabaseManager.shared.executeQuery(query, parameters: [detail.victim.shipTypeId]),
-                   let row = result.first,
-                   let name = row["name"] as? String {
-                    shipTypeName = name
-                    if let iconFilename = row["icon_filename"] as? String {
-                        shipIconFilename = iconFilename
-                    }
-                }
+        .task {
+            // 获取舰船类型名称
+            let query = "SELECT icon_filename, name FROM types WHERE type_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [detail.victim.shipTypeId]),
+               let row = rows.first,
+               let iconFilename = row["icon_filename"] as? String,
+               let name = row["name"] as? String {
+                shipIconFilename = iconFilename
+                shipTypeName = name
             }
             
             // 获取受害者名称
-            Task {
-                if let characterId = detail.victim.characterId,
-                   let name = await UniverseManager.shared.getCharacterName(characterId) {
+            if let characterId = detail.victim.characterId {
+                let victimQuery = "SELECT name FROM characters WHERE character_id = ?"
+                if case .success(let rows) = databaseManager.executeQuery(victimQuery, parameters: [characterId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String {
                     victimName = name
                 }
             }
             
-            // 获取最后一击攻击者名称
-            Task {
-                if let attacker = detail.attackers.first(where: { $0.finalBlow }),
-                   let characterId = attacker.characterId,
-                   let name = await UniverseManager.shared.getCharacterName(characterId) {
-                    attackerName = name
+            // 获取受害者联盟图标
+            if let allianceId = detail.victim.allianceId {
+                do {
+                    let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                    victimAllianceIcon = icon
+                } catch {
+                    Logger.error("获取受害者联盟图标失败: \(error)")
                 }
             }
             
-            // 获取星系信息
-            Task {
-                if let systemName = await UniverseManager.shared.getSystemName(detail.solarSystemId),
-                   let systemInfo = await UniverseManager.shared.getSystemInfo(detail.solarSystemId) {
-                    let securityStatus = String(format: "%.1f", systemInfo.securityStatus)
-                    let regionName = await UniverseManager.shared.getRegionName(systemInfo.regionId) ?? "未知星域"
-                    self.systemInfo = "\(securityStatus) \(systemName) (\(regionName))"
+            // 获取最后一击者名称
+            if let finalBlow = detail.attackers.first(where: { $0.finalBlow }),
+               let characterId = finalBlow.characterId {
+                do {
+                    let info = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId)
+                    attackerName = info.name
+                    
+                    // 获取最后一击者联盟图标
+                    if let allianceId = finalBlow.allianceId {
+                        let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                        attackerAllianceIcon = icon
+                    }
+                } catch {
+                    Logger.error("获取攻击者信息失败: \(error)")
+                }
+            }
+            
+            // 获取系统和区域信息
+            let systemQuery = "SELECT name, security_status, region_id FROM systems WHERE system_id = ?"
+            if case .success(let rows) = databaseManager.executeQuery(systemQuery, parameters: [detail.solarSystemId]),
+               let row = rows.first,
+               let sysName = row["name"] as? String,
+               let secStatus = row["security_status"] as? Double,
+               let regionId = row["region_id"] as? Int {
+                systemName = sysName
+                securityStatus = secStatus
+                
+                // 获取区域名称
+                let regionQuery = "SELECT name FROM regions WHERE region_id = ?"
+                if case .success(let regionRows) = databaseManager.executeQuery(regionQuery, parameters: [regionId]),
+                   let regionRow = regionRows.first,
+                   let regName = regionRow["name"] as? String {
+                    regionName = regName
                 }
             }
         }
     }
     
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        
-        guard let date = formatter.date(from: dateString) else {
-            return dateString
+    private func formatSystemSecurity(_ security: Double) -> String {
+        String(format: "%.1f", security)
+    }
+    
+    private func getSecurityColor(_ security: Double) -> Color {
+        if security >= 0.5 {
+            return .green
+        } else if security > 0.0 {
+            return .orange
+        } else {
+            return .red
         }
-        
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.timeZone = TimeZone.current
-        return formatter.string(from: date)
     }
 } 

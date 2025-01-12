@@ -1,7 +1,7 @@
 import Foundation
 
 // 击杀记录数据模型
-struct KillMailInfo: Codable {
+struct KillMailInfo: Codable, Equatable {
     let killmail_hash: String
     let killmail_id: Int
     let locationID: Int?
@@ -10,7 +10,7 @@ struct KillMailInfo: Codable {
     let solo: Bool?
     let awox: Bool?
     
-    private struct ZKB: Codable {
+    private struct ZKB: Codable, Equatable {
         let locationID: Int?
         let hash: String
         let totalValue: Double?

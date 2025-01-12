@@ -10,42 +10,70 @@ struct KillMailListView: View {
     
     var body: some View {
         List {
-            // 最近击杀记录
-            if !viewModel.recentKillMails.isEmpty {
-                ForEach(viewModel.recentKillMails, id: \.killmail_id) { killMail in
-                    if let detail = detailViewModel.getDetail(for: killMail.killmail_id) {
-                        KillMailDetailCell(detail: detail)
-                    } else {
-                        ProgressView()
-                            .onAppear {
-                                // 如果还没有获取详情，则获取
-                                if detailViewModel.getDetail(for: killMail.killmail_id) == nil {
-                                    detailViewModel.fetchDetails(for: [killMail])
-                                }
-                            }
-                    }
+            // 选择区域
+            Section {
+                NavigationLink {
+                    KillMailYearListView(characterId: viewModel.characterId)
+                } label: {
+                    Label("选择月份", systemImage: "calendar")
                 }
-            } else if viewModel.isLoading {
-                Text("正在获取击杀记录...")
-                    .foregroundColor(.secondary)
-            } else {
-                Text("没有找到击杀记录")
-                    .foregroundColor(.secondary)
+                
+                NavigationLink {
+                    KillMailLastWeekView(characterId: viewModel.characterId)
+                } label: {
+                    Label("近一周", systemImage: "clock.arrow.circlepath")
+                }
+                
+                NavigationLink {
+                    KillMailAllView(characterId: viewModel.characterId)
+                } label: {
+                    Label("显示全部", systemImage: "list.bullet")
+                }
+            } header: {
+                Text("击杀记录")
+            }
+            
+            // 最近击杀记录
+            Section {
+                if !viewModel.recentKillMails.isEmpty {
+                    ForEach(viewModel.recentKillMails, id: \.killmail_id) { killMail in
+                        if let detail = detailViewModel.getDetail(for: killMail.killmail_id) {
+                            KillMailDetailCell(detail: detail)
+                        } else {
+                            ProgressView()
+                                .onAppear {
+                                    // 如果还没有获取详情，则获取
+                                    if detailViewModel.getDetail(for: killMail.killmail_id) == nil {
+                                        detailViewModel.fetchDetails(for: [killMail])
+                                    }
+                                }
+                        }
+                    }
+                } else if viewModel.isLoading {
+                    Text("正在获取击杀记录...")
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("没有找到击杀记录")
+                        .foregroundColor(.secondary)
+                }
+            } header: {
+                Text("最近击杀")
             }
         }
+        .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.fetchKillMails()
+            await viewModel.fetchRecentKillMails()
         }
         .onAppear {
             if viewModel.recentKillMails.isEmpty {
                 Task {
-                    await viewModel.fetchKillMails()
+                    await viewModel.fetchRecentKillMails()
                 }
             }
         }
-        .onChange(of: viewModel.recentKillMails) { newValue in
-            if !newValue.isEmpty {
-                detailViewModel.fetchDetails(for: Array(newValue.prefix(5)))
+        .onChange(of: viewModel.recentKillMails) { _ in
+            if !viewModel.recentKillMails.isEmpty {
+                detailViewModel.fetchDetails(for: Array(viewModel.recentKillMails.prefix(5)))
             }
         }
     }
@@ -58,7 +86,7 @@ final class KillMailListViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     
-    private let characterId: Int
+    let characterId: Int
     private var loadingTask: Task<Void, Never>?
     private var lastFetchTime: Date?
     private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
