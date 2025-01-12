@@ -17,7 +17,6 @@ struct KillMailAllView: View {
                         HStack {
                             Spacer()
                             VStack(spacing: 8) {
-                                ProgressView()
                                 if let message = viewModel.loadingMessage {
                                     Text(message)
                                         .font(.caption)
@@ -118,8 +117,9 @@ class KillMailAllViewModel: ObservableObject {
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchCharacterKillMails(
                 characterId: characterId,
+                page: 1,
                 forceRefresh: false,
-                saveToDatabase: false  // 不保存到数据库
+                saveToDatabase: false
             )
             
             // 更新已存在的ID集合
@@ -151,8 +151,9 @@ class KillMailAllViewModel: ObservableObject {
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchCharacterKillMails(
                 characterId: characterId,
+                page: currentPage,
                 forceRefresh: false,
-                saveToDatabase: false  // 不保存到数据库
+                saveToDatabase: false
             )
             
             // 过滤掉已经存在的记录

@@ -324,8 +324,26 @@ class ZKillMailsAPI {
     }
     
     // 获取角色击杀记录（公开方法）
-    public func fetchCharacterKillMails(characterId: Int, forceRefresh: Bool = false, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
-        return try await fetchKillMails(queryType: .character(characterId), forceRefresh: forceRefresh, saveToDatabase: saveToDatabase)
+    public func fetchCharacterKillMails(characterId: Int, page: Int = 1, forceRefresh: Bool = false, saveToDatabase: Bool = true) async throws -> [KillMailInfo] {
+        let url = URL(string: "https://zkillboard.com/api/characterID/\(characterId)/page/\(page)/")!
+        let headers = ["User-Agent": "EVE-Nexus"]
+        
+        Logger.info("开始获取角色击杀记录")
+        Logger.debug("开始获取第 \(page) 页数据")
+        
+        let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
+        let killMails = try JSONDecoder().decode([KillMailInfo].self, from: data)
+        
+        // 按killmail_id从大到小排序
+        let sortedKillMails = killMails.sorted { $0.killmail_id > $1.killmail_id }
+        
+        if !sortedKillMails.isEmpty {
+            Logger.debug("成功获取第 \(page) 页数据，共 \(sortedKillMails.count) 条记录")
+        } else {
+            Logger.debug("第 \(page) 页数据为空")
+        }
+        
+        return sortedKillMails
     }
     
     // 获取军团击杀记录（公开方法）
