@@ -72,7 +72,7 @@ struct KillMailListView: View {
                 }
             }
         }
-        .onChange(of: viewModel.recentKillMails) { _ in
+        .onChange(of: viewModel.recentKillMails) { _, _ in
             if !viewModel.recentKillMails.isEmpty {
                 detailViewModel.fetchDetails(for: Array(viewModel.recentKillMails.prefix(5)))
             }

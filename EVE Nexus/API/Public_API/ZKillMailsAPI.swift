@@ -522,7 +522,7 @@ class ZKillMailsAPI {
                 detail.attackers.count
             ]
             
-            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
+            if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters as [Any]) {
                 Logger.error("保存击杀详情到数据库失败: \(error)")
             }
             
