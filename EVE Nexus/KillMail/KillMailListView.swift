@@ -48,7 +48,7 @@ struct KillMailListView: View {
                                     }
                                 }
                         }
-                    }
+                    }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 } else if viewModel.isLoading {
                     Text("正在获取击杀记录...")
                         .foregroundColor(.secondary)

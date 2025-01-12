@@ -184,7 +184,7 @@ struct KillMailDetailCell: View {
             HStack {
                 // 左侧：战斗地点
                 if let info = systemInfo {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 2) {
                         Text(formatSystemSecurity(info.security))
                             .foregroundColor(getSecurityColor(info.security))
                         Text(info.systemName)
@@ -206,7 +206,7 @@ struct KillMailDetailCell: View {
             }
         }
         .padding(.vertical, 8)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .task {
             // 1. 从数据库获取舰船信息
             shipInfo = getItemInfo(for: detail.victim.shipTypeId)
