@@ -18,8 +18,7 @@ struct KillMailDetailCell: View {
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
@@ -53,78 +52,91 @@ struct KillMailDetailCell: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 第一行: 舰船图标、受害者名称和联盟/势力图标
-            HStack(spacing: 8) {
-                // 受害者舰船图标（从数据库获取）
+            // 第一大行：飞船信息、受害者和攻击者信息
+            HStack(alignment: .top, spacing: 8) {
+                // 飞船图标
                 IconManager.shared.loadImage(for: shipInfo.iconFileName)
                     .resizable()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 
-                VStack(alignment: .leading, spacing: 2) {
-                    // 舰船类型名称（从数据库获取）
+                // 右侧信息：三行
+                VStack(alignment: .leading, spacing: 4) {
+                    // 第一行：飞船类型名称
                     Text(shipInfo.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
                     
-                    // 受害者名称和联盟/势力图标（从API获取）
+                    // 第二行：受害者信息
                     HStack(spacing: 4) {
-                        Text(victimName)
-                            .font(.system(size: 12))
+                        Text("受害者")
+                            .font(.system(size: 11))
                             .foregroundColor(.secondary)
-                            .lineLimit(1)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(2)
                         
                         if let icon = victimIcon {
                             Image(uiImage: icon)
                                 .resizable()
-                                .frame(width: 16, height: 16)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .frame(width: 24, height: 24)
+                                .clipShape(RoundedRectangle(cornerRadius: 2))
+                        }
+                        Text(victimName)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                    
+                    // 第三行：攻击者信息
+                    if let _ = detail.attackers.first(where: { $0.finalBlow }) {
+                        HStack(spacing: 4) {
+                            Text("最后一击")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(Color.secondary.opacity(0.2))
+                                .cornerRadius(2)
+                            
+                            if let icon = attackerIcon {
+                                Image(uiImage: icon)
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            }
+                            Text(attackerName)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
                         }
                     }
                 }
-                
-                Spacer()
-                
-                // 击杀者数量
-                Text("\(detail.attackers.count)")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
             }
             
-            // 第二行: 最后一击者名称和联盟/势力图标（从API获取）
-            if let finalBlow = detail.attackers.first(where: { $0.finalBlow }) {
-                HStack(spacing: 4) {
-                    Text(attackerName)
-                        .font(.system(size: 14))
-                        .lineLimit(1)
-                    
-                    if let icon = attackerIcon {
-                        Image(uiImage: icon)
-                            .resizable()
-                            .frame(width: 16, height: 16)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                }
-            }
-            
-            // 第三行: 击杀地点和时间（从数据库获取星系信息）
+            // 第二大行：地点和时间
             HStack {
+                // 左侧：战斗地点
                 if let info = systemInfo {
                     HStack(spacing: 4) {
                         Text(formatSystemSecurity(info.security))
                             .foregroundColor(getSecurityColor(info.security))
                         Text("\(info.systemName) / \(info.regionName)")
                     }
-                    .font(.caption)
+                    .font(.system(size: 12))
                 }
                 
                 Spacer()
                 
+                // 右侧：时间
                 Text(formattedDate)
-                    .font(.caption)
+                    .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, 12)
         .task {
             // 1. 从数据库获取舰船信息
             shipInfo = getItemInfo(for: detail.victim.shipTypeId)
