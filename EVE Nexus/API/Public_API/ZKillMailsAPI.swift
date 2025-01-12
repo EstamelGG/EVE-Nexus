@@ -4,6 +4,21 @@ import Foundation
 struct KillMailInfo: Codable {
     let killmail_hash: String
     let killmail_id: Int
+    let locationID: Int?
+    let totalValue: Double?
+    let npc: Bool?
+    let solo: Bool?
+    let awox: Bool?
+    
+    enum CodingKeys: String, CodingKey {
+        case killmail_hash
+        case killmail_id
+        case locationID = "locationID"
+        case totalValue = "zkb.totalValue"
+        case npc = "zkb.npc"
+        case solo = "zkb.solo"
+        case awox = "zkb.awox"
+    }
 }
 
 // 查询类型枚举
@@ -171,8 +186,9 @@ class ZKillMailsAPI {
         
         let insertSQL = """
             INSERT OR IGNORE INTO \(queryType.tableName) (
-                \(queryType.idColumnName), killmail_id, killmail_hash
-            ) VALUES (?, ?, ?)
+                \(queryType.idColumnName), killmail_id, killmail_hash,
+                location_id, total_value, npc, solo, awox
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         // 按killmail_id从大到小排序
@@ -182,7 +198,12 @@ class ZKillMailsAPI {
             let parameters: [Any] = [
                 queryType.id,
                 killmail.killmail_id,
-                killmail.killmail_hash
+                killmail.killmail_hash,
+                killmail.locationID as Any,
+                killmail.totalValue as Any,
+                killmail.npc ?? false,
+                killmail.solo ?? false,
+                killmail.awox ?? false
             ]
             
             if case .error(let message) = CharacterDatabaseManager.shared.executeQuery(insertSQL, parameters: parameters) {
@@ -204,7 +225,7 @@ class ZKillMailsAPI {
     // 从数据库获取击杀记录
     private func getKillMailsFromDB(queryType: KillMailQueryType) -> [KillMailInfo]? {
         let query = """
-            SELECT killmail_id, killmail_hash
+            SELECT killmail_id, killmail_hash, location_id, total_value, npc, solo, awox
             FROM \(queryType.tableName)
             WHERE \(queryType.idColumnName) = ?
             ORDER BY killmail_id DESC
@@ -217,9 +238,20 @@ class ZKillMailsAPI {
                     return nil
                 }
                 
+                let locationId = row["location_id"] as? Int64
+                let totalValue = row["total_value"] as? Double
+                let npc = row["npc"] as? Bool ?? false
+                let solo = row["solo"] as? Bool ?? false
+                let awox = row["awox"] as? Bool ?? false
+                
                 return KillMailInfo(
                     killmail_hash: killmailHash,
-                    killmail_id: Int(killmailId)
+                    killmail_id: Int(killmailId),
+                    locationID: locationId != nil ? Int(locationId!) : nil,
+                    totalValue: totalValue,
+                    npc: npc,
+                    solo: solo,
+                    awox: awox
                 )
             }
         }
