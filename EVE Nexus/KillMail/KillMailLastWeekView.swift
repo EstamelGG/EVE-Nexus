@@ -17,7 +17,6 @@ struct KillMailLastWeekView: View {
                         HStack {
                             Spacer()
                             VStack(spacing: 8) {
-                                ProgressView()
                                 if let message = viewModel.loadingMessage {
                                     Text(message)
                                         .font(.caption)
@@ -59,7 +58,6 @@ struct KillMailLastWeekView: View {
                             HStack {
                                 Spacer()
                                 VStack(spacing: 8) {
-                                    ProgressView()
                                     if let message = viewModel.loadingMessage {
                                         Text(message)
                                             .font(.caption)
