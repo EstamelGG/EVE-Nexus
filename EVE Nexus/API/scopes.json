@@ -38,7 +38,8 @@
         "esi-wallet.read_character_wallet.v1"
     ],
     "scope_kill": [
-        "esi-killmails.read_killmails.v1"
+        "esi-killmails.read_killmails.v1",
+        "esi-killmails.read_corporation_killmails.v1"
     ],
     "scope_planets": [
         "esi-planets.manage_planets.v1",
