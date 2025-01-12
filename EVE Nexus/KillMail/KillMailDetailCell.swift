@@ -71,7 +71,7 @@ struct KillMailDetailCell: View {
                     Text(shipInfo.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.primary)
-                        .padding(.bottom, 4)
+                        .padding(.bottom, 6)
                     
                     // 第二行：受害者信息
                     HStack(spacing: 4) {
@@ -86,7 +86,7 @@ struct KillMailDetailCell: View {
                         if let icon = victimIcon {
                             Image(uiImage: icon)
                                 .resizable()
-                                .frame(width: 22, height: 22)
+                                .frame(width: 20, height: 20)
                                 .clipShape(RoundedRectangle(cornerRadius: 2))
                         }
                         Text(victimName)
@@ -94,7 +94,7 @@ struct KillMailDetailCell: View {
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                     }
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 6)
                     
                     // 第三行：攻击者信息
                     if let _ = detail.attackers.first(where: { $0.finalBlow }) {
@@ -110,7 +110,7 @@ struct KillMailDetailCell: View {
                             if let icon = attackerIcon {
                                 Image(uiImage: icon)
                                     .resizable()
-                                    .frame(width: 22, height: 22)
+                                    .frame(width: 20, height: 20)
                                     .clipShape(RoundedRectangle(cornerRadius: 2))
                             }
                             Text(attackerName)
