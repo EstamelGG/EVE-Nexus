@@ -751,33 +751,47 @@ struct MarketQuickbarDetailView: View {
                     // 星域选择器
                     HStack {
                         Text(NSLocalizedString("Main_Market_Location", comment: ""))
-                        Picker("", selection: $selectedRegion) {
+                        Spacer()
+                        Menu {
                             // 主要交易中心
-                            Text("Jita").tag("Jita")
-                            Text("Amarr").tag("Amarr")
-                            Text("Rens").tag("Rens")
-                            Text("Hek").tag("Hek")
+                            Button("Jita") { selectedRegion = "Jita" }
+                            Button("Amarr") { selectedRegion = "Amarr" }
+                            Button("Rens") { selectedRegion = "Rens" }
+                            Button("Hek") { selectedRegion = "Hek" }
                             
                             Divider()
                             
                             // 所有星域
                             ForEach(regions, id: \.id) { region in
-                                Text(region.name).tag(region.name)
+                                Button(region.name) {
+                                    selectedRegion = region.name
+                                }
                             }
+                        } label: {
+                            HStack {
+                                Text(selectedRegion)
+                                    .foregroundColor(.primary)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .foregroundColor(.secondary)
+                                    .imageScale(.small)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(uiColor: .secondarySystemBackground))
+                            .cornerRadius(8)
                         }
-                        .pickerStyle(.menu)
-                        .onChange(of: selectedRegion) { _, newValue in
-                            // 更新市场位置
-                            if let specialLocation = specialMarkets[newValue] {
-                                quickbar.marketLocation = specialLocation
-                            } else if let region = regions.first(where: { $0.name == newValue }) {
-                                quickbar.marketLocation = "region_id:\(region.id)"
-                            }
-                            // 保存更改并重新加载订单
-                            MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                            Task {
-                                await loadAllMarketOrders()
-                            }
+                    }
+                    .onChange(of: selectedRegion) { _, newValue in
+                        // 更新市场位置
+                        if let specialLocation = specialMarkets[newValue] {
+                            quickbar.marketLocation = specialLocation
+                        } else if let region = regions.first(where: { $0.name == newValue }) {
+                            quickbar.marketLocation = "region_id:\(region.id)"
+                        }
+                        // 保存更改并重新加载订单
+                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                        Task {
+                            await loadAllMarketOrders()
                         }
                     }
                     
@@ -1023,13 +1037,13 @@ struct MarketQuickbarDetailView: View {
     // 格式化总价显示(使用缩写)
     private func formatTotalPrice(_ price: Double) -> String {
         if price >= 1_000_000_000 {
-            return String(format: "%.2fB", price / 1_000_000_000)
+            return String(format: "%.3fB", price / 1_000_000_000)
         } else if price >= 1_000_000 {
-            return String(format: "%.2fM", price / 1_000_000)
+            return String(format: "%.3fM", price / 1_000_000)
         } else if price >= 1_000 {
-            return String(format: "%.2fK", price / 1_000)
+            return String(format: "%.3fK", price / 1_000)
         } else {
-            return String(format: "%.2f", price)
+            return String(format: "%.3f", price)
         }
     }
     
