@@ -115,6 +115,7 @@ class KillMailYearListViewModel: ObservableObject {
     private var currentPage = 1
     private var hasMorePages = true
     private var birthday: Date?
+    private var existingKillMailIds: Set<Int> = []
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -200,15 +201,18 @@ class KillMailYearListViewModel: ObservableObject {
         currentPage = 1
         hasMorePages = true
         killMails.removeAll()
+        existingKillMailIds.removeAll()
         
         do {
             let newKillMails = try await ZKillMailsAPI.shared.fetchMonthlyKillMails(
                 characterId: characterId,
                 year: year,
                 month: month,
-                saveToDatabase: true
+                saveToDatabase: false
             )
             
+            // 更新已存在的ID集合
+            existingKillMailIds = Set(newKillMails.map { $0.killmail_id })
             killMails = newKillMails
             
             // 如果获取的记录数小于预期，说明没有更多页了
@@ -238,13 +242,18 @@ class KillMailYearListViewModel: ObservableObject {
                 characterId: characterId,
                 year: year,
                 month: month,
-                saveToDatabase: true
+                saveToDatabase: false
             )
             
-            if newKillMails.isEmpty {
+            // 过滤掉已经存在的记录
+            let uniqueNewKillMails = newKillMails.filter { !existingKillMailIds.contains($0.killmail_id) }
+            
+            if uniqueNewKillMails.isEmpty {
                 hasMorePages = false
             } else {
-                killMails.append(contentsOf: newKillMails)
+                // 更新已存在的ID集合
+                existingKillMailIds.formUnion(uniqueNewKillMails.map { $0.killmail_id })
+                killMails.append(contentsOf: uniqueNewKillMails)
             }
             
         } catch {
