@@ -38,16 +38,20 @@ struct KillMailDetailCell: View {
     
     // 获取联盟图标
     private func getAllianceIcon(allianceId: Int) async throws -> UIImage? {
-        let url = URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=64")!
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        return UIImage(data: data)
+        try await Task.detached(priority: .userInitiated) {
+            let url = URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=64")!
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            return UIImage(data: data)
+        }.value
     }
     
     // 获取军团/势力图标（包括 NPC 军团和玩家军团）
     private func getCorporationIcon(corporationId: Int) async throws -> UIImage? {
-        let url = URL(string: "https://images.evetech.net/corporations/\(corporationId)/logo?size=64")!
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        return UIImage(data: data)
+        try await Task.detached(priority: .userInitiated) {
+            let url = URL(string: "https://images.evetech.net/corporations/\(corporationId)/logo?size=64")!
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            return UIImage(data: data)
+        }.value
     }
     
     var body: some View {
