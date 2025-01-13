@@ -97,6 +97,7 @@ struct MarketOrdersView: View {
         }
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
+        .ignoresSafeArea(.container, edges: .bottom)
         .task {
             isLoading = true
             // 收集所有订单的位置ID并转换为 Int64
@@ -152,6 +153,7 @@ struct MarketOrdersView: View {
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.visible)
+            .ignoresSafeArea(.container, edges: .bottom)
         }
     }
     
