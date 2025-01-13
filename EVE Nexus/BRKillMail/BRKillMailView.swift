@@ -21,6 +21,7 @@ class KillMailViewModel: ObservableObject {
     @Published private(set) var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
     @Published private(set) var allianceIconMap: [Int: UIImage] = [:]
     @Published private(set) var corporationIconMap: [Int: UIImage] = [:]
+    @Published private(set) var characterStats: CharBattleIsk?
     
     private var cachedData: [KillMailFilter: CachedKillMailData] = [:]
     private let characterId: Int
@@ -174,6 +175,17 @@ class KillMailViewModel: ObservableObject {
         
         return infoMap
     }
+    
+    func loadStats() async {
+        do {
+            let stats = try await ZKillMailsAPI.shared.fetchCharacterStats(characterId: characterId)
+            await MainActor.run {
+                self.characterStats = stats
+            }
+        } catch {
+            Logger.error("获取战斗统计信息失败: \(error)")
+        }
+    }
 }
 
 struct BRKillMailView: View {
@@ -186,14 +198,56 @@ struct BRKillMailView: View {
         _viewModel = StateObject(wrappedValue: KillMailViewModel(characterId: characterId))
     }
     
+    private func formatISK(_ value: Double) -> String {
+        if value >= 1_000_000_000_000 {
+            return String(format: "%.1fT ISK", value / 1_000_000_000_000)
+        } else if value >= 1_000_000_000 {
+            return String(format: "%.1fB ISK", value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%.1fM ISK", value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.1fK ISK", value / 1_000)
+        } else {
+            return String(format: "%.0f ISK", value)
+        }
+    }
+    
     var body: some View {
         List {
+            // 战斗统计信息
+            Section {
+                if let stats = viewModel.characterStats {
+                    HStack {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundColor(.green)
+                        Text("摧毁价值")
+                        Spacer()
+                        Text(formatISK(stats.iskDestroyed))
+                            .foregroundColor(.green)
+                    }
+                    
+                    HStack {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .foregroundColor(.red)
+                        Text("损失价值")
+                        Spacer()
+                        Text(formatISK(stats.iskLost))
+                            .foregroundColor(.red)
+                    }
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            
+            // 搜索入口
             Section {
                 NavigationLink(destination: Text("搜索页面")) {
                     Text("搜索战斗记录")
                 }
             }
             
+            // 战斗记录列表
             Section(header: Text("我参与的战斗")) {
                 Picker("筛选", selection: $selectedFilter) {
                     Text("全部").tag(KillMailFilter.all)
@@ -241,10 +295,12 @@ struct BRKillMailView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.refreshData(for: selectedFilter)
+            await viewModel.loadStats()
         }
         .onAppear {
             Task {
                 await viewModel.loadDataIfNeeded(for: selectedFilter)
+                await viewModel.loadStats()
             }
         }
     }
