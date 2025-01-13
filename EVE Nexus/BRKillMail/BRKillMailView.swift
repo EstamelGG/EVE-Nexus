@@ -239,6 +239,18 @@ struct BRKillMailCell: View {
         return corporationIcon
     }
     
+    private var locationText: Text {
+        let securityText = Text(formatSystemSecurity(Double(killmail.sys.ss) ?? 0.0))
+            .foregroundColor(getSecurityColor(Double(killmail.sys.ss) ?? 0.0))
+            .font(.system(size: 12, weight: .medium))
+        
+        let systemText = Text(" \(killmail.sys.name) / \(killmail.sys.region)")
+            .font(.system(size: 12))
+            .foregroundColor(.secondary)
+        
+        return securityText + systemText
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             // 左侧飞船图标
@@ -276,20 +288,7 @@ struct BRKillMailCell: View {
                 
                 // 第三行：地点和时间
                 HStack {
-                    // 安全等级和星系信息
-                    HStack(spacing: 4) {
-                        Text(formatSystemSecurity(Double(killmail.sys.ss) ?? 0.0))
-                            .foregroundColor(getSecurityColor(Double(killmail.sys.ss) ?? 0.0))
-                            .font(.system(size: 12, weight: .medium))
-                        Text(killmail.sys.name)
-                            .font(.system(size: 12, weight: .medium))
-                        Text("/")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        Text(killmail.sys.region)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+                    locationText
                     
                     Spacer()
                     
