@@ -678,7 +678,8 @@ struct ContentView: View {
                             }
                         case "killboard":
                             if let character = viewModel.selectedCharacter {
-                                KillMailListView(characterId: character.CharacterID)
+                                // KillMailListView(characterId: character.CharacterID)
+                                BRKillMailView(characterId: character.CharacterID)
                             }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))

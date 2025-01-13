@@ -109,6 +109,10 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 设置请求体
         if let body = body {
             request.httpBody = body
+            // 添加请求体日志
+            if method == "POST", let jsonString = String(data: body, encoding: .utf8) {
+                Logger.debug("POST Request Body: \(jsonString)")
+            }
         }
         
         return try await retrier.execute(noRetryKeywords: noRetryKeywords) {

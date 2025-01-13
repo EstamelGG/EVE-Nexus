@@ -474,29 +474,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
             
-            -- 击杀记录表
-            CREATE TABLE IF NOT EXISTS killmails (
-                killmail_id INTEGER NOT NULL PRIMARY KEY,
-                killmail_time TEXT NOT NULL,
-                solar_system_id INTEGER NOT NULL,
-                victim_character_id INTEGER,
-                victim_alliance_id INTEGER,
-                victim_faction_id INTEGER,
-                victim_corporation_id INTEGER,
-                attacker_final_blow_character_id INTEGER,
-                attacker_final_blow_alliance_id INTEGER,
-                attacker_final_blow_faction_id INTEGER,
-                attacker_final_blow_corporation_id INTEGER,
-                attackers_num INTEGER NOT NULL,
-                FOREIGN KEY (solar_system_id) REFERENCES universe(solarsystem_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_killmails_time ON killmails(killmail_time);
-            CREATE INDEX IF NOT EXISTS idx_killmails_system ON killmails(solar_system_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_victim ON killmails(victim_character_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_attacker ON killmails(attacker_final_blow_character_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_victim_corp ON killmails(victim_corporation_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_attacker_corp ON killmails(attacker_final_blow_corporation_id);
-            CREATE INDEX IF NOT EXISTS idx_killmails_ship ON killmails(ship_type_id);
         """
         
         // 分割SQL语句并逐个执行
