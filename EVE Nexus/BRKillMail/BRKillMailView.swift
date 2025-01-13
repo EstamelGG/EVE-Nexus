@@ -61,12 +61,19 @@ struct BRKillMailView: View {
                     ForEach(killMails.indices, id: \.self) { index in
                         let killmail = killMails[index]
                         if let shipId = kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
+                            let victInfo = killmail["vict"] as? [String: Any]
+                            let allyInfo = victInfo?["ally"] as? [String: Any]
+                            let corpInfo = victInfo?["corp"] as? [String: Any]
+                            
+                            let allyId = allyInfo?["id"] as? Int
+                            let corpId = corpInfo?["id"] as? Int
+                            
                             BRKillMailCell(
                                 killmail: killmail,
                                 kbAPI: kbAPI,
                                 shipInfo: shipInfoMap[shipId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
-                                allianceIcon: kbAPI.getCharacterInfo(killmail, path: "vict", "ally").id.flatMap { allianceIconMap[$0] },
-                                corporationIcon: kbAPI.getCharacterInfo(killmail, path: "vict", "char").id.flatMap { corporationIconMap[$0] }
+                                allianceIcon: allyId.flatMap { allianceIconMap[$0] },
+                                corporationIcon: corpId.flatMap { corporationIconMap[$0] }
                             )
                         }
                     }
@@ -147,15 +154,25 @@ struct BRKillMailView: View {
                             ? "https://images.evetech.net/alliances/\(org.id)/logo"
                             : "https://images.evetech.net/corporations/\(org.id)/logo"
                         
+                        Logger.debug("准备获取\(org.type)图标 - ID: \(org.id)")
+                        
                         if let iconURL = URL(string: "\(baseURL)?size=32") {
+                            Logger.debug("开始请求图标: \(iconURL.absoluteString)")
                             do {
                                 let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                                Logger.debug("获取到图标数据，大小: \(data.count) 字节")
+                                
                                 if let image = UIImage(data: data) {
+                                    Logger.debug("成功创建图标图像")
                                     return (org.type, org.id, image)
+                                } else {
+                                    Logger.error("无法从数据创建图像 - \(org.type) ID: \(org.id)")
                                 }
                             } catch {
-                                Logger.error("加载\(org.type == "alliance" ? "联盟" : "军团")图标失败 - ID: \(org.id), 错误: \(error)")
+                                Logger.error("加载\(org.type)图标失败 - ID: \(org.id), 错误: \(error)")
                             }
+                        } else {
+                            Logger.error("无效的图标URL - \(baseURL)?size=32")
                         }
                         return (org.type, org.id, nil)
                     }
@@ -163,6 +180,7 @@ struct BRKillMailView: View {
                 
                 for await (type, id, image) in group {
                     if let image = image {
+                        Logger.debug("保存\(type)图标 - ID: \(id)")
                         if type == "alliance" {
                             allianceIcons[id] = image
                         } else {
@@ -179,6 +197,7 @@ struct BRKillMailView: View {
                 shipInfoMap = shipInfo
                 allianceIconMap = allianceIcons
                 corporationIconMap = corporationIcons
+                Logger.debug("图标数量 - 联盟: \(allianceIcons.count), 军团: \(corporationIcons.count)")
                 isLoading = false
                 Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
             }
@@ -232,11 +251,19 @@ struct BRKillMailCell: View {
         let allyInfo = victInfo?["ally"] as? [String: Any]
         let corpInfo = victInfo?["corp"] as? [String: Any]
         
+        // 先尝试获取联盟图标
         if let allyId = allyInfo?["id"] as? Int, allyId > 0, let icon = allianceIcon {
-            return icon
-        } else if let icon = corporationIcon {
+            Logger.debug("使用联盟图标 - ID: \(allyId)")
             return icon
         }
+        
+        // 如果没有联盟图标，尝试获取军团图标
+        if let corpId = corpInfo?["id"] as? Int, corpId > 0, let icon = corporationIcon {
+            Logger.debug("使用军团图标 - ID: \(corpId)")
+            return icon
+        }
+        
+        Logger.debug("未找到组织图标")
         return nil
     }
     
