@@ -17,11 +17,14 @@ enum KillMailFilter: String {
 class KillMailViewModel: ObservableObject {
     @Published private(set) var killMails: [[String: Any]] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var isLoadingMore = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
     @Published private(set) var allianceIconMap: [Int: UIImage] = [:]
     @Published private(set) var corporationIconMap: [Int: UIImage] = [:]
     @Published private(set) var characterStats: CharBattleIsk?
+    @Published private(set) var currentPage = 1
+    @Published private(set) var totalPages = 1
     
     private var cachedData: [KillMailFilter: CachedKillMailData] = [:]
     private let characterId: Int
@@ -93,6 +96,10 @@ class KillMailViewModel: ObservableObject {
                 self.shipInfoMap = shipInfo
                 self.allianceIconMap = allianceIcons
                 self.corporationIconMap = corporationIcons
+                self.currentPage = 1
+                if let total = response["totalPages"] as? Int {
+                    self.totalPages = total
+                }
                 self.isLoading = false
             }
         } catch {
@@ -184,6 +191,42 @@ class KillMailViewModel: ObservableObject {
             }
         } catch {
             Logger.error("获取战斗统计信息失败: \(error)")
+        }
+    }
+    
+    func loadMoreData() async {
+        guard !isLoadingMore && currentPage < totalPages else { return }
+        
+        await MainActor.run { isLoadingMore = true }
+        
+        do {
+            let nextPage = currentPage + 1
+            let response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage)
+            
+            guard let mails = response["data"] as? [[String: Any]] else {
+                throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
+            }
+            
+            let shipIds = mails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
+            let newShipInfo = getShipInfo(for: shipIds)
+            let (newAllianceIcons, newCorporationIcons) = await loadOrganizationIcons(for: mails)
+            
+            await MainActor.run {
+                killMails.append(contentsOf: mails)
+                shipInfoMap.merge(newShipInfo) { current, _ in current }
+                allianceIconMap.merge(newAllianceIcons) { current, _ in current }
+                corporationIconMap.merge(newCorporationIcons) { current, _ in current }
+                currentPage = nextPage
+                if let total = response["totalPages"] as? Int {
+                    totalPages = total
+                }
+                isLoadingMore = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                isLoadingMore = false
+            }
         }
     }
 }
@@ -285,22 +328,48 @@ struct BRKillMailView: View {
                                 kbAPI: viewModel.kbAPI,
                                 shipInfo: viewModel.shipInfoMap[shipId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
                                 allianceIcon: allyId.flatMap { viewModel.allianceIconMap[$0] },
-                                corporationIcon: corpId.flatMap { viewModel.corporationIconMap[$0] }
+                                corporationIcon: corpId.flatMap { viewModel.corporationIconMap[$0] },
+                                characterId: characterId
                             )
                         }
+                    }
+                    
+                    // 加载更多按钮
+                    if viewModel.currentPage < viewModel.totalPages {
+                        HStack {
+                            Spacer()
+                            if viewModel.isLoadingMore {
+                                ProgressView()
+                            } else {
+                                Button(action: {
+                                    Task {
+                                        await viewModel.loadMoreData()
+                                    }
+                                }) {
+                                    Text("获取更多")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.refreshData(for: selectedFilter)
-            await viewModel.loadStats()
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await viewModel.refreshData(for: selectedFilter) }
+                group.addTask { await viewModel.loadStats() }
+            }
         }
         .onAppear {
             Task {
-                await viewModel.loadDataIfNeeded(for: selectedFilter)
-                await viewModel.loadStats()
+                async let killmails = viewModel.loadDataIfNeeded(for: selectedFilter)
+                async let stats = viewModel.loadStats()
+                await (_, _) = (killmails, stats)
             }
         }
     }
@@ -312,6 +381,20 @@ struct BRKillMailCell: View {
     let shipInfo: (name: String, iconFileName: String)
     let allianceIcon: UIImage?
     let corporationIcon: UIImage?
+    let characterId: Int
+    
+    private var isLoss: Bool {
+        if let victInfo = killmail["vict"] as? [String: Any],
+           let charInfo = victInfo["char"] as? [String: Any],
+           let victimId = charInfo["id"] as? Int {
+            return victimId == characterId
+        }
+        return false
+    }
+    
+    private var valueColor: Color {
+        isLoss ? .red : .green
+    }
     
     private var organizationIcon: UIImage? {
         let victInfo = killmail["vict"] as? [String: Any]
@@ -428,7 +511,7 @@ struct BRKillMailCell: View {
                 if let value = kbAPI.getFormattedValue(killmail) {
                     Text(value)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.red)
+                        .foregroundColor(valueColor)
                 }
             }
         }
