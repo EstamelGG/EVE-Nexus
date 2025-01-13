@@ -27,8 +27,8 @@ class KbEvetoolAPI {
     }
     
     // 获取角色战斗记录
-    public func fetchCharacterKillMails(characterId: Int, page: Int = 1) async throws -> [String: Any] {
-        Logger.debug("准备发送请求 - 角色ID: \(characterId), 页码: \(page)")
+    func fetchCharacterKillMails(characterId: Int, page: Int = 1, isKills: Bool = false, isLosses: Bool = false) async throws -> [String: Any] {
+        Logger.debug("准备发送请求 - 角色ID: \(characterId), 页码: \(page), 是否击杀: \(isKills), 是否损失: \(isLosses)")
         
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails")!
         var request = URLRequest(url: url)
@@ -36,20 +36,30 @@ class KbEvetoolAPI {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         // 构造请求体
-        let requestBody: [String: Any] = ["charID": characterId, "page": page]
+        var requestBody: [String: Any] = ["charID": characterId, "page": page]
+        if isKills {
+            requestBody["isKills"] = true
+        }
+        if isLosses {
+            requestBody["isLosses"] = true
+        }
+        
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        
+        // 打印请求体内容
+        if let jsonString = String(data: request.httpBody!, encoding: .utf8) {
+            Logger.debug("请求体内容: \(jsonString)")
+        }
         
         Logger.debug("开始发送网络请求...")
         let data = try await NetworkManager.shared.fetchData(from: url, method: "POST", body: request.httpBody)
         Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         
         // 解析JSON数据
-        guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let records = jsonData["data"] as? [[String: Any]] else {
+        guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
         }
         
-        Logger.debug("成功解析数据，获得 \(records.count) 条记录")
         return jsonData
     }
     

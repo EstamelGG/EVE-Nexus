@@ -116,7 +116,9 @@ struct BRKillMailView: View {
         }
         .onChange(of: selectedFilter) { oldValue, newValue in
             Logger.debug("筛选器变更: 从 \(oldValue) 变更为 \(newValue)")
-            // TODO: 根据筛选器重新加载数据
+            Task {
+                await loadKillMails()
+            }
         }
     }
     
@@ -127,7 +129,7 @@ struct BRKillMailView: View {
         currentPage = 1  // 重置页码
         
         do {
-            Logger.debug("开始加载战斗记录，角色ID: \(characterId)")
+            Logger.debug("开始加载战斗记录，角色ID: \(characterId), 筛选类型: \(selectedFilter)")
             
             // 检查角色ID
             guard characterId > 0 else {
@@ -136,10 +138,17 @@ struct BRKillMailView: View {
                 return
             }
             
-            // 添加网络请求前的日志
-            Logger.debug("准备发送API请求...")
+            // 根据筛选类型设置请求参数
+            let response: [String: Any]
+            switch selectedFilter {
+            case .all:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
+            case .kill:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, isKills: true)
+            case .loss:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, isLosses: true)
+            }
             
-            let response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
             guard let records = response["data"] as? [[String: Any]] else {
                 throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
             }
@@ -248,8 +257,18 @@ struct BRKillMailView: View {
         let nextPage = currentPage + 1
         
         do {
-            Logger.debug("加载更多战斗记录 - 页码: \(nextPage)")
-            let response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage)
+            Logger.debug("加载更多战斗记录 - 页码: \(nextPage), 筛选类型: \(selectedFilter)")
+            
+            // 根据筛选类型设置请求参数
+            let response: [String: Any]
+            switch selectedFilter {
+            case .all:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage)
+            case .kill:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage, isKills: true)
+            case .loss:
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage, isLosses: true)
+            }
             
             guard let records = response["data"] as? [[String: Any]] else {
                 throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
