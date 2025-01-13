@@ -89,8 +89,9 @@ struct BRKillMailView: View {
         .task {
             await loadKillMails()
         }
-        .onChange(of: selectedFilter) { newValue in
-            Logger.debug("筛选器变更: \(newValue)")
+        .onChange(of: selectedFilter) { oldValue, newValue in
+            Logger.debug("筛选器变更: 从 \(oldValue) 变更为 \(newValue)")
+            // TODO: 根据筛选器重新加载数据
         }
     }
     
@@ -156,7 +157,7 @@ struct BRKillMailView: View {
                         
                         Logger.debug("准备获取\(org.type)图标 - ID: \(org.id)")
                         
-                        if let iconURL = URL(string: "\(baseURL)?size=32") {
+                        if let iconURL = URL(string: "\(baseURL)?size=64") {
                             Logger.debug("开始请求图标: \(iconURL.absoluteString)")
                             do {
                                 let data = try await NetworkManager.shared.fetchData(from: iconURL)
@@ -280,6 +281,33 @@ struct BRKillMailCell: View {
         return securityText + systemText
     }
     
+    private var displayName: String {
+        let victInfo = killmail["vict"] as? [String: Any]
+        let charInfo = victInfo?["char"]  // 先获取原始值，不做类型转换
+        let allyInfo = victInfo?["ally"] as? [String: Any]
+        let corpInfo = victInfo?["corp"] as? [String: Any]
+        
+        // 如果char是字典类型，说明有完整的角色信息
+        if let charDict = charInfo as? [String: Any],
+           let name = charDict["name"] as? String {
+            return name
+        }
+        
+        // 如果char是数字类型且为0，或者不存在，尝试使用联盟名
+        if let allyName = allyInfo?["name"] as? String,
+           let allyId = allyInfo?["id"] as? Int,
+           allyId > 0 {
+            return allyName
+        }
+        
+        // 如果联盟也没有，使用军团名
+        if let corpName = corpInfo?["name"] as? String {
+            return corpName
+        }
+        
+        return "Unknown"
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // 第一行：图标和信息
@@ -297,12 +325,10 @@ struct BRKillMailCell: View {
                     Text(shipInfo.name)
                         .font(.system(size: 16, weight: .medium))
                     
-                    // 角色名称
-                    if let charName = kbAPI.getCharacterInfo(killmail, path: "vict", "char").name {
-                        Text(charName)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
+                    // 显示名称（角色/联盟/军团）
+                    Text(displayName)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                     
                     // 位置信息
                     locationText
