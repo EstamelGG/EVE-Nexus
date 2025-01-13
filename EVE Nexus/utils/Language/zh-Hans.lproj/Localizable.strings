@@ -823,3 +823,31 @@
 "Main_Battle" = "战斗";
 "Main_Killboard" = "击杀记录";
 "Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "所有记录";
+"KillMail_Kill_Records" = "击杀记录";
+"KillMail_Loss_Records" = "损失记录";
+"KillMail_Invalid_Character_ID" = "无效的角色ID: %d";
+"KillMail_Invalid_Response_Format" = "无效的响应数据格式";
+"KillMail_Loading_Page" = "正在加载第%d页";
+"KillMail_Loading_More_Failed" = "加载更多击杀记录失败: %@";
+"KillMail_Loading_Failed" = "加载击杀记录失败: %@";
+"KillMail_All_Title" = "所有记录";
+"KillMail_Loading" = "加载中...";
+"KillMail_No_Records" = "暂无记录";
+"KillMail_Load_More" = "加载更多";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "摧毁价值";
+"KillMail_Lost_Value" = "损失价值";
+"KillMail_Search_Title" = "搜索战斗记录";
+"KillMail_Battle_Records" = "我参与的战斗";
+"KillMail_Filter" = "筛选";
+"KillMail_Filter_All" = "全部";
+"KillMail_Filter_Kills" = "击杀";
+"KillMail_Filter_Losses" = "损失";
+"KillMail_Unknown_Item" = "未知物品";
+"KillMail_Unknown_Location" = "未知";
+"KillMail_Load_More" = "获取更多";
+"KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";

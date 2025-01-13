@@ -809,3 +809,31 @@
 "Main_Battle" = "Battle";
 "Main_Killboard" = "Kill Reports";
 "Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "All Records";
+"KillMail_Kill_Records" = "Kill Records";
+"KillMail_Loss_Records" = "Loss Records";
+"KillMail_Invalid_Character_ID" = "Invalid Character ID: %d";
+"KillMail_Invalid_Response_Format" = "Invalid Response Format";
+"KillMail_Loading_Page" = "Loading page %d";
+"KillMail_Loading_More_Failed" = "Failed to load more kill records: %@";
+"KillMail_Loading_Failed" = "Failed to load kill records: %@";
+"KillMail_All_Title" = "All Records";
+"KillMail_Loading" = "Loading...";
+"KillMail_No_Records" = "No Records";
+"KillMail_Load_More" = "Load More";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "Destroyed Value";
+"KillMail_Lost_Value" = "Lost Value";
+"KillMail_Search_Title" = "Search Battle Records";
+"KillMail_Battle_Records" = "Battle Records";
+"KillMail_Filter" = "Filter";
+"KillMail_Filter_All" = "All";
+"KillMail_Filter_Kills" = "Kills";
+"KillMail_Filter_Losses" = "Losses";
+"KillMail_Unknown_Item" = "Unknown Item";
+"KillMail_Unknown_Location" = "Unknown";
+"KillMail_Load_More" = "Load More";
+"KillMail_Stats_Failed" = "Failed to load battle statistics: %@";

@@ -7,9 +7,9 @@ enum KillMailFilter: String {
     
     var title: String {
         switch self {
-        case .all: return "所有记录"
-        case .kill: return "击杀记录"
-        case .loss: return "损失记录"
+        case .all: return NSLocalizedString("KillMail_All_Records", comment: "")
+        case .kill: return NSLocalizedString("KillMail_Kill_Records", comment: "")
+        case .loss: return NSLocalizedString("KillMail_Loss_Records", comment: "")
         }
     }
 }
@@ -58,7 +58,7 @@ class KillMailViewModel: ObservableObject {
     
     private func loadData(for filter: KillMailFilter) async {
         guard characterId > 0 else {
-            errorMessage = "无效的角色ID: \(characterId)"
+            errorMessage = String(format: NSLocalizedString("KillMail_Invalid_Character_ID", comment: ""), characterId)
             return
         }
         
@@ -76,7 +76,7 @@ class KillMailViewModel: ObservableObject {
             }
             
             guard let mails = response["data"] as? [[String: Any]] else {
-                throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
+                throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("KillMail_Invalid_Response_Format", comment: "")])
             }
             
             let shipIds = mails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
@@ -190,7 +190,7 @@ class KillMailViewModel: ObservableObject {
                 self.characterStats = stats
             }
         } catch {
-            Logger.error("获取战斗统计信息失败: \(error)")
+            Logger.error(String(format: NSLocalizedString("KillMail_Stats_Failed", comment: ""), error.localizedDescription))
         }
     }
     
@@ -263,7 +263,7 @@ struct BRKillMailView: View {
                     HStack {
                         Image(systemName: "arrow.up.circle.fill")
                             .foregroundColor(.green)
-                        Text("摧毁价值")
+                        Text(NSLocalizedString("KillMail_Destroyed_Value", comment: ""))
                         Spacer()
                         Text(formatISK(stats.iskDestroyed))
                             .foregroundColor(.green)
@@ -272,7 +272,7 @@ struct BRKillMailView: View {
                     HStack {
                         Image(systemName: "arrow.down.circle.fill")
                             .foregroundColor(.red)
-                        Text("损失价值")
+                        Text(NSLocalizedString("KillMail_Lost_Value", comment: ""))
                         Spacer()
                         Text(formatISK(stats.iskLost))
                             .foregroundColor(.red)
@@ -285,17 +285,17 @@ struct BRKillMailView: View {
             
             // 搜索入口
             Section {
-                NavigationLink(destination: Text("搜索页面")) {
-                    Text("搜索战斗记录")
+                NavigationLink(destination: Text(NSLocalizedString("KillMail_Search_Title", comment: ""))) {
+                    Text(NSLocalizedString("KillMail_Search_Title", comment: ""))
                 }
             }
             
             // 战斗记录列表
-            Section(header: Text("我参与的战斗")) {
-                Picker("筛选", selection: $selectedFilter) {
-                    Text("全部").tag(KillMailFilter.all)
-                    Text("击杀").tag(KillMailFilter.kill)
-                    Text("损失").tag(KillMailFilter.loss)
+            Section(header: Text(NSLocalizedString("KillMail_Battle_Records", comment: ""))) {
+                Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
+                    Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
+                    Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(KillMailFilter.kill)
+                    Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
                 }
                 .pickerStyle(.segmented)
                 .padding(.vertical, 8)
@@ -309,7 +309,7 @@ struct BRKillMailView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if viewModel.killMails.isEmpty {
-                    Text("暂无战斗记录")
+                    Text(NSLocalizedString("KillMail_No_Records", comment: ""))
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
@@ -326,7 +326,7 @@ struct BRKillMailView: View {
                             BRKillMailCell(
                                 killmail: killmail,
                                 kbAPI: viewModel.kbAPI,
-                                shipInfo: viewModel.shipInfoMap[shipId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
+                                shipInfo: viewModel.shipInfoMap[shipId] ?? (name: NSLocalizedString("KillMail_Unknown_Item", comment: ""), iconFileName: DatabaseConfig.defaultItemIcon),
                                 allianceIcon: allyId.flatMap { viewModel.allianceIconMap[$0] },
                                 corporationIcon: corpId.flatMap { viewModel.corporationIconMap[$0] },
                                 characterId: characterId
@@ -346,7 +346,7 @@ struct BRKillMailView: View {
                                         await viewModel.loadMoreData()
                                     }
                                 }) {
-                                    Text("获取更多")
+                                    Text(NSLocalizedString("KillMail_Load_More", comment: ""))
                                         .font(.system(size: 14))
                                         .foregroundColor(.blue)
                                 }
@@ -367,8 +367,8 @@ struct BRKillMailView: View {
         }
         .onAppear {
             Task {
-                async let killmails = viewModel.loadDataIfNeeded(for: selectedFilter)
-                async let stats = viewModel.loadStats()
+                async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
+                async let stats: () = viewModel.loadStats()
                 await (_, _) = (killmails, stats)
             }
         }
