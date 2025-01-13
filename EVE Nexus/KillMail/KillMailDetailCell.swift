@@ -179,6 +179,7 @@ struct KillMailDetailCell: View {
                 }
                 .frame(height: 80) // 确保与图标等高
             }
+            .frame(maxWidth: .infinity, alignment: .leading)  // 确保HStack占满宽度
             
             // 第二大行：地点和时间
             HStack {
@@ -195,6 +196,10 @@ struct KillMailDetailCell: View {
                             .foregroundColor(.secondary)
                     }
                     .font(.system(size: 12))
+                } else {
+                    // 添加占位符，确保高度一致
+                    Text(" ")
+                        .font(.system(size: 12))
                 }
                 
                 Spacer()
@@ -204,9 +209,10 @@ struct KillMailDetailCell: View {
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)  // 确保HStack占满宽度
         }
+        .frame(maxWidth: .infinity)  // 确保整个VStack占满宽度
         .padding(.vertical, 8)
-        .padding(.horizontal, 16)
         .task {
             // 1. 从数据库获取舰船信息
             shipInfo = getItemInfo(for: detail.victim.shipTypeId)
