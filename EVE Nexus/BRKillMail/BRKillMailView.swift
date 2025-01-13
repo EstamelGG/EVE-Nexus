@@ -243,15 +243,15 @@ struct BRKillMailView: View {
     
     private func formatISK(_ value: Double) -> String {
         if value >= 1_000_000_000_000 {
-            return String(format: "%.1fT ISK", value / 1_000_000_000_000)
+            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
         } else if value >= 1_000_000_000 {
-            return String(format: "%.1fB ISK", value / 1_000_000_000)
+            return String(format: "%.2fB ISK", value / 1_000_000_000)
         } else if value >= 1_000_000 {
-            return String(format: "%.1fM ISK", value / 1_000_000)
+            return String(format: "%.2fM ISK", value / 1_000_000)
         } else if value >= 1_000 {
-            return String(format: "%.1fK ISK", value / 1_000)
+            return String(format: "%.2fK ISK", value / 1_000)
         } else {
-            return String(format: "%.0f ISK", value)
+            return String(format: "%.2f ISK", value)
         }
     }
     
@@ -267,6 +267,7 @@ struct BRKillMailView: View {
                         Spacer()
                         Text(formatISK(stats.iskDestroyed))
                             .foregroundColor(.green)
+                            .font(.system(.body, design: .monospaced))
                     }
                     
                     HStack {
@@ -276,6 +277,7 @@ struct BRKillMailView: View {
                         Spacer()
                         Text(formatISK(stats.iskLost))
                             .foregroundColor(.red)
+                            .font(.system(.body, design: .monospaced))
                     }
                 } else {
                     ProgressView()
@@ -511,7 +513,7 @@ struct BRKillMailCell: View {
                 
                 if let value = kbAPI.getFormattedValue(killmail) {
                     Text(value)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundColor(valueColor)
                 }
             }
