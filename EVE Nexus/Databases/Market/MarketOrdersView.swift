@@ -56,7 +56,7 @@ struct MarketOrdersView: View {
     }
     
     var body: some View {
-        ZStack {
+        VStack(spacing: 0) {
             if isLoading {
                 VStack {
                     ProgressView()
@@ -65,6 +65,16 @@ struct MarketOrdersView: View {
                         .padding(.top, 8)
                 }
             } else {
+                // 顶部选择器
+                Picker("Order Type", selection: $showBuyOrders) {
+                    Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
+                    Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 4)
+                
+                // 内容视图
                 TabView(selection: $showBuyOrders) {
                     OrderListView(
                         orders: orders.filter { !$0.isBuyOrder },
@@ -79,23 +89,13 @@ struct MarketOrdersView: View {
                     .tag(true)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    VStack(spacing: 0) {
-                        Picker("Order Type", selection: $showBuyOrders) {
-                            Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
-                            Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
-                    }
-                    .background(Color(.systemGroupedBackground))
-                }
+                .ignoresSafeArea(edges: .bottom)
             }
         }
+        .background(Color(.systemGroupedBackground))
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
-        .edgesIgnoringSafeArea(.bottom)
+        .ignoresSafeArea(edges: .bottom)
         .task {
             isLoading = true
             // 收集所有订单的位置ID并转换为 Int64
@@ -150,8 +150,6 @@ struct MarketOrdersView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .scrollContentBackground(.visible)
-            .edgesIgnoringSafeArea(.bottom)
         }
     }
     
