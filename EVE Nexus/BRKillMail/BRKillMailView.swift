@@ -123,12 +123,16 @@ struct BRKillMailView: View {
             // 确定每个战斗记录需要显示的组织ID
             var organizationIds = Set<OrganizationIdentifier>()
             for record in records {
-                if let allyId = kbAPI.getCharacterInfo(record, path: "vict", "ally").id, allyId > 0 {
+                let victInfo = record["vict"] as? [String: Any]
+                let allyInfo = victInfo?["ally"] as? [String: Any]
+                let corpInfo = victInfo?["corp"] as? [String: Any]
+                
+                if let allyId = allyInfo?["id"] as? Int, allyId > 0 {
                     // 如果有有效的联盟ID，使用联盟图标
                     organizationIds.insert(OrganizationIdentifier(type: "alliance", id: allyId))
-                } else if let charId = kbAPI.getCharacterInfo(record, path: "vict", "char").id {
-                    // 否则使用军团图标
-                    organizationIds.insert(OrganizationIdentifier(type: "corporation", id: charId))
+                } else if let corpId = corpInfo?["id"] as? Int, corpId > 0 {
+                    // 如果联盟ID无效或为0，使用军团图标
+                    organizationIds.insert(OrganizationIdentifier(type: "corporation", id: corpId))
                 }
             }
             
@@ -224,10 +228,16 @@ struct BRKillMailCell: View {
     let corporationIcon: UIImage?
     
     private var organizationIcon: UIImage? {
-        if let allyId = kbAPI.getCharacterInfo(killmail, path: "vict", "ally").id, allyId > 0, let icon = allianceIcon {
+        let victInfo = killmail["vict"] as? [String: Any]
+        let allyInfo = victInfo?["ally"] as? [String: Any]
+        let corpInfo = victInfo?["corp"] as? [String: Any]
+        
+        if let allyId = allyInfo?["id"] as? Int, allyId > 0, let icon = allianceIcon {
+            return icon
+        } else if let icon = corporationIcon {
             return icon
         }
-        return corporationIcon
+        return nil
     }
     
     private var locationText: Text {
