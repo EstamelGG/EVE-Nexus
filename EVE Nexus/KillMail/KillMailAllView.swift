@@ -3,6 +3,7 @@ import SwiftUI
 struct KillMailAllView: View {
     let characterId: Int
     @StateObject private var viewModel: KillMailAllViewModel
+    @StateObject private var detailViewModel = KillMailDetailViewModel()
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -10,78 +11,161 @@ struct KillMailAllView: View {
     }
     
     var body: some View {
-        List {
-            if viewModel.hasSearched {
-                Section {
-                    if viewModel.isLoading {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                if let message = viewModel.loadingMessage {
-                                    Text(message)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            Spacer()
-                        }
-                    } else if let error = viewModel.errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                    } else if viewModel.killMails.isEmpty {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text("没有找到击杀记录")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
-                        }
-                    } else {
-                        ForEach(viewModel.killMails, id: \.killmail_id) { killmail in
-                            KillMailCell(killmail: killmail)
-                                .onAppear {
-                                    // 当显示最后一条记录时，加载更多
-                                    if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
-                                        Task {
-                                            await viewModel.loadMoreKillMails()
-                                        }
-                                    }
-                                }
-                        }
-                        
-                        if viewModel.isLoadingMore {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 8) {
-                                    if let message = viewModel.loadingMessage {
-                                        Text(message)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                Spacer()
-                            }
-                            .padding()
-                        }
-                    }
-                } header: {
-                    Text("全部击杀记录")
-                }
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("全部战斗")
+        KillMailListContainer(
+            viewModel: viewModel,
+            detailViewModel: detailViewModel,
+            characterId: characterId
+        )
+        .navigationTitle("全部记录")
         .task {
             await viewModel.fetchKillMails()
         }
-        .refreshable {
-            await viewModel.fetchKillMails()
+    }
+}
+
+// MARK: - 列表容器
+private struct KillMailListContainer: View {
+    @ObservedObject var viewModel: KillMailAllViewModel
+    @ObservedObject var detailViewModel: KillMailDetailViewModel
+    let characterId: Int
+    
+    var body: some View {
+        List {
+            if viewModel.isLoading && viewModel.killMails.isEmpty {
+                LoadingSection()
+            } else if let error = viewModel.errorMessage {
+                ErrorSection(message: error)
+            } else if viewModel.killMails.isEmpty {
+                EmptySection()
+            } else {
+                KillMailSection(
+                    viewModel: viewModel,
+                    detailViewModel: detailViewModel,
+                    characterId: characterId
+                )
+            }
         }
+    }
+}
+
+// MARK: - 加载中部分
+private struct LoadingSection: View {
+    var body: some View {
+        Section {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+// MARK: - 错误部分
+private struct ErrorSection: View {
+    let message: String
+    
+    var body: some View {
+        Section {
+            Text(message)
+                .foregroundColor(.red)
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+// MARK: - 空数据部分
+private struct EmptySection: View {
+    var body: some View {
+        Section {
+            HStack {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 30))
+                        .foregroundColor(.gray)
+                    Text("没有找到击杀记录")
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                Spacer()
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+// MARK: - 击杀记录部分
+private struct KillMailSection: View {
+    @ObservedObject var viewModel: KillMailAllViewModel
+    @ObservedObject var detailViewModel: KillMailDetailViewModel
+    let characterId: Int
+    
+    var body: some View {
+        Section {
+            ForEach(viewModel.killMails, id: \.killmail_id) { killmail in
+                KillMailRow(
+                    killmail: killmail,
+                    viewModel: viewModel,
+                    detailViewModel: detailViewModel,
+                    characterId: characterId
+                )
+            }
+            
+            if viewModel.isLoadingMore {
+                LoadingMoreRow()
+            }
+        }
+    }
+}
+
+// MARK: - 击杀记录行
+private struct KillMailRow: View {
+    let killmail: KillMailInfo
+    @ObservedObject var viewModel: KillMailAllViewModel
+    @ObservedObject var detailViewModel: KillMailDetailViewModel
+    let characterId: Int
+    
+    var body: some View {
+        if let detail = detailViewModel.getDetail(for: killmail.killmail_id) {
+            KillMailDetailCell(detail: detail, killMailInfo: killmail, characterId: characterId)
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                .onAppear {
+                    if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
+                        Task {
+                            await viewModel.loadMoreKillMails()
+                        }
+                    }
+                }
+        } else {
+            ProgressView()
+                .onAppear {
+                    if detailViewModel.getDetail(for: killmail.killmail_id) == nil {
+                        detailViewModel.fetchDetails(for: [killmail])
+                    }
+                    
+                    if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
+                        Task {
+                            await viewModel.loadMoreKillMails()
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+// MARK: - 加载更多行
+private struct LoadingMoreRow: View {
+    var body: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+        .padding()
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }
 
