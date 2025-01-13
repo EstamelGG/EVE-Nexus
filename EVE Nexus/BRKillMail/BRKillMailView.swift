@@ -3,7 +3,7 @@ import SwiftUI
 struct BRKillMailView: View {
     let characterId: Int
     @State private var selectedFilter: KillMailFilter = .all
-    @State private var killMails: [KbKillMailInfo] = []
+    @State private var killMails: [[String: Any]] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
@@ -11,6 +11,7 @@ struct BRKillMailView: View {
     @State private var corporationIconMap: [Int: UIImage] = [:]
     
     let databaseManager = DatabaseManager.shared
+    let kbAPI = KbEvetoolAPI.shared
     
     enum KillMailFilter {
         case all, kill, loss
@@ -57,13 +58,17 @@ struct BRKillMailView: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
-                    ForEach(killMails) { killmail in
-                        BRKillMailCell(
-                            killmail: killmail, 
-                            shipInfo: shipInfoMap[killmail.vict.ship.id] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
-                            allianceIcon: killmail.vict.ally?.id != nil ? allianceIconMap[killmail.vict.ally!.id] : nil,
-                            corporationIcon: killmail.vict.char.id > 0 ? corporationIconMap[killmail.vict.char.id] : nil
-                        )
+                    ForEach(killMails.indices, id: \.self) { index in
+                        let killmail = killMails[index]
+                        if let shipId = kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
+                            BRKillMailCell(
+                                killmail: killmail,
+                                kbAPI: kbAPI,
+                                shipInfo: shipInfoMap[shipId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
+                                allianceIcon: kbAPI.getCharacterInfo(killmail, path: "vict", "ally").id.flatMap { allianceIconMap[$0] },
+                                corporationIcon: kbAPI.getCharacterInfo(killmail, path: "vict", "char").id.flatMap { corporationIconMap[$0] }
+                            )
+                        }
                     }
                 }
             }
@@ -100,78 +105,78 @@ struct BRKillMailView: View {
             // 添加网络请求前的日志
             Logger.debug("准备发送API请求...")
             
-            let response: KbKillMailResponse
-            do {
-                response = try await KbEvetoolAPI.shared.fetchCharacterKillMails(characterId: characterId)
-                Logger.debug("API请求成功，获取到 \(response.data.count) 条记录")
-                
-                // 获取所有飞船ID
-                let shipIds = response.data.map { $0.vict.ship.id }
-                // 批量获取飞船信息
-                let shipInfo = getShipInfo(for: shipIds)
-                
-                // 确定每个战斗记录需要显示的组织ID
-                var organizationIds = Set<OrganizationIdentifier>()
-                for killmail in response.data {
-                    if let allyId = killmail.vict.ally?.id, allyId > 0 {
-                        // 如果有有效的联盟ID，使用联盟图标
-                        organizationIds.insert(OrganizationIdentifier(type: "alliance", id: allyId))
-                    } else {
-                        // 否则使用军团图标
-                        organizationIds.insert(OrganizationIdentifier(type: "corporation", id: killmail.vict.char.id))
-                    }
+            let response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
+            guard let records = response["data"] as? [[String: Any]] else {
+                throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
+            }
+            
+            Logger.debug("API请求成功，获取到 \(records.count) 条记录")
+            
+            // 获取所有飞船ID
+            let shipIds = records.compactMap { record -> Int? in
+                kbAPI.getShipInfo(record, path: "vict", "ship").id
+            }
+            
+            // 批量获取飞船信息
+            let shipInfo = getShipInfo(for: shipIds)
+            
+            // 确定每个战斗记录需要显示的组织ID
+            var organizationIds = Set<OrganizationIdentifier>()
+            for record in records {
+                if let allyId = kbAPI.getCharacterInfo(record, path: "vict", "ally").id, allyId > 0 {
+                    // 如果有有效的联盟ID，使用联盟图标
+                    organizationIds.insert(OrganizationIdentifier(type: "alliance", id: allyId))
+                } else if let charId = kbAPI.getCharacterInfo(record, path: "vict", "char").id {
+                    // 否则使用军团图标
+                    organizationIds.insert(OrganizationIdentifier(type: "corporation", id: charId))
                 }
-                
-                // 分别获取联盟和军团图标
-                var allianceIcons: [Int: UIImage] = [:]
-                var corporationIcons: [Int: UIImage] = [:]
-                
-                await withTaskGroup(of: (String, Int, UIImage?).self) { group in
-                    for org in organizationIds {
-                        group.addTask {
-                            let baseURL = org.type == "alliance" 
-                                ? "https://images.evetech.net/alliances/\(org.id)/logo"
-                                : "https://images.evetech.net/corporations/\(org.id)/logo"
-                            
-                            if let iconURL = URL(string: "\(baseURL)?size=32") {
-                                do {
-                                    let data = try await NetworkManager.shared.fetchData(from: iconURL)
-                                    if let image = UIImage(data: data) {
-                                        return (org.type, org.id, image)
-                                    }
-                                } catch {
-                                    Logger.error("加载\(org.type == "alliance" ? "联盟" : "军团")图标失败 - ID: \(org.id), 错误: \(error)")
+            }
+            
+            // 分别获取联盟和军团图标
+            var allianceIcons: [Int: UIImage] = [:]
+            var corporationIcons: [Int: UIImage] = [:]
+            
+            await withTaskGroup(of: (String, Int, UIImage?).self) { group in
+                for org in organizationIds {
+                    group.addTask {
+                        let baseURL = org.type == "alliance" 
+                            ? "https://images.evetech.net/alliances/\(org.id)/logo"
+                            : "https://images.evetech.net/corporations/\(org.id)/logo"
+                        
+                        if let iconURL = URL(string: "\(baseURL)?size=32") {
+                            do {
+                                let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                                if let image = UIImage(data: data) {
+                                    return (org.type, org.id, image)
                                 }
-                            }
-                            return (org.type, org.id, nil)
-                        }
-                    }
-                    
-                    for await (type, id, image) in group {
-                        if let image = image {
-                            if type == "alliance" {
-                                allianceIcons[id] = image
-                            } else {
-                                corporationIcons[id] = image
+                            } catch {
+                                Logger.error("加载\(org.type == "alliance" ? "联盟" : "军团")图标失败 - ID: \(org.id), 错误: \(error)")
                             }
                         }
+                        return (org.type, org.id, nil)
                     }
                 }
                 
-                // 确保在主线程上更新 UI
-                await MainActor.run {
-                    Logger.debug("开始更新UI数据")
-                    killMails = response.data
-                    shipInfoMap = shipInfo
-                    allianceIconMap = allianceIcons
-                    corporationIconMap = corporationIcons
-                    isLoading = false
-                    Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
+                for await (type, id, image) in group {
+                    if let image = image {
+                        if type == "alliance" {
+                            allianceIcons[id] = image
+                        } else {
+                            corporationIcons[id] = image
+                        }
+                    }
                 }
-            } catch {
-                errorMessage = "API请求失败: \(error.localizedDescription)"
-                Logger.error(errorMessage!)
-                throw error
+            }
+            
+            // 确保在主线程上更新 UI
+            await MainActor.run {
+                Logger.debug("开始更新UI数据")
+                killMails = records
+                shipInfoMap = shipInfo
+                allianceIconMap = allianceIcons
+                corporationIconMap = corporationIcons
+                isLoading = false
+                Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
             }
         } catch {
             await MainActor.run {
@@ -212,24 +217,26 @@ struct BRKillMailView: View {
 }
 
 struct BRKillMailCell: View {
-    let killmail: KbKillMailInfo
+    let killmail: [String: Any]
+    let kbAPI: KbEvetoolAPI
     let shipInfo: (name: String, iconFileName: String)
     let allianceIcon: UIImage?
     let corporationIcon: UIImage?
     
     private var organizationIcon: UIImage? {
-        if let allyId = killmail.vict.ally?.id, allyId > 0, let icon = allianceIcon {
+        if let allyId = kbAPI.getCharacterInfo(killmail, path: "vict", "ally").id, allyId > 0, let icon = allianceIcon {
             return icon
         }
         return corporationIcon
     }
     
     private var locationText: Text {
-        let securityText = Text(formatSystemSecurity(Double(killmail.sys.ss) ?? 0.0))
-            .foregroundColor(getSecurityColor(Double(killmail.sys.ss) ?? 0.0))
+        let sysInfo = kbAPI.getSystemInfo(killmail)
+        let securityText = Text(formatSystemSecurity(Double(sysInfo.security ?? "0.0") ?? 0.0))
+            .foregroundColor(getSecurityColor(Double(sysInfo.security ?? "0.0") ?? 0.0))
             .font(.system(size: 12, weight: .medium))
         
-        let systemText = Text(" \(killmail.sys.name) / \(killmail.sys.region)")
+        let systemText = Text(" \(sysInfo.name ?? "Unknown") / \(sysInfo.region ?? "Unknown")")
             .font(.system(size: 12))
             .foregroundColor(.secondary)
         
@@ -249,66 +256,49 @@ struct BRKillMailCell: View {
                 
                 // 右侧信息
                 VStack(alignment: .leading, spacing: 4) {
-                    // 第一行：舰船名称和价值
-                    HStack {
-                        Text(shipInfo.name)
-                            .font(.system(size: 16, weight: .semibold))
-                        Spacer()
-                        Text(killmail.formattedValue)
+                    // 飞船名称
+                    Text(shipInfo.name)
+                        .font(.system(size: 16, weight: .medium))
+                    
+                    // 角色名称
+                    if let charName = kbAPI.getCharacterInfo(killmail, path: "vict", "char").name {
+                        Text(charName)
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }
                     
-                    // 第二行：受害者信息
-                    HStack(spacing: 4) {
-                        if let icon = organizationIcon {
-                            Image(uiImage: icon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                        }
-                        Text(killmail.vict.char.name)
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // 第三行：时间
-                    Text(killmail.formattedTime)
+                    // 位置信息
+                    locationText
+                }
+                
+                Spacer()
+                
+                // 右侧组织图标
+                if let icon = organizationIcon {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 32, height: 32)
+                }
+            }
+            
+            // 第二行：时间和价值
+            HStack {
+                if let time = kbAPI.getFormattedTime(killmail) {
+                    Text(time)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
-            }
-            
-            // 第二行：地点信息
-            locationText
-            
-            // 第三行：NPC/Solo标记（如果有的话）
-            if killmail.zkb.npc || killmail.zkb.solo {
-                HStack(spacing: 8) {
-                    if killmail.zkb.npc {
-                        Text("NPC")
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.2))
-                            .cornerRadius(4)
-                    }
-                    if killmail.zkb.solo {
-                        Text("Solo")
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.green.opacity(0.2))
-                            .cornerRadius(4)
-                    }
-                    Spacer()
+                
+                Spacer()
+                
+                if let value = kbAPI.getFormattedValue(killmail) {
+                    Text(value)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.red)
                 }
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(12)
+        .padding(.vertical, 4)
     }
 } 
