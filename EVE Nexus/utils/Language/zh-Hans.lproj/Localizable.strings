@@ -851,3 +851,6 @@
 "KillMail_Unknown_Location" = "未知";
 "KillMail_Load_More" = "获取更多";
 "KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";
+
+// KillMail View
+"KillMail_View_Title" = "战斗记录";

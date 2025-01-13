@@ -359,6 +359,7 @@ struct BRKillMailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .navigationTitle(NSLocalizedString("KillMail_View_Title", comment: ""))
         .refreshable {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await viewModel.refreshData(for: selectedFilter) }

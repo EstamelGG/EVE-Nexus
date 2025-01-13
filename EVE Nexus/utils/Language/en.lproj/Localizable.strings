@@ -837,3 +837,6 @@
 "KillMail_Unknown_Location" = "Unknown";
 "KillMail_Load_More" = "Load More";
 "KillMail_Stats_Failed" = "Failed to load battle statistics: %@";
+
+// KillMail View
+"KillMail_View_Title" = "Killboard";
