@@ -7,7 +7,8 @@ struct BRKillMailView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-    @State private var organizationIconMap: [Int: UIImage] = [:]
+    @State private var allianceIconMap: [Int: UIImage] = [:]
+    @State private var corporationIconMap: [Int: UIImage] = [:]
     
     let databaseManager = DatabaseManager.shared
     
@@ -55,8 +56,8 @@ struct BRKillMailView: View {
                         BRKillMailCell(
                             killmail: killmail, 
                             shipInfo: shipInfoMap[killmail.vict.ship.id] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon),
-                            allianceIcon: killmail.vict.ally?.id != nil ? organizationIconMap[killmail.vict.ally!.id] : nil,
-                            corporationIcon: organizationIconMap[killmail.vict.char.id]
+                            allianceIcon: killmail.vict.ally?.id != nil ? allianceIconMap[killmail.vict.ally!.id] : nil,
+                            corporationIcon: killmail.vict.char.id > 0 ? corporationIconMap[killmail.vict.char.id] : nil
                         )
                     }
                 }
@@ -64,7 +65,9 @@ struct BRKillMailView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await loadKillMails()
+            Task {
+                await loadKillMails()
+            }
         }
         .task {
             await loadKillMails()
@@ -102,26 +105,21 @@ struct BRKillMailView: View {
                 // 批量获取飞船信息
                 let shipInfo = getShipInfo(for: shipIds)
                 
-                // 获取所有组织ID并去重
-                var organizationIds = Set<Int>()
-                for killmail in response.data {
-                    if let allyId = killmail.vict.ally?.id, allyId > 0 {
-                        organizationIds.insert(allyId)
-                    }
-                    if killmail.vict.char.id > 0 {
-                        organizationIds.insert(killmail.vict.char.id)
-                    }
-                }
+                // 获取所有联盟ID和军团ID并去重
+                let allianceIds = Set(response.data.compactMap { $0.vict.ally?.id }.filter { $0 > 0 })
+                let characterIds = Set(response.data.map { $0.vict.char.id }.filter { $0 > 0 })
                 
-                // 批量加载组织图标
-                let organizationIcons = await loadOrganizationIcons(for: Array(organizationIds))
+                // 批量加载联盟和军团图标
+                let allianceIcons = await loadAllianceIcons(for: Array(allianceIds))
+                let corporationIcons = await loadCorporationIcons(for: Array(characterIds))
                 
                 // 确保在主线程上更新 UI
                 await MainActor.run {
                     Logger.debug("开始更新UI数据")
                     killMails = response.data
                     shipInfoMap = shipInfo
-                    organizationIconMap = organizationIcons
+                    allianceIconMap = allianceIcons
+                    corporationIconMap = corporationIcons
                     isLoading = false
                     Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
                 }
@@ -167,13 +165,12 @@ struct BRKillMailView: View {
         return infoMap
     }
     
-    private func loadOrganizationIcons(for ids: [Int]) async -> [Int: UIImage] {
+    private func loadAllianceIcons(for ids: [Int]) async -> [Int: UIImage] {
         var iconMap: [Int: UIImage] = [:]
         
         await withTaskGroup(of: (Int, UIImage?).self) { group in
             for id in ids {
                 group.addTask {
-                    // 尝试加载联盟图标
                     if let iconURL = URL(string: "https://images.evetech.net/alliances/\(id)/logo?size=32") {
                         do {
                             let data = try await NetworkManager.shared.fetchData(from: iconURL)
@@ -181,17 +178,37 @@ struct BRKillMailView: View {
                                 return (id, image)
                             }
                         } catch {
-                            // 如果联盟图标加载失败，尝试加载军团图标
-                            if let corpURL = URL(string: "https://images.evetech.net/corporations/\(id)/logo?size=32") {
-                                do {
-                                    let data = try await NetworkManager.shared.fetchData(from: corpURL)
-                                    if let image = UIImage(data: data) {
-                                        return (id, image)
-                                    }
-                                } catch {
-                                    Logger.error("加载组织图标失败 - ID: \(id), 错误: \(error)")
-                                }
+                            Logger.error("加载联盟图标失败 - ID: \(id), 错误: \(error)")
+                        }
+                    }
+                    return (id, nil)
+                }
+            }
+            
+            for await (id, image) in group {
+                if let image = image {
+                    iconMap[id] = image
+                }
+            }
+        }
+        
+        return iconMap
+    }
+    
+    private func loadCorporationIcons(for ids: [Int]) async -> [Int: UIImage] {
+        var iconMap: [Int: UIImage] = [:]
+        
+        await withTaskGroup(of: (Int, UIImage?).self) { group in
+            for id in ids {
+                group.addTask {
+                    if let iconURL = URL(string: "https://images.evetech.net/corporations/\(id)/logo?size=32") {
+                        do {
+                            let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                            if let image = UIImage(data: data) {
+                                return (id, image)
                             }
+                        } catch {
+                            Logger.error("加载军团图标失败 - ID: \(id), 错误: \(error)")
                         }
                     }
                     return (id, nil)
