@@ -521,6 +521,6 @@ struct BRKillMailCell: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 } 
