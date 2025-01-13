@@ -87,7 +87,7 @@ struct MarketOrdersView: View {
                                 Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
                             }
                             .pickerStyle(.segmented)
-                            .padding(.horizontal, 4)
+                            .padding(.horizontal)
                             .padding(.vertical, 4)
                         }
                         .background(Color(.systemGroupedBackground))
@@ -168,7 +168,7 @@ struct MarketOrdersView: View {
                             .font(.headline)
                         Spacer()
                         Text("Qty: \(order.volumeRemain)")
-                            .font(.headline)
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     
