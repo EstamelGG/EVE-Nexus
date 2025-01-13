@@ -21,21 +21,6 @@ struct BRKillMailView: View {
     
     var body: some View {
         List {
-            // DEBUG: 添加状态信息
-            Section {
-                Text("角色ID: \(characterId)")
-                    .font(.caption)
-                Text("加载状态: \(isLoading ? "加载中" : "已完成")")
-                    .font(.caption)
-                Text("记录数量: \(killMails.count)")
-                    .font(.caption)
-                if let error = errorMessage {
-                    Text("错误信息: \(error)")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-            }
-            
             // 第一个Section：搜索入口
             Section {
                 NavigationLink(destination: Text("搜索页面")) {
@@ -44,16 +29,16 @@ struct BRKillMailView: View {
             }
             
             // 第二个Section：战斗记录列表
-            Section(header: HStack {
-                Text("我参与的战斗")
-                Spacer()
+            Section(header: Text("我参与的战斗")) {
+                // 筛选器
                 Picker("筛选", selection: $selectedFilter) {
-                    Text("所有记录").tag(KillMailFilter.all)
-                    Text("击杀记录").tag(KillMailFilter.kill)
-                    Text("损失记录").tag(KillMailFilter.loss)
+                    Text("全部").tag(KillMailFilter.all)
+                    Text("击杀").tag(KillMailFilter.kill)
+                    Text("损失").tag(KillMailFilter.loss)
                 }
-                .pickerStyle(.menu)
-            }) {
+                .pickerStyle(.segmented)
+                .padding(.vertical, 8)
+                
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -73,7 +58,6 @@ struct BRKillMailView: View {
             await loadKillMails()
         }
         .task {
-            Logger.debug("视图加载时开始获取数据")
             await loadKillMails()
         }
         .onChange(of: selectedFilter) { newValue in
