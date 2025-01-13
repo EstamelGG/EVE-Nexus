@@ -5,7 +5,10 @@ struct BRKillMailView: View {
     @State private var selectedFilter: KillMailFilter = .all
     @State private var killMails: [[String: Any]] = []
     @State private var isLoading = false
+    @State private var isLoadingMore = false
     @State private var errorMessage: String?
+    @State private var currentPage = 1
+    @State private var totalPages = 1
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
     @State private var allianceIconMap: [Int: UIImage] = [:]
     @State private var corporationIconMap: [Int: UIImage] = [:]
@@ -50,7 +53,7 @@ struct BRKillMailView: View {
                 .pickerStyle(.segmented)
                 .padding(.vertical, 8)
                 
-                if isLoading {
+                if isLoading && killMails.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if killMails.isEmpty {
@@ -77,6 +80,28 @@ struct BRKillMailView: View {
                             )
                         }
                     }
+                    
+                    // 加载更多按钮
+                    if currentPage < totalPages {
+                        HStack {
+                            Spacer()
+                            if isLoadingMore {
+                                ProgressView()
+                            } else {
+                                Button(action: {
+                                    Task {
+                                        await loadMoreKillMails()
+                                    }
+                                }) {
+                                    Text("获取更多")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    }
                 }
             }
         }
@@ -99,6 +124,7 @@ struct BRKillMailView: View {
         Logger.debug("开始加载战斗记录")
         isLoading = true
         errorMessage = nil
+        currentPage = 1  // 重置页码
         
         do {
             Logger.debug("开始加载战斗记录，角色ID: \(characterId)")
@@ -198,9 +224,12 @@ struct BRKillMailView: View {
                 shipInfoMap = shipInfo
                 allianceIconMap = allianceIcons
                 corporationIconMap = corporationIcons
+                if let total = response["totalPages"] as? Int {
+                    totalPages = total
+                }
                 Logger.debug("图标数量 - 联盟: \(allianceIcons.count), 军团: \(corporationIcons.count)")
                 isLoading = false
-                Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
+                Logger.debug("UI数据更新完成，记录数: \(killMails.count), 总页数: \(totalPages)")
             }
         } catch {
             await MainActor.run {
@@ -209,6 +238,104 @@ struct BRKillMailView: View {
                 errorMessage = error.localizedDescription
             }
             Logger.error("加载失败: \(error)")
+        }
+    }
+    
+    private func loadMoreKillMails() async {
+        guard !isLoadingMore && currentPage < totalPages else { return }
+        
+        isLoadingMore = true
+        let nextPage = currentPage + 1
+        
+        do {
+            Logger.debug("加载更多战斗记录 - 页码: \(nextPage)")
+            let response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, page: nextPage)
+            
+            guard let records = response["data"] as? [[String: Any]] else {
+                throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
+            }
+            
+            // 获取所有新的飞船ID
+            let shipIds = records.compactMap { record -> Int? in
+                kbAPI.getShipInfo(record, path: "vict", "ship").id
+            }
+            
+            // 批量获取新的飞船信息
+            let newShipInfo = getShipInfo(for: shipIds)
+            
+            // 获取新的组织图标
+            var newOrganizationIds = Set<OrganizationIdentifier>()
+            for record in records {
+                let victInfo = record["vict"] as? [String: Any]
+                let allyInfo = victInfo?["ally"] as? [String: Any]
+                let corpInfo = victInfo?["corp"] as? [String: Any]
+                
+                if let allyId = allyInfo?["id"] as? Int, allyId > 0 {
+                    newOrganizationIds.insert(OrganizationIdentifier(type: "alliance", id: allyId))
+                } else if let corpId = corpInfo?["id"] as? Int, corpId > 0 {
+                    newOrganizationIds.insert(OrganizationIdentifier(type: "corporation", id: corpId))
+                }
+            }
+            
+            // 获取新的图标
+            var newAllianceIcons: [Int: UIImage] = [:]
+            var newCorporationIcons: [Int: UIImage] = [:]
+            
+            await withTaskGroup(of: (String, Int, UIImage?).self) { group in
+                for org in newOrganizationIds {
+                    group.addTask {
+                        let baseURL = org.type == "alliance" 
+                            ? "https://images.evetech.net/alliances/\(org.id)/logo"
+                            : "https://images.evetech.net/corporations/\(org.id)/logo"
+                        
+                        if let iconURL = URL(string: "\(baseURL)?size=64") {
+                            do {
+                                let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                                if let image = UIImage(data: data) {
+                                    return (org.type, org.id, image)
+                                }
+                            } catch {
+                                Logger.error("加载\(org.type)图标失败 - ID: \(org.id), 错误: \(error)")
+                            }
+                        }
+                        return (org.type, org.id, nil)
+                    }
+                }
+                
+                for await (type, id, image) in group {
+                    if let image = image {
+                        if type == "alliance" {
+                            newAllianceIcons[id] = image
+                        } else {
+                            newCorporationIcons[id] = image
+                        }
+                    }
+                }
+            }
+            
+            // 更新UI
+            await MainActor.run {
+                // 更新页码信息
+                currentPage = nextPage
+                if let total = response["totalPages"] as? Int {
+                    totalPages = total
+                }
+                
+                // 合并数据
+                killMails.append(contentsOf: records)
+                shipInfoMap.merge(newShipInfo) { current, _ in current }
+                allianceIconMap.merge(newAllianceIcons) { current, _ in current }
+                corporationIconMap.merge(newCorporationIcons) { current, _ in current }
+                
+                isLoadingMore = false
+                Logger.debug("成功加载更多记录 - 当前页: \(currentPage)/\(totalPages)")
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingMore = false
+                errorMessage = error.localizedDescription
+            }
+            Logger.error("加载更多记录失败: \(error)")
         }
     }
     
