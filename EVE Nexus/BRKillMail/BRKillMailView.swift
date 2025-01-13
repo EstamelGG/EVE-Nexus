@@ -429,11 +429,15 @@ struct BRKillMailCell: View {
             .foregroundColor(getSecurityColor(Double(sysInfo.security ?? "0.0") ?? 0.0))
             .font(.system(size: 12, weight: .medium))
         
-        let systemText = Text(" \(sysInfo.name ?? "Unknown") / \(sysInfo.region ?? "Unknown")")
+        let systemName = Text(" \(sysInfo.name ?? "Unknown")")
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(.secondary)
+        
+        let regionText = Text(" / \(sysInfo.region ?? "Unknown")")
             .font(.system(size: 12))
             .foregroundColor(.secondary)
         
-        return securityText + systemText
+        return securityText + systemName + regionText
     }
     
     private var displayName: String {
