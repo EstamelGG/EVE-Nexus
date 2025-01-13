@@ -252,73 +252,72 @@ struct BRKillMailCell: View {
     }
     
     var body: some View {
-        HStack(spacing: 12) {
-            // 左侧飞船图标
-            IconManager.shared.loadImage(for: shipInfo.iconFileName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 64, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            
-            // 右侧信息
-            VStack(alignment: .leading, spacing: 4) {
-                // 第一行：舰船名称和价值
-                HStack {
-                    Text(shipInfo.name)
-                        .font(.system(size: 16, weight: .semibold))
-                    Spacer()
-                    Text(killmail.formattedValue)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            // 第一行：图标和信息
+            HStack(spacing: 12) {
+                // 左侧飞船图标
+                IconManager.shared.loadImage(for: shipInfo.iconFileName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 
-                // 第二行：受害者信息
-                HStack(spacing: 4) {
-                    if let icon = organizationIcon {
-                        Image(uiImage: icon)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                // 右侧信息
+                VStack(alignment: .leading, spacing: 4) {
+                    // 第一行：舰船名称和价值
+                    HStack {
+                        Text(shipInfo.name)
+                            .font(.system(size: 16, weight: .semibold))
+                        Spacer()
+                        Text(killmail.formattedValue)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
                     }
-                    Text(killmail.vict.char.name)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                
-                // 第三行：地点和时间
-                HStack {
-                    locationText
                     
-                    Spacer()
+                    // 第二行：受害者信息
+                    HStack(spacing: 4) {
+                        if let icon = organizationIcon {
+                            Image(uiImage: icon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        Text(killmail.vict.char.name)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
                     
-                    // 时间
+                    // 第三行：时间
                     Text(killmail.formattedTime)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
-                
-                // 第四行：NPC/Solo标记（如果有的话）
-                if killmail.zkb.npc || killmail.zkb.solo {
-                    HStack(spacing: 8) {
-                        if killmail.zkb.npc {
-                            Text("NPC")
-                                .font(.system(size: 12, weight: .medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.2))
-                                .cornerRadius(4)
-                        }
-                        if killmail.zkb.solo {
-                            Text("Solo")
-                                .font(.system(size: 12, weight: .medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.green.opacity(0.2))
-                                .cornerRadius(4)
-                        }
-                        Spacer()
+            }
+            
+            // 第二行：地点信息
+            locationText
+            
+            // 第三行：NPC/Solo标记（如果有的话）
+            if killmail.zkb.npc || killmail.zkb.solo {
+                HStack(spacing: 8) {
+                    if killmail.zkb.npc {
+                        Text("NPC")
+                            .font(.system(size: 12, weight: .medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.2))
+                            .cornerRadius(4)
                     }
+                    if killmail.zkb.solo {
+                        Text("Solo")
+                            .font(.system(size: 12, weight: .medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.2))
+                            .cornerRadius(4)
+                    }
+                    Spacer()
                 }
             }
         }
