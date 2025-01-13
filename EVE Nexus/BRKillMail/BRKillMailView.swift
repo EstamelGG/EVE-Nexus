@@ -118,51 +118,99 @@ struct BRKillMailCell: View {
     @State private var victimAllianceIcon: UIImage?
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // DEBUG: 添加ID显示
-            Text("ID: \(killmail._id)")
-                .font(.caption)
-                .foregroundColor(.gray)
+        HStack(spacing: 12) {
+            // 左侧飞船图标
+            if let icon = shipIcon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 64, height: 64)
+            }
             
-            // 第一大行
-            HStack(spacing: 12) {
-                // 左侧飞船图标
-                if let icon = shipIcon {
-                    Image(uiImage: icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 48, height: 48)
+            // 右侧信息
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：舰船名称和价值
+                HStack {
+                    Text(killmail.vict.ship.name)
+                        .font(.system(size: 16, weight: .semibold))
+                    Spacer()
+                    Text(killmail.formattedValue)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
                 }
                 
-                // 右侧信息
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(killmail.vict.ship.name)
-                        .font(.headline)
+                // 第二行：受害者信息
+                HStack(spacing: 4) {
+                    if let icon = victimAllianceIcon {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
                     Text(killmail.vict.char.name)
-                        .font(.subheadline)
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                
+                // 第三行：地点和时间
+                HStack {
+                    // 安全等级和星系信息
+                    HStack(spacing: 4) {
+                        Text(formatSystemSecurity(Double(killmail.sys.ss) ?? 0.0))
+                            .foregroundColor(getSecurityColor(Double(killmail.sys.ss) ?? 0.0))
+                            .font(.system(size: 12, weight: .medium))
+                        Text(killmail.sys.name)
+                            .font(.system(size: 12, weight: .medium))
+                        Text("/")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Text(killmail.sys.region)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // 时间
+                    Text(killmail.formattedTime)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                
+                // 第四行：NPC/Solo标记（如果有的话）
+                if killmail.zkb.npc || killmail.zkb.solo {
+                    HStack(spacing: 8) {
+                        if killmail.zkb.npc {
+                            Text("NPC")
+                                .font(.system(size: 12, weight: .medium))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.2))
+                                .cornerRadius(4)
+                        }
+                        if killmail.zkb.solo {
+                            Text("Solo")
+                                .font(.system(size: 12, weight: .medium))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.2))
+                                .cornerRadius(4)
+                        }
+                        Spacer()
+                    }
                 }
             }
-            
-            // 第二大行：地点信息
-            HStack {
-                Text("\(killmail.sys.ss) \(killmail.sys.name) / \(killmail.sys.region)")
-                    .font(.caption)
-            }
-            
-            // DEBUG: 添加时间和价值显示
-            Text("时间: \(killmail.formattedTime)")
-                .font(.caption)
-            Text("价值: \(killmail.formattedValue)")
-                .font(.caption)
         }
-        .padding(8)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(8)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
+        .cornerRadius(12)
         .task {
             await loadIcons()
         }
