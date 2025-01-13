@@ -16,11 +16,11 @@ class KbEvetoolAPI {
     // 格式化价值
     private func formatValue(_ value: Int) -> String {
         if value >= 1_000_000_000 {
-            return String(format: "%.1fB ISK", Double(value) / 1_000_000_000)
+            return String(format: "%.2fB ISK", Double(value) / 1_000_000_000)
         } else if value >= 1_000_000 {
-            return String(format: "%.1fM ISK", Double(value) / 1_000_000)
+            return String(format: "%.2fM ISK", Double(value) / 1_000_000)
         } else if value >= 1_000 {
-            return String(format: "%.1fK ISK", Double(value) / 1_000)
+            return String(format: "%.2fK ISK", Double(value) / 1_000)
         } else {
             return "\(value) ISK"
         }
