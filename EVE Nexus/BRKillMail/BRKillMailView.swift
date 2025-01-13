@@ -5,6 +5,7 @@ struct BRKillMailView: View {
     @State private var selectedFilter: KillMailFilter = .all
     @State private var killMails: [KbKillMailInfo] = []
     @State private var isLoading = false
+    @State private var errorMessage: String?
     
     enum KillMailFilter {
         case all, kill, loss
@@ -20,6 +21,21 @@ struct BRKillMailView: View {
     
     var body: some View {
         List {
+            // DEBUG: 添加状态信息
+            Section {
+                Text("角色ID: \(characterId)")
+                    .font(.caption)
+                Text("加载状态: \(isLoading ? "加载中" : "已完成")")
+                    .font(.caption)
+                Text("记录数量: \(killMails.count)")
+                    .font(.caption)
+                if let error = errorMessage {
+                    Text("错误信息: \(error)")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+            }
+            
             // 第一个Section：搜索入口
             Section {
                 NavigationLink(destination: Text("搜索页面")) {
@@ -46,7 +62,7 @@ struct BRKillMailView: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
-                    ForEach(killMails, id: \._id) { killmail in
+                    ForEach(killMails) { killmail in
                         BRKillMailCell(killmail: killmail)
                     }
                 }
@@ -57,18 +73,57 @@ struct BRKillMailView: View {
             await loadKillMails()
         }
         .task {
+            Logger.debug("视图加载时开始获取数据")
             await loadKillMails()
+        }
+        .onChange(of: selectedFilter) { newValue in
+            Logger.debug("筛选器变更: \(newValue)")
         }
     }
     
     private func loadKillMails() async {
+        Logger.debug("开始加载战斗记录")
         isLoading = true
-        defer { isLoading = false }
+        errorMessage = nil
         
         do {
-            killMails = try await KbEvetoolAPI.shared.fetchCharacterKillMails(characterId: characterId)
+            Logger.debug("开始加载战斗记录，角色ID: \(characterId)")
+            
+            // 检查角色ID
+            guard characterId > 0 else {
+                errorMessage = "无效的角色ID: \(characterId)"
+                Logger.error(errorMessage!)
+                return
+            }
+            
+            // 添加网络请求前的日志
+            Logger.debug("准备发送API请求...")
+            
+            let response: KbKillMailResponse
+            do {
+                response = try await KbEvetoolAPI.shared.fetchCharacterKillMails(characterId: characterId)
+                Logger.debug("API请求成功，获取到 \(response.data.count) 条记录")
+            } catch {
+                errorMessage = "API请求失败: \(error.localizedDescription)"
+                Logger.error(errorMessage!)
+                throw error
+            }
+            
+            // 确保在主线程上更新 UI
+            await MainActor.run {
+                Logger.debug("开始更新UI数据")
+                killMails = response.data
+                isLoading = false
+                Logger.debug("UI数据更新完成，记录数: \(killMails.count)")
+            }
+            
         } catch {
-            Logger.error("加载战斗记录失败: \(error)")
+            await MainActor.run {
+                isLoading = false
+                killMails = []
+                errorMessage = error.localizedDescription
+            }
+            Logger.error("加载失败: \(error)")
         }
     }
 }
@@ -80,6 +135,11 @@ struct BRKillMailCell: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // DEBUG: 添加ID显示
+            Text("ID: \(killmail._id)")
+                .font(.caption)
+                .foregroundColor(.gray)
+            
             // 第一大行
             HStack(spacing: 12) {
                 // 左侧飞船图标
@@ -87,84 +147,68 @@ struct BRKillMailCell: View {
                     Image(uiImage: icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 64, height: 64)
+                        .frame(width: 48, height: 48)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 } else {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.gray.opacity(0.3))
-                        .frame(width: 64, height: 64)
+                        .frame(width: 48, height: 48)
                 }
                 
                 // 右侧信息
-                VStack(alignment: .leading, spacing: 6) {
-                    // 第一行：飞船名称
+                VStack(alignment: .leading, spacing: 4) {
                     Text(killmail.vict.ship.name)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
-                    
-                    // 第二行：受害者信息
-                    HStack(spacing: 4) {
-                        if let icon = victimAllianceIcon {
-                            Image(uiImage: icon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: 16, height: 16)
-                                .clipShape(RoundedRectangle(cornerRadius: 2))
-                        }
-                        Text(killmail.vict.char.name)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+                        .font(.headline)
+                    Text(killmail.vict.char.name)
+                        .font(.subheadline)
                 }
             }
             
             // 第二大行：地点信息
-            HStack(spacing: 2) {
-                Text(killmail.sys.ss)
-                    .foregroundColor(getSecurityColor(killmail.sys.ss))
-                Text(killmail.sys.name)
-                    .fontWeight(.medium)
-                Text("/")
-                    .foregroundColor(.secondary)
-                Text(killmail.sys.region)
-                    .foregroundColor(.secondary)
-            }
-            .font(.system(size: 12))
-        }
-        .padding(.vertical, 4)
-        .task {
-            // 加载飞船图标
-            if let iconURL = URL(string: "https://images.evetech.net/types/\(killmail.vict.ship.id)/icon?size=64") {
-                do {
-                    let data = try await NetworkManager.shared.fetchData(from: iconURL)
-                    shipIcon = UIImage(data: data)
-                } catch {
-                    Logger.error("加载飞船图标失败: \(error)")
-                }
+            HStack {
+                Text("\(killmail.sys.ss) \(killmail.sys.name) / \(killmail.sys.region)")
+                    .font(.caption)
             }
             
-            // 加载受害者联盟图标
-            if let allianceId = killmail.vict.ally?.id {
-                if let iconURL = URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=32") {
-                    do {
-                        let data = try await NetworkManager.shared.fetchData(from: iconURL)
-                        victimAllianceIcon = UIImage(data: data)
-                    } catch {
-                        Logger.error("加载联盟图标失败: \(error)")
-                    }
-                }
-            }
+            // DEBUG: 添加时间和价值显示
+            Text("时间: \(killmail.formattedTime)")
+                .font(.caption)
+            Text("价值: \(killmail.formattedValue)")
+                .font(.caption)
+        }
+        .padding(8)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
+        .task {
+            await loadIcons()
         }
     }
     
-    private func getSecurityColor(_ security: String) -> Color {
-        if let value = Double(security) {
-            if value >= 0.5 {
-                return .green
-            } else if value > 0.0 {
-                return .orange
+    private func loadIcons() async {
+        // 加载飞船图标
+        if let iconURL = URL(string: "https://images.evetech.net/types/\(killmail.vict.ship.id)/icon?size=64") {
+            do {
+                let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                await MainActor.run {
+                    shipIcon = UIImage(data: data)
+                }
+            } catch {
+                Logger.error("加载飞船图标失败: \(error)")
             }
         }
-        return .red
+        
+        // 加载受害者联盟图标
+        if let allianceId = killmail.vict.ally?.id {
+            if let iconURL = URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=32") {
+                do {
+                    let data = try await NetworkManager.shared.fetchData(from: iconURL)
+                    await MainActor.run {
+                        victimAllianceIcon = UIImage(data: data)
+                    }
+                } catch {
+                    Logger.error("加载联盟图标失败: \(error)")
+                }
+            }
+        }
     }
 } 

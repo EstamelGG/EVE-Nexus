@@ -3,17 +3,15 @@ import Foundation
 // 战斗记录数据模型
 struct KbKillMailInfo: Codable, Identifiable {
     let _id: Int
-    let sys: SystemInfo
     let time: Int
-    let sumV: Int
-    let zkb: KbZkb
+    let sumV: Int  // 损失价值
+    let sys: SystemInfo
     let vict: VictimInfo
-    let atts: AttackersInfo
+    let zkb: KbZkb
     
-    // 添加 Identifiable 协议所需的 id 属性
     var id: Int { _id }
     
-    // 添加便利属性
+    // 格式化时间
     var formattedTime: String {
         let date = Date(timeIntervalSince1970: TimeInterval(time))
         let formatter = DateFormatter()
@@ -21,6 +19,7 @@ struct KbKillMailInfo: Codable, Identifiable {
         return formatter.string(from: date)
     }
     
+    // 格式化价值
     var formattedValue: String {
         if sumV >= 1_000_000_000 {
             return String(format: "%.1fB ISK", Double(sumV) / 1_000_000_000)
@@ -33,52 +32,51 @@ struct KbKillMailInfo: Codable, Identifiable {
         }
     }
     
+    // 星系信息
     struct SystemInfo: Codable {
-        let name: String
-        let region: String
-        let ss: String
-        let id: Int
-        let regionId: Int
+        let name: String      // 星系名
+        let region: String    // 星域名
+        let ss: String       // 安全等级
     }
     
-    struct KbZkb: Codable {
-        let npc: Bool
-        let solo: Bool
-    }
-    
-    struct EntityInfo: Codable {
-        let id: Int
-        let name: String
-    }
-    
+    // 受害者信息
     struct VictimInfo: Codable {
-        let ally: EntityInfo?
-        let corp: EntityInfo
-        let char: EntityInfo
-        let ship: EntityInfo
-        let fctn: Int
+        let char: CharacterInfo
+        let ship: ShipInfo
+        let ally: AllianceInfo?
     }
     
-    struct AttackerInfo: Codable {
-        let ally: EntityInfo?
-        let corp: EntityInfo
-        let char: EntityInfo
-        let ship: EntityInfo
-        let weap: EntityInfo
-        let fctn: Int
-        let dmg: Int
-        let blow: Bool
+    // 角色信息
+    struct CharacterInfo: Codable {
+        let id: Int
+        let name: String
     }
     
-    struct AttackersInfo: Codable {
-        let blow: AttackerInfo
-        let count: Int
+    // 舰船信息
+    struct ShipInfo: Codable {
+        let id: Int
+        let name: String
+    }
+    
+    // 联盟信息
+    struct AllianceInfo: Codable {
+        let id: Int
+        let name: String
+    }
+    
+    // ZKillboard 相关信息
+    struct KbZkb: Codable {
+        let npc: Bool    // 是否为 NPC 击杀
+        let solo: Bool   // 是否为单人击杀
     }
 }
 
 // API响应模型
 struct KbKillMailResponse: Codable {
     let data: [KbKillMailInfo]
+    let page: Int
+    let totalPages: Int
+    let totalCount: Int
 }
 
 class KbEvetoolAPI {
@@ -86,7 +84,9 @@ class KbEvetoolAPI {
     private init() {}
     
     // 获取角色战斗记录
-    public func fetchCharacterKillMails(characterId: Int, page: Int = 1) async throws -> [KbKillMailInfo] {
+    public func fetchCharacterKillMails(characterId: Int, page: Int = 1) async throws -> KbKillMailResponse {
+        Logger.debug("准备发送请求 - 角色ID: \(characterId), 页码: \(page)")
+        
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -96,28 +96,17 @@ class KbEvetoolAPI {
         let requestBody: [String: Any] = ["charID": characterId, "page": page]
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
         
-        Logger.debug("开始获取第 \(page) 页数据")
+        Logger.debug("开始发送网络请求...")
         let data = try await NetworkManager.shared.fetchData(from: url, method: "POST", body: request.httpBody)
-        
-        // 添加响应数据的日志
-        if let responseString = String(data: data, encoding: .utf8) {
-            Logger.debug("收到响应数据: \(responseString.prefix(200))")
-        }
+        Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         
         do {
-            let response = try JSONDecoder().decode(KbKillMailResponse.self, from: data)
-            Logger.info("成功获取战斗记录 - 角色ID: \(characterId), 页码: \(page), 记录数量: \(response.data.count)")
-            
-            // 如果是第一页，且有数据，显示第一条记录的信息
-            if page == 1 && !response.data.isEmpty {
-                let firstRecord = response.data[0]
-                Logger.debug("最新战斗记录 - 时间: \(firstRecord.formattedTime), 星系: \(firstRecord.sys.name), 受害者: \(firstRecord.vict.char.name), 舰船: \(firstRecord.vict.ship.name), 价值: \(firstRecord.formattedValue)")
-            }
-            
-            return response.data
+            let decoder = JSONDecoder()
+            let response = try decoder.decode(KbKillMailResponse.self, from: data)
+            Logger.info("成功获取战斗记录 - 页码: \(page)/\(response.totalPages), 记录数: \(response.data.count)")
+            return response
         } catch {
             Logger.error("解析战斗记录失败: \(error)")
-            // 添加更详细的错误信息
             if let responseString = String(data: data, encoding: .utf8) {
                 Logger.error("原始响应数据: \(responseString)")
             }
@@ -127,65 +116,17 @@ class KbEvetoolAPI {
     
     // 获取最近的战斗记录
     public func fetchRecentKillMails(characterId: Int, limit: Int = 5) async throws -> [KbKillMailInfo] {
-        Logger.debug("开始获取最近\(limit)条战斗记录")
-        let killmails = try await fetchCharacterKillMails(characterId: characterId, page: 1)
-        return Array(killmails.prefix(limit))
-    }
-    
-    // 获取指定时间范围内的战斗记录
-    public func fetchKillMailsInRange(characterId: Int, startTime: Date, endTime: Date) async throws -> [KbKillMailInfo] {
-        var allKillMails: [KbKillMailInfo] = []
-        var currentPage = 1
-        let startTimestamp = Int(startTime.timeIntervalSince1970)
-        let endTimestamp = Int(endTime.timeIntervalSince1970)
-        
-        while true {
-            let killmails = try await fetchCharacterKillMails(characterId: characterId, page: currentPage)
-            guard !killmails.isEmpty else { break }
-            
-            // 过滤时间范围内的记录
-            let filteredKillmails = killmails.filter { killmail in
-                killmail.time >= startTimestamp && killmail.time <= endTimestamp
-            }
-            
-            // 如果当前页的所有记录都早于开始时间，说明已经没有更多符合条件的记录了
-            if killmails.last?.time ?? 0 < startTimestamp {
-                break
-            }
-            
-            allKillMails.append(contentsOf: filteredKillmails)
-            currentPage += 1
-        }
-        
-        return allKillMails
+        let response = try await fetchCharacterKillMails(characterId: characterId, page: 1)
+        return Array(response.data.prefix(limit))
     }
     
     // 获取指定类型的战斗记录（击杀/损失）
     public func fetchKillMailsByType(characterId: Int, page: Int = 1, isKill: Bool) async throws -> [KbKillMailInfo] {
-        let killmails = try await fetchCharacterKillMails(characterId: characterId, page: page)
-        return killmails.filter { killmail in
+        let response = try await fetchCharacterKillMails(characterId: characterId, page: page)
+        return response.data.filter { killmail in
             // 如果受害者是当前角色，则是损失记录；否则是击杀记录
             let isLoss = killmail.vict.char.id == characterId
             return isKill ? !isLoss : isLoss
         }
-    }
-    
-    // 获取统计信息
-    public func fetchKillMailStats(characterId: Int) async throws -> (totalKills: Int, totalLosses: Int, totalValue: Double) {
-        var totalKills = 0
-        var totalLosses = 0
-        var totalValue: Double = 0
-        
-        let killmails = try await fetchCharacterKillMails(characterId: characterId, page: 1)
-        for killmail in killmails {
-            if killmail.vict.char.id == characterId {
-                totalLosses += 1
-            } else {
-                totalKills += 1
-            }
-            totalValue += Double(killmail.sumV)
-        }
-        
-        return (totalKills, totalLosses, totalValue)
     }
 } 
