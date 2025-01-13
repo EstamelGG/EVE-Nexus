@@ -53,7 +53,7 @@ struct BRKillMailView: View {
                 .pickerStyle(.segmented)
                 .padding(.vertical, 8)
                 
-                if isLoading && killMails.isEmpty {
+                if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if killMails.isEmpty {
@@ -107,15 +107,23 @@ struct BRKillMailView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
+            isLoading = true
+            await loadKillMails()
+        }
+        .onAppear {
+            isLoading = true
             Task {
                 await loadKillMails()
             }
         }
-        .task {
-            await loadKillMails()
-        }
         .onChange(of: selectedFilter) { oldValue, newValue in
             Logger.debug("筛选器变更: 从 \(oldValue) 变更为 \(newValue)")
+            // 立即清空列表和图标缓存
+            killMails = []
+            shipInfoMap = [:]
+            allianceIconMap = [:]
+            corporationIconMap = [:]
+            isLoading = true
             Task {
                 await loadKillMails()
             }
@@ -135,6 +143,7 @@ struct BRKillMailView: View {
             guard characterId > 0 else {
                 errorMessage = "无效的角色ID: \(characterId)"
                 Logger.error(errorMessage!)
+                isLoading = false
                 return
             }
             
@@ -237,7 +246,7 @@ struct BRKillMailView: View {
                     totalPages = total
                 }
                 Logger.debug("图标数量 - 联盟: \(allianceIcons.count), 军团: \(corporationIcons.count)")
-                isLoading = false
+                isLoading = false  // 加载完成后设置
                 Logger.debug("UI数据更新完成，记录数: \(killMails.count), 总页数: \(totalPages)")
             }
         } catch {
