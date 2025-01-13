@@ -26,9 +26,9 @@ struct KillMailYearListView: View {
         .task {
             await viewModel.loadYears()
         }
-        .onChange(of: viewModel.killMails) { _, newKillMails in
-            if !newKillMails.isEmpty {
-                detailViewModel.fetchDetails(for: Array(newKillMails.prefix(20)))
+        .onChange(of: viewModel.killMails, initial: false) { oldValue, newValue in
+            if !newValue.isEmpty {
+                detailViewModel.requestDetails(for: Array(newValue.prefix(20)))
             }
         }
     }
@@ -105,6 +105,7 @@ private struct SearchResultSection: View {
                     }
                     Spacer()
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else if let error = viewModel.errorMessage {
                 ErrorView(message: error)
             } else if viewModel.killMails.isEmpty {
@@ -130,6 +131,7 @@ private struct SearchResultSection: View {
                         Spacer()
                     }
                     .padding()
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         } header: {
@@ -147,6 +149,7 @@ private struct ErrorView: View {
     var body: some View {
         Text(message)
             .foregroundColor(.red)
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }
 
@@ -165,6 +168,7 @@ private struct EmptyResultView: View {
             .padding()
             Spacer()
         }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }
 
@@ -189,14 +193,19 @@ private struct KillMailListContent: View {
             } else {
                 ProgressView()
                     .onAppear {
-                        if detailViewModel.getDetail(for: killmail.killmail_id) == nil {
-                            detailViewModel.fetchDetails(for: [killmail])
-                        }
+                        // 当cell出现在视图中时，请求加载详情
+                        detailViewModel.requestDetails(for: [killmail])
                         
                         if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
                             Task {
                                 await viewModel.loadMoreKillMails()
                             }
+                        }
+                    }
+                    .onDisappear {
+                        // 当cell消失时，如果还在加载中，可以考虑取消加载
+                        if detailViewModel.isLoading(for: killmail.killmail_id) {
+                            detailViewModel.cancelAllTasks()
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))

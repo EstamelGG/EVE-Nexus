@@ -20,6 +20,11 @@ struct KillMailAllView: View {
         .task {
             await viewModel.fetchKillMails()
         }
+        .onChange(of: viewModel.killMails, initial: false) { oldValue, newValue in
+            if !newValue.isEmpty {
+                detailViewModel.requestDetails(for: Array(newValue.prefix(20)))
+            }
+        }
     }
 }
 
@@ -44,6 +49,9 @@ private struct KillMailListContainer: View {
                     characterId: characterId
                 )
             }
+        }
+        .refreshable {
+            await viewModel.fetchKillMails()
         }
     }
 }
@@ -141,14 +149,19 @@ private struct KillMailRow: View {
         } else {
             ProgressView()
                 .onAppear {
-                    if detailViewModel.getDetail(for: killmail.killmail_id) == nil {
-                        detailViewModel.fetchDetails(for: [killmail])
-                    }
+                    // 当cell出现在视图中时，请求加载详情
+                    detailViewModel.requestDetails(for: [killmail])
                     
                     if killmail.killmail_id == viewModel.killMails.last?.killmail_id {
                         Task {
                             await viewModel.loadMoreKillMails()
                         }
+                    }
+                }
+                .onDisappear {
+                    // 当cell消失时，如果还在加载中，可以考虑取消加载
+                    if detailViewModel.isLoading(for: killmail.killmail_id) {
+                        detailViewModel.cancelAllTasks()
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))

@@ -10,73 +10,111 @@ struct KillMailListView: View {
     
     var body: some View {
         List {
-            // 选择区域
-            Section {
-                NavigationLink {
-                    KillMailYearListView(characterId: viewModel.characterId)
-                } label: {
-                    Label("选择月份", systemImage: "calendar")
-                }
-                
-                NavigationLink {
-                    KillMailLastWeekView(characterId: viewModel.characterId)
-                } label: {
-                    Label("近一周", systemImage: "clock.arrow.circlepath")
-                }
-                
-                NavigationLink {
-                    KillMailAllView(characterId: viewModel.characterId)
-                } label: {
-                    Label("显示全部", systemImage: "list.bullet")
-                }
-            } header: {
-                Text("击杀记录")
-            }
-            
-            // 最近击杀记录
-            Section {
-                if !viewModel.recentKillMails.isEmpty {
-                    ForEach(viewModel.recentKillMails, id: \.killmail_id) { killMail in
-                        if let detail = detailViewModel.getDetail(for: killMail.killmail_id) {
-                            KillMailDetailCell(detail: detail, killMailInfo: killMail, characterId: viewModel.characterId)
-                        } else {
-                            ProgressView()
-                                .onAppear {
-                                    // 如果还没有获取详情，则获取
-                                    if detailViewModel.getDetail(for: killMail.killmail_id) == nil {
-                                        detailViewModel.fetchDetails(for: [killMail])
-                                    }
-                                }
-                        }
-                    }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                } else if viewModel.isLoading {
-                    Text("正在获取击杀记录...")
-                        .foregroundColor(.secondary)
-                } else {
-                    Text("没有找到击杀记录")
-                        .foregroundColor(.secondary)
-                }
-            } header: {
-                Text("最近 5 次战斗记录")
-            }
+            NavigationSection(characterId: viewModel.characterId)
+            RecentKillMailsSection(viewModel: viewModel, detailViewModel: detailViewModel)
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("战斗记录")
-        .refreshable {
+        .task {
             await viewModel.fetchRecentKillMails()
         }
-        .onAppear {
-            if viewModel.recentKillMails.isEmpty {
-                Task {
-                    await viewModel.fetchRecentKillMails()
-                }
+    }
+}
+
+// MARK: - 导航部分
+private struct NavigationSection: View {
+    let characterId: Int
+    
+    var body: some View {
+        Section {
+            NavigationLink {
+                KillMailYearListView(characterId: characterId)
+            } label: {
+                Label("选择月份", systemImage: "calendar")
             }
+            
+            NavigationLink {
+                KillMailLastWeekView(characterId: characterId)
+            } label: {
+                Label("近一周", systemImage: "clock.arrow.circlepath")
+            }
+            
+            NavigationLink {
+                KillMailAllView(characterId: characterId)
+            } label: {
+                Label("显示全部", systemImage: "list.bullet")
+            }
+        } header: {
+            Text("击杀记录")
         }
-        .onChange(of: viewModel.recentKillMails) { _, _ in
+    }
+}
+
+// MARK: - 最近击杀记录部分
+private struct RecentKillMailsSection: View {
+    @ObservedObject var viewModel: KillMailListViewModel
+    @ObservedObject var detailViewModel: KillMailDetailViewModel
+    
+    var body: some View {
+        Section {
             if !viewModel.recentKillMails.isEmpty {
-                detailViewModel.fetchDetails(for: Array(viewModel.recentKillMails.prefix(5)))
+                ForEach(viewModel.recentKillMails, id: \.killmail_id) { killmail in
+                    KillMailRow(
+                        killmail: killmail,
+                        detailViewModel: detailViewModel,
+                        characterId: viewModel.characterId
+                    )
+                }
+            } else if viewModel.isLoading {
+                LoadingRow()
+            } else {
+                EmptyRow()
             }
+        } header: {
+            Text("最近击杀记录")
         }
+    }
+}
+
+// MARK: - 击杀记录行
+private struct KillMailRow: View {
+    let killmail: KillMailInfo
+    @ObservedObject var detailViewModel: KillMailDetailViewModel
+    let characterId: Int
+    
+    var body: some View {
+        if let detail = detailViewModel.getDetail(for: killmail.killmail_id) {
+            KillMailDetailCell(detail: detail, killMailInfo: killmail, characterId: characterId)
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        } else {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .frame(height: 80)
+            .onAppear {
+                // 当cell出现在视图中时，请求加载详情
+                detailViewModel.requestDetails(for: [killmail])
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+// MARK: - 加载中行
+private struct LoadingRow: View {
+    var body: some View {
+        Text("正在获取击杀记录...")
+            .foregroundColor(.secondary)
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+}
+
+// MARK: - 空数据行
+private struct EmptyRow: View {
+    var body: some View {
+        Text("没有找到击杀记录")
+            .foregroundColor(.secondary)
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }
 
