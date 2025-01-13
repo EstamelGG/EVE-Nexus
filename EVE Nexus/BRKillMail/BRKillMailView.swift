@@ -316,7 +316,7 @@ struct BRKillMailCell: View {
                 IconManager.shared.loadImage(for: shipInfo.iconFileName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 64, height: 64)
+                    .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 
                 // 右侧信息
