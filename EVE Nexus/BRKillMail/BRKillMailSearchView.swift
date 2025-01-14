@@ -70,7 +70,7 @@ struct SearchSelectorSheet: View {
                         TextField(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""), text: $searchText)
                             .textFieldStyle(.plain)
                             .focused($isSearchFocused)
-                            .onChange(of: searchText) { newValue in
+                            .onChange(of: searchText) { oldValue, newValue in
                                 if !newValue.isEmpty {
                                     viewModel.debounceSearch(characterId: characterId, searchText: newValue)
                                 } else {
@@ -171,11 +171,13 @@ struct KMSearchResultRow: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 IconManager.shared.loadImage(for: result.iconFileName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             
             VStack(alignment: .leading) {

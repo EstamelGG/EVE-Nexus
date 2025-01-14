@@ -868,3 +868,4 @@
 "KillMail_Search_Item" = "物品";
 "KillMail_Search_System" = "星系";
 "KillMail_Search_Region" = "区域";
+"Main_Search_Network_Min_Length" = "联网搜索需要最少3个字符";
