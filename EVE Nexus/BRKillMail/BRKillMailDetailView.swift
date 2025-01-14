@@ -239,7 +239,7 @@ struct BRKillMailDetailView: View {
                 Logger.debug("准备获取战报ID: \(killId)的详细信息")
                 do {
                     detailData = try await kbAPI.fetchKillMailDetail(killMailId: killId)
-                    Logger.debug("成功获取战报详情: \(String(describing: detailData))")
+                    // Logger.debug("成功获取战报详情: \(String(describing: detailData))")
                     // 获取到详细数据后再加载图标
                     if let detail = detailData {
                         await loadIcons(from: detail)
