@@ -105,6 +105,7 @@ struct BRKillMailDetailView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                         let shipName = getShipName(shipId)
                         Text("\(shipName) / Dreadnought")
