@@ -857,3 +857,13 @@
 "Main_Search_Network_Min_Length" = "At least 3 characters to search online";
 
 "Main_Search_Results_Placeholder" = "Search results will be shown here";
+
+"Main_KM_Ship_Value" = "Ship value:";
+"Main_KM_Destroyed_Value" = "Destroyed:";
+"Main_KM_Dropped_Value" = "Dropped:";
+"Main_KM_Total" = "Total:";
+"Main_KM_Ship" = "Ship:";
+"Main_KM_System" = "System:";
+"Main_KM_EVE_Time" = "EVE Time:";
+"Main_KM_Local_Time" = "Local Time:";
+"Main_KM_Damage" = "Damage:";

@@ -97,8 +97,8 @@ struct BRKillMailDetailView: View {
                 if let victInfo = detail["vict"] as? [String: Any],
                    let shipId = victInfo["ship"] as? Int {
                     HStack {
-                        Text("Ship:")
-                            .frame(width: 120, alignment: .leading)
+                        Text(NSLocalizedString("Main_KM_Ship", comment: ""))
+                            .frame(width: 110, alignment: .leading)
                         HStack {
                             if let shipIcon = shipIcon {
                                 Image(uiImage: shipIcon)
@@ -115,8 +115,8 @@ struct BRKillMailDetailView: View {
                 // System
                 if let sysInfo = detail["sys"] as? [String: Any] {
                     HStack {
-                        Text("System:")
-                            .frame(width: 120, alignment: .leading)
+                        Text(NSLocalizedString("Main_KM_System", comment: ""))
+                            .frame(width: 110, alignment: .leading)
                             .frame(maxHeight: .infinity, alignment: .center)
                         VStack(alignment: .leading) {
                             HStack {
@@ -133,8 +133,8 @@ struct BRKillMailDetailView: View {
                 
                 // Eve Time
                 HStack {
-                    Text("Eve Time:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_EVE_Time", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let time = detail["time"] as? Int {
                         Text(formatEVETime(time))
                             .foregroundColor(.secondary)
@@ -143,8 +143,8 @@ struct BRKillMailDetailView: View {
                 
                 // Local Time
                 HStack {
-                    Text("Local Time:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Local_Time", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let time = detail["time"] as? Int {
                         Text(formatLocalTime(time))
                             .foregroundColor(.secondary)
@@ -153,8 +153,8 @@ struct BRKillMailDetailView: View {
                 
                 // Damage
                 HStack {
-                    Text("Damage:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Damage", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any] {
                         let damage = victInfo["dmg"] as? Int ?? 0
                         Text(formatNumber(damage))
@@ -164,8 +164,8 @@ struct BRKillMailDetailView: View {
                 
                 // Ship Value
                 HStack {
-                    Text("Ship:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Ship_Value", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let shipId = victInfo["ship"] as? Int,
                        let prices = detail["prices"] as? [String: Double] {
@@ -177,8 +177,8 @@ struct BRKillMailDetailView: View {
                 
                 // Destroyed
                 HStack {
-                    Text("Destroyed:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Destroyed_Value", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
                         let values = calculateValues(victInfo: victInfo, prices: prices)
@@ -189,8 +189,8 @@ struct BRKillMailDetailView: View {
                 
                 // Dropped
                 HStack {
-                    Text("Dropped:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Dropped_Value", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
                         let values = calculateValues(victInfo: victInfo, prices: prices)
@@ -201,8 +201,8 @@ struct BRKillMailDetailView: View {
                 
                 // Total
                 HStack {
-                    Text("Total:")
-                        .frame(width: 120, alignment: .leading)
+                    Text(NSLocalizedString("Main_KM_Total", comment: ""))
+                        .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
                         let values = calculateValues(victInfo: victInfo, prices: prices)

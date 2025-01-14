@@ -871,3 +871,13 @@
 "Main_Search_Network_Min_Length" = "联网搜索需要最少3个字符";
 
 "Main_Search_Results_Placeholder" = "搜索结果将在这里展示";
+
+"Main_KM_Ship_Value" = "舰船价值:";
+"Main_KM_Destroyed_Value" = "被摧毁价值:";
+"Main_KM_Dropped_Value" = "掉落价值:";
+"Main_KM_Total" = "总计:";
+"Main_KM_Ship" = "舰船:";
+"Main_KM_System" = "星系:";
+"Main_KM_EVE_Time" = "EVE时间:";
+"Main_KM_Local_Time" = "本地时间:";
+"Main_KM_Damage" = "受到伤害:";
