@@ -372,8 +372,8 @@ struct KMSearchResultRow: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else if result.category == .inventory_type {
-                // 对于物品类型，直接使用本地图标
+            } else if result.category == .inventory_type || result.category == .solar_system || result.category == .region {
+                // 对于物品、星系和星域类型，直接使用本地图标
                 IconManager.shared.loadImage(for: result.iconFileName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -575,6 +575,27 @@ class BRKillMailSearchViewModel: ObservableObject {
                     }
                 }
                 
+                // 处理region的图标
+                var regionIcons: [Int: String] = [:]
+                if let regions = apiResults["region"], !regions.isEmpty {
+                    let regionIds = regions.map(String.init).joined(separator: ",")
+                    let query = """
+                        SELECT u.region_id, t.icon_filename
+                        FROM universe u
+                        JOIN types t ON u.region_type = t.type_id
+                        WHERE u.region_id IN (\(regionIds))
+                        GROUP BY u.region_id
+                    """
+                    if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                        for row in rows {
+                            if let regionId = row["region_id"] as? Int,
+                               let iconFileName = row["icon_filename"] as? String {
+                                regionIcons[regionId] = iconFileName
+                            }
+                        }
+                    }
+                }
+                
                 // 处理inventory_type的图标信息
                 var itemInfo: [Int: String] = [:]
                 if let items = apiResults["inventory_type"], !items.isEmpty {
@@ -620,7 +641,7 @@ class BRKillMailSearchViewModel: ObservableObject {
                                 case .solar_system:
                                     iconFileName = systemIcons[id] ?? "items_7_64_15.png"
                                 case .region:
-                                    iconFileName = "items_7_64_4.png"
+                                    iconFileName = regionIcons[id] ?? "items_7_64_4.png"
                                 }
                                 
                                 results.append(SearchResult(
