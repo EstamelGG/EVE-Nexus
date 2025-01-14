@@ -379,14 +379,14 @@ struct BRKillMailView: View {
         .navigationTitle(NSLocalizedString("KillMail_View_Title", comment: ""))
         .refreshable {
             await withTaskGroup(of: Void.self) { group in
-                group.addTask { await viewModel.refreshData(for: selectedFilter) }
                 group.addTask { await viewModel.loadStats() }
+                group.addTask { await viewModel.refreshData(for: selectedFilter) }
             }
         }
         .onAppear {
             Task {
-                async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
                 async let stats: () = viewModel.loadStats()
+                async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
                 await (_, _) = (killmails, stats)
             }
         }

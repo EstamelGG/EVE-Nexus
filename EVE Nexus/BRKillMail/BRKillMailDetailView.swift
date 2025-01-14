@@ -10,149 +10,173 @@ struct BRKillMailDetailView: View {
     
     var body: some View {
         List {
-            // 简介部分
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    // 受害者信息行
-                    HStack(spacing: 12) {
-                        // 角色头像
-                        if let characterIcon = victimCharacterIcon {
-                            Image(uiImage: characterIcon)
+            // 受害者信息行
+            HStack(spacing: 12) {
+                // 角色头像
+                if let characterIcon = victimCharacterIcon {
+                    Image(uiImage: characterIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    ProgressView()
+                        .frame(width: 64, height: 64)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // 角色名称
+                    if let victInfo = killmail["vict"] as? [String: Any],
+                       let charInfo = victInfo["char"] as? [String: Any],
+                       let charId = charInfo["id"] as? Int {
+                        Text(charInfo["name"] as? String ?? "\(charId)")
+                            .font(.headline)
+                    }
+                    
+                    // 军团和联盟信息
+                    HStack(spacing: 8) {
+                        // 军团图标和名称
+                        if let corpIcon = victimCorporationIcon {
+                            Image(uiImage: corpIcon)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
-                                .frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                        } else {
-                            ProgressView()
-                                .frame(width: 64, height: 64)
+                                .frame(width: 32, height: 32)
+                        }
+                        if let victInfo = killmail["vict"] as? [String: Any],
+                           let corpInfo = victInfo["corp"] as? [String: Any] {
+                            Text(corpInfo["name"] as? String ?? "")
+                                .font(.subheadline)
                         }
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            // 角色名称
-                            if let victInfo = killmail["vict"] as? [String: Any],
-                               let charInfo = victInfo["char"] as? [String: Any],
-                               let charId = charInfo["id"] as? Int {
-                                Text(charInfo["name"] as? String ?? "\(charId)")
-                                    .font(.headline)
-                            }
-                            
-                            // 军团和联盟信息
-                            HStack(spacing: 8) {
-                                // 军团图标和名称
-                                if let corpIcon = victimCorporationIcon {
-                                    Image(uiImage: corpIcon)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 32, height: 32)
-                                }
-                                if let victInfo = killmail["vict"] as? [String: Any],
-                                   let corpInfo = victInfo["corp"] as? [String: Any] {
-                                    Text(corpInfo["name"] as? String ?? "")
-                                        .font(.subheadline)
-                                }
-                                
-                                // 联盟图标和名称
-                                if let allyIcon = victimAllianceIcon {
-                                    Image(uiImage: allyIcon)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 32, height: 32)
-                                }
-                                if let victInfo = killmail["vict"] as? [String: Any],
-                                   let allyInfo = victInfo["ally"] as? [String: Any] {
-                                    Text(allyInfo["name"] as? String ?? "")
-                                        .font(.subheadline)
-                                }
-                            }
+                        // 联盟图标和名称
+                        if let allyIcon = victimAllianceIcon {
+                            Image(uiImage: allyIcon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 32, height: 32)
                         }
-                    }
-                    
-                    Divider()
-                    
-                    // 舰船信息
-                    if let victInfo = killmail["vict"] as? [String: Any],
-                       let shipId = victInfo["ship"] as? Int {
-                        HStack {
-                            if let shipIcon = shipIcon {
-                                Image(uiImage: shipIcon)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 32, height: 32)
-                            }
-                            Text(getShipName(shipId))
-                                .font(.headline)
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    // 战斗地点信息
-                    if let sysInfo = killmail["sys"] as? [String: Any] {
-                        HStack {
-                            Text(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0"))
-                                .foregroundColor(getSecurityColor(sysInfo["ss"] as? String ?? "0.0"))
-                            Text(sysInfo["name"] as? String ?? "")
-                                .font(.system(.body, design: .monospaced))
-                            Text("/")
-                            Text(sysInfo["region"] as? String ?? "")
-                                .font(.system(.body, design: .monospaced))
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    // 时间信息
-                    if let time = killmail["time"] as? Int {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("EVE Time:")
-                                Text(formatEVETime(time))
-                                    .font(.system(.body, design: .monospaced))
-                            }
-                            HStack {
-                                Text("Local Time:")
-                                Text(formatLocalTime(time))
-                                    .font(.system(.body, design: .monospaced))
-                            }
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    // 价值信息
-                    if let victInfo = killmail["vict"] as? [String: Any] {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("Damage Taken:")
-                                Spacer()
-                                Text("\(victInfo["dmg"] as? Int ?? 0)")
-                                    .font(.system(.body, design: .monospaced))
-                            }
-                            
-                            if let prices = killmail["prices"] as? [String: Double],
-                               let shipId = victInfo["ship"] as? Int {
-                                let shipPrice = prices[String(shipId)] ?? 0
-                                HStack {
-                                    Text("Ship Value:")
-                                    Spacer()
-                                    Text(formatISK(shipPrice))
-                                        .font(.system(.body, design: .monospaced))
-                                }
-                            }
-                            
-                            if let destroyed = killmail["sumV"] as? Double {
-                                HStack {
-                                    Text("Total Value:")
-                                    Spacer()
-                                    Text(formatISK(destroyed))
-                                        .font(.system(.body, design: .monospaced))
-                                        .foregroundColor(.red)
-                                }
-                            }
+                        if let victInfo = killmail["vict"] as? [String: Any],
+                           let allyInfo = victInfo["ally"] as? [String: Any] {
+                            Text(allyInfo["name"] as? String ?? "")
+                                .font(.subheadline)
                         }
                     }
                 }
-                .padding(.vertical, 8)
+            }
+            
+            // Ship
+            HStack {
+                Text("Ship:")
+                    .foregroundColor(.gray)
+                    .frame(width: 120, alignment: .leading)
+                if let victInfo = killmail["vict"] as? [String: Any],
+                   let shipId = victInfo["ship"] as? Int {
+                    Text("\(getShipName(shipId)) / Dreadnought")
+                        .foregroundColor(.cyan)
+                }
+            }
+            
+            // System
+            if let sysInfo = killmail["sys"] as? [String: Any] {
+                HStack {
+                    Text("System:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text("\(sysInfo["name"] as? String ?? "") -\(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0")) / \(sysInfo["region"] as? String ?? "")")
+                        .foregroundColor(.cyan)
+                }
+            }
+            
+            // Eve Time
+            if let time = killmail["time"] as? Int {
+                HStack {
+                    Text("Eve Time:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatEVETime(time))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Local Time
+            if let time = killmail["time"] as? Int {
+                HStack {
+                    Text("Local Time:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatLocalTime(time))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Damage
+            if let victInfo = killmail["vict"] as? [String: Any] {
+                HStack {
+                    Text("Damage:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text("\(victInfo["dmg"] as? Int ?? 0)")
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Fitted
+            if let fitted = killmail["sumF"] as? Double {
+                HStack {
+                    Text("Fitted:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatISK(fitted))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Ship Value
+            if let victInfo = killmail["vict"] as? [String: Any],
+               let shipId = victInfo["ship"] as? Int,
+               let prices = killmail["prices"] as? [String: Double] {
+                let shipPrice = prices[String(shipId)] ?? 0
+                HStack {
+                    Text("Ship:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatISK(shipPrice))
+                        .foregroundColor(.gray)
+                }
+            }
+            
+            // Destroyed
+            if let destroyed = killmail["sumV"] as? Double {
+                HStack {
+                    Text("Destroyed:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatISK(destroyed))
+                        .foregroundColor(.red)
+                }
+            }
+            
+            // Dropped
+            if let dropped = killmail["sumD"] as? Double {
+                HStack {
+                    Text("Dropped:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatISK(dropped))
+                        .foregroundColor(.green)
+                }
+            }
+            
+            // Total
+            if let destroyed = killmail["sumV"] as? Double,
+               let dropped = killmail["sumD"] as? Double {
+                HStack {
+                    Text("Total:")
+                        .foregroundColor(.gray)
+                        .frame(width: 120, alignment: .leading)
+                    Text(formatISK(destroyed + dropped))
+                        .foregroundColor(.gray)
+                }
             }
         }
         .navigationTitle("Battle Report")
