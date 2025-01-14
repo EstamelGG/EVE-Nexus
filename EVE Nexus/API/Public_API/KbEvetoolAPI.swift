@@ -145,28 +145,23 @@ class KbEvetoolAPI {
     }
     
     // 通用搜索方法
-    func searchEveItems(characterId: Int, searchText: String) async throws -> [String: [Int]] {
-        let categories: [SearchCategory] = [
-            .alliance,
-            .character,
-            .corporation,
-            .inventoryType,
-            .region,
-            .solarSystem
-        ]
+    func searchEveItems(characterId: Int, searchText: String) async throws -> [String: [ZKBSearchResult]] {
+        // 构建 zkillboard 自动完成 API URL
+        guard let encodedText = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/") else {
+            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"])
+        }
         
-        let searchData = try await CharacterSearchAPI.shared.search(
-            characterId: characterId,
-            categories: categories,
-            searchText: searchText
-        )
+        // 发送请求
+        let data = try await NetworkManager.shared.fetchData(from: url)
         
-        // 解析JSON数据
-        guard let json = try? JSONSerialization.jsonObject(with: searchData) as? [String: [Int]] else {
+        // 解析 JSON 响应
+        guard let results = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
             throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
         }
         
-        var result: [String: [Int]] = [
+        // 将结果转换为所需格式
+        var result: [String: [ZKBSearchResult]] = [
             "alliance": [],
             "character": [],
             "corporation": [],
@@ -175,66 +170,35 @@ class KbEvetoolAPI {
             "region": []
         ]
         
-        // 处理alliance结果
-        if let alliances = json["alliance"] {
-            result["alliance"] = Array(alliances.prefix(5))
-        }
-        
-        // 处理character结果
-        if let characters = json["character"] {
-            result["character"] = Array(characters.prefix(5))
-        }
-        
-        // 处理corporation结果
-        if let corporations = json["corporation"] {
-            result["corporation"] = Array(corporations.prefix(5))
-        }
-        
-        // 处理solar_system结果
-        if let solarSystems = json["solar_system"] {
-            result["solar_system"] = solarSystems
-        }
-        
-        // 处理region结果
-        if let regions = json["region"] {
-            result["region"] = regions
-        }
-        
-        // 处理inventory_type结果
-        var inventoryTypeIds: [Int] = []
-        if let inventoryTypes = json["inventory_type"] {
-            inventoryTypeIds.append(contentsOf: inventoryTypes)
-        }
-        
-        // 从数据库中搜索匹配的物品
-        let searchQuery = """
-            SELECT type_id 
-            FROM types 
-            WHERE name LIKE ?1
-        """
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(searchQuery, parameters: ["%\(searchText)%"]) {
-            let dbTypeIds = rows.compactMap { $0["type_id"] as? Int }
-            inventoryTypeIds.append(contentsOf: dbTypeIds)
-        }
-        
-        // 去重
-        inventoryTypeIds = Array(Set(inventoryTypeIds))
-        
-        // 过滤符合类别要求的物品
-        if !inventoryTypeIds.isEmpty {
-            let placeholders = String(repeating: "?,", count: inventoryTypeIds.count).dropLast()
-            let categoryQuery = """
-                SELECT type_id 
-                FROM types 
-                WHERE categoryID IN (6, 65, 87) 
-                AND type_id IN (\(placeholders))
-            """
-            if case .success(let categoryRows) = DatabaseManager.shared.executeQuery(categoryQuery, parameters: inventoryTypeIds) {
-                result["inventory_type"] = categoryRows.compactMap { $0["type_id"] as? Int }
+        // 根据类型分类结果
+        for item in results {
+            switch item.type {
+            case "alliance":
+                result["alliance"]?.append(item)
+            case "character":
+                result["character"]?.append(item)
+            case "corporation":
+                result["corporation"]?.append(item)
+            case "ship":
+                result["inventory_type"]?.append(item)
+            case "system":
+                result["solar_system"]?.append(item)
+            case "region":
+                result["region"]?.append(item)
+            default:
+                break
             }
         }
         
         return result
+    }
+    
+    // ZKillboard 搜索结果模型
+    struct ZKBSearchResult: Codable {
+        let id: Int
+        let name: String
+        let type: String
+        let image: String
     }
     
     // 根据搜索结果获取战斗日志
