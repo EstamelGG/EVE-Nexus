@@ -201,13 +201,28 @@ class KbEvetoolAPI {
         }
         
         // 处理inventory_type结果
-        if let inventoryTypes = json["inventory_type"], !inventoryTypes.isEmpty {
-            let typeIds = inventoryTypes.map(String.init).joined(separator: ",")
-            let query = "SELECT type_id FROM types WHERE categoryID IN (6, 65, 87) AND type_id IN (\(typeIds))"
-            
-            if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-                let filteredTypes = rows.compactMap { $0["type_id"] as? Int }
-                result["inventory_type"] = filteredTypes
+        var inventoryTypeIds: [Int] = []
+        if let inventoryTypes = json["inventory_type"] {
+            inventoryTypeIds.append(contentsOf: inventoryTypes)
+        }
+        
+        // 从数据库中搜索匹配的物品
+        let escapedSearchText = searchText.replacingOccurrences(of: "'", with: "''")
+        let searchQuery = "SELECT type_id FROM types WHERE name LIKE '%\(escapedSearchText)%'"
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(searchQuery) {
+            let dbTypeIds = rows.compactMap { $0["type_id"] as? Int }
+            inventoryTypeIds.append(contentsOf: dbTypeIds)
+        }
+        
+        // 去重
+        inventoryTypeIds = Array(Set(inventoryTypeIds))
+        
+        // 过滤符合类别要求的物品
+        if !inventoryTypeIds.isEmpty {
+            let typeIdList = inventoryTypeIds.map(String.init).joined(separator: ",")
+            let categoryQuery = "SELECT type_id FROM types WHERE categoryID IN (6, 65, 87) AND type_id IN (\(typeIdList))"
+            if case .success(let categoryRows) = DatabaseManager.shared.executeQuery(categoryQuery) {
+                result["inventory_type"] = categoryRows.compactMap { $0["type_id"] as? Int }
             }
         }
         
