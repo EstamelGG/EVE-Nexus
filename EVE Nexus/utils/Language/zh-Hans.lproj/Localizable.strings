@@ -857,3 +857,14 @@
 
 // KillMail Stats
 "KillMail_Data_Source" = "数据来自zkillboard和kb.evetools.org";
+
+"KillMail_Search_Prompt" = "点击这里开始搜索...";
+"KillMail_Search_Input_Prompt" = "输入搜索关键词";
+"KillMail_Search" = "搜索";
+"KillMail_Cancel" = "取消";
+"KillMail_Search_Alliance" = "联盟";
+"KillMail_Search_Character" = "角色";
+"KillMail_Search_Corporation" = "军团";
+"KillMail_Search_Item" = "物品";
+"KillMail_Search_System" = "星系";
+"KillMail_Search_Region" = "区域";

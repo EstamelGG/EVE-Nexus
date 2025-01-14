@@ -287,7 +287,7 @@ struct BRKillMailView: View {
             
             // 搜索入口
             Section {
-                NavigationLink(destination: Text(NSLocalizedString("KillMail_Search_Title", comment: ""))) {
+                NavigationLink(destination: BRKillMailSearchView(characterId: characterId)) {
                     Text(NSLocalizedString("KillMail_Search_Title", comment: ""))
                 }
             }

@@ -843,3 +843,14 @@
 
 // KillMail Stats
 "KillMail_Data_Source" = "Data from zkillboard and kb.evetools.org";
+
+"KillMail_Search_Prompt" = "Tap here to start searching...";
+"KillMail_Search_Input_Prompt" = "Enter search keyword";
+"KillMail_Search" = "Search";
+"KillMail_Cancel" = "Cancel";
+"KillMail_Search_Alliance" = "Alliance";
+"KillMail_Search_Character" = "Character";
+"KillMail_Search_Corporation" = "Corporation";
+"KillMail_Search_Item" = "Item";
+"KillMail_Search_System" = "Solar System";
+"KillMail_Search_Region" = "Region";
