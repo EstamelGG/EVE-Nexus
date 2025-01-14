@@ -59,40 +59,99 @@ struct SearchSelectorSheet: View {
     @ObservedObject var viewModel: BRKillMailSearchViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
     
     var body: some View {
         NavigationStack {
-            VStack {
-                // 搜索框
-                TextField(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""), text: $searchText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .padding()
-                    .onChange(of: searchText) { newValue in
-                        Task {
-                            await viewModel.search(characterId: characterId, searchText: newValue)
+            VStack(spacing: 0) {
+                // 搜索框区域
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                        TextField(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""), text: $searchText)
+                            .textFieldStyle(.plain)
+                            .focused($isSearchFocused)
+                            .onChange(of: searchText) { newValue in
+                                if newValue.count >= 3 {
+                                    Task {
+                                        await viewModel.search(characterId: characterId, searchText: newValue)
+                                    }
+                                } else {
+                                    viewModel.searchResults = [:]
+                                }
+                            }
+                            .submitLabel(.search)
+                            .onSubmit {
+                                if searchText.count >= 3 {
+                                    Task {
+                                        await viewModel.search(characterId: characterId, searchText: searchText)
+                                    }
+                                }
+                            }
+                        
+                        if !searchText.isEmpty {
+                            Button {
+                                searchText = ""
+                                viewModel.searchResults = [:]
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                            }
                         }
                     }
+                    .padding(8)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .cornerRadius(8)
+                    
+                    if searchText.count < 3 {
+                        Text(NSLocalizedString("Main_Search_Min_Length", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .background(Color(uiColor: .systemBackground))
                 
                 if viewModel.isSearching {
                     ProgressView()
                         .padding()
-                } else {
-                    // 搜索结果列表
-                    List {
-                        ForEach(viewModel.categories, id: \.self) { category in
-                            if let results = viewModel.searchResults[category], !results.isEmpty {
-                                Section(header: Text(category.localizedTitle)) {
-                                    ForEach(results) { result in
-                                        Button {
-                                            viewModel.selectedResult = result
-                                            dismiss()
-                                        } label: {
-                                            KMSearchResultRow(result: result)
+                } else if searchText.count >= 3 {
+                    if viewModel.searchResults.isEmpty {
+                        VStack {
+                            Spacer()
+                            Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        // 搜索结果列表
+                        List {
+                            ForEach(viewModel.categories, id: \.self) { category in
+                                if let results = viewModel.searchResults[category], !results.isEmpty {
+                                    Section(header: Text(category.localizedTitle)) {
+                                        ForEach(results) { result in
+                                            Button {
+                                                viewModel.selectedResult = result
+                                                dismiss()
+                                            } label: {
+                                                KMSearchResultRow(result: result)
+                                                    .foregroundColor(.primary)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                        .listStyle(.insetGrouped)
+                    }
+                } else {
+                    // 空状态提示
+                    VStack {
+                        Spacer()
+                        Text(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""))
+                            .foregroundColor(.secondary)
+                        Spacer()
                     }
                 }
             }
@@ -104,6 +163,9 @@ struct SearchSelectorSheet: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                isSearchFocused = true
             }
         }
     }
