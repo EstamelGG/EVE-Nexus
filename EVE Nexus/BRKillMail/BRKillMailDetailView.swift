@@ -227,6 +227,7 @@ struct BRKillMailDetailView: View {
                     Button {
                         openZKillboard(killId: killId)
                     } label: {
+                        Text("zkillboard")
                         Image(systemName: "safari")
                     }
                 }
