@@ -162,17 +162,6 @@ struct BRKillMailDetailView: View {
                     }
                 }
                 
-                // Fitted
-                HStack {
-                    Text("Fitted:")
-                        .frame(width: 120, alignment: .leading)
-                    if let victInfo = detail["vict"] as? [String: Any],
-                       let prices = detail["prices"] as? [String: Double] {
-                        Text(formatISK(calculateFittedValue(victInfo: victInfo, prices: prices)))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
                 // Ship Value
                 HStack {
                     Text("Ship:")
@@ -218,7 +207,7 @@ struct BRKillMailDetailView: View {
                        let prices = detail["prices"] as? [String: Double] {
                         let values = calculateValues(victInfo: victInfo, prices: prices)
                         Text(formatISK(values.destroyed + values.dropped))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -333,17 +322,12 @@ struct BRKillMailDetailView: View {
     }
     
     private func formatISK(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "%.2fB ISK", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "%.2fM ISK", value / 1_000_000)
-        } else if value >= 1_000 {
-            return String(format: "%.2fK ISK", value / 1_000)
-        } else {
-            return String(format: "%.2f ISK", value)
-        }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        formatter.maximumFractionDigits = 0  // 不显示小数位
+        formatter.roundingMode = .halfUp     // 四舍五入
+        return (formatter.string(from: NSNumber(value: value)) ?? "\(Int(round(value)))") + " ISK"
     }
     
     private func formatNumber(_ number: Int) -> String {
@@ -351,29 +335,6 @@ struct BRKillMailDetailView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
-    }
-    
-    private func calculateFittedValue(victInfo: [String: Any], prices: [String: Double]) -> Double {
-        guard let items = victInfo["itms"] as? [[Int]] else { return 0 }
-        
-        var total: Double = 0
-        for item in items {
-            if item.count >= 4 {
-                let typeId = item[1]
-                let dropped = item[2]    // 掉落数量
-                let destroyed = item[3]   // 摧毁数量
-                let totalQuantity = dropped + destroyed  // 总数量
-                
-                if let price = prices[String(typeId)] {
-                    let itemValue = price * Double(totalQuantity)
-                    Logger.debug("Item: typeId=\(typeId), dropped=\(dropped), destroyed=\(destroyed), price=\(price), total=\(itemValue)")
-                    total += itemValue
-                }
-            }
-        }
-        
-        Logger.debug("Final total: \(total)")
-        return total
     }
     
     private func calculateValues(victInfo: [String: Any], prices: [String: Double]) -> (destroyed: Double, dropped: Double) {
