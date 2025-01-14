@@ -207,8 +207,7 @@ class KbEvetoolAPI {
         }
         
         // 从数据库中搜索匹配的物品
-        let escapedSearchText = searchText.replacingOccurrences(of: "'", with: "''")
-        let searchQuery = "SELECT type_id FROM types WHERE name LIKE '%\(escapedSearchText)%'"
+        let searchQuery = "SELECT type_id FROM types WHERE name LIKE '%\(searchText)%'"
         if case .success(let rows) = DatabaseManager.shared.executeQuery(searchQuery) {
             let dbTypeIds = rows.compactMap { $0["type_id"] as? Int }
             inventoryTypeIds.append(contentsOf: dbTypeIds)
