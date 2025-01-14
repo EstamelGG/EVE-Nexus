@@ -325,12 +325,17 @@ struct BRKillMailDetailView: View {
     }
     
     private func formatISK(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        formatter.maximumFractionDigits = 0  // 不显示小数位
-        formatter.roundingMode = .halfUp     // 四舍五入
-        return (formatter.string(from: NSNumber(value: value)) ?? "\(Int(round(value)))") + " ISK"
+        if value >= 1_000_000_000_000 {
+            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
+        } else if value >= 1_000_000_000 {
+            return String(format: "%.2fB ISK", value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%.2fM ISK", value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.2fK ISK", value / 1_000)
+        } else {
+            return String(format: "%.2f ISK", value)
+        }
     }
     
     private func formatNumber(_ number: Int) -> String {
