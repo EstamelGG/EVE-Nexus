@@ -234,8 +234,7 @@ struct BRKillMailDetailView: View {
     private func loadIcons(from detail: [String: Any]) async {
         // 加载受害者角色头像
         if let victInfo = detail["vict"] as? [String: Any],
-           let charInfo = victInfo["char"] as? [String: Any],
-           let charId = charInfo["id"] as? Int {
+           let charId = victInfo["char"] as? Int {
             let url = URL(string: "https://images.evetech.net/characters/\(charId)/portrait?size=128")
             if let url = url,
                let data = try? await NetworkManager.shared.fetchData(from: url) {
@@ -245,8 +244,7 @@ struct BRKillMailDetailView: View {
         
         // 加载军团图标
         if let victInfo = detail["vict"] as? [String: Any],
-           let corpInfo = victInfo["corp"] as? [String: Any],
-           let corpId = corpInfo["id"] as? Int {
+           let corpId = victInfo["corp"] as? Int {
             let url = URL(string: "https://images.evetech.net/corporations/\(corpId)/logo?size=64")
             if let url = url,
                let data = try? await NetworkManager.shared.fetchData(from: url) {
@@ -256,8 +254,7 @@ struct BRKillMailDetailView: View {
         
         // 加载联盟图标
         if let victInfo = detail["vict"] as? [String: Any],
-           let allyInfo = victInfo["ally"] as? [String: Any],
-           let allyId = allyInfo["id"] as? Int {
+           let allyId = victInfo["ally"] as? Int {
             let url = URL(string: "https://images.evetech.net/alliances/\(allyId)/logo?size=64")
             if let url = url,
                let data = try? await NetworkManager.shared.fetchData(from: url) {
