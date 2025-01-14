@@ -143,4 +143,74 @@ class KbEvetoolAPI {
         }
         return formatValue(value)
     }
+    
+    // 通用搜索方法
+    func searchEveItems(characterId: Int, searchText: String) async throws -> [String: [Int]] {
+        let categories: [SearchCategory] = [
+            .alliance,
+            .character,
+            .corporation,
+            .inventoryType,
+            .region,
+            .solarSystem
+        ]
+        
+        let searchData = try await CharacterSearchAPI.shared.search(
+            characterId: characterId,
+            categories: categories,
+            searchText: searchText
+        )
+        
+        // 解析JSON数据
+        guard let json = try? JSONSerialization.jsonObject(with: searchData) as? [String: [Int]] else {
+            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
+        }
+        
+        var result: [String: [Int]] = [
+            "alliance": [],
+            "character": [],
+            "corporation": [],
+            "inventory_type": [],
+            "solar_system": [],
+            "region": []
+        ]
+        
+        // 处理alliance结果
+        if let alliances = json["alliance"] {
+            result["alliance"] = Array(alliances.prefix(5))
+        }
+        
+        // 处理character结果
+        if let characters = json["character"] {
+            result["character"] = Array(characters.prefix(5))
+        }
+        
+        // 处理corporation结果
+        if let corporations = json["corporation"] {
+            result["corporation"] = Array(corporations.prefix(5))
+        }
+        
+        // 处理solar_system结果
+        if let solarSystems = json["solar_system"] {
+            result["solar_system"] = solarSystems
+        }
+        
+        // 处理region结果
+        if let regions = json["region"] {
+            result["region"] = regions
+        }
+        
+        // 处理inventory_type结果
+        if let inventoryTypes = json["inventory_type"], !inventoryTypes.isEmpty {
+            let typeIds = inventoryTypes.map(String.init).joined(separator: ",")
+            let query = "SELECT type_id FROM types WHERE categoryID IN (6, 65, 87) AND type_id IN (\(typeIds))"
+            
+            if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                let filteredTypes = rows.compactMap { $0["type_id"] as? Int }
+                result["inventory_type"] = filteredTypes
+            }
+        }
+        
+        return result
+    }
 } 
