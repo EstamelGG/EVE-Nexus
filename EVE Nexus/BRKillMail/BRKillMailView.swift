@@ -406,13 +406,13 @@ struct BRKillMailCell: View {
         
         // 先尝试获取联盟图标
         if let allyId = allyInfo?["id"] as? Int, allyId > 0, let icon = allianceIcon {
-            Logger.debug("使用联盟图标 - ID: \(allyId)")
+            // Logger.debug("使用联盟图标 - ID: \(allyId)")
             return icon
         }
         
         // 如果没有联盟图标，尝试获取军团图标
         if let corpId = corpInfo?["id"] as? Int, corpId > 0, let icon = corporationIcon {
-            Logger.debug("使用军团图标 - ID: \(corpId)")
+            // Logger.debug("使用军团图标 - ID: \(corpId)")
             return icon
         }
         
@@ -476,7 +476,7 @@ struct BRKillMailCell: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 
                 // 右侧信息
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 2) {
                     // 飞船名称
                     Text(shipInfo.name)
                         .font(.system(size: 16, weight: .medium))
