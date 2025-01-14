@@ -1,5 +1,3 @@
-import SwiftUI
-
 enum KillMailFilter: String {
     case all = "all"
     case kill = "kill"
@@ -14,8 +12,13 @@ enum KillMailFilter: String {
     }
 }
 
+struct KillMailEntry: Identifiable {
+    let id: Int
+    let data: [String: Any]
+}
+
 class KillMailViewModel: ObservableObject {
-    @Published private(set) var killMails: [[String: Any]] = []
+    @Published private(set) var killMails: [KillMailEntry] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingMore = false
     @Published private(set) var errorMessage: String?
@@ -30,9 +33,10 @@ class KillMailViewModel: ObservableObject {
     private let characterId: Int
     private let databaseManager = DatabaseManager.shared
     let kbAPI = KbEvetoolAPI.shared
+    private var currentIndex = 0
     
     struct CachedKillMailData {
-        let mails: [[String: Any]]
+        let mails: [KillMailEntry]
         let shipInfo: [Int: (name: String, iconFileName: String)]
         let allianceIcons: [Int: UIImage]
         let corporationIcons: [Int: UIImage]
@@ -40,6 +44,13 @@ class KillMailViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
+    }
+    
+    private func convertToEntries(_ mails: [[String: Any]]) -> [KillMailEntry] {
+        return mails.map { mail in
+            defer { currentIndex += 1 }
+            return KillMailEntry(id: currentIndex, data: mail)
+        }
     }
     
     func loadDataIfNeeded(for filter: KillMailFilter) async {
@@ -79,12 +90,13 @@ class KillMailViewModel: ObservableObject {
                 throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("KillMail_Invalid_Response_Format", comment: "")])
             }
             
+            let entries = convertToEntries(mails)
             let shipIds = mails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
             let shipInfo = getShipInfo(for: shipIds)
             let (allianceIcons, corporationIcons) = await loadOrganizationIcons(for: mails)
             
             let cachedData = CachedKillMailData(
-                mails: mails,
+                mails: entries,
                 shipInfo: shipInfo,
                 allianceIcons: allianceIcons,
                 corporationIcons: corporationIcons
@@ -92,7 +104,7 @@ class KillMailViewModel: ObservableObject {
             
             await MainActor.run {
                 self.cachedData[filter] = cachedData
-                self.killMails = mails
+                self.killMails = entries
                 self.shipInfoMap = shipInfo
                 self.allianceIconMap = allianceIcons
                 self.corporationIconMap = corporationIcons
@@ -207,12 +219,13 @@ class KillMailViewModel: ObservableObject {
                 throw NSError(domain: "BRKillMailView", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的响应数据格式"])
             }
             
+            let entries = convertToEntries(mails)
             let shipIds = mails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
             let newShipInfo = getShipInfo(for: shipIds)
             let (newAllianceIcons, newCorporationIcons) = await loadOrganizationIcons(for: mails)
             
             await MainActor.run {
-                killMails.append(contentsOf: mails)
+                killMails.append(contentsOf: entries)
                 shipInfoMap.merge(newShipInfo) { current, _ in current }
                 allianceIconMap.merge(newAllianceIcons) { current, _ in current }
                 corporationIconMap.merge(newCorporationIcons) { current, _ in current }
@@ -315,10 +328,9 @@ struct BRKillMailView: View {
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
-                    ForEach(viewModel.killMails.indices, id: \.self) { index in
-                        let killmail = viewModel.killMails[index]
-                        if let shipId = viewModel.kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
-                            let victInfo = killmail["vict"] as? [String: Any]
+                    ForEach(viewModel.killMails) { entry in
+                        if let shipId = viewModel.kbAPI.getShipInfo(entry.data, path: "vict", "ship").id {
+                            let victInfo = entry.data["vict"] as? [String: Any]
                             let allyInfo = victInfo?["ally"] as? [String: Any]
                             let corpInfo = victInfo?["corp"] as? [String: Any]
                             
@@ -326,12 +338,13 @@ struct BRKillMailView: View {
                             let corpId = corpInfo?["id"] as? Int
                             
                             BRKillMailCell(
-                                killmail: killmail,
+                                killmail: entry.data,
                                 kbAPI: viewModel.kbAPI,
                                 shipInfo: viewModel.shipInfoMap[shipId] ?? (name: NSLocalizedString("KillMail_Unknown_Item", comment: ""), iconFileName: DatabaseConfig.defaultItemIcon),
                                 allianceIcon: allyId.flatMap { viewModel.allianceIconMap[$0] },
                                 corporationIcon: corpId.flatMap { viewModel.corporationIconMap[$0] },
-                                characterId: characterId
+                                characterId: characterId,
+                                searchResult: nil
                             )
                         }
                     }
@@ -385,14 +398,44 @@ struct BRKillMailCell: View {
     let allianceIcon: UIImage?
     let corporationIcon: UIImage?
     let characterId: Int
+    let searchResult: SearchResult?
     
     private var isLoss: Bool {
-        if let victInfo = killmail["vict"] as? [String: Any],
-           let charInfo = victInfo["char"] as? [String: Any],
-           let victimId = charInfo["id"] as? Int {
-            return victimId == characterId
+        guard let victInfo = killmail["vict"] as? [String: Any] else { return false }
+        
+        if let searchResult = searchResult {
+            switch searchResult.category {
+            case .character:
+                if let charInfo = victInfo["char"] as? [String: Any],
+                   let victimId = charInfo["id"] as? Int {
+                    return victimId == searchResult.id
+                }
+            case .corporation:
+                if let corpInfo = victInfo["corp"] as? [String: Any],
+                   let corpId = corpInfo["id"] as? Int {
+                    return corpId == searchResult.id
+                }
+            case .alliance:
+                if let allyInfo = victInfo["ally"] as? [String: Any],
+                   let allyId = allyInfo["id"] as? Int {
+                    return allyId == searchResult.id
+                }
+            case .inventory_type:
+                if let shipId = kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
+                    return shipId == searchResult.id
+                }
+            default:
+                return false
+            }
+            return false
+        } else {
+            // 非搜索场景，使用原有逻辑
+            if let charInfo = victInfo["char"] as? [String: Any],
+               let victimId = charInfo["id"] as? Int {
+                return victimId == characterId
+            }
+            return false
         }
-        return false
     }
     
     private var valueColor: Color {
@@ -406,17 +449,14 @@ struct BRKillMailCell: View {
         
         // 先尝试获取联盟图标
         if let allyId = allyInfo?["id"] as? Int, allyId > 0, let icon = allianceIcon {
-            // Logger.debug("使用联盟图标 - ID: \(allyId)")
             return icon
         }
         
         // 如果没有联盟图标，尝试获取军团图标
         if let corpId = corpInfo?["id"] as? Int, corpId > 0, let icon = corporationIcon {
-            // Logger.debug("使用军团图标 - ID: \(corpId)")
             return icon
         }
         
-        Logger.debug("未找到组织图标")
         return nil
     }
     

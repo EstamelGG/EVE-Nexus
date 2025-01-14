@@ -94,7 +94,8 @@ struct BRKillMailSearchView: View {
                                     shipInfo: shipInfoMap[shipId] ?? (name: NSLocalizedString("KillMail_Unknown_Item", comment: ""), iconFileName: DatabaseConfig.defaultItemIcon),
                                     allianceIcon: allianceIconMap[allyId ?? 0],
                                     corporationIcon: corporationIconMap[corpId ?? 0],
-                                    characterId: characterId
+                                    characterId: characterId,
+                                    searchResult: viewModel.selectedResult
                                 )
                             }
                         }
