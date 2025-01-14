@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct BRKillMailDetailView: View {
-    let killmail: [String: Any]
+    let killmail: [String: Any]  // 这个现在只用来获取ID
     let kbAPI = KbEvetoolAPI.shared
     @State private var victimCharacterIcon: UIImage?
     @State private var victimCorporationIcon: UIImage?
@@ -38,8 +38,8 @@ struct BRKillMailDetailView: View {
                         // 角色名称
                         if let victInfo = detail["vict"] as? [String: Any],
                            let charInfo = victInfo["char"] as? [String: Any],
-                           let charId = charInfo["id"] as? Int {
-                            Text(charInfo["name"] as? String ?? "\(charId)")
+                           let charName = charInfo["name"] as? String {
+                            Text(charName)
                                 .font(.headline)
                         }
                         
@@ -53,8 +53,9 @@ struct BRKillMailDetailView: View {
                                     .frame(width: 32, height: 32)
                             }
                             if let victInfo = detail["vict"] as? [String: Any],
-                               let corpInfo = victInfo["corp"] as? [String: Any] {
-                                Text(corpInfo["name"] as? String ?? "")
+                               let corpInfo = victInfo["corp"] as? [String: Any],
+                               let corpName = corpInfo["name"] as? String {
+                                Text(corpName)
                                     .font(.subheadline)
                             }
                             
@@ -66,8 +67,9 @@ struct BRKillMailDetailView: View {
                                     .frame(width: 32, height: 32)
                             }
                             if let victInfo = detail["vict"] as? [String: Any],
-                               let allyInfo = victInfo["ally"] as? [String: Any] {
-                                Text(allyInfo["name"] as? String ?? "")
+                               let allyInfo = victInfo["ally"] as? [String: Any],
+                               let allyName = allyInfo["name"] as? String {
+                                Text(allyName)
                                     .font(.subheadline)
                             }
                         }
@@ -88,7 +90,7 @@ struct BRKillMailDetailView: View {
                                 .frame(width: 32, height: 32)
                         }
                         let shipName = getShipName(shipId)
-                        Text("\(shipName)")
+                        Text("\(shipName) / Dreadnought")
                             .foregroundColor(.cyan)
                     }
                 }
@@ -201,14 +203,15 @@ struct BRKillMailDetailView: View {
         .navigationTitle("Battle Report")
         .task {
             // 获取详细信息
-            Logger.debug("原始战报数据: \(killmail)")
-            
             if let killId = killmail["_id"] as? Int {
                 Logger.debug("准备获取战报ID: \(killId)的详细信息")
                 do {
                     detailData = try await kbAPI.fetchKillMailDetail(killMailId: killId)
                     Logger.debug("成功获取战报详情: \(String(describing: detailData))")
-                    await loadIcons()
+                    // 获取到详细数据后再加载图标
+                    if let detail = detailData {
+                        await loadIcons(from: detail)
+                    }
                 } catch {
                     Logger.error("加载战斗日志详情失败: \(error)")
                     errorMessage = "加载失败: \(error.localizedDescription)"
@@ -222,9 +225,9 @@ struct BRKillMailDetailView: View {
         }
     }
     
-    private func loadIcons() async {
+    private func loadIcons(from detail: [String: Any]) async {
         // 加载受害者角色头像
-        if let victInfo = detailData?["vict"] as? [String: Any],
+        if let victInfo = detail["vict"] as? [String: Any],
            let charInfo = victInfo["char"] as? [String: Any],
            let charId = charInfo["id"] as? Int {
             let url = URL(string: "https://images.evetech.net/characters/\(charId)/portrait?size=128")
@@ -235,7 +238,7 @@ struct BRKillMailDetailView: View {
         }
         
         // 加载军团图标
-        if let victInfo = detailData?["vict"] as? [String: Any],
+        if let victInfo = detail["vict"] as? [String: Any],
            let corpInfo = victInfo["corp"] as? [String: Any],
            let corpId = corpInfo["id"] as? Int {
             let url = URL(string: "https://images.evetech.net/corporations/\(corpId)/logo?size=64")
@@ -246,7 +249,7 @@ struct BRKillMailDetailView: View {
         }
         
         // 加载联盟图标
-        if let victInfo = detailData?["vict"] as? [String: Any],
+        if let victInfo = detail["vict"] as? [String: Any],
            let allyInfo = victInfo["ally"] as? [String: Any],
            let allyId = allyInfo["id"] as? Int {
             let url = URL(string: "https://images.evetech.net/alliances/\(allyId)/logo?size=64")
@@ -257,7 +260,7 @@ struct BRKillMailDetailView: View {
         }
         
         // 加载舰船图标
-        if let victInfo = detailData?["vict"] as? [String: Any],
+        if let victInfo = detail["vict"] as? [String: Any],
            let shipId = victInfo["ship"] as? Int {
             let url = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=64")
             if let url = url,
