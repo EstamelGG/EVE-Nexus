@@ -74,7 +74,7 @@ struct BRKillMailSearchView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
                     } else if killMails.isEmpty {
-                        Text(NSLocalizedString("KillMail_No_Results", comment: ""))
+                        Text(NSLocalizedString("KillMail_No_Records", comment: ""))
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
