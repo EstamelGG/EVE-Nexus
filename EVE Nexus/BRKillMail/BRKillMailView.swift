@@ -498,6 +498,7 @@ struct BRKillMailCell: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 32, height: 32)
+                        .cornerRadius(6)
                 }
             }
             
