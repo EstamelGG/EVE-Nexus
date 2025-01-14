@@ -121,7 +121,7 @@ struct BRKillMailDetailView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Text(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0"))
-                                    .foregroundColor(getSecurityColor(sysInfo["ss"] as? String ?? "0.0"))
+                                    .foregroundColor(getSecurityColor(sysInfo["ss"] as? Double ?? 0.0))
                                 Text(sysInfo["name"] as? String ?? "")
                                     .fontWeight(.bold)
                             }
@@ -212,6 +212,19 @@ struct BRKillMailDetailView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if let killId = killmail["_id"] as? Int {
+                    Button {
+                        openZKillboard(killId: killId)
+                    } label: {
+                        Image(systemName: "safari")
+                    }
+                }
+            }
+        }
         .task {
             // 获取详细信息
             if let killId = killmail["_id"] as? Int {
@@ -293,16 +306,6 @@ struct BRKillMailDetailView: View {
             return String(format: "%.1f", value)
         }
         return status
-    }
-    
-    private func getSecurityColor(_ status: String) -> Color {
-        guard let value = Double(status) else { return .gray }
-        switch value {
-        case 1.0...: return .green
-        case 0.5..<1.0: return .blue
-        case 0.0..<0.5: return .yellow
-        default: return .red
-        }
     }
     
     private func formatEVETime(_ timestamp: Int) -> String {
@@ -396,5 +399,11 @@ struct BRKillMailDetailView: View {
         }
         
         return (destroyedTotal, droppedTotal)
+    }
+    
+    private func openZKillboard(killId: Int) {
+        if let url = URL(string: "https://zkillboard.com/kill/\(killId)/") {
+            UIApplication.shared.open(url)
+        }
     }
 } 

@@ -5,11 +5,12 @@ class KbEvetoolAPI {
     static let shared = KbEvetoolAPI()
     private init() {}
     
-    // 格式化时间
+    // 格式化时间 为 UTC+0
     private func formatTime(_ timestamp: Int) -> String {
         let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
     
