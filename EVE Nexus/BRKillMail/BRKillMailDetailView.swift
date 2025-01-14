@@ -99,15 +99,16 @@ struct BRKillMailDetailView: View {
                     HStack {
                         Text("Ship:")
                             .frame(width: 120, alignment: .leading)
-                        if let shipIcon = shipIcon {
-                            Image(uiImage: shipIcon)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 32, height: 32)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        HStack {
+                            if let shipIcon = shipIcon {
+                                Image(uiImage: shipIcon)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            Text(getShipName(shipId))
                         }
-                        let shipName = getShipName(shipId)
-                        Text("\(shipName)")
                     }
                 }
                 
@@ -116,35 +117,45 @@ struct BRKillMailDetailView: View {
                     HStack {
                         Text("System:")
                             .frame(width: 120, alignment: .leading)
-                        Text("\(sysInfo["name"] as? String ?? "") -\(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0")) / \(sysInfo["region"] as? String ?? "")")
+                            .frame(maxHeight: .infinity, alignment: .center)
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0"))
+                                    .foregroundColor(getSecurityColor(sysInfo["ss"] as? String ?? "0.0"))
+                                Text(sysInfo["name"] as? String ?? "")
+                                    .fontWeight(.bold)
+                            }
+                            Text(sysInfo["region"] as? String ?? "")
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
                 // Eve Time
-                if let time = detail["time"] as? Int {
-                    HStack {
-                        Text("Eve Time:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Eve Time:")
+                        .frame(width: 120, alignment: .leading)
+                    if let time = detail["time"] as? Int {
                         Text(formatEVETime(time))
                             .foregroundColor(.secondary)
                     }
                 }
                 
                 // Local Time
-                if let time = detail["time"] as? Int {
-                    HStack {
-                        Text("Local Time:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Local Time:")
+                        .frame(width: 120, alignment: .leading)
+                    if let time = detail["time"] as? Int {
                         Text(formatLocalTime(time))
                             .foregroundColor(.secondary)
                     }
                 }
                 
                 // Damage
-                if let victInfo = detail["vict"] as? [String: Any] {
-                    HStack {
-                        Text("Damage:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Damage:")
+                        .frame(width: 120, alignment: .leading)
+                    if let victInfo = detail["vict"] as? [String: Any] {
                         let damage = victInfo["dmg"] as? Int ?? 0
                         Text(formatNumber(damage))
                             .foregroundColor(.secondary)
@@ -152,54 +163,54 @@ struct BRKillMailDetailView: View {
                 }
                 
                 // Fitted
-                if let fitted = detail["sumF"] as? Double {
-                    HStack {
-                        Text("Fitted:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Fitted:")
+                        .frame(width: 120, alignment: .leading)
+                    if let fitted = detail["sumF"] as? Double {
                         Text(formatISK(fitted))
                             .foregroundColor(.secondary)
                     }
                 }
                 
                 // Ship Value
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let shipId = victInfo["ship"] as? Int,
-                   let prices = detail["prices"] as? [String: Double] {
-                    let shipPrice = prices[String(shipId)] ?? 0
-                    HStack {
-                        Text("Ship:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Ship:")
+                        .frame(width: 120, alignment: .leading)
+                    if let victInfo = detail["vict"] as? [String: Any],
+                       let shipId = victInfo["ship"] as? Int,
+                       let prices = detail["prices"] as? [String: Double] {
+                        let shipPrice = prices[String(shipId)] ?? 0
                         Text(formatISK(shipPrice))
                             .foregroundColor(.secondary)
                     }
                 }
                 
                 // Destroyed
-                if let destroyed = detail["sumV"] as? Double {
-                    HStack {
-                        Text("Destroyed:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Destroyed:")
+                        .frame(width: 120, alignment: .leading)
+                    if let destroyed = detail["sumV"] as? Double {
                         Text(formatISK(destroyed))
                             .foregroundColor(.red)
                     }
                 }
                 
                 // Dropped
-                if let dropped = detail["sumD"] as? Double {
-                    HStack {
-                        Text("Dropped:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Dropped:")
+                        .frame(width: 120, alignment: .leading)
+                    if let dropped = detail["sumD"] as? Double {
                         Text(formatISK(dropped))
                             .foregroundColor(.green)
                     }
                 }
                 
                 // Total
-                if let destroyed = detail["sumV"] as? Double,
-                   let dropped = detail["sumD"] as? Double {
-                    HStack {
-                        Text("Total:")
-                            .frame(width: 120, alignment: .leading)
+                HStack {
+                    Text("Total:")
+                        .frame(width: 120, alignment: .leading)
+                    if let destroyed = detail["sumV"] as? Double,
+                       let dropped = detail["sumD"] as? Double {
                         Text(formatISK(destroyed + dropped))
                             .foregroundColor(.secondary)
                     }
