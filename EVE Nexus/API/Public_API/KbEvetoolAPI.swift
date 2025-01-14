@@ -207,8 +207,12 @@ class KbEvetoolAPI {
         }
         
         // 从数据库中搜索匹配的物品
-        let searchQuery = "SELECT type_id FROM types WHERE name LIKE '%\(searchText)%'"
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(searchQuery) {
+        let searchQuery = """
+            SELECT type_id 
+            FROM types 
+            WHERE name LIKE ?1
+        """
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(searchQuery, parameters: ["%\(searchText)%"]) {
             let dbTypeIds = rows.compactMap { $0["type_id"] as? Int }
             inventoryTypeIds.append(contentsOf: dbTypeIds)
         }
@@ -218,9 +222,14 @@ class KbEvetoolAPI {
         
         // 过滤符合类别要求的物品
         if !inventoryTypeIds.isEmpty {
-            let typeIdList = inventoryTypeIds.map(String.init).joined(separator: ",")
-            let categoryQuery = "SELECT type_id FROM types WHERE categoryID IN (6, 65, 87) AND type_id IN (\(typeIdList))"
-            if case .success(let categoryRows) = DatabaseManager.shared.executeQuery(categoryQuery) {
+            let placeholders = String(repeating: "?,", count: inventoryTypeIds.count).dropLast()
+            let categoryQuery = """
+                SELECT type_id 
+                FROM types 
+                WHERE categoryID IN (6, 65, 87) 
+                AND type_id IN (\(placeholders))
+            """
+            if case .success(let categoryRows) = DatabaseManager.shared.executeQuery(categoryQuery, parameters: inventoryTypeIds) {
                 result["inventory_type"] = categoryRows.compactMap { $0["type_id"] as? Int }
             }
         }

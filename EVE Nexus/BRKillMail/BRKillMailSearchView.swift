@@ -499,15 +499,19 @@ class BRKillMailSearchViewModel: ObservableObject {
     }
     
     private func searchLocalTypes(searchText: String) async -> [SearchResult]? {
+        // 对搜索文本中的特殊字符进行转义
+        let escapedText = searchText.replacingOccurrences(of: "'", with: "''")
+        let searchPattern = "%\(escapedText)%"
+        
         let query = """
             SELECT type_id, name, icon_filename
             FROM types
-            WHERE name LIKE '%\(searchText)%'
+            WHERE name LIKE ?1 ESCAPE '\\'
             AND categoryID IN (6, 65, 87)
             LIMIT 50
         """
         
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [searchPattern]) {
             var results: [SearchResult] = []
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
