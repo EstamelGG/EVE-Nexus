@@ -215,22 +215,21 @@ struct BRKillMailSearchView: View {
     private func loadOrganizationIcons(for mails: [[String: Any]]) async {
         for mail in mails {
             if let victInfo = mail["vict"] as? [String: Any] {
-                // 加载联盟图标
+                // 优先检查联盟ID
                 if let allyInfo = victInfo["ally"] as? [String: Any],
                    let allyId = allyInfo["id"] as? Int,
-                   allyId > 0,
-                   allianceIconMap[allyId] == nil {
-                    if let icon = await loadOrganizationIcon(type: "alliance", id: allyId) {
+                   allyId > 0 {
+                    // 只有当联盟ID有效且图标未加载时才加载联盟图标
+                    if allianceIconMap[allyId] == nil,
+                       let icon = await loadOrganizationIcon(type: "alliance", id: allyId) {
                         allianceIconMap[allyId] = icon
                     }
-                }
-                
-                // 加载军团图标
-                if let corpInfo = victInfo["corp"] as? [String: Any],
-                   let corpId = corpInfo["id"] as? Int,
-                   corpId > 0,
-                   corporationIconMap[corpId] == nil {
-                    if let icon = await loadOrganizationIcon(type: "corporation", id: corpId) {
+                } else if let corpInfo = victInfo["corp"] as? [String: Any],
+                          let corpId = corpInfo["id"] as? Int,
+                          corpId > 0 {
+                    // 只有在没有有效联盟ID的情况下才加载军团图标
+                    if corporationIconMap[corpId] == nil,
+                       let icon = await loadOrganizationIcon(type: "corporation", id: corpId) {
                         corporationIconMap[corpId] = icon
                     }
                 }
@@ -363,21 +362,30 @@ struct SearchSelectorSheet: View {
 // 搜索结果行视图
 struct KMSearchResultRow: View {
     let result: SearchResult
+    @State private var loadedIcon: UIImage?
     
     var body: some View {
         HStack {
-            if let image = result.icon {
+            if let image = result.icon ?? loadedIcon {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else {
+            } else if result.category == .inventory_type {
+                // 对于物品类型，直接使用本地图标
                 IconManager.shared.loadImage(for: result.iconFileName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                // 显示加载中的占位图，同时开始加载图标
+                ProgressView()
+                    .frame(width: 32, height: 32)
+                    .task {
+                        await loadIcon()
+                    }
             }
             
             VStack(alignment: .leading) {
@@ -386,6 +394,33 @@ struct KMSearchResultRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+        }
+    }
+    
+    private func loadIcon() async {
+        let baseURL: String
+        switch result.category {
+        case .character:
+            baseURL = "https://images.evetech.net/characters/\(result.id)/portrait"
+        case .corporation:
+            baseURL = "https://images.evetech.net/corporations/\(result.id)/logo"
+        case .alliance:
+            baseURL = "https://images.evetech.net/alliances/\(result.id)/logo"
+        default:
+            return
+        }
+        
+        guard let url = URL(string: "\(baseURL)?size=64") else { return }
+        
+        do {
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            if let image = UIImage(data: data) {
+                await MainActor.run {
+                    loadedIcon = image
+                }
+            }
+        } catch {
+            Logger.error("加载图标失败: \(error)")
         }
     }
 }
