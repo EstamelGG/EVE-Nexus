@@ -176,9 +176,11 @@ struct BRKillMailDetailView: View {
                     if let victInfo = detail["vict"] as? [String: Any],
                        let shipId = victInfo["ship"] as? Int,
                        let prices = detail["prices"] as? [String: Double] {
-                        let shipPrice = prices[String(shipId)] ?? 0
-                        Text(formatISK(shipPrice))
-                            .foregroundColor(.secondary)
+                        AsyncValueView(calculation: {
+                            let shipPrice = try await getItemPrice(typeId: shipId, prices: prices)
+                            return formatISK(shipPrice)
+                        })
+                        .foregroundColor(.secondary)
                     }
                 }
                 
@@ -188,9 +190,11 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
-                        let values = calculateValues(victInfo: victInfo, prices: prices)
-                        Text(formatISK(values.destroyed))
-                            .foregroundColor(.red)
+                        AsyncValueView(calculation: {
+                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
+                            return formatISK(values.destroyed)
+                        })
+                        .foregroundColor(.red)
                     }
                 }
                 
@@ -200,9 +204,11 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
-                        let values = calculateValues(victInfo: victInfo, prices: prices)
-                        Text(formatISK(values.dropped))
-                            .foregroundColor(.green)
+                        AsyncValueView(calculation: {
+                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
+                            return formatISK(values.dropped)
+                        })
+                        .foregroundColor(.green)
                     }
                 }
                 
@@ -212,9 +218,10 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     if let victInfo = detail["vict"] as? [String: Any],
                        let prices = detail["prices"] as? [String: Double] {
-                        let values = calculateValues(victInfo: victInfo, prices: prices)
-                        Text(formatISK(values.destroyed + values.dropped))
-                            .foregroundColor(.primary)
+                        AsyncValueView(calculation: {
+                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
+                            return formatISK(values.destroyed + values.dropped)
+                        })
                     }
                 }
             }
@@ -358,13 +365,45 @@ struct BRKillMailDetailView: View {
         return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
     }
     
-    private func calculateValues(victInfo: [String: Any], prices: [String: Double]) -> (destroyed: Double, dropped: Double) {
+    // 从zkillboard获取物品价格
+    private func fetchZKillboardPrice(typeId: Int) async throws -> Double? {
+        let url = URL(string: "https://zkillboard.com/api/prices/\(typeId)/")!
+        do {
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let price = json["currentPrice"] as? Double {
+                return price
+            }
+        } catch {
+            Logger.error("从zkillboard获取价格失败 - TypeID: \(typeId), Error: \(error)")
+            throw error
+        }
+        return nil
+    }
+    
+    private func getItemPrice(typeId: Int, prices: [String: Double]) async throws -> Double {
+        // 从本地价格数据获取价格
+        let price = prices[String(typeId)] ?? 0
+        
+        // 如果价格为1.00，尝试从zkillboard获取
+        if price == 1.00 {
+            Logger.debug("检测到异常价格1.00，尝试从zkillboard获取 - TypeID: \(typeId)")
+            if let zkbPrice = try await fetchZKillboardPrice(typeId: typeId) {
+                Logger.debug("成功从zkillboard获取价格 - TypeID: \(typeId), Price: \(zkbPrice)")
+                return zkbPrice
+            }
+        }
+        
+        return price
+    }
+    
+    private func calculateValues(victInfo: [String: Any], prices: [String: Double]) async throws -> (destroyed: Double, dropped: Double) {
         var destroyedTotal: Double = 0
         var droppedTotal: Double = 0
         
         // 首先加入船体本身的价值到被摧毁总价值中
-        if let shipId = victInfo["ship"] as? Int,
-           let shipPrice = prices[String(shipId)] {
+        if let shipId = victInfo["ship"] as? Int {
+            let shipPrice = try await getItemPrice(typeId: shipId, prices: prices)
             destroyedTotal += shipPrice
         }
         
@@ -376,10 +415,9 @@ struct BRKillMailDetailView: View {
                     let dropped = item[2]    // 掉落的数量
                     let destroyed = item[3]   // 被摧毁的数量
                     
-                    if let price = prices[String(typeId)] {
-                        droppedTotal += price * Double(dropped)
-                        destroyedTotal += price * Double(destroyed)
-                    }
+                    let price = try await getItemPrice(typeId: typeId, prices: prices)
+                    droppedTotal += price * Double(dropped)
+                    destroyedTotal += price * Double(destroyed)
                 }
             }
         }
@@ -388,8 +426,8 @@ struct BRKillMailDetailView: View {
         if let containers = victInfo["cnts"] as? [[String: Any]] {
             for container in containers {
                 // 首先计算容器本身的价值
-                if let containerTypeId = container["type"] as? Int,
-                   let containerPrice = prices[String(containerTypeId)] {
+                if let containerTypeId = container["type"] as? Int {
+                    let containerPrice = try await getItemPrice(typeId: containerTypeId, prices: prices)
                     if let drop = container["drop"] as? Int, drop == 1 {
                         droppedTotal += containerPrice
                     }
@@ -406,10 +444,9 @@ struct BRKillMailDetailView: View {
                             let dropped = item[2]
                             let destroyed = item[3]
                             
-                            if let price = prices[String(typeId)] {
-                                droppedTotal += price * Double(dropped)
-                                destroyedTotal += price * Double(destroyed)
-                            }
+                            let price = try await getItemPrice(typeId: typeId, prices: prices)
+                            droppedTotal += price * Double(dropped)
+                            destroyedTotal += price * Double(destroyed)
                         }
                     }
                 }
@@ -423,5 +460,22 @@ struct BRKillMailDetailView: View {
         if let url = URL(string: "https://zkillboard.com/kill/\(killId)/") {
             UIApplication.shared.open(url)
         }
+    }
+}
+
+// 添加一个辅助视图来处理异步值的加载
+struct AsyncValueView: View {
+    let calculation: () async throws -> String
+    @State private var value: String = "加载中..."
+    
+    var body: some View {
+        Text(value)
+            .task {
+                do {
+                    value = try await calculation()
+                } catch {
+                    value = "Error: \(error.localizedDescription)"
+                }
+            }
     }
 } 
