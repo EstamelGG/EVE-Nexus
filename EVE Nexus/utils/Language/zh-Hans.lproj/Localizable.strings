@@ -854,3 +854,6 @@
 
 // KillMail View
 "KillMail_View_Title" = "战斗记录";
+
+// KillMail Stats
+"KillMail_Data_Source" = "数据来自zkillboard和kb.evetools.org";

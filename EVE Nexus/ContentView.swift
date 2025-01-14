@@ -996,7 +996,8 @@ struct ContentView: View {
             NavigationLink(value: "killboard") {
                 RowView(
                     title: NSLocalizedString("Main_Killboard", comment: ""),
-                    icon: "killreport"
+                    icon: "killreport",
+                    note: NSLocalizedString("KillMail_Data_Source", comment: "")
                 )
             }
         } header: {

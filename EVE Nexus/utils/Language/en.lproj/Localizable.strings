@@ -840,3 +840,6 @@
 
 // KillMail View
 "KillMail_View_Title" = "Killboard";
+
+// KillMail Stats
+"KillMail_Data_Source" = "Data from zkillboard and kb.evetools.org";
