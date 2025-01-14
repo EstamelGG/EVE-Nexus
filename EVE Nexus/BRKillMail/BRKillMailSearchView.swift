@@ -71,7 +71,7 @@ struct SearchSelectorSheet: View {
                             .textFieldStyle(.plain)
                             .focused($isSearchFocused)
                             .onChange(of: searchText) { newValue in
-                                if newValue.count >= 3 {
+                                if !newValue.isEmpty {
                                     viewModel.debounceSearch(characterId: characterId, searchText: newValue)
                                 } else {
                                     viewModel.searchResults = [:]
@@ -79,7 +79,7 @@ struct SearchSelectorSheet: View {
                             }
                             .submitLabel(.search)
                             .onSubmit {
-                                if searchText.count >= 3 {
+                                if !searchText.isEmpty {
                                     Task {
                                         await viewModel.search(characterId: characterId, searchText: searchText)
                                     }
@@ -101,7 +101,7 @@ struct SearchSelectorSheet: View {
                     .cornerRadius(8)
                     
                     if searchText.count < 3 {
-                        Text(NSLocalizedString("Main_Search_Min_Length", comment: ""))
+                        Text(NSLocalizedString("Main_Search_Network_Min_Length", comment: ""))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -114,7 +114,7 @@ struct SearchSelectorSheet: View {
                     ProgressView()
                         .padding()
                     Spacer()
-                } else if searchText.count >= 3 {
+                } else if !searchText.isEmpty {
                     if viewModel.searchResults.isEmpty {
                         Spacer()
                         Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
@@ -232,12 +232,6 @@ class BRKillMailSearchViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     
     func debounceSearch(characterId: Int, searchText: String) {
-        // 确保搜索文本长度大于等于3
-        guard searchText.count >= 3 else {
-            searchResults = [:]
-            return
-        }
-        
         // 取消之前的任务
         searchTask?.cancel()
         
@@ -254,9 +248,37 @@ class BRKillMailSearchViewModel: ObservableObject {
         }
     }
     
+    private func searchLocalTypes(searchText: String) async -> [SearchResult]? {
+        let query = """
+            SELECT type_id, name, icon_filename
+            FROM types
+            WHERE name LIKE '%\(searchText)%'
+            AND categoryID IN (6, 65, 87)
+            LIMIT 50
+        """
+        
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+            var results: [SearchResult] = []
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    results.append(SearchResult(
+                        id: typeId,
+                        name: name,
+                        category: .inventory_type,
+                        iconFileName: iconFileName,
+                        icon: nil
+                    ))
+                }
+            }
+            return results
+        }
+        return nil
+    }
+    
     func search(characterId: Int, searchText: String) async {
-        // 确保搜索文本不为空且长度大于等于3
-        guard !searchText.isEmpty && searchText.count >= 3 else {
+        guard !searchText.isEmpty else {
             searchResults = [:]
             return
         }
@@ -264,116 +286,182 @@ class BRKillMailSearchViewModel: ObservableObject {
         isSearching = true
         defer { isSearching = false }
         
-        do {
-            // 1. 使用searchEveItems进行搜索
-            let apiResults = try await KbEvetoolAPI.shared.searchEveItems(
-                characterId: characterId,
-                searchText: searchText
-            )
-            
-            // 2. 收集所有ID
-            var allIds: [Int] = []
-            for (_, ids) in apiResults {
-                allIds.append(contentsOf: ids)
+        // 本地搜索（只需1个字符）
+        var localResults: [SearchResultCategory: [SearchResult]] = [:]
+        if searchText.count >= 1 {
+            if let typeResults = await searchLocalTypes(searchText: searchText) {
+                localResults[.inventory_type] = typeResults
             }
-            
-            // 3. 批量获取名称
-            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: allIds)
-            
-            // 4. 并发加载所有图标
-            async let characterIcons = loadIcons(for: .character, ids: apiResults["character"] ?? [])
-            async let corporationIcons = loadIcons(for: .corporation, ids: apiResults["corporation"] ?? [])
-            async let allianceIcons = loadIcons(for: .alliance, ids: apiResults["alliance"] ?? [])
-            
-            // 5. 处理solar_system的图标
-            var systemIcons: [Int: String] = [:]
-            if let solarSystems = apiResults["solar_system"], !solarSystems.isEmpty {
-                let systemIds = solarSystems.map(String.init).joined(separator: ",")
-                let query = """
-                    SELECT u.solarsystem_id, t.icon_filename
-                    FROM universe u
-                    JOIN types t ON u.system_type = t.type_id
-                    WHERE u.solarsystem_id IN (\(systemIds))
-                """
-                if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-                    for row in rows {
-                        if let systemId = row["solarsystem_id"] as? Int,
-                           let iconFileName = row["icon_filename"] as? String {
-                            systemIcons[systemId] = iconFileName
-                        }
-                    }
-                }
-            }
-            
-            // 6. 获取inventory_type的图标
-            var itemIcons: [Int: String] = [:]
-            if let items = apiResults["inventory_type"], !items.isEmpty {
-                let itemIds = items.map(String.init).joined(separator: ",")
-                let query = "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(itemIds))"
-                if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let iconFileName = row["icon_filename"] as? String {
-                            itemIcons[typeId] = iconFileName
-                        }
-                    }
-                }
-            }
-            
-            // 7. 等待所有图标加载完成
-            let (characterIconsResult, corporationIconsResult, allianceIconsResult) = await (characterIcons, corporationIcons, allianceIcons)
-            
-            // 8. 整理最终结果
-            var finalResults: [SearchResultCategory: [SearchResult]] = [:]
-            
-            for category in categories {
-                let categoryStr = category.rawValue
-                if let ids = apiResults[categoryStr] {
-                    var results: [SearchResult] = []
-                    for id in ids {
-                        if let name = names[id]?.name {
-                            var iconFileName = ""
-                            var icon: UIImage? = nil
-                            
-                            switch category {
-                            case .character:
-                                icon = characterIconsResult[id]
-                                iconFileName = "items_7_64_15.png"
-                            case .corporation:
-                                icon = corporationIconsResult[id]
-                                iconFileName = "items_7_64_15.png"
-                            case .alliance:
-                                icon = allianceIconsResult[id]
-                                iconFileName = "items_7_64_15.png"
-                            case .inventory_type:
-                                iconFileName = itemIcons[id] ?? "items_7_64_15.png"
-                            case .solar_system:
-                                iconFileName = systemIcons[id] ?? "items_7_64_15.png"
-                            case .region:
-                                iconFileName = "items_7_64_4.png"
-                            }
-                            
-                            results.append(SearchResult(
-                                id: id,
-                                name: name,
-                                category: category,
-                                iconFileName: iconFileName,
-                                icon: icon
-                            ))
-                        }
-                    }
-                    if !results.isEmpty {
-                        finalResults[category] = results
-                    }
-                }
-            }
-            
-            // 更新 UI
-            self.searchResults = finalResults
-            
-        } catch {
-            Logger.error("搜索失败: \(error)")
         }
+        
+        // 联网搜索（需要3个字符）
+        var networkResults: [SearchResultCategory: [SearchResult]] = [:]
+        if searchText.count >= 3 {
+            do {
+                // 使用searchEveItems进行搜索
+                let apiResults = try await KbEvetoolAPI.shared.searchEveItems(
+                    characterId: characterId,
+                    searchText: searchText
+                )
+                
+                // 收集所有ID
+                var allIds: [Int] = []
+                for (_, ids) in apiResults {
+                    allIds.append(contentsOf: ids)
+                }
+                
+                // 批量获取名称
+                let names = try await UniverseAPI.shared.getNamesWithFallback(ids: allIds)
+                
+                // 处理solar_system的图标
+                var systemIcons: [Int: String] = [:]
+                if let solarSystems = apiResults["solar_system"], !solarSystems.isEmpty {
+                    let systemIds = solarSystems.map(String.init).joined(separator: ",")
+                    let query = """
+                        SELECT u.solarsystem_id, t.icon_filename
+                        FROM universe u
+                        JOIN types t ON u.system_type = t.type_id
+                        WHERE u.solarsystem_id IN (\(systemIds))
+                    """
+                    if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                        for row in rows {
+                            if let systemId = row["solarsystem_id"] as? Int,
+                               let iconFileName = row["icon_filename"] as? String {
+                                systemIcons[systemId] = iconFileName
+                            }
+                        }
+                    }
+                }
+                
+                // 处理inventory_type的图标信息
+                var itemInfo: [Int: String] = [:]
+                if let items = apiResults["inventory_type"], !items.isEmpty {
+                    let itemIds = items.map(String.init).joined(separator: ",")
+                    let query = """
+                        SELECT type_id, icon_filename
+                        FROM types 
+                        WHERE type_id IN (\(itemIds))
+                        AND categoryID IN (6, 65, 87)
+                    """
+                    if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                        for row in rows {
+                            if let typeId = row["type_id"] as? Int,
+                               let iconFileName = row["icon_filename"] as? String {
+                                itemInfo[typeId] = iconFileName
+                            }
+                        }
+                    }
+                }
+                
+                // 整理联网搜索结果
+                for category in categories {
+                    let categoryStr = category.rawValue
+                    if let ids = apiResults[categoryStr] {
+                        var results: [SearchResult] = []
+                        for id in ids {
+                            if let name = names[id]?.name {
+                                var iconFileName = ""
+                                
+                                switch category {
+                                case .character:
+                                    iconFileName = "items_7_64_15.png"
+                                case .corporation:
+                                    iconFileName = "items_7_64_15.png"
+                                case .alliance:
+                                    iconFileName = "items_7_64_15.png"
+                                case .inventory_type:
+                                    if let fileName = itemInfo[id] {
+                                        iconFileName = fileName
+                                    } else {
+                                        continue
+                                    }
+                                case .solar_system:
+                                    iconFileName = systemIcons[id] ?? "items_7_64_15.png"
+                                case .region:
+                                    iconFileName = "items_7_64_4.png"
+                                }
+                                
+                                results.append(SearchResult(
+                                    id: id,
+                                    name: name,
+                                    category: category,
+                                    iconFileName: iconFileName,
+                                    icon: nil
+                                ))
+                            }
+                        }
+                        if !results.isEmpty {
+                            networkResults[category] = results
+                        }
+                    }
+                }
+                
+                // 开始异步加载图标
+                Task {
+                    if let characters = networkResults[.character] {
+                        let icons = await loadIcons(for: .character, ids: characters.map { $0.id })
+                        for id in icons.keys {
+                            if let index = self.searchResults[.character]?.firstIndex(where: { $0.id == id }) {
+                                self.searchResults[.character]?[index].icon = icons[id]
+                            }
+                        }
+                    }
+                }
+                
+                Task {
+                    if let corporations = networkResults[.corporation] {
+                        let icons = await loadIcons(for: .corporation, ids: corporations.map { $0.id })
+                        for id in icons.keys {
+                            if let index = self.searchResults[.corporation]?.firstIndex(where: { $0.id == id }) {
+                                self.searchResults[.corporation]?[index].icon = icons[id]
+                            }
+                        }
+                    }
+                }
+                
+                Task {
+                    if let alliances = networkResults[.alliance] {
+                        let icons = await loadIcons(for: .alliance, ids: alliances.map { $0.id })
+                        for id in icons.keys {
+                            if let index = self.searchResults[.alliance]?.firstIndex(where: { $0.id == id }) {
+                                self.searchResults[.alliance]?[index].icon = icons[id]
+                            }
+                        }
+                    }
+                }
+                
+            } catch {
+                Logger.error("联网搜索失败: \(error)")
+            }
+        }
+        
+        // 合并本地和联网搜索结果
+        var finalResults = localResults
+        for (category, results) in networkResults {
+            if category == .inventory_type {
+                // 对于inventory_type，合并本地和在线结果，并去重
+                var existingIds = Set(finalResults[.inventory_type]?.map { $0.id } ?? [])
+                var mergedResults = finalResults[.inventory_type] ?? []
+                
+                for result in results {
+                    if !existingIds.contains(result.id) {
+                        mergedResults.append(result)
+                        existingIds.insert(result.id)
+                    }
+                }
+                
+                if !mergedResults.isEmpty {
+                    finalResults[.inventory_type] = mergedResults
+                } else {
+                    finalResults.removeValue(forKey: .inventory_type)
+                }
+            } else {
+                finalResults[category] = results
+            }
+        }
+        
+        // 更新UI
+        self.searchResults = finalResults
     }
     
     private func loadIcons(for category: SearchResultCategory, ids: [Int]) async -> [Int: UIImage] {
