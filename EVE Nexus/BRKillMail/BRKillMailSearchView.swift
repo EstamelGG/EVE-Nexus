@@ -10,6 +10,7 @@ struct BRKillMailSearchView: View {
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
     @State private var allianceIconMap: [Int: UIImage] = [:]
     @State private var corporationIconMap: [Int: UIImage] = [:]
+    @State private var selectedFilter: KillMailFilter = .all
     
     var body: some View {
         List {
@@ -49,6 +50,19 @@ struct BRKillMailSearchView: View {
             // 搜索结果展示区域
             if let selectedResult = viewModel.selectedResult {
                 Section {
+                    Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
+                        Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
+                        Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(KillMailFilter.kill)
+                        Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 8)
+                    .onChange(of: selectedFilter) { _, _ in
+                        Task {
+                            await loadKillMails()
+                        }
+                    }
+                    
                     if isLoading && killMails.isEmpty {
                         ProgressView()
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -127,7 +141,7 @@ struct BRKillMailSearchView: View {
         corporationIconMap = [:]
         
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult, page: currentPage, filter: selectedFilter)
             if let data = response["data"] as? [[String: Any]] {
                 killMails = data
                 await loadShipInfo(for: data)
@@ -147,7 +161,7 @@ struct BRKillMailSearchView: View {
         currentPage += 1
         
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult, page: currentPage)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult, page: currentPage, filter: selectedFilter)
             if let data = response["data"] as? [[String: Any]] {
                 killMails.append(contentsOf: data)
                 await loadShipInfo(for: data)

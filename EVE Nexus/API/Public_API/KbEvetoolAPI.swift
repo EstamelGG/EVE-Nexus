@@ -230,8 +230,8 @@ class KbEvetoolAPI {
     }
     
     // 根据搜索结果获取战斗日志
-    func fetchKillMailsBySearchResult(_ result: SearchResult, page: Int = 1) async throws -> [String: Any] {
-        Logger.debug("准备发送请求 - 类型: \(result.category), ID: \(result.id), 页码: \(page)")
+    func fetchKillMailsBySearchResult(_ result: SearchResult, page: Int = 1, filter: KillMailFilter = .all) async throws -> [String: Any] {
+        Logger.debug("准备发送请求 - 类型: \(result.category), ID: \(result.id), 页码: \(page), 过滤器: \(filter)")
         
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails")!
         var request = URLRequest(url: url)
@@ -253,6 +253,16 @@ class KbEvetoolAPI {
             requestBody["corpID"] = result.id
         case .alliance:
             requestBody["allyID"] = result.id
+        }
+        
+        // 添加过滤参数
+        switch filter {
+        case .kill:
+            requestBody["isKills"] = true
+        case .loss:
+            requestBody["isLosses"] = true
+        case .all:
+            break
         }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
