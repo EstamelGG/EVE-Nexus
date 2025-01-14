@@ -107,7 +107,13 @@ struct BRKillMailDetailView: View {
                                     .frame(width: 32, height: 32)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
-                            Text(getShipName(shipId))
+                            VStack(alignment: .leading) {
+                                let shipInfo = getShipName(shipId)
+                                Text(shipInfo.name)
+                                Text(shipInfo.groupName)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -127,6 +133,7 @@ struct BRKillMailDetailView: View {
                             }
                             Text(sysInfo["region"] as? String ?? "")
                                 .foregroundColor(.secondary)
+                                .font(.caption)
                         }
                     }
                 }
@@ -291,14 +298,19 @@ struct BRKillMailDetailView: View {
         }
     }
     
-    private func getShipName(_ shipId: Int) -> String {
-        let query = "SELECT name FROM types WHERE type_id = ?"
+    private func getShipName(_ shipId: Int) -> (name: String, groupName: String) {
+        let query = """
+            SELECT name, group_name
+            FROM types t 
+            WHERE type_id = ?
+        """
         if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [shipId]),
            let row = rows.first,
-           let name = row["name"] as? String {
-            return name
+           let name = row["name"] as? String,
+           let groupName = row["group_name"] as? String {
+            return (name, groupName)
         }
-        return "Unknown Ship"
+        return ("Unknown Ship", "Unknown Group")
     }
     
     private func formatSecurityStatus(_ status: String) -> String {
