@@ -27,14 +27,37 @@ struct BRKillMailDetailView: View {
                         Image(uiImage: characterIcon)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 64, height: 64)
+                            .frame(width: 66, height: 66)
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                     } else {
                         ProgressView()
-                            .frame(width: 64, height: 64)
+                            .frame(width: 66, height: 66)
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    // 军团和联盟图标
+                    VStack(spacing: 2) {
+                        if let corpIcon = victimCorporationIcon {
+                            Image(uiImage: corpIcon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        
+                        if let allyIcon = victimAllianceIcon,
+                           let victInfo = detail["vict"] as? [String: Any],
+                           let allyId = victInfo["ally"] as? Int,
+                           allyId > 0 {
+                            Image(uiImage: allyIcon)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                    }
+                    
+                    // 名称信息
+                    VStack(alignment: .leading, spacing: 2) {
                         // 角色名称
                         if let victInfo = detail["vict"] as? [String: Any],
                            let charId = victInfo["char"] as? Int,
@@ -45,39 +68,27 @@ struct BRKillMailDetailView: View {
                                 .font(.headline)
                         }
                         
-                        // 军团和联盟信息
-                        HStack(spacing: 8) {
-                            // 军团图标和名称
-                            if let corpIcon = victimCorporationIcon {
-                                Image(uiImage: corpIcon)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 32, height: 32)
-                            }
-                            if let victInfo = detail["vict"] as? [String: Any],
-                               let corpId = victInfo["corp"] as? Int,
-                               let names = detail["names"] as? [String: [String: String]],
-                               let corps = names["corps"],
-                               let corpName = corps[String(corpId)] {
-                                Text(corpName)
-                                    .font(.subheadline)
-                            }
-                            
-                            // 联盟图标和名称
-                            if let allyIcon = victimAllianceIcon {
-                                Image(uiImage: allyIcon)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 32, height: 32)
-                            }
-                            if let victInfo = detail["vict"] as? [String: Any],
-                               let allyId = victInfo["ally"] as? Int,
-                               let names = detail["names"] as? [String: [String: String]],
-                               let allys = names["allys"],
-                               let allyName = allys[String(allyId)] {
-                                Text(allyName)
-                                    .font(.subheadline)
-                            }
+                        // 军团名称
+                        if let victInfo = detail["vict"] as? [String: Any],
+                           let corpId = victInfo["corp"] as? Int,
+                           let names = detail["names"] as? [String: [String: String]],
+                           let corps = names["corps"],
+                           let corpName = corps[String(corpId)] {
+                            Text(corpName)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        // 联盟名称
+                        if let victInfo = detail["vict"] as? [String: Any],
+                           let allyId = victInfo["ally"] as? Int,
+                           allyId > 0,
+                           let names = detail["names"] as? [String: [String: String]],
+                           let allys = names["allys"],
+                           let allyName = allys[String(allyId)] {
+                            Text(allyName)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
