@@ -10,6 +10,10 @@ struct BRKillMailDetailView: View {
     @State private var detailData: [String: Any]?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var shipValue: Double = 0
+    @State private var destroyedValue: Double = 0
+    @State private var droppedValue: Double = 0
+    @State private var totalValue: Double = 0
     
     var body: some View {
         List {
@@ -126,8 +130,11 @@ struct BRKillMailDetailView: View {
                             .frame(maxHeight: .infinity, alignment: .center)
                         VStack(alignment: .leading) {
                             HStack {
-                                Text(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0"))
-                                    .foregroundColor(getSecurityColor(sysInfo["ss"] as? Double ?? 0.0))
+                                if let ssString = sysInfo["ss"] as? String,
+                                   let ssValue = Double(ssString) {
+                                    Text(formatSecurityStatus(ssValue))
+                                        .foregroundColor(getSecurityColor(ssValue))
+                                }
                                 Text(sysInfo["name"] as? String ?? "")
                                     .fontWeight(.bold)
                             }
@@ -173,56 +180,31 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text(NSLocalizedString("Main_KM_Ship_Value", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    if let victInfo = detail["vict"] as? [String: Any],
-                       let shipId = victInfo["ship"] as? Int,
-                       let prices = detail["prices"] as? [String: Double] {
-                        AsyncValueView(calculation: {
-                            let shipPrice = try await getItemPrice(typeId: shipId, prices: prices)
-                            return formatISK(shipPrice)
-                        })
+                    Text(formatISK(shipValue))
                         .foregroundColor(.secondary)
-                    }
                 }
                 
                 // Destroyed
                 HStack {
                     Text(NSLocalizedString("Main_KM_Destroyed_Value", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    if let victInfo = detail["vict"] as? [String: Any],
-                       let prices = detail["prices"] as? [String: Double] {
-                        AsyncValueView(calculation: {
-                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
-                            return formatISK(values.destroyed)
-                        })
+                    Text(formatISK(destroyedValue))
                         .foregroundColor(.red)
-                    }
                 }
                 
                 // Dropped
                 HStack {
                     Text(NSLocalizedString("Main_KM_Dropped_Value", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    if let victInfo = detail["vict"] as? [String: Any],
-                       let prices = detail["prices"] as? [String: Double] {
-                        AsyncValueView(calculation: {
-                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
-                            return formatISK(values.dropped)
-                        })
+                    Text(formatISK(droppedValue))
                         .foregroundColor(.green)
-                    }
                 }
                 
                 // Total
                 HStack {
                     Text(NSLocalizedString("Main_KM_Total", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    if let victInfo = detail["vict"] as? [String: Any],
-                       let prices = detail["prices"] as? [String: Double] {
-                        AsyncValueView(calculation: {
-                            let values = try await calculateValues(victInfo: victInfo, prices: prices)
-                            return formatISK(values.destroyed + values.dropped)
-                        })
-                    }
+                    Text(formatISK(totalValue))
                 }
             }
         }
@@ -241,26 +223,48 @@ struct BRKillMailDetailView: View {
             }
         }
         .task {
-            // 获取详细信息
+            await loadKillMailDetail()
+        }
+    }
+    
+    private func loadKillMailDetail() async {
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
             if let killId = killmail["_id"] as? Int {
                 Logger.debug("准备获取战报ID: \(killId)的详细信息")
-                do {
-                    detailData = try await kbAPI.fetchKillMailDetail(killMailId: killId)
-                    // Logger.debug("成功获取战报详情: \(String(describing: detailData))")
-                    // 获取到详细数据后再加载图标
-                    if let detail = detailData {
-                        await loadIcons(from: detail)
+                let detail = try await kbAPI.fetchKillMailDetail(killMailId: killId)
+                
+                // 获取到详细数据后加载图标
+                await loadIcons(from: detail)
+                
+                // 计算所有价值
+                if let victInfo = detail["vict"] as? [String: Any],
+                   let prices = detail["prices"] as? [String: Double] {
+                    // 计算船只价值
+                    if let shipId = victInfo["ship"] as? Int {
+                        shipValue = try await getItemPrice(typeId: shipId, prices: prices)
                     }
-                } catch {
-                    Logger.error("加载战斗日志详情失败: \(error)")
-                    errorMessage = "加载失败: \(error.localizedDescription)"
+                    
+                    // 计算其他价值
+                    let values = try await calculateValues(victInfo: victInfo, prices: prices)
+                    destroyedValue = values.destroyed
+                    droppedValue = values.dropped
+                    totalValue = values.destroyed + values.dropped
                 }
-                isLoading = false
+                
+                // 所有数据都准备好后再更新UI
+                await MainActor.run {
+                    self.detailData = detail
+                }
             } else {
                 Logger.error("无法获取战报ID")
                 errorMessage = "无法获取战报ID"
-                isLoading = false
             }
+        } catch {
+            Logger.error("加载战斗日志详情失败: \(error)")
+            errorMessage = "加载失败: \(error.localizedDescription)"
         }
     }
     
@@ -321,11 +325,8 @@ struct BRKillMailDetailView: View {
         return ("Unknown Ship", "Unknown Group")
     }
     
-    private func formatSecurityStatus(_ status: String) -> String {
-        if let value = Double(status) {
-            return String(format: "%.1f", value)
-        }
-        return status
+    private func formatSecurityStatus(_ value: Double) -> String {
+        return String(format: "%.1f", value)
     }
     
     private func formatEVETime(_ timestamp: Int) -> String {
@@ -478,4 +479,4 @@ struct AsyncValueView: View {
                 }
             }
     }
-} 
+}
