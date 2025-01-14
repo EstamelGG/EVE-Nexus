@@ -507,60 +507,62 @@ struct BRKillMailCell: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 第一行：图标和信息
-            HStack(spacing: 12) {
-                // 左侧飞船图标
-                IconManager.shared.loadImage(for: shipInfo.iconFileName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 48, height: 48)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                
-                // 右侧信息
-                VStack(alignment: .leading, spacing: 2) {
-                    // 飞船名称
-                    Text(shipInfo.name)
-                        .font(.system(size: 16, weight: .medium))
-                    
-                    // 显示名称（角色/联盟/军团）
-                    Text(displayName)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                    
-                    // 位置信息
-                    locationText
-                }
-                
-                Spacer()
-                
-                // 右侧组织图标
-                if let icon = organizationIcon {
-                    Image(uiImage: icon)
+        NavigationLink(destination: BRKillMailDetailView(killmail: killmail)) {
+            VStack(alignment: .leading, spacing: 8) {
+                // 第一行：图标和信息
+                HStack(spacing: 12) {
+                    // 左侧飞船图标
+                    IconManager.shared.loadImage(for: shipInfo.iconFileName)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 32, height: 32)
-                        .cornerRadius(6)
-                }
-            }
-            
-            // 第二行：时间和价值
-            HStack {
-                if let time = kbAPI.getFormattedTime(killmail) {
-                    Text(time)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .frame(width: 48, height: 48)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    
+                    // 右侧信息
+                    VStack(alignment: .leading, spacing: 2) {
+                        // 飞船名称
+                        Text(shipInfo.name)
+                            .font(.system(size: 16, weight: .medium))
+                        
+                        // 显示名称（角色/联盟/军团）
+                        Text(displayName)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                        
+                        // 位置信息
+                        locationText
+                    }
+                    
+                    Spacer()
+                    
+                    // 右侧组织图标
+                    if let icon = organizationIcon {
+                        Image(uiImage: icon)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+                    }
                 }
                 
-                Spacer()
-                
-                if let value = kbAPI.getFormattedValue(killmail) {
-                    Text(value)
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundColor(valueColor)
+                // 第二行：时间和价值
+                HStack {
+                    if let time = kbAPI.getFormattedTime(killmail) {
+                        Text(time)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if let value = kbAPI.getFormattedValue(killmail) {
+                        Text(value)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(valueColor)
+                    }
                 }
             }
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
     }
 } 
