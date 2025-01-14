@@ -52,16 +52,20 @@ struct BRKillMailSearchView: View {
             // 搜索结果展示区域
             if viewModel.selectedResult != nil {
                 Section {
-                    Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
-                        Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
-                        Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(KillMailFilter.kill)
-                        Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.vertical, 8)
-                    .onChange(of: selectedFilter) { oldValue, newValue in
-                        Task {
-                            await loadKillMails()
+                    // 只在非星系和星域搜索时显示过滤器
+                    if let selectedResult = viewModel.selectedResult,
+                       selectedResult.category != .solar_system && selectedResult.category != .region {
+                        Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
+                            Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
+                            Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(KillMailFilter.kill)
+                            Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.vertical, 8)
+                        .onChange(of: selectedFilter) { oldValue, newValue in
+                            Task {
+                                await loadKillMails()
+                            }
                         }
                     }
                     
@@ -130,6 +134,10 @@ struct BRKillMailSearchView: View {
         }
         .onChange(of: viewModel.selectedResult) { oldValue, newValue in
             if newValue != nil {
+                // 如果是星系或星域搜索，重置过滤器为all
+                if newValue?.category == .solar_system || newValue?.category == .region {
+                    selectedFilter = .all
+                }
                 Task {
                     await loadKillMails()
                 }
