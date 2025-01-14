@@ -37,8 +37,10 @@ struct BRKillMailDetailView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         // 角色名称
                         if let victInfo = detail["vict"] as? [String: Any],
-                           let charInfo = victInfo["char"] as? [String: Any],
-                           let charName = charInfo["name"] as? String {
+                           let charId = victInfo["char"] as? Int,
+                           let names = detail["names"] as? [String: [String: String]],
+                           let chars = names["chars"],
+                           let charName = chars[String(charId)] {
                             Text(charName)
                                 .font(.headline)
                         }
@@ -53,8 +55,10 @@ struct BRKillMailDetailView: View {
                                     .frame(width: 32, height: 32)
                             }
                             if let victInfo = detail["vict"] as? [String: Any],
-                               let corpInfo = victInfo["corp"] as? [String: Any],
-                               let corpName = corpInfo["name"] as? String {
+                               let corpId = victInfo["corp"] as? Int,
+                               let names = detail["names"] as? [String: [String: String]],
+                               let corps = names["corps"],
+                               let corpName = corps[String(corpId)] {
                                 Text(corpName)
                                     .font(.subheadline)
                             }
@@ -67,8 +71,10 @@ struct BRKillMailDetailView: View {
                                     .frame(width: 32, height: 32)
                             }
                             if let victInfo = detail["vict"] as? [String: Any],
-                               let allyInfo = victInfo["ally"] as? [String: Any],
-                               let allyName = allyInfo["name"] as? String {
+                               let allyId = victInfo["ally"] as? Int,
+                               let names = detail["names"] as? [String: [String: String]],
+                               let allys = names["allys"],
+                               let allyName = allys[String(allyId)] {
                                 Text(allyName)
                                     .font(.subheadline)
                             }
