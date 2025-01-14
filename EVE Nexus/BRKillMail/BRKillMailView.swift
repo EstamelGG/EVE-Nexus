@@ -337,7 +337,7 @@ struct BRKillMailView: View {
                     }
                     
                     // 加载更多按钮
-                    if viewModel.currentPage < viewModel.totalPages {
+                    if viewModel.totalPages > 1 {
                         HStack {
                             Spacer()
                             if viewModel.isLoadingMore {

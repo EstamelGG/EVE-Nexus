@@ -99,7 +99,7 @@ struct BRKillMailSearchView: View {
                             }
                         }
                         
-                        if currentPage < totalPages {
+                        if totalPages > 1 {
                             HStack {
                                 Spacer()
                                 if isLoadingMore {
