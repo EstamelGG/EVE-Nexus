@@ -232,6 +232,12 @@ class BRKillMailSearchViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     
     func debounceSearch(characterId: Int, searchText: String) {
+        // 确保搜索文本长度大于等于3
+        guard searchText.count >= 3 else {
+            searchResults = [:]
+            return
+        }
+        
         // 取消之前的任务
         searchTask?.cancel()
         
@@ -249,7 +255,8 @@ class BRKillMailSearchViewModel: ObservableObject {
     }
     
     func search(characterId: Int, searchText: String) async {
-        guard !searchText.isEmpty else {
+        // 确保搜索文本不为空且长度大于等于3
+        guard !searchText.isEmpty && searchText.count >= 3 else {
             searchResults = [:]
             return
         }
