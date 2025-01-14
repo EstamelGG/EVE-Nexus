@@ -98,7 +98,6 @@ struct BRKillMailDetailView: View {
                    let shipId = victInfo["ship"] as? Int {
                     HStack {
                         Text("Ship:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         if let shipIcon = shipIcon {
                             Image(uiImage: shipIcon)
