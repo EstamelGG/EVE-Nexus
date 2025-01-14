@@ -146,21 +146,6 @@ class KbEvetoolAPI {
     
     // 通用搜索方法
     func searchEveItems(characterId: Int, searchText: String) async throws -> [String: [ZKBSearchResult]] {
-        // 构建 zkillboard 自动完成 API URL
-        guard let encodedText = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/") else {
-            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"])
-        }
-        
-        // 发送请求
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        
-        // 解析 JSON 响应
-        guard let results = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
-            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
-        }
-        
-        // 将结果转换为所需格式
         var result: [String: [ZKBSearchResult]] = [
             "alliance": [],
             "character": [],
@@ -170,8 +155,47 @@ class KbEvetoolAPI {
             "region": []
         ]
         
+        // 1. 从本地数据库搜索物品
+        let query = """
+            SELECT type_id, name, icon_filename
+            FROM types
+            WHERE name LIKE ?1
+            AND categoryID IN (6, 65, 87)
+            LIMIT 50
+        """
+        
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: ["%\(searchText)%"]) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String {
+                    let iconFileName = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    let imageURL = "https://images.evetech.net/types/\(typeId)/icon?size=32"
+                    result["inventory_type"]?.append(ZKBSearchResult(
+                        id: typeId,
+                        name: name,
+                        type: "ship",
+                        image: imageURL
+                    ))
+                }
+            }
+        }
+        
+        // 2. 从 zkillboard 获取在线搜索结果
+        guard let encodedText = searchText.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/") else {
+            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"])
+        }
+        
+        // 发送请求
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        
+        // 解析 JSON 响应
+        guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
+            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
+        }
+        
         // 根据类型分类结果
-        for item in results {
+        for item in zkbResults {
             switch item.type {
             case "alliance":
                 result["alliance"]?.append(item)
@@ -180,7 +204,10 @@ class KbEvetoolAPI {
             case "corporation":
                 result["corporation"]?.append(item)
             case "ship":
-                result["inventory_type"]?.append(item)
+                // 检查是否已存在于本地搜索结果中
+                if !result["inventory_type"]!.contains(where: { $0.id == item.id }) {
+                    result["inventory_type"]?.append(item)
+                }
             case "system":
                 result["solar_system"]?.append(item)
             case "region":
