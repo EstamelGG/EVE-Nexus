@@ -166,8 +166,8 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Fitted:")
                         .frame(width: 120, alignment: .leading)
-                    if let fitted = detail["sumF"] as? Double {
-                        Text(formatISK(fitted))
+                    if let fitted = detail["sumF"] as? Int {
+                        Text(formatISK(Double(fitted)))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -189,8 +189,8 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Destroyed:")
                         .frame(width: 120, alignment: .leading)
-                    if let destroyed = detail["sumV"] as? Double {
-                        Text(formatISK(destroyed))
+                    if let destroyed = detail["sumV"] as? Int {
+                        Text(formatISK(Double(destroyed)))
                             .foregroundColor(.red)
                     }
                 }
@@ -199,8 +199,8 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Dropped:")
                         .frame(width: 120, alignment: .leading)
-                    if let dropped = detail["sumD"] as? Double {
-                        Text(formatISK(dropped))
+                    if let dropped = detail["sumD"] as? Int {
+                        Text(formatISK(Double(dropped)))
                             .foregroundColor(.green)
                     }
                 }
@@ -209,9 +209,9 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Total:")
                         .frame(width: 120, alignment: .leading)
-                    if let destroyed = detail["sumV"] as? Double,
-                       let dropped = detail["sumD"] as? Double {
-                        Text(formatISK(destroyed + dropped))
+                    if let destroyed = detail["sumV"] as? Int,
+                       let dropped = detail["sumD"] as? Int {
+                        Text(formatISK(Double(destroyed + dropped)))
                             .foregroundColor(.secondary)
                     }
                 }
