@@ -39,11 +39,9 @@ struct BRKillMailSearchView: View {
             }
             
             // 搜索结果展示区域
-            if let selectedResult = viewModel.selectedResult {
-                Section {
-                    Text("搜索结果将在这里展示")
-                        .foregroundColor(.secondary)
-                }
+            Section {
+                Text("搜索结果将在这里展示")
+                    .foregroundColor(.secondary)
             }
         }
         .navigationTitle(NSLocalizedString("KillMail_Search_Title", comment: ""))
@@ -74,9 +72,7 @@ struct SearchSelectorSheet: View {
                             .focused($isSearchFocused)
                             .onChange(of: searchText) { newValue in
                                 if newValue.count >= 3 {
-                                    Task {
-                                        await viewModel.search(characterId: characterId, searchText: newValue)
-                                    }
+                                    viewModel.debounceSearch(characterId: characterId, searchText: newValue)
                                 } else {
                                     viewModel.searchResults = [:]
                                 }
@@ -114,18 +110,17 @@ struct SearchSelectorSheet: View {
                 .background(Color(uiColor: .systemBackground))
                 
                 if viewModel.isSearching {
+                    Spacer()
                     ProgressView()
                         .padding()
+                    Spacer()
                 } else if searchText.count >= 3 {
                     if viewModel.searchResults.isEmpty {
-                        VStack {
-                            Spacer()
-                            Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
+                        Spacer()
+                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                        Spacer()
                     } else {
-                        // 搜索结果列表
                         List {
                             ForEach(viewModel.categories, id: \.self) { category in
                                 if let results = viewModel.searchResults[category], !results.isEmpty {
@@ -146,13 +141,7 @@ struct SearchSelectorSheet: View {
                         .listStyle(.insetGrouped)
                     }
                 } else {
-                    // 空状态提示
-                    VStack {
-                        Spacer()
-                        Text(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
+                    Spacer()
                 }
             }
             .navigationTitle(NSLocalizedString("KillMail_Search", comment: ""))
@@ -240,41 +229,23 @@ class BRKillMailSearchViewModel: ObservableObject {
         .inventory_type, .solar_system, .region
     ]
     
-    private func loadIcons(for category: SearchResultCategory, ids: [Int]) async -> [Int: UIImage] {
-        var icons: [Int: UIImage] = [:]
+    private var searchTask: Task<Void, Never>?
+    
+    func debounceSearch(characterId: Int, searchText: String) {
+        // 取消之前的任务
+        searchTask?.cancel()
         
-        await withTaskGroup(of: (Int, UIImage?).self) { group in
-            for id in ids {
-                group.addTask {
-                    let urlString: String
-                    switch category {
-                    case .character:
-                        urlString = "https://images.evetech.net/characters/\(id)/portrait?size=64"
-                    case .corporation:
-                        urlString = "https://images.evetech.net/corporations/\(id)/logo?size=64"
-                    case .alliance:
-                        urlString = "https://images.evetech.net/alliances/\(id)/logo?size=64"
-                    default:
-                        return (id, nil)
-                    }
-                    
-                    guard let url = URL(string: urlString),
-                          let data = try? await NetworkManager.shared.fetchData(from: url),
-                          let image = UIImage(data: data) else {
-                        return (id, nil)
-                    }
-                    return (id, image)
-                }
-            }
+        // 创建新的搜索任务
+        searchTask = Task {
+            // 等待300毫秒
+            try? await Task.sleep(nanoseconds: 300_000_000)
             
-            for await (id, image) in group {
-                if let image = image {
-                    icons[id] = image
-                }
-            }
+            // 如果任务被取消，直接返回
+            guard !Task.isCancelled else { return }
+            
+            // 执行搜索
+            await search(characterId: characterId, searchText: searchText)
         }
-        
-        return icons
     }
     
     func search(characterId: Int, searchText: String) async {
@@ -396,5 +367,42 @@ class BRKillMailSearchViewModel: ObservableObject {
         } catch {
             Logger.error("搜索失败: \(error)")
         }
+    }
+    
+    private func loadIcons(for category: SearchResultCategory, ids: [Int]) async -> [Int: UIImage] {
+        var icons: [Int: UIImage] = [:]
+        
+        await withTaskGroup(of: (Int, UIImage?).self) { group in
+            for id in ids {
+                group.addTask {
+                    let urlString: String
+                    switch category {
+                    case .character:
+                        urlString = "https://images.evetech.net/characters/\(id)/portrait?size=64"
+                    case .corporation:
+                        urlString = "https://images.evetech.net/corporations/\(id)/logo?size=64"
+                    case .alliance:
+                        urlString = "https://images.evetech.net/alliances/\(id)/logo?size=64"
+                    default:
+                        return (id, nil)
+                    }
+                    
+                    guard let url = URL(string: urlString),
+                          let data = try? await NetworkManager.shared.fetchData(from: url),
+                          let image = UIImage(data: data) else {
+                        return (id, nil)
+                    }
+                    return (id, image)
+                }
+            }
+            
+            for await (id, image) in group {
+                if let image = image {
+                    icons[id] = image
+                }
+            }
+        }
+        
+        return icons
     }
 } 
