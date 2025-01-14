@@ -6,7 +6,9 @@ struct BRKillMailSearchView: View {
     @State private var showSearchSheet = false
     @State private var killMails: [[String: Any]] = []
     @State private var isLoading = false
+    @State private var isLoadingMore = false
     @State private var currentPage = 1
+    @State private var totalPages = 1
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
     @State private var allianceIconMap: [Int: UIImage] = [:]
     @State private var corporationIconMap: [Int: UIImage] = [:]
@@ -16,9 +18,9 @@ struct BRKillMailSearchView: View {
         List {
             // 搜索对象选择区域
             Section {
-                if let selectedResult = viewModel.selectedResult {
+                if viewModel.selectedResult != nil {
                     HStack {
-                        KMSearchResultRow(result: selectedResult)
+                        KMSearchResultRow(result: viewModel.selectedResult!)
                         Spacer()
                         Button {
                             viewModel.selectedResult = nil
@@ -48,7 +50,7 @@ struct BRKillMailSearchView: View {
             }
             
             // 搜索结果展示区域
-            if let selectedResult = viewModel.selectedResult {
+            if viewModel.selectedResult != nil {
                 Section {
                     Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
                         Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
@@ -57,7 +59,7 @@ struct BRKillMailSearchView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.vertical, 8)
-                    .onChange(of: selectedFilter) { _, _ in
+                    .onChange(of: selectedFilter) { oldValue, newValue in
                         Task {
                             await loadKillMails()
                         }
@@ -93,19 +95,24 @@ struct BRKillMailSearchView: View {
                             }
                         }
                         
-                        if !killMails.isEmpty {
-                            Button {
-                                Task {
-                                    await loadMoreKillMails()
-                                }
-                            } label: {
-                                if isLoading {
+                        if currentPage < totalPages {
+                            HStack {
+                                Spacer()
+                                if isLoadingMore {
                                     ProgressView()
                                 } else {
-                                    Text(NSLocalizedString("KillMail_Load_More", comment: ""))
+                                    Button(action: {
+                                        Task {
+                                            await loadMoreKillMails()
+                                        }
+                                    }) {
+                                        Text(NSLocalizedString("KillMail_Load_More", comment: ""))
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.blue)
+                                    }
                                 }
+                                Spacer()
                             }
-                            .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 8)
                         }
                     }
@@ -121,8 +128,8 @@ struct BRKillMailSearchView: View {
         .sheet(isPresented: $showSearchSheet) {
             SearchSelectorSheet(characterId: characterId, viewModel: viewModel)
         }
-        .onChange(of: viewModel.selectedResult) { _ in
-            if viewModel.selectedResult != nil {
+        .onChange(of: viewModel.selectedResult) { oldValue, newValue in
+            if newValue != nil {
                 Task {
                     await loadKillMails()
                 }
@@ -135,6 +142,7 @@ struct BRKillMailSearchView: View {
         
         isLoading = true
         currentPage = 1
+        totalPages = 1
         killMails = []
         shipInfoMap = [:]
         allianceIconMap = [:]
@@ -147,6 +155,9 @@ struct BRKillMailSearchView: View {
                 await loadShipInfo(for: data)
                 await loadOrganizationIcons(for: data)
             }
+            if let total = response["totalPages"] as? Int {
+                totalPages = total
+            }
         } catch {
             Logger.error("加载战斗日志失败: \(error)")
         }
@@ -157,7 +168,7 @@ struct BRKillMailSearchView: View {
     private func loadMoreKillMails() async {
         guard let selectedResult = viewModel.selectedResult else { return }
         
-        isLoading = true
+        isLoadingMore = true
         currentPage += 1
         
         do {
@@ -167,12 +178,15 @@ struct BRKillMailSearchView: View {
                 await loadShipInfo(for: data)
                 await loadOrganizationIcons(for: data)
             }
+            if let total = response["totalPages"] as? Int {
+                totalPages = total
+            }
         } catch {
             Logger.error("加载更多战斗日志失败: \(error)")
             currentPage -= 1
         }
         
-        isLoading = false
+        isLoadingMore = false
     }
     
     private func loadShipInfo(for mails: [[String: Any]]) async {
