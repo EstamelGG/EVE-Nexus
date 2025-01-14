@@ -108,8 +108,7 @@ struct BRKillMailDetailView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                         }
                         let shipName = getShipName(shipId)
-                        Text("\(shipName) / Dreadnought")
-                            .foregroundColor(.cyan)
+                        Text("\(shipName)")
                     }
                 }
                 
@@ -117,10 +116,8 @@ struct BRKillMailDetailView: View {
                 if let sysInfo = detail["sys"] as? [String: Any] {
                     HStack {
                         Text("System:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text("\(sysInfo["name"] as? String ?? "") -\(formatSecurityStatus(sysInfo["ss"] as? String ?? "0.0")) / \(sysInfo["region"] as? String ?? "")")
-                            .foregroundColor(.cyan)
                     }
                 }
                 
@@ -128,10 +125,9 @@ struct BRKillMailDetailView: View {
                 if let time = detail["time"] as? Int {
                     HStack {
                         Text("Eve Time:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatEVETime(time))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -139,10 +135,9 @@ struct BRKillMailDetailView: View {
                 if let time = detail["time"] as? Int {
                     HStack {
                         Text("Local Time:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatLocalTime(time))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -150,11 +145,10 @@ struct BRKillMailDetailView: View {
                 if let victInfo = detail["vict"] as? [String: Any] {
                     HStack {
                         Text("Damage:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         let damage = victInfo["dmg"] as? Int ?? 0
                         Text(formatNumber(damage))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -162,10 +156,9 @@ struct BRKillMailDetailView: View {
                 if let fitted = detail["sumF"] as? Double {
                     HStack {
                         Text("Fitted:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatISK(fitted))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -176,10 +169,9 @@ struct BRKillMailDetailView: View {
                     let shipPrice = prices[String(shipId)] ?? 0
                     HStack {
                         Text("Ship:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatISK(shipPrice))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
                 
@@ -187,7 +179,6 @@ struct BRKillMailDetailView: View {
                 if let destroyed = detail["sumV"] as? Double {
                     HStack {
                         Text("Destroyed:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatISK(destroyed))
                             .foregroundColor(.red)
@@ -198,7 +189,6 @@ struct BRKillMailDetailView: View {
                 if let dropped = detail["sumD"] as? Double {
                     HStack {
                         Text("Dropped:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatISK(dropped))
                             .foregroundColor(.green)
@@ -210,10 +200,9 @@ struct BRKillMailDetailView: View {
                    let dropped = detail["sumD"] as? Double {
                     HStack {
                         Text("Total:")
-                            .foregroundColor(.gray)
                             .frame(width: 120, alignment: .leading)
                         Text(formatISK(destroyed + dropped))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                     }
                 }
             }
