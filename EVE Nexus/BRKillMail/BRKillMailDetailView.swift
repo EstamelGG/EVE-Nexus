@@ -166,8 +166,9 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Fitted:")
                         .frame(width: 120, alignment: .leading)
-                    if let fitted = detail["sumF"] as? Int {
-                        Text(formatISK(Double(fitted)))
+                    if let victInfo = detail["vict"] as? [String: Any],
+                       let prices = detail["prices"] as? [String: Double] {
+                        Text(formatISK(calculateFittedValue(victInfo: victInfo, prices: prices)))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -189,8 +190,10 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Destroyed:")
                         .frame(width: 120, alignment: .leading)
-                    if let destroyed = detail["sumV"] as? Int {
-                        Text(formatISK(Double(destroyed)))
+                    if let victInfo = detail["vict"] as? [String: Any],
+                       let prices = detail["prices"] as? [String: Double] {
+                        let values = calculateValues(victInfo: victInfo, prices: prices)
+                        Text(formatISK(values.destroyed))
                             .foregroundColor(.red)
                     }
                 }
@@ -199,8 +202,10 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Dropped:")
                         .frame(width: 120, alignment: .leading)
-                    if let dropped = detail["sumD"] as? Int {
-                        Text(formatISK(Double(dropped)))
+                    if let victInfo = detail["vict"] as? [String: Any],
+                       let prices = detail["prices"] as? [String: Double] {
+                        let values = calculateValues(victInfo: victInfo, prices: prices)
+                        Text(formatISK(values.dropped))
                             .foregroundColor(.green)
                     }
                 }
@@ -209,15 +214,15 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text("Total:")
                         .frame(width: 120, alignment: .leading)
-                    if let destroyed = detail["sumV"] as? Int,
-                       let dropped = detail["sumD"] as? Int {
-                        Text(formatISK(Double(destroyed + dropped)))
+                    if let victInfo = detail["vict"] as? [String: Any],
+                       let prices = detail["prices"] as? [String: Double] {
+                        let values = calculateValues(victInfo: victInfo, prices: prices)
+                        Text(formatISK(values.destroyed + values.dropped))
                             .foregroundColor(.secondary)
                     }
                 }
             }
         }
-        .navigationTitle("Battle Report")
         .task {
             // 获取详细信息
             if let killId = killmail["_id"] as? Int {
@@ -346,5 +351,89 @@ struct BRKillMailDetailView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
+    }
+    
+    private func calculateFittedValue(victInfo: [String: Any], prices: [String: Double]) -> Double {
+        guard let items = victInfo["itms"] as? [[Int]] else { return 0 }
+        
+        var total: Double = 0
+        for item in items {
+            if item.count >= 4 {
+                let typeId = item[1]
+                let dropped = item[2]    // 掉落数量
+                let destroyed = item[3]   // 摧毁数量
+                let totalQuantity = dropped + destroyed  // 总数量
+                
+                if let price = prices[String(typeId)] {
+                    let itemValue = price * Double(totalQuantity)
+                    Logger.debug("Item: typeId=\(typeId), dropped=\(dropped), destroyed=\(destroyed), price=\(price), total=\(itemValue)")
+                    total += itemValue
+                }
+            }
+        }
+        
+        Logger.debug("Final total: \(total)")
+        return total
+    }
+    
+    private func calculateValues(victInfo: [String: Any], prices: [String: Double]) -> (destroyed: Double, dropped: Double) {
+        var destroyedTotal: Double = 0
+        var droppedTotal: Double = 0
+        
+        // 首先加入船体本身的价值到被摧毁总价值中
+        if let shipId = victInfo["ship"] as? Int,
+           let shipPrice = prices[String(shipId)] {
+            destroyedTotal += shipPrice
+        }
+        
+        // 计算主船装备
+        if let items = victInfo["itms"] as? [[Int]] {
+            for item in items {
+                if item.count >= 4 {
+                    let typeId = item[1]
+                    let dropped = item[2]    // 掉落的数量
+                    let destroyed = item[3]   // 被摧毁的数量
+                    
+                    if let price = prices[String(typeId)] {
+                        droppedTotal += price * Double(dropped)
+                        destroyedTotal += price * Double(destroyed)
+                    }
+                }
+            }
+        }
+        
+        // 计算容器中的物品
+        if let containers = victInfo["cnts"] as? [[String: Any]] {
+            for container in containers {
+                // 首先计算容器本身的价值
+                if let containerTypeId = container["type"] as? Int,
+                   let containerPrice = prices[String(containerTypeId)] {
+                    if let drop = container["drop"] as? Int, drop == 1 {
+                        droppedTotal += containerPrice
+                    }
+                    if let dstr = container["dstr"] as? Int, dstr == 1 {
+                        destroyedTotal += containerPrice
+                    }
+                }
+                
+                // 然后计算容器内物品的价值
+                if let containerItems = container["items"] as? [[Int]] {
+                    for item in containerItems {
+                        if item.count >= 4 {
+                            let typeId = item[1]
+                            let dropped = item[2]
+                            let destroyed = item[3]
+                            
+                            if let price = prices[String(typeId)] {
+                                droppedTotal += price * Double(dropped)
+                                destroyedTotal += price * Double(destroyed)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return (destroyedTotal, droppedTotal)
     }
 } 
