@@ -281,4 +281,22 @@ class KbEvetoolAPI {
         
         return jsonData
     }
+    
+    // 根据ID获取完整战斗日志
+    func fetchKillMailDetail(killMailId: Int) async throws -> [String: Any] {
+        Logger.debug("准备获取战斗日志详情 - ID: \(killMailId)")
+        
+        let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
+        
+        Logger.debug("开始发送网络请求...")
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
+        
+        // 解析JSON数据
+        guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
+        }
+        
+        return jsonData
+    }
 } 
