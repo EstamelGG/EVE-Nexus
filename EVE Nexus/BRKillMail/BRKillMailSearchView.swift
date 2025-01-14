@@ -123,7 +123,7 @@ struct BRKillMailSearchView: View {
                 }
             } else {
                 Section {
-                    Text("搜索结果将在这里展示")
+                    Text(NSLocalizedString("Main_Search_Results_Placeholder", comment: ""))
                         .foregroundColor(.secondary)
                 }
             }

@@ -869,3 +869,5 @@
 "KillMail_Search_System" = "星系";
 "KillMail_Search_Region" = "区域";
 "Main_Search_Network_Min_Length" = "联网搜索需要最少3个字符";
+
+"Main_Search_Results_Placeholder" = "搜索结果将在这里展示";

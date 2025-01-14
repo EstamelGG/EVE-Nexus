@@ -855,3 +855,5 @@
 "KillMail_Search_System" = "Solar System";
 "KillMail_Search_Region" = "Region";
 "Main_Search_Network_Min_Length" = "At least 3 characters to search online";
+
+"Main_Search_Results_Placeholder" = "Search results will be shown here";
