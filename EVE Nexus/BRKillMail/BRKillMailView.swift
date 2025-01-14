@@ -1,3 +1,5 @@
+import SwiftUI
+
 enum KillMailFilter: String {
     case all = "all"
     case kill = "kill"
