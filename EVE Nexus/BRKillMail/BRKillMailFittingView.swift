@@ -104,9 +104,10 @@ struct BRKillMailFittingView: View {
         
         let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
         let query = """
-            SELECT type_id, icon_filename 
+            SELECT type_id, icon_filename, categoryID
             FROM types 
             WHERE type_id IN (\(placeholders))
+            AND categoryID != 8
         """
         
         Logger.debug("装配图标: 开始查询 \(typeIds.count) 个物品的图标")
@@ -143,28 +144,63 @@ struct BRKillMailFittingView: View {
                 // 加载飞船图片
                 await loadShipImage(typeId: shipId)
                 
-                // 收集所有需要获取图标的type_id
-                var typeIds: [Int] = []
+                // 按槽位ID分组物品
+                var slotItems: [Int: [[Int]]] = [:] // [slotId: [[slotId, typeId, ...]]]
                 for item in items where item.count >= 4 {
-                    typeIds.append(item[1])
+                    let slotId = item[0]
+                    if slotItems[slotId] == nil {
+                        slotItems[slotId] = []
+                    }
+                    slotItems[slotId]?.append(item)
+                }
+                
+                // 收集所有需要查询的typeId
+                var typeIds: [Int] = []
+                for items in slotItems.values {
+                    typeIds.append(contentsOf: items.map { $0[1] })
                 }
                 
                 Logger.debug("装配图标: 需要获取 \(typeIds.count) 个物品的图标")
                 
-                // 一次性获取所有图标文件名
-                let iconFileNames = getIconFileNames(typeIds: typeIds)
+                // 查询所有物品的信息
+                let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
+                let query = """
+                    SELECT type_id, icon_filename, categoryID
+                    FROM types 
+                    WHERE type_id IN (\(placeholders))
+                """
                 
-                // 加载装备图标
-                for item in items {
-                    guard item.count >= 4 else { continue }
-                    let slotId = item[0]
-                    let typeId = item[1]
+                var typeInfos: [Int: (String, Int)] = [:] // [typeId: (iconFileName, categoryId)]
+                if case .success(let rows) = databaseManager.executeQuery(query, parameters: typeIds) {
+                    for row in rows {
+                        if let typeId = row["type_id"] as? Int,
+                           let iconFileName = row["icon_filename"] as? String,
+                           let categoryId = row["categoryID"] as? Int {
+                            let finalIconName = iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                            typeInfos[typeId] = (finalIconName, categoryId)
+                        }
+                    }
+                }
+                
+                // 处理每个槽位的装备
+                for (slotId, items) in slotItems {
+                    // 按categoryId排序，确保非弹药装备优先
+                    let sortedItems = items.sorted { item1, item2 in
+                        let type1 = item1[1]
+                        let type2 = item2[1]
+                        let cat1 = typeInfos[type1]?.1 ?? 0
+                        let cat2 = typeInfos[type2]?.1 ?? 0
+                        return cat1 != 8 && cat2 == 8
+                    }
                     
-                    if let iconFileName = iconFileNames[typeId] {
-                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(typeId), 图标: \(iconFileName)")
+                    // 使用第一个非弹药装备，如果都是弹药则使用第一个
+                    if let firstItem = sortedItems.first,
+                       let typeInfo = typeInfos[firstItem[1]] {
+                        let iconFileName = typeInfo.0
                         await MainActor.run {
                             equipmentIcons[slotId] = IconManager.shared.loadImage(for: iconFileName)
                         }
+                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(iconFileName)")
                     }
                 }
             }
