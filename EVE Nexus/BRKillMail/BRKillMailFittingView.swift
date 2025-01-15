@@ -1,7 +1,70 @@
 import SwiftUI
 import Foundation
 
+// 槽位类型定义
+enum SlotType {
+    case high
+    case medium
+    case low
+    case rig
+    case subsystem
+}
+
+// 槽位信息结构
+struct SlotInfo {
+    let id: Int
+    let name: String
+    let type: SlotType
+}
+
 struct BRKillMailFittingView: View {
+    // 槽位定义
+    private let highSlots: [SlotInfo] = [
+        SlotInfo(id: 27, name: "HiSlot0", type: .high),
+        SlotInfo(id: 28, name: "HiSlot1", type: .high),
+        SlotInfo(id: 29, name: "HiSlot2", type: .high),
+        SlotInfo(id: 30, name: "HiSlot3", type: .high),
+        SlotInfo(id: 31, name: "HiSlot4", type: .high),
+        SlotInfo(id: 32, name: "HiSlot5", type: .high),
+        SlotInfo(id: 33, name: "HiSlot6", type: .high),
+        SlotInfo(id: 34, name: "HiSlot7", type: .high)
+    ]
+    
+    private let mediumSlots: [SlotInfo] = [
+        SlotInfo(id: 19, name: "MedSlot0", type: .medium),
+        SlotInfo(id: 20, name: "MedSlot1", type: .medium),
+        SlotInfo(id: 21, name: "MedSlot2", type: .medium),
+        SlotInfo(id: 22, name: "MedSlot3", type: .medium),
+        SlotInfo(id: 23, name: "MedSlot4", type: .medium),
+        SlotInfo(id: 24, name: "MedSlot5", type: .medium),
+        SlotInfo(id: 25, name: "MedSlot6", type: .medium),
+        SlotInfo(id: 26, name: "MedSlot7", type: .medium)
+    ]
+    
+    private let lowSlots: [SlotInfo] = [
+        SlotInfo(id: 11, name: "LoSlot0", type: .low),
+        SlotInfo(id: 12, name: "LoSlot1", type: .low),
+        SlotInfo(id: 13, name: "LoSlot2", type: .low),
+        SlotInfo(id: 14, name: "LoSlot3", type: .low),
+        SlotInfo(id: 15, name: "LoSlot4", type: .low),
+        SlotInfo(id: 16, name: "LoSlot5", type: .low),
+        SlotInfo(id: 17, name: "LoSlot6", type: .low),
+        SlotInfo(id: 18, name: "LoSlot7", type: .low)
+    ]
+    
+    private let rigSlots: [SlotInfo] = [
+        SlotInfo(id: 92, name: "RigSlot0", type: .rig),
+        SlotInfo(id: 93, name: "RigSlot1", type: .rig),
+        SlotInfo(id: 94, name: "RigSlot2", type: .rig)
+    ]
+    
+    private let subsystemSlots: [SlotInfo] = [
+        SlotInfo(id: 125, name: "SubSystem0", type: .subsystem),
+        SlotInfo(id: 126, name: "SubSystem1", type: .subsystem),
+        SlotInfo(id: 127, name: "SubSystem2", type: .subsystem),
+        SlotInfo(id: 128, name: "SubSystem3", type: .subsystem)
+    ]
+    
     var body: some View {
         GeometryReader { geometry in
             let outerRadius = geometry.size.width * 0.475 // 外环半径
