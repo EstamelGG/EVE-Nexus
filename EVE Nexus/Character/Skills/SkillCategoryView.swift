@@ -33,10 +33,95 @@ struct DetailedSkillInfo {
 class SkillCategoryViewModel: ObservableObject {
     @Published var skillGroups: [SkillGroup] = []
     @Published var isLoading = true
+    @Published var searchText = ""
     
     private let characterId: Int
     private let databaseManager: DatabaseManager
     private let characterDatabaseManager: CharacterDatabaseManager
+    
+    // 搜索结果的技能列表
+    var filteredSkills: [(
+        typeId: Int,
+        name: String,
+        timeMultiplier: Double,
+        currentSkillPoints: Int?,
+        currentLevel: Int?,
+        trainingRate: Int?
+    )] {
+        if searchText.isEmpty {
+            return []
+        } else {
+            // 1. 先搜索所有已学习的技能
+            let learnedSkills = skillGroups.flatMap { group in
+                group.skills.compactMap { characterSkill in
+                    if let info = skillInfoDict[characterSkill.skill_id],
+                       info.name.localizedCaseInsensitiveContains(searchText) {
+                        return (characterSkill.skill_id, info, characterSkill)
+                    }
+                    return nil
+                }
+            }
+            
+            // 2. 搜索所有技能（包括未学习的）
+            let query = """
+                SELECT t.type_id, t.name, t.groupID
+                FROM types t
+                WHERE t.published = 1
+                AND t.groupID IN (
+                    SELECT DISTINCT groupID
+                    FROM types
+                    WHERE type_id IN (\(skillGroups.flatMap { $0.skills }.map { String($0.skill_id) }.joined(separator: ",")))
+                )
+                AND t.name LIKE '%\(searchText)%'
+            """
+            
+            var allMatchedSkills: [(Int, String)] = []
+            if case .success(let rows) = databaseManager.executeQuery(query) {
+                allMatchedSkills = rows.compactMap { row in
+                    if let typeId = row["type_id"] as? Int,
+                       let name = row["name"] as? String {
+                        return (typeId, name)
+                    }
+                    return nil
+                }
+            }
+            
+            // 3. 获取所有技能的训练时间倍数
+            let allSkillIds = allMatchedSkills.map { $0.0 }
+            let timeMultiplierQuery = """
+                SELECT type_id, value
+                FROM typeAttributes
+                WHERE type_id IN (\(allSkillIds.map { String($0) }.joined(separator: ",")))
+                AND attribute_id = 275
+            """
+            
+            var timeMultipliers: [Int: Double] = [:]
+            if case .success(let attrRows) = databaseManager.executeQuery(timeMultiplierQuery) {
+                for row in attrRows {
+                    if let typeId = row["type_id"] as? Int,
+                       let value = row["value"] as? Double {
+                        timeMultipliers[typeId] = value
+                    }
+                }
+            }
+            
+            // 4. 合并结果，已学习的技能显示详细信息，未学习的显示基本信息
+            return allMatchedSkills.map { typeId, name in
+                let learnedSkill = learnedSkills.first { $0.0 == typeId }
+                return (
+                    typeId: typeId,
+                    name: name,
+                    timeMultiplier: timeMultipliers[typeId] ?? 1.0,
+                    currentSkillPoints: learnedSkill?.2.skillpoints_in_skill,
+                    currentLevel: learnedSkill?.2.trained_skill_level,
+                    trainingRate: nil
+                )
+            }.sorted { $0.name < $1.name }
+        }
+    }
+    
+    // 添加一个字典来存储技能ID到技能信息的映射
+    private var skillInfoDict: [Int: SkillInfo] = [:]
     
     init(characterId: Int, databaseManager: DatabaseManager, characterDatabaseManager: CharacterDatabaseManager) {
         self.characterId = characterId
@@ -120,6 +205,9 @@ class SkillCategoryViewModel: ObservableObject {
                 }
             }
             
+            // 保存技能信息字典以供搜索使用
+            self.skillInfoDict = skillInfoDict
+            
             // 4. 按技能组组织数据
             var groups: [SkillGroup] = []
             for (groupId, groupInfo) in groupDict {
@@ -144,6 +232,112 @@ class SkillCategoryViewModel: ObservableObject {
         } catch {
             Logger.error("解析技能数据失败: \(error)")
         }
+    }
+}
+
+// 通用技能单元格视图
+struct SkillCellView: View {
+    let skill: (
+        typeId: Int,
+        name: String,
+        timeMultiplier: Double,
+        currentSkillPoints: Int?,
+        currentLevel: Int?,
+        trainingRate: Int?
+    )
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 2) {
+                Text(skill.name)
+                    .lineLimit(1)
+                if skill.timeMultiplier >= 1 {
+                    Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
+                }
+                Spacer()
+                if let currentLevel = skill.currentLevel {
+                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                        .padding(.trailing, 2)
+                    SkillLevelIndicator(
+                        currentLevel: currentLevel,
+                        trainingLevel: currentLevel,
+                        isTraining: false
+                    )
+                    .padding(.trailing, 4)
+                } else {
+                    Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                        .padding(.trailing, 4)
+                }
+            }
+            
+            VStack(spacing: 2) {
+                HStack(spacing: 2) {
+                    let maxSkillPoints = Int(256000 * skill.timeMultiplier)
+                    let currentPoints = skill.currentSkillPoints ?? 0
+                    Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
+                              formatNumber(currentPoints),
+                              formatNumber(maxSkillPoints)))
+                    if let rate = skill.trainingRate {
+                        Text("(\(formatNumber(rate))/h)")
+                    }
+                    Spacer()
+                    
+                    // 添加下一级训练时间显示
+                    let currentLevel = skill.currentLevel ?? 0
+                    if currentLevel < 5,  // 只有当前等级小于5时才显示
+                       let rate = skill.trainingRate {
+                        let nextLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[currentLevel]) * skill.timeMultiplier)
+                        let remainingSP = nextLevelPoints - currentPoints
+                        let trainingTimeHours = Double(remainingSP) / Double(rate)
+                        let trainingTime = trainingTimeHours * 3600 // 转换为秒
+                        
+                        Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
+                                  formatTimeInterval(trainingTime)))
+                    }
+                }
+            }
+            .font(.caption)
+            .foregroundColor(.secondary)
+        }
+    }
+    
+    private func formatNumber(_ number: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
+    private func formatTimeInterval(_ interval: TimeInterval) -> String {
+        // 先转换为分钟
+        let totalMinutes = Int(ceil(interval / 60))
+        let days = totalMinutes / (24 * 60)
+        let remainingMinutes = totalMinutes % (24 * 60)
+        let hours = remainingMinutes / 60
+        let minutes = remainingMinutes % 60
+        
+        if days > 0 {
+            // 如果有剩余分钟，小时数要加1
+            let adjustedHours = (remainingMinutes % 60 > 0) ? hours + 1 : hours
+            if adjustedHours > 0 {
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                            days, adjustedHours)
+            }
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        } else if hours > 0 {
+            // 如果有剩余分钟，分钟数要向上取整
+            if minutes > 0 {
+                return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                            hours, minutes)
+            }
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        }
+        // 分钟数已经在一开始就向上取整了
+        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
     }
 }
 
@@ -199,33 +393,54 @@ struct SkillCategoryView: View {
                 Text(NSLocalizedString("Main_Skills_No_Skills", comment: ""))
                     .foregroundColor(.secondary)
             } else {
-                ForEach(viewModel.skillGroups.sorted(by: { $0.id < $1.id })) { group in
-                    NavigationLink {
-                        SkillGroupDetailView(group: group, databaseManager: databaseManager, characterId: characterId)
-                    } label: {
-                        HStack(spacing: 12) {
-                            // 显示技能组图标
-                            if let iconName = skillGroupIcons[group.id] {
-                                Image(iconName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 32)
-                                    .cornerRadius(8)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(group.name)
-                                Text("\(group.skills.count)/\(group.totalSkillsInGroup) Skills - \(formatNumber(group.totalSkillPoints)) SP")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                if viewModel.searchText.isEmpty {
+                    // 显示技能组列表
+                    ForEach(viewModel.skillGroups.sorted(by: { $0.id < $1.id })) { group in
+                        NavigationLink {
+                            SkillGroupDetailView(group: group, databaseManager: databaseManager, characterId: characterId)
+                        } label: {
+                            HStack(spacing: 12) {
+                                // 显示技能组图标
+                                if let iconName = skillGroupIcons[group.id] {
+                                    Image(iconName)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 36, height: 32)
+                                        .cornerRadius(8)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(group.name)
+                                    Text("\(group.skills.count)/\(group.totalSkillsInGroup) Skills - \(formatNumber(group.totalSkillPoints)) SP")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                } else {
+                    // 显示搜索结果
+                    ForEach(viewModel.filteredSkills, id: \.typeId) { skill in
+                        NavigationLink {
+                            ShowItemInfo(
+                                databaseManager: databaseManager,
+                                itemID: skill.typeId
+                            )
+                        } label: {
+                            SkillCellView(skill: skill)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Category", comment: ""))
+        .searchable(
+            text: $viewModel.searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        )
         .onAppear {
             Task {
                 await viewModel.loadSkills()
@@ -238,6 +453,34 @@ struct SkillCategoryView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+    
+    private func formatTimeInterval(_ interval: TimeInterval) -> String {
+        // 先转换为分钟
+        let totalMinutes = Int(ceil(interval / 60))
+        let days = totalMinutes / (24 * 60)
+        let remainingMinutes = totalMinutes % (24 * 60)
+        let hours = remainingMinutes / 60
+        let minutes = remainingMinutes % 60
+        
+        if days > 0 {
+            // 如果有剩余分钟，小时数要加1
+            let adjustedHours = (remainingMinutes % 60 > 0) ? hours + 1 : hours
+            if adjustedHours > 0 {
+                return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), 
+                            days, adjustedHours)
+            }
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        } else if hours > 0 {
+            // 如果有剩余分钟，分钟数要向上取整
+            if minutes > 0 {
+                return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), 
+                            hours, minutes)
+            }
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        }
+        // 分钟数已经在一开始就向上取整了
+        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
     }
 }
 
@@ -270,62 +513,7 @@ struct SkillGroupDetailView: View {
                             itemID: skill.typeId
                         )
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 2) {
-                                Text(skill.name)
-                                    .lineLimit(1)
-                                if skill.timeMultiplier >= 1 {
-                                    Text("(×\(String(format: "%.0f", skill.timeMultiplier)))")
-                                }
-                                Spacer()
-                                if let currentLevel = skill.currentLevel {
-                                    Text(String(format: NSLocalizedString("Main_Skills_Level", comment: ""), currentLevel))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .padding(.trailing, 2)
-                                    SkillLevelIndicator(
-                                        currentLevel: currentLevel,
-                                        trainingLevel: currentLevel,
-                                        isTraining: false
-                                    )
-                                    .padding(.trailing, 4)
-                                } else {
-                                    Text(NSLocalizedString("Main_Skills_Not_Injected", comment: ""))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                        .padding(.trailing, 4)
-                                }
-                            }
-                            
-                            VStack(spacing: 2) {
-                                HStack(spacing: 2) {
-                                    let maxSkillPoints = Int(256000 * skill.timeMultiplier)
-                                    let currentPoints = skill.currentSkillPoints ?? 0
-                                    Text(String(format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                                              formatNumber(currentPoints),
-                                              formatNumber(maxSkillPoints)))
-                                    if let rate = skill.trainingRate {
-                                        Text("(\(formatNumber(rate))/h)")
-                                    }
-                                    Spacer()
-                                    
-                                    // 添加下一级训练时间显示
-                                    let currentLevel = skill.currentLevel ?? 0
-                                    if currentLevel < 5,  // 只有当前等级小于5时才显示
-                                       let rate = skill.trainingRate {
-                                        let nextLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[currentLevel]) * skill.timeMultiplier)
-                                        let remainingSP = nextLevelPoints - currentPoints
-                                        let trainingTimeHours = Double(remainingSP) / Double(rate)
-                                        let trainingTime = trainingTimeHours * 3600 // 转换为秒
-                                        
-                                        Text(String(format: NSLocalizedString("Main_Skills_Time_Required", comment: ""), 
-                                                  formatTimeInterval(trainingTime)))
-                                    }
-                                }
-                            }
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        }
+                        SkillCellView(skill: skill)
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
