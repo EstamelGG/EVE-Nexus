@@ -138,12 +138,12 @@ struct BRKillMailFittingView: View {
     var body: some View {
         GeometryReader { geometry in
             let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-            let outerRadius = geometry.size.width * 0.475
-            let slotOuterRadius = outerRadius - 5
-            let slotInnerRadius = slotOuterRadius - 36
+            let outerRadius = geometry.size.width * 0.4 // 高中低槽环半径
+            let slotOuterRadius = outerRadius - 1 // 高中低槽到外环的距离
+            let slotInnerRadius = slotOuterRadius - 35 // 槽位扇形的高度
             let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 槽位中心线半径
             
-            let innerCircleRadius = outerRadius * 0.55
+            let innerCircleRadius = outerRadius * 0.6
             let innerSlotOuterRadius = innerCircleRadius - 5
             let innerSlotInnerRadius = innerSlotOuterRadius - 30
             let innerSlotCenterRadius = (innerSlotOuterRadius + innerSlotInnerRadius) / 2
@@ -154,7 +154,7 @@ struct BRKillMailFittingView: View {
                 // 基础圆环
                 Circle()
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
-                    .frame(width: geometry.size.width * 0.95)
+                    .frame(width: geometry.size.width * 0.85) // 最外环半径
                 
                 // 内环和飞船图片
                 ZStack {
