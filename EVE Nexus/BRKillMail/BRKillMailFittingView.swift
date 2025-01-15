@@ -65,16 +65,41 @@ struct BRKillMailFittingView: View {
         SlotInfo(id: 128, name: "SubSystem3", type: .subsystem)
     ]
     
+    // 添加装备和飞船图片状态
+    @State private var shipImage: Image?
+    @State private var equipmentIcons: [Int: Image] = [:]
+    
+    // 计算每个槽位的位置
+    private func calculateSlotPosition(
+        center: CGPoint,
+        radius: CGFloat,
+        startAngle: Double,
+        slotIndex: Int,
+        totalSlots: Int,
+        totalAngle: Double
+    ) -> CGPoint {
+        let slotWidth = totalAngle / Double(totalSlots)
+        let angle = startAngle + slotWidth * Double(slotIndex) + (slotWidth / 2) // 加上半个槽位宽度使图标居中
+        let radian = (angle - 90) * .pi / 180 // 调整为12点钟方向为0度
+        
+        return CGPoint(
+            x: center.x + radius * Foundation.cos(radian),
+            y: center.y + radius * Foundation.sin(radian)
+        )
+    }
+    
     var body: some View {
         GeometryReader { geometry in
-            let outerRadius = geometry.size.width * 0.475 // 外环半径
-            let slotOuterRadius = outerRadius - 5 // 槽位区域的外半径，与外环保持10的间距
-            let slotInnerRadius = slotOuterRadius - 36 // 槽位区域的内半径
+            let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
+            let outerRadius = geometry.size.width * 0.475
+            let slotOuterRadius = outerRadius - 5
+            let slotInnerRadius = slotOuterRadius - 36
+            let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 槽位中心线半径
             
-            // 内环相关尺寸
-            let innerCircleRadius = outerRadius * 0.55 // 内环半径约为外环的55%
-            let innerSlotOuterRadius = innerCircleRadius - 5 // 内环槽位外半径，与内环保持10的间距
-            let innerSlotInnerRadius = innerSlotOuterRadius - 30 // 内环槽位内半径
+            let innerCircleRadius = outerRadius * 0.55
+            let innerSlotOuterRadius = innerCircleRadius - 5
+            let innerSlotInnerRadius = innerSlotOuterRadius - 30
+            let innerSlotCenterRadius = (innerSlotOuterRadius + innerSlotInnerRadius) / 2
             
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
@@ -158,6 +183,104 @@ struct BRKillMailFittingView: View {
                     slotCount: 4
                 )
                 .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                
+                // 飞船图片（在内环中）
+                if let shipImage = shipImage {
+                    shipImage
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: innerCircleRadius * 1.8)
+                }
+                
+                // 高槽装备图标
+                ForEach(0..<8) { index in
+                    if let icon = equipmentIcons[highSlots[index].id] {
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .position(calculateSlotPosition(
+                                center: center,
+                                radius: slotCenterRadius,
+                                startAngle: -52,
+                                slotIndex: index,
+                                totalSlots: 8,
+                                totalAngle: 104
+                            ))
+                    }
+                }
+                
+                // 低槽装备图标
+                ForEach(0..<8) { index in
+                    if let icon = equipmentIcons[lowSlots[index].id] {
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .position(calculateSlotPosition(
+                                center: center,
+                                radius: slotCenterRadius,
+                                startAngle: 68,
+                                slotIndex: index,
+                                totalSlots: 8,
+                                totalAngle: 104
+                            ))
+                    }
+                }
+                
+                // 中槽装备图标
+                ForEach(0..<8) { index in
+                    if let icon = equipmentIcons[mediumSlots[index].id] {
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .position(calculateSlotPosition(
+                                center: center,
+                                radius: slotCenterRadius,
+                                startAngle: 188,
+                                slotIndex: index,
+                                totalSlots: 8,
+                                totalAngle: 104
+                            ))
+                    }
+                }
+                
+                // 装备架图标
+                ForEach(0..<3) { index in
+                    if let icon = equipmentIcons[rigSlots[index].id] {
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .position(calculateSlotPosition(
+                                center: center,
+                                radius: innerSlotCenterRadius,
+                                startAngle: 142,
+                                slotIndex: index,
+                                totalSlots: 3,
+                                totalAngle: 76
+                            ))
+                    }
+                }
+                
+                // 子系统图标
+                ForEach(0..<4) { index in
+                    if let icon = equipmentIcons[subsystemSlots[index].id] {
+                        icon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .position(calculateSlotPosition(
+                                center: center,
+                                radius: innerSlotCenterRadius,
+                                startAngle: -48,
+                                slotIndex: index,
+                                totalSlots: 4,
+                                totalAngle: 96
+                            ))
+                    }
+                }
             }
         }
     }
