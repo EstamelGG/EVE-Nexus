@@ -19,6 +19,7 @@ struct SlotInfo {
 
 struct BRKillMailFittingView: View {
     let killMailId: Int
+    let databaseManager = DatabaseManager.shared
     
     // 槽位定义
     private let highSlots: [SlotInfo] = [
@@ -72,8 +73,40 @@ struct BRKillMailFittingView: View {
     @State private var equipmentIcons: [Int: Image] = [:]
     @State private var isLoading = true
     
+    // 从数据库批量获取图标文件名
+    private func getIconFileNames(typeIds: [Int]) -> [Int: String] {
+        guard !typeIds.isEmpty else { 
+            Logger.debug("装配图标: 没有需要获取的图标")
+            return [:] 
+        }
+        
+        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
+        let query = """
+            SELECT type_id, icon_filename 
+            FROM types 
+            WHERE type_id IN (\(placeholders))
+        """
+        
+        Logger.debug("装配图标: 开始查询 \(typeIds.count) 个物品的图标")
+        var iconFileNames: [Int: String] = [:]
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: typeIds) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let iconFileName = row["icon_filename"] as? String {
+                    let finalIconName = iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    iconFileNames[typeId] = finalIconName
+                    Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName)")
+                }
+            }
+        }
+        
+        Logger.debug("装配图标: 成功获取 \(iconFileNames.count) 个图标文件名")
+        return iconFileNames
+    }
+    
     // 加载 killmail 数据
     private func loadKillMailData() async {
+        Logger.debug("装配图标: 开始加载 KillMail ID \(killMailId)")
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
         
         do {
@@ -83,12 +116,24 @@ struct BRKillMailFittingView: View {
                let items = victInfo["itms"] as? [[Int]],
                let shipId = victInfo["ship"] as? Int {
                 
+                Logger.debug("装配图标: 成功获取击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
+                
+                // 收集所有需要获取图标的type_id
+                var typeIds = [shipId]
+                for item in items where item.count >= 4 {
+                    typeIds.append(item[1])
+                }
+                
+                Logger.debug("装配图标: 需要获取 \(typeIds.count) 个物品的图标")
+                
+                // 一次性获取所有图标文件名
+                let iconFileNames = getIconFileNames(typeIds: typeIds)
+                
                 // 加载飞船图标
-                let shipIconUrl = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=256")!
-                if let (shipData, _) = try? await URLSession.shared.data(from: shipIconUrl),
-                   let uiImage = UIImage(data: shipData) {
+                if let shipIconFileName = iconFileNames[shipId] {
+                    Logger.debug("装配图标: 加载飞船图标 \(shipIconFileName)")
                     await MainActor.run {
-                        shipImage = Image(uiImage: uiImage)
+                        shipImage = IconManager.shared.loadImage(for: shipIconFileName)
                     }
                 }
                 
@@ -98,21 +143,21 @@ struct BRKillMailFittingView: View {
                     let slotId = item[0]
                     let typeId = item[1]
                     
-                    let iconUrl = URL(string: "https://images.evetech.net/types/\(typeId)/icon?size=64")!
-                    if let (iconData, _) = try? await URLSession.shared.data(from: iconUrl),
-                       let uiImage = UIImage(data: iconData) {
+                    if let iconFileName = iconFileNames[typeId] {
+                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(typeId), 图标: \(iconFileName)")
                         await MainActor.run {
-                            equipmentIcons[slotId] = Image(uiImage: uiImage)
+                            equipmentIcons[slotId] = IconManager.shared.loadImage(for: iconFileName)
                         }
                     }
                 }
             }
         } catch {
-            print("Error loading killmail data: \(error)")
+            Logger.error("装配图标: 加载击毁数据失败 - \(error)")
         }
         
         await MainActor.run {
             isLoading = false
+            Logger.debug("装配图标: 加载完成")
         }
     }
     
