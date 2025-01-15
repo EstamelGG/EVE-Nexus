@@ -224,11 +224,11 @@ struct BRKillMailDetailView: View {
             }
         }
         .task {
-            await loadKillMailDetail()
+            await loadBRKillMailDetail()
         }
     }
     
-    private func loadKillMailDetail() async {
+    private func loadBRKillMailDetail() async {
         isLoading = true
         defer { isLoading = false }
         
