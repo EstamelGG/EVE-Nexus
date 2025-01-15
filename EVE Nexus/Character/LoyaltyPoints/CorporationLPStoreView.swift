@@ -90,8 +90,22 @@ struct LPStoreGroupView: View {
     let categoryName: String
     let offers: [LPStoreOffer]
     let itemInfos: [Int: LPStoreItemInfo]
+    @State private var searchText = ""
     
-    var sortedOffers: [LPStoreOffer] {
+    private var filteredOffers: [LPStoreOffer] {
+        if searchText.isEmpty {
+            return sortedOffers
+        } else {
+            return sortedOffers.filter { offer in
+                if let itemInfo = itemInfos[offer.typeId] {
+                    return itemInfo.name.localizedCaseInsensitiveContains(searchText)
+                }
+                return false
+            }
+        }
+    }
+    
+    private var sortedOffers: [LPStoreOffer] {
         offers.sorted { offer1, offer2 in
             if offer1.typeId != offer2.typeId {
                 return offer1.typeId < offer2.typeId
@@ -105,7 +119,7 @@ struct LPStoreGroupView: View {
     
     var body: some View {
         List {
-            ForEach(sortedOffers, id: \.offerId) { offer in
+            ForEach(filteredOffers, id: \.offerId) { offer in
                 if let itemInfo = itemInfos[offer.typeId] {
                     LPStoreOfferView(
                         offer: offer,
@@ -116,6 +130,11 @@ struct LPStoreGroupView: View {
             }
         }
         .navigationTitle(categoryName)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        )
     }
 }
 
