@@ -207,6 +207,15 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     Text(formatISK(totalValue))
                 }
+                
+                // 装配图
+                if let killId = killmail["_id"] as? Int {
+                    Section(header: Text(NSLocalizedString("Main_KM_Fitting", comment: ""))) {
+                        BRKillMailFittingView(killMailId: killId)
+                            .frame(height: 400)
+                            .cornerRadius(8)
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -234,7 +243,7 @@ struct BRKillMailDetailView: View {
         
         do {
             if let killId = killmail["_id"] as? Int {
-                Logger.debug("准备获取战报ID: \(killId)的详细信息")
+                Logger.debug("装配图: 开始加载战报ID \(killId) 的详细信息")
                 let detail = try await kbAPI.fetchKillMailDetail(killMailId: killId)
                 
                 // 获取到详细数据后加载图标
