@@ -183,7 +183,7 @@ class KbEvetoolAPI {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                    let name = row["name"] as? String {
-                    let imageURL = "https://images.evetech.net/types/\(typeId)/icon?size=32"
+                    let imageURL = "https://images.evetech.net/types/\(typeId)/icon?size=64"
                     result["inventory_type"]?.append(ZKBSearchResult(
                         id: typeId,
                         name: name,

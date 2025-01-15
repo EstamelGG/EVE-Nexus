@@ -160,13 +160,23 @@ class KillMailViewModel: ObservableObject {
     }
     
     private func loadOrganizationIcon(type: String, id: Int) async -> UIImage? {
-        let baseURL = "https://images.evetech.net/\(type)s/\(id)/logo"
-        guard let iconURL = URL(string: "\(baseURL)?size=64") else { return nil }
-        
         do {
-            let data = try await NetworkManager.shared.fetchData(from: iconURL)
-            return UIImage(data: data)
+            switch type {
+            case "alliance":
+                return try await AllianceAPI.shared.fetchAllianceLogo(allianceID: id, size: 64)
+            case "corporation":
+                return try await CorporationAPI.shared.fetchCorporationLogo(corporationId: id, size: 64)
+            case "character":
+                // 暂时保持原有的获取方式，直到我们实现CharacterAPI
+                let urlString = "https://images.evetech.net/characters/\(id)/portrait?size=64"
+                guard let url = URL(string: urlString) else { return nil }
+                let data = try await NetworkManager.shared.fetchData(from: url)
+                return UIImage(data: data)
+            default:
+                return nil
+            }
         } catch {
+            Logger.error("加载\(type)图标失败 - ID: \(id), 错误: \(error)")
             return nil
         }
     }
