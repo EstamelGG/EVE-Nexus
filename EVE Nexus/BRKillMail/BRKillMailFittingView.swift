@@ -18,6 +18,8 @@ struct SlotInfo {
 }
 
 struct BRKillMailFittingView: View {
+    let killMailId: Int
+    
     // 槽位定义
     private let highSlots: [SlotInfo] = [
         SlotInfo(id: 27, name: "HiSlot0", type: .high),
@@ -68,6 +70,51 @@ struct BRKillMailFittingView: View {
     // 添加装备和飞船图片状态
     @State private var shipImage: Image?
     @State private var equipmentIcons: [Int: Image] = [:]
+    @State private var isLoading = true
+    
+    // 加载 killmail 数据
+    private func loadKillMailData() async {
+        let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let victInfo = json["vict"] as? [String: Any],
+               let items = victInfo["itms"] as? [[Int]],
+               let shipId = victInfo["ship"] as? Int {
+                
+                // 加载飞船图标
+                let shipIconUrl = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=256")!
+                if let (shipData, _) = try? await URLSession.shared.data(from: shipIconUrl),
+                   let uiImage = UIImage(data: shipData) {
+                    await MainActor.run {
+                        shipImage = Image(uiImage: uiImage)
+                    }
+                }
+                
+                // 加载装备图标
+                for item in items {
+                    guard item.count >= 4 else { continue }
+                    let slotId = item[0]
+                    let typeId = item[1]
+                    
+                    let iconUrl = URL(string: "https://images.evetech.net/types/\(typeId)/icon?size=64")!
+                    if let (iconData, _) = try? await URLSession.shared.data(from: iconUrl),
+                       let uiImage = UIImage(data: iconData) {
+                        await MainActor.run {
+                            equipmentIcons[slotId] = Image(uiImage: uiImage)
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("Error loading killmail data: \(error)")
+        }
+        
+        await MainActor.run {
+            isLoading = false
+        }
+    }
     
     // 计算每个槽位的位置
     private func calculateSlotPosition(
@@ -281,6 +328,15 @@ struct BRKillMailFittingView: View {
                             ))
                     }
                 }
+                
+                if isLoading {
+                    ProgressView()
+                }
+            }
+        }
+        .onAppear {
+            Task {
+                await loadKillMailData()
             }
         }
     }
@@ -382,7 +438,7 @@ struct SlotSection: Shape {
 // 预览
 struct BRKillMailFittingView_Previews: PreviewProvider {
     static var previews: some View {
-        BRKillMailFittingView()
+        BRKillMailFittingView(killMailId: 123738476) // 使用一个实际的 killmail ID
             .frame(width: 400, height: 400)
             .preferredColorScheme(.dark)
     }
