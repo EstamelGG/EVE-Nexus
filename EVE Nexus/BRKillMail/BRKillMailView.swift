@@ -83,9 +83,9 @@ class KillMailViewModel: ObservableObject {
             case .all:
                 response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
             case .kill:
-                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, isKills: true)
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, filter: .kill)
             case .loss:
-                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, isLosses: true)
+                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId, filter: .loss)
             }
             
             guard let mails = response["data"] as? [[String: Any]] else {

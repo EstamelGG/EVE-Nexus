@@ -28,32 +28,46 @@ class KbEvetoolAPI {
     }
     
     // 获取角色战斗记录
-    func fetchCharacterKillMails(characterId: Int, page: Int = 1, isKills: Bool = false, isLosses: Bool = false) async throws -> [String: Any] {
-        Logger.debug("准备发送请求 - 角色ID: \(characterId), 页码: \(page), 是否击杀: \(isKills), 是否损失: \(isLosses)")
+    func fetchCharacterKillMails(characterId: Int, page: Int = 1, filter: KillMailFilter = .all) async throws -> [String: Any] {
+        Logger.debug("准备获取角色战斗日志 - 角色ID: \(characterId), 页码: \(page)")
         
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let headers = [
+            "Accept-Encoding": "gzip",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
         
         // 构造请求体
-        var requestBody: [String: Any] = ["charID": characterId, "page": page]
-        if isKills {
+        var requestBody: [String: Any] = [
+            "charID": characterId,
+            "page": page
+        ]
+        
+        // 添加过滤参数
+        switch filter {
+        case .kill:
             requestBody["isKills"] = true
-        }
-        if isLosses {
+        case .loss:
             requestBody["isLosses"] = true
+        case .all:
+            break
         }
         
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let bodyData = try JSONSerialization.data(withJSONObject: requestBody)
         
         // 打印请求体内容
-        if let jsonString = String(data: request.httpBody!, encoding: .utf8) {
+        if let jsonString = String(data: bodyData, encoding: .utf8) {
             Logger.debug("请求体内容: \(jsonString)")
         }
         
         Logger.debug("开始发送网络请求...")
-        let data = try await NetworkManager.shared.fetchData(from: url, method: "POST", body: request.httpBody)
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            method: "POST",
+            body: bodyData,
+            headers: headers
+        )
         Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         
         // 解析JSON数据
@@ -187,7 +201,16 @@ class KbEvetoolAPI {
         }
         
         // 发送请求
-        let data = try await NetworkManager.shared.fetchData(from: url)
+        let headers = [
+            "Accept-Encoding": "gzip",
+            "Accept": "application/json"
+        ]
+        Logger.debug("开始发送zkillboard搜索请求...")
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            headers: headers
+        )
+        Logger.debug("收到zkillboard响应，数据大小: \(data.count) 字节")
         
         // 解析 JSON 响应
         guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
@@ -229,13 +252,15 @@ class KbEvetoolAPI {
     }
     
     // 根据搜索结果获取战斗日志
-    func fetchKillMailsBySearchResult(_ result: SearchResult, page: Int = 1, filter: KillMailFilter = .all) async throws -> [String: Any] {
-        Logger.debug("准备发送请求 - 类型: \(result.category), ID: \(result.id), 页码: \(page), 过滤器: \(filter)")
+    func fetchKillMailsBySearchResult(result: SearchResult, page: Int = 1, filter: KillMailFilter = .all) async throws -> [String: Any] {
+        Logger.debug("准备获取战斗日志列表 - 类型: \(result.category), ID: \(result.id), 页码: \(page)")
         
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let headers = [
+            "Accept-Encoding": "gzip",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
         
         // 根据不同类型构造请求体
         var requestBody: [String: Any] = ["page": page]
@@ -264,15 +289,20 @@ class KbEvetoolAPI {
             break
         }
         
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let bodyData = try JSONSerialization.data(withJSONObject: requestBody)
         
         // 打印请求体内容
-        if let jsonString = String(data: request.httpBody!, encoding: .utf8) {
+        if let jsonString = String(data: bodyData, encoding: .utf8) {
             Logger.debug("请求体内容: \(jsonString)")
         }
         
         Logger.debug("开始发送网络请求...")
-        let data = try await NetworkManager.shared.fetchData(from: url, method: "POST", body: request.httpBody)
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            method: "POST",
+            body: bodyData,
+            headers: headers
+        )
         Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         
         // 解析JSON数据
@@ -288,9 +318,16 @@ class KbEvetoolAPI {
         Logger.debug("准备获取战斗日志详情 - ID: \(killMailId)")
         
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
+        let headers = [
+            "Accept-Encoding": "gzip",
+            "Accept": "application/json"
+        ]
         
         Logger.debug("开始发送网络请求...")
-        let data = try await NetworkManager.shared.fetchData(from: url)
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            headers: headers
+        )
         Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         
         // 解析JSON数据

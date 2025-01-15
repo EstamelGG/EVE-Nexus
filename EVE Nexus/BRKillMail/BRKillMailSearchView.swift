@@ -158,7 +158,7 @@ struct BRKillMailSearchView: View {
         corporationIconMap = [:]
         
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult, page: currentPage, filter: selectedFilter)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(result: selectedResult, page: currentPage, filter: selectedFilter)
             if let data = response["data"] as? [[String: Any]] {
                 killMails = data
                 await loadShipInfo(for: data)
@@ -181,7 +181,7 @@ struct BRKillMailSearchView: View {
         currentPage += 1
         
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(selectedResult, page: currentPage, filter: selectedFilter)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(result: selectedResult, page: currentPage, filter: selectedFilter)
             if let data = response["data"] as? [[String: Any]] {
                 killMails.append(contentsOf: data)
                 await loadShipInfo(for: data)
