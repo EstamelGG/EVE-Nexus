@@ -9,7 +9,7 @@ struct BRKillMailFittingView: View {
             let slotInnerRadius = slotOuterRadius - 36 // 槽位区域的内半径
             
             // 内环相关尺寸
-            let innerCircleRadius = outerRadius * 0.55 // 内环半径约为外环的45%
+            let innerCircleRadius = outerRadius * 0.55 // 内环半径约为外环的55%
             let innerSlotOuterRadius = innerCircleRadius - 5 // 内环槽位外半径，与内环保持10的间距
             let innerSlotInnerRadius = innerSlotOuterRadius - 30 // 内环槽位内半径
             
