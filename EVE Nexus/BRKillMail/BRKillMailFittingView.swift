@@ -66,6 +66,18 @@ struct BRKillMailFittingView: View {
                     slotCount: 8
                 )
                 .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                
+                // 底部装备架区域（3个槽位，每个槽位28度）
+                SlotSection(
+                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    innerRadius: 60,
+                    outerRadius: 90,
+                    startAngle: 138,
+                    endAngle: 222,
+                    use12OClock: true,
+                    slotCount: 3
+                )
+                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
             }
         }
     }
