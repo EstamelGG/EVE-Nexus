@@ -244,14 +244,12 @@ struct BRKillMailDetailView: View {
                    let prices = detail["prices"] as? [String: Double] {
                     // 计算船只价值
                     if let shipId = victInfo["ship"] as? Int {
-                        shipValue = try await getItemPrice(typeId: shipId, prices: prices)
+                        shipValue = getItemPrice(typeId: shipId, prices: prices)
+                        destroyedValue = shipValue
                     }
                     
                     // 计算其他价值
-                    let values = try await calculateValues(victInfo: victInfo, prices: prices)
-                    destroyedValue = values.destroyed
-                    droppedValue = values.dropped
-                    totalValue = values.destroyed + values.dropped
+                    calculateValues(victInfo: victInfo, prices: prices)
                 }
                 
                 // 所有数据都准备好后再更新UI
@@ -366,95 +364,61 @@ struct BRKillMailDetailView: View {
         return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
     }
     
-    // 从zkillboard获取物品价格
-    private func fetchZKillboardPrice(typeId: Int) async throws -> Double? {
-        let url = URL(string: "https://zkillboard.com/api/prices/\(typeId)/")!
-        do {
-            let data = try await NetworkManager.shared.fetchData(from: url)
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let price = json["currentPrice"] as? Double {
-                return price
-            }
-        } catch {
-            Logger.error("从zkillboard获取价格失败 - TypeID: \(typeId), Error: \(error)")
-            throw error
-        }
-        return nil
+    private func getItemPrice(typeId: Int, prices: [String: Double]) -> Double {
+        return prices[String(typeId)] ?? 0.0
     }
     
-    private func getItemPrice(typeId: Int, prices: [String: Double]) async throws -> Double {
-        // 从本地价格数据获取价格
-        let price = prices[String(typeId)] ?? 0
-        
-        // 如果价格为1.00，尝试从zkillboard获取
-        if price == 1.00 {
-            Logger.debug("检测到异常价格1.00，尝试从zkillboard获取 - TypeID: \(typeId)")
-            if let zkbPrice = try await fetchZKillboardPrice(typeId: typeId) {
-                Logger.debug("成功从zkillboard获取价格 - TypeID: \(typeId), Price: \(zkbPrice)")
-                return zkbPrice
-            }
-        }
-        
-        return price
-    }
-    
-    private func calculateValues(victInfo: [String: Any], prices: [String: Double]) async throws -> (destroyed: Double, dropped: Double) {
-        var destroyedTotal: Double = 0
-        var droppedTotal: Double = 0
-        
-        // 首先加入船体本身的价值到被摧毁总价值中
+    private func calculateValues(victInfo: [String: Any], prices: [String: Double]) {
+        // 获取舰船价值
         if let shipId = victInfo["ship"] as? Int {
-            let shipPrice = try await getItemPrice(typeId: shipId, prices: prices)
-            destroyedTotal += shipPrice
+            shipValue = getItemPrice(typeId: shipId, prices: prices)
+            destroyedValue = shipValue
         }
         
-        // 计算主船装备
+        // 计算装备价值
         if let items = victInfo["itms"] as? [[Int]] {
             for item in items {
-                if item.count >= 4 {
-                    let typeId = item[1]
-                    let dropped = item[2]    // 掉落的数量
-                    let destroyed = item[3]   // 被摧毁的数量
-                    
-                    let price = try await getItemPrice(typeId: typeId, prices: prices)
-                    droppedTotal += price * Double(dropped)
-                    destroyedTotal += price * Double(destroyed)
-                }
+                guard item.count >= 4 else { continue }
+                let typeId = item[1]
+                let dropped = item[2]
+                let destroyed = item[3]
+                
+                let price = getItemPrice(typeId: typeId, prices: prices)
+                droppedValue += price * Double(dropped)
+                destroyedValue += price * Double(destroyed)
             }
         }
         
-        // 计算容器中的物品
+        // 计算容器中物品的价值
         if let containers = victInfo["cnts"] as? [[String: Any]] {
             for container in containers {
-                // 首先计算容器本身的价值
-                if let containerTypeId = container["type"] as? Int {
-                    let containerPrice = try await getItemPrice(typeId: containerTypeId, prices: prices)
+                if let typeId = container["type"] as? Int {
+                    let price = getItemPrice(typeId: typeId, prices: prices)
+                    
                     if let drop = container["drop"] as? Int, drop == 1 {
-                        droppedTotal += containerPrice
+                        droppedValue += price
                     }
                     if let dstr = container["dstr"] as? Int, dstr == 1 {
-                        destroyedTotal += containerPrice
+                        destroyedValue += price
                     }
                 }
                 
-                // 然后计算容器内物品的价值
-                if let containerItems = container["items"] as? [[Int]] {
-                    for item in containerItems {
-                        if item.count >= 4 {
-                            let typeId = item[1]
-                            let dropped = item[2]
-                            let destroyed = item[3]
-                            
-                            let price = try await getItemPrice(typeId: typeId, prices: prices)
-                            droppedTotal += price * Double(dropped)
-                            destroyedTotal += price * Double(destroyed)
-                        }
+                if let items = container["items"] as? [[Int]] {
+                    for item in items {
+                        guard item.count >= 4 else { continue }
+                        let typeId = item[1]
+                        let dropped = item[2]
+                        let destroyed = item[3]
+                        
+                        let price = getItemPrice(typeId: typeId, prices: prices)
+                        droppedValue += price * Double(dropped)
+                        destroyedValue += price * Double(destroyed)
                     }
                 }
             }
         }
         
-        return (destroyedTotal, droppedTotal)
+        totalValue = droppedValue + destroyedValue
     }
     
     private func openZKillboard(killId: Int) {
