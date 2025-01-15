@@ -128,15 +128,30 @@ struct CorporationLPStoreView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var hasLoadedData = false
+    @State private var searchText = ""
     
-    private var categoryOffers: [(CategoryInfo, [LPStoreOffer])] {
+    private var filteredCategoryOffers: [(CategoryInfo, [LPStoreOffer])] {
         let groups = Dictionary(grouping: offers) { offer in
             itemInfos[offer.typeId]?.categoryName ?? ""
         }
-        return groups.compactMap { name, offers in
+        
+        let filtered = groups.compactMap { name, offers -> (CategoryInfo, [LPStoreOffer])? in
             guard let categoryInfo = categoryInfos[name] else { return nil }
-            return (categoryInfo, offers)
+            
+            if searchText.isEmpty {
+                return (categoryInfo, offers)
+            } else {
+                let filteredOffers = offers.filter { offer in
+                    if let itemInfo = itemInfos[offer.typeId] {
+                        return itemInfo.name.localizedCaseInsensitiveContains(searchText)
+                    }
+                    return false
+                }
+                return filteredOffers.isEmpty ? nil : (categoryInfo, filteredOffers)
+            }
         }.sorted { $0.0.name < $1.0.name }
+        
+        return filtered
     }
     
     var body: some View {
@@ -179,7 +194,7 @@ struct CorporationLPStoreView: View {
                 }
                 .listSectionSpacing(.compact)
             } else {
-                ForEach(categoryOffers, id: \.0.name) { categoryInfo, offers in
+                ForEach(filteredCategoryOffers, id: \.0.name) { categoryInfo, offers in
                     NavigationLink(destination: LPStoreGroupView(
                         categoryName: categoryInfo.name,
                         offers: offers,
@@ -205,6 +220,11 @@ struct CorporationLPStoreView: View {
             }
         }
         .navigationTitle(corporationName)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        )
         .refreshable {
             await loadOffers(forceRefresh: true)
         }

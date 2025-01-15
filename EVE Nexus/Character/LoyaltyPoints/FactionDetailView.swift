@@ -5,6 +5,15 @@ struct FactionDetailView: View {
     @State private var corporations: [Corporation] = []
     @State private var isLoading = true
     @State private var error: Error?
+    @State private var searchText = ""
+    
+    private var filteredCorporations: [Corporation] {
+        if searchText.isEmpty {
+            return corporations
+        } else {
+            return corporations.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
     
     var body: some View {
         List {
@@ -28,7 +37,7 @@ struct FactionDetailView: View {
                     .buttonStyle(.bordered)
                 }
             } else {
-                ForEach(corporations) { corporation in
+                ForEach(filteredCorporations) { corporation in
                     NavigationLink(destination: CorporationLPStoreView(corporationId: corporation.id, corporationName: corporation.name)) {
                         HStack {
                             IconManager.shared.loadImage(for: corporation.iconFileName)
@@ -46,6 +55,11 @@ struct FactionDetailView: View {
             }
         }
         .navigationTitle(faction.name)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        )
         .onAppear {
             loadCorporations()
         }
