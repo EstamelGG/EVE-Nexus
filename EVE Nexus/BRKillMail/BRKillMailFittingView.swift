@@ -68,10 +68,32 @@ struct BRKillMailFittingView: View {
         SlotInfo(id: 128, name: "SubSystem3", type: .subsystem)
     ]
     
-    // 添加装备和飞船图片状态
+    // 添加飞船图片状态
     @State private var shipImage: Image?
+    @State private var shipTypeId: Int?
     @State private var equipmentIcons: [Int: Image] = [:]
     @State private var isLoading = true
+    
+    // 从EVE官方API加载飞船图片
+    private func loadShipImage(typeId: Int) async {
+        let urlString = "https://images.evetech.net/types/\(typeId)/render"
+        guard let url = URL(string: urlString) else {
+            Logger.error("装配图标: 无效的飞船图片URL")
+            return
+        }
+        
+        do {
+            let data = try await NetworkManager.shared.fetchData(from: url)
+            if let uiImage = UIImage(data: data) {
+                await MainActor.run {
+                    shipImage = Image(uiImage: uiImage)
+                    Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
+                }
+            }
+        } catch {
+            Logger.error("装配图标: 加载飞船图片失败 - \(error)")
+        }
+    }
     
     // 从数据库批量获取图标文件名
     private func getIconFileNames(typeIds: [Int]) -> [Int: String] {
@@ -118,8 +140,11 @@ struct BRKillMailFittingView: View {
                 
                 Logger.debug("装配图标: 成功获取击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
                 
+                // 加载飞船图片
+                await loadShipImage(typeId: shipId)
+                
                 // 收集所有需要获取图标的type_id
-                var typeIds = [shipId]
+                var typeIds: [Int] = []
                 for item in items where item.count >= 4 {
                     typeIds.append(item[1])
                 }
@@ -128,14 +153,6 @@ struct BRKillMailFittingView: View {
                 
                 // 一次性获取所有图标文件名
                 let iconFileNames = getIconFileNames(typeIds: typeIds)
-                
-                // 加载飞船图标
-                if let shipIconFileName = iconFileNames[shipId] {
-                    Logger.debug("装配图标: 加载飞船图标 \(shipIconFileName)")
-                    await MainActor.run {
-                        shipImage = IconManager.shared.loadImage(for: shipIconFileName)
-                    }
-                }
                 
                 // 加载装备图标
                 for item in items {
@@ -183,9 +200,9 @@ struct BRKillMailFittingView: View {
     var body: some View {
         GeometryReader { geometry in
             let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-            let outerRadius = geometry.size.width * 0.4 // 高中低槽环半径
-            let slotOuterRadius = outerRadius - 1 // 高中低槽到外环的距离
-            let slotInnerRadius = slotOuterRadius - 35 // 槽位扇形的高度
+            let outerRadius = geometry.size.width * 0.45 // 高中低槽环半径
+            let slotOuterRadius = outerRadius - 10 // 高中低槽到外环的距离
+            let slotInnerRadius = slotOuterRadius - 32 // 槽位扇形的高度
             let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 槽位中心线半径
             
             let innerCircleRadius = outerRadius * 0.6
@@ -199,7 +216,7 @@ struct BRKillMailFittingView: View {
                 // 基础圆环
                 Circle()
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
-                    .frame(width: geometry.size.width * 0.85) // 最外环半径
+                    .frame(width: geometry.size.width * 0.9) // 最外环半径
                 
                 // 内环和飞船图片
                 ZStack {
