@@ -199,24 +199,43 @@ struct BRKillMailFittingView: View {
     
     var body: some View {
         GeometryReader { geometry in
+            let minSize = min(geometry.size.width, geometry.size.height)
+            let baseSize: CGFloat = 400 // 基准尺寸
+            let scale = minSize / baseSize // 计算缩放比例
             let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
-            let outerRadius = geometry.size.width * 0.45 // 高中低槽环半径
-            let slotOuterRadius = outerRadius - 10 // 高中低槽到外环的距离
-            let slotInnerRadius = slotOuterRadius - 32 // 槽位扇形的高度
-            let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 槽位中心线半径
             
-            let innerCircleRadius = outerRadius * 0.6
-            let innerSlotOuterRadius = innerCircleRadius - 5
-            let innerSlotInnerRadius = innerSlotOuterRadius - 30
+            // 基础尺寸计算
+            let baseRadius: CGFloat = 180 // 基础半径
+            let scaledRadius = baseRadius * scale
+            
+            // 外环计算
+            let outerCircleRadius = scaledRadius // 最外圈圆环
+            let outerStrokeWidth: CGFloat = 2 * scale // 外圈线条宽度
+            
+            // 装备槽位圆环计算
+            let slotOuterRadius = scaledRadius - (10 * scale) // 槽位外圈
+            let slotInnerRadius = slotOuterRadius - (35 * scale) // 槽位内圈
+            let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 装备图标放置半径
+            
+            // 中心圆环计算
+            let innerCircleRadius = scaledRadius * 0.6 // 中心圆环半径
+            let innerStrokeWidth: CGFloat = 1.5 * scale // 内圈线条宽度
+            
+            // 内部装备槽位圆环（装备架和子系统）
+            let innerSlotOuterRadius = innerCircleRadius - (5 * scale)
+            let innerSlotInnerRadius = innerSlotOuterRadius - (30 * scale)
             let innerSlotCenterRadius = (innerSlotOuterRadius + innerSlotInnerRadius) / 2
+            
+            // 装备图标尺寸
+            let equipmentIconSize: CGFloat = 32 * scale
             
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
                 
                 // 基础圆环
                 Circle()
-                    .stroke(Color.gray.opacity(0.5), lineWidth: 3)
-                    .frame(width: geometry.size.width * 0.9) // 最外环半径
+                    .stroke(Color.gray.opacity(0.5), lineWidth: outerStrokeWidth)
+                    .frame(width: outerCircleRadius * 2)
                 
                 // 内环和飞船图片
                 ZStack {
@@ -224,86 +243,93 @@ struct BRKillMailFittingView: View {
                     if let shipImage = shipImage {
                         shipImage
                             .resizable()
-                            .scaledToFill()
+                            .scaledToFit()
                             .frame(width: innerCircleRadius * 2, height: innerCircleRadius * 2)
                             .clipShape(Circle())
                     }
                     
                     // 内环（覆盖在飞船图片上）
                     Circle()
-                        .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                         .frame(width: innerCircleRadius * 2)
                 }
                 
                 // 区域分隔线
                 ForEach([60.0, 180.0, 300.0], id: \.self) { angle in
                     SectionDivider(
-                        center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                        radius: outerRadius,
-                        angle: angle
+                        center: center,
+                        radius: slotOuterRadius,
+                        angle: angle,
+                        strokeWidth: outerStrokeWidth,
+                        scale: scale
                     )
-                    .stroke(Color.gray.opacity(0.5), lineWidth: 3)
+                    .stroke(Color.gray.opacity(0.5), lineWidth: outerStrokeWidth)
                 }
                 
                 // 高槽区域 (-56° to 56°, 顶部12点位置)
                 SlotSection(
-                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    center: center,
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
                     startAngle: -52,
                     endAngle: 52,
                     use12OClock: true,
-                    slotCount: 8
+                    slotCount: 8,
+                    strokeWidth: innerStrokeWidth
                 )
-                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 
                 // 右侧低槽区域 (64° to 176°, 4点位置)
                 SlotSection(
-                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    center: center,
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
                     startAngle: 68,
                     endAngle: 172,
                     use12OClock: true,
-                    slotCount: 8
+                    slotCount: 8,
+                    strokeWidth: innerStrokeWidth
                 )
-                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 
                 // 左侧中槽区域 (184° to 296°, 8点位置)
                 SlotSection(
-                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    center: center,
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
                     startAngle: 188,
                     endAngle: 292,
                     use12OClock: true,
-                    slotCount: 8
+                    slotCount: 8,
+                    strokeWidth: innerStrokeWidth
                 )
-                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 
-                // 底部装备架区域（3个槽位，每个槽位28度）
+                // 底部装备架区域（3个槽位）
                 SlotSection(
-                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    center: center,
                     innerRadius: innerSlotInnerRadius,
                     outerRadius: innerSlotOuterRadius,
                     startAngle: 142,
                     endAngle: 218,
                     use12OClock: true,
-                    slotCount: 3
+                    slotCount: 3,
+                    strokeWidth: innerStrokeWidth
                 )
-                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 
-                // 顶部子系统区域（4个槽位，每个槽位28度）
+                // 顶部子系统区域（4个槽位）
                 SlotSection(
-                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    center: center,
                     innerRadius: innerSlotInnerRadius,
                     outerRadius: innerSlotOuterRadius,
                     startAngle: -48,
                     endAngle: 48,
                     use12OClock: true,
-                    slotCount: 4
+                    slotCount: 4,
+                    strokeWidth: innerStrokeWidth
                 )
-                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 
                 // 高槽装备图标
                 ForEach(0..<8) { index in
@@ -311,7 +337,7 @@ struct BRKillMailFittingView: View {
                         icon
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32, height: 32)
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
                             .position(calculateSlotPosition(
                                 center: center,
                                 radius: slotCenterRadius,
@@ -329,7 +355,7 @@ struct BRKillMailFittingView: View {
                         icon
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32, height: 32)
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
                             .position(calculateSlotPosition(
                                 center: center,
                                 radius: slotCenterRadius,
@@ -347,7 +373,7 @@ struct BRKillMailFittingView: View {
                         icon
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32, height: 32)
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
                             .position(calculateSlotPosition(
                                 center: center,
                                 radius: slotCenterRadius,
@@ -365,7 +391,7 @@ struct BRKillMailFittingView: View {
                         icon
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32, height: 32)
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
                             .position(calculateSlotPosition(
                                 center: center,
                                 radius: innerSlotCenterRadius,
@@ -383,7 +409,7 @@ struct BRKillMailFittingView: View {
                         icon
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32, height: 32)
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
                             .position(calculateSlotPosition(
                                 center: center,
                                 radius: innerSlotCenterRadius,
@@ -413,6 +439,8 @@ struct SectionDivider: Shape {
     let center: CGPoint
     let radius: CGFloat
     let angle: Double
+    let strokeWidth: CGFloat
+    let scale: CGFloat
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -425,9 +453,10 @@ struct SectionDivider: Shape {
             y: center.y + radius * Foundation.sin(radian)
         )
         
+        let dividerLength: CGFloat = 30 * scale // 分隔线长度
         let innerPoint = CGPoint(
-            x: center.x + (radius - 30) * Foundation.cos(radian),
-            y: center.y + (radius - 30) * Foundation.sin(radian)
+            x: center.x + (radius - dividerLength) * Foundation.cos(radian),
+            y: center.y + (radius - dividerLength) * Foundation.sin(radian)
         )
         
         path.move(to: innerPoint)
@@ -446,6 +475,7 @@ struct SlotSection: Shape {
     let endAngle: Double
     let use12OClock: Bool
     let slotCount: Int
+    let strokeWidth: CGFloat
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -476,7 +506,7 @@ struct SlotSection: Shape {
         
         // 绘制分隔线
         let totalAngle = endAngle - startAngle
-        let slotWidth = totalAngle / Double(slotCount) // 将总角度分成8份
+        let slotWidth = totalAngle / Double(slotCount)
         
         // 绘制所有分隔线（包括起始和结束位置）
         for i in 0...slotCount {
