@@ -317,13 +317,38 @@ class KbEvetoolAPI {
     func fetchKillMailDetail(killMailId: Int) async throws -> [String: Any] {
         Logger.debug("准备获取战斗日志详情 - ID: \(killMailId)")
         
+        // 获取缓存目录路径
+        let fileManager = FileManager.default
+        let cacheDirectory = try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("BRKillmails", isDirectory: true)
+        
+        // 创建缓存目录(如果不存在)
+        if !fileManager.fileExists(atPath: cacheDirectory.path) {
+            try fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        }
+        
+        let cacheFile = cacheDirectory.appendingPathComponent("\(killMailId).json")
+        
+        // 检查本地缓存
+        if fileManager.fileExists(atPath: cacheFile.path) {
+            Logger.debug("发现本地缓存,读取缓存文件: \(cacheFile.path)")
+            let data = try Data(contentsOf: cacheFile)
+            if let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                Logger.debug("成功读取本地缓存")
+                return jsonData
+            }
+        }
+        
+        // 如果没有缓存或缓存无效,从网络获取
+        Logger.debug("开始从网络获取战斗日志...")
         let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
+        
+        // 添加请求头
         let headers = [
             "Accept-Encoding": "gzip",
             "Accept": "application/json"
         ]
         
-        Logger.debug("开始发送网络请求...")
         let data = try await NetworkManager.shared.fetchData(
             from: url,
             headers: headers
@@ -334,6 +359,10 @@ class KbEvetoolAPI {
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"])
         }
+        
+        // 将数据写入缓存
+        Logger.debug("将数据写入缓存: \(cacheFile.path)")
+        try data.write(to: cacheFile)
         
         return jsonData
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct BRKillMailDetailView: View {
     let killmail: [String: Any]  // 这个现在只用来获取ID
@@ -270,40 +271,49 @@ struct BRKillMailDetailView: View {
         // 加载受害者角色头像
         if let victInfo = detail["vict"] as? [String: Any],
            let charId = victInfo["char"] as? Int {
-            let url = URL(string: "https://images.evetech.net/characters/\(charId)/portrait?size=128")
-            if let url = url,
-               let data = try? await NetworkManager.shared.fetchData(from: url) {
-                victimCharacterIcon = UIImage(data: data)
+            let url = URL(string: "https://images.evetech.net/characters/\(charId)/portrait?size=128")!
+            let cacheKey = "character_\(charId)"
+            
+            // 使用 KingfisherManager 检查缓存并加载图片
+            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
+            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
+                victimCharacterIcon = image
             }
         }
         
         // 加载军团图标
         if let victInfo = detail["vict"] as? [String: Any],
            let corpId = victInfo["corp"] as? Int {
-            let url = URL(string: "https://images.evetech.net/corporations/\(corpId)/logo?size=64")
-            if let url = url,
-               let data = try? await NetworkManager.shared.fetchData(from: url) {
-                victimCorporationIcon = UIImage(data: data)
+            let url = URL(string: "https://images.evetech.net/corporations/\(corpId)/logo?size=64")!
+            let cacheKey = "corporation_\(corpId)"
+            
+            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
+            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
+                victimCorporationIcon = image
             }
         }
         
         // 加载联盟图标
         if let victInfo = detail["vict"] as? [String: Any],
            let allyId = victInfo["ally"] as? Int {
-            let url = URL(string: "https://images.evetech.net/alliances/\(allyId)/logo?size=64")
-            if let url = url,
-               let data = try? await NetworkManager.shared.fetchData(from: url) {
-                victimAllianceIcon = UIImage(data: data)
+            let url = URL(string: "https://images.evetech.net/alliances/\(allyId)/logo?size=64")!
+            let cacheKey = "alliance_\(allyId)"
+            
+            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
+            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
+                victimAllianceIcon = image
             }
         }
         
         // 加载舰船图标
         if let victInfo = detail["vict"] as? [String: Any],
            let shipId = victInfo["ship"] as? Int {
-            let url = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=64")
-            if let url = url,
-               let data = try? await NetworkManager.shared.fetchData(from: url) {
-                shipIcon = UIImage(data: data)
+            let url = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=64")!
+            let cacheKey = "ship_\(shipId)"
+            
+            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
+            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
+                shipIcon = image
             }
         }
     }
