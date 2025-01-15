@@ -4,6 +4,10 @@ import Foundation
 struct BRKillMailFittingView: View {
     var body: some View {
         GeometryReader { geometry in
+            let outerRadius = geometry.size.width * 0.475 // 外环半径
+            let slotOuterRadius = outerRadius - 10 // 槽位区域的外半径，与外环保持10的间距
+            let slotInnerRadius = slotOuterRadius - 40 // 槽位区域的内半径
+            
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
                 
@@ -12,11 +16,16 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
                     .frame(width: geometry.size.width * 0.95)
                 
+                // 内环（半径100）
+                Circle()
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                    .frame(width: 200) // 直径200，半径100
+                
                 // 区域分隔线
                 ForEach([60.0, 180.0, 300.0], id: \.self) { angle in
                     SectionDivider(
                         center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                        radius: geometry.size.width * 0.475,
+                        radius: outerRadius,
                         angle: angle
                     )
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
@@ -25,8 +34,8 @@ struct BRKillMailFittingView: View {
                 // 高槽区域 (-56° to 56°, 顶部12点位置)
                 SlotSection(
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                    outerRadius: geometry.size.width * 0.45,
-                    arcWidth: 40,
+                    innerRadius: slotInnerRadius,
+                    outerRadius: slotOuterRadius,
                     startAngle: -56,
                     endAngle: 56,
                     use12OClock: true,
@@ -37,8 +46,8 @@ struct BRKillMailFittingView: View {
                 // 右侧低槽区域 (64° to 176°, 4点位置)
                 SlotSection(
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                    outerRadius: geometry.size.width * 0.45,
-                    arcWidth: 40,
+                    innerRadius: slotInnerRadius,
+                    outerRadius: slotOuterRadius,
                     startAngle: 64,
                     endAngle: 176,
                     use12OClock: true,
@@ -49,8 +58,8 @@ struct BRKillMailFittingView: View {
                 // 左侧中槽区域 (184° to 296°, 8点位置)
                 SlotSection(
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                    outerRadius: geometry.size.width * 0.45,
-                    arcWidth: 40,
+                    innerRadius: slotInnerRadius,
+                    outerRadius: slotOuterRadius,
                     startAngle: 184,
                     endAngle: 296,
                     use12OClock: true,
@@ -94,8 +103,8 @@ struct SectionDivider: Shape {
 // 槽位区域形状
 struct SlotSection: Shape {
     let center: CGPoint
+    let innerRadius: CGFloat
     let outerRadius: CGFloat
-    let arcWidth: CGFloat
     let startAngle: Double
     let endAngle: Double
     let use12OClock: Bool
@@ -104,7 +113,6 @@ struct SlotSection: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
-        let innerRadius = outerRadius - arcWidth
         let adjustment = -90.0 // 将0度从3点钟位置调整到12点钟位置
         
         // 绘制主弧形
