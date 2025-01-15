@@ -1,0 +1,166 @@
+import SwiftUI
+import Foundation
+
+struct BRKillMailFittingView: View {
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
+                
+                // 基础圆环
+                Circle()
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 3)
+                    .frame(width: geometry.size.width * 0.95)
+                
+                // 区域分隔线
+                ForEach([60.0, 180.0, 300.0], id: \.self) { angle in
+                    SectionDivider(
+                        center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                        radius: geometry.size.width * 0.475,
+                        angle: angle
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: 3)
+                }
+                
+                // 高槽区域 (-56° to 56°, 顶部12点位置)
+                SlotSection(
+                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    outerRadius: geometry.size.width * 0.45,
+                    arcWidth: 40,
+                    startAngle: -56,
+                    endAngle: 56,
+                    use12OClock: true,
+                    slotCount: 8
+                )
+                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                
+                // 右侧低槽区域 (64° to 176°, 4点位置)
+                SlotSection(
+                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    outerRadius: geometry.size.width * 0.45,
+                    arcWidth: 40,
+                    startAngle: 64,
+                    endAngle: 176,
+                    use12OClock: true,
+                    slotCount: 8
+                )
+                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                
+                // 左侧中槽区域 (184° to 296°, 8点位置)
+                SlotSection(
+                    center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                    outerRadius: geometry.size.width * 0.45,
+                    arcWidth: 40,
+                    startAngle: 184,
+                    endAngle: 296,
+                    use12OClock: true,
+                    slotCount: 8
+                )
+                .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+            }
+        }
+    }
+}
+
+// 区域分隔线
+struct SectionDivider: Shape {
+    let center: CGPoint
+    let radius: CGFloat
+    let angle: Double
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let adjustment = -90.0 // 调整角度以匹配12点钟方向为0度
+        let radian = (angle + adjustment) * .pi / 180
+        
+        let outerPoint = CGPoint(
+            x: center.x + radius * Foundation.cos(radian),
+            y: center.y + radius * Foundation.sin(radian)
+        )
+        
+        let innerPoint = CGPoint(
+            x: center.x + (radius - 30) * Foundation.cos(radian),
+            y: center.y + (radius - 30) * Foundation.sin(radian)
+        )
+        
+        path.move(to: innerPoint)
+        path.addLine(to: outerPoint)
+        
+        return path
+    }
+}
+
+// 槽位区域形状
+struct SlotSection: Shape {
+    let center: CGPoint
+    let outerRadius: CGFloat
+    let arcWidth: CGFloat
+    let startAngle: Double
+    let endAngle: Double
+    let use12OClock: Bool
+    let slotCount: Int
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let innerRadius = outerRadius - arcWidth
+        let adjustment = -90.0 // 将0度从3点钟位置调整到12点钟位置
+        
+        // 绘制主弧形
+        let startRadian = (startAngle + adjustment) * .pi / 180
+        let endRadian = (endAngle + adjustment) * .pi / 180
+        
+        // 绘制外弧
+        path.addArc(
+            center: center,
+            radius: outerRadius,
+            startAngle: .radians(startRadian),
+            endAngle: .radians(endRadian),
+            clockwise: false
+        )
+        
+        // 绘制内弧
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: .radians(endRadian),
+            endAngle: .radians(startRadian),
+            clockwise: true
+        )
+        
+        // 绘制分隔线
+        let totalAngle = endAngle - startAngle
+        let slotWidth = totalAngle / Double(slotCount) // 将总角度分成8份
+        
+        // 绘制所有分隔线（包括起始和结束位置）
+        for i in 0...slotCount {
+            let angle = startAngle + slotWidth * Double(i)
+            let radian = (angle + adjustment) * .pi / 180
+            
+            let innerPoint = CGPoint(
+                x: center.x + innerRadius * Foundation.cos(radian),
+                y: center.y + innerRadius * Foundation.sin(radian)
+            )
+            let outerPoint = CGPoint(
+                x: center.x + outerRadius * Foundation.cos(radian),
+                y: center.y + outerRadius * Foundation.sin(radian)
+            )
+            
+            path.move(to: innerPoint)
+            path.addLine(to: outerPoint)
+        }
+        
+        path.closeSubpath()
+        return path
+    }
+}
+
+// 预览
+struct BRKillMailFittingView_Previews: PreviewProvider {
+    static var previews: some View {
+        BRKillMailFittingView()
+            .frame(width: 400, height: 400)
+            .preferredColorScheme(.dark)
+    }
+} 
