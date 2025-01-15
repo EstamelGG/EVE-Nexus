@@ -400,7 +400,10 @@ struct KMSearchResultRow: View {
     }
     
     private func loadIcon() async {
-        guard let url = URL(string: result.imageURL) else { return }
+        // 替换图标尺寸
+        Logger.debug("Load img from result: \(result.imageURL)")
+        let urlString = result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")
+        guard let url = URL(string: urlString) else { return }
         
         do {
             let data = try await NetworkManager.shared.fetchData(from: url)
@@ -523,7 +526,7 @@ class BRKillMailSearchViewModel: ObservableObject {
                 for category in categories {
                     if let results = networkResults[category] {
                         for result in results {
-                            if let url = URL(string: result.imageURL),
+                            if let url = URL(string: result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")),
                                let data = try? await NetworkManager.shared.fetchData(from: url),
                                let image = UIImage(data: data) {
                                 if let index = self.searchResults[category]?.firstIndex(where: { $0.id == result.id }) {
