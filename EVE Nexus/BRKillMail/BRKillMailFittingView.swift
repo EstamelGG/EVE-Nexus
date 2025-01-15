@@ -5,8 +5,13 @@ struct BRKillMailFittingView: View {
     var body: some View {
         GeometryReader { geometry in
             let outerRadius = geometry.size.width * 0.475 // 外环半径
-            let slotOuterRadius = outerRadius - 10 // 槽位区域的外半径，与外环保持10的间距
-            let slotInnerRadius = slotOuterRadius - 40 // 槽位区域的内半径
+            let slotOuterRadius = outerRadius - 5 // 槽位区域的外半径，与外环保持10的间距
+            let slotInnerRadius = slotOuterRadius - 36 // 槽位区域的内半径
+            
+            // 内环相关尺寸
+            let innerCircleRadius = outerRadius * 0.55 // 内环半径约为外环的45%
+            let innerSlotOuterRadius = innerCircleRadius - 5 // 内环槽位外半径，与内环保持10的间距
+            let innerSlotInnerRadius = innerSlotOuterRadius - 30 // 内环槽位内半径
             
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
@@ -16,10 +21,10 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
                     .frame(width: geometry.size.width * 0.95)
                 
-                // 内环（半径100）
+                // 内环
                 Circle()
                     .stroke(Color.gray.opacity(0.5), lineWidth: 2)
-                    .frame(width: 200) // 直径200，半径100
+                    .frame(width: innerCircleRadius * 2) // 直径为半径的2倍
                 
                 // 区域分隔线
                 ForEach([60.0, 180.0, 300.0], id: \.self) { angle in
@@ -36,8 +41,8 @@ struct BRKillMailFittingView: View {
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
-                    startAngle: -56,
-                    endAngle: 56,
+                    startAngle: -52,
+                    endAngle: 52,
                     use12OClock: true,
                     slotCount: 8
                 )
@@ -48,8 +53,8 @@ struct BRKillMailFittingView: View {
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
-                    startAngle: 64,
-                    endAngle: 176,
+                    startAngle: 68,
+                    endAngle: 172,
                     use12OClock: true,
                     slotCount: 8
                 )
@@ -60,8 +65,8 @@ struct BRKillMailFittingView: View {
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
                     innerRadius: slotInnerRadius,
                     outerRadius: slotOuterRadius,
-                    startAngle: 184,
-                    endAngle: 296,
+                    startAngle: 188,
+                    endAngle: 292,
                     use12OClock: true,
                     slotCount: 8
                 )
@@ -70,22 +75,22 @@ struct BRKillMailFittingView: View {
                 // 底部装备架区域（3个槽位，每个槽位28度）
                 SlotSection(
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                    innerRadius: 60,
-                    outerRadius: 90,
-                    startAngle: 138,
-                    endAngle: 222,
+                    innerRadius: innerSlotInnerRadius,
+                    outerRadius: innerSlotOuterRadius,
+                    startAngle: 142,
+                    endAngle: 218,
                     use12OClock: true,
                     slotCount: 3
                 )
                 .stroke(Color.gray.opacity(0.5), lineWidth: 2)
                 
-                // 顶部装备区域（4个槽位，每个槽位28度）
+                // 顶部子系统区域（4个槽位，每个槽位28度）
                 SlotSection(
                     center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                    innerRadius: 60,
-                    outerRadius: 90,
-                    startAngle: -56, // -center + (totalWidth/2)，使112度弧形(28° × 4)居中于0度
-                    endAngle: 56, // center + (totalWidth/2)
+                    innerRadius: innerSlotInnerRadius,
+                    outerRadius: innerSlotOuterRadius,
+                    startAngle: -48,
+                    endAngle: 48,
                     use12OClock: true,
                     slotCount: 4
                 )
