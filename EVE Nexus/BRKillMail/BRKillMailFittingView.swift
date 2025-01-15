@@ -156,10 +156,22 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: 3)
                     .frame(width: geometry.size.width * 0.95)
                 
-                // 内环
-                Circle()
-                    .stroke(Color.gray.opacity(0.5), lineWidth: 2)
-                    .frame(width: innerCircleRadius * 2) // 直径为半径的2倍
+                // 内环和飞船图片
+                ZStack {
+                    // 飞船图片（在内环中）
+                    if let shipImage = shipImage {
+                        shipImage
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: innerCircleRadius * 2, height: innerCircleRadius * 2)
+                            .clipShape(Circle())
+                    }
+                    
+                    // 内环（覆盖在飞船图片上）
+                    Circle()
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 2)
+                        .frame(width: innerCircleRadius * 2)
+                }
                 
                 // 区域分隔线
                 ForEach([60.0, 180.0, 300.0], id: \.self) { angle in
@@ -230,14 +242,6 @@ struct BRKillMailFittingView: View {
                     slotCount: 4
                 )
                 .stroke(Color.gray.opacity(0.5), lineWidth: 2)
-                
-                // 飞船图片（在内环中）
-                if let shipImage = shipImage {
-                    shipImage
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: innerCircleRadius * 1.8)
-                }
                 
                 // 高槽装备图标
                 ForEach(0..<8) { index in
