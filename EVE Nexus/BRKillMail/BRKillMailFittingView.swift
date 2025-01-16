@@ -177,17 +177,16 @@ struct BRKillMailFittingView: View {
             
             // 处理每个槽位的装备
             for (slotId, items) in slotItems {
-                // 按categoryId排序，确保非弹药装备优先
-                let sortedItems = items.sorted { item1, item2 in
-                    let type1 = item1[1]
-                    let type2 = item2[1]
-                    let cat1 = typeInfos[type1]?.1 ?? 0
-                    let cat2 = typeInfos[type2]?.1 ?? 0
-                    return cat1 != 8 && cat2 == 8
+                // 过滤掉弹药类装备（categoryId = 8）
+                let nonAmmoItems = items.filter { item in
+                    if let typeInfo = typeInfos[item[1]] {
+                        return typeInfo.1 != 8  // 不是弹药类
+                    }
+                    return false
                 }
                 
-                // 使用第一个非弹药装备，如果都是弹药则使用第一个
-                if let firstItem = sortedItems.first,
+                // 如果有非弹药装备，使用第一个
+                if let firstItem = nonAmmoItems.first,
                    let typeInfo = typeInfos[firstItem[1]] {
                     await MainActor.run {
                         equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
