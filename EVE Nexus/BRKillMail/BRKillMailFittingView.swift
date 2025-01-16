@@ -342,20 +342,63 @@ struct BRKillMailFittingView: View {
             let equipmentIconSize: CGFloat = 32 * scale
             
             ZStack {
-                // 添加阴影背景
+                // 外层阴影和发光效果
                 Circle()
-                    .fill(Color.primary.opacity(0.2))
-                    .frame(width: outerCircleRadius * 1.2)
-                    .shadow(color: Color.primary.opacity(0.6), radius: 16, x: 0, y: 8)
+                    .fill(Color.primary.opacity(0.05))
+                    .frame(width: outerCircleRadius * 2)
+                    .background(
+                        Circle()
+                            .fill(Color.primary.opacity(0.05))
+                    )
+                    .overlay(
+                        Circle()
+                            .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+                    )
+                    .shadow(
+                        color: Color.primary.opacity(0.3),
+                        radius: 16,
+                        x: 0,
+                        y: 8
+                    )
                 
-                // 添加内部黑色圆形背景（在飞船环和最外环之间）
+                // 内部发光效果
                 Circle()
                     .fill(Color.black.opacity(0.8))
                     .frame(width: outerCircleRadius * 2)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.primary.opacity(0.3),
+                                        Color.primary.opacity(0.1)
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+                    .shadow(
+                        color: Color.primary.opacity(0.2),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
                 
                 // 基础圆环
                 Circle()
-                    .stroke(Color.gray.opacity(0.5), lineWidth: outerStrokeWidth)
+                    .stroke(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.gray.opacity(0.6),
+                                Color.gray.opacity(0.3)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: outerStrokeWidth
+                    )
                     .frame(width: outerCircleRadius * 2)
                 
                 // 内环和飞船图片
