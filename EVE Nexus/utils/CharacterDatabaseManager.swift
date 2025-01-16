@@ -473,6 +473,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
+            
         """
         
         // 分割SQL语句并逐个执行

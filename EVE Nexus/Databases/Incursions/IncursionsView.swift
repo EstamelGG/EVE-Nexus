@@ -98,6 +98,8 @@ final class IncursionsViewModel: ObservableObject {
     
     let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
+    private var lastFetchTime: Date?
+    private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
     
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -108,6 +110,15 @@ final class IncursionsViewModel: ObservableObject {
     }
     
     func fetchIncursions(forceRefresh: Bool = false) async {
+        // 如果不是强制刷新，且缓存未过期，且已有数据，则直接返回
+        if !forceRefresh,
+           let lastFetch = lastFetchTime,
+           Date().timeIntervalSince(lastFetch) < cacheTimeout,
+           !preparedIncursions.isEmpty {
+            Logger.debug("使用缓存的入侵数据，跳过加载")
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
         
@@ -126,6 +137,7 @@ final class IncursionsViewModel: ObservableObject {
                 
                 if Task.isCancelled { return }
                 
+                self.lastFetchTime = Date()
                 self.isLoading = false
                 
             } catch {
@@ -173,8 +185,19 @@ final class IncursionsViewModel: ObservableObject {
                 }
             }
             
-            // 按影响力从大到小排序
-            result.sort { $0.incursion.influence > $1.incursion.influence }
+            // 多重排序条件：
+            // 1. 按影响力从大到小
+            // 2. 同等影响力下，有boss的优先
+            // 3. boss状态相同时，按星系名称字母顺序
+            result.sort { a, b in
+                if a.incursion.influence != b.incursion.influence {
+                    return a.incursion.influence > b.incursion.influence
+                }
+                if a.incursion.hasBoss != b.incursion.hasBoss {
+                    return a.incursion.hasBoss
+                }
+                return a.location.systemName < b.location.systemName
+            }
             return result
         }
         
@@ -224,7 +247,7 @@ struct IncursionCell: View {
             HStack(spacing: 12) {
                 IconManager.shared.loadImage(for: incursion.faction.iconName)
                     .resizable()
-                    .frame(width: 48, height: 48)
+                    .frame(width: 52, height: 52)
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -232,6 +255,7 @@ struct IncursionCell: View {
                         Text(incursion.faction.name)
                         Text("[\(String(format: "%.1f", incursion.incursion.influence * 100))%]")
                             .foregroundColor(.secondary)
+                            .font(.subheadline)
                         if incursion.incursion.hasBoss {
                             IconManager.shared.loadImage(for: "items_4_64_7.png")
                                 .resizable()
@@ -244,14 +268,16 @@ struct IncursionCell: View {
                         HStack(spacing: 4) {
                             Text(formatSystemSecurity(incursion.location.security))
                                 .foregroundColor(getSecurityColor(incursion.location.security))
+                                .font(.system(.subheadline, design: .monospaced))
                             Text(incursion.location.systemName)
                                 .fontWeight(.bold)
+                                .font(.subheadline)
                         }
                         
                         Text("\(incursion.location.constellationName) / \(incursion.location.regionName)")
                             .foregroundColor(.secondary)
+                            .font(.caption)
                     }
-                    .font(.subheadline)
                 }
             }
             .padding(.vertical, 8)

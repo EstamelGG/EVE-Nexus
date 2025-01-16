@@ -68,7 +68,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     ) async throws -> Data {
         // 等待信号量
         await withCheckedContinuation { continuation in
-            DispatchQueue.global().async {
+            DispatchQueue.global(qos: .userInitiated).async {
                 self.concurrentSemaphore.wait()
                 continuation.resume()
             }
@@ -109,35 +109,43 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 设置请求体
         if let body = body {
             request.httpBody = body
+            // 添加请求体日志
+            if method == "POST", let jsonString = String(data: body, encoding: .utf8) {
+                Logger.debug("POST Request Body: \(jsonString)")
+            }
         }
         
         return try await retrier.execute(noRetryKeywords: noRetryKeywords) {
             Logger.info("HTTP \(method) Request to: \(url)")
-            let (data, response) = try await self.session.data(for: request)
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
-                throw NetworkError.invalidResponse
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                // 添加错误日志记录
-                if let responseBody = String(data: data, encoding: .utf8) {
-                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
-                    Logger.error("状态码: \(httpResponse.statusCode)")
-                    Logger.error("响应体: \(responseBody)")
-                    
-                    // 将响应体包含在错误中
-                    throw NetworkError.httpError(statusCode: httpResponse.statusCode, message: responseBody)
-                } else {
-                    Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
-                    Logger.error("状态码: \(httpResponse.statusCode)")
-                    Logger.error("响应体无法解析")
-                    throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+            // 使用Task.detached确保在后台线程执行，并设置合适的QoS
+            return try await Task.detached(priority: .userInitiated) {
+                let (data, response) = try await self.session.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
+                    throw NetworkError.invalidResponse
                 }
-            }
-            
-            return data
+                
+                guard httpResponse.statusCode == 200 else {
+                    // 添加错误日志记录
+                    if let responseBody = String(data: data, encoding: .utf8) {
+                        Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
+                        Logger.error("状态码: \(httpResponse.statusCode)")
+                        Logger.error("响应体: \(responseBody)")
+                        
+                        // 将响应体包含在错误中
+                        throw NetworkError.httpError(statusCode: httpResponse.statusCode, message: responseBody)
+                    } else {
+                        Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
+                        Logger.error("状态码: \(httpResponse.statusCode)")
+                        Logger.error("响应体无法解析")
+                        throw NetworkError.httpError(statusCode: httpResponse.statusCode)
+                    }
+                }
+                
+                return data
+            }.value
         }
     }
 
@@ -345,7 +353,7 @@ class RequestRetrier {
     private let retryDelay: TimeInterval
     private var noRetryKeywords: [String]
     
-    init(timeouts: [TimeInterval] = [0.5, 2, 2, 3, 3, 5], retryDelay: TimeInterval = 0.3, noRetryKeywords: [String] = []) {
+    init(timeouts: [TimeInterval] = [1.2, 2, 2, 3, 3, 5], retryDelay: TimeInterval = 0.3, noRetryKeywords: [String] = []) {
         self.timeouts = timeouts
         self.retryDelay = retryDelay
         self.noRetryKeywords = noRetryKeywords

@@ -553,6 +553,7 @@ struct ContentView: View {
                     // 商业部分(登录后显示)
                     if currentCharacterId != 0 {
                         businessSection
+                        KillBoardSection
                     }
                     
                     // 其他设置(始终显示)
@@ -674,6 +675,11 @@ struct ContentView: View {
                         case "corporation_wallet":
                             if let character = viewModel.selectedCharacter {
                                 CorpWalletView(characterId: character.CharacterID)
+                            }
+                        case "killboard":
+                            if let character = viewModel.selectedCharacter {
+                                // KillMailListView(characterId: character.CharacterID)
+                                BRKillMailView(characterId: character.CharacterID)
                             }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
@@ -985,6 +991,24 @@ struct ContentView: View {
         }
     }
     
+    private var KillBoardSection: some View {
+        Section {
+            NavigationLink(value: "killboard") {
+                RowView(
+                    title: NSLocalizedString("Main_Killboard", comment: ""),
+                    icon: "killreport",
+                    note: NSLocalizedString("KillMail_Data_Source", comment: "")
+                )
+            }
+        } header: {
+            Text(NSLocalizedString("Main_Battle", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
+        }
+    }
+    
     private var otherSection: some View {
         Section {
             NavigationLink {
@@ -1020,7 +1044,7 @@ struct ContentView: View {
         } label: {
             Image(systemName: "power")
                 .resizable()
-                .frame(width: 24, height: 24)
+                .frame(width: 20, height: 20)
                 .foregroundColor(.red)
         }
     }

@@ -819,3 +819,113 @@
 // Market Order Types
 "Main_Market_Order_Buy" = "买单";
 "Main_Market_Order_Sell" = "卖单";
+
+"Main_Battle" = "战斗";
+"Main_Killboard" = "击杀记录";
+"Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "所有记录";
+"KillMail_Kill_Records" = "击杀记录";
+"KillMail_Loss_Records" = "损失记录";
+"KillMail_Invalid_Character_ID" = "无效的角色ID: %d";
+"KillMail_Invalid_Response_Format" = "无效的响应数据格式";
+"KillMail_Loading_Page" = "正在加载第%d页";
+"KillMail_Loading_More_Failed" = "加载更多击杀记录失败: %@";
+"KillMail_Loading_Failed" = "加载击杀记录失败: %@";
+"KillMail_All_Title" = "所有记录";
+"KillMail_Loading" = "加载中...";
+"KillMail_No_Records" = "暂无记录";
+"KillMail_Load_More" = "加载更多";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "摧毁价值";
+"KillMail_Lost_Value" = "损失价值";
+"KillMail_Search_Title" = "搜索战斗记录";
+"KillMail_Battle_Records" = "我参与的战斗";
+"KillMail_Filter" = "筛选";
+"KillMail_Filter_All" = "全部";
+"KillMail_Filter_Kills" = "击杀";
+"KillMail_Filter_Losses" = "损失";
+"KillMail_Unknown_Item" = "未知物品";
+"KillMail_Unknown_Location" = "未知";
+"KillMail_Load_More" = "获取更多";
+"KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";
+
+// KillMail View
+"KillMail_View_Title" = "战斗记录";
+
+// KillMail Stats
+"KillMail_Data_Source" = "数据来自zkillboard和kb.evetools.org";
+
+"KillMail_Search_Prompt" = "点击这里开始搜索...";
+"KillMail_Search_Input_Prompt" = "输入搜索关键词";
+"KillMail_Search" = "搜索";
+"KillMail_Cancel" = "取消";
+"KillMail_Search_Alliance" = "联盟";
+"KillMail_Search_Character" = "角色";
+"KillMail_Search_Corporation" = "军团";
+"KillMail_Search_Item" = "物品";
+"KillMail_Search_System" = "星系";
+"KillMail_Search_Region" = "区域";
+"Main_Search_Network_Min_Length" = "联网搜索需要最少3个字符";
+
+"Main_Search_Results_Placeholder" = "搜索结果将在这里展示";
+
+"Main_KM_Ship_Value" = "舰船价值:";
+"Main_KM_Destroyed_Value" = "被摧毁价值:";
+"Main_KM_Dropped_Value" = "掉落价值:";
+"Main_KM_Total" = "总计:";
+"Main_KM_Ship" = "舰船:";
+"Main_KM_System" = "星系:";
+"Main_KM_EVE_Time" = "EVE时间:";
+"Main_KM_Local_Time" = "本地时间:";
+"Main_KM_Damage" = "受到伤害:";
+
+// 战斗日志详情
+"Main_KM_High_Slots" = "高槽";
+"Main_KM_Medium_Slots" = "中槽";
+"Main_KM_Low_Slots" = "低槽";
+"Main_KM_Rig_Slots" = "改装槽";
+"Main_KM_Subsystem_Slots" = "子系统";
+"Main_KM_Fighter_Tubes" = "战斗机发射管";
+"Main_KM_Cargo" = "货舱";
+"KillMail_Unknown_Item" = "未知物品";
+
+"Main_KM_Drone_Bay" = "无人机舱";
+"Main_KM_Fighter_Bay" = "战斗机舱";
+"Main_KM_Specialized_Holds" = "特殊舱室";
+"Main_KM_Fleet_Hangar" = "舰队机库";
+"Main_KM_Frigate_Escape_Bay" = "护卫舰逃生舱";
+
+// Flag Names
+"LoSlot" = "低槽";
+"MedSlot" = "中槽";
+"HiSlot" = "高槽";
+"RigSlot" = "改装槽";
+"SubSystemSlot" = "子系统槽";
+"FighterTube" = "战斗机发射管";
+
+"Cargo" = "货舱";
+"DroneBay" = "无人机舱";
+"ShipHangar" = "舰船机库";
+"FleetHangar" = "舰队机库";
+"FrigateEscapeBay" = "护卫舰逃生舱";
+"FighterBay" = "战斗机舱";
+
+"SpecializedFuelBay" = "燃料舱";
+"SpecializedOreHold" = "矿石舱";
+"SpecializedGasHold" = "气云舱";
+"SpecializedMineralHold" = "矿物舱";
+"SpecializedSalvageHold" = "残骸舱";
+"SpecializedShipHold" = "舰船舱";
+"SpecializedSmallShipHold" = "小型舰船舱";
+"SpecializedMediumShipHold" = "中型舰船舱";
+"SpecializedLargeShipHold" = "大型舰船舱";
+"SpecializedIndustrialShipHold" = "工业舰船舱";
+"SpecializedAmmoHold" = "弹药舱";
+"SpecializedCommandCenterHold" = "指挥中心舱";
+"SpecializedPlanetaryCommoditiesHold" = "行星商品舱";
+"SpecializedMaterialBay" = "材料舱";
+"SpecializedIceHold" = "冰矿舱";
+"SpecializedAsteroidHold" = "小行星舱";

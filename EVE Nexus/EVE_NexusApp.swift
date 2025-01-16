@@ -1,6 +1,7 @@
 import SwiftUI
 import SQLite3
 import Zip
+import CommonCrypto
 
 @main
 struct EVE_NexusApp: App {
@@ -99,8 +100,16 @@ struct EVE_NexusApp: App {
         let destinationPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Icons")
         let iconURL = URL(fileURLWithPath: iconPath)
 
+        // 计算当前 icons.zip 的 SHA256 值
+        let currentHash = calculateSHA256(filePath: iconPath)
+        let storedHash = UserDefaults.standard.string(forKey: "IconsZipHash")
+        
+        // 如果哈希值不同，需要重新解压
+        let needsReExtract = currentHash != storedHash
+        
         // 检查是否已经成功解压过
-        if IconManager.shared.isExtractionComplete,
+        if !needsReExtract,
+           IconManager.shared.isExtractionComplete,
            FileManager.default.fileExists(atPath: destinationPath.path),
            let contents = try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path),
            !contents.isEmpty {
@@ -129,6 +138,11 @@ struct EVE_NexusApp: App {
                 }
             }
             
+            // 保存新的哈希值
+            if let hash = currentHash {
+                UserDefaults.standard.set(hash, forKey: "IconsZipHash")
+            }
+            
             await MainActor.run {
                 databaseManager.loadDatabase()
                 loadingState = .complete
@@ -138,6 +152,20 @@ struct EVE_NexusApp: App {
             // 解压失败时重置状态
             IconManager.shared.isExtractionComplete = false
         }
+    }
+    
+    private func calculateSHA256(filePath: String) -> String? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: filePath)) else {
+            return nil
+        }
+        
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        
+        _ = data.withUnsafeBytes { buffer in
+            CC_SHA256(buffer.baseAddress, CC_LONG(data.count), &digest)
+        }
+        
+        return digest.reduce("") { $0 + String(format: "%02x", $1) }
     }
 
     private func initializeDatabases() {

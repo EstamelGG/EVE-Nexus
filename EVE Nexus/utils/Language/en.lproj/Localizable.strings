@@ -314,20 +314,20 @@
 "Location_Flag_MedSlots" = "Medium Slots";
 "Location_Flag_LoSlots" = "Low Slots";
 "Location_Flag_RigSlots" = "Rig Slots";
-"Location_Flag_SpecializedAmmoHold" = "Specialized Ammo Hold";
-"Location_Flag_SpecializedCommandCenterHold" = "Specialized Command Center Hold";
-"Location_Flag_SpecializedFuelBay" = "Specialized Fuel Bay";
-"Location_Flag_SpecializedGasHold" = "Specialized Gas Hold";
-"Location_Flag_SpecializedIndustrialShipHold" = "Specialized Industrial Ship Hold";
-"Location_Flag_SpecializedLargeShipHold" = "Specialized Large Ship Hold";
-"Location_Flag_SpecializedMaterialBay" = "Specialized Material Bay";
-"Location_Flag_SpecializedMediumShipHold" = "Specialized Medium Ship Hold";
-"Location_Flag_SpecializedMineralHold" = "Specialized Mineral Hold";
-"Location_Flag_SpecializedOreHold" = "Specialized Ore Hold";
-"Location_Flag_SpecializedPlanetaryCommoditiesHold" = "Specialized Planetary Commodities Hold";
-"Location_Flag_SpecializedSalvageHold" = "Specialized Salvage Hold";
-"Location_Flag_SpecializedShipHold" = "Specialized Ship Hold";
-"Location_Flag_SpecializedSmallShipHold" = "Specialized Small Ship Hold";
+"Location_Flag_SpecializedAmmoHold" = " Ammo Hold";
+"Location_Flag_SpecializedCommandCenterHold" = " Command Center Hold";
+"Location_Flag_SpecializedFuelBay" = " Fuel Bay";
+"Location_Flag_SpecializedGasHold" = " Gas Hold";
+"Location_Flag_SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"Location_Flag_SpecializedLargeShipHold" = " Large Ship Hold";
+"Location_Flag_SpecializedMaterialBay" = " Material Bay";
+"Location_Flag_SpecializedMediumShipHold" = " Medium Ship Hold";
+"Location_Flag_SpecializedMineralHold" = " Mineral Hold";
+"Location_Flag_SpecializedOreHold" = " Ore Hold";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"Location_Flag_SpecializedSalvageHold" = " Salvage Hold";
+"Location_Flag_SpecializedShipHold" = " Ship Hold";
+"Location_Flag_SpecializedSmallShipHold" = " Small Ship Hold";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "Fetching page %d";
@@ -805,3 +805,113 @@
 // Market Order Types
 "Main_Market_Order_Buy" = "Buy Orders";
 "Main_Market_Order_Sell" = "Sell Orders";
+
+"Main_Battle" = "Battle";
+"Main_Killboard" = "Kill Reports";
+"Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "All Records";
+"KillMail_Kill_Records" = "Kill Records";
+"KillMail_Loss_Records" = "Loss Records";
+"KillMail_Invalid_Character_ID" = "Invalid Character ID: %d";
+"KillMail_Invalid_Response_Format" = "Invalid Response Format";
+"KillMail_Loading_Page" = "Loading page %d";
+"KillMail_Loading_More_Failed" = "Failed to load more kill records: %@";
+"KillMail_Loading_Failed" = "Failed to load kill records: %@";
+"KillMail_All_Title" = "All Records";
+"KillMail_Loading" = "Loading...";
+"KillMail_No_Records" = "No Records";
+"KillMail_Load_More" = "Load More";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "Destroyed Value";
+"KillMail_Lost_Value" = "Lost Value";
+"KillMail_Search_Title" = "Search Battle Records";
+"KillMail_Battle_Records" = "Battle Records";
+"KillMail_Filter" = "Filter";
+"KillMail_Filter_All" = "All";
+"KillMail_Filter_Kills" = "Kills";
+"KillMail_Filter_Losses" = "Losses";
+"KillMail_Unknown_Item" = "Unknown Item";
+"KillMail_Unknown_Location" = "Unknown";
+"KillMail_Load_More" = "Load More";
+"KillMail_Stats_Failed" = "Failed to load battle statistics: %@";
+
+// KillMail View
+"KillMail_View_Title" = "Killboard";
+
+// KillMail Stats
+"KillMail_Data_Source" = "Data from zkillboard and kb.evetools.org";
+
+"KillMail_Search_Prompt" = "Tap here to start searching...";
+"KillMail_Search_Input_Prompt" = "Enter search keyword";
+"KillMail_Search" = "Search";
+"KillMail_Cancel" = "Cancel";
+"KillMail_Search_Alliance" = "Alliance";
+"KillMail_Search_Character" = "Character";
+"KillMail_Search_Corporation" = "Corporation";
+"KillMail_Search_Item" = "Item";
+"KillMail_Search_System" = "Solar System";
+"KillMail_Search_Region" = "Region";
+"Main_Search_Network_Min_Length" = "At least 3 characters to search online";
+
+"Main_Search_Results_Placeholder" = "Search results will be shown here";
+
+"Main_KM_Ship_Value" = "Ship value:";
+"Main_KM_Destroyed_Value" = "Destroyed:";
+"Main_KM_Dropped_Value" = "Dropped:";
+"Main_KM_Total" = "Total:";
+"Main_KM_Ship" = "Ship:";
+"Main_KM_System" = "System:";
+"Main_KM_EVE_Time" = "EVE Time:";
+"Main_KM_Local_Time" = "Local Time:";
+"Main_KM_Damage" = "Damage:";
+
+// Kill Mail Detail
+"Main_KM_High_Slots" = "High Slot";
+"Main_KM_Medium_Slots" = "Medium Slot";
+"Main_KM_Low_Slots" = "Low Slot";
+"Main_KM_Rig_Slots" = "Rig Slot";
+"Main_KM_Subsystem_Slots" = "Subsystem";
+"Main_KM_Fighter_Tubes" = "Fighter Tube";
+"Main_KM_Cargo" = "Cargo Hold";
+"KillMail_Unknown_Item" = "Unknown Item";
+
+"Main_KM_Drone_Bay" = "Drone Bay";
+"Main_KM_Fighter_Bay" = "Fighter Bay";
+"Main_KM_Specialized_Holds" = " Holds";
+"Main_KM_Fleet_Hangar" = "Fleet Hangar";
+"Main_KM_Frigate_Escape_Bay" = "Frigate Escape Bay";
+
+// Flag Names
+"LoSlot" = "Low Slot";
+"MedSlot" = "Medium Slot";
+"HiSlot" = "High Slot";
+"RigSlot" = "Rig Slot";
+"SubSystemSlot" = "Subsystem Slot";
+"FighterTube" = "Fighter Tube";
+
+"Cargo" = "Cargo Hold";
+"DroneBay" = "Drone Bay";
+"ShipHangar" = "Ship Hangar";
+"FleetHangar" = "Fleet Hangar";
+"FrigateEscapeBay" = "Frigate Escape Bay";
+"FighterBay" = "Fighter Bay";
+
+"SpecializedFuelBay" = "Fuel Bay";
+"SpecializedOreHold" = " Ore Hold";
+"SpecializedGasHold" = " Gas Hold";
+"SpecializedMineralHold" = " Mineral Hold";
+"SpecializedSalvageHold" = " Salvage Hold";
+"SpecializedShipHold" = " Ship Hold";
+"SpecializedSmallShipHold" = " Small Ship Hold";
+"SpecializedMediumShipHold" = " Medium Ship Hold";
+"SpecializedLargeShipHold" = " Large Ship Hold";
+"SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"SpecializedAmmoHold" = " Ammo Hold";
+"SpecializedCommandCenterHold" = " Command Center Hold";
+"SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"SpecializedMaterialBay" = " Material Bay";
+"SpecializedIceHold" = " Ice Hold";
+"SpecializedAsteroidHold" = " Asteroid Hold";

@@ -5,6 +5,15 @@ struct CharacterLoyaltyPointsStoreView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var hasLoadedData = false
+    @State private var searchText = ""
+    
+    private var filteredFactions: [Faction] {
+        if searchText.isEmpty {
+            return factions
+        } else {
+            return factions.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
     
     var body: some View {
         List {
@@ -27,7 +36,7 @@ struct CharacterLoyaltyPointsStoreView: View {
                     .buttonStyle(.bordered)
                 }
             } else {
-                ForEach(factions) { faction in
+                ForEach(filteredFactions) { faction in
                     NavigationLink(destination: FactionDetailView(faction: faction)) {
                         HStack {
                             IconManager.shared.loadImage(for: faction.iconName)
@@ -45,6 +54,10 @@ struct CharacterLoyaltyPointsStoreView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))
+        .searchable(text: $searchText,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        )
         .onAppear {
             if !hasLoadedData {
                 loadFactions()
