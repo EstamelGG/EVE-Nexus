@@ -897,3 +897,35 @@
 "Main_KM_Specialized_Holds" = "特殊舱室";
 "Main_KM_Fleet_Hangar" = "舰队机库";
 "Main_KM_Frigate_Escape_Bay" = "护卫舰逃生舱";
+
+// Flag Names
+"LoSlot" = "低槽";
+"MedSlot" = "中槽";
+"HiSlot" = "高槽";
+"RigSlot" = "改装槽";
+"SubSystemSlot" = "子系统槽";
+"FighterTube" = "战斗机发射管";
+
+"Cargo" = "货舱";
+"DroneBay" = "无人机舱";
+"ShipHangar" = "舰船机库";
+"FleetHangar" = "舰队机库";
+"FrigateEscapeBay" = "护卫舰逃生舱";
+"FighterBay" = "战斗机舱";
+
+"SpecializedFuelBay" = "特殊燃料舱";
+"SpecializedOreHold" = "特殊矿石舱";
+"SpecializedGasHold" = "特殊气云舱";
+"SpecializedMineralHold" = "特殊矿物舱";
+"SpecializedSalvageHold" = "特殊残骸舱";
+"SpecializedShipHold" = "特殊舰船舱";
+"SpecializedSmallShipHold" = "特殊小型舰船舱";
+"SpecializedMediumShipHold" = "特殊中型舰船舱";
+"SpecializedLargeShipHold" = "特殊大型舰船舱";
+"SpecializedIndustrialShipHold" = "特殊工业舰船舱";
+"SpecializedAmmoHold" = "特殊弹药舱";
+"SpecializedCommandCenterHold" = "特殊指挥中心舱";
+"SpecializedPlanetaryCommoditiesHold" = "特殊行星商品舱";
+"SpecializedMaterialBay" = "特殊材料舱";
+"SpecializedIceHold" = "特殊冰矿舱";
+"SpecializedAsteroidHold" = "特殊小行星舱";

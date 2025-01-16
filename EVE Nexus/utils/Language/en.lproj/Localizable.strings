@@ -883,3 +883,35 @@
 "Main_KM_Specialized_Holds" = "Specialized Holds";
 "Main_KM_Fleet_Hangar" = "Fleet Hangar";
 "Main_KM_Frigate_Escape_Bay" = "Frigate Escape Bay";
+
+// Flag Names
+"LoSlot" = "Low Slot";
+"MedSlot" = "Medium Slot";
+"HiSlot" = "High Slot";
+"RigSlot" = "Rig Slot";
+"SubSystemSlot" = "Subsystem Slot";
+"FighterTube" = "Fighter Tube";
+
+"Cargo" = "Cargo Hold";
+"DroneBay" = "Drone Bay";
+"ShipHangar" = "Ship Hangar";
+"FleetHangar" = "Fleet Hangar";
+"FrigateEscapeBay" = "Frigate Escape Bay";
+"FighterBay" = "Fighter Bay";
+
+"SpecializedFuelBay" = "Specialized Fuel Bay";
+"SpecializedOreHold" = "Specialized Ore Hold";
+"SpecializedGasHold" = "Specialized Gas Hold";
+"SpecializedMineralHold" = "Specialized Mineral Hold";
+"SpecializedSalvageHold" = "Specialized Salvage Hold";
+"SpecializedShipHold" = "Specialized Ship Hold";
+"SpecializedSmallShipHold" = "Specialized Small Ship Hold";
+"SpecializedMediumShipHold" = "Specialized Medium Ship Hold";
+"SpecializedLargeShipHold" = "Specialized Large Ship Hold";
+"SpecializedIndustrialShipHold" = "Specialized Industrial Ship Hold";
+"SpecializedAmmoHold" = "Specialized Ammo Hold";
+"SpecializedCommandCenterHold" = "Specialized Command Center Hold";
+"SpecializedPlanetaryCommoditiesHold" = "Specialized Planetary Commodities Hold";
+"SpecializedMaterialBay" = "Specialized Material Bay";
+"SpecializedIceHold" = "Specialized Ice Hold";
+"SpecializedAsteroidHold" = "Specialized Asteroid Hold";

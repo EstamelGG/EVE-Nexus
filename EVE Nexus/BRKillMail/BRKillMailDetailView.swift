@@ -636,9 +636,9 @@ struct BRKillMailDetailView: View {
         if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [flag]),
            let row = rows.first,
            let flagName = row["flagName"] as? String {
-            return flagName
+            return NSLocalizedString(flagName, comment: "")
         }
-        return "Unknown Flag"
+        return NSLocalizedString("Unknown Flag", comment: "")
     }
 }
 
