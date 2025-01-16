@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import Kingfisher
 
 // 槽位类型定义
 enum SlotType {
@@ -82,43 +83,59 @@ struct BRKillMailFittingView: View {
             return
         }
         
-        do {
-            let data = try await NetworkManager.shared.fetchData(from: url)
-            if let uiImage = UIImage(data: data) {
-                await MainActor.run {
-                    shipImage = Image(uiImage: uiImage)
-                    Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
+        let processor = DownsamplingImageProcessor(size: CGSize(width: 300, height: 300))
+        let options: KingfisherOptionsInfo = [
+            .processor(processor),
+            .scaleFactor(UIScreen.main.scale),
+            .cacheOriginalImage,
+            .memoryCacheExpiration(.days(7)),
+            .diskCacheExpiration(.days(30))
+        ]
+        
+        await withCheckedContinuation { continuation in
+            KingfisherManager.shared.retrieveImage(with: KF.ImageResource(downloadURL: url), options: options) { result in
+                Task { @MainActor in
+                    switch result {
+                    case .success(let imageResult):
+                        shipImage = Image(uiImage: imageResult.image)
+                        Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
+                    case .failure(let error):
+                        Logger.error("装配图标: 加载飞船图片失败 - \(error)")
+                    }
+                    continuation.resume()
                 }
             }
-        } catch {
-            Logger.error("装配图标: 加载飞船图片失败 - \(error)")
         }
     }
     
-    // 从数据库批量获取图标文件名
-    private func getIconFileNames(typeIds: [Int]) -> [Int: String] {
+    // 从数据库批量获取图标文件名和类别信息
+    private func getIconFileNames(typeIds: [Int]) -> [Int: (String, Int)] {
         guard !typeIds.isEmpty else { 
             Logger.debug("装配图标: 没有需要获取的图标")
             return [:] 
         }
         
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
+        // 对 typeIds 进行去重
+        let uniqueTypeIds = Array(Set(typeIds))
+        Logger.debug("装配图标: 原始物品ID数量: \(typeIds.count)，去重后数量: \(uniqueTypeIds.count)")
+        
+        let placeholders = String(repeating: "?,", count: uniqueTypeIds.count).dropLast()
         let query = """
             SELECT type_id, icon_filename, categoryID
             FROM types 
             WHERE type_id IN (\(placeholders))
-            AND categoryID != 8
         """
         
-        Logger.debug("装配图标: 开始查询 \(typeIds.count) 个物品的图标")
-        var iconFileNames: [Int: String] = [:]
-        if case .success(let rows) = databaseManager.executeQuery(query, parameters: typeIds) {
+        Logger.debug("装配图标: 开始查询 \(uniqueTypeIds.count) 个物品的图标")
+        var iconFileNames: [Int: (String, Int)] = [:]
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: uniqueTypeIds) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let iconFileName = row["icon_filename"] as? String {
+                   let iconFileName = row["icon_filename"] as? String,
+                   let categoryId = row["categoryID"] as? Int {
                     let finalIconName = iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                    iconFileNames[typeId] = finalIconName
-                    Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName)")
+                    iconFileNames[typeId] = (finalIconName, categoryId)
+                    Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName), 类别ID: \(categoryId)")
                 }
             }
         }
@@ -144,43 +161,25 @@ struct BRKillMailFittingView: View {
                 // 加载飞船图片
                 await loadShipImage(typeId: shipId)
                 
-                // 按槽位ID分组物品
+                // 按槽位ID分组物品，并收集所有不重复的typeId
                 var slotItems: [Int: [[Int]]] = [:] // [slotId: [[slotId, typeId, ...]]]
+                var uniqueTypeIds = Set<Int>() // 使用Set来存储不重复的typeId
+                
                 for item in items where item.count >= 4 {
                     let slotId = item[0]
+                    let typeId = item[1]
+                    
                     if slotItems[slotId] == nil {
                         slotItems[slotId] = []
                     }
                     slotItems[slotId]?.append(item)
+                    uniqueTypeIds.insert(typeId)
                 }
                 
-                // 收集所有需要查询的typeId
-                var typeIds: [Int] = []
-                for items in slotItems.values {
-                    typeIds.append(contentsOf: items.map { $0[1] })
-                }
+                Logger.debug("装配图标: 收集到 \(uniqueTypeIds.count) 个不重复物品ID")
                 
-                Logger.debug("装配图标: 需要获取 \(typeIds.count) 个物品的图标")
-                
-                // 查询所有物品的信息
-                let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-                let query = """
-                    SELECT type_id, icon_filename, categoryID
-                    FROM types 
-                    WHERE type_id IN (\(placeholders))
-                """
-                
-                var typeInfos: [Int: (String, Int)] = [:] // [typeId: (iconFileName, categoryId)]
-                if case .success(let rows) = databaseManager.executeQuery(query, parameters: typeIds) {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let iconFileName = row["icon_filename"] as? String,
-                           let categoryId = row["categoryID"] as? Int {
-                            let finalIconName = iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                            typeInfos[typeId] = (finalIconName, categoryId)
-                        }
-                    }
-                }
+                // 查询所有物品的图标文件名和类别信息
+                let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
                 
                 // 处理每个槽位的装备
                 for (slotId, items) in slotItems {
@@ -196,11 +195,10 @@ struct BRKillMailFittingView: View {
                     // 使用第一个非弹药装备，如果都是弹药则使用第一个
                     if let firstItem = sortedItems.first,
                        let typeInfo = typeInfos[firstItem[1]] {
-                        let iconFileName = typeInfo.0
                         await MainActor.run {
-                            equipmentIcons[slotId] = IconManager.shared.loadImage(for: iconFileName)
+                            equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
                         }
-                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(iconFileName)")
+                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(typeInfo.0)")
                     }
                 }
             }
