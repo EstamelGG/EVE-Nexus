@@ -214,6 +214,121 @@ struct BRKillMailDetailView: View {
                 // 装配信息
                 if let victInfo = detail["vict"] as? [String: Any],
                    let items = victInfo["itms"] as? [[Int]] {
+                    
+                    // 高槽
+                    let highSlotItems = items.filter { item in
+                        (27...34).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !highSlotItems.isEmpty {
+                        Section(header: Text(getFlagName(27))) {
+                            ForEach(highSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                    
+                    // 中槽
+                    let mediumSlotItems = items.filter { item in
+                        (19...26).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !mediumSlotItems.isEmpty {
+                        Section(header: Text(getFlagName(19))) {
+                            ForEach(mediumSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                    
+                    // 低槽
+                    let lowSlotItems = items.filter { item in
+                        (11...18).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !lowSlotItems.isEmpty {
+                        Section(header: Text(getFlagName(11))) {
+                            ForEach(lowSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                    
+                    // 改装槽
+                    let rigSlotItems = items.filter { item in
+                        (92...94).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !rigSlotItems.isEmpty {
+                        Section(header: Text(getFlagName(92))) {
+                            ForEach(rigSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                    
+                    // 子系统槽
+                    let subsystemSlotItems = items.filter { item in
+                        (125...128).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !subsystemSlotItems.isEmpty {
+                        Section(header: Text(getFlagName(125))) {
+                            ForEach(subsystemSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                    
+                    // 战斗机发射管
+                    let fighterTubeItems = items.filter { item in
+                        (159...163).contains(item[0]) && item.count >= 4
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
+                    if !fighterTubeItems.isEmpty {
+                        Section(header: Text(getFlagName(159))) {
+                            ForEach(fighterTubeItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+
                     // 获取所有非装配槽位的物品，按flag分组
                     let nonFittingItems = items.filter { item in
                         // 排除装配槽位的物品
