@@ -25,6 +25,19 @@ struct BRKillMailDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity)
             } else if let detail = detailData {
+                // 装配图
+                if killmail["_id"] is Int {
+                    GeometryReader { geometry in
+                        let availableWidth = geometry.size.width
+                        BRKillMailFittingView(killMailData: detail)
+                            .frame(width: availableWidth, height: availableWidth)
+                            .cornerRadius(8)
+                    }
+                    .aspectRatio(1, contentMode: .fit)  // 强制保持1:1的比例
+                    .padding(.vertical, 8)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                }
+                
                 // 受害者信息行
                 HStack(spacing: 12) {
                     // 角色头像
@@ -197,22 +210,6 @@ struct BRKillMailDetailView: View {
                     Text(formatISK(totalValue))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                
-                // 装配图
-                if killmail["_id"] is Int {
-                    Section(header: Text(NSLocalizedString("Main_KM_Fitting", comment: ""))) {
-                        if let detail = detailData {
-                            GeometryReader { geometry in
-                                let availableWidth = geometry.size.width
-                                BRKillMailFittingView(killMailData: detail)
-                                    .frame(width: availableWidth, height: availableWidth)
-                                    .cornerRadius(8)
-                            }
-                            .aspectRatio(1, contentMode: .fit)  // 强制保持1:1的比例
-                            .padding(.vertical, 8)
-                        }
-                    }
-                }
             }
         }
         .listStyle(.insetGrouped)
