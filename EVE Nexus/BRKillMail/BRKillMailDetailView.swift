@@ -738,11 +738,10 @@ struct ItemRow: View {
                 )
             }) {
                 HStack {
-                    IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                    Image(uiImage: IconManager.shared.loadUIImage(for: itemInfo.iconFileName))
                         .resizable()
-                        .aspectRatio(contentMode: .fit)
                         .frame(width: 32, height: 32)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .cornerRadius(6)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text(itemInfo.name)
