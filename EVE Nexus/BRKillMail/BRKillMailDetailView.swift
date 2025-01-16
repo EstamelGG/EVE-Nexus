@@ -413,8 +413,13 @@ struct BRKillMailDetailView: View {
                 }
             }
         }
-        .task {
+        .refreshable {
             await loadBRKillMailDetail()
+        }
+        .task {
+            if detailData == nil {
+                await loadBRKillMailDetail()
+            }
         }
     }
     
