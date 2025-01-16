@@ -344,9 +344,9 @@ struct BRKillMailFittingView: View {
             ZStack {
                 // 添加阴影背景
                 Circle()
-                    .fill(Color.primary.opacity(0.05))
-                    .frame(width: outerCircleRadius * 2)
-                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                    .fill(Color.primary.opacity(0.2))
+                    .frame(width: outerCircleRadius * 1.2)
+                    .shadow(color: Color.primary.opacity(0.6), radius: 16, x: 0, y: 8)
                 
                 // 添加内部黑色圆形背景（在飞船环和最外环之间）
                 Circle()
