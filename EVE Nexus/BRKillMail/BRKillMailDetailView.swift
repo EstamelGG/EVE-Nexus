@@ -182,6 +182,7 @@ struct BRKillMailDetailView: View {
                         let damage = victInfo["dmg"] as? Int ?? 0
                         Text(formatNumber(damage))
                             .foregroundColor(.secondary)
+                            .font(.system(.body, design: .monospaced))
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -192,6 +193,7 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     Text(formatISK(destroyedValue))
                         .foregroundColor(.red)
+                        .font(.system(.body, design: .monospaced))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
@@ -201,6 +203,7 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     Text(formatISK(droppedValue))
                         .foregroundColor(.green)
+                        .font(.system(.body, design: .monospaced))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
@@ -209,6 +212,7 @@ struct BRKillMailDetailView: View {
                     Text(NSLocalizedString("Main_KM_Total", comment: ""))
                         .frame(width: 110, alignment: .leading)
                     Text(formatISK(totalValue))
+                        .font(.system(.body, design: .monospaced))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
