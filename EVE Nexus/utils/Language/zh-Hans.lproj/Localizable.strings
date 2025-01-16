@@ -890,3 +890,10 @@
 "Main_KM_Subsystem_Slots" = "子系统槽";
 "Main_KM_Cargo" = "货舱";
 "KillMail_Unknown_Item" = "未知物品";
+
+"Main_KM_Drone_Bay" = "无人机舱";
+"Main_KM_Fighter_Bay" = "战斗机舱";
+"Main_KM_Fighter_Tubes" = "战斗机发射管";
+"Main_KM_Specialized_Holds" = "特殊舱室";
+"Main_KM_Fleet_Hangar" = "舰队机库";
+"Main_KM_Frigate_Escape_Bay" = "护卫舰逃生舱";

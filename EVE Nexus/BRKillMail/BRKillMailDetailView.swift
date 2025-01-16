@@ -286,18 +286,101 @@ struct BRKillMailDetailView: View {
                     }
                     
                     // 货舱
-                    if let containers = victInfo["cnts"] as? [[String: Any]],
-                       !containers.isEmpty {
+                    let cargoItems = items.filter { item in
+                        item[0] == 5 && item.count >= 4
+                    }
+                    if !cargoItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_Cargo", comment: ""))) {
-                            ForEach(containers.indices, id: \.self) { index in
-                                let container = containers[index]
-                                if let items = container["items"] as? [[Int]] {
-                                    ForEach(items.filter { $0.count >= 4 }, id: \.self) { item in
-                                        let typeId = item[1]
-                                        let quantity = item[2] + item[3]
-                                        ItemRow(typeId: typeId, quantity: quantity)
-                                    }
-                                }
+                            ForEach(cargoItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 无人机舱
+                    let droneBayItems = items.filter { item in
+                        item[0] == 87 && item.count >= 4
+                    }
+                    if !droneBayItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Drone_Bay", comment: ""))) {
+                            ForEach(droneBayItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 战斗机舱
+                    let fighterBayItems = items.filter { item in
+                        item[0] == 158 && item.count >= 4
+                    }
+                    if !fighterBayItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Fighter_Bay", comment: ""))) {
+                            ForEach(fighterBayItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 战斗机发射管
+                    let fighterTubeItems = items.filter { item in
+                        (159...163).contains(item[0]) && item.count >= 4
+                    }
+                    if !fighterTubeItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))) {
+                            ForEach(fighterTubeItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 特殊舱室
+                    let specializedHoldItems = items.filter { item in
+                        (133...143).contains(item[0]) && item.count >= 4 ||  // 特殊燃料舱到特殊弹药舱
+                        item[0] == 181 || // 特殊冰矿舱
+                        item[0] == 182    // 特殊小行星舱
+                    }
+                    if !specializedHoldItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Specialized_Holds", comment: ""))) {
+                            ForEach(specializedHoldItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 舰队机库
+                    let fleetHangarItems = items.filter { item in
+                        item[0] == 155 && item.count >= 4
+                    }
+                    if !fleetHangarItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Fleet_Hangar", comment: ""))) {
+                            ForEach(fleetHangarItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 护卫舰逃生舱
+                    let frigateEscapeBayItems = items.filter { item in
+                        item[0] == 179 && item.count >= 4
+                    }
+                    if !frigateEscapeBayItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Frigate_Escape_Bay", comment: ""))) {
+                            ForEach(frigateEscapeBayItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
                             }
                         }
                     }
