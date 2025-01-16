@@ -756,7 +756,7 @@ struct ItemRow: View {
                     
                     Spacer()
                     if quantity > 1 {
-                        Text("x\(quantity)")
+                        Text("×\(quantity)")
                             .foregroundColor(.secondary)
                     }
                 }
@@ -786,35 +786,5 @@ struct ItemRow: View {
         } else {
             return String(format: "%.2f ISK", value)
         }
-    }
-}
-
-// 添加 ItemRowContent 视图来复用内容显示
-struct ItemRowContent: View {
-    let icon: Image?
-    let name: String
-    let quantity: Int
-    
-    var body: some View {
-        HStack {
-            if let icon = icon {
-                icon
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            } else {
-                ProgressView()
-                    .frame(width: 32, height: 32)
-            }
-            
-            Text(name)
-            Spacer()
-            if quantity > 1 {
-                Text("x\(quantity)")
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
