@@ -756,7 +756,7 @@ struct ItemRow: View {
                             .foregroundColor(.secondary)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
             .listRowBackground(
                 isDropped ? Color.green.opacity(0.2) : nil
