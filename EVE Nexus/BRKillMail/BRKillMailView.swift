@@ -325,7 +325,7 @@ struct BRKillMailView: View {
                     Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
                 }
                 .pickerStyle(.segmented)
-                .padding(.vertical, 8)
+                .padding(.vertical, 2)
                 .onChange(of: selectedFilter) { oldValue, newValue in
                     Task {
                         await viewModel.loadDataIfNeeded(for: newValue)
