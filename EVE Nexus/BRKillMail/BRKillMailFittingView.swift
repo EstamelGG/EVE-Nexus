@@ -18,9 +18,21 @@ struct SlotInfo {
     let type: SlotType
 }
 
+// 槽位配置结构
+struct ShipSlotConfig {
+    var highSlots: Int = 0
+    var mediumSlots: Int = 0
+    var lowSlots: Int = 0
+    var rigSlots: Int = 0
+    var subsystemSlots: Int = 0
+}
+
 struct BRKillMailFittingView: View {
     let killMailData: [String: Any]  // 替换 killMailId，直接接收 JSON 数据
     let databaseManager = DatabaseManager.shared
+    
+    // 添加状态变量存储实际槽位配置
+    @State private var actualSlotConfig = ShipSlotConfig()
     
     // 槽位定义
     private let highSlots: [SlotInfo] = [
@@ -156,8 +168,8 @@ struct BRKillMailFittingView: View {
             await loadShipImage(typeId: shipId)
             
             // 按槽位ID分组物品，并收集所有不重复的typeId
-            var slotItems: [Int: [[Int]]] = [:] // [slotId: [[slotId, typeId, ...]]]
-            var uniqueTypeIds = Set<Int>() // 使用Set来存储不重复的typeId
+            var slotItems: [Int: [[Int]]] = [:]
+            var uniqueTypeIds = Set<Int>()
             
             for item in items where item.count >= 4 {
                 let slotId = item[0]
@@ -174,6 +186,9 @@ struct BRKillMailFittingView: View {
             
             // 查询所有物品的图标文件名和类别信息
             let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
+            
+            // 初始化槽位配置
+            await initializeSlotConfig(shipId: shipId, items: items, typeInfos: typeInfos)
             
             // 处理每个槽位的装备
             for (slotId, items) in slotItems {
@@ -210,12 +225,12 @@ struct BRKillMailFittingView: View {
         radius: CGFloat,
         startAngle: Double,
         slotIndex: Int,
-        totalSlots: Int,
+        maxSlots: Int,  // 改为使用最大槽位数
         totalAngle: Double
     ) -> CGPoint {
-        let slotWidth = totalAngle / Double(totalSlots)
-        let angle = startAngle + slotWidth * Double(slotIndex) + (slotWidth / 2) // 加上半个槽位宽度使图标居中
-        let radian = (angle - 90) * .pi / 180 // 调整为12点钟方向为0度
+        let slotWidth = totalAngle / Double(maxSlots)
+        let angle = startAngle + slotWidth * Double(slotIndex) + (slotWidth / 2)
+        let radian = (angle - 90) * .pi / 180
         
         return CGPoint(
             x: center.x + radius * Foundation.cos(radian),
@@ -223,36 +238,107 @@ struct BRKillMailFittingView: View {
         )
     }
     
+    // 获取船只基础槽位配置
+    private func getShipBaseSlotConfig(typeId: Int) async -> ShipSlotConfig {
+        var config = ShipSlotConfig()
+        
+        let query = """
+            SELECT high_slot, mid_slot, low_slot, rig_slot, groupID
+            FROM types
+            WHERE type_id = ?
+        """
+        
+        if case .success(let rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first {
+            config.highSlots = (row["high_slot"] as? Int) ?? 0
+            config.mediumSlots = (row["mid_slot"] as? Int) ?? 0
+            config.lowSlots = (row["low_slot"] as? Int) ?? 0
+            config.rigSlots = (row["rig_slot"] as? Int) ?? 0
+            
+            // 检查是否为T3巡洋舰（groupID = 963）
+            if let groupId = row["groupID"] as? Int, groupId == 963 {
+                config.subsystemSlots = 4
+            }
+        }
+        
+        Logger.debug("船只槽位配置: typeId=\(typeId), high=\(config.highSlots), mid=\(config.mediumSlots), low=\(config.lowSlots), rig=\(config.rigSlots), subsystem=\(config.subsystemSlots)")
+        return config
+    }
+    
+    // 计算实际装配的非弹药装备数量
+    private func calculateActualFittedSlots(items: [[Int]], typeInfos: [Int: (String, Int)], slotRange: Range<Int>) -> Int {
+        var fittedSlots = Set<Int>()
+        
+        for item in items {
+            let slotId = item[0]
+            let typeId = item[1]
+            
+            // 检查是否在指定槽位范围内且不是弹药
+            if slotRange.contains(slotId),
+               let typeInfo = typeInfos[typeId],
+               typeInfo.1 != 8 {
+                fittedSlots.insert(slotId)
+            }
+        }
+        
+        return fittedSlots.count
+    }
+    
+    // 初始化实际槽位配置
+    private func initializeSlotConfig(shipId: Int, items: [[Int]], typeInfos: [Int: (String, Int)]) async {
+        // 获取基础配置
+        let baseConfig = await getShipBaseSlotConfig(typeId: shipId)
+        
+        // 计算实际装配的槽位数量
+        let actualHighSlots = calculateActualFittedSlots(items: items, typeInfos: typeInfos, slotRange: 27..<35)
+        let actualMediumSlots = calculateActualFittedSlots(items: items, typeInfos: typeInfos, slotRange: 19..<27)
+        let actualLowSlots = calculateActualFittedSlots(items: items, typeInfos: typeInfos, slotRange: 11..<19)
+        let actualRigSlots = calculateActualFittedSlots(items: items, typeInfos: typeInfos, slotRange: 92..<95)
+        let actualSubsystemSlots = calculateActualFittedSlots(items: items, typeInfos: typeInfos, slotRange: 125..<129)
+        
+        // 确定最终槽位数量
+        await MainActor.run {
+            actualSlotConfig.highSlots = min(8, max(baseConfig.highSlots, actualHighSlots))
+            actualSlotConfig.mediumSlots = min(8, max(baseConfig.mediumSlots, actualMediumSlots))
+            actualSlotConfig.lowSlots = min(8, max(baseConfig.lowSlots, actualLowSlots))
+            actualSlotConfig.rigSlots = min(3, max(baseConfig.rigSlots, actualRigSlots))
+            actualSlotConfig.subsystemSlots = min(4, max(baseConfig.subsystemSlots, actualSubsystemSlots))
+        }
+        
+        Logger.debug("""
+            实际槽位配置:
+            高槽: \(actualSlotConfig.highSlots) (基础:\(baseConfig.highSlots), 实装:\(actualHighSlots))
+            中槽: \(actualSlotConfig.mediumSlots) (基础:\(baseConfig.mediumSlots), 实装:\(actualMediumSlots))
+            低槽: \(actualSlotConfig.lowSlots) (基础:\(baseConfig.lowSlots), 实装:\(actualLowSlots))
+            改装: \(actualSlotConfig.rigSlots) (基础:\(baseConfig.rigSlots), 实装:\(actualRigSlots))
+            子系统: \(actualSlotConfig.subsystemSlots) (基础:\(baseConfig.subsystemSlots), 实装:\(actualSubsystemSlots))
+            """)
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             let minSize = min(geometry.size.width, geometry.size.height)
-            let baseSize: CGFloat = 400 // 基准尺寸
-            let scale = minSize / baseSize // 计算缩放比例
+            let baseSize: CGFloat = 400
+            let scale = minSize / baseSize
             let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
             
-            // 基础尺寸计算
-            let baseRadius: CGFloat = 190 // 基础半径
+            let baseRadius: CGFloat = 190
             let scaledRadius = baseRadius * scale
             
-            // 外环计算
-            let outerCircleRadius = scaledRadius // 最外圈圆环
-            let outerStrokeWidth: CGFloat = 2 * scale // 外圈线条宽度
+            let outerCircleRadius = scaledRadius
+            let outerStrokeWidth: CGFloat = 2 * scale
             
-            // 装备槽位圆环计算
-            let slotOuterRadius = scaledRadius - (10 * scale) // 槽位外圈
-            let slotInnerRadius = slotOuterRadius - (35 * scale) // 槽位内圈
-            let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2 // 装备图标放置半径
+            let slotOuterRadius = scaledRadius - (10 * scale)
+            let slotInnerRadius = slotOuterRadius - (35 * scale)
+            let slotCenterRadius = (slotOuterRadius + slotInnerRadius) / 2
             
-            // 中心圆环计算
-            let innerCircleRadius = scaledRadius * 0.6 // 中心圆环半径
-            let innerStrokeWidth: CGFloat = 1.5 * scale // 内圈线条宽度
+            let innerCircleRadius = scaledRadius * 0.6
+            let innerStrokeWidth: CGFloat = 1.5 * scale
             
-            // 内部装备槽位圆环（装备架和子系统）
             let innerSlotOuterRadius = innerCircleRadius - (5 * scale)
             let innerSlotInnerRadius = innerSlotOuterRadius - (30 * scale)
             let innerSlotCenterRadius = (innerSlotOuterRadius + innerSlotInnerRadius) / 2
             
-            // 装备图标尺寸
             let equipmentIconSize: CGFloat = 32 * scale
             
             ZStack {
@@ -301,73 +387,88 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: outerStrokeWidth)
                 }
                 
-                // 高槽区域 (-56° to 56°, 顶部12点位置)
-                SlotSection(
-                    center: center,
-                    innerRadius: slotInnerRadius,
-                    outerRadius: slotOuterRadius,
-                    startAngle: -52,
-                    endAngle: 52,
-                    use12OClock: true,
-                    slotCount: 8,
-                    strokeWidth: innerStrokeWidth
-                )
-                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                // 高槽区域 (-52° to 52°)
+                if actualSlotConfig.highSlots > 0 {
+                    SlotSection(
+                        center: center,
+                        innerRadius: slotInnerRadius,
+                        outerRadius: slotOuterRadius,
+                        startAngle: -52,
+                        endAngle: 52,
+                        use12OClock: true,
+                        maxSlots: 8,
+                        actualSlots: actualSlotConfig.highSlots,
+                        strokeWidth: innerStrokeWidth
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                }
                 
-                // 右侧低槽区域 (64° to 176°, 4点位置)
-                SlotSection(
-                    center: center,
-                    innerRadius: slotInnerRadius,
-                    outerRadius: slotOuterRadius,
-                    startAngle: 68,
-                    endAngle: 172,
-                    use12OClock: true,
-                    slotCount: 8,
-                    strokeWidth: innerStrokeWidth
-                )
-                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                // 低槽区域 (68° to 172°)
+                if actualSlotConfig.lowSlots > 0 {
+                    SlotSection(
+                        center: center,
+                        innerRadius: slotInnerRadius,
+                        outerRadius: slotOuterRadius,
+                        startAngle: 68,
+                        endAngle: 172,
+                        use12OClock: true,
+                        maxSlots: 8,
+                        actualSlots: actualSlotConfig.lowSlots,
+                        strokeWidth: innerStrokeWidth
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                }
                 
-                // 左侧中槽区域 (184° to 296°, 8点位置)
-                SlotSection(
-                    center: center,
-                    innerRadius: slotInnerRadius,
-                    outerRadius: slotOuterRadius,
-                    startAngle: 188,
-                    endAngle: 292,
-                    use12OClock: true,
-                    slotCount: 8,
-                    strokeWidth: innerStrokeWidth
-                )
-                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                // 中槽区域 (188° to 292°)
+                if actualSlotConfig.mediumSlots > 0 {
+                    SlotSection(
+                        center: center,
+                        innerRadius: slotInnerRadius,
+                        outerRadius: slotOuterRadius,
+                        startAngle: 188,
+                        endAngle: 292,
+                        use12OClock: true,
+                        maxSlots: 8,
+                        actualSlots: actualSlotConfig.mediumSlots,
+                        strokeWidth: innerStrokeWidth
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                }
                 
-                // 底部装备架区域（3个槽位）
-                SlotSection(
-                    center: center,
-                    innerRadius: innerSlotInnerRadius,
-                    outerRadius: innerSlotOuterRadius,
-                    startAngle: 142,
-                    endAngle: 218,
-                    use12OClock: true,
-                    slotCount: 3,
-                    strokeWidth: innerStrokeWidth
-                )
-                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                // 改装槽区域 (142° to 218°)
+                if actualSlotConfig.rigSlots > 0 {
+                    SlotSection(
+                        center: center,
+                        innerRadius: innerSlotInnerRadius,
+                        outerRadius: innerSlotOuterRadius,
+                        startAngle: 142,
+                        endAngle: 218,
+                        use12OClock: true,
+                        maxSlots: 3,
+                        actualSlots: actualSlotConfig.rigSlots,
+                        strokeWidth: innerStrokeWidth
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                }
                 
-                // 顶部子系统区域（4个槽位）
-                SlotSection(
-                    center: center,
-                    innerRadius: innerSlotInnerRadius,
-                    outerRadius: innerSlotOuterRadius,
-                    startAngle: -48,
-                    endAngle: 48,
-                    use12OClock: true,
-                    slotCount: 4,
-                    strokeWidth: innerStrokeWidth
-                )
-                .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                // 子系统区域 (-48° to 48°)
+                if actualSlotConfig.subsystemSlots > 0 {
+                    SlotSection(
+                        center: center,
+                        innerRadius: innerSlotInnerRadius,
+                        outerRadius: innerSlotOuterRadius,
+                        startAngle: -48,
+                        endAngle: 48,
+                        use12OClock: true,
+                        maxSlots: 4,
+                        actualSlots: actualSlotConfig.subsystemSlots,
+                        strokeWidth: innerStrokeWidth
+                    )
+                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                }
                 
                 // 高槽装备图标
-                ForEach(0..<8) { index in
+                ForEach(0..<actualSlotConfig.highSlots, id: \.self) { index in
                     if let icon = equipmentIcons[highSlots[index].id] {
                         icon
                             .resizable()
@@ -378,14 +479,14 @@ struct BRKillMailFittingView: View {
                                 radius: slotCenterRadius,
                                 startAngle: -52,
                                 slotIndex: index,
-                                totalSlots: 8,
+                                maxSlots: 8,
                                 totalAngle: 104
                             ))
                     }
                 }
                 
                 // 低槽装备图标
-                ForEach(0..<8) { index in
+                ForEach(0..<actualSlotConfig.lowSlots, id: \.self) { index in
                     if let icon = equipmentIcons[lowSlots[index].id] {
                         icon
                             .resizable()
@@ -396,14 +497,14 @@ struct BRKillMailFittingView: View {
                                 radius: slotCenterRadius,
                                 startAngle: 68,
                                 slotIndex: index,
-                                totalSlots: 8,
+                                maxSlots: 8,
                                 totalAngle: 104
                             ))
                     }
                 }
                 
                 // 中槽装备图标
-                ForEach(0..<8) { index in
+                ForEach(0..<actualSlotConfig.mediumSlots, id: \.self) { index in
                     if let icon = equipmentIcons[mediumSlots[index].id] {
                         icon
                             .resizable()
@@ -414,14 +515,14 @@ struct BRKillMailFittingView: View {
                                 radius: slotCenterRadius,
                                 startAngle: 188,
                                 slotIndex: index,
-                                totalSlots: 8,
+                                maxSlots: 8,
                                 totalAngle: 104
                             ))
                     }
                 }
                 
-                // 装备架图标
-                ForEach(0..<3) { index in
+                // 改装槽图标
+                ForEach(0..<actualSlotConfig.rigSlots, id: \.self) { index in
                     if let icon = equipmentIcons[rigSlots[index].id] {
                         icon
                             .resizable()
@@ -432,14 +533,14 @@ struct BRKillMailFittingView: View {
                                 radius: innerSlotCenterRadius,
                                 startAngle: 142,
                                 slotIndex: index,
-                                totalSlots: 3,
+                                maxSlots: 3,
                                 totalAngle: 76
                             ))
                     }
                 }
                 
                 // 子系统图标
-                ForEach(0..<4) { index in
+                ForEach(0..<actualSlotConfig.subsystemSlots, id: \.self) { index in
                     if let icon = equipmentIcons[subsystemSlots[index].id] {
                         icon
                             .resizable()
@@ -450,7 +551,7 @@ struct BRKillMailFittingView: View {
                                 radius: innerSlotCenterRadius,
                                 startAngle: -48,
                                 slotIndex: index,
-                                totalSlots: 4,
+                                maxSlots: 4,
                                 totalAngle: 96
                             ))
                     }
@@ -509,17 +610,23 @@ struct SlotSection: Shape {
     let startAngle: Double
     let endAngle: Double
     let use12OClock: Bool
-    let slotCount: Int
+    let maxSlots: Int  // 最大槽位数（用于计算分隔线间距）
+    let actualSlots: Int  // 实际显示的槽位数
     let strokeWidth: CGFloat
     
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
-        let adjustment = -90.0 // 将0度从3点钟位置调整到12点钟位置
+        let adjustment = -90.0
+        
+        // 计算实际槽位对应的结束角度
+        let totalAngle = endAngle - startAngle
+        let slotWidth = totalAngle / Double(maxSlots)
+        let actualEndAngle = startAngle + slotWidth * Double(actualSlots)
         
         // 绘制主弧形
         let startRadian = (startAngle + adjustment) * .pi / 180
-        let endRadian = (endAngle + adjustment) * .pi / 180
+        let endRadian = (actualEndAngle + adjustment) * .pi / 180
         
         // 绘制外弧
         path.addArc(
@@ -540,11 +647,7 @@ struct SlotSection: Shape {
         )
         
         // 绘制分隔线
-        let totalAngle = endAngle - startAngle
-        let slotWidth = totalAngle / Double(slotCount)
-        
-        // 绘制所有分隔线（包括起始和结束位置）
-        for i in 0...slotCount {
+        for i in 0...actualSlots {
             let angle = startAngle + slotWidth * Double(i)
             let radian = (angle + adjustment) * .pi / 180
             
