@@ -209,11 +209,13 @@ struct BRKillMailDetailView: View {
                 }
                 
                 // 装配图
-                if let killId = killmail["_id"] as? Int {
+                if killmail["_id"] is Int {
                     Section(header: Text(NSLocalizedString("Main_KM_Fitting", comment: ""))) {
-                        BRKillMailFittingView(killMailId: killId)
-                            .frame(height: 400)
-                            .cornerRadius(8)
+                        if let detail = detailData {
+                            BRKillMailFittingView(killMailData: detail)
+                                .frame(height: 400)
+                                .cornerRadius(8)
+                        }
                     }
                 }
             }

@@ -19,7 +19,7 @@ struct SlotInfo {
 }
 
 struct BRKillMailFittingView: View {
-    let killMailId: Int
+    let killMailData: [String: Any]  // 替换 killMailId，直接接收 JSON 数据
     let databaseManager = DatabaseManager.shared
     
     // 槽位定义
@@ -146,64 +146,57 @@ struct BRKillMailFittingView: View {
     
     // 加载 killmail 数据
     private func loadKillMailData() async {
-        Logger.debug("装配图标: 开始加载 KillMail ID \(killMailId)")
-        let url = URL(string: "https://kb.evetools.org/api/v1/killmails/\(killMailId)")!
-        
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let victInfo = json["vict"] as? [String: Any],
-               let items = victInfo["itms"] as? [[Int]],
-               let shipId = victInfo["ship"] as? Int {
+        if let victInfo = killMailData["vict"] as? [String: Any],
+           let items = victInfo["itms"] as? [[Int]],
+           let shipId = victInfo["ship"] as? Int {
+            
+            Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
+            
+            // 加载飞船图片
+            await loadShipImage(typeId: shipId)
+            
+            // 按槽位ID分组物品，并收集所有不重复的typeId
+            var slotItems: [Int: [[Int]]] = [:] // [slotId: [[slotId, typeId, ...]]]
+            var uniqueTypeIds = Set<Int>() // 使用Set来存储不重复的typeId
+            
+            for item in items where item.count >= 4 {
+                let slotId = item[0]
+                let typeId = item[1]
                 
-                Logger.debug("装配图标: 成功获取击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
-                
-                // 加载飞船图片
-                await loadShipImage(typeId: shipId)
-                
-                // 按槽位ID分组物品，并收集所有不重复的typeId
-                var slotItems: [Int: [[Int]]] = [:] // [slotId: [[slotId, typeId, ...]]]
-                var uniqueTypeIds = Set<Int>() // 使用Set来存储不重复的typeId
-                
-                for item in items where item.count >= 4 {
-                    let slotId = item[0]
-                    let typeId = item[1]
-                    
-                    if slotItems[slotId] == nil {
-                        slotItems[slotId] = []
-                    }
-                    slotItems[slotId]?.append(item)
-                    uniqueTypeIds.insert(typeId)
+                if slotItems[slotId] == nil {
+                    slotItems[slotId] = []
+                }
+                slotItems[slotId]?.append(item)
+                uniqueTypeIds.insert(typeId)
+            }
+            
+            Logger.debug("装配图标: 收集到 \(uniqueTypeIds.count) 个不重复物品ID")
+            
+            // 查询所有物品的图标文件名和类别信息
+            let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
+            
+            // 处理每个槽位的装备
+            for (slotId, items) in slotItems {
+                // 按categoryId排序，确保非弹药装备优先
+                let sortedItems = items.sorted { item1, item2 in
+                    let type1 = item1[1]
+                    let type2 = item2[1]
+                    let cat1 = typeInfos[type1]?.1 ?? 0
+                    let cat2 = typeInfos[type2]?.1 ?? 0
+                    return cat1 != 8 && cat2 == 8
                 }
                 
-                Logger.debug("装配图标: 收集到 \(uniqueTypeIds.count) 个不重复物品ID")
-                
-                // 查询所有物品的图标文件名和类别信息
-                let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
-                
-                // 处理每个槽位的装备
-                for (slotId, items) in slotItems {
-                    // 按categoryId排序，确保非弹药装备优先
-                    let sortedItems = items.sorted { item1, item2 in
-                        let type1 = item1[1]
-                        let type2 = item2[1]
-                        let cat1 = typeInfos[type1]?.1 ?? 0
-                        let cat2 = typeInfos[type2]?.1 ?? 0
-                        return cat1 != 8 && cat2 == 8
+                // 使用第一个非弹药装备，如果都是弹药则使用第一个
+                if let firstItem = sortedItems.first,
+                   let typeInfo = typeInfos[firstItem[1]] {
+                    await MainActor.run {
+                        equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
                     }
-                    
-                    // 使用第一个非弹药装备，如果都是弹药则使用第一个
-                    if let firstItem = sortedItems.first,
-                       let typeInfo = typeInfos[firstItem[1]] {
-                        await MainActor.run {
-                            equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
-                        }
-                        Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(typeInfo.0)")
-                    }
+                    Logger.debug("装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(typeInfo.0)")
                 }
             }
-        } catch {
-            Logger.error("装配图标: 加载击毁数据失败 - \(error)")
+        } else {
+            Logger.error("装配图标: 无效的击毁数据格式")
         }
         
         await MainActor.run {
@@ -568,7 +561,14 @@ struct SlotSection: Shape {
 // 预览
 struct BRKillMailFittingView_Previews: PreviewProvider {
     static var previews: some View {
-        BRKillMailFittingView(killMailId: 123738476) // 使用一个实际的 killmail ID
+        // 创建一个示例 JSON 数据用于预览
+        let sampleData: [String: Any] = [
+            "vict": [
+                "ship": 123456,
+                "itms": [[27, 12345, 1, 1]]
+            ]
+        ]
+        BRKillMailFittingView(killMailData: sampleData)
             .frame(width: 400, height: 400)
             .preferredColorScheme(.dark)
     }
