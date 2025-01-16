@@ -214,125 +214,44 @@ struct BRKillMailDetailView: View {
                 // 装配信息
                 if let victInfo = detail["vict"] as? [String: Any],
                    let items = victInfo["itms"] as? [[Int]] {
-                    
-                    // 高槽
-                    let highSlotItems = items.filter { item in
-                        (27...34).contains(item[0]) && item.count >= 4
-                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
-                    
-                    if !highSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))) {
-                            ForEach(highSlotItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
+                    // 获取所有非装配槽位的物品，按flag分组
+                    let nonFittingItems = items.filter { item in
+                        // 排除装配槽位的物品
+                        !(11...18).contains(item[0]) && // 低槽
+                        !(19...26).contains(item[0]) && // 中槽
+                        !(27...34).contains(item[0]) && // 高槽
+                        !(92...94).contains(item[0]) && // 改装槽
+                        !(125...128).contains(item[0]) && // 子系统槽
+                        !(159...163).contains(item[0])    // 战斗机发射管
                     }
                     
-                    // 中槽
-                    let mediumSlotItems = items.filter { item in
-                        (19...26).contains(item[0]) && item.count >= 4
-                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    // 获取所有可能的flag
+                    let allFlags = Set(nonFittingItems.map { $0[0] }) // 从items中获取flags
+                        .union(Set((victInfo["cnts"] as? [[String: Any]])?.compactMap { $0["flag"] as? Int } ?? [])) // 从containers中获取flags
+                        .sorted()
                     
-                    if !mediumSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))) {
-                            ForEach(mediumSlotItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                    // 对每个flag创建一个Section
+                    ForEach(allFlags, id: \.self) { flag in
+                        let flagItems = nonFittingItems.filter { $0[0] == flag }
+                        let flagContainers = (victInfo["cnts"] as? [[String: Any]])?.filter { ($0["flag"] as? Int) == flag } ?? []
+                        
+                        if !flagItems.isEmpty || !flagContainers.isEmpty {
+                            Section(header: Text(getFlagName(flag))) {
+                                // 显示直接在该舱室的物品
+                                ForEach(flagItems, id: \.self) { item in
+                                    let typeId = item[1]
+                                    if item[2] > 0 {  // 掉落数量
+                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    }
+                                    if item[3] > 0 {  // 摧毁数量
+                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    }
                                 }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 低槽
-                    let lowSlotItems = items.filter { item in
-                        (11...18).contains(item[0]) && item.count >= 4
-                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
-                    
-                    if !lowSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))) {
-                            ForEach(lowSlotItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 改装槽
-                    let rigSlotItems = items.filter { item in
-                        (92...94).contains(item[0]) && item.count >= 4
-                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
-                    
-                    if !rigSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))) {
-                            ForEach(rigSlotItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 子系统槽
-                    let subsystemSlotItems = items.filter { item in
-                        (125...128).contains(item[0]) && item.count >= 4
-                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
-                    
-                    if !subsystemSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))) {
-                            ForEach(subsystemSlotItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 货舱
-                    let cargoItems = items.filter { item in
-                        item[0] == 5 && item.count >= 4
-                    }
-                    if !cargoItems.isEmpty || (victInfo["cnts"] as? [[String: Any]])?.contains(where: { ($0["flag"] as? Int) == 5 }) == true {
-                        Section(header: Text(NSLocalizedString("Main_KM_Cargo", comment: ""))) {
-                            // 先显示直接在货舱的物品
-                            ForEach(cargoItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }
-                            
-                            // 显示货舱中的容器及其内容
-                            if let containers = victInfo["cnts"] as? [[String: Any]] {
-                                ForEach(containers.indices, id: \.self) { index in
-                                    let container = containers[index]
-                                    if let flag = container["flag"] as? Int, flag == 5,
-                                       let typeId = container["type"] as? Int {
+                                
+                                // 显示该舱室中的容器及其内容
+                                ForEach(flagContainers.indices, id: \.self) { index in
+                                    let container = flagContainers[index]
+                                    if let typeId = container["type"] as? Int {
                                         // 显示容器本身
                                         if let drop = container["drop"] as? Int, drop == 1 {
                                             ItemRow(typeId: typeId, quantity: 1, isDropped: true)
@@ -354,275 +273,6 @@ struct BRKillMailDetailView: View {
                                                         ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
                                                             .padding(.leading, 20)
                                                     }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                    
-                    // 无人机舱
-                    let droneBayItems = items.filter { item in
-                        item[0] == 87 && item.count >= 4
-                    }
-                    if !droneBayItems.isEmpty || (victInfo["cnts"] as? [[String: Any]])?.contains(where: { ($0["flag"] as? Int) == 87 }) == true {
-                        Section(header: Text(NSLocalizedString("Main_KM_Drone_Bay", comment: ""))) {
-                            // 先显示直接在无人机舱的物品
-                            ForEach(droneBayItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }
-                            
-                            // 显示无人机舱中的容器及其内容
-                            if let containers = victInfo["cnts"] as? [[String: Any]] {
-                                ForEach(containers.indices, id: \.self) { index in
-                                    let container = containers[index]
-                                    if let flag = container["flag"] as? Int, flag == 87,
-                                       let typeId = container["type"] as? Int {
-                                        // 显示容器本身
-                                        if let drop = container["drop"] as? Int, drop == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true)
-                                        }
-                                        if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false)
-                                        }
-                                        
-                                        // 显示容器内的物品
-                                        if let items = container["items"] as? [[Int]] {
-                                            ForEach(items, id: \.self) { item in
-                                                if item.count >= 4 {
-                                                    let typeId = item[1]
-                                                    if item[2] > 0 {  // 掉落数量
-                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                    if item[3] > 0 {  // 摧毁数量
-                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                    
-                    // 战斗机舱
-                    let fighterBayItems = items.filter { item in
-                        item[0] == 158 && item.count >= 4
-                    }
-                    if !fighterBayItems.isEmpty || (victInfo["cnts"] as? [[String: Any]])?.contains(where: { ($0["flag"] as? Int) == 158 }) == true {
-                        Section(header: Text(NSLocalizedString("Main_KM_Fighter_Bay", comment: ""))) {
-                            // 先显示直接在战斗机舱的物品
-                            ForEach(fighterBayItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }
-                            
-                            // 显示战斗机舱中的容器及其内容
-                            if let containers = victInfo["cnts"] as? [[String: Any]] {
-                                ForEach(containers.indices, id: \.self) { index in
-                                    let container = containers[index]
-                                    if let flag = container["flag"] as? Int, flag == 158,
-                                       let typeId = container["type"] as? Int {
-                                        // 显示容器本身
-                                        if let drop = container["drop"] as? Int, drop == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true)
-                                        }
-                                        if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false)
-                                        }
-                                        
-                                        // 显示容器内的物品
-                                        if let items = container["items"] as? [[Int]] {
-                                            ForEach(items, id: \.self) { item in
-                                                if item.count >= 4 {
-                                                    let typeId = item[1]
-                                                    if item[2] > 0 {  // 掉落数量
-                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                    if item[3] > 0 {  // 摧毁数量
-                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                    
-                    // 战斗机发射管
-                    let fighterTubeItems = items.filter { item in
-                        (159...163).contains(item[0]) && item.count >= 4
-                    }
-                    if !fighterTubeItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))) {
-                            ForEach(fighterTubeItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 特殊舱室
-                    let specializedHoldItems = items.filter { item in
-                        (133...143).contains(item[0]) && item.count >= 4 ||  // 特殊燃料舱到特殊弹药舱
-                        item[0] == 181 || // 特殊冰矿舱
-                        item[0] == 182    // 特殊小行星舱
-                    }
-                    if !specializedHoldItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Specialized_Holds", comment: ""))) {
-                            ForEach(specializedHoldItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    
-                    // 舰队机库
-                    let fleetHangarItems = items.filter { item in
-                        item[0] == 155 && item.count >= 4
-                    }
-                    if !fleetHangarItems.isEmpty || (victInfo["cnts"] as? [[String: Any]])?.contains(where: { ($0["flag"] as? Int) == 155 }) == true {
-                        Section(header: Text(NSLocalizedString("Main_KM_Fleet_Hangar", comment: ""))) {
-                            // 先显示直接在舰队机库的物品
-                            ForEach(fleetHangarItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }
-                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                    
-                    // 舰船机库
-                    let shipHangarItems = items.filter { item in
-                        item[0] == 90 && item.count >= 4
-                    }
-                    if !shipHangarItems.isEmpty || (victInfo["cnts"] as? [[String: Any]])?.contains(where: { ($0["flag"] as? Int) == 90 }) == true {
-                        Section(header: Text(NSLocalizedString("Main_KM_Ship_Hangar", comment: ""))) {
-                            // 先显示直接在舰船机库的物品
-                            ForEach(shipHangarItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }
-                            
-                            // 显示舰船机库中的容器及其内容
-                            if let containers = victInfo["cnts"] as? [[String: Any]] {
-                                ForEach(containers.indices, id: \.self) { index in
-                                    let container = containers[index]
-                                    if let flag = container["flag"] as? Int, flag == 90,
-                                       let typeId = container["type"] as? Int {
-                                        // 显示容器本身
-                                        if let drop = container["drop"] as? Int, drop == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true)
-                                        }
-                                        if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false)
-                                        }
-                                        
-                                        // 显示容器内的物品
-                                        if let items = container["items"] as? [[Int]] {
-                                            ForEach(items, id: \.self) { item in
-                                                if item.count >= 4 {
-                                                    let typeId = item[1]
-                                                    if item[2] > 0 {  // 掉落数量
-                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                    if item[3] > 0 {  // 摧毁数量
-                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                                            .padding(.leading, 20)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                    
-                    // 护卫舰逃生舱
-                    let frigateEscapeBayItems = items.filter { item in
-                        item[0] == 179 && item.count >= 4
-                    }
-                    if !frigateEscapeBayItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Frigate_Escape_Bay", comment: ""))) {
-                            ForEach(frigateEscapeBayItems, id: \.self) { item in
-                                let typeId = item[1]
-                                if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                }
-                                if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                }
-                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-
-                    // 容器内物品
-                    if let containers = victInfo["cnts"] as? [[String: Any]] {
-                        Section(header: Text(NSLocalizedString("Main_KM_Container_Items", comment: ""))) {
-                            ForEach(containers.indices, id: \.self) { index in
-                                let container = containers[index]
-                                if let typeId = container["type"] as? Int {
-                                    // 显示容器本身
-                                    if let drop = container["drop"] as? Int, drop == 1 {
-                                        ItemRow(typeId: typeId, quantity: 1, isDropped: true)
-                                    }
-                                    if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                        ItemRow(typeId: typeId, quantity: 1, isDropped: false)
-                                    }
-                                    
-                                    // 显示容器内的物品，使用缩进样式
-                                    if let items = container["items"] as? [[Int]] {
-                                        ForEach(items, id: \.self) { item in
-                                            if item.count >= 4 {
-                                                let typeId = item[1]
-                                                if item[2] > 0 {  // 掉落数量
-                                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
-                                                        .padding(.leading, 20)  // 添加缩进
-                                                }
-                                                if item[3] > 0 {  // 摧毁数量
-                                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
-                                                        .padding(.leading, 20)  // 添加缩进
                                                 }
                                             }
                                         }
@@ -860,6 +510,20 @@ struct BRKillMailDetailView: View {
         if let url = URL(string: "https://zkillboard.com/kill/\(killId)/") {
             UIApplication.shared.open(url)
         }
+    }
+    
+    private func getFlagName(_ flag: Int) -> String {
+        let query = """
+            SELECT flagName
+            FROM invFlags
+            WHERE flagID = ?
+        """
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [flag]),
+           let row = rows.first,
+           let flagName = row["flagName"] as? String {
+            return flagName
+        }
+        return "Unknown Flag"
     }
 }
 
