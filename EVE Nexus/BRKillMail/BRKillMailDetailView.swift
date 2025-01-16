@@ -218,70 +218,95 @@ struct BRKillMailDetailView: View {
                     // 高槽
                     let highSlotItems = items.filter { item in
                         (27...34).contains(item[0]) && item.count >= 4
-                    }
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
                     if !highSlotItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))) {
                             ForEach(highSlotItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]  // 掉落 + 摧毁
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
                     // 中槽
                     let mediumSlotItems = items.filter { item in
                         (19...26).contains(item[0]) && item.count >= 4
-                    }
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
                     if !mediumSlotItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))) {
                             ForEach(mediumSlotItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
                     // 低槽
                     let lowSlotItems = items.filter { item in
                         (11...18).contains(item[0]) && item.count >= 4
-                    }
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
                     if !lowSlotItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))) {
                             ForEach(lowSlotItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
                     // 改装槽
                     let rigSlotItems = items.filter { item in
                         (92...94).contains(item[0]) && item.count >= 4
-                    }
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
                     if !rigSlotItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))) {
                             ForEach(rigSlotItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
                     // 子系统槽
                     let subsystemSlotItems = items.filter { item in
                         (125...128).contains(item[0]) && item.count >= 4
-                    }
+                    }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
+                    
                     if !subsystemSlotItems.isEmpty {
                         Section(header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))) {
                             ForEach(subsystemSlotItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -293,9 +318,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Cargo", comment: ""))) {
                             ForEach(cargoItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -307,9 +336,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Drone_Bay", comment: ""))) {
                             ForEach(droneBayItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -321,9 +354,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Fighter_Bay", comment: ""))) {
                             ForEach(fighterBayItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -335,9 +372,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))) {
                             ForEach(fighterTubeItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -351,9 +392,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Specialized_Holds", comment: ""))) {
                             ForEach(specializedHoldItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -365,9 +410,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Fleet_Hangar", comment: ""))) {
                             ForEach(fleetHangarItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                     
@@ -379,9 +428,13 @@ struct BRKillMailDetailView: View {
                         Section(header: Text(NSLocalizedString("Main_KM_Frigate_Escape_Bay", comment: ""))) {
                             ForEach(frigateEscapeBayItems, id: \.self) { item in
                                 let typeId = item[1]
-                                let quantity = item[2] + item[3]
-                                ItemRow(typeId: typeId, quantity: quantity)
-                            }
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                }
+                            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }
@@ -633,10 +686,11 @@ struct AsyncValueView: View {
     }
 }
 
-// 添加 ItemRow 视图
+// 修改 ItemRow 视图
 struct ItemRow: View {
     let typeId: Int
     let quantity: Int
+    let isDropped: Bool  // 是否为掉落物品
     @State private var itemIcon: Image?
     @State private var itemName: String = ""
     
@@ -660,13 +714,16 @@ struct ItemRow: View {
                     .foregroundColor(.secondary)
             }
         }
+        .padding(.vertical, 4)
+        .listRowBackground(
+            isDropped ? Color.green.opacity(0.2) : nil
+        )
         .onAppear {
             loadItemInfo()
         }
     }
     
     private func loadItemInfo() {
-        // 从数据库加载物品信息
         let query = """
             SELECT name, icon_filename
             FROM types
