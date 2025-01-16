@@ -393,8 +393,8 @@ struct BRKillMailView: View {
                 group.addTask { await viewModel.refreshData(for: selectedFilter) }
             }
         }
-        .onAppear {
-            Task {
+        .task {
+            if viewModel.killMails.isEmpty {
                 async let stats: () = viewModel.loadStats()
                 async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
                 await (_, _) = (killmails, stats)
