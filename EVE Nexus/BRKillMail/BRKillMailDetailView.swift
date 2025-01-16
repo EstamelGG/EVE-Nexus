@@ -203,7 +203,7 @@ struct BRKillMailDetailView: View {
                     Section(header: Text(NSLocalizedString("Main_KM_Fitting", comment: ""))) {
                         if let detail = detailData {
                             BRKillMailFittingView(killMailData: detail)
-                                .frame(height: 400)
+                                .frame(height: 380)
                                 .cornerRadius(8)
                         }
                     }

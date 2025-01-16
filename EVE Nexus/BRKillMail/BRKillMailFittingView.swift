@@ -257,9 +257,15 @@ struct BRKillMailFittingView: View {
             let equipmentIconSize: CGFloat = 32 * scale
             
             ZStack {
+                // 添加阴影背景
+                Circle()
+                    .fill(Color.primary.opacity(0.05))
+                    .frame(width: outerCircleRadius * 2)
+                    .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+                
                 // 添加内部黑色圆形背景（在飞船环和最外环之间）
                 Circle()
-                    .fill(Color.black)
+                    .fill(Color.black.opacity(0.8))
                     .frame(width: outerCircleRadius * 2)
                 
                 // 基础圆环
