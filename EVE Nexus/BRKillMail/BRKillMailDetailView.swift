@@ -666,28 +666,39 @@ struct ItemRow: View {
     let isDropped: Bool  // 是否为掉落物品
     @State private var itemIcon: Image?
     @State private var itemName: String = ""
+    @State private var categoryID: Int?
     
     var body: some View {
-        HStack {
-            if let icon = itemIcon {
-                icon
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-            } else {
-                ProgressView()
-                    .frame(width: 32, height: 32)
+        NavigationLink(destination: {
+            if let categoryID = categoryID {
+                ItemInfoMap.getItemInfoView(
+                    itemID: typeId,
+                    categoryID: categoryID,
+                    databaseManager: DatabaseManager.shared
+                )
             }
-            
-            Text(itemName)
-            Spacer()
-            if quantity > 1 {
-                Text("x\(quantity)")
-                    .foregroundColor(.secondary)
+        }) {
+            HStack {
+                if let icon = itemIcon {
+                    icon
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                } else {
+                    ProgressView()
+                        .frame(width: 32, height: 32)
+                }
+                
+                Text(itemName)
+                Spacer()
+                if quantity > 1 {
+                    Text("x\(quantity)")
+                        .foregroundColor(.secondary)
+                }
             }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
         .listRowBackground(
             isDropped ? Color.green.opacity(0.2) : nil
         )
@@ -698,18 +709,50 @@ struct ItemRow: View {
     
     private func loadItemInfo() {
         let query = """
-            SELECT name, icon_filename
+            SELECT name, icon_filename, categoryID
             FROM types
             WHERE type_id = ?
         """
         if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [typeId]),
            let row = rows.first,
            let name = row["name"] as? String,
-           let iconFile = row["icon_filename"] as? String {
+           let iconFile = row["icon_filename"] as? String,
+           let categoryID = row["categoryID"] as? Int {
             itemName = name
             itemIcon = IconManager.shared.loadImage(for: iconFile)
+            self.categoryID = categoryID
         } else {
             itemName = NSLocalizedString("KillMail_Unknown_Item", comment: "")
         }
+    }
+}
+
+// 添加 ItemRowContent 视图来复用内容显示
+struct ItemRowContent: View {
+    let icon: Image?
+    let name: String
+    let quantity: Int
+    
+    var body: some View {
+        HStack {
+            if let icon = icon {
+                icon
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                ProgressView()
+                    .frame(width: 32, height: 32)
+            }
+            
+            Text(name)
+            Spacer()
+            if quantity > 1 {
+                Text("x\(quantity)")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
