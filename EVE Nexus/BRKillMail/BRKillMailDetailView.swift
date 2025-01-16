@@ -202,9 +202,14 @@ struct BRKillMailDetailView: View {
                 if killmail["_id"] is Int {
                     Section(header: Text(NSLocalizedString("Main_KM_Fitting", comment: ""))) {
                         if let detail = detailData {
-                            BRKillMailFittingView(killMailData: detail)
-                                .frame(height: 380)
-                                .cornerRadius(8)
+                            GeometryReader { geometry in
+                                let availableWidth = geometry.size.width
+                                BRKillMailFittingView(killMailData: detail)
+                                    .frame(width: availableWidth, height: availableWidth)
+                                    .cornerRadius(8)
+                            }
+                            .aspectRatio(1, contentMode: .fit)  // 强制保持1:1的比例
+                            .padding(.vertical, 8)
                         }
                     }
                 }
