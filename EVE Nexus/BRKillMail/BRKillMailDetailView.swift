@@ -15,6 +15,7 @@ struct BRKillMailDetailView: View {
     @State private var destroyedValue: Double = 0
     @State private var droppedValue: Double = 0
     @State private var totalValue: Double = 0
+    @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] = [:]
     
     var body: some View {
         List {
@@ -225,10 +226,10 @@ struct BRKillMailDetailView: View {
                             ForEach(highSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -244,10 +245,10 @@ struct BRKillMailDetailView: View {
                             ForEach(mediumSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -263,10 +264,10 @@ struct BRKillMailDetailView: View {
                             ForEach(lowSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -282,10 +283,10 @@ struct BRKillMailDetailView: View {
                             ForEach(rigSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -301,10 +302,10 @@ struct BRKillMailDetailView: View {
                             ForEach(subsystemSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -320,10 +321,10 @@ struct BRKillMailDetailView: View {
                             ForEach(fighterTubeItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -356,10 +357,10 @@ struct BRKillMailDetailView: View {
                                 ForEach(flagItems, id: \.self) { item in
                                     let typeId = item[1]
                                     if item[2] > 0 {  // 掉落数量
-                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                     }
                                     if item[3] > 0 {  // 摧毁数量
-                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                     }
                                 }
                                 
@@ -369,10 +370,10 @@ struct BRKillMailDetailView: View {
                                     if let typeId = container["type"] as? Int {
                                         // 显示容器本身
                                         if let drop = container["drop"] as? Int, drop == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true)
+                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true, itemInfoCache: itemInfoCache)
                                         }
                                         if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false)
+                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false, itemInfoCache: itemInfoCache)
                                         }
                                         
                                         // 显示容器内的物品
@@ -381,11 +382,11 @@ struct BRKillMailDetailView: View {
                                                 if item.count >= 4 {
                                                     let typeId = item[1]
                                                     if item[2] > 0 {  // 掉落数量
-                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true)
+                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
                                                             .padding(.leading, 20)
                                                     }
                                                     if item[3] > 0 {  // 摧毁数量
-                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false)
+                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
                                                             .padding(.leading, 20)
                                                     }
                                                 }
@@ -431,6 +432,9 @@ struct BRKillMailDetailView: View {
             if let killId = killmail["_id"] as? Int {
                 Logger.debug("装配图: 开始加载战报ID \(killId) 的详细信息")
                 let detail = try await kbAPI.fetchKillMailDetail(killMailId: killId)
+                
+                // 一次性加载所有物品信息
+                loadAllItemInfo(from: detail)
                 
                 // 获取到详细数据后加载图标
                 await loadIcons(from: detail)
@@ -645,6 +649,58 @@ struct BRKillMailDetailView: View {
         }
         return NSLocalizedString("Unknown Flag", comment: "")
     }
+    
+    private func loadAllItemInfo(from detail: [String: Any]) {
+        var typeIds = Set<Int>()
+        
+        // 收集所有物品ID
+        if let victInfo = detail["vict"] as? [String: Any] {
+            // 添加舰船ID
+            if let shipId = victInfo["ship"] as? Int {
+                typeIds.insert(shipId)
+            }
+            
+            // 添加装配物品ID
+            if let items = victInfo["itms"] as? [[Int]] {
+                for item in items where item.count >= 4 {
+                    typeIds.insert(item[1])
+                }
+            }
+            
+            // 添加容器及其内容物品ID
+            if let containers = victInfo["cnts"] as? [[String: Any]] {
+                for container in containers {
+                    if let typeId = container["type"] as? Int {
+                        typeIds.insert(typeId)
+                    }
+                    if let items = container["items"] as? [[Int]] {
+                        for item in items where item.count >= 4 {
+                            typeIds.insert(item[1])
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 一次性查询所有物品信息
+        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
+        let query = """
+            SELECT type_id, name, icon_filename, categoryID
+            FROM types
+            WHERE type_id IN (\(placeholders))
+        """
+        
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: Array(typeIds)) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String,
+                   let categoryID = row["categoryID"] as? Int {
+                    itemInfoCache[typeId] = (name, iconFileName, categoryID)
+                }
+            }
+        }
+    }
 }
 
 // 添加一个辅助视图来处理异步值的加载
@@ -669,65 +725,38 @@ struct ItemRow: View {
     let typeId: Int
     let quantity: Int
     let isDropped: Bool  // 是否为掉落物品
-    @State private var itemIcon: Image?
-    @State private var itemName: String = ""
-    @State private var categoryID: Int?
+    let itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
     
     var body: some View {
-        NavigationLink(destination: {
-            if let categoryID = categoryID {
+        if let itemInfo = itemInfoCache[typeId] {
+            NavigationLink(destination: {
                 ItemInfoMap.getItemInfoView(
                     itemID: typeId,
-                    categoryID: categoryID,
+                    categoryID: itemInfo.categoryID,
                     databaseManager: DatabaseManager.shared
                 )
-            }
-        }) {
-            HStack {
-                if let icon = itemIcon {
-                    icon
+            }) {
+                HStack {
+                    IconManager.shared.loadImage(for: itemInfo.iconFileName)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 32, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    ProgressView()
-                        .frame(width: 32, height: 32)
+                    
+                    Text(itemInfo.name)
+                    Spacer()
+                    if quantity > 1 {
+                        Text("x\(quantity)")
+                            .foregroundColor(.secondary)
+                    }
                 }
-                
-                Text(itemName)
-                Spacer()
-                if quantity > 1 {
-                    Text("x\(quantity)")
-                        .foregroundColor(.secondary)
-                }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
-        }
-        .listRowBackground(
-            isDropped ? Color.green.opacity(0.2) : nil
-        )
-        .onAppear {
-            loadItemInfo()
-        }
-    }
-    
-    private func loadItemInfo() {
-        let query = """
-            SELECT name, icon_filename, categoryID
-            FROM types
-            WHERE type_id = ?
-        """
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let iconFile = row["icon_filename"] as? String,
-           let categoryID = row["categoryID"] as? Int {
-            itemName = name
-            itemIcon = IconManager.shared.loadImage(for: iconFile)
-            self.categoryID = categoryID
+            .listRowBackground(
+                isDropped ? Color.green.opacity(0.2) : nil
+            )
         } else {
-            itemName = NSLocalizedString("KillMail_Unknown_Item", comment: "")
+            Text(NSLocalizedString("KillMail_Unknown_Item", comment: ""))
         }
     }
 }
