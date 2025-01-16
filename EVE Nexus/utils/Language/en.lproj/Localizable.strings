@@ -867,3 +867,12 @@
 "Main_KM_EVE_Time" = "EVE Time:";
 "Main_KM_Local_Time" = "Local Time:";
 "Main_KM_Damage" = "Damage:";
+
+// Kill Mail Detail
+"Main_KM_High_Slots" = "High Slots";
+"Main_KM_Medium_Slots" = "Medium Slots";
+"Main_KM_Low_Slots" = "Low Slots";
+"Main_KM_Rig_Slots" = "Rig Slots";
+"Main_KM_Subsystem_Slots" = "Subsystem Slots";
+"Main_KM_Cargo" = "Cargo Hold";
+"KillMail_Unknown_Item" = "Unknown Item";

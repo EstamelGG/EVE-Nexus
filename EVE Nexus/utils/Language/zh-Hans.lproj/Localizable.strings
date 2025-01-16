@@ -881,3 +881,12 @@
 "Main_KM_EVE_Time" = "EVE时间:";
 "Main_KM_Local_Time" = "本地时间:";
 "Main_KM_Damage" = "受到伤害:";
+
+// 战斗日志详情
+"Main_KM_High_Slots" = "高槽";
+"Main_KM_Medium_Slots" = "中槽";
+"Main_KM_Low_Slots" = "低槽";
+"Main_KM_Rig_Slots" = "改装槽";
+"Main_KM_Subsystem_Slots" = "子系统槽";
+"Main_KM_Cargo" = "货舱";
+"KillMail_Unknown_Item" = "未知物品";

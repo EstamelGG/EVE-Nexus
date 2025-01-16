@@ -210,6 +210,98 @@ struct BRKillMailDetailView: View {
                     Text(formatISK(totalValue))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                
+                // 装配信息
+                if let victInfo = detail["vict"] as? [String: Any],
+                   let items = victInfo["itms"] as? [[Int]] {
+                    
+                    // 高槽
+                    let highSlotItems = items.filter { item in
+                        (27...34).contains(item[0]) && item.count >= 4
+                    }
+                    if !highSlotItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))) {
+                            ForEach(highSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]  // 掉落 + 摧毁
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 中槽
+                    let mediumSlotItems = items.filter { item in
+                        (19...26).contains(item[0]) && item.count >= 4
+                    }
+                    if !mediumSlotItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))) {
+                            ForEach(mediumSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 低槽
+                    let lowSlotItems = items.filter { item in
+                        (11...18).contains(item[0]) && item.count >= 4
+                    }
+                    if !lowSlotItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))) {
+                            ForEach(lowSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 改装槽
+                    let rigSlotItems = items.filter { item in
+                        (92...94).contains(item[0]) && item.count >= 4
+                    }
+                    if !rigSlotItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))) {
+                            ForEach(rigSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 子系统槽
+                    let subsystemSlotItems = items.filter { item in
+                        (125...128).contains(item[0]) && item.count >= 4
+                    }
+                    if !subsystemSlotItems.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))) {
+                            ForEach(subsystemSlotItems, id: \.self) { item in
+                                let typeId = item[1]
+                                let quantity = item[2] + item[3]
+                                ItemRow(typeId: typeId, quantity: quantity)
+                            }
+                        }
+                    }
+                    
+                    // 货舱
+                    if let containers = victInfo["cnts"] as? [[String: Any]],
+                       !containers.isEmpty {
+                        Section(header: Text(NSLocalizedString("Main_KM_Cargo", comment: ""))) {
+                            ForEach(containers.indices, id: \.self) { index in
+                                let container = containers[index]
+                                if let items = container["items"] as? [[Int]] {
+                                    ForEach(items.filter { $0.count >= 4 }, id: \.self) { item in
+                                        let typeId = item[1]
+                                        let quantity = item[2] + item[3]
+                                        ItemRow(typeId: typeId, quantity: quantity)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -455,5 +547,56 @@ struct AsyncValueView: View {
                     value = "Error: \(error.localizedDescription)"
                 }
             }
+    }
+}
+
+// 添加 ItemRow 视图
+struct ItemRow: View {
+    let typeId: Int
+    let quantity: Int
+    @State private var itemIcon: Image?
+    @State private var itemName: String = ""
+    
+    var body: some View {
+        HStack {
+            if let icon = itemIcon {
+                icon
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            } else {
+                ProgressView()
+                    .frame(width: 32, height: 32)
+            }
+            
+            Text(itemName)
+            Spacer()
+            if quantity > 1 {
+                Text("x\(quantity)")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .onAppear {
+            loadItemInfo()
+        }
+    }
+    
+    private func loadItemInfo() {
+        // 从数据库加载物品信息
+        let query = """
+            SELECT name, icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        if case .success(let rows) = DatabaseManager.shared.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let name = row["name"] as? String,
+           let iconFile = row["icon_filename"] as? String {
+            itemName = name
+            itemIcon = IconManager.shared.loadImage(for: iconFile)
+        } else {
+            itemName = NSLocalizedString("KillMail_Unknown_Item", comment: "")
+        }
     }
 }
