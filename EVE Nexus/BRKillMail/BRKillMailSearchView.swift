@@ -100,7 +100,7 @@ struct BRKillMailSearchView: View {
                             }
                         }
                         
-                        if totalPages > 1 {
+                        if totalPages > 1 && currentPage < totalPages {
                             HStack {
                                 Spacer()
                                 if isLoadingMore {
@@ -175,7 +175,9 @@ struct BRKillMailSearchView: View {
     }
     
     private func loadMoreKillMails() async {
-        guard let selectedResult = viewModel.selectedResult else { return }
+        guard let selectedResult = viewModel.selectedResult,
+              !isLoadingMore,
+              currentPage < totalPages else { return }
         
         isLoadingMore = true
         currentPage += 1
