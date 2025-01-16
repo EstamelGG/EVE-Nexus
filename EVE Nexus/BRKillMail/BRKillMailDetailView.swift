@@ -221,7 +221,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !highSlotItems.isEmpty {
-                        Section(header: Text(getFlagName(27))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))) {
                             ForEach(highSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -240,7 +240,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !mediumSlotItems.isEmpty {
-                        Section(header: Text(getFlagName(19))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))) {
                             ForEach(mediumSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -259,7 +259,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !lowSlotItems.isEmpty {
-                        Section(header: Text(getFlagName(11))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))) {
                             ForEach(lowSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -278,7 +278,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !rigSlotItems.isEmpty {
-                        Section(header: Text(getFlagName(92))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))) {
                             ForEach(rigSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -297,7 +297,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !subsystemSlotItems.isEmpty {
-                        Section(header: Text(getFlagName(125))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))) {
                             ForEach(subsystemSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -316,7 +316,7 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
                     
                     if !fighterTubeItems.isEmpty {
-                        Section(header: Text(getFlagName(159))) {
+                        Section(header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))) {
                             ForEach(fighterTubeItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量

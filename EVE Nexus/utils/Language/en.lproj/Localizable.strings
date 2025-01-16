@@ -314,20 +314,20 @@
 "Location_Flag_MedSlots" = "Medium Slots";
 "Location_Flag_LoSlots" = "Low Slots";
 "Location_Flag_RigSlots" = "Rig Slots";
-"Location_Flag_SpecializedAmmoHold" = "Specialized Ammo Hold";
-"Location_Flag_SpecializedCommandCenterHold" = "Specialized Command Center Hold";
-"Location_Flag_SpecializedFuelBay" = "Specialized Fuel Bay";
-"Location_Flag_SpecializedGasHold" = "Specialized Gas Hold";
-"Location_Flag_SpecializedIndustrialShipHold" = "Specialized Industrial Ship Hold";
-"Location_Flag_SpecializedLargeShipHold" = "Specialized Large Ship Hold";
-"Location_Flag_SpecializedMaterialBay" = "Specialized Material Bay";
-"Location_Flag_SpecializedMediumShipHold" = "Specialized Medium Ship Hold";
-"Location_Flag_SpecializedMineralHold" = "Specialized Mineral Hold";
-"Location_Flag_SpecializedOreHold" = "Specialized Ore Hold";
-"Location_Flag_SpecializedPlanetaryCommoditiesHold" = "Specialized Planetary Commodities Hold";
-"Location_Flag_SpecializedSalvageHold" = "Specialized Salvage Hold";
-"Location_Flag_SpecializedShipHold" = "Specialized Ship Hold";
-"Location_Flag_SpecializedSmallShipHold" = "Specialized Small Ship Hold";
+"Location_Flag_SpecializedAmmoHold" = " Ammo Hold";
+"Location_Flag_SpecializedCommandCenterHold" = " Command Center Hold";
+"Location_Flag_SpecializedFuelBay" = " Fuel Bay";
+"Location_Flag_SpecializedGasHold" = " Gas Hold";
+"Location_Flag_SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"Location_Flag_SpecializedLargeShipHold" = " Large Ship Hold";
+"Location_Flag_SpecializedMaterialBay" = " Material Bay";
+"Location_Flag_SpecializedMediumShipHold" = " Medium Ship Hold";
+"Location_Flag_SpecializedMineralHold" = " Mineral Hold";
+"Location_Flag_SpecializedOreHold" = " Ore Hold";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"Location_Flag_SpecializedSalvageHold" = " Salvage Hold";
+"Location_Flag_SpecializedShipHold" = " Ship Hold";
+"Location_Flag_SpecializedSmallShipHold" = " Small Ship Hold";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "Fetching page %d";
@@ -869,18 +869,18 @@
 "Main_KM_Damage" = "Damage:";
 
 // Kill Mail Detail
-"Main_KM_High_Slots" = "High Slots";
-"Main_KM_Medium_Slots" = "Medium Slots";
-"Main_KM_Low_Slots" = "Low Slots";
-"Main_KM_Rig_Slots" = "Rig Slots";
-"Main_KM_Subsystem_Slots" = "Subsystem Slots";
+"Main_KM_High_Slots" = "High Slot";
+"Main_KM_Medium_Slots" = "Medium Slot";
+"Main_KM_Low_Slots" = "Low Slot";
+"Main_KM_Rig_Slots" = "Rig Slot";
+"Main_KM_Subsystem_Slots" = "Subsystem";
+"Main_KM_Fighter_Tubes" = "Fighter Tube";
 "Main_KM_Cargo" = "Cargo Hold";
 "KillMail_Unknown_Item" = "Unknown Item";
 
 "Main_KM_Drone_Bay" = "Drone Bay";
 "Main_KM_Fighter_Bay" = "Fighter Bay";
-"Main_KM_Fighter_Tubes" = "Fighter Tubes";
-"Main_KM_Specialized_Holds" = "Specialized Holds";
+"Main_KM_Specialized_Holds" = " Holds";
 "Main_KM_Fleet_Hangar" = "Fleet Hangar";
 "Main_KM_Frigate_Escape_Bay" = "Frigate Escape Bay";
 
@@ -899,19 +899,19 @@
 "FrigateEscapeBay" = "Frigate Escape Bay";
 "FighterBay" = "Fighter Bay";
 
-"SpecializedFuelBay" = "Specialized Fuel Bay";
-"SpecializedOreHold" = "Specialized Ore Hold";
-"SpecializedGasHold" = "Specialized Gas Hold";
-"SpecializedMineralHold" = "Specialized Mineral Hold";
-"SpecializedSalvageHold" = "Specialized Salvage Hold";
-"SpecializedShipHold" = "Specialized Ship Hold";
-"SpecializedSmallShipHold" = "Specialized Small Ship Hold";
-"SpecializedMediumShipHold" = "Specialized Medium Ship Hold";
-"SpecializedLargeShipHold" = "Specialized Large Ship Hold";
-"SpecializedIndustrialShipHold" = "Specialized Industrial Ship Hold";
-"SpecializedAmmoHold" = "Specialized Ammo Hold";
-"SpecializedCommandCenterHold" = "Specialized Command Center Hold";
-"SpecializedPlanetaryCommoditiesHold" = "Specialized Planetary Commodities Hold";
-"SpecializedMaterialBay" = "Specialized Material Bay";
-"SpecializedIceHold" = "Specialized Ice Hold";
-"SpecializedAsteroidHold" = "Specialized Asteroid Hold";
+"SpecializedFuelBay" = "Fuel Bay";
+"SpecializedOreHold" = " Ore Hold";
+"SpecializedGasHold" = " Gas Hold";
+"SpecializedMineralHold" = " Mineral Hold";
+"SpecializedSalvageHold" = " Salvage Hold";
+"SpecializedShipHold" = " Ship Hold";
+"SpecializedSmallShipHold" = " Small Ship Hold";
+"SpecializedMediumShipHold" = " Medium Ship Hold";
+"SpecializedLargeShipHold" = " Large Ship Hold";
+"SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"SpecializedAmmoHold" = " Ammo Hold";
+"SpecializedCommandCenterHold" = " Command Center Hold";
+"SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"SpecializedMaterialBay" = " Material Bay";
+"SpecializedIceHold" = " Ice Hold";
+"SpecializedAsteroidHold" = " Asteroid Hold";
