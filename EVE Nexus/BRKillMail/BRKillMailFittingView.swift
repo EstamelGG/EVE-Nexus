@@ -232,7 +232,7 @@ struct BRKillMailFittingView: View {
             let center = CGPoint(x: geometry.size.width/2, y: geometry.size.height/2)
             
             // 基础尺寸计算
-            let baseRadius: CGFloat = 180 // 基础半径
+            let baseRadius: CGFloat = 190 // 基础半径
             let scaledRadius = baseRadius * scale
             
             // 外环计算

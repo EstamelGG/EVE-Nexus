@@ -97,6 +97,7 @@ struct BRKillMailDetailView: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // Ship
                 if let victInfo = detail["vict"] as? [String: Any],
@@ -121,6 +122,7 @@ struct BRKillMailDetailView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // System
@@ -144,6 +146,7 @@ struct BRKillMailDetailView: View {
                                 .font(.caption)
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
                 
                 // Local Time
@@ -155,6 +158,7 @@ struct BRKillMailDetailView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // Damage
                 HStack {
@@ -166,6 +170,7 @@ struct BRKillMailDetailView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // Destroyed
                 HStack {
@@ -174,6 +179,7 @@ struct BRKillMailDetailView: View {
                     Text(formatISK(destroyedValue))
                         .foregroundColor(.red)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // Dropped
                 HStack {
@@ -182,6 +188,7 @@ struct BRKillMailDetailView: View {
                     Text(formatISK(droppedValue))
                         .foregroundColor(.green)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // Total
                 HStack {
@@ -189,6 +196,7 @@ struct BRKillMailDetailView: View {
                         .frame(width: 110, alignment: .leading)
                     Text(formatISK(totalValue))
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 
                 // 装配图
                 if killmail["_id"] is Int {
