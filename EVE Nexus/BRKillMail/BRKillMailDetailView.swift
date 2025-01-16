@@ -226,10 +226,10 @@ struct BRKillMailDetailView: View {
                             ForEach(highSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -245,10 +245,10 @@ struct BRKillMailDetailView: View {
                             ForEach(mediumSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -264,10 +264,10 @@ struct BRKillMailDetailView: View {
                             ForEach(lowSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -283,10 +283,10 @@ struct BRKillMailDetailView: View {
                             ForEach(rigSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -302,10 +302,10 @@ struct BRKillMailDetailView: View {
                             ForEach(subsystemSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -321,10 +321,10 @@ struct BRKillMailDetailView: View {
                             ForEach(fighterTubeItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
-                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                                 if item[3] > 0 {  // 摧毁数量
-                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                    ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                 }
                             }
                         }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -357,10 +357,10 @@ struct BRKillMailDetailView: View {
                                 ForEach(flagItems, id: \.self) { item in
                                     let typeId = item[1]
                                     if item[2] > 0 {  // 掉落数量
-                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                     }
                                     if item[3] > 0 {  // 摧毁数量
-                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                     }
                                 }
                                 
@@ -370,10 +370,10 @@ struct BRKillMailDetailView: View {
                                     if let typeId = container["type"] as? Int {
                                         // 显示容器本身
                                         if let drop = container["drop"] as? Int, drop == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true, itemInfoCache: itemInfoCache)
+                                            ItemRow(typeId: typeId, quantity: 1, isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                         }
                                         if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false, itemInfoCache: itemInfoCache)
+                                            ItemRow(typeId: typeId, quantity: 1, isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                         }
                                         
                                         // 显示容器内的物品
@@ -382,11 +382,11 @@ struct BRKillMailDetailView: View {
                                                 if item.count >= 4 {
                                                     let typeId = item[1]
                                                     if item[2] > 0 {  // 掉落数量
-                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache)
+                                                        ItemRow(typeId: typeId, quantity: item[2], isDropped: true, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                                             .padding(.leading, 20)
                                                     }
                                                     if item[3] > 0 {  // 摧毁数量
-                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache)
+                                                        ItemRow(typeId: typeId, quantity: item[3], isDropped: false, itemInfoCache: itemInfoCache, prices: detail["prices"] as? [String: Double] ?? [:])
                                                             .padding(.leading, 20)
                                                     }
                                                 }
@@ -726,6 +726,7 @@ struct ItemRow: View {
     let quantity: Int
     let isDropped: Bool  // 是否为掉落物品
     let itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
+    let prices: [String: Double]
     
     var body: some View {
         if let itemInfo = itemInfoCache[typeId] {
@@ -743,7 +744,13 @@ struct ItemRow: View {
                         .frame(width: 32, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                     
-                    Text(itemInfo.name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(itemInfo.name)
+                        Text(formatISK(getItemPrice() * Double(quantity)))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Spacer()
                     if quantity > 1 {
                         Text("x\(quantity)")
@@ -757,6 +764,24 @@ struct ItemRow: View {
             )
         } else {
             Text(NSLocalizedString("KillMail_Unknown_Item", comment: ""))
+        }
+    }
+    
+    private func getItemPrice() -> Double {
+        return prices[String(typeId)] ?? 0.0
+    }
+    
+    private func formatISK(_ value: Double) -> String {
+        if value >= 1_000_000_000_000 {
+            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
+        } else if value >= 1_000_000_000 {
+            return String(format: "%.2fB ISK", value / 1_000_000_000)
+        } else if value >= 1_000_000 {
+            return String(format: "%.2fM ISK", value / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.2fK ISK", value / 1_000)
+        } else {
+            return String(format: "%.2f ISK", value)
         }
     }
 }
