@@ -146,16 +146,6 @@ struct BRKillMailDetailView: View {
                     }
                 }
                 
-                // Eve Time
-                HStack {
-                    Text(NSLocalizedString("Main_KM_EVE_Time", comment: ""))
-                        .frame(width: 110, alignment: .leading)
-                    if let time = detail["time"] as? Int {
-                        Text(formatEVETime(time))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
                 // Local Time
                 HStack {
                     Text(NSLocalizedString("Main_KM_Local_Time", comment: ""))
@@ -175,14 +165,6 @@ struct BRKillMailDetailView: View {
                         Text(formatNumber(damage))
                             .foregroundColor(.secondary)
                     }
-                }
-                
-                // Ship Value
-                HStack {
-                    Text(NSLocalizedString("Main_KM_Ship_Value", comment: ""))
-                        .frame(width: 110, alignment: .leading)
-                    Text(formatISK(shipValue))
-                        .foregroundColor(.secondary)
                 }
                 
                 // Destroyed
