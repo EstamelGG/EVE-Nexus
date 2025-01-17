@@ -42,11 +42,27 @@ struct CorpMoonMiningView: View {
             }
         }
         .task {
-            await loadData()
+            do {
+                try await viewModel.fetchMoonExtractions(characterId: characterId)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("获取月矿提取信息失败: \(error)")
+                }
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""))
         .refreshable {
-            await loadData(forceRefresh: true)
+            do {
+                try await viewModel.fetchMoonExtractions(characterId: characterId, forceRefresh: true)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("刷新月矿提取信息失败: \(error)")
+                }
+            }
         }
         .alert(isPresented: $showError) {
             Alert(
@@ -56,16 +72,6 @@ struct CorpMoonMiningView: View {
                     dismiss()
                 }
             )
-        }
-    }
-    
-    private func loadData(forceRefresh: Bool = false) async {
-        do {
-            try await viewModel.fetchMoonExtractions(characterId: characterId, forceRefresh: forceRefresh)
-        } catch {
-            self.error = error
-            self.showError = true
-            Logger.error("获取月矿提取信息失败: \(error)")
         }
     }
 }
