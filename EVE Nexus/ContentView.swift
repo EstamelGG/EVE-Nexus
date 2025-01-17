@@ -838,8 +838,8 @@ struct ContentView: View {
 
             NavigationLink(value: "corporation_moon") {
                 RowView(
-                    title: NSLocalizedString("Main_Corporation_Moon", comment: ""),
-                    icon: "moon"
+                    title: NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""),
+                    icon: "satellite"
                 )
             }
 
