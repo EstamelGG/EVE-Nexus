@@ -121,13 +121,13 @@ class CorpMoonMiningViewModel: ObservableObject {
         
         // 批量获取月球名称
         let moonIds = extractions.map { String($0.moon_id) }.joined(separator: ",")
-        let query = "SELECT itemID, name FROM invNames WHERE itemID IN (\(moonIds))"
+        let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
         
         if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
             var names: [Int64: String] = [:]
             for row in rows {
                 if let itemId = row["itemID"] as? Int64,
-                   let name = row["name"] as? String {
+                   let name = row["itemName"] as? String {
                     names[itemId] = name
                 }
             }
