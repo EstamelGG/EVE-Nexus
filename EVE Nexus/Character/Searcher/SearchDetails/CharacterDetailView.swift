@@ -282,13 +282,7 @@ struct CharacterDetailView: View {
         // 加载个人声望
         if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
             for contact in contacts {
-                if contact.standing < 0 {
-                    personalStandings[contact.contact_id] = contact.standing
-                } else {
-                    if personalStandings[contact.contact_id] == nil || personalStandings[contact.contact_id]! >= 0 {
-                        personalStandings[contact.contact_id] = contact.standing
-                    }
-                }
+                personalStandings[contact.contact_id] = contact.standing
             }
         }
         
@@ -296,13 +290,7 @@ struct CharacterDetailView: View {
         if let corpId = character.corporationId,
            let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId) {
             for contact in contacts {
-                if contact.standing < 0 {
-                    corpStandings[contact.contact_id] = contact.standing
-                } else {
-                    if corpStandings[contact.contact_id] == nil || corpStandings[contact.contact_id]! >= 0 {
-                        corpStandings[contact.contact_id] = contact.standing
-                    }
-                }
+                corpStandings[contact.contact_id] = contact.standing
             }
         }
         
@@ -310,37 +298,7 @@ struct CharacterDetailView: View {
         if let allianceId = character.allianceId,
            let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId) {
             for contact in contacts {
-                if contact.standing < 0 {
-                    allianceStandings[contact.contact_id] = contact.standing
-                } else {
-                    if allianceStandings[contact.contact_id] == nil || allianceStandings[contact.contact_id]! >= 0 {
-                        allianceStandings[contact.contact_id] = contact.standing
-                    }
-                }
-            }
-        }
-        
-        // 处理声望继承
-        if let targetCharacter = characterInfo {
-            if let corpStanding = personalStandings[targetCharacter.corporation_id] {
-                if corpStanding < 0 || personalStandings[characterId] == nil {
-                    personalStandings[characterId] = corpStanding
-                }
-            }
-            
-            if let allianceId = targetCharacter.alliance_id,
-               let allianceStanding = personalStandings[allianceId] {
-                if allianceStanding < 0 {
-                    personalStandings[characterId] = allianceStanding
-                    personalStandings[targetCharacter.corporation_id] = allianceStanding
-                } else {
-                    if personalStandings[characterId] == nil {
-                        personalStandings[characterId] = allianceStanding
-                    }
-                    if personalStandings[targetCharacter.corporation_id] == nil {
-                        personalStandings[targetCharacter.corporation_id] = allianceStanding
-                    }
-                }
+                allianceStandings[contact.contact_id] = contact.standing
             }
         }
     }
