@@ -3,10 +3,15 @@ import Foundation
 
 struct CorpMoonMiningView: View {
     let characterId: Int
-    @StateObject private var viewModel = CorpMoonMiningViewModel()
+    @StateObject private var viewModel: CorpMoonMiningViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var error: Error?
     @State private var showError = false
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        _viewModel = StateObject(wrappedValue: CorpMoonMiningViewModel(characterId: characterId))
+    }
     
     var body: some View {
         List {
@@ -15,6 +20,13 @@ struct CorpMoonMiningView: View {
                     Spacer()
                     ProgressView()
                         .progressViewStyle(.circular)
+                    Spacer()
+                }
+            } else if viewModel.moonExtractions.isEmpty {
+                HStack {
+                    Spacer()
+                    Text("暂无月矿数据")
+                        .foregroundColor(.secondary)
                     Spacer()
                 }
             } else {
@@ -41,21 +53,10 @@ struct CorpMoonMiningView: View {
                 }
             }
         }
-        .task {
-            do {
-                try await viewModel.fetchMoonExtractions(characterId: characterId)
-            } catch {
-                if !(error is CancellationError) {
-                    self.error = error
-                    self.showError = true
-                    Logger.error("获取月矿提取信息失败: \(error)")
-                }
-            }
-        }
         .navigationTitle(NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""))
         .refreshable {
             do {
-                try await viewModel.fetchMoonExtractions(characterId: characterId, forceRefresh: true)
+                try await viewModel.fetchMoonExtractions(forceRefresh: true)
             } catch {
                 if !(error is CancellationError) {
                     self.error = error
@@ -126,6 +127,21 @@ class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonExtractions: [MoonExtractionInfo] = []
     @Published var moonNames: [Int: String] = [:]
     @Published private(set) var isLoading = false
+    private let characterId: Int
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        // 在初始化时立即开始加载数据
+        Task {
+            do {
+                try await fetchMoonExtractions()
+            } catch {
+                if !(error is CancellationError) {
+                    Logger.error("初始化加载月矿提取信息失败: \(error)")
+                }
+            }
+        }
+    }
     
     // 计算属性：本周的月矿
     var thisWeekExtractions: [MoonExtractionInfo] {
@@ -151,7 +167,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         }
     }
     
-    func fetchMoonExtractions(characterId: Int, forceRefresh: Bool = false) async throws {
+    func fetchMoonExtractions(forceRefresh: Bool = false) async throws {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
