@@ -114,24 +114,47 @@ class CorpMoonMiningViewModel: ObservableObject {
             characterId: characterId
         )
         
-        // 按chunk_arrival_time从近到远排序
-        moonExtractions = extractions.sorted { first, second in
-            first.chunk_arrival_time < second.chunk_arrival_time
-        }
+        // 获取当前时间
+        let now = Date()
+        let calendar = Calendar.current
         
-        // 批量获取月球名称
-        let moonIds = extractions.map { String($0.moon_id) }.joined(separator: ",")
-        let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
-        
-        if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-            var names: [Int64: String] = [:]
-            for row in rows {
-                if let itemId = row["itemID"] as? Int64,
-                   let name = row["itemName"] as? String {
-                    names[itemId] = name
+        // 过滤并排序月矿数据
+        moonExtractions = extractions
+            .filter { extraction in
+                // 将chunk_arrival_time转换为Date
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                
+                guard let arrivalDate = dateFormatter.date(from: extraction.chunk_arrival_time) else {
+                    return false
                 }
+                
+                // 计算时间差（天数）
+                let days = calendar.dateComponents([.day], from: now, to: arrivalDate).day ?? 0
+                
+                // 只保留未来36天内的数据
+                return days >= -1 && days <= 36
             }
-            moonNames = names
+            .sorted { first, second in
+                first.chunk_arrival_time < second.chunk_arrival_time
+            }
+        
+        // 如果有数据，批量获取月球名称
+        if !moonExtractions.isEmpty {
+            let moonIds = moonExtractions.map { String($0.moon_id) }.joined(separator: ",")
+            let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
+            
+            if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                var names: [Int64: String] = [:]
+                for row in rows {
+                    if let itemId = row["itemID"] as? Int64,
+                       let name = row["itemName"] as? String {
+                        names[itemId] = name
+                    }
+                }
+                moonNames = names
+            }
         }
     }
 }
