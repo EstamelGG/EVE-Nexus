@@ -46,14 +46,14 @@ public class CorpMoonExtractionAPI {
     private init() {}
     
     // MARK: - Public Methods
-    public func fetchMoonExtractions(characterId: Int) async throws -> [MoonExtractionInfo] {
+    public func fetchMoonExtractions(characterId: Int, forceRefresh: Bool = false) async throws -> [MoonExtractionInfo] {
         // 1. 获取角色的军团ID
         guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
         
         // 2. 检查缓存
-        if let cachedData = loadExtractionsFromCache(corporationId: corporationId) {
+        if !forceRefresh, let cachedData = loadExtractionsFromCache(corporationId: corporationId) {
             Logger.info("使用缓存的月矿提取信息 - 军团ID: \(corporationId)")
             return cachedData
         }

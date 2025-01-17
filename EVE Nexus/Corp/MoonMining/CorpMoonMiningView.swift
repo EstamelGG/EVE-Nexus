@@ -151,7 +151,8 @@ class CorpMoonMiningViewModel: ObservableObject {
         defer { isLoading = false }
         
         let extractions = try await CorpMoonExtractionAPI.shared.fetchMoonExtractions(
-            characterId: characterId
+            characterId: characterId,
+            forceRefresh: forceRefresh
         )
         
         // 获取当前时间
