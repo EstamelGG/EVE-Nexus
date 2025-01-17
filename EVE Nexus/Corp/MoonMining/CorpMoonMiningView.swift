@@ -21,7 +21,7 @@ struct CorpMoonMiningView: View {
                 ForEach(viewModel.moonExtractions, id: \.moon_id) { extraction in
                     MoonExtractionRow(
                         extraction: extraction,
-                        moonName: viewModel.moonNames[extraction.moon_id] ?? "未知月球"
+                        moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
                     )
                 }
             }
@@ -103,7 +103,7 @@ struct MoonExtractionRow: View {
 @MainActor
 class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonExtractions: [MoonExtractionInfo] = []
-    @Published var moonNames: [Int64: String] = [:]
+    @Published var moonNames: [Int: String] = [:]
     @Published private(set) var isLoading = false
     
     func fetchMoonExtractions(characterId: Int, forceRefresh: Bool = false) async throws {
@@ -144,14 +144,14 @@ class CorpMoonMiningViewModel: ObservableObject {
         // 如果有数据，批量获取月球名称
         if !moonExtractions.isEmpty {
             // 对moon_id去重
-            let uniqueMoonIds = Set(moonExtractions.map { $0.moon_id })
+            let uniqueMoonIds = Set(moonExtractions.map { Int($0.moon_id) })
             let moonIds = uniqueMoonIds.map { String($0) }.joined(separator: ",")
             let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
             
             if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-                var names: [Int64: String] = [:]
+                var names: [Int: String] = [:]
                 for row in rows {
-                    if let itemId = row["itemID"] as? Int64,
+                    if let itemId = row["itemID"] as? Int,
                        let name = row["itemName"] as? String {
                         names[itemId] = name
                     }
