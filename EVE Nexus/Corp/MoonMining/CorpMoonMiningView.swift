@@ -7,11 +7,10 @@ struct CorpMoonMiningView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var error: Error?
     @State private var showError = false
-    @State private var isLoading = true
     
     var body: some View {
         List {
-            if isLoading {
+            if viewModel.isLoading {
                 HStack {
                     Spacer()
                     ProgressView()
@@ -28,11 +27,13 @@ struct CorpMoonMiningView: View {
             }
         }
         .task {
-            await loadMoonExtractions()
+            // 首次加载
+            await loadData()
         }
         .navigationTitle("军团月矿作业")
         .refreshable {
-            await loadMoonExtractions(forceRefresh: true)
+            // 下拉刷新时强制刷新
+            await loadData(forceRefresh: true)
         }
         .alert(isPresented: $showError) {
             Alert(
@@ -45,17 +46,12 @@ struct CorpMoonMiningView: View {
         }
     }
     
-    private func loadMoonExtractions(forceRefresh: Bool = false) async {
-        isLoading = true
-        error = nil
-        
+    private func loadData(forceRefresh: Bool = false) async {
         do {
             try await viewModel.fetchMoonExtractions(characterId: characterId, forceRefresh: forceRefresh)
-            isLoading = false
         } catch {
             self.error = error
             self.showError = true
-            self.isLoading = false
             Logger.error("获取月矿提取信息失败: \(error)")
         }
     }
@@ -108,8 +104,13 @@ struct MoonExtractionRow: View {
 class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonExtractions: [MoonExtractionInfo] = []
     @Published var moonNames: [Int64: String] = [:]
+    @Published private(set) var isLoading = false
     
     func fetchMoonExtractions(characterId: Int, forceRefresh: Bool = false) async throws {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        
         let extractions = try await CorpMoonExtractionAPI.shared.fetchMoonExtractions(
             characterId: characterId
         )
@@ -155,6 +156,8 @@ class CorpMoonMiningViewModel: ObservableObject {
                 }
                 moonNames = names
             }
+        } else {
+            moonNames.removeAll()
         }
     }
 }
