@@ -206,8 +206,9 @@ extension String {
         }
         
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        dateFormatter.dateFormat = "yyyy-MM-dd EEEE HH:mm"  // EEEE 表示完整的星期名称
         dateFormatter.timeZone = TimeZone.current
+        dateFormatter.locale = Locale(identifier: NSLocalizedString("Language_Identifier", comment: ""))  // 根据当前语言设置区域
         return dateFormatter.string(from: date)
     }
     

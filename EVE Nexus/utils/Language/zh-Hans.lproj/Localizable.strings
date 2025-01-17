@@ -932,8 +932,10 @@
 
 // Corporation Moon Mining
 "Main_Corporation_Moon_Mining" = "军团月矿作业";
-"Main_Corporation_Moon_Mining_This_Week" = "本周月矿";
-"Main_Corporation_Moon_Mining_Later" = "未来月矿";
+"Main_Corporation_Moon_Mining_This_Week" = "本周月矿(本地时间)";
+"Main_Corporation_Moon_Mining_Later" = "未来月矿(本地时间)";
 "Main_Corporation_Moon_Mining_Unknown_Moon" = "未知月球";
 "Main_Corporation_Moon_Mining_Chunk_Arrival" = "矿石抵达: ";
 "Main_Corporation_Moon_Mining_Natural_Decay" = "自然碎裂: ";
+
+"Language_Identifier" = "zh_CN";
