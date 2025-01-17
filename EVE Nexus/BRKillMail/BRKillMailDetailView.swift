@@ -150,6 +150,7 @@ struct BRKillMailDetailView: View {
                                 if let ssString = sysInfo["ss"] as? String,
                                    let ssValue = Double(ssString) {
                                     Text(formatSecurityStatus(ssValue))
+                                        .font(.system(.body, design: .monospaced))
                                         .foregroundColor(getSecurityColor(ssValue))
                                 }
                                 Text(sysInfo["name"] as? String ?? "")
