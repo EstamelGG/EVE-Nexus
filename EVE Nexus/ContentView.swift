@@ -676,6 +676,12 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpWalletView(characterId: character.CharacterID)
                             }
+                            
+                        case "corporation_moon":
+                            if let character = viewModel.selectedCharacter {
+                                CorpMoonMiningView(characterId: character.CharacterID)
+                            }
+                            
                         case "killboard":
                             if let character = viewModel.selectedCharacter {
                                 // KillMailListView(characterId: character.CharacterID)
@@ -827,6 +833,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_wallet", comment: ""),
                     icon: "wallet"
+                )
+            }
+
+            NavigationLink(value: "corporation_moon") {
+                RowView(
+                    title: NSLocalizedString("Main_Corporation_Moon", comment: ""),
+                    icon: "moon"
                 )
             }
 
