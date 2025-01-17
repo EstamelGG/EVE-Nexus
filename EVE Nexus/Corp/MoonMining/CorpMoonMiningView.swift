@@ -143,7 +143,9 @@ class CorpMoonMiningViewModel: ObservableObject {
         
         // 如果有数据，批量获取月球名称
         if !moonExtractions.isEmpty {
-            let moonIds = moonExtractions.map { String($0.moon_id) }.joined(separator: ",")
+            // 对moon_id去重
+            let uniqueMoonIds = Set(moonExtractions.map { $0.moon_id })
+            let moonIds = uniqueMoonIds.map { String($0) }.joined(separator: ",")
             let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
             
             if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
