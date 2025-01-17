@@ -18,21 +18,34 @@ struct CorpMoonMiningView: View {
                     Spacer()
                 }
             } else {
-                ForEach(viewModel.moonExtractions, id: \.moon_id) { extraction in
-                    MoonExtractionRow(
-                        extraction: extraction,
-                        moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
-                    )
+                if !viewModel.thisWeekExtractions.isEmpty {
+                    Section("本周月矿") {
+                        ForEach(viewModel.thisWeekExtractions, id: \.moon_id) { extraction in
+                            MoonExtractionRow(
+                                extraction: extraction,
+                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
+                            )
+                        }
+                    }
+                }
+                
+                if !viewModel.laterExtractions.isEmpty {
+                    Section("未来月矿") {
+                        ForEach(viewModel.laterExtractions, id: \.moon_id) { extraction in
+                            MoonExtractionRow(
+                                extraction: extraction,
+                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
+                            )
+                        }
+                    }
                 }
             }
         }
         .task {
-            // 首次加载
             await loadData()
         }
         .navigationTitle("军团月矿作业")
         .refreshable {
-            // 下拉刷新时强制刷新
             await loadData(forceRefresh: true)
         }
         .alert(isPresented: $showError) {
@@ -68,6 +81,7 @@ struct MoonExtractionRow: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 40, height: 40)
+                .clipShape(Circle())
                 .background(
                     Circle()
                         .fill(Color.black.opacity(0.3))
@@ -96,6 +110,7 @@ struct MoonExtractionRow: View {
                     .foregroundColor(.secondary)
             }
         }
+        .padding(.vertical, 4)
     }
 }
 
@@ -105,6 +120,30 @@ class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonExtractions: [MoonExtractionInfo] = []
     @Published var moonNames: [Int: String] = [:]
     @Published private(set) var isLoading = false
+    
+    // 计算属性：本周的月矿
+    var thisWeekExtractions: [MoonExtractionInfo] {
+        let calendar = Calendar.current
+        let now = Date()
+        let oneWeekLater = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+        
+        return moonExtractions.filter { extraction in
+            guard let arrivalDate = extraction.chunk_arrival_time.toUTCDate() else { return false }
+            return arrivalDate <= oneWeekLater
+        }
+    }
+    
+    // 计算属性：一周后的月矿
+    var laterExtractions: [MoonExtractionInfo] {
+        let calendar = Calendar.current
+        let now = Date()
+        let oneWeekLater = calendar.date(byAdding: .day, value: 7, to: now) ?? now
+        
+        return moonExtractions.filter { extraction in
+            guard let arrivalDate = extraction.chunk_arrival_time.toUTCDate() else { return false }
+            return arrivalDate > oneWeekLater
+        }
+    }
     
     func fetchMoonExtractions(characterId: Int, forceRefresh: Bool = false) async throws {
         guard !isLoading else { return }
@@ -122,12 +161,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         // 过滤并排序月矿数据
         moonExtractions = extractions
             .filter { extraction in
-                // 将chunk_arrival_time转换为Date
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                
-                guard let arrivalDate = dateFormatter.date(from: extraction.chunk_arrival_time) else {
+                guard let arrivalDate = extraction.chunk_arrival_time.toUTCDate() else {
                     return false
                 }
                 
@@ -167,16 +201,21 @@ class CorpMoonMiningViewModel: ObservableObject {
 // 日期转换扩展
 extension String {
     func toLocalTime() -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        guard let date = dateFormatter.date(from: self) else {
+        guard let date = toUTCDate() else {
             return self
         }
         
+        let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
         dateFormatter.timeZone = TimeZone.current
         return dateFormatter.string(from: date)
+    }
+    
+    func toUTCDate() -> Date? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.timeZone = TimeZone(identifier: "UTC")  // 确保使用UTC时区
+        return dateFormatter.date(from: self)
     }
 } 
