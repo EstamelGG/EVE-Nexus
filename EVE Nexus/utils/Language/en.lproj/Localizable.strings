@@ -915,3 +915,11 @@
 "SpecializedMaterialBay" = " Material Bay";
 "SpecializedIceHold" = " Ice Hold";
 "SpecializedAsteroidHold" = " Asteroid Hold";
+
+// Corporation Moon Mining
+"Main_Corporation_Moon_Mining" = "Corporation Moon Mining";
+"Main_Corporation_Moon_Mining_This_Week" = "This Week";
+"Main_Corporation_Moon_Mining_Later" = "Later";
+"Main_Corporation_Moon_Mining_Unknown_Moon" = "Unknown Moon";
+"Main_Corporation_Moon_Mining_Chunk_Arrival" = "Chunk Arrival: ";
+"Main_Corporation_Moon_Mining_Natural_Decay" = "Natural Decay: ";

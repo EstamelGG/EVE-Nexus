@@ -19,22 +19,22 @@ struct CorpMoonMiningView: View {
                 }
             } else {
                 if !viewModel.thisWeekExtractions.isEmpty {
-                    Section("本周月矿") {
+                    Section(NSLocalizedString("Main_Corporation_Moon_Mining_This_Week", comment: "")) {
                         ForEach(viewModel.thisWeekExtractions, id: \.moon_id) { extraction in
                             MoonExtractionRow(
                                 extraction: extraction,
-                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
+                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? NSLocalizedString("Main_Corporation_Moon_Mining_Unknown_Moon", comment: "")
                             )
                         }
                     }
                 }
                 
                 if !viewModel.laterExtractions.isEmpty {
-                    Section("未来月矿") {
+                    Section(NSLocalizedString("Main_Corporation_Moon_Mining_Later", comment: "")) {
                         ForEach(viewModel.laterExtractions, id: \.moon_id) { extraction in
                             MoonExtractionRow(
                                 extraction: extraction,
-                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? "未知月球"
+                                moonName: viewModel.moonNames[Int(extraction.moon_id)] ?? NSLocalizedString("Main_Corporation_Moon_Mining_Unknown_Moon", comment: "")
                             )
                         }
                     }
@@ -44,7 +44,7 @@ struct CorpMoonMiningView: View {
         .task {
             await loadData()
         }
-        .navigationTitle("军团月矿作业")
+        .navigationTitle(NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""))
         .refreshable {
             await loadData(forceRefresh: true)
         }
@@ -100,12 +100,12 @@ struct MoonExtractionRow: View {
                     .font(.headline)
                 
                 // 矿石抵达时间
-                Text("矿石抵达: \(extraction.chunk_arrival_time.toLocalTime())")
+                Text(NSLocalizedString("Main_Corporation_Moon_Mining_Chunk_Arrival", comment: "") + extraction.chunk_arrival_time.toLocalTime())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
                 // 自然碎裂时间
-                Text("自然碎裂: \(extraction.natural_decay_time.toLocalTime())")
+                Text(NSLocalizedString("Main_Corporation_Moon_Mining_Natural_Decay", comment: "") + extraction.natural_decay_time.toLocalTime())
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
