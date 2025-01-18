@@ -64,6 +64,7 @@ struct MarketOrdersView: View {
                         .foregroundColor(.secondary)
                         .padding(.top, 8)
                 }
+                .padding()
             } else {
                 // 顶部选择器
                 Picker("Order Type", selection: $showBuyOrders) {
@@ -92,7 +93,6 @@ struct MarketOrdersView: View {
                 .ignoresSafeArea(edges: .bottom)
             }
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
         .ignoresSafeArea(edges: .bottom)
