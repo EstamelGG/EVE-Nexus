@@ -81,6 +81,25 @@ struct MoonExtractionRow: View {
     let extraction: MoonExtractionInfo
     let moonName: String
     
+    private var daysUntilArrival: String {
+        guard let arrivalDate = extraction.chunk_arrival_time.toUTCDate() else {
+            return ""
+        }
+        
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.day], from: now, to: arrivalDate)
+        
+        if let days = components.day {
+            if days == 0 {
+                return NSLocalizedString("Main_Corporation_Moon_Mining_Today", comment: "")
+            } else if days > 0 {
+                return String(format: NSLocalizedString("Main_Corporation_Moon_Mining_Days_Later", comment: ""), days)
+            }
+        }
+        return ""
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             // 月球图标
@@ -102,9 +121,14 @@ struct MoonExtractionRow: View {
                 .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             
             VStack(alignment: .leading, spacing: 4) {
-                // 月球名称
-                Text(moonName)
-                    .font(.headline)
+                // 月球名称和倒计时
+                HStack(spacing: 4) {
+                    Text(moonName)
+                        .font(.headline)
+                    Text(daysUntilArrival)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
                 // 矿石抵达时间
                 Text(NSLocalizedString("Main_Corporation_Moon_Mining_Chunk_Arrival", comment: "") + extraction.chunk_arrival_time.toLocalTime())

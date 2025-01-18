@@ -939,3 +939,6 @@
 "Main_Corporation_Moon_Mining_Natural_Decay" = "自然碎裂: ";
 
 "Language_Identifier" = "zh_CN";
+
+"Main_Corporation_Moon_Mining_Today" = "[今天]";
+"Main_Corporation_Moon_Mining_Days_Later" = "[%d天后]";

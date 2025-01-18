@@ -925,3 +925,6 @@
 "Main_Corporation_Moon_Mining_Natural_Decay" = "Natural Decay: ";
 
 "Language_Identifier" = "en_US";
+
+"Main_Corporation_Moon_Mining_Today" = "[Today]";
+"Main_Corporation_Moon_Mining_Days_Later" = "[%d days later]";
