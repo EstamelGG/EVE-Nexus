@@ -39,13 +39,9 @@ struct AccountsView: View {
                         // 设置登录状态为true
                         isLoggingIn = true
                         
-                        defer {
-                            // 确保在任务结束时重置登录状态
-                            isLoggingIn = false
-                        }
-                        
                         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                               let viewController = scene.windows.first?.rootViewController else {
+                            isLoggingIn = false  // 确保在失败时重置状态
                             return
                         }
                         
@@ -98,6 +94,9 @@ struct AccountsView: View {
                                         character: updatedCharacter
                                     )
                                     Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
+                                    
+                                    // 立即刷新该角色的所有数据
+                                    await refreshCharacterData(updatedCharacter)
                                 } catch {
                                     Logger.error("保存认证信息失败: \(error)")
                                 }
@@ -109,6 +108,9 @@ struct AccountsView: View {
                             viewModel.showingError = true
                             Logger.error("登录失败: \(error)")
                         }
+                        
+                        // 确保在最后重置登录状态
+                        isLoggingIn = false
                     }
                 }) {
                     HStack {
@@ -655,6 +657,68 @@ struct AccountsView: View {
             
         } catch {
             Logger.error("获取技能队列失败 - 角色: \(character.CharacterName), 错误: \(error)")
+        }
+    }
+    
+    // 添加新的辅助方法用于刷新单个角色的数据
+    private func refreshCharacterData(_ character: EVECharacterInfo) async {
+        let service = CharacterDataService.shared
+        
+        do {
+            // 并行获取所有数据
+            async let skillInfoTask = service.getSkillInfo(id: character.CharacterID, forceRefresh: true)
+            async let walletTask = service.getWalletBalance(id: character.CharacterID, forceRefresh: true)
+            async let portraitTask = service.getCharacterPortrait(id: character.CharacterID, forceRefresh: true)
+            async let locationTask = service.getLocation(id: character.CharacterID, forceRefresh: true)
+            
+            // 等待所有数据获取完成
+            let ((skillsResponse, queue), balance, portrait, location) = try await (skillInfoTask, walletTask, portraitTask, locationTask)
+            
+            // 更新UI
+            await updateUI {
+                if let index = self.viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) {
+                    // 更新技能信息
+                    self.viewModel.characters[index].totalSkillPoints = skillsResponse.total_sp
+                    self.viewModel.characters[index].unallocatedSkillPoints = skillsResponse.unallocated_sp
+                    
+                    // 更新技能队列
+                    self.viewModel.characters[index].skillQueueLength = queue.count
+                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
+                        if let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id) {
+                            self.viewModel.characters[index].currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                                skillId: currentSkill.skill_id,
+                                name: skillName,
+                                level: currentSkill.skillLevel,
+                                progress: currentSkill.progress,
+                                remainingTime: currentSkill.remainingTime
+                            )
+                        }
+                    }
+                    
+                    // 更新钱包余额
+                    self.viewModel.characters[index].walletBalance = balance
+                    
+                    // 更新头像
+                    self.viewModel.characterPortraits[character.CharacterID] = portrait
+                    
+                    // 更新位置信息
+                    self.viewModel.characters[index].locationStatus = location.locationStatus
+                    Task {
+                        if let locationInfo = await getSolarSystemInfo(
+                            solarSystemId: location.solar_system_id,
+                            databaseManager: self.viewModel.databaseManager
+                        ) {
+                            await MainActor.run {
+                                self.viewModel.characters[index].location = locationInfo
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Logger.info("成功刷新角色数据 - \(character.CharacterName)")
+        } catch {
+            Logger.error("刷新角色数据失败 - \(character.CharacterName): \(error)")
         }
     }
 }
