@@ -69,16 +69,10 @@ struct CharacterPlanetaryView: View {
         }
     }
     
-    private func refreshData() async {
-        isRefreshing = true
-        await loadPlanets()
-        isRefreshing = false
-    }
-    
-    private func loadPlanets() async {
+    private func loadPlanets(forceRefresh: Bool = false) async {
         do {
             // 获取行星信息
-            planets = try await CharacterPlanetaryAPI.fetchCharacterPlanetary(characterId: characterId)
+            planets = try await CharacterPlanetaryAPI.fetchCharacterPlanetary(characterId: characterId, forceRefresh: forceRefresh)
             
             // 获取所有行星类型ID
             let typeIds = planets.compactMap { typeIdMapping[$0.planetType] }
@@ -113,6 +107,12 @@ struct CharacterPlanetaryView: View {
         } catch {
             print("Error loading planets: \(error)")
         }
+    }
+    
+    private func refreshData() async {
+        isRefreshing = true
+        await loadPlanets(forceRefresh: true)
+        isRefreshing = false
     }
 }
 

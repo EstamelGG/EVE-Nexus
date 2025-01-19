@@ -22,13 +22,13 @@ struct CharacterPlanetaryInfo: Codable {
 }
 
 class CharacterPlanetaryAPI {
-    static func fetchCharacterPlanetary(characterId: Int) async throws -> [CharacterPlanetaryInfo] {
+    static func fetchCharacterPlanetary(characterId: Int, forceRefresh: Bool = false) async throws -> [CharacterPlanetaryInfo] {
         let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/planets/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw AssetError.invalidURL
         }
-        // 检查缓存
-        if let cachedData = checkCache(characterId: characterId) {
+        // 检查缓存（除非强制刷新）
+        if !forceRefresh, let cachedData = checkCache(characterId: characterId) {
             return cachedData
         }
         
