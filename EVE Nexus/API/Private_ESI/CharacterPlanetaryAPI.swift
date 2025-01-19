@@ -23,15 +23,20 @@ struct CharacterPlanetaryInfo: Codable {
 
 class CharacterPlanetaryAPI {
     static func fetchCharacterPlanetary(characterId: Int) async throws -> [CharacterPlanetaryInfo] {
-        let url = "https://esi.evetech.net/latest/characters/\(characterId)/planets/?datasource=tranquility"
-        
+        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/planets/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw AssetError.invalidURL
+        }
         // 检查缓存
         if let cachedData = checkCache(characterId: characterId) {
             return cachedData
         }
         
         // 使用fetchWithToken发起请求
-        let data = try await fetchWithToken(url: url)
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId
+        )
         
         // 解析数据
         let planetaryInfo = try JSONDecoder().decode([CharacterPlanetaryInfo].self, from: data)
