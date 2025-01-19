@@ -265,7 +265,7 @@ class CorpStructureViewModel: ObservableObject {
     private var regionNames: [Int: String] = [:]
     private let characterId: Int
     
-    // 获取燃料不足的建筑（7天内）
+    // 获取燃料不足的建筑（7天内），按照燃料耗尽时间升序排序
     var lowFuelStructures: [[String: Any]] {
         structures.filter { structure in
             guard let fuelExpires = structure["fuel_expires"] as? String,
@@ -275,6 +275,14 @@ class CorpStructureViewModel: ObservableObject {
             
             let timeInterval = expirationDate.timeIntervalSince(Date())
             return timeInterval > 0 && timeInterval <= 7 * 24 * 3600 // 7天内
+        }.sorted { structure1, structure2 in
+            guard let fuelExpires1 = structure1["fuel_expires"] as? String,
+                  let fuelExpires2 = structure2["fuel_expires"] as? String,
+                  let date1 = ISO8601DateFormatter().date(from: fuelExpires1),
+                  let date2 = ISO8601DateFormatter().date(from: fuelExpires2) else {
+                return false
+            }
+            return date1 < date2
         }
     }
     
@@ -310,6 +318,16 @@ class CorpStructureViewModel: ObservableObject {
                 groups[locationKey]?.append(structure)
             }
         }
+        
+        // 对每个区域内的建筑按名称排序
+        for (key, value) in groups {
+            groups[key] = value.sorted { structure1, structure2 in
+                let name1 = structure1["name"] as? String ?? ""
+                let name2 = structure2["name"] as? String ?? ""
+                return name1 < name2
+            }
+        }
+        
         return groups
     }
     
