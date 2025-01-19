@@ -5,6 +5,7 @@ struct CharacterPlanetaryView: View {
     @State private var planets: [CharacterPlanetaryInfo] = []
     @State private var planetNames: [Int: String] = [:]
     @State private var planetTypeInfo: [Int: (name: String, icon: String)] = [:]
+    @State private var isRefreshing = false
     
     private let typeIdMapping = [
         "temperate": 11,
@@ -58,11 +59,20 @@ struct CharacterPlanetaryView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Planetary_Title", comment: ""))
+        .refreshable {
+            await refreshData()
+        }
         .onAppear {
             Task {
                 await loadPlanets()
             }
         }
+    }
+    
+    private func refreshData() async {
+        isRefreshing = true
+        await loadPlanets()
+        isRefreshing = false
     }
     
     private func loadPlanets() async {
