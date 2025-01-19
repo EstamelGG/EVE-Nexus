@@ -19,6 +19,24 @@ struct CorpStructureView: View {
             } else if viewModel.structures.isEmpty {
                 emptyView
             } else {
+                // 即将耗尽燃料的建筑
+                if !viewModel.lowFuelStructures.isEmpty {
+                    Section(header: Text("燃料不足")
+                        .foregroundColor(.red)
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .textCase(nil))
+                    {
+                        ForEach(viewModel.lowFuelStructures.indices, id: \.self) { index in
+                            let structure = viewModel.lowFuelStructures[index]
+                            if let typeId = structure["type_id"] as? Int {
+                                StructureCell(structure: structure, iconName: viewModel.getIconName(typeId: typeId), isLowFuel: true)
+                            }
+                        }
+                    }
+                }
+                
+                // 所有建筑列表
                 structureListView
             }
         }
@@ -66,7 +84,12 @@ struct CorpStructureView: View {
     private var structureListView: some View {
         ForEach(viewModel.locationKeys, id: \.self) { location in
             if let structures = viewModel.groupedStructures[location] {
-                Section(header: Text(location)) {
+                Section(header: Text(location)
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(nil))
+                {
                     ForEach(structures.indices, id: \.self) { index in
                         let structure = structures[index]
                         if let typeId = structure["type_id"] as? Int {
@@ -82,7 +105,14 @@ struct CorpStructureView: View {
 struct StructureCell: View {
     let structure: [String: Any]
     let iconName: String?
+    let isLowFuel: Bool
     @State private var icon: Image?
+    
+    init(structure: [String: Any], iconName: String?, isLowFuel: Bool = false) {
+        self.structure = structure
+        self.iconName = iconName
+        self.isLowFuel = isLowFuel
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -93,7 +123,7 @@ struct StructureCell: View {
                     .frame(width: 44, height: 44)
                 
                 Circle()
-                    .stroke(getStateColor(state: structure["state"] as? String ?? ""), lineWidth: 2)
+                    .stroke(isLowFuel ? .red : getStateColor(state: structure["state"] as? String ?? ""), lineWidth: 2)
                     .frame(width: 44, height: 44)
                 
                 if let icon = icon {
@@ -129,7 +159,7 @@ struct StructureCell: View {
                     HStack {
                         Text("耗尽时间：")
                         Text(formatDateTime(fuelExpires).remainingTime)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(isLowFuel ? .red : .secondary)
                     }
                     .font(.subheadline)
                 }
@@ -234,6 +264,19 @@ class CorpStructureViewModel: ObservableObject {
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
     private let characterId: Int
+    
+    // 获取燃料不足的建筑（7天内）
+    var lowFuelStructures: [[String: Any]] {
+        structures.filter { structure in
+            guard let fuelExpires = structure["fuel_expires"] as? String,
+                  let expirationDate = ISO8601DateFormatter().date(from: fuelExpires) else {
+                return false
+            }
+            
+            let timeInterval = expirationDate.timeIntervalSince(Date())
+            return timeInterval > 0 && timeInterval <= 7 * 24 * 3600 // 7天内
+        }
+    }
     
     init(characterId: Int) {
         self.characterId = characterId
