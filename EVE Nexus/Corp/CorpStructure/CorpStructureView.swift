@@ -116,6 +116,7 @@ struct StructureCell: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(structure["name"] as? String ?? "未知建筑")
                     .font(.headline)
+                    .lineLimit(1)
                 
                 if let fuelExpires = structure["fuel_expires"] as? String {
                     HStack {
