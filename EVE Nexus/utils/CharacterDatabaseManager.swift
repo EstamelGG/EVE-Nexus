@@ -147,7 +147,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
         let createTablesSQL = """
             -- 角色当前状态表
             CREATE TABLE IF NOT EXISTS character_current_state (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 solar_system_id INTEGER,
                 station_id INTEGER,
                 structure_id INTEGER,
@@ -174,7 +174,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 邮件内容表
             CREATE TABLE IF NOT EXISTS mail_content (
-                mail_id INTEGER PRIMARY KEY,
+                mail_id INTEGER NOT NULL PRIMARY KEY,
                 body TEXT NOT NULL,
                 from_id INTEGER NOT NULL,
                 subject TEXT NOT NULL,
@@ -200,10 +200,9 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             
             -- 通用名称缓存表
             CREATE TABLE IF NOT EXISTS universe_names (
-                id INTEGER NOT NULL,
+                id INTEGER NOT NULL PRIMARY KEY,
                 category TEXT NOT NULL,
-                name TEXT NOT NULL,
-                PRIMARY KEY (id)
+                name TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
         
@@ -219,8 +218,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
         
             -- 钱包日志表
             CREATE TABLE IF NOT EXISTS wallet_journal (
-                id INTEGER,
-                character_id INTEGER,
+                id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
                 amount REAL,
                 balance REAL,
                 context_id INTEGER,
@@ -239,9 +238,9 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 军团钱包日志表
             CREATE TABLE IF NOT EXISTS corp_wallet_journal (
-                id INTEGER,
-                corporation_id INTEGER,
-                division INTEGER,
+                id INTEGER NOT NULL,
+                corporation_id INTEGER NOT NULL,
+                division INTEGER NOT NULL,
                 amount REAL,
                 balance REAL,
                 context_id INTEGER,
@@ -260,8 +259,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 钱包交易记录表
             CREATE TABLE IF NOT EXISTS wallet_transactions (
-                transaction_id INTEGER,
-                character_id INTEGER,
+                transaction_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
                 client_id INTEGER,
                 date TEXT,
                 is_buy BOOLEAN,
@@ -277,9 +276,9 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 军团钱包交易记录表
             CREATE TABLE IF NOT EXISTS corp_wallet_transactions (
-                transaction_id INTEGER,
-                corporation_id INTEGER,
-                division INTEGER,
+                transaction_id INTEGER NOT NULL,
+                corporation_id INTEGER NOT NULL,
+                division INTEGER NOT NULL,
                 client_id INTEGER,
                 date TEXT,
                 is_buy BOOLEAN,
@@ -295,8 +294,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 合同表
             CREATE TABLE IF NOT EXISTS contracts (
-                contract_id INTEGER,
-                character_id INTEGER,
+                contract_id INTEGER NOT NULL,
+                character_id INTEGER NOT NULL,
                 status TEXT,
                 acceptor_id INTEGER,
                 assignee_id INTEGER,
@@ -323,8 +322,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 合同物品表
             CREATE TABLE IF NOT EXISTS contract_items (
-                record_id INTEGER,
-                contract_id INTEGER,
+                record_id INTEGER NOT NULL,
+                contract_id INTEGER NOT NULL,
                 is_included BOOLEAN,
                 is_singleton BOOLEAN,
                 quantity INTEGER,
@@ -376,14 +375,14 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 技能队列缓存表
             CREATE TABLE IF NOT EXISTS character_skill_queue (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 queue_data TEXT,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
 
             -- 技能数据缓存表
             CREATE TABLE IF NOT EXISTS character_skills (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 skills_data TEXT,
                 unallocated_sp INTEGER NOT NULL DEFAULT 0,
                 total_sp INTEGER NOT NULL DEFAULT 0,
@@ -392,7 +391,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 角色信息缓存表
             CREATE TABLE IF NOT EXISTS character_info (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 alliance_id INTEGER,
                 birthday TEXT NOT NULL,
                 bloodline_id INTEGER NOT NULL,
@@ -407,7 +406,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 克隆体状态表
             CREATE TABLE IF NOT EXISTS clones (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 clones_data TEXT NOT NULL,
                 home_location_id INTEGER NOT NULL,
                 last_clone_jump_date TEXT,
@@ -418,7 +417,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 植入体状态表
             CREATE TABLE IF NOT EXISTS implants (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 implants_data TEXT NOT NULL,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
@@ -426,7 +425,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
             -- 角色属性点表
             CREATE TABLE IF NOT EXISTS character_attributes (
-                character_id INTEGER PRIMARY KEY,
+                character_id INTEGER NOT NULL PRIMARY KEY,
                 charisma INTEGER NOT NULL,
                 intelligence INTEGER NOT NULL,
                 memory INTEGER NOT NULL,
@@ -439,6 +438,29 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             );
             CREATE INDEX IF NOT EXISTS idx_character_attributes_last_updated ON character_attributes(last_updated);
 
+            -- 市场价格表
+            CREATE TABLE IF NOT EXISTS market_prices (
+                type_id INTEGER NOT NULL PRIMARY KEY,
+                adjusted_price REAL,
+                average_price REAL
+            );
+
+            -- 忠诚点数据表
+            CREATE TABLE IF NOT EXISTS loyalty_points (
+                character_id INTEGER NOT NULL PRIMARY KEY,
+                points_data TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_loyalty_points_last_updated ON loyalty_points(last_updated);
+
+            -- LP商店数据表
+            CREATE TABLE IF NOT EXISTS LPStore (
+                corporation_id INTEGER NOT NULL PRIMARY KEY,
+                offers_data TEXT NOT NULL,
+                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
+            
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
@@ -447,33 +469,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
             CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
-
-            -- 市场价格表
-            CREATE TABLE IF NOT EXISTS market_prices (
-                type_id INTEGER PRIMARY KEY,
-                adjusted_price REAL,
-                average_price REAL
-            );
-
-            -- 创建索引
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
-
-            -- 忠诚点数据表
-            CREATE TABLE IF NOT EXISTS loyalty_points (
-                character_id INTEGER PRIMARY KEY,
-                points_data TEXT NOT NULL,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_loyalty_points_last_updated ON loyalty_points(last_updated);
-
-            -- LP商店数据表
-            CREATE TABLE IF NOT EXISTS LPStore (
-                corporation_id INTEGER PRIMARY KEY,
-                offers_data TEXT NOT NULL,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_lpstore_last_updated ON LPStore(last_updated);
-            
         """
         
         // 分割SQL语句并逐个执行
