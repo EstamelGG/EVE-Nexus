@@ -61,7 +61,6 @@ private struct StructureCacheData: Codable {
 @CorpStructureActor
 public class CorpStructureAPI {
     public static let shared = CorpStructureAPI()
-    private let itemsPerPage = 50
     
     private init() {}
     
