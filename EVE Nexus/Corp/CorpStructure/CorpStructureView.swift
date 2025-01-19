@@ -29,7 +29,7 @@ struct CorpStructureView: View {
             } else {
                 // 即将耗尽燃料的建筑
                 if !viewModel.lowFuelStructuresCache.isEmpty {
-                    Section(header: Text("燃料不足（\(fuelMonitorDays)天内）")
+                    Section(header: Text("⚠️ 燃料不足（\(fuelMonitorDays)天内）")
                         .foregroundColor(.red)
                         .fontWeight(.bold)
                         .font(.system(size: 18))
