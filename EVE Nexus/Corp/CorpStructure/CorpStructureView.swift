@@ -221,13 +221,15 @@ class CorpStructureViewModel: ObservableObject {
     private func loadTypeIcons(typeIds: [Int]) async {
         do {
             let query = "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.map(String.init).joined(separator: ",")))"
-            let results = try await DatabaseManager.shared.executeQuery(query)
+            let result = try await DatabaseManager.shared.executeQuery(query)
             
-            await MainActor.run {
-                for row in results {
-                    if let typeId = row["type_id"] as? Int,
-                       let iconFilename = row["icon_filename"] as? String {
-                        self.typeIcons[typeId] = iconFilename
+            if case .success(let rows) = result {
+                await MainActor.run {
+                    for row in rows {
+                        if let typeId = row["type_id"] as? Int,
+                           let iconFilename = row["icon_filename"] as? String {
+                            self.typeIcons[typeId] = iconFilename
+                        }
                     }
                 }
             }
@@ -244,7 +246,7 @@ class CorpStructureViewModel: ObservableObject {
                 FROM solarsystems 
                 WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
             """
-            let systemResults = try await DatabaseManager.shared.executeQuery(systemQuery)
+            let systemResult = try await DatabaseManager.shared.executeQuery(systemQuery)
             
             // 2. 获取星域信息
             let universeQuery = """
@@ -253,22 +255,26 @@ class CorpStructureViewModel: ObservableObject {
                 JOIN regions r ON u.region_id = r.regionID
                 WHERE u.solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
             """
-            let universeResults = try await DatabaseManager.shared.executeQuery(universeQuery)
+            let universeResult = try await DatabaseManager.shared.executeQuery(universeQuery)
             
             await MainActor.run {
                 // 处理星系名称
-                for row in systemResults {
-                    if let systemId = row["solarSystemID"] as? Int,
-                       let systemName = row["solarSystemName"] as? String {
-                        self.systemNames[systemId] = systemName
+                if case .success(let rows) = systemResult {
+                    for row in rows {
+                        if let systemId = row["solarSystemID"] as? Int,
+                           let systemName = row["solarSystemName"] as? String {
+                            self.systemNames[systemId] = systemName
+                        }
                     }
                 }
                 
                 // 处理星域信息
-                for row in universeResults {
-                    if let systemId = row["solarsystem_id"] as? Int,
-                       let regionName = row["regionName"] as? String {
-                        self.regionNames[systemId] = regionName
+                if case .success(let rows) = universeResult {
+                    for row in rows {
+                        if let systemId = row["solarsystem_id"] as? Int,
+                           let regionName = row["regionName"] as? String {
+                            self.regionNames[systemId] = regionName
+                        }
                     }
                 }
             }
