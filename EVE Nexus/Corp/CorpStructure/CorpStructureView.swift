@@ -2,24 +2,79 @@ import SwiftUI
 
 struct CorpStructureView: View {
     let characterId: Int
-    @StateObject private var viewModel = CorpStructureViewModel()
+    @StateObject private var viewModel: CorpStructureViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var error: Error?
+    @State private var showError = false
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        _viewModel = StateObject(wrappedValue: CorpStructureViewModel(characterId: characterId))
+    }
     
     var body: some View {
         List {
-            ForEach(viewModel.structureGroups.sorted(by: { $0.key < $1.key }), id: \.key) { location, structures in
-                Section(header: Text(location)) {
-                    ForEach(structures, id: \.structure_id) { structure in
-                        StructureCell(structure: structure, iconName: viewModel.getIconName(typeId: structure.type_id))
-                    }
-                }
+            if viewModel.isLoading {
+                loadingView
+            } else if viewModel.structures.isEmpty {
+                emptyView
+            } else {
+                structureListView
             }
         }
         .navigationTitle("军团建筑")
-        .task {
-            await viewModel.loadStructures(characterId: characterId)
-        }
         .refreshable {
-            await viewModel.loadStructures(characterId: characterId, forceRefresh: true)
+            do {
+                try await viewModel.loadStructures(forceRefresh: true)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("刷新建筑信息失败: \(error)")
+                }
+            }
+        }
+        .alert(isPresented: $showError) {
+            Alert(
+                title: Text("错误"),
+                message: Text(error?.localizedDescription ?? "未知错误"),
+                dismissButton: .default(Text("确定")) {
+                    dismiss()
+                }
+            )
+        }
+    }
+    
+    private var loadingView: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+                .progressViewStyle(.circular)
+            Spacer()
+        }
+    }
+    
+    private var emptyView: some View {
+        HStack {
+            Spacer()
+            Text("暂无建筑数据")
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+    }
+    
+    private var structureListView: some View {
+        ForEach(viewModel.locationKeys, id: \.self) { location in
+            if let structures = viewModel.groupedStructures[location] {
+                Section(header: Text(location)) {
+                    ForEach(structures.indices, id: \.self) { index in
+                        let structure = structures[index]
+                        if let typeId = structure["type_id"] as? Int {
+                            StructureCell(structure: structure, iconName: viewModel.getIconName(typeId: typeId))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -152,134 +207,137 @@ struct StructureCell: View {
     }
 }
 
+@MainActor
 class CorpStructureViewModel: ObservableObject {
-    @Published var structureGroups: [String: [[String: Any]]] = [:]
+    @Published var structures: [[String: Any]] = []
+    @Published private(set) var isLoading = false
     private var typeIcons: [Int: String] = [:]
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
+    private let characterId: Int
     
-    func loadStructures(characterId: Int, forceRefresh: Bool = false) async {
-        do {
-            // 1. 获取角色的军团ID
-            guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
-                throw NetworkError.authenticationError("无法获取军团ID")
-            }
-            
-            // 2. 从API获取数据
-            let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility"
-            guard let url = URL(string: urlString) else {
-                throw NetworkError.invalidURL
-            }
-            
-            let headers = [
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            ]
-            
-            let data = try await NetworkManager.shared.fetchDataWithToken(
-                from: url,
-                characterId: characterId,
-                headers: headers
-            )
-            
-            guard let structures = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                throw NetworkError.invalidResponse
-            }
-            
-            // 3. 收集所有需要查询的ID
-            let typeIds = Set(structures.compactMap { $0["type_id"] as? Int })
-            let systemIds = Set(structures.compactMap { $0["system_id"] as? Int })
-            
-            // 4. 查询类型图标
-            await loadTypeIcons(typeIds: Array(typeIds))
-            
-            // 5. 查询星系和星域信息
-            await loadLocationInfo(systemIds: Array(systemIds))
-            
-            // 6. 按位置分组结构
-            await MainActor.run {
-                var groups: [String: [[String: Any]]] = [:]
-                for structure in structures {
-                    if let systemId = structure["system_id"] as? Int {
-                        let systemName = systemNames[systemId] ?? "未知星系"
-                        let regionName = regionNames[systemId] ?? "未知星域"
-                        let locationKey = "\(regionName) - \(systemName)"
-                        
-                        if groups[locationKey] == nil {
-                            groups[locationKey] = []
-                        }
-                        groups[locationKey]?.append(structure)
-                    }
+    init(characterId: Int) {
+        self.characterId = characterId
+        // 在初始化时立即开始加载数据
+        Task {
+            do {
+                try await loadStructures()
+            } catch {
+                if !(error is CancellationError) {
+                    Logger.error("初始化加载建筑信息失败: \(error)")
                 }
-                self.structureGroups = groups
             }
-        } catch {
-            Logger.error("加载建筑物信息失败: \(error)")
         }
     }
     
+    var locationKeys: [String] {
+        Array(groupedStructures.keys).sorted()
+    }
+    
+    var groupedStructures: [String: [[String: Any]]] {
+        var groups: [String: [[String: Any]]] = [:]
+        for structure in structures {
+            if let systemId = structure["system_id"] as? Int {
+                let systemName = systemNames[systemId] ?? "未知星系"
+                let regionName = regionNames[systemId] ?? "未知星域"
+                let locationKey = "\(regionName) - \(systemName)"
+                
+                if groups[locationKey] == nil {
+                    groups[locationKey] = []
+                }
+                groups[locationKey]?.append(structure)
+            }
+        }
+        return groups
+    }
+    
+    func loadStructures(forceRefresh: Bool = false) async throws {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        
+        // 1. 获取角色的军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
+        // 2. 从API获取数据
+        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+        
+        let headers = [
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        ]
+        
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId,
+            headers: headers
+        )
+        
+        guard let structures = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            throw NetworkError.invalidResponse
+        }
+        
+        // 3. 收集所有需要查询的ID
+        let typeIds = Set(structures.compactMap { $0["type_id"] as? Int })
+        let systemIds = Set(structures.compactMap { $0["system_id"] as? Int })
+        
+        // 4. 查询类型图标
+        await loadTypeIcons(typeIds: Array(typeIds))
+        
+        // 5. 查询星系和星域信息
+        await loadLocationInfo(systemIds: Array(systemIds))
+        
+        // 6. 更新结构数据
+        self.structures = structures
+    }
+    
     private func loadTypeIcons(typeIds: [Int]) async {
-        do {
-            let query = "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.map(String.init).joined(separator: ",")))"
-            let result = try await DatabaseManager.shared.executeQuery(query)
-            
-            if case .success(let rows) = result {
-                await MainActor.run {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let iconFilename = row["icon_filename"] as? String {
-                            self.typeIcons[typeId] = iconFilename
-                        }
-                    }
+        let query = "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.map(String.init).joined(separator: ",")))"
+        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let iconFilename = row["icon_filename"] as? String {
+                    self.typeIcons[typeId] = iconFilename
                 }
             }
-        } catch {
-            Logger.error("加载类型图标失败: \(error)")
         }
     }
     
     private func loadLocationInfo(systemIds: [Int]) async {
-        do {
-            // 1. 获取星系名称
-            let systemQuery = """
-                SELECT solarSystemID, solarSystemName 
-                FROM solarsystems 
-                WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
-            """
-            let systemResult = try await DatabaseManager.shared.executeQuery(systemQuery)
-            
-            // 2. 获取星域信息
-            let universeQuery = """
-                SELECT DISTINCT u.solarsystem_id, u.region_id, r.regionName
-                FROM universe u
-                JOIN regions r ON u.region_id = r.regionID
-                WHERE u.solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
-            """
-            let universeResult = try await DatabaseManager.shared.executeQuery(universeQuery)
-            
-            await MainActor.run {
-                // 处理星系名称
-                if case .success(let rows) = systemResult {
-                    for row in rows {
-                        if let systemId = row["solarSystemID"] as? Int,
-                           let systemName = row["solarSystemName"] as? String {
-                            self.systemNames[systemId] = systemName
-                        }
-                    }
-                }
-                
-                // 处理星域信息
-                if case .success(let rows) = universeResult {
-                    for row in rows {
-                        if let systemId = row["solarsystem_id"] as? Int,
-                           let regionName = row["regionName"] as? String {
-                            self.regionNames[systemId] = regionName
-                        }
-                    }
+        // 1. 获取星系名称
+        let systemQuery = """
+            SELECT solarSystemID, solarSystemName 
+            FROM solarsystems 
+            WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
+        """
+        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(systemQuery) {
+            for row in rows {
+                if let systemId = row["solarSystemID"] as? Int,
+                   let systemName = row["solarSystemName"] as? String {
+                    self.systemNames[systemId] = systemName
                 }
             }
-        } catch {
-            Logger.error("加载位置信息失败: \(error)")
+        }
+        
+        // 2. 获取星域信息
+        let universeQuery = """
+            SELECT DISTINCT u.solarsystem_id, u.region_id, r.regionName
+            FROM universe u
+            JOIN regions r ON u.region_id = r.regionID
+            WHERE u.solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
+        """
+        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(universeQuery) {
+            for row in rows {
+                if let systemId = row["solarsystem_id"] as? Int,
+                   let regionName = row["regionName"] as? String {
+                    self.regionNames[systemId] = regionName
+                }
+            }
         }
     }
     
