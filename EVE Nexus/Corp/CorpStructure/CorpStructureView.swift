@@ -89,21 +89,28 @@ struct StructureCell: View {
             // 左侧图标
             ZStack {
                 Circle()
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 44, height: 44)
+                
+                Circle()
                     .stroke(getStateColor(state: structure["state"] as? String ?? ""), lineWidth: 2)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 44, height: 44)
                 
                 if let icon = icon {
                     icon
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
+                        .clipShape(Circle())
                 } else {
                     Image(systemName: "building.2")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
+                        .clipShape(Circle())
                 }
             }
+            .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             
             // 右侧信息
             VStack(alignment: .leading, spacing: 4) {
@@ -170,14 +177,12 @@ struct StructureCell: View {
     
     private func getStateColor(state: String) -> Color {
         switch state {
-        case "shield_vulnerable":
-            return .blue
-        case "armor_vulnerable", "armor_reinforce":
+        case "shield_reinforce":
+            return .blue.opacity(0.7)  // 淡蓝色
+        case "armor_reinforce":
             return .orange
-        case "hull_vulnerable", "hull_reinforce":
+        case "hull_reinforce":
             return .red
-        case "online_deprecated":
-            return .gray
         default:
             return .green
         }
@@ -186,23 +191,23 @@ struct StructureCell: View {
     private func getStateText(state: String) -> String {
         switch state {
         case "shield_vulnerable":
-            return "护盾易伤"
+            return "护盾可被攻击"
         case "armor_vulnerable":
-            return "装甲易伤"
+            return "装甲可被攻击"
         case "armor_reinforce":
-            return "装甲增强"
+            return "装甲增强中"
         case "hull_vulnerable":
-            return "船体易伤"
+            return "船体可被攻击"
         case "hull_reinforce":
-            return "船体增强"
+            return "船体增强中"
         case "online_deprecated":
             return "已弃用"
         case "anchor_vulnerable":
-            return "锚定易伤"
+            return "锚定可被攻击"
         case "anchoring":
             return "锚定中"
         case "deploy_vulnerable":
-            return "部署易伤"
+            return "部署可被攻击"
         case "fitting_invulnerable":
             return "装配无敌"
         case "unanchored":
