@@ -968,3 +968,10 @@
 "Corp_Structure_Monitor_3Weeks" = "3 Weeks";
 "Corp_Structure_Monitor_1Month" = "1 Month";
 "Corp_Structure_Monitor_2Months" = "2 Months";
+
+// Time Format
+"Corp_Structure_Time_Format_UTC" = " (UTC+8)";
+"Corp_Structure_Time_Format_Days_Hours" = "%d days %d hours later";
+"Corp_Structure_Time_Format_Days" = "%d days later";
+"Corp_Structure_Time_Format_Hours" = "%d hours later";
+"Corp_Structure_Time_Format_Minutes" = "%d minutes later";

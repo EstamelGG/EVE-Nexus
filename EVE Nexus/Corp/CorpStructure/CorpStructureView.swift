@@ -269,18 +269,32 @@ struct StructureCell: View {
     
     private func formatDateTime(_ dateString: String) -> (localTime: String, remainingTime: String) {
         guard let date = ISO8601DateFormatter().date(from: dateString) else {
-            return ("未知时间", "")
+            return ("error time format", "error time format")
         }
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        let localTime = formatter.string(from: date) + " (UTC+8)"
+        let localTime = formatter.string(from: date) + NSLocalizedString("Corp_Structure_Time_Format_UTC", comment: "")
         
         let remainingTime = date.timeIntervalSince(Date())
         let days = Int(remainingTime / (24 * 3600))
         let hours = Int((remainingTime.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
+        let minutes = Int((remainingTime.truncatingRemainder(dividingBy: 3600)) / 60)
         
-        return (localTime, "\(days)天\(hours)小时后")
+        let remainingTimeString: String
+        if days > 0 {
+            if hours > 0 {
+                remainingTimeString = String(format: NSLocalizedString("Corp_Structure_Time_Format_Days_Hours", comment: ""), days, hours)
+            } else {
+                remainingTimeString = String(format: NSLocalizedString("Corp_Structure_Time_Format_Days", comment: ""), days)
+            }
+        } else if hours > 0 {
+            remainingTimeString = String(format: NSLocalizedString("Corp_Structure_Time_Format_Hours", comment: ""), hours)
+        } else {
+            remainingTimeString = String(format: NSLocalizedString("Corp_Structure_Time_Format_Minutes", comment: ""), minutes)
+        }
+        
+        return (localTime, remainingTimeString)
     }
     
     private func getStateColor(state: String) -> Color {
