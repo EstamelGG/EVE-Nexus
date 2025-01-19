@@ -7,6 +7,7 @@ public struct StructureInfo: Codable {
     public let corporation_id: Int
     public let system_id: Int
     public let profile_id: Int
+    public let name: String?
     public let fuel_expires: String?
     public let state: String
     public let state_timer_start: String?
@@ -14,12 +15,13 @@ public struct StructureInfo: Codable {
     public let unanchors_at: String?
     public let services: [StructureService]?
     
-    public init(structure_id: Int64, type_id: Int, corporation_id: Int, system_id: Int, profile_id: Int, fuel_expires: String?, state: String, state_timer_start: String?, state_timer_end: String?, unanchors_at: String?, services: [StructureService]?) {
+    public init(structure_id: Int64, type_id: Int, corporation_id: Int, system_id: Int, profile_id: Int, name: String?, fuel_expires: String?, state: String, state_timer_start: String?, state_timer_end: String?, unanchors_at: String?, services: [StructureService]?) {
         self.structure_id = structure_id
         self.type_id = type_id
         self.corporation_id = corporation_id
         self.system_id = system_id
         self.profile_id = profile_id
+        self.name = name
         self.fuel_expires = fuel_expires
         self.state = state
         self.state_timer_start = state_timer_start

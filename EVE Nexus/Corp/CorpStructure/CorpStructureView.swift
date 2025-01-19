@@ -275,44 +275,45 @@ class CorpStructureViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         
-        // 1. 获取角色的军团ID
-        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
-            throw NetworkError.authenticationError("无法获取军团ID")
-        }
-        
-        // 2. 从API获取数据
-        let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-        
-        let headers = [
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        ]
-        
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
+        // 从API获取数据
+        let structures = try await CorpStructureAPI.shared.fetchStructures(
             characterId: characterId,
-            headers: headers
+            forceRefresh: forceRefresh
         )
         
-        guard let structures = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw NetworkError.invalidResponse
+        // 将 StructureInfo 转换为字典
+        let structureDicts: [[String: Any]] = structures.map { structure in
+            var dict: [String: Any] = [
+                "structure_id": structure.structure_id,
+                "type_id": structure.type_id,
+                "system_id": structure.system_id,
+                "state": structure.state,
+                "name": structure.name ?? "Unknown"
+            ]
+            
+            if let fuelExpires = structure.fuel_expires {
+                dict["fuel_expires"] = fuelExpires
+            }
+            
+            if let services = structure.services {
+                dict["services"] = services.map { ["name": $0.name, "state": $0.state] }
+            }
+            
+            return dict
         }
         
-        // 3. 收集所有需要查询的ID
-        let typeIds = Set(structures.compactMap { $0["type_id"] as? Int })
-        let systemIds = Set(structures.compactMap { $0["system_id"] as? Int })
+        // 收集所有需要查询的ID
+        let typeIds = Set(structureDicts.compactMap { $0["type_id"] as? Int })
+        let systemIds = Set(structureDicts.compactMap { $0["system_id"] as? Int })
         
-        // 4. 查询类型图标
+        // 查询类型图标
         await loadTypeIcons(typeIds: Array(typeIds))
         
-        // 5. 查询星系和星域信息
+        // 查询星系和星域信息
         await loadLocationInfo(systemIds: Array(systemIds))
         
-        // 6. 更新结构数据
-        self.structures = structures
+        // 更新结构数据
+        self.structures = structureDicts
     }
     
     private func loadTypeIcons(typeIds: [Int]) async {
