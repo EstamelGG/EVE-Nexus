@@ -119,8 +119,15 @@ struct StructureCell: View {
                 
                 if let fuelExpires = structure["fuel_expires"] as? String {
                     HStack {
-                        Text("燃料过期：")
-                        Text(formatDateTime(fuelExpires))
+                        Text("燃料耗尽：")
+                        Text(formatDateTime(fuelExpires).localTime)
+                            .foregroundColor(.secondary)
+                    }
+                    .font(.subheadline)
+                    
+                    HStack {
+                        Text("耗尽时间：")
+                        Text(formatDateTime(fuelExpires).remainingTime)
                             .foregroundColor(.secondary)
                     }
                     .font(.subheadline)
@@ -159,20 +166,20 @@ struct StructureCell: View {
         }
     }
     
-    private func formatDateTime(_ dateString: String) -> String {
+    private func formatDateTime(_ dateString: String) -> (localTime: String, remainingTime: String) {
         guard let date = ISO8601DateFormatter().date(from: dateString) else {
-            return "未知时间"
+            return ("未知时间", "")
         }
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        let localTime = formatter.string(from: date)
+        let localTime = formatter.string(from: date) + " (UTC+8)"
         
         let remainingTime = date.timeIntervalSince(Date())
         let days = Int(remainingTime / (24 * 3600))
         let hours = Int((remainingTime.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
         
-        return "\(localTime) (UTC+8) (\(days)天\(hours)小时后)"
+        return (localTime, "\(days)天\(hours)小时后")
     }
     
     private func getStateColor(state: String) -> Color {
