@@ -29,7 +29,7 @@ struct CorpStructureView: View {
             } else {
                 // 即将耗尽燃料的建筑
                 if !viewModel.lowFuelStructuresCache.isEmpty {
-                    Section(header: Text("⚠️ 燃料不足（\(fuelMonitorDays)天内）")
+                    Section(header: Text(String(format: NSLocalizedString("Corp_Structure_Low_Fuel", comment: ""), fuelMonitorDays))
                         .foregroundColor(.red)
                         .fontWeight(.bold)
                         .font(.system(size: 18))
@@ -48,7 +48,7 @@ struct CorpStructureView: View {
                 structureListView
             }
         }
-        .navigationTitle("军团建筑")
+        .navigationTitle(NSLocalizedString("Corp_Structure_Title", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
@@ -66,11 +66,11 @@ struct CorpStructureView: View {
                         NavigationLink {
                             List {
                                 ForEach([
-                                    (name: "1周", days: 7),
-                                    (name: "2周", days: 14),
-                                    (name: "3周", days: 21),
-                                    (name: "1个月", days: 30),
-                                    (name: "2个月", days: 60)
+                                    (name: NSLocalizedString("Corp_Structure_Monitor_1Week", comment: ""), days: 7),
+                                    (name: NSLocalizedString("Corp_Structure_Monitor_2Weeks", comment: ""), days: 14),
+                                    (name: NSLocalizedString("Corp_Structure_Monitor_3Weeks", comment: ""), days: 21),
+                                    (name: NSLocalizedString("Corp_Structure_Monitor_1Month", comment: ""), days: 30),
+                                    (name: NSLocalizedString("Corp_Structure_Monitor_2Months", comment: ""), days: 60)
                                 ], id: \.days) { option in
                                     HStack {
                                         Text(option.name)
@@ -87,23 +87,23 @@ struct CorpStructureView: View {
                                     }
                                 }
                             }
-                            .navigationTitle("监控时间")
+                            .navigationTitle(NSLocalizedString("Corp_Structure_Monitor_Time", comment: ""))
                             .navigationBarTitleDisplayMode(.inline)
                         } label: {
                             HStack {
-                                Text("燃料监控时间")
+                                Text(NSLocalizedString("Corp_Structure_Monitor_Time", comment: ""))
                                 Spacer()
-                                Text("\(fuelMonitorDays)天")
+                                Text(String(format: NSLocalizedString("Corp_Structure_Days", comment: ""), fuelMonitorDays))
                                     .foregroundColor(.secondary)
                             }
                         }
                     }
                 }
-                .navigationTitle("设置")
+                .navigationTitle(NSLocalizedString("Corp_Structure_Settings", comment: ""))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("完成") {
+                        Button(NSLocalizedString("Corp_Structure_Done", comment: "")) {
                             showSettings = false
                         }
                     }
@@ -123,9 +123,9 @@ struct CorpStructureView: View {
         }
         .alert(isPresented: $showError) {
             Alert(
-                title: Text("错误"),
-                message: Text(error?.localizedDescription ?? "未知错误"),
-                dismissButton: .default(Text("确定")) {
+                title: Text(NSLocalizedString("Corp_Structure_Error", comment: "")),
+                message: Text(error?.localizedDescription ?? NSLocalizedString("Corp_Structure_Unknown_Error", comment: "")),
+                dismissButton: .default(Text(NSLocalizedString("Corp_Structure_OK", comment: ""))) {
                     dismiss()
                 }
             )
@@ -144,7 +144,7 @@ struct CorpStructureView: View {
     private var emptyView: some View {
         HStack {
             Spacer()
-            Text("暂无建筑数据")
+            Text(NSLocalizedString("Corp_Structure_No_Data", comment: ""))
                 .foregroundColor(.secondary)
             Spacer()
         }
@@ -213,20 +213,21 @@ struct StructureCell: View {
             
             // 右侧信息
             VStack(alignment: .leading, spacing: 4) {
-                Text(structure["name"] as? String ?? "未知建筑")
+                Text(structure["name"] as? String ?? NSLocalizedString("Corp_Structure_Unknown", comment: ""))
                     .font(.headline)
                     .lineLimit(1)
                 
                 if let fuelExpires = structure["fuel_expires"] as? String {
                     HStack {
-                        Text("燃料耗尽：")
+                        Text(NSLocalizedString("Corp_Structure_Fuel_Expires", comment: ""))
                         Text(formatDateTime(fuelExpires).localTime)
                             .foregroundColor(.secondary)
+                            .lineLimit(1)
                     }
                     .font(.subheadline)
                     
                     HStack {
-                        Text("耗尽时间：")
+                        Text(NSLocalizedString("Corp_Structure_Time_Remaining", comment: ""))
                         Text(formatDateTime(fuelExpires).remainingTime)
                             .foregroundColor(isLowFuel ? .red : .secondary)
                     }
@@ -234,7 +235,7 @@ struct StructureCell: View {
                 }
                 
                 HStack {
-                    Text("状态：")
+                    Text(NSLocalizedString("Corp_Structure_Status", comment: ""))
                     Text(getStateText(state: structure["state"] as? String ?? ""))
                         .foregroundColor(getStateColor(state: structure["state"] as? String ?? ""))
                 }
@@ -242,7 +243,7 @@ struct StructureCell: View {
                 
                 if let services = structure["services"] as? [[String: String]] {
                     HStack {
-                        Text("服务：")
+                        Text(NSLocalizedString("Corp_Structure_Services", comment: ""))
                         ForEach(services, id: \.["name"]) { service in
                             if let name = service["name"], let state = service["state"] {
                                 Text(name)
@@ -298,29 +299,29 @@ struct StructureCell: View {
     private func getStateText(state: String) -> String {
         switch state {
         case "shield_vulnerable":
-            return "护盾可被攻击"
+            return NSLocalizedString("Corp_Structure_State_Shield_Vulnerable", comment: "")
         case "armor_vulnerable":
-            return "装甲可被攻击"
+            return NSLocalizedString("Corp_Structure_State_Armor_Vulnerable", comment: "")
         case "armor_reinforce":
-            return "装甲增强中"
+            return NSLocalizedString("Corp_Structure_State_Armor_Reinforce", comment: "")
         case "hull_vulnerable":
-            return "船体可被攻击"
+            return NSLocalizedString("Corp_Structure_State_Hull_Vulnerable", comment: "")
         case "hull_reinforce":
-            return "船体增强中"
+            return NSLocalizedString("Corp_Structure_State_Hull_Reinforce", comment: "")
         case "online_deprecated":
-            return "已弃用"
+            return NSLocalizedString("Corp_Structure_State_Online_Deprecated", comment: "")
         case "anchor_vulnerable":
-            return "锚定可被攻击"
+            return NSLocalizedString("Corp_Structure_State_Anchor_Vulnerable", comment: "")
         case "anchoring":
-            return "锚定中"
+            return NSLocalizedString("Corp_Structure_State_Anchoring", comment: "")
         case "deploy_vulnerable":
-            return "部署可被攻击"
+            return NSLocalizedString("Corp_Structure_State_Deploy_Vulnerable", comment: "")
         case "fitting_invulnerable":
-            return "装配无敌"
+            return NSLocalizedString("Corp_Structure_State_Fitting_Invulnerable", comment: "")
         case "unanchored":
-            return "未锚定"
+            return NSLocalizedString("Corp_Structure_State_Unanchored", comment: "")
         default:
-            return "未知状态"
+            return NSLocalizedString("Corp_Structure_State_Unknown", comment: "")
         }
     }
 }
@@ -388,8 +389,8 @@ class CorpStructureViewModel: ObservableObject {
         var groups: [String: [[String: Any]]] = [:]
         for structure in structures {
             if let systemId = structure["system_id"] as? Int {
-                let systemName = systemNames[systemId] ?? "未知星系"
-                let regionName = regionNames[systemId] ?? "未知星域"
+                let systemName = systemNames[systemId] ?? "Unknown"
+                let regionName = regionNames[systemId] ?? "Unknown"
                 let locationKey = "\(regionName) - \(systemName)"
                 
                 if groups[locationKey] == nil {

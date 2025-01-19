@@ -92,7 +92,7 @@ public class CorpStructureAPI {
         while hasMorePages {
             Logger.debug("正在获取第 \(currentPage) 页数据")
             
-            let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&page=\(currentPage)"
+            let urlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en&page=\(currentPage)"
             guard let url = URL(string: urlString) else {
                 throw NetworkError.invalidURL
             }

@@ -928,3 +928,43 @@
 
 "Main_Corporation_Moon_Mining_Today" = "[Today]";
 "Main_Corporation_Moon_Mining_Days_Later" = "[%d days later]";
+
+// Corporation Structure View
+"Corp_Structure_Title" = "Corporation Structures";
+"Corp_Structure_Low_Fuel" = "⚠️ Low Fuel (%d days)";
+"Corp_Structure_No_Data" = "No structure data";
+"Corp_Structure_Settings" = "Settings";
+"Corp_Structure_Monitor_Time" = "Fuel Monitor Time";
+"Corp_Structure_Days" = "%d days";
+"Corp_Structure_Done" = "Done";
+"Corp_Structure_Error" = "Error";
+"Corp_Structure_Unknown_Error" = "Unknown error";
+"Corp_Structure_OK" = "OK";
+
+// Structure Cell
+"Corp_Structure_Unknown" = "Unknown Structure";
+"Corp_Structure_Fuel_Expires" = "Fuel Expires: ";
+"Corp_Structure_Time_Remaining" = "Time Remaining: ";
+"Corp_Structure_Status" = "Status: ";
+"Corp_Structure_Services" = "Services: ";
+
+// Structure States
+"Corp_Structure_State_Shield_Vulnerable" = "Shield Vulnerable";
+"Corp_Structure_State_Armor_Vulnerable" = "Armor Vulnerable";
+"Corp_Structure_State_Armor_Reinforce" = "Armor Reinforced";
+"Corp_Structure_State_Hull_Vulnerable" = "Hull Vulnerable";
+"Corp_Structure_State_Hull_Reinforce" = "Hull Reinforced";
+"Corp_Structure_State_Online_Deprecated" = "Deprecated";
+"Corp_Structure_State_Anchor_Vulnerable" = "Anchor Vulnerable";
+"Corp_Structure_State_Anchoring" = "Anchoring";
+"Corp_Structure_State_Deploy_Vulnerable" = "Deploy Vulnerable";
+"Corp_Structure_State_Fitting_Invulnerable" = "Fitting Invulnerable";
+"Corp_Structure_State_Unanchored" = "Unanchored";
+"Corp_Structure_State_Unknown" = "Unknown State";
+
+// Monitor Time Options
+"Corp_Structure_Monitor_1Week" = "1 Week";
+"Corp_Structure_Monitor_2Weeks" = "2 Weeks";
+"Corp_Structure_Monitor_3Weeks" = "3 Weeks";
+"Corp_Structure_Monitor_1Month" = "1 Month";
+"Corp_Structure_Monitor_2Months" = "2 Months";

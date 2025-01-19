@@ -942,3 +942,43 @@
 
 "Main_Corporation_Moon_Mining_Today" = "[今天]";
 "Main_Corporation_Moon_Mining_Days_Later" = "[%d天后]";
+
+// Corporation Structure View
+"Corp_Structure_Title" = "军团建筑";
+"Corp_Structure_Low_Fuel" = "⚠️ 燃料不足（%d天内）";
+"Corp_Structure_No_Data" = "暂无建筑数据";
+"Corp_Structure_Settings" = "设置";
+"Corp_Structure_Monitor_Time" = "燃料监控时间";
+"Corp_Structure_Days" = "%d天";
+"Corp_Structure_Done" = "完成";
+"Corp_Structure_Error" = "错误";
+"Corp_Structure_Unknown_Error" = "未知错误";
+"Corp_Structure_OK" = "确定";
+
+// Structure Cell
+"Corp_Structure_Unknown" = "未知建筑";
+"Corp_Structure_Fuel_Expires" = "燃料耗尽：";
+"Corp_Structure_Time_Remaining" = "耗尽时间：";
+"Corp_Structure_Status" = "状态：";
+"Corp_Structure_Services" = "服务：";
+
+// Structure States
+"Corp_Structure_State_Shield_Vulnerable" = "护盾可被攻击";
+"Corp_Structure_State_Armor_Vulnerable" = "装甲可被攻击";
+"Corp_Structure_State_Armor_Reinforce" = "装甲增强中";
+"Corp_Structure_State_Hull_Vulnerable" = "船体可被攻击";
+"Corp_Structure_State_Hull_Reinforce" = "船体增强中";
+"Corp_Structure_State_Online_Deprecated" = "已弃用";
+"Corp_Structure_State_Anchor_Vulnerable" = "锚定可被攻击";
+"Corp_Structure_State_Anchoring" = "锚定中";
+"Corp_Structure_State_Deploy_Vulnerable" = "部署可被攻击";
+"Corp_Structure_State_Fitting_Invulnerable" = "装配无敌";
+"Corp_Structure_State_Unanchored" = "未锚定";
+"Corp_Structure_State_Unknown" = "未知状态";
+
+// Monitor Time Options
+"Corp_Structure_Monitor_1Week" = "1周";
+"Corp_Structure_Monitor_2Weeks" = "2周";
+"Corp_Structure_Monitor_3Weeks" = "3周";
+"Corp_Structure_Monitor_1Month" = "1个月";
+"Corp_Structure_Monitor_2Months" = "2个月";
