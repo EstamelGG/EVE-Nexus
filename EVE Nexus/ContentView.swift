@@ -682,6 +682,10 @@ struct ContentView: View {
                                 CorpMoonMiningView(characterId: character.CharacterID)
                             }
                             
+                        case "corporation_structures":
+                            if let character = viewModel.selectedCharacter {
+                                CorpStructureView(characterId: character.CharacterID)
+                            }
                         case "killboard":
                             if let character = viewModel.selectedCharacter {
                                 // KillMailListView(characterId: character.CharacterID)
@@ -843,17 +847,17 @@ struct ContentView: View {
                 )
             }
 
+            NavigationLink(value: "corporation_structures") {
+                RowView(
+                    title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
+                    icon: "structures"
+                )
+            }
+
             // NavigationLink(value: "corporation_members") {
             //     RowView(
             //         title: NSLocalizedString("Main_Corporation_Members", comment: ""),
             //         icon: "corporation"
-            //     )
-            // }
-            
-            // NavigationLink(value: "corporation_structures") {
-            //     RowView(
-            //         title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
-            //         icon: "structures"
             //     )
             // }
             
