@@ -82,6 +82,7 @@ struct CorpStructureView: View {
 struct StructureCell: View {
     let structure: [String: Any]
     let iconName: String?
+    @State private var icon: Image?
     
     var body: some View {
         HStack(spacing: 12) {
@@ -91,8 +92,8 @@ struct StructureCell: View {
                     .stroke(getStateColor(state: structure["state"] as? String ?? ""), lineWidth: 2)
                     .frame(width: 50, height: 50)
                 
-                if let iconName = iconName {
-                    Image(iconName)
+                if let icon = icon {
+                    icon
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
@@ -144,6 +145,11 @@ struct StructureCell: View {
             }
         }
         .padding(.vertical, 8)
+        .task {
+            if let iconName = iconName {
+                icon = IconManager.shared.loadImage(for: iconName)
+            }
+        }
     }
     
     private func formatDateTime(_ dateString: String) -> String {

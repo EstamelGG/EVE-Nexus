@@ -850,7 +850,7 @@ struct ContentView: View {
             NavigationLink(value: "corporation_structures") {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
-                    icon: "structures"
+                    icon: "Structurebrowser"
                 )
             }
 
