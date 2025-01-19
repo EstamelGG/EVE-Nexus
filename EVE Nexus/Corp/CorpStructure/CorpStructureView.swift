@@ -7,7 +7,11 @@ struct CorpStructureView: View {
     @State private var error: Error?
     @State private var showError = false
     @State private var showSettings = false
-    @AppStorage("structureFuelMonitorDays") private var fuelMonitorDays: Int = 7
+    @AppStorage("structureFuelMonitorDays") private var fuelMonitorDays: Int = 7 {
+        didSet {
+            viewModel.updateLowFuelStructures(within: fuelMonitorDays)
+        }
+    }
     @State private var tempDays: String = ""
     
     init(characterId: Int) {
@@ -24,15 +28,15 @@ struct CorpStructureView: View {
                 emptyView
             } else {
                 // 即将耗尽燃料的建筑
-                if !viewModel.lowFuelStructures(within: fuelMonitorDays).isEmpty {
+                if !viewModel.lowFuelStructuresCache.isEmpty {
                     Section(header: Text("⚠️ 燃料不足（\(fuelMonitorDays)天内）")
                         .foregroundColor(.red)
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .textCase(nil))
                     {
-                        ForEach(viewModel.lowFuelStructures(within: fuelMonitorDays).indices, id: \.self) { index in
-                            let structure = viewModel.lowFuelStructures(within: fuelMonitorDays)[index]
+                        ForEach(viewModel.lowFuelStructuresCache.indices, id: \.self) { index in
+                            let structure = viewModel.lowFuelStructuresCache[index]
                             if let typeId = structure["type_id"] as? Int {
                                 StructureCell(structure: structure, iconName: viewModel.getIconName(typeId: typeId), isLowFuel: true)
                             }
@@ -325,15 +329,22 @@ struct StructureCell: View {
 class CorpStructureViewModel: ObservableObject {
     @Published var structures: [[String: Any]] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var lowFuelStructuresCache: [[String: Any]] = []
     private var typeIcons: [Int: String] = [:]
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
     private let characterId: Int
+    private var currentMonitorDays: Int = 7
     
     // 获取燃料不足的建筑，按照燃料耗尽时间升序排序
-    func lowFuelStructures(within days: Int = 7) -> [[String: Any]] {
+    func updateLowFuelStructures(within days: Int = 7) {
         let monitorDays = days <= 0 ? 7 : days
-        return structures.filter { structure in
+        if currentMonitorDays == monitorDays {
+            return
+        }
+        currentMonitorDays = monitorDays
+        
+        lowFuelStructuresCache = structures.filter { structure in
             guard let fuelExpires = structure["fuel_expires"] as? String,
                   let expirationDate = ISO8601DateFormatter().date(from: fuelExpires) else {
                 return false
@@ -441,6 +452,8 @@ class CorpStructureViewModel: ObservableObject {
         
         // 更新结构数据
         self.structures = structureDicts
+        // 更新低燃料缓存
+        updateLowFuelStructures(within: currentMonitorDays)
     }
     
     private func loadTypeIcons(typeIds: [Int]) async {
