@@ -115,7 +115,3 @@ struct CharacterPlanetaryView: View {
         isRefreshing = false
     }
 }
-
-#Preview {
-    CharacterPlanetaryView(characterId: 0)
-} 
