@@ -975,3 +975,11 @@
 "Corp_Structure_Time_Format_Days" = "%d days later";
 "Corp_Structure_Time_Format_Hours" = "%d hours later";
 "Corp_Structure_Time_Format_Minutes" = "%d minutes later";
+
+"Main_Planetary" = "Planetary";
+"Main_Planetary_Title" = "Planetary Development";
+"Main_Planetary_No_Planets" = "No Planets";
+"Main_Planetary_Unknown_Planet" = "Unknown Planet";
+"Main_Planetary_Unknown_Type" = "Unknown Type";
+"Main_Planetary_Loading" = "Loading...";
+"Main_Planetary_Error" = "Loading Failed";

@@ -672,6 +672,10 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 MiningLedgerView(characterId: character.CharacterID, databaseManager: databaseManager)
                             }
+                        case "planetary":
+                            if let character = viewModel.selectedCharacter {
+                                CharacterPlanetaryView(characterId: character.CharacterID)
+                            }
                         case "corporation_wallet":
                             if let character = viewModel.selectedCharacter {
                                 CorpWalletView(characterId: character.CharacterID)
@@ -997,6 +1001,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
                     icon: "miningledger"
+                )
+            }
+            
+            NavigationLink(value: "planetary") {
+                RowView(
+                    title: NSLocalizedString("Main_Planetary", comment: ""),
+                    icon: "planets"
                 )
             }
         } header: {
