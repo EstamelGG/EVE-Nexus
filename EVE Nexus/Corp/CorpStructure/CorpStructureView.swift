@@ -6,10 +6,14 @@ struct CorpStructureView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var error: Error?
     @State private var showError = false
+    @State private var showSettings = false
+    @AppStorage("structureFuelMonitorDays") private var fuelMonitorDays: Int = 7
+    @State private var tempDays: String = ""
     
     init(characterId: Int) {
         self.characterId = characterId
         _viewModel = StateObject(wrappedValue: CorpStructureViewModel(characterId: characterId))
+        _tempDays = State(initialValue: "7")
     }
     
     var body: some View {
@@ -20,15 +24,15 @@ struct CorpStructureView: View {
                 emptyView
             } else {
                 // 即将耗尽燃料的建筑
-                if !viewModel.lowFuelStructures.isEmpty {
-                    Section(header: Text("燃料不足")
+                if !viewModel.lowFuelStructures(within: fuelMonitorDays).isEmpty {
+                    Section(header: Text("⚠️ 燃料不足（\(fuelMonitorDays)天内）")
                         .foregroundColor(.red)
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .textCase(nil))
                     {
-                        ForEach(viewModel.lowFuelStructures.indices, id: \.self) { index in
-                            let structure = viewModel.lowFuelStructures[index]
+                        ForEach(viewModel.lowFuelStructures(within: fuelMonitorDays).indices, id: \.self) { index in
+                            let structure = viewModel.lowFuelStructures(within: fuelMonitorDays)[index]
                             if let typeId = structure["type_id"] as? Int {
                                 StructureCell(structure: structure, iconName: viewModel.getIconName(typeId: typeId), isLowFuel: true)
                             }
@@ -41,6 +45,67 @@ struct CorpStructureView: View {
             }
         }
         .navigationTitle("军团建筑")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    tempDays = String(fuelMonitorDays)
+                    showSettings = true
+                }) {
+                    Image(systemName: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationView {
+                Form {
+                    Section {
+                        NavigationLink {
+                            List {
+                                ForEach([
+                                    (name: "1周", days: 7),
+                                    (name: "2周", days: 14),
+                                    (name: "3周", days: 21),
+                                    (name: "1个月", days: 30),
+                                    (name: "2个月", days: 60)
+                                ], id: \.days) { option in
+                                    HStack {
+                                        Text(option.name)
+                                        Spacer()
+                                        if fuelMonitorDays == option.days {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.accentColor)
+                                        }
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        fuelMonitorDays = option.days
+                                        showSettings = false
+                                    }
+                                }
+                            }
+                            .navigationTitle("监控时间")
+                            .navigationBarTitleDisplayMode(.inline)
+                        } label: {
+                            HStack {
+                                Text("燃料监控时间")
+                                Spacer()
+                                Text("\(fuelMonitorDays)天")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("设置")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("完成") {
+                            showSettings = false
+                        }
+                    }
+                }
+            }
+        }
         .refreshable {
             do {
                 try await viewModel.loadStructures(forceRefresh: true)
@@ -265,16 +330,17 @@ class CorpStructureViewModel: ObservableObject {
     private var regionNames: [Int: String] = [:]
     private let characterId: Int
     
-    // 获取燃料不足的建筑（7天内），按照燃料耗尽时间升序排序
-    var lowFuelStructures: [[String: Any]] {
-        structures.filter { structure in
+    // 获取燃料不足的建筑，按照燃料耗尽时间升序排序
+    func lowFuelStructures(within days: Int = 7) -> [[String: Any]] {
+        let monitorDays = days <= 0 ? 7 : days
+        return structures.filter { structure in
             guard let fuelExpires = structure["fuel_expires"] as? String,
                   let expirationDate = ISO8601DateFormatter().date(from: fuelExpires) else {
                 return false
             }
             
             let timeInterval = expirationDate.timeIntervalSince(Date())
-            return timeInterval > 0 && timeInterval <= 7 * 24 * 3600 // 7天内
+            return timeInterval > 0 && timeInterval <= Double(monitorDays) * 24 * 3600
         }.sorted { structure1, structure2 in
             guard let fuelExpires1 = structure1["fuel_expires"] as? String,
                   let fuelExpires2 = structure2["fuel_expires"] as? String,
