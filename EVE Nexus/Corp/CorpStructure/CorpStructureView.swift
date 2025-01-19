@@ -29,7 +29,7 @@ struct CorpStructureView: View {
             } else {
                 // 即将耗尽燃料的建筑
                 if !viewModel.lowFuelStructuresCache.isEmpty {
-                    Section(header: Text("⚠️ 燃料不足（\(fuelMonitorDays)天内）")
+                    Section(header: Text("燃料不足（\(fuelMonitorDays)天内）")
                         .foregroundColor(.red)
                         .fontWeight(.bold)
                         .font(.system(size: 18))
@@ -334,14 +334,31 @@ class CorpStructureViewModel: ObservableObject {
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
     private let characterId: Int
-    private var currentMonitorDays: Int = 7
+    private var currentMonitorDays: Int
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        // 从 UserDefaults 获取保存的监控时间
+        self.currentMonitorDays = UserDefaults.standard.integer(forKey: "structureFuelMonitorDays")
+        if currentMonitorDays == 0 {
+            currentMonitorDays = 7
+        }
+        
+        // 在初始化时立即开始加载数据
+        Task {
+            do {
+                try await loadStructures()
+            } catch {
+                if !(error is CancellationError) {
+                    Logger.error("初始化加载建筑信息失败: \(error)")
+                }
+            }
+        }
+    }
     
     // 获取燃料不足的建筑，按照燃料耗尽时间升序排序
     func updateLowFuelStructures(within days: Int = 7) {
         let monitorDays = days <= 0 ? 7 : days
-        if currentMonitorDays == monitorDays {
-            return
-        }
         currentMonitorDays = monitorDays
         
         lowFuelStructuresCache = structures.filter { structure in
@@ -360,20 +377,6 @@ class CorpStructureViewModel: ObservableObject {
                 return false
             }
             return date1 < date2
-        }
-    }
-    
-    init(characterId: Int) {
-        self.characterId = characterId
-        // 在初始化时立即开始加载数据
-        Task {
-            do {
-                try await loadStructures()
-            } catch {
-                if !(error is CancellationError) {
-                    Logger.error("初始化加载建筑信息失败: \(error)")
-                }
-            }
         }
     }
     
@@ -452,7 +455,7 @@ class CorpStructureViewModel: ObservableObject {
         
         // 更新结构数据
         self.structures = structureDicts
-        // 更新低燃料缓存
+        // 更新低燃料缓存，使用当前的监控天数
         updateLowFuelStructures(within: currentMonitorDays)
     }
     
