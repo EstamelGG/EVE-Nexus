@@ -317,7 +317,8 @@ class CorpStructureViewModel: ObservableObject {
     
     private func loadTypeIcons(typeIds: [Int]) async {
         let query = "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.map(String.init).joined(separator: ",")))"
-        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(query) {
+        let result = DatabaseManager.shared.executeQuery(query)
+        if case .success(let rows) = result {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                    let iconFilename = row["icon_filename"] as? String {
@@ -334,7 +335,8 @@ class CorpStructureViewModel: ObservableObject {
             FROM solarsystems 
             WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
-        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(systemQuery) {
+        let systemResult = DatabaseManager.shared.executeQuery(systemQuery)
+        if case .success(let rows) = systemResult {
             for row in rows {
                 if let systemId = row["solarSystemID"] as? Int,
                    let systemName = row["solarSystemName"] as? String {
@@ -350,7 +352,8 @@ class CorpStructureViewModel: ObservableObject {
             JOIN regions r ON u.region_id = r.regionID
             WHERE u.solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
-        if case .success(let rows) = try? await DatabaseManager.shared.executeQuery(universeQuery) {
+        let universeResult = DatabaseManager.shared.executeQuery(universeQuery)
+        if case .success(let rows) = universeResult {
             for row in rows {
                 if let systemId = row["solarsystem_id"] as? Int,
                    let regionName = row["regionName"] as? String {
