@@ -216,60 +216,42 @@ struct ExtractorYieldChartView: View {
             .padding(.horizontal, 16)  // 为整个图表区域添加水平边距
             
             // 统计信息
-            VStack(spacing: 2) {
-                // 总产量
-                HStack {
+            HStack {
+                // 标题列
+                VStack(alignment: .trailing) {
                     Text(NSLocalizedString("Total_Yield", comment: ""))
-                        .foregroundColor(.primary)
-                    Spacer()
+                    Text(NSLocalizedString("Current_Cycle_Yield", comment: ""))
+                    Text(NSLocalizedString("Current_Cycle_Elapsed", comment: ""))
+                    Text(NSLocalizedString("Cycle_Time", comment: ""))
+                    Text(NSLocalizedString("Time_Remaining", comment: ""))
+                }
+                .foregroundColor(.primary)
+                .font(.footnote)
+                
+                // 数值列
+                VStack(alignment: .leading) {
                     Text(formatYAxisLabel(yields.map { $0.yield }.reduce(0, +)))
                         .foregroundColor(.secondary)
-                }
-                .font(.footnote)
-                
-                // 当前周期产量
-                if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
-                    HStack {
-                        Text(NSLocalizedString("Current_Cycle_Yield", comment: ""))
-                            .foregroundColor(.primary)
-                        Spacer()
+                    if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
                         Text(formatYAxisLabel(currentYield.yield))
                             .foregroundColor(.secondary)
+                    } else {
+                        Text("0")
+                            .foregroundColor(.secondary)
                     }
-                    .font(.footnote)
-                }
-                
-                // 当前周期已过时间
-                HStack {
-                    Text(NSLocalizedString("Current_Cycle_Elapsed", comment: ""))
-                        .foregroundColor(.primary)
-                    Spacer()
                     Text(formatElapsedTime(installTime: installTime))
                         .foregroundColor(.secondary)
-                }
-                .font(.footnote)
-                
-                // 每周期时间
-                HStack {
-                    Text(NSLocalizedString("Cycle_Time", comment: ""))
-                        .foregroundColor(.primary)
-                    Spacer()
                     Text(formatTimeInterval(TimeInterval(cycleTime)))
                         .foregroundColor(.secondary)
-                }
-                .font(.footnote)
-                
-                // 总流程剩余时间
-                if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
-                    HStack {
-                        Text(NSLocalizedString("Time_Remaining", comment: ""))
-                            .foregroundColor(.primary)
-                        Spacer()
+                    if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
                         Text(formatTimeInterval(expiryDate.timeIntervalSince(currentTime)))
                             .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .yellow)
+                    } else {
+                        Text("00:00:00")
+                            .foregroundColor(.secondary)
                     }
-                    .font(.footnote)
                 }
+                .font(.system(.footnote, design: .monospaced))
             }
             .padding(.horizontal, 16)
         }
