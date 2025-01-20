@@ -86,9 +86,9 @@ def load_extractor_data(json_file):
     """从JSON文件加载提取器数据"""
     with open(json_file, 'r') as f:
         data = json.load(f)
-    
+    extra_range = [2848,3060,3061,3062,3063,3064,3067,3068]
     # 查找类型为提取器的设施（type_id: 2848）
-    extractors = [pin for pin in data['pins'] if pin.get('type_id') == 2848 and pin.get('extractor_details')]
+    extractors = [pin for pin in data['pins'] if pin.get('type_id') in extra_range and pin.get('extractor_details')]
     
     if not extractors:
         raise ValueError("No extractors found in JSON data")
