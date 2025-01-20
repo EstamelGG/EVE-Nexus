@@ -203,7 +203,7 @@ struct ExtractorYieldChartView: View {
                             ForEach(yields, id: \.cycle) { yield in
                                 Rectangle()
                                     .fill(yield.cycle == currentCycle + 1 ? Color.blue : Color.gray.opacity(0.6))
-                                    .frame(width: max(1, (geometry.size.width - CGFloat(yields.count)) / CGFloat(yields.count)),
+                                    .frame(width: geometry.size.width / CGFloat(yields.count),
                                            height: CGFloat(yield.yield) / CGFloat(maxYield) * chartHeight)
                             }
                         }
