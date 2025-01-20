@@ -6,9 +6,8 @@ struct PlanetDetailView: View {
     @State private var planetDetail: PlanetaryDetail?
     @State private var isLoading = true
     @State private var error: Error?
-    
-    // 用于存储类型名称的缓存
     @State private var typeNames: [Int: String] = [:]
+    @State private var typeIcons: [Int: String] = [:]
     
     var body: some View {
         ZStack {
@@ -25,29 +24,8 @@ struct PlanetDetailView: View {
                 }
             } else if let detail = planetDetail {
                 List {
-                    // 设施部分
-                    Section(header: Text(NSLocalizedString("Planet_Detail_Pins", comment: ""))) {
-                        ForEach(detail.pins, id: \.pinId) { pin in
-                            PinView(pin: pin, typeNames: typeNames)
-                        }
-                    }
-                    
-                    // 连接部分
-                    if !detail.links.isEmpty {
-                        Section(header: Text(NSLocalizedString("Planet_Detail_Links", comment: ""))) {
-                            ForEach(detail.links, id: \.sourcePinId) { link in
-                                LinkView(link: link)
-                            }
-                        }
-                    }
-                    
-                    // 路由部分
-                    if !detail.routes.isEmpty {
-                        Section(header: Text(NSLocalizedString("Planet_Detail_Routes", comment: ""))) {
-                            ForEach(detail.routes, id: \.routeId) { route in
-                                RouteView(route: route, typeNames: typeNames)
-                            }
-                        }
+                    ForEach(detail.pins, id: \.pinId) { pin in
+                        PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons)
                     }
                 }
                 .refreshable {
@@ -91,16 +69,11 @@ struct PlanetDetailView: View {
                 }
             }
             
-            // 从routes收集类型ID
-            planetDetail?.routes.forEach { route in
-                typeIds.insert(route.contentTypeId)
-            }
-            
-            // 查询类型名称
+            // 查询类型名称和图标
             if !typeIds.isEmpty {
                 let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
                 let query = """
-                    SELECT type_id, name 
+                    SELECT type_id, name, icon_filename
                     FROM types 
                     WHERE type_id IN (\(typeIdsString))
                 """
@@ -110,6 +83,9 @@ struct PlanetDetailView: View {
                         if let typeId = row["type_id"] as? Int,
                            let name = row["name"] as? String {
                             typeNames[typeId] = name
+                            if let iconFilename = row["icon_filename"] as? String {
+                                typeIcons[typeId] = iconFilename
+                            }
                         }
                     }
                 }
@@ -127,103 +103,67 @@ struct PlanetDetailView: View {
 struct PinView: View {
     let pin: PlanetaryPin
     let typeNames: [Int: String]
+    let typeIcons: [Int: String]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                .font(.headline)
+        HStack(alignment: .top, spacing: 12) {
+            // 图标
+            if let iconName = typeIcons[pin.typeId] {
+                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .cornerRadius(6)
+            }
             
-            if let contents = pin.contents, !contents.isEmpty {
-                Text(NSLocalizedString("Planet_Detail_Contents", comment: "") + ":")
-                    .font(.subheadline)
-                ForEach(contents, id: \.typeId) { content in
+            VStack(alignment: .leading, spacing: 6) {
+                // 设施名称
+                Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
+                    .font(.headline)
+                
+                // 提取器信息
+                if let extractor = pin.extractorDetails,
+                   let productTypeId = extractor.productTypeId,
+                   let productName = typeNames[productTypeId] {
                     HStack {
-                        Text(typeNames[content.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                        Spacer()
-                        Text("\(content.amount)")
+                        Text(NSLocalizedString("Planet_Detail_Product", comment: "") + ": " + productName)
+                        if let qtyPerCycle = extractor.qtyPerCycle {
+                            Text("(\(qtyPerCycle)/cycle)")
+                        }
                     }
                     .font(.subheadline)
                     .foregroundColor(.gray)
                 }
-            }
-            
-            if let extractor = pin.extractorDetails {
-                ExtractorView(extractor: extractor, typeNames: typeNames)
-            }
-            
-            if let factory = pin.factoryDetails {
-                FactoryView(factory: factory)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-struct ExtractorView: View {
-    let extractor: PlanetaryExtractor
-    let typeNames: [Int: String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let productTypeId = extractor.productTypeId {
-                Text(NSLocalizedString("Planet_Detail_Product", comment: "") + ": " + (typeNames[productTypeId] ?? ""))
-            }
-            if let cycleTime = extractor.cycleTime {
-                Text(NSLocalizedString("Planet_Detail_Cycle_Time", comment: "") + ": \(cycleTime)s")
-            }
-            if let qtyPerCycle = extractor.qtyPerCycle {
-                Text(NSLocalizedString("Planet_Detail_Quantity_Per_Cycle", comment: "") + ": \(qtyPerCycle)")
-            }
-        }
-        .font(.subheadline)
-        .foregroundColor(.gray)
-    }
-}
-
-struct FactoryView: View {
-    let factory: PlanetaryFactory
-    
-    var body: some View {
-        Text(NSLocalizedString("Planet_Detail_Schematic_ID", comment: "") + ": \(factory.schematicId)")
-            .font(.subheadline)
-            .foregroundColor(.gray)
-    }
-}
-
-struct LinkView: View {
-    let link: PlanetaryLink
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(NSLocalizedString("Planet_Detail_Link_Level", comment: "") + ": \(link.linkLevel)")
-            Text("\(link.sourcePinId) → \(link.destinationPinId)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-        }
-    }
-}
-
-struct RouteView: View {
-    let route: PlanetaryRoute
-    let typeNames: [Int: String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(typeNames[route.contentTypeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                .font(.headline)
-            HStack {
-                Text("\(route.sourcePinId) → \(route.destinationPinId)")
-                Spacer()
-                Text(String(format: "%.0f", route.quantity))
-            }
-            .font(.subheadline)
-            .foregroundColor(.gray)
-            
-            if let waypoints = route.waypoints, !waypoints.isEmpty {
-                Text(NSLocalizedString("Planet_Detail_Waypoints", comment: "") + ": " + waypoints.map { String($0) }.joined(separator: " → "))
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                
+                // 工厂信息
+                if let factory = pin.factoryDetails {
+                    Text(NSLocalizedString("Planet_Detail_Schematic_ID", comment: "") + ": \(factory.schematicId)")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                
+                // 存储的内容
+                if let contents = pin.contents, !contents.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(contents, id: \.typeId) { content in
+                            HStack {
+                                if let iconName = typeIcons[content.typeId] {
+                                    Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                        .resizable()
+                                        .frame(width: 20, height: 20)
+                                        .cornerRadius(4)
+                                }
+                                Text(typeNames[content.typeId] ?? "")
+                                Spacer()
+                                Text("\(content.amount)")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
             }
         }
+        .padding(.vertical, 8)
     }
 } 
