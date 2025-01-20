@@ -128,14 +128,28 @@ struct ExtractorYieldChartView: View {
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let hours = Int(interval) / 3600
+        let days = Int(interval) / 86400
+        let hours = Int(interval) / 3600 % 24
         let minutes = Int(interval) / 60 % 60
         let seconds = Int(interval) % 60
+        
+        if days > 0 {
+            return String(format: "%dd %02d:%02d:%02d", days, hours, minutes, seconds)
+        }
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
+    private func formatElapsedTime(installTime: String) -> String {
+        guard let installDate = ISO8601DateFormatter().date(from: installTime) else {
+            return "00:00:00"
+        }
+        let elapsedTime = currentTime.timeIntervalSince(installDate)
+        let cycleElapsed = elapsedTime.truncatingRemainder(dividingBy: Double(cycleTime))
+        return formatTimeInterval(cycleElapsed)
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {  // 减小主VStack的间距
+        VStack(alignment: .leading, spacing: 4) {
             // 图表区域
             HStack(alignment: .center, spacing: 0) {
                 // Y轴
@@ -202,8 +216,8 @@ struct ExtractorYieldChartView: View {
             .padding(.horizontal, 16)  // 为整个图表区域添加水平边距
             
             // 统计信息
-            VStack(spacing: 2) {  // 减小统计信息的间距
-                // 产量信息
+            VStack(spacing: 2) {
+                // 总产量
                 HStack {
                     Text(NSLocalizedString("Total_Yield", comment: ""))
                         .foregroundColor(.primary)
@@ -213,19 +227,29 @@ struct ExtractorYieldChartView: View {
                 }
                 .font(.footnote)
                 
-                // 平均产量
-                HStack {
-                    Text(NSLocalizedString("Average_Yield", comment: ""))
-                        .foregroundColor(.primary)
-                    Spacer()
-                    if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
-                        Text(formatYAxisLabel(currentYield.yield) + "/cycle")
+                // 当前周期产量
+                if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
+                    HStack {
+                        Text(NSLocalizedString("Current_Cycle_Yield", comment: ""))
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Text(formatYAxisLabel(currentYield.yield))
                             .foregroundColor(.secondary)
                     }
+                    .font(.footnote)
+                }
+                
+                // 当前周期已过时间
+                HStack {
+                    Text(NSLocalizedString("Current_Cycle_Elapsed", comment: ""))
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(formatElapsedTime(installTime: installTime))
+                        .foregroundColor(.secondary)
                 }
                 .font(.footnote)
                 
-                // 周期信息
+                // 每周期时间
                 HStack {
                     Text(NSLocalizedString("Cycle_Time", comment: ""))
                         .foregroundColor(.primary)
@@ -235,7 +259,7 @@ struct ExtractorYieldChartView: View {
                 }
                 .font(.footnote)
                 
-                // 剩余时间
+                // 总流程剩余时间
                 if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
                     HStack {
                         Text(NSLocalizedString("Time_Remaining", comment: ""))
@@ -245,14 +269,14 @@ struct ExtractorYieldChartView: View {
                             .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .yellow)
                     }
                     .font(.footnote)
-                    .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-                        currentTime = Date()
-                    }
                 }
             }
-            .padding(.horizontal, 16)  // 为统计信息添加水平内边距
+            .padding(.horizontal, 16)
         }
-        .padding(.vertical, 4)  // 添加适当的垂直边距
-        .padding(.horizontal, -16)  // 抵消Section的默认padding
+        .padding(.vertical, 4)
+        .padding(.horizontal, -16)
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            currentTime = Date()
+        }
     }
 } 
