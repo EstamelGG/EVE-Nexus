@@ -86,7 +86,7 @@ struct ExtractorYieldChartView: View {
     @State private var currentTime = Date()
     
     // 图表常量
-    private let chartHeight: CGFloat = 100
+    private let chartHeight: CGFloat = 160  // 从100增加到160
     private let yAxisWidth: CGFloat = 40
     private let gridLines: Int = 5
     
@@ -149,7 +149,7 @@ struct ExtractorYieldChartView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {  // 增加spacing从4到8，让整体布局更加舒适
             // 图表区域
             HStack(alignment: .center, spacing: 0) {
                 // Y轴
@@ -158,7 +158,7 @@ struct ExtractorYieldChartView: View {
                     VStack(spacing: 0) {
                         ForEach(0...gridLines, id: \.self) { i in
                             Text(formatYAxisLabel(maxYield * (gridLines - i) / gridLines))
-                                .font(.system(size: 8))
+                                .font(.system(size: 9))  // 稍微增加字体大小，从8到9
                                 .foregroundColor(.primary)
                                 .frame(height: chartHeight / CGFloat(gridLines))
                         }
@@ -213,7 +213,7 @@ struct ExtractorYieldChartView: View {
                 .background(Color(UIColor.systemBackground))
                 .border(Color.gray.opacity(0.2), width: 1)
             }
-            .padding(.horizontal, 16)  // 为整个图表区域添加水平边距
+            .padding(.horizontal, 16)
             
             // 统计信息
             HStack {
@@ -255,7 +255,7 @@ struct ExtractorYieldChartView: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)  // 增加垂直内边距从4到8
         .padding(.horizontal, -16)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             currentTime = Date()
