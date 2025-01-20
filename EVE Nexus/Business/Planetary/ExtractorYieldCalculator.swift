@@ -234,10 +234,10 @@ struct ExtractorYieldChartView: View {
                         .foregroundColor(.secondary)
                     if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
                         Text("\(currentYield.yield)")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.blue)
                     } else {
                         Text("0")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.blue)
                     }
                     Text(formatElapsedTime(installTime: installTime))
                         .foregroundColor(.secondary)
@@ -245,7 +245,7 @@ struct ExtractorYieldChartView: View {
                         .foregroundColor(.secondary)
                     if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
                         Text(formatTimeInterval(expiryDate.timeIntervalSince(currentTime)))
-                            .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .yellow)
+                            .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .red)
                     } else {
                         Text("00:00:00")
                             .foregroundColor(.secondary)
