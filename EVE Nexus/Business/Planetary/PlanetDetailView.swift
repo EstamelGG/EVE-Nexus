@@ -120,18 +120,12 @@ struct PinView: View {
                 Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
                     .font(.headline)
                 
-                // 提取器信息
+                // 提取器信息和图表
                 if let extractor = pin.extractorDetails,
-                   let productTypeId = extractor.productTypeId,
-                   let productName = typeNames[productTypeId] {
-                    HStack {
-                        Text(NSLocalizedString("Planet_Detail_Product", comment: "") + ": " + productName)
-                        if let qtyPerCycle = extractor.qtyPerCycle {
-                            Text("(\(qtyPerCycle)/cycle)")
-                        }
-                    }
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                   let installTime = pin.installTime {
+                    ExtractorYieldChartView(extractor: extractor, 
+                                          installTime: installTime,
+                                          expiryTime: pin.expiryTime)
                 }
                 
                 // 工厂信息
