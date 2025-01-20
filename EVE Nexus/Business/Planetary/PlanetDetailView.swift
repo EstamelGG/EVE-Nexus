@@ -26,15 +26,16 @@ struct PlanetDetailView: View {
                 List {
                     ForEach(detail.pins, id: \.pinId) { pin in
                         Section {
-                            PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons)
-                            
-                            // 如果是提取器，添加图表部分
-                            if let extractor = pin.extractorDetails,
-                               let installTime = pin.installTime {
-                                ExtractorYieldChartView(extractor: extractor, 
-                                                      installTime: installTime,
-                                                      expiryTime: pin.expiryTime)
-                                    .padding(.top, 8)
+                            VStack(spacing: 0) {
+                                PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons)
+                                
+                                // 如果是提取器，添加图表部分
+                                if let extractor = pin.extractorDetails,
+                                   let installTime = pin.installTime {
+                                    ExtractorYieldChartView(extractor: extractor, 
+                                                          installTime: installTime,
+                                                          expiryTime: pin.expiryTime)
+                                }
                             }
                         }
                     }
@@ -161,6 +162,6 @@ struct PinView: View {
                 }
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 } 
