@@ -37,7 +37,7 @@ struct CharacterPlanetaryView: View {
                 }
             } else {
                 ForEach(planets, id: \.planetId) { planet in
-                    NavigationLink(destination: EmptyView()) {
+                    NavigationLink(destination: PlanetDetailView(characterId: characterId, planetId: planet.planetId)) {
                         HStack {
                             if let typeInfo = planetTypeInfo[typeIdMapping[planet.planetType] ?? 0] {
                                 Image(uiImage: IconManager.shared.loadUIImage(for: typeInfo.icon))
