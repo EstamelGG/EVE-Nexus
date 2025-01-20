@@ -143,7 +143,7 @@ struct ExtractorYieldChartView: View {
                         ForEach(0...gridLines, id: \.self) { i in
                             Text(formatYAxisLabel(maxYield * (gridLines - i) / gridLines))
                                 .font(.system(size: 8))
-                                .foregroundColor(.gray)
+                                .foregroundColor(.primary)
                                 .frame(height: chartHeight / CGFloat(gridLines))
                         }
                     }
@@ -204,19 +204,21 @@ struct ExtractorYieldChartView: View {
                 // 产量信息
                 HStack {
                     Text(NSLocalizedString("Total_Yield", comment: ""))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.primary)
                     Spacer()
                     Text(formatYAxisLabel(yields.map { $0.yield }.reduce(0, +)))
+                        .foregroundColor(.secondary)
                 }
                 .font(.footnote)
                 
                 // 平均产量
                 HStack {
                     Text(NSLocalizedString("Average_Yield", comment: ""))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.primary)
                     Spacer()
                     if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
                         Text(formatYAxisLabel(currentYield.yield) + "/cycle")
+                            .foregroundColor(.secondary)
                     }
                 }
                 .font(.footnote)
@@ -224,9 +226,10 @@ struct ExtractorYieldChartView: View {
                 // 周期信息
                 HStack {
                     Text(NSLocalizedString("Cycle_Time", comment: ""))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.primary)
                     Spacer()
                     Text(formatTimeInterval(TimeInterval(cycleTime)))
+                        .foregroundColor(.secondary)
                 }
                 .font(.footnote)
                 
@@ -234,10 +237,10 @@ struct ExtractorYieldChartView: View {
                 if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
                     HStack {
                         Text(NSLocalizedString("Time_Remaining", comment: ""))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.primary)
                         Spacer()
                         Text(formatTimeInterval(expiryDate.timeIntervalSince(currentTime)))
-                            .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .primary : .yellow)
+                            .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .yellow)
                     }
                     .font(.footnote)
                     .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
@@ -247,7 +250,6 @@ struct ExtractorYieldChartView: View {
             }
             .padding(.horizontal, 16)  // 为统计信息添加水平内边距
         }
-        .padding(.vertical, 4)  // 添加适当的垂直边距
         .padding(.horizontal, -16)  // 抵消Section的默认padding
     }
 } 
