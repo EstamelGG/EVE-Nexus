@@ -133,7 +133,7 @@ struct ExtractorYieldChartView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {  // 减小主VStack的间距
             // 图表区域
             HStack(alignment: .center, spacing: 0) {
                 // Y轴
@@ -197,9 +197,10 @@ struct ExtractorYieldChartView: View {
                 .background(Color(UIColor.systemBackground))
                 .border(Color.gray.opacity(0.2), width: 1)
             }
+            .padding(.horizontal, 16)  // 为整个图表区域添加水平边距
             
             // 统计信息
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {  // 减小统计信息的间距
                 // 产量信息
                 HStack {
                     Text(NSLocalizedString("Total_Yield", comment: ""))
@@ -244,7 +245,9 @@ struct ExtractorYieldChartView: View {
                     }
                 }
             }
+            .padding(.horizontal, 16)  // 为统计信息添加水平内边距
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 4)  // 添加适当的垂直边距
+        .padding(.horizontal, -16)  // 抵消Section的默认padding
     }
 } 

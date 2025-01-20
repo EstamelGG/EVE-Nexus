@@ -25,7 +25,18 @@ struct PlanetDetailView: View {
             } else if let detail = planetDetail {
                 List {
                     ForEach(detail.pins, id: \.pinId) { pin in
-                        PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons)
+                        Section {
+                            PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons)
+                            
+                            // 如果是提取器，添加图表部分
+                            if let extractor = pin.extractorDetails,
+                               let installTime = pin.installTime {
+                                ExtractorYieldChartView(extractor: extractor, 
+                                                      installTime: installTime,
+                                                      expiryTime: pin.expiryTime)
+                                    .padding(.top, 8)
+                            }
+                        }
                     }
                 }
                 .refreshable {
@@ -119,14 +130,6 @@ struct PinView: View {
                 // 设施名称
                 Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
                     .font(.headline)
-                
-                // 提取器信息和图表
-                if let extractor = pin.extractorDetails,
-                   let installTime = pin.installTime {
-                    ExtractorYieldChartView(extractor: extractor, 
-                                          installTime: installTime,
-                                          expiryTime: pin.expiryTime)
-                }
                 
                 // 工厂信息
                 if let factory = pin.factoryDetails {
