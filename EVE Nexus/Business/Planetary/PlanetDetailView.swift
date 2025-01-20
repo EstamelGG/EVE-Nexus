@@ -11,9 +11,7 @@ struct PlanetDetailView: View {
     
     var body: some View {
         ZStack {
-            if isLoading {
-                ProgressView()
-            } else if let error = error {
+            if let error = error {
                 VStack {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
@@ -45,6 +43,10 @@ struct PlanetDetailView: View {
                 }
             } else {
                 Text(NSLocalizedString("Planet_Detail_No_Data", comment: ""))
+            }
+            
+            if isLoading && planetDetail == nil {
+                ProgressView()
             }
         }
         .navigationTitle(NSLocalizedString("Planet_Detail_Title", comment: ""))
@@ -104,7 +106,10 @@ struct PlanetDetailView: View {
             }
             
         } catch {
-            self.error = error
+            // 忽略取消错误
+            if (error as? CancellationError) == nil {
+                self.error = error
+            }
         }
         
         isLoading = false
