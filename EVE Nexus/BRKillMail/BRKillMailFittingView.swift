@@ -363,7 +363,7 @@ struct BRKillMailFittingView: View {
                 
                 // 内部发光效果
                 Circle()
-                    .fill(Color.black.opacity(0.8))
+                    .fill(Color.black.opacity(0.6))
                     .frame(width: outerCircleRadius * 2)
                     .overlay(
                         Circle()
@@ -414,7 +414,7 @@ struct BRKillMailFittingView: View {
                     
                     // 内环（覆盖在飞船图片上）
                     Circle()
-                        .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                        .stroke(Color.primary.opacity(0.6), lineWidth: innerStrokeWidth)
                         .frame(width: innerCircleRadius * 2)
                 }
                 
@@ -427,7 +427,7 @@ struct BRKillMailFittingView: View {
                         strokeWidth: outerStrokeWidth,
                         scale: scale
                     )
-                    .stroke(Color.gray.opacity(0.5), lineWidth: outerStrokeWidth)
+                    .stroke(Color.primary.opacity(0.4), lineWidth: outerStrokeWidth)
                 }
                 
                 // 高槽区域 (-52° to 52°)
@@ -443,7 +443,7 @@ struct BRKillMailFittingView: View {
                         actualSlots: actualSlotConfig.highSlots,
                         strokeWidth: innerStrokeWidth
                     )
-                    .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
+                    .stroke(Color.gray.opacity(0.8), lineWidth: innerStrokeWidth)
                 }
                 
                 // 低槽区域 (68° to 172°)
