@@ -199,12 +199,12 @@ struct ExtractorYieldChartView: View {
                         }
                         
                         // 柱状图
-                        HStack(alignment: .bottom, spacing: 0) {
+                        HStack(alignment: .bottom, spacing: 1) {  // 设置固定的间隔为1
                             ForEach(yields, id: \.cycle) { yield in
                                 Rectangle()
                                     .fill(yield.cycle == currentCycle + 1 ? Color.blue : Color.gray.opacity(0.6))
-                                    .frame(width: geometry.size.width / CGFloat(yields.count),
-                                           height: CGFloat(yield.yield) / CGFloat(maxYield) * chartHeight)
+                                    .frame(width: (geometry.size.width - CGFloat(yields.count - 1)) / CGFloat(yields.count),
+                                          height: CGFloat(yield.yield) / CGFloat(maxYield) * chartHeight)
                             }
                         }
                     }
