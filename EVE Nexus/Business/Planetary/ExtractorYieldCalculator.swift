@@ -230,10 +230,10 @@ struct ExtractorYieldChartView: View {
                 
                 // 数值列
                 VStack(alignment: .leading) {
-                    Text(formatYAxisLabel(yields.map { $0.yield }.reduce(0, +)))
+                    Text("\(yields.map { $0.yield }.reduce(0, +))")
                         .foregroundColor(.secondary)
                     if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
-                        Text(formatYAxisLabel(currentYield.yield))
+                        Text("\(currentYield.yield)")
                             .foregroundColor(.secondary)
                     } else {
                         Text("0")
