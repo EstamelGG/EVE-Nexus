@@ -6,6 +6,7 @@ struct CharacterPlanetaryView: View {
     @State private var planetNames: [Int: String] = [:]
     @State private var planetTypeInfo: [Int: (name: String, icon: String)] = [:]
     @State private var isRefreshing = false
+    @State private var hasLoadedData = false  // 添加标记，用于跟踪是否已加载数据
     
     private let typeIdMapping = [
         "temperate": 11,
@@ -63,8 +64,11 @@ struct CharacterPlanetaryView: View {
             await refreshData()
         }
         .onAppear {
-            Task {
-                await loadPlanets()
+            if !hasLoadedData {  // 只在第一次加载数据
+                Task {
+                    await loadPlanets()
+                    hasLoadedData = true
+                }
             }
         }
     }
