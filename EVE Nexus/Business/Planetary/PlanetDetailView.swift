@@ -118,7 +118,7 @@ struct PinView: View {
     let typeIcons: [Int: String]
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             // 图标
             if let iconName = typeIcons[pin.typeId] {
                 Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
@@ -161,6 +161,7 @@ struct PinView: View {
                     .padding(.top, 4)
                 }
             }
+            Spacer()
         }
         .padding(.vertical, 4)
     }
