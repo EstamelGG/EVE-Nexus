@@ -132,6 +132,23 @@ struct PinView: View {
                 Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
                     .font(.headline)
                 
+                // 采集器采集物名称
+                if let extractor = pin.extractorDetails,
+                   let productTypeId = extractor.productTypeId,
+                   let productName = typeNames[productTypeId] {
+                    HStack(spacing: 4) {
+                        if let iconName = typeIcons[productTypeId] {
+                            Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                                .cornerRadius(4)
+                        }
+                        Text(productName)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
                 // 工厂信息
                 if let factory = pin.factoryDetails {
                     Text(NSLocalizedString("Planet_Detail_Schematic_ID", comment: "") + ": \(factory.schematicId)")
