@@ -113,7 +113,9 @@ struct ExtractorYieldChartView: View {
         
         // 计算所有周期的数据
         yields = calculator.calculateRange(startCycle: 0, endCycle: totalCycles)
-        maxYield = yields.map { $0.yield }.max() ?? 0
+        let actualMaxYield = yields.map { $0.yield }.max() ?? 0
+        // 增加10%的缓冲区
+        maxYield = Int(Double(actualMaxYield) * 1.1)
     }
     
     private func formatYAxisLabel(_ value: Int) -> String {
