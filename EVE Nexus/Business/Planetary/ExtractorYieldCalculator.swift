@@ -250,6 +250,7 @@ struct ExtractorYieldChartView: View {
             }
             .padding(.horizontal, 16)  // 为统计信息添加水平内边距
         }
+        .padding(.vertical, 4)  // 添加适当的垂直边距
         .padding(.horizontal, -16)  // 抵消Section的默认padding
     }
 } 
