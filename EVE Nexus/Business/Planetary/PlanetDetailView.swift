@@ -134,8 +134,13 @@ struct PinView: View {
             
             VStack(alignment: .leading, spacing: 6) {
                 // 设施名称
-                Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                    .font(.headline)
+                HStack {
+                    Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
+                        .font(.headline)
+                    Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
                 // 采集器采集物名称
                 if let extractor = pin.extractorDetails,
