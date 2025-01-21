@@ -117,6 +117,7 @@ struct PlanetDetailView: View {
                                         }
                                         
                                         VStack(alignment: .leading, spacing: 6) {
+                                            // 设施名称
                                             HStack {
                                                 Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
                                                     .font(.headline)
@@ -135,15 +136,22 @@ struct PlanetDetailView: View {
                                                 
                                                 if progress > 0 && progress <= 1 {
                                                     VStack(alignment: .leading, spacing: 2) {
-                                                        ProgressView(value: progress)
-                                                            .progressViewStyle(.linear)
-                                                            .frame(height: 6)
-                                                        
-                                                        Text(cycleEndDate, style: .relative)
-                                                            .font(.caption)
-                                                            .foregroundColor(.secondary)
+                                                        HStack {
+                                                            ProgressView(value: progress)
+                                                                .progressViewStyle(.linear)
+                                                                .frame(height: 6)
+                                                                .tint(.blue)
+                                                            Text(cycleEndDate, style: .relative)
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                                .frame(width: 80)
+                                                        }
                                                     }
                                                 }
+                                            } else {
+                                                Text("未在生产")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
                                             }
                                         }
                                     }
@@ -153,8 +161,38 @@ struct PlanetDetailView: View {
                                        let schematic = schematicDetails[schematicId] {
                                         // 输入物品
                                         ForEach(schematic.inputs, id: \.typeId) { input in
+                                            NavigationLink(destination: ShowPlanetaryInfo(itemID: input.typeId, databaseManager: DatabaseManager.shared)) {
+                                                HStack(alignment: .center, spacing: 12) {
+                                                    if let iconName = typeIcons[input.typeId] {
+                                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                            .resizable()
+                                                            .frame(width: 32, height: 32)
+                                                            .cornerRadius(4)
+                                                    }
+                                                    
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        HStack {
+                                                            Text("输入: ")
+                                                                .foregroundColor(.secondary)
+                                                            Text(typeNames[input.typeId] ?? "")
+                                                                .font(.subheadline)
+                                                        }
+                                                        
+                                                        // 显示当前存储量与需求量的比例
+                                                        let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
+                                                        Text("库存: \(currentAmount)/\(input.value)")
+                                                            .font(.caption)
+                                                            .foregroundColor(currentAmount >= input.value ? .secondary : .red)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                        
+                                        // 输出物品
+                                        NavigationLink(destination: ShowPlanetaryInfo(itemID: schematic.outputTypeId, databaseManager: DatabaseManager.shared)) {
                                             HStack(alignment: .center, spacing: 12) {
-                                                if let iconName = typeIcons[input.typeId] {
+                                                if let iconName = typeIcons[schematic.outputTypeId] {
                                                     Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
                                                         .resizable()
                                                         .frame(width: 32, height: 32)
@@ -163,44 +201,22 @@ struct PlanetDetailView: View {
                                                 
                                                 VStack(alignment: .leading, spacing: 2) {
                                                     HStack {
-                                                        Text("输入: ")
+                                                        Text("输出: ")
                                                             .foregroundColor(.secondary)
-                                                        Text(typeNames[input.typeId] ?? "")
+                                                        Text(typeNames[schematic.outputTypeId] ?? "")
                                                             .font(.subheadline)
+                                                        Spacer()
+                                                        Text("× \(schematic.outputValue)")
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
                                                     }
                                                     
-                                                    // 显示当前存储量与需求量的比例
-                                                    let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
-                                                    Text("(\(currentAmount)/\(input.value))")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                        }
-                                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                                        
-                                        // 输出物品
-                                        HStack(alignment: .center, spacing: 12) {
-                                            if let iconName = typeIcons[schematic.outputTypeId] {
-                                                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                    .resizable()
-                                                    .frame(width: 32, height: 32)
-                                                    .cornerRadius(4)
-                                            }
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                HStack {
-                                                    Text("输出: ")
-                                                        .foregroundColor(.secondary)
-                                                    Text("\(typeNames[schematic.outputTypeId] ?? "Unknown") × \(schematic.outputValue)")
-                                                        .font(.subheadline)
-                                                }
-                                                
-                                                // 显示当前存储的输出物品数量
-                                                if let currentAmount = pin.contents?.first(where: { $0.typeId == schematic.outputTypeId })?.amount {
-                                                    Text("当前库存: \(currentAmount)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
+                                                    // 显示当前存储的输出物品数量
+                                                    if let currentAmount = pin.contents?.first(where: { $0.typeId == schematic.outputTypeId })?.amount {
+                                                        Text("库存: \(currentAmount)")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                    }
                                                 }
                                             }
                                         }
