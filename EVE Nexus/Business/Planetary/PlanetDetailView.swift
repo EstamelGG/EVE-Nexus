@@ -11,6 +11,12 @@ struct PlanetDetailView: View {
     @State private var typeGroupIds: [Int: Int] = [:]  // 存储type_id到group_id的映射
     @State private var typeVolumes: [Int: Double] = [:] // 存储type_id到体积的映射
     
+    private let storageCapacities: [Int: Double] = [
+        1027: 500.0,    // 500m3
+        1030: 10000.0,  // 10000m3
+        1029: 12000.0   // 12000m3
+    ]
+    
     var body: some View {
         ZStack {
             if let error = error {
@@ -25,16 +31,88 @@ struct PlanetDetailView: View {
             } else if let detail = planetDetail {
                 List {
                     ForEach(detail.pins, id: \.pinId) { pin in
-                        Section {
-                            VStack(spacing: 0) {
-                                PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons, typeGroupIds: typeGroupIds, typeVolumes: typeVolumes)
+                        if let groupId = typeGroupIds[pin.typeId],
+                           storageCapacities.keys.contains(groupId) {
+                            // 存储设施的显示方式
+                            Section {
+                                // 设施名称和图标
+                                HStack(alignment: .center, spacing: 12) {
+                                    if let iconName = typeIcons[pin.typeId] {
+                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                            .resizable()
+                                            .frame(width: 40, height: 40)
+                                            .cornerRadius(6)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
+                                                .font(.headline)
+                                            Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
+                                                .font(.subheadline)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        // 容量进度条
+                                        if let capacity = storageCapacities[groupId] {
+                                            let total = calculateTotalVolume(contents: pin.contents, volumes: typeVolumes)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                ProgressView(value: total, total: capacity)
+                                                    .progressViewStyle(.linear)
+                                                    .frame(height: 6)
+                                                    .tint(total > capacity ? .red : .blue)
+                                                
+                                                Text("\(Int(total.rounded()))m³ / \(Int(capacity))m³")
+                                                    .font(.caption)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
                                 
-                                // 如果是提取器，添加图表部分
-                                if let extractor = pin.extractorDetails,
-                                   let installTime = pin.installTime {
-                                    ExtractorYieldChartView(extractor: extractor, 
-                                                          installTime: installTime,
-                                                          expiryTime: pin.expiryTime)
+                                // 存储的内容物，每个内容物单独一行
+                                if let contents = pin.contents {
+                                    ForEach(contents, id: \.typeId) { content in
+                                        HStack(alignment: .center, spacing: 12) {
+                                            if let iconName = typeIcons[content.typeId] {
+                                                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                    .resizable()
+                                                    .frame(width: 32, height: 32)
+                                                    .cornerRadius(4)
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(typeNames[content.typeId] ?? "")
+                                                    .font(.subheadline)
+                                                HStack {
+                                                    Text("\(content.amount)")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                    if let volume = typeVolumes[content.typeId] {
+                                                        Text("(\(Int(Double(content.amount) * volume))m³)")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                    }
+                                                }
+                                            }
+                                            Spacer()
+                                        }
+                                    }
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                }
+                            }
+                        } else {
+                            // 非存储设施使用原有的PinView
+                            Section {
+                                VStack(spacing: 0) {
+                                    PinView(pin: pin, typeNames: typeNames, typeIcons: typeIcons, typeGroupIds: typeGroupIds, typeVolumes: typeVolumes)
+                                    
+                                    if let extractor = pin.extractorDetails,
+                                       let installTime = pin.installTime {
+                                        ExtractorYieldChartView(extractor: extractor, 
+                                                              installTime: installTime,
+                                                              expiryTime: pin.expiryTime)
+                                    }
                                 }
                             }
                         }
@@ -133,6 +211,13 @@ struct PlanetDetailView: View {
         
         isLoading = false
     }
+    
+    private func calculateTotalVolume(contents: [PlanetaryContent]?, volumes: [Int: Double]) -> Double {
+        guard let contents = contents else { return 0 }
+        return contents.reduce(0) { sum, content in
+            sum + (Double(content.amount) * (volumes[content.typeId] ?? 0))
+        }
+    }
 }
 
 // MARK: - 子视图
@@ -148,18 +233,6 @@ struct PinView: View {
         1030: 10000.0,  // 10000m3
         1029: 12000.0   // 12000m3
     ]
-    
-    private var totalVolume: Double {
-        guard let contents = pin.contents else { return 0 }
-        return contents.reduce(0) { sum, content in
-            sum + (Double(content.amount) * (typeVolumes[content.typeId] ?? 0))
-        }
-    }
-    
-    private var storageCapacity: Double? {
-        guard let groupId = typeGroupIds[pin.typeId] else { return nil }
-        return storageCapacities[groupId]
-    }
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -179,20 +252,6 @@ struct PinView: View {
                     Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                }
-                
-                // 容量进度条（仅对存储设施显示）
-                if let capacity = storageCapacity {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ProgressView(value: totalVolume, total: capacity)
-                            .progressViewStyle(.linear)
-                            .frame(height: 6)
-                            .tint(totalVolume > capacity ? .red : .blue)
-                        
-                        Text("\(Int(totalVolume.rounded()))m³ / \(Int(capacity))m³")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                 }
                 
                 // 采集器采集物名称
@@ -219,7 +278,7 @@ struct PinView: View {
                         .foregroundColor(.gray)
                 }
                 
-                // 存储的内容
+                // 非存储设施的内容显示
                 if let contents = pin.contents, !contents.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(contents, id: \.typeId) { content in
