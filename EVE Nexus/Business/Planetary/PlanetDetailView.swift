@@ -128,15 +128,14 @@ struct PlanetDetailView: View {
                                             
                                             // 加工进度
                                             if let schematicId = pin.schematicId,
-                                               let schematic = schematicDetails[schematicId],
-                                               let lastCycleStart = pin.lastCycleStart {
-                                                let startDate = ISO8601DateFormatter().date(from: lastCycleStart) ?? Date()
-                                                let cycleEndDate = startDate.addingTimeInterval(TimeInterval(schematic.cycleTime))
-                                                let progress = 1.0 - Date().timeIntervalSince(startDate) / TimeInterval(schematic.cycleTime)
-                                                
-                                                if progress > 0 && progress <= 1 {
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        HStack {
+                                               let schematic = schematicDetails[schematicId] {
+                                                if let lastCycleStart = pin.lastCycleStart {
+                                                    let startDate = ISO8601DateFormatter().date(from: lastCycleStart) ?? Date()
+                                                    let cycleEndDate = startDate.addingTimeInterval(TimeInterval(schematic.cycleTime))
+                                                    let progress = 1.0 - Date().timeIntervalSince(startDate) / TimeInterval(schematic.cycleTime)
+                                                    
+                                                    if progress > 0 && progress <= 1 {
+                                                        VStack(alignment: .leading, spacing: 2) {
                                                             ProgressView(value: progress)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
@@ -144,14 +143,39 @@ struct PlanetDetailView: View {
                                                             Text(cycleEndDate, style: .relative)
                                                                 .font(.caption)
                                                                 .foregroundColor(.secondary)
-                                                                .frame(width: 80)
                                                         }
+                                                    } else {
+                                                        VStack(alignment: .leading, spacing: 2) {
+                                                            ProgressView(value: 0)
+                                                                .progressViewStyle(.linear)
+                                                                .frame(height: 6)
+                                                                .tint(.gray)
+                                                            Text("已停止")
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                    }
+                                                } else {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        ProgressView(value: 0)
+                                                            .progressViewStyle(.linear)
+                                                            .frame(height: 6)
+                                                            .tint(.gray)
+                                                        Text("未启动")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
                                                     }
                                                 }
                                             } else {
-                                                Text("未在生产")
-                                                    .font(.caption)
-                                                    .foregroundColor(.secondary)
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    ProgressView(value: 0)
+                                                        .progressViewStyle(.linear)
+                                                        .frame(height: 6)
+                                                        .tint(.gray)
+                                                    Text("无配方")
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                }
                                             }
                                         }
                                     }
