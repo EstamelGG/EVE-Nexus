@@ -73,29 +73,31 @@ struct PlanetDetailView: View {
                                 // 存储的内容物，每个内容物单独一行
                                 if let contents = pin.contents {
                                     ForEach(contents, id: \.typeId) { content in
-                                        HStack(alignment: .center, spacing: 12) {
-                                            if let iconName = typeIcons[content.typeId] {
-                                                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                    .resizable()
-                                                    .frame(width: 32, height: 32)
-                                                    .cornerRadius(4)
-                                            }
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(typeNames[content.typeId] ?? "")
-                                                    .font(.subheadline)
-                                                HStack {
-                                                    Text("\(content.amount)")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                    if let volume = typeVolumes[content.typeId] {
-                                                        Text("(\(Int(Double(content.amount) * volume))m³)")
+                                        NavigationLink(destination: ShowPlanetaryInfo(itemID: content.typeId, databaseManager: DatabaseManager.shared)) {
+                                            HStack(alignment: .center, spacing: 12) {
+                                                if let iconName = typeIcons[content.typeId] {
+                                                    Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                        .resizable()
+                                                        .frame(width: 32, height: 32)
+                                                        .cornerRadius(4)
+                                                }
+                                                
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(typeNames[content.typeId] ?? "")
+                                                        .font(.subheadline)
+                                                    HStack {
+                                                        Text("\(content.amount)")
                                                             .font(.caption)
                                                             .foregroundColor(.secondary)
+                                                        if let volume = typeVolumes[content.typeId] {
+                                                            Text("(\(Int(Double(content.amount) * volume))m³)")
+                                                                .font(.caption)
+                                                                .foregroundColor(.secondary)
+                                                        }
                                                     }
                                                 }
+                                                Spacer()
                                             }
-                                            Spacer()
                                         }
                                     }
                                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -282,19 +284,21 @@ struct PinView: View {
                 if let contents = pin.contents, !contents.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(contents, id: \.typeId) { content in
-                            HStack {
-                                if let iconName = typeIcons[content.typeId] {
-                                    Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                        .resizable()
-                                        .frame(width: 20, height: 20)
-                                        .cornerRadius(4)
+                            NavigationLink(destination: ShowPlanetaryInfo(itemID: content.typeId, databaseManager: DatabaseManager.shared)) {
+                                HStack {
+                                    if let iconName = typeIcons[content.typeId] {
+                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                            .resizable()
+                                            .frame(width: 20, height: 20)
+                                            .cornerRadius(4)
+                                    }
+                                    Text(typeNames[content.typeId] ?? "")
+                                    Spacer()
+                                    Text("\(content.amount)")
                                 }
-                                Text(typeNames[content.typeId] ?? "")
-                                Spacer()
-                                Text("\(content.amount)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
                             }
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
                         }
                     }
                     .padding(.top, 4)
