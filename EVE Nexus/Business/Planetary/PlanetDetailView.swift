@@ -230,12 +230,6 @@ struct PinView: View {
     let typeGroupIds: [Int: Int]
     let typeVolumes: [Int: Double]
     
-    private let storageCapacities: [Int: Double] = [
-        1027: 500.0,    // 500m3
-        1030: 10000.0,  // 10000m3
-        1029: 12000.0   // 12000m3
-    ]
-    
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             // 图标
@@ -280,7 +274,7 @@ struct PinView: View {
                         .foregroundColor(.gray)
                 }
                 
-                // 非存储设施的内容显示
+                // 内容显示
                 if let contents = pin.contents, !contents.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(contents, id: \.typeId) { content in
