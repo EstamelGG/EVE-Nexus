@@ -89,7 +89,7 @@ class Pin {
             let inputRoutes = routes.filter { $0.destinationPinId == id }
             let hasInput = inputRoutes.contains { route in
                 guard let sourcePin = colony?.pins.first(where: { $0.id == route.sourcePinId }) else { return false }
-                return sourcePin.contents.commodities[route.commodityTypeId, default: 0] >= route.quantity
+                return sourcePin.contents.commodities[route.commodityType.id, default: 0] >= route.quantity
             }
             if !hasInput {
                 return .inputMissing
@@ -99,7 +99,7 @@ class Pin {
             let outputRoutes = routes.filter { $0.sourcePinId == id }
             let hasOutputSpace = outputRoutes.contains { route in
                 guard let destinationPin = colony?.pins.first(where: { $0.id == route.destinationPinId }) else { return false }
-                return destinationPin.contents.hasSpaceFor(typeId: route.commodityTypeId, amount: route.quantity)
+                return destinationPin.contents.hasSpaceFor(typeId: route.commodityType.id, amount: route.quantity)
             }
             if !hasOutputSpace {
                 return .outputFull

@@ -48,4 +48,5 @@ struct ESIPlanetaryRoute {
     let destinationPinId: Int64
     let commodityTypeId: Int64
     let quantity: Int64
+    let waypoints: [Int64]  // 路由点数组
 } 
