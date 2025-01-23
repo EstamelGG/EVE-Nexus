@@ -4,47 +4,30 @@ import SwiftUI
 class ExtractorYieldCalculator {
     private let quantityPerCycle: Int
     private let cycleTime: Int
-    private let wCount: Double
-    private let phaseShift: Double
-    private let decayFactor: Double = 0.012  // ecuDecayFactor 默认值
-    private let noiseFactor: Double = 0.8    // ecuNoiseFactor 默认值
-    private let f1: Double = 1.0 / 12.0
-    private let f2: Double = 1.0 / 5.0
-    private let f3: Double = 1.0 / 2.0
     
     init(quantityPerCycle: Int, cycleTime: Int) {
         self.quantityPerCycle = quantityPerCycle
         self.cycleTime = cycleTime
-        // 转换周期时间为15分钟单位数
-        self.wCount = Double(cycleTime) / 900.0  // 900秒 = 15分钟
-        self.phaseShift = pow(Double(quantityPerCycle), 0.7)
     }
     
     func calculateYield(cycleIndex: Int) -> Int {
-        // 使用15分钟为基本单位计算时间
-        let t = (Double(cycleIndex) + 0.5) * wCount
-        
-        // 计算衰减
-        let decay = Double(quantityPerCycle) / (1.0 + t * decayFactor)
-        
-        // 计算余弦波动
-        let sina = cos(phaseShift + t * f1)
-        let sinb = cos(phaseShift / 2 + t * f2)
-        let sinc = cos(t * f3)
-        
-        // 计算波动值
-        let sins = max((sina + sinb + sinc) / 3.0, 0.0)
-        
-        // 计算产量
-        let hourlyYield = decay * (1.0 + noiseFactor * sins)
-        
-        // 返回总产量
-        return Int(wCount * hourlyYield)
+        let results = ExtractionSimulation.getProgramOutputPrediction(
+            baseValue: quantityPerCycle,
+            cycleDuration: TimeInterval(cycleTime),
+            length: cycleIndex + 1
+        )
+        return Int(results.last ?? 0)
     }
     
     func calculateRange(startCycle: Int, endCycle: Int) -> [(cycle: Int, yield: Int)] {
+        let results = ExtractionSimulation.getProgramOutputPrediction(
+            baseValue: quantityPerCycle,
+            cycleDuration: TimeInterval(cycleTime),
+            length: endCycle + 1
+        )
+        
         return (startCycle...endCycle).map { cycle in
-            (cycle: cycle + 1, yield: calculateYield(cycleIndex: cycle))
+            (cycle: cycle + 1, yield: Int(results[cycle]))
         }
     }
     
@@ -58,7 +41,7 @@ class ExtractorYieldCalculator {
         }
         
         let totalSeconds = expiryDate.timeIntervalSince(installDate)
-        return Int(totalSeconds / Double(cycleTime)) - 1  // 减1是因为周期从0开始
+        return Int(totalSeconds / Double(cycleTime)) - 1
     }
     
     static func getCurrentCycle(installTime: String, cycleTime: Int) -> Int {
