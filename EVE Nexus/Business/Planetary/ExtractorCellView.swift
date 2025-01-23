@@ -2,36 +2,32 @@ import Foundation
 import SwiftUI
 
 class ExtractorYieldCalculator {
-    private let baseValue: Int
+    private let quantityPerCycle: Int
     private let cycleTime: Int
-    private let startDate: Date
     
     init(quantityPerCycle: Int, cycleTime: Int) {
-        self.baseValue = quantityPerCycle
+        self.quantityPerCycle = quantityPerCycle
         self.cycleTime = cycleTime
-        self.startDate = Date()  // 使用当前时间作为基准时间
     }
     
     func calculateYield(cycleIndex: Int) -> Int {
-        // 计算周期的开始和结束时间
-        let cycleStartTime = startDate.addingTimeInterval(TimeInterval(cycleIndex * cycleTime))
-        let cycleEndTime = startDate.addingTimeInterval(TimeInterval((cycleIndex + 1) * cycleTime))
-        
-        return Int(ExtractionSimulator.getProgramOutput(
-            baseValue: baseValue,
-            startTime: cycleStartTime,
-            currentTime: cycleEndTime,
-            cycleTime: TimeInterval(cycleTime)
-        ))
+        let results = ExtractionSimulation.getProgramOutputPrediction(
+            baseValue: quantityPerCycle,
+            cycleDuration: TimeInterval(cycleTime),
+            length: cycleIndex + 1
+        )
+        return Int(results.last ?? 0)
     }
     
     func calculateRange(startCycle: Int, endCycle: Int) -> [(cycle: Int, yield: Int)] {
-        return ExtractionSimulator.getProgramOutputPrediction(
-            baseValue: baseValue,
+        let results = ExtractionSimulation.getProgramOutputPrediction(
+            baseValue: quantityPerCycle,
             cycleDuration: TimeInterval(cycleTime),
-            length: endCycle - startCycle + 1
-        ).enumerated().map { index, yield in
-            (cycle: startCycle + index + 1, yield: Int(yield))
+            length: endCycle + 1
+        )
+        
+        return (startCycle...endCycle).map { cycle in
+            (cycle: cycle + 1, yield: Int(results[cycle]))
         }
     }
     
@@ -45,7 +41,7 @@ class ExtractorYieldCalculator {
         }
         
         let totalSeconds = expiryDate.timeIntervalSince(installDate)
-        return Int(totalSeconds / Double(cycleTime)) - 1  // 减1是因为周期从0开始
+        return Int(totalSeconds / Double(cycleTime)) - 1
     }
     
     static func getCurrentCycle(installTime: String, cycleTime: Int) -> Int {
