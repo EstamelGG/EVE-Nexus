@@ -2,36 +2,49 @@ import Foundation
 import SwiftUI
 
 class ExtractorYieldCalculator {
-    private let baseValue: Int
+    private let quantityPerCycle: Int
     private let cycleTime: Int
-    private let startDate: Date
+    private let wCount: Double
+    private let phaseShift: Double
+    private let decayFactor: Double = 0.012  // ecuDecayFactor 默认值
+    private let noiseFactor: Double = 0.8    // ecuNoiseFactor 默认值
+    private let f1: Double = 1.0 / 12.0
+    private let f2: Double = 1.0 / 5.0
+    private let f3: Double = 1.0 / 2.0
     
     init(quantityPerCycle: Int, cycleTime: Int) {
-        self.baseValue = quantityPerCycle
+        self.quantityPerCycle = quantityPerCycle
         self.cycleTime = cycleTime
-        self.startDate = Date()  // 使用当前时间作为基准时间
+        // 转换周期时间为15分钟单位数
+        self.wCount = Double(cycleTime) / 900.0  // 900秒 = 15分钟
+        self.phaseShift = pow(Double(quantityPerCycle), 0.7)
     }
     
     func calculateYield(cycleIndex: Int) -> Int {
-        // 计算周期的开始和结束时间
-        let cycleStartTime = startDate.addingTimeInterval(TimeInterval(cycleIndex * cycleTime))
-        let cycleEndTime = startDate.addingTimeInterval(TimeInterval((cycleIndex + 1) * cycleTime))
+        // 使用15分钟为基本单位计算时间
+        let t = (Double(cycleIndex) + 0.5) * wCount
         
-        return Int(ExtractionSimulator.getProgramOutput(
-            baseValue: baseValue,
-            startTime: cycleStartTime,
-            currentTime: cycleEndTime,
-            cycleTime: TimeInterval(cycleTime)
-        ))
+        // 计算衰减
+        let decay = Double(quantityPerCycle) / (1.0 + t * decayFactor)
+        
+        // 计算余弦波动
+        let sina = cos(phaseShift + t * f1)
+        let sinb = cos(phaseShift / 2 + t * f2)
+        let sinc = cos(t * f3)
+        
+        // 计算波动值
+        let sins = max((sina + sinb + sinc) / 3.0, 0.0)
+        
+        // 计算产量
+        let hourlyYield = decay * (1.0 + noiseFactor * sins)
+        
+        // 返回总产量
+        return Int(wCount * hourlyYield)
     }
     
     func calculateRange(startCycle: Int, endCycle: Int) -> [(cycle: Int, yield: Int)] {
-        return ExtractionSimulator.getProgramOutputPrediction(
-            baseValue: baseValue,
-            cycleDuration: TimeInterval(cycleTime),
-            length: endCycle - startCycle + 1
-        ).enumerated().map { index, yield in
-            (cycle: startCycle + index + 1, yield: Int(yield))
+        return (startCycle...endCycle).map { cycle in
+            (cycle: cycle + 1, yield: calculateYield(cycleIndex: cycle))
         }
     }
     
