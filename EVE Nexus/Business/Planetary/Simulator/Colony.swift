@@ -92,18 +92,13 @@ extension Colony {
             )
         }
         
-        let colonyRoutes = routes.compactMap { esiRoute -> Route? in
-            guard let commodityType = CommodityType.fromTypeId(esiRoute.commodityTypeId) else {
-                return nil
-            }
-            
-            return Route(
+        let colonyRoutes = routes.map { esiRoute in
+            Route(
                 id: esiRoute.routeId,
                 sourcePinId: esiRoute.sourcePinId,
                 destinationPinId: esiRoute.destinationPinId,
-                commodityType: commodityType,
-                quantity: esiRoute.quantity,
-                waypoints: esiRoute.waypoints
+                commodityTypeId: esiRoute.commodityTypeId,
+                quantity: esiRoute.quantity
             )
         }
         

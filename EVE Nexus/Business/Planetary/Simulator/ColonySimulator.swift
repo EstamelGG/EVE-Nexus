@@ -158,7 +158,7 @@ class ColonySimulator {
         transferCommodities(
             sourceId: route.sourcePinId,
             destinationId: route.destinationPinId,
-            typeId: route.commodityType.id,
+            typeId: route.commodityTypeId,
             quantity: route.quantity,
             commodities: commodities
         )
@@ -212,7 +212,7 @@ class ColonySimulator {
                 
                 if isStorageRoutes {
                     maxAmount = Int64(ceil(
-                        Double(remainingCommodities[route.commodityType.id, default: 0]) /
+                        Double(remainingCommodities[route.commodityTypeId, default: 0]) /
                         Double(routesList.count + 1)
                     ))
                 }
@@ -220,7 +220,7 @@ class ColonySimulator {
                 let (typeId, transferredQuantity) = transferCommodities(
                     sourceId: sourcePin.id,
                     destinationId: route.destinationPinId,
-                    typeId: route.commodityType.id,
+                    typeId: route.commodityTypeId,
                     quantity: route.quantity,
                     commodities: remainingCommodities,
                     maxAmount: maxAmount
