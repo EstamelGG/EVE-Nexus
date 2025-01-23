@@ -1,34 +1,16 @@
 import Foundation
 
-/// 殖民地
 class Colony {
-    let id: String
-    let characterId: Int64
-    let checkpointSimTime: Date
-    let currentSimTime: Date
-    let upgradeLevel: Int
     let pins: [Pin]
     let routes: [Route]
-    let status: ColonyStatus
+    let currentSimTime: Date
+    let status: ColonyStatus?
     
-    init(
-        id: String,
-        characterId: Int64,
-        checkpointSimTime: Date,
-        currentSimTime: Date,
-        upgradeLevel: Int = 0,
-        pins: [Pin],
-        routes: [Route],
-        status: ColonyStatus? = nil
-    ) {
-        self.id = id
-        self.characterId = characterId
-        self.checkpointSimTime = checkpointSimTime
-        self.currentSimTime = currentSimTime
-        self.upgradeLevel = upgradeLevel
+    init(pins: [Pin], routes: [Route], currentSimTime: Date, status: ColonyStatus? = nil) {
         self.pins = pins
         self.routes = routes
-        self.status = status ?? ColonyStatus(pins: [])  // 如果没有提供状态，创建一个空的状态
+        self.currentSimTime = currentSimTime
+        self.status = status
         
         // 设置每个Pin的colony引用
         pins.forEach { $0.colony = self }
@@ -37,13 +19,9 @@ class Colony {
     /// 克隆殖民地
     func clone() -> Colony {
         return Colony(
-            id: id,
-            characterId: characterId,
-            checkpointSimTime: checkpointSimTime,
-            currentSimTime: currentSimTime,
-            upgradeLevel: upgradeLevel,
             pins: pins.map { $0.clone() },
             routes: routes,
+            currentSimTime: currentSimTime,
             status: status
         )
     }
@@ -51,13 +29,9 @@ class Colony {
     /// 复制殖民地并更新状态
     func copy(currentSimTime: Date, status: ColonyStatus) -> Colony {
         return Colony(
-            id: id,
-            characterId: characterId,
-            checkpointSimTime: checkpointSimTime,
-            currentSimTime: currentSimTime,
-            upgradeLevel: upgradeLevel,
             pins: pins,
             routes: routes,
+            currentSimTime: currentSimTime,
             status: status
         )
     }
@@ -67,9 +41,6 @@ class Colony {
 extension Colony {
     /// 从ESI数据创建殖民地实例
     static func fromESIData(
-        id: String,
-        characterId: Int64,
-        upgradeLevel: Int,
         pins: [ESIPlanetaryPin],
         routes: [ESIPlanetaryRoute],
         currentTime: Date = Date()
@@ -102,20 +73,10 @@ extension Colony {
             )
         }
         
-        // 创建初始状态
-        let pinStatusInfos = colonyPins.map { pin in
-            ColonyStatus.PinStatusInfo(pinId: pin.id, status: .idle)
-        }
-        
         return Colony(
-            id: id,
-            characterId: characterId,
-            checkpointSimTime: currentTime,
-            currentSimTime: currentTime,
-            upgradeLevel: upgradeLevel,
             pins: colonyPins,
             routes: colonyRoutes,
-            status: ColonyStatus(pins: pinStatusInfos)
+            currentSimTime: currentTime
         )
     }
 } 
