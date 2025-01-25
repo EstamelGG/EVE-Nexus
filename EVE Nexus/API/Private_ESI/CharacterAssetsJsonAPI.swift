@@ -77,7 +77,7 @@ public enum AssetLoadingProgress {
 
 public class CharacterAssetsJsonAPI {
     public static let shared = CharacterAssetsJsonAPI()
-    private let cacheTimeout: TimeInterval = 8 * 3600 // 8 小时缓存
+    private let cacheTimeout: TimeInterval = 24 * 3600 // 24 小时缓存
     private let assetTreeCachePrefix = "asset_tree_json_cache_"
     
     private init() {}
@@ -207,7 +207,7 @@ public class CharacterAssetsJsonAPI {
     ) async throws -> [CharacterAsset] {
         var allAssets: [CharacterAsset] = []
         var currentPage = 1
-        let concurrentLimit = 3 // 并发数量限制
+        let concurrentLimit = 10 // 并发数量限制
         var shouldContinue = true
         
         while shouldContinue {
