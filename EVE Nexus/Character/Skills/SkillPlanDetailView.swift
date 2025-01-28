@@ -2,6 +2,8 @@ import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
 
+private let kShowCompletedSkillsKey = "SkillPlan_ShowCompletedSkills"
+
 struct SkillPlanDetailView: View {
     @State private var plan: SkillPlan
     let characterId: Int
@@ -19,21 +21,13 @@ struct SkillPlanDetailView: View {
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     @State private var isLoadingInjectors = true
     @State private var learnedSkills: [Int: CharacterSkill] = [:]  // 添加缓存
-    @State private var showCompletedSkills = UserDefaults.standard.bool(forKey: "SkillPlan_ShowCompletedSkills") {
-        didSet {
-            UserDefaults.standard.set(showCompletedSkills, forKey: "SkillPlan_ShowCompletedSkills")
-        }
-    }
+    @AppStorage(kShowCompletedSkillsKey) private var showCompletedSkills = true
     
     init(plan: SkillPlan, characterId: Int, databaseManager: DatabaseManager, skillPlans: Binding<[SkillPlan]>) {
         _plan = State(initialValue: plan)
         self.characterId = characterId
         self.databaseManager = databaseManager
         self._skillPlans = skillPlans
-        // 设置默认值为 true
-        if !UserDefaults.standard.contains(key: "SkillPlan_ShowCompletedSkills") {
-            UserDefaults.standard.set(true, forKey: "SkillPlan_ShowCompletedSkills")
-        }
     }
     
     var body: some View {
