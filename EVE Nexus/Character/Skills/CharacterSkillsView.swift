@@ -68,15 +68,22 @@ struct CharacterSkillsView: View {
     private var activeSkills: [SkillQueueItem] {
         let now = Date()
         
-        // 过滤出正在训练和等待训练的技能
+        // 检查队列是否暂停
+        let isPaused = isQueuePaused
+        
+        // 根据队列状态过滤技能
         let activeQueue = skillQueue
             .filter { skill in
+                // 如果队列暂停，显示所有技能
+                if isPaused {
+                    return true
+                }
+                
+                // 如果队列在训练，只显示正在训练和等待训练的技能
                 guard let startDate = skill.start_date,
                       let finishDate = skill.finish_date else {
                     return false
                 }
-                // 保留：1. 正在训练的技能（当前时间在训练时间段内）
-                //      2. 等待训练的技能（开始时间在当前时间之后）
                 return (now >= startDate && now <= finishDate) || startDate > now
             }
             .sorted { $0.queue_position < $1.queue_position }
@@ -93,7 +100,7 @@ struct CharacterSkillsView: View {
     }
     
     private var isQueuePaused: Bool {
-        guard let firstSkill = activeSkills.first,
+        guard let firstSkill = skillQueue.first,
               let _ = firstSkill.start_date,
               let _ = firstSkill.finish_date else {
             return true
