@@ -693,6 +693,7 @@
 "Main_Skills_Plan_Import_Parse_Failed" = "以下内容解析失败：";
 "Main_Skills_Plan_Import_Not_Found" = "以下技能未找到：";
 "Main_Skills_Plan_Import_Success" = "成功导入";
+"Main_Skills_Plan_Show_Completed" = "显示已完成的技能";
 
 "Main_Search" = "搜索";
 

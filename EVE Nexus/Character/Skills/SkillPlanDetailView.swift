@@ -19,12 +19,21 @@ struct SkillPlanDetailView: View {
     @State private var injectorPrices: (large: Double?, small: Double?) = (nil, nil)
     @State private var isLoadingInjectors = true
     @State private var learnedSkills: [Int: CharacterSkill] = [:]  // 添加缓存
+    @State private var showCompletedSkills = UserDefaults.standard.bool(forKey: "SkillPlan_ShowCompletedSkills") {
+        didSet {
+            UserDefaults.standard.set(showCompletedSkills, forKey: "SkillPlan_ShowCompletedSkills")
+        }
+    }
     
     init(plan: SkillPlan, characterId: Int, databaseManager: DatabaseManager, skillPlans: Binding<[SkillPlan]>) {
         _plan = State(initialValue: plan)
         self.characterId = characterId
         self.databaseManager = databaseManager
         self._skillPlans = skillPlans
+        // 设置默认值为 true
+        if !UserDefaults.standard.contains(key: "SkillPlan_ShowCompletedSkills") {
+            UserDefaults.standard.set(true, forKey: "SkillPlan_ShowCompletedSkills")
+        }
     }
     
     var body: some View {
@@ -53,12 +62,12 @@ struct SkillPlanDetailView: View {
                 }
             }
             
-            Section(header: Text("\(NSLocalizedString("Main_Skills_Plan", comment:""))(\(plan.skills.count))")) {
+            Section(header: Text("\(NSLocalizedString("Main_Skills_Plan", comment:""))(\(filteredSkills.count))")) {
                 if plan.skills.isEmpty {
                     Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
                         .foregroundColor(.secondary)
                 } else {
-                    ForEach(plan.skills) { skill in
+                    ForEach(filteredSkills) { skill in
                         skillRowView(skill)
                     }
                     .onDelete(perform: deleteSkill)
@@ -79,17 +88,7 @@ struct SkillPlanDetailView: View {
         .sheet(isPresented: $isShowingEditSheet) {
             NavigationView {
                 List {
-//                    NavigationLink {
-//                        // 占位1
-//                    } label: {
-//                        Text("占位1")
-//                    }
-//                    
-//                    NavigationLink {
-//                        // 占位2
-//                    } label: {
-//                        Text("占位2")
-//                    }
+                    Toggle(NSLocalizedString("Main_Skills_Plan_Show_Completed", comment: ""), isOn: $showCompletedSkills)
                     
                     Button {
                         importSkillsFromClipboard()
@@ -126,6 +125,10 @@ struct SkillPlanDetailView: View {
                 await loadCharacterData()
             }
         }
+    }
+    
+    private var filteredSkills: [PlannedSkill] {
+        showCompletedSkills ? plan.skills : plan.skills.filter { !$0.isCompleted }
     }
     
     private func skillRowView(_ skill: PlannedSkill) -> some View {
@@ -857,5 +860,11 @@ struct SkillPlanDetailView: View {
             currentSkillPoints: skill.currentSkillPoints,
             isCompleted: isCompleted
         )
+    }
+}
+
+extension UserDefaults {
+    func contains(key: String) -> Bool {
+        return object(forKey: key) != nil
     }
 }
