@@ -614,8 +614,6 @@ struct MarketQuickbarView: View {
             Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
                 newQuickbarName = ""
             }
-        } message: {
-            Text(NSLocalizedString("Main_Market_Watch_List_Name", comment: ""))
         }
         .task {
             quickbars = MarketQuickbarManager.shared.loadQuickbars()
