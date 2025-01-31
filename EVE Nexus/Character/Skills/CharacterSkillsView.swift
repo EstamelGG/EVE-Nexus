@@ -28,6 +28,8 @@ struct CharacterSkillsView: View {
     @State private var hasLoadedData = false
     @State private var optimalAttributes: OptimalAttributeAllocation?
     @State private var attributeComparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
+    @State private var currentRefreshTask: Task<Void, Never>?
+    @State private var isDataReady = false  // 新增：用于控制整体内容的显示
     
     private func updateAttributeComparisons() {
         guard let attrs = characterAttributes,
@@ -147,27 +149,46 @@ struct CharacterSkillsView: View {
     
     var body: some View {
         List {
-            // 第一个列表 - 属性和技能目录导航
-            navigationSection
-            
-            // 第二个列表 - 技能队列
-            skillQueueSection
-            
-            // 第三个列表 - 注入器需求
-            injectorSection
-            
-            // 第四个列表 - 属性对比
-            attributeComparisonSection
+            if isLoading || !isDataReady {
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                }
+            } else {
+                // 第一个列表 - 属性和技能目录导航
+                navigationSection
+                
+                // 第二个列表 - 技能队列
+                skillQueueSection
+                
+                // 第三个列表 - 注入器需求
+                injectorSection
+                
+                // 第四个列表 - 属性对比
+                attributeComparisonSection
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Skills", comment: ""))
         .refreshable {
-            await refreshSkillQueue()
+            currentRefreshTask?.cancel()
+            let task = Task {
+                guard !isRefreshing else { return }
+                await refreshSkillQueue()
+            }
+            currentRefreshTask = task
+            await task.value
         }
         .task {
             if !hasLoadedData {
                 await loadSkillQueue()
                 hasLoadedData = true
             }
+        }
+        .onDisappear {
+            currentRefreshTask?.cancel()
         }
     }
     
@@ -219,10 +240,7 @@ struct CharacterSkillsView: View {
     @ViewBuilder
     private var skillQueueSection: some View {
         Section {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else if skillQueue.isEmpty {
+            if skillQueue.isEmpty {
                 Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(of: "$num", with: "0"))
                     .foregroundColor(.secondary)
             } else {
@@ -456,42 +474,21 @@ struct CharacterSkillsView: View {
         }
     }
     
-    private func refreshSkillQueue() async {
-        isRefreshing = true
-        // 强制刷新技能队列和人物属性
-        do {
-            // 强制刷新人物属性
-            characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId, forceRefresh: true)
-            
-            // 强制刷新植入体加成
-            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId, forceRefresh: true)
-            
-            // 强制刷新技能队列
-            await loadSkillQueue(forceRefresh: true)
-        } catch {
-            Logger.error("刷新数据失败: \(error)")
-        }
-        isRefreshing = false
-    }
-    
     private func loadSkillQueue(forceRefresh: Bool = false) async {
         isLoading = true
-        defer { isLoading = false }
+        isDataReady = false  // 开始加载时重置数据准备状态
         
         do {
-            // 加载角色属性
-            characterAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+            // 使用 async let 并发加载所有数据
+            async let attributesResult = CharacterSkillsAPI.shared.fetchAttributes(characterId: characterId)
+            async let implantResult = SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
+            async let queueResult = CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
             
-            // 加载植入体加成
-            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
-            
-            Logger.debug("开始加载技能队列...")
-            // 加载技能队列
-            skillQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
-            Logger.debug("获取到技能队列，数量: \(skillQueue.count)")
+            // 等待所有基础数据加载完成
+            let (attributes, implants, queue) = try await (attributesResult, implantResult, queueResult)
             
             // 收集所有技能ID
-            let skillIds = skillQueue.map { $0.skill_id }
+            let skillIds = queue.map { $0.skill_id }
             
             // 批量加载技能名称
             let nameQuery = """
@@ -500,11 +497,12 @@ struct CharacterSkillsView: View {
                 WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
             """
             
+            var names: [Int: String] = [:]
             if case .success(let rows) = databaseManager.executeQuery(nameQuery) {
                 for row in rows {
                     if let typeId = row["type_id"] as? Int,
                        let name = row["name"] as? String {
-                        skillNames[typeId] = name
+                        names[typeId] = name
                     }
                 }
             }
@@ -513,64 +511,100 @@ struct CharacterSkillsView: View {
             SkillTrainingCalculator.preloadSkillAttributes(skillIds: skillIds, databaseManager: databaseManager)
             
             // 计算训练速度
-            if let attrs = characterAttributes {
-                for skillId in skillIds {
-                    if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(skillId: skillId, databaseManager: databaseManager),
-                       let rate = SkillTrainingCalculator.calculateTrainingRate(
-                        primaryAttrId: primary,
-                        secondaryAttrId: secondary,
-                        attributes: attrs
-                    ) {
-                        trainingRates[skillId] = rate
-                    }
+            var rates: [Int: Int] = [:]
+            for skillId in skillIds {
+                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(skillId: skillId, databaseManager: databaseManager),
+                   let rate = SkillTrainingCalculator.calculateTrainingRate(
+                    primaryAttrId: primary,
+                    secondaryAttrId: secondary,
+                    attributes: attributes
+                ) {
+                    rates[skillId] = rate
                 }
             }
             
             // 计算最优属性分配
-            if let attrs = characterAttributes {
-                let queueInfo = activeSkills.compactMap { item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
-                    guard let levelEndSp = item.level_end_sp,
-                          let trainingStartSp = item.training_start_sp else {
-                        return nil
-                    }
-                    
-                    return (
-                        skillId: item.skill_id,
-                        remainingSP: levelEndSp - trainingStartSp,
-                        startDate: item.start_date,
-                        finishDate: item.finish_date
-                    )
+            var optimal: OptimalAttributeAllocation?
+            let queueInfo = queue.compactMap { item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
+                guard let levelEndSp = item.level_end_sp,
+                      let trainingStartSp = item.training_start_sp else {
+                    return nil
                 }
-                
-                if let optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
-                    skillQueue: queueInfo,
-                    databaseManager: databaseManager,
-                    currentAttributes: attrs,
-                    characterId: characterId
-                ) {
-                    await MainActor.run {
-                        optimalAttributes = OptimalAttributeAllocation(
-                            charisma: optimal.charisma,
-                            intelligence: optimal.intelligence,
-                            memory: optimal.memory,
-                            perception: optimal.perception,
-                            willpower: optimal.willpower,
-                            totalTrainingTime: optimal.totalTrainingTime,
-                            currentTrainingTime: optimal.currentTrainingTime
-                        )
-                        // 更新属性比较
-                        updateAttributeComparisons()
-                    }
-                }
+                return (
+                    skillId: item.skill_id,
+                    remainingSP: levelEndSp - trainingStartSp,
+                    startDate: item.start_date,
+                    finishDate: item.finish_date
+                )
             }
             
-            // 异步加载注入器计算结果
+            optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
+                skillQueue: queueInfo,
+                databaseManager: databaseManager,
+                currentAttributes: attributes,
+                characterId: characterId
+            ).map { result in
+                OptimalAttributeAllocation(
+                    charisma: result.charisma,
+                    intelligence: result.intelligence,
+                    memory: result.memory,
+                    perception: result.perception,
+                    willpower: result.willpower,
+                    totalTrainingTime: result.totalTrainingTime,
+                    currentTrainingTime: result.currentTrainingTime
+                )
+            }
+            
+            // 一次性更新所有状态
+            await MainActor.run {
+                self.characterAttributes = attributes
+                self.implantBonuses = implants
+                self.skillQueue = queue
+                self.skillNames = names
+                self.trainingRates = rates
+                self.optimalAttributes = optimal
+                updateAttributeComparisons()
+                
+                // 所有数据都准备好后，更新状态
+                self.isLoading = false
+                self.isDataReady = true
+            }
+            
+            // 异步加载注入器数据
             Task {
                 await calculateInjectors()
             }
             
         } catch {
             Logger.error("加载技能队列失败: \(error)")
+            await MainActor.run {
+                self.isLoading = false
+                self.isDataReady = true  // 即使加载失败也显示页面
+            }
+        }
+    }
+    
+    private func refreshSkillQueue() async {
+        guard !Task.isCancelled else { return }
+        
+        await MainActor.run {
+            isRefreshing = true
+            isDataReady = false  // 刷新时重置数据准备状态
+        }
+        
+        await loadSkillQueue(forceRefresh: true)
+        
+        // 确保在主线程上设置状态
+        if !Task.isCancelled {
+            await MainActor.run {
+                isRefreshing = false
+                isDataReady = true
+            }
+        }
+        
+        // 添加延迟以防止快速连续刷新
+        if !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
         }
     }
     
