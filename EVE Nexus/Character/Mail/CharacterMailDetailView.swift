@@ -5,7 +5,6 @@ struct MailDetailData {
     let content: EVEMailContent
     let senderName: String
     let recipientNames: [Int: String]
-    let processedBody: Text
 }
 
 struct CharacterMailDetailView: View {
@@ -15,6 +14,7 @@ struct CharacterMailDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingComposeView = false
     @State private var composeType: ComposeType?
+    @ObservedObject var databaseManager = DatabaseManager.shared
     
     enum ComposeType {
         case reply, replyAll, forward
@@ -79,8 +79,8 @@ struct CharacterMailDetailView: View {
                         Divider()
                             .padding(.vertical, 8)
                         
-                        // 邮件正文
-                        detail.processedBody
+                        // 使用 RichTextView 替换原来的 Text
+                        RichTextView(text: detail.content.body, databaseManager: databaseManager)
                             .font(.body)
                     }
                     .padding()
@@ -274,18 +274,14 @@ class CharacterMailDetailViewModel: ObservableObject {
                 }
             }
             
-            // 4. 处理邮件正文
-            let processedBody = RichTextProcessor.processRichText(content.body)
-            
-            // 5. 创建完整的邮件详情数据
+            // 4. 创建完整的邮件详情数据（不再需要处理邮件正文）
             let mailDetailData = MailDetailData(
                 content: content,
                 senderName: senderName,
-                recipientNames: recipientNames,
-                processedBody: processedBody
+                recipientNames: recipientNames
             )
             
-            // 6. 一次性更新视图数据
+            // 5. 更新视图数据
             self.mailDetail = mailDetailData
             
         } catch {
