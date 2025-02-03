@@ -73,10 +73,7 @@ private struct SheetItem: Identifiable {
 }
 
 struct RichTextProcessor {
-    static func processRichText(_ text: String) -> Text {
-        // 记录原始文本
-        Logger.debug("RichText processing - Original text:\n\(text)")
-        
+    static func cleanRichText(_ text: String) -> String {
         var currentText = text
         
         // 1. 处理换行标签
@@ -107,6 +104,16 @@ struct RichTextProcessor {
             let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
             currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "href=$1")
         }
+        
+        return currentText
+    }
+
+    static func processRichText(_ text: String) -> Text {
+        // 记录原始文本
+        Logger.debug("RichText processing - Original text:\n\(text)")
+        
+        // 清理文本
+        let currentText = cleanRichText(text)
         
         // 记录基础清理后的文本
         Logger.debug("RichText processing - After basic cleanup:\n\(currentText)")
