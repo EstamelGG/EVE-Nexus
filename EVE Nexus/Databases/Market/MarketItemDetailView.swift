@@ -77,13 +77,21 @@ struct MarketHistoryChartView: View {
         let volumeValues = history.map { Double($0.volume) }
         let maxVolume = volumeValues.max() ?? 1
         
+        // 计算价格范围
+        let minPrice = priceValues.min() ?? 0
+        let maxPrice = priceValues.max() ?? 1
+        let priceRange = maxPrice - minPrice
+        let yMin = max(0, minPrice - priceRange * 0.15)
+        let yMax = maxPrice + priceRange * 0.15
+        let effectiveRange = yMax - yMin
+        
         Chart {
             ForEach(history, id: \.date) { item in
-                // 成交量柱状图 - 归一化处理
-                let normalizedVolume = Double(item.volume) / maxVolume * (priceValues.max() ?? 1)
+                // 成交量柱状图 - 从yMin开始，高度为归一化后的值
                 BarMark(
                     x: .value("Date", item.date),
-                    y: .value("Volume", normalizedVolume)
+                    yStart: .value("VolumeStart", yMin),
+                    yEnd: .value("VolumeEnd", yMin + (Double(item.volume) / maxVolume) * effectiveRange * 0.7)
                 )
                 .foregroundStyle(.gray.opacity(0.8))
             }
@@ -98,7 +106,7 @@ struct MarketHistoryChartView: View {
                 .lineStyle(StrokeStyle(lineWidth: 1))
             }
         }
-        .chartYScale(domain: .automatic(includesZero: false))
+        .chartYScale(domain: yMin...yMax)
         .chartYAxis {
             // 价格轴（左侧）
             AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
@@ -115,7 +123,8 @@ struct MarketHistoryChartView: View {
             // 成交量轴（右侧）
             AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
                 if let price = value.as(Double.self) {
-                    let volume = Int(price * maxVolume / (priceValues.max() ?? 1))
+                    // 反向计算成交量
+                    let volume = Int(((price - yMin) / (effectiveRange * 0.7)) * maxVolume)
                     AxisValueLabel {
                         Text("\(volume)")
                             .font(.system(size: 10))
