@@ -81,28 +81,33 @@ struct RichTextProcessor {
         currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
         currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
         
-        // 2. 删除所有非白名单的HTML标签
-        let pattern = "<(?!/?(b|a|url|br))[^>]*>"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+        // 2. 处理font标签，保留内容
+        if let regex = try? NSRegularExpression(pattern: "<font[^>]*>(.*?)</font>", options: [.dotMatchesLineSeparators]) {
             let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "")
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "$1")
         }
         
-        // 3. 优化连续换行和空格
+        // 3. 统一链接格式：将带引号的href转换为不带引号的格式
+        // 先处理双引号的情况
+        if let regex = try? NSRegularExpression(pattern: "<a href=\"([^\"]*)\"", options: []) {
+            let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "<a href=$1")
+        }
+        // 再处理单引号的情况
+        if let regex = try? NSRegularExpression(pattern: "<a href='([^']*)'", options: []) {
+            let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "<a href=$1")
+        }
+        
+        // 4. 优化连续换行和空格
         currentText = currentText.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
         currentText = currentText.replacingOccurrences(of: " +", with: " ", options: .regularExpression)
         
-        // 4. 统一链接格式：将带引号的href转换为不带引号的格式
-        currentText = currentText.replacingOccurrences(of: "href=\"", with: "href=")
-        currentText = currentText.replacingOccurrences(of: "href='", with: "href=")
-        // 移除href=后面的引号
-        if let regex = try? NSRegularExpression(pattern: "href=([^\"]*)\"", options: []) {
+        // 5. 删除所有非白名单的HTML标签（除了链接相关的标签）
+        let pattern = "<(?!/?(a|url))[^>]*>"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
             let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "href=$1")
-        }
-        if let regex = try? NSRegularExpression(pattern: "href=([^'])*'", options: []) {
-            let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "href=$1")
+            currentText = regex.stringByReplacingMatches(in: currentText, options: [], range: range, withTemplate: "")
         }
         
         return currentText
