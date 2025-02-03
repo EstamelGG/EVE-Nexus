@@ -144,7 +144,7 @@ struct MarketHistoryChartView: View {
                    dates.firstIndex(of: dateStr).map({ $0 % (dates.count / 12 + 1) == 0 }) ?? false {
                     AxisValueLabel(anchor: .top) {
                         Text(formatMonth(dateStr))
-                            .font(.system(size: 10))
+                            .font(.system(size: 8))
                             .foregroundColor(.secondary)
                     }
                     AxisGridLine()
