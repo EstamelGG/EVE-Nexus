@@ -320,6 +320,34 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 PRIMARY KEY (contract_id, character_id)
             );
 
+            -- 军团合同表
+            CREATE TABLE IF NOT EXISTS corporation_contracts (
+                contract_id INTEGER NOT NULL,
+                corporation_id INTEGER NOT NULL,
+                status TEXT,
+                acceptor_id INTEGER,
+                assignee_id INTEGER,
+                availability TEXT,
+                collateral REAL,
+                date_accepted TEXT,
+                date_completed TEXT,
+                date_expired TEXT,
+                date_issued TEXT,
+                days_to_complete INTEGER,
+                end_location_id INTEGER,
+                for_corporation BOOLEAN,
+                issuer_corporation_id INTEGER,
+                issuer_id INTEGER,
+                price REAL,
+                reward REAL,
+                start_location_id INTEGER,
+                title TEXT,
+                type TEXT,
+                volume REAL,
+                items_fetched BOOLEAN DEFAULT 0,
+                PRIMARY KEY (contract_id, corporation_id)
+            );
+
             -- 合同物品表
             CREATE TABLE IF NOT EXISTS contract_items (
                 record_id INTEGER NOT NULL,
@@ -329,9 +357,13 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 quantity INTEGER,
                 type_id INTEGER,
                 raw_quantity INTEGER,
-                PRIMARY KEY (contract_id, record_id),
-                FOREIGN KEY (contract_id) REFERENCES contracts(contract_id)
+                PRIMARY KEY (contract_id, record_id)
             );
+
+            -- 创建索引以提高查询性能
+            CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts(date_issued);
+            CREATE INDEX IF NOT EXISTS idx_corporation_contracts_date ON corporation_contracts(date_issued);
+            CREATE INDEX IF NOT EXISTS idx_corporation_contracts_corp ON corporation_contracts(corporation_id);
 
             -- 工业制造表
             CREATE TABLE IF NOT EXISTS industry_jobs (
@@ -464,7 +496,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             -- 创建索引以提高查询性能
             CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
-            CREATE INDEX IF NOT EXISTS idx_contracts_date ON contracts(date_issued);
             CREATE INDEX IF NOT EXISTS idx_industry_jobs_character_date ON industry_jobs(character_id, start_date);
             CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);

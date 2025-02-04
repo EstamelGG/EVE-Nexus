@@ -216,12 +216,24 @@ struct ContractRow: View {
     
     // 判断当前角色是否是合同发布者
     private var isIssuer: Bool {
-        return contract.issuer_id == currentCharacterId
+        if isCorpContract {
+            // 军团合同：检查是否是军团发布的合同
+            return contract.for_corporation
+        } else {
+            // 个人合同：检查是否是当前角色发布的
+            return contract.issuer_id == currentCharacterId
+        }
     }
     
     // 判断当前角色是否是合同接收者
     private var isAcceptor: Bool {
-        return contract.acceptor_id == currentCharacterId
+        if isCorpContract {
+            // 军团合同：检查是否是指定给军团的
+            return contract.assignee_id == contract.issuer_corporation_id
+        } else {
+            // 个人合同：检查是否是指定给当前角色的
+            return contract.acceptor_id == currentCharacterId
+        }
     }
     
     @ViewBuilder
