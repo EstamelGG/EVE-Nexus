@@ -30,68 +30,51 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        // 取消之前的加载任务
-        loadingTask?.cancel()
+        isLoading = true
+        errorMessage = nil
         
-        // 创建新的加载任务
-        loadingTask = Task {
-            isLoading = true
-            errorMessage = nil
-            
-            do {
-                let contracts: [ContractInfo]
-                if showCorporationContracts {
-                    contracts = try await CorporationContractsAPI.shared.fetchContracts(
-                        characterId: characterId,
-                        forceRefresh: forceRefresh
-                    )
-                } else {
-                    contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                        characterId: characterId,
-                        forceRefresh: forceRefresh
-                    )
-                }
-                
-                if Task.isCancelled { return }
-                
-                // 按日期分组
-                var groupedContracts: [Date: [ContractInfo]] = [:]
-                for contract in contracts {
-                    let date = calendar.startOfDay(for: contract.date_issued)
-                    if groupedContracts[date] == nil {
-                        groupedContracts[date] = []
-                    }
-                    groupedContracts[date]?.append(contract)
-                }
-                
-                // 创建分组并排序
-                let groups = groupedContracts.map { date, contracts in
-                    ContractGroup(
-                        date: date,
-                        contracts: contracts.sorted { $0.date_issued > $1.date_issued }
-                    )
-                }.sorted { $0.date > $1.date }
-                
-                if Task.isCancelled { return }
-                
-                await MainActor.run {
-                    self.contractGroups = groups
-                    self.isLoading = false
-                    self.initialLoadDone = true
-                }
-                
-            } catch {
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.errorMessage = error.localizedDescription
-                        self.isLoading = false
-                    }
-                }
+        do {
+            let contracts: [ContractInfo]
+            if showCorporationContracts {
+                // 获取军团合同
+                contracts = try await CorporationContractsAPI.shared.fetchContracts(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
+            } else {
+                // 获取个人合同
+                contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
             }
+            
+            // 按日期分组
+            var groupedContracts: [Date: [ContractInfo]] = [:]
+            for contract in contracts {
+                let date = calendar.startOfDay(for: contract.date_issued)
+                if groupedContracts[date] == nil {
+                    groupedContracts[date] = []
+                }
+                groupedContracts[date]?.append(contract)
+            }
+            
+            // 创建分组并排序
+            let groups = groupedContracts.map { date, contracts in
+                ContractGroup(
+                    date: date,
+                    contracts: contracts.sorted { $0.date_issued > $1.date_issued }
+                )
+            }.sorted { $0.date > $1.date }
+            
+            self.contractGroups = groups
+            self.isLoading = false
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
+            Logger.error("加载\(showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
         }
-        
-        // 等待任务完成
-        await loadingTask?.value
     }
     
     deinit {
@@ -147,7 +130,10 @@ struct PersonalContractsView: View {
                     ForEach(viewModel.contractGroups) { group in
                         Section {
                             ForEach(group.contracts) { contract in
-                                ContractRow(contract: contract)
+                                ContractRow(
+                                    contract: contract,
+                                    isCorpContract: viewModel.showCorporationContracts
+                                )
                             }
                         } header: {
                             Text(displayDateFormatter.string(from: group.date))
@@ -192,6 +178,7 @@ struct PersonalContractsView: View {
 
 struct ContractRow: View {
     let contract: ContractInfo
+    let isCorpContract: Bool
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     @StateObject private var databaseManager = DatabaseManager()
     
