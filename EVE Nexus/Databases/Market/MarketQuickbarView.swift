@@ -1055,7 +1055,7 @@ struct MarketQuickbarDetailView: View {
             HStack(spacing: 12) {
                 Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
                     .resizable()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 40, height: 40)
                     .cornerRadius(6)
                 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1121,7 +1121,7 @@ struct MarketQuickbarDetailView: View {
                 HStack(spacing: 12) {
                     Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
                         .resizable()
-                        .frame(width: 32, height: 32)
+                        .frame(width: 40, height: 40)
                         .cornerRadius(6)
                     
                     VStack(alignment: .leading, spacing: 2) {

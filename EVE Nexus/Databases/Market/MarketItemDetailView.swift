@@ -72,6 +72,27 @@ struct MarketHistoryChartView: View {
         orders.filter { !$0.isBuyOrder }.reduce(0) { $0 + $1.volumeTotal }
     }
     
+    // 判断是否是月份的第一个数据点
+    private func isFirstDayOfMonth(date: String, in dates: [String]) -> Bool {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        guard let targetDate = dateFormatter.date(from: date) else { return false }
+        let targetMonth = Calendar.current.component(.month, from: targetDate)
+        
+        // 找到当前日期在数组中的索引
+        guard let currentIndex = dates.firstIndex(of: date) else { return false }
+        
+        // 如果是第一个数据点，或者前一个数据点是不同的月份，则返回true
+        if currentIndex == 0 { return true }
+        
+        let previousDate = dates[currentIndex - 1]
+        guard let previousDateTime = dateFormatter.date(from: previousDate) else { return false }
+        let previousMonth = Calendar.current.component(.month, from: previousDateTime)
+        
+        return targetMonth != previousMonth
+    }
+    
     var body: some View {
         let priceValues = history.map { $0.average }
         let volumeValues = history.map { Double($0.volume) }
@@ -141,7 +162,7 @@ struct MarketHistoryChartView: View {
             let dates = history.map { $0.date }
             AxisMarks(values: dates) { value in
                 if let dateStr = value.as(String.self),
-                   dates.firstIndex(of: dateStr).map({ $0 % (dates.count / 12 + 1) == 0 }) ?? false {
+                   isFirstDayOfMonth(date: dateStr, in: dates) {
                     AxisValueLabel(anchor: .top) {
                         Text(formatMonth(dateStr))
                             .font(.system(size: 8))

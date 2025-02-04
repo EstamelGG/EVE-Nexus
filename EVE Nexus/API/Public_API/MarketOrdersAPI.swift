@@ -67,7 +67,7 @@ enum MarketAPIError: LocalizedError {
 @MarketOrdersAPIActor
 class MarketOrdersAPI {
     static let shared = MarketOrdersAPI()
-    private let cacheDuration: TimeInterval = 60 * 60 // 60 分钟缓存
+    private let cacheDuration: TimeInterval = 3 * 60 * 60 // 3 小时缓存
     
     private init() {}
     
