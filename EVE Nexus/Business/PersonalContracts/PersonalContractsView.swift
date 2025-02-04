@@ -100,6 +100,8 @@ final class PersonalContractsViewModel: ObservableObject {
 
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var showCorporationContracts = false
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -114,52 +116,76 @@ struct PersonalContractsView: View {
     }
     
     var body: some View {
-        List {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else if viewModel.contractGroups.isEmpty {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
-                }
-            } else {
-                ForEach(viewModel.contractGroups) { group in
-                    Section(header: Text(displayDateFormatter.string(from: group.date))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                    ) {
-                        ForEach(group.contracts) { contract in
-                            ContractRow(contract: contract)
+        VStack(spacing: 0) {
+            List {
+                if viewModel.isLoading {
+                    Section {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    .listSectionSpacing(.compact)
+                } else if viewModel.contractGroups.isEmpty {
+                    Section {
+                        HStack {
+                            Spacer()
+                            VStack(spacing: 4) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 30))
+                                    .foregroundColor(.gray)
+                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            Spacer()
+                        }
+                    }
+                    .listSectionSpacing(.compact)
+                } else {
+                    ForEach(viewModel.contractGroups) { group in
+                        Section {
+                            ForEach(group.contracts) { contract in
+                                ContractRow(contract: contract)
+                            }
+                        } header: {
+                            Text(displayDateFormatter.string(from: group.date))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                                .textCase(nil)
+                        }
+                    }
                 }
             }
+            .listStyle(.insetGrouped)
+            .refreshable {
+                await viewModel.loadContractsData(forceRefresh: true)
+            }
         }
-        .listStyle(.insetGrouped)
-        .refreshable {
-            Logger.debug("执行下拉刷新")
-            await viewModel.loadContractsData(forceRefresh: true)
-        }
-        .task {
-            Logger.debug("PersonalContractsView.task 开始执行")
-            await viewModel.loadContractsData()
-            Logger.debug("PersonalContractsView.task 执行完成")
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                Picker("Contract Type", selection: $showCorporationContracts) {
+                    Text(NSLocalizedString("Contracts_Personal", comment: ""))
+                        .tag(false)
+                    Text(NSLocalizedString("Contracts_Corporation", comment: ""))
+                        .tag(true)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 4)
+            }
+            .background(Color(.systemGroupedBackground))
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
+        .task {
+            await viewModel.loadContractsData()
+        }
+        .onChange(of: showCorporationContracts) { _, _ in
+            Task {
+                await viewModel.loadContractsData()
+            }
+        }
     }
 }
 
