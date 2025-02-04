@@ -178,6 +178,7 @@ struct PersonalContractsView: View {
             .background(Color(.systemGroupedBackground))
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadContractsData()
         }
