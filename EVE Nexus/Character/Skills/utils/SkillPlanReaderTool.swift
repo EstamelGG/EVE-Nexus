@@ -51,9 +51,9 @@ class SkillPlanReaderTool {
             let uniqueSkillNames = Set(skillEntries.map { $0.name })
             let skillNamesString = uniqueSkillNames.map { "'\($0)'" }.joined(separator: " UNION SELECT ")
             let query = """
-                SELECT t.type_id, t.name
+                SELECT t.type_id, t.name, t.en_name
                 FROM types t
-                WHERE t.name IN (SELECT \(skillNamesString))
+                WHERE (t.name IN (SELECT \(skillNamesString)) or t.en_name IN (SELECT \(skillNamesString)))
                 AND t.categoryID = 16
             """
             
@@ -63,9 +63,16 @@ class SkillPlanReaderTool {
             switch queryResult {
             case .success(let rows):
                 for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String {
-                        typeIdMap[name] = typeId
+                    if let typeId = row["type_id"] as? Int {
+                        // 遍历skillEntries找到匹配的技能名称
+                        for skillName in uniqueSkillNames {
+                            if let name = row["name"] as? String,
+                               let enName = row["en_name"] as? String,
+                               (skillName == name || skillName == enName) {
+                                typeIdMap[skillName] = typeId
+                                break
+                            }
+                        }
                     }
                 }
             case .error(let error):
