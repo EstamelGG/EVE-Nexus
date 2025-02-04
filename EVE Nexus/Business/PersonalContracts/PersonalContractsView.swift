@@ -9,13 +9,15 @@ struct ContractGroup: Identifiable {
 
 @MainActor
 final class PersonalContractsViewModel: ObservableObject {
-    @Published private(set) var contractGroups: [ContractGroup] = []
-    @Published var isLoading = true
+    @Published var contracts: [ContractInfo] = []
+    @Published var contractGroups: [ContractGroup] = []
+    @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var showCorporationContracts = false
+    
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
-    
-    let characterId: Int
+    private var characterId: Int
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -28,12 +30,7 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
-        // 如果已经加载过且不是强制刷新，则跳过
-        if initialLoadDone && !forceRefresh {
-            return
-        }
-        
-        // 取消之前的加载任务（如果存在）
+        // 取消之前的加载任务
         loadingTask?.cancel()
         
         // 创建新的加载任务
@@ -42,44 +39,48 @@ final class PersonalContractsViewModel: ObservableObject {
             errorMessage = nil
             
             do {
-                let contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh
-                )
-                Logger.debug("获取到\(contracts.count)个合同")
-                
-                // 检查任务是否已被取消
-                if Task.isCancelled { return }
-                
-                var groupedContracts: [Date: [ContractInfo]] = [:]
-                for contract in contracts {
-                    let components = calendar.dateComponents([.year, .month, .day], from: contract.date_issued)
-                    guard let dayDate = calendar.date(from: components) else {
-                        Logger.error("无法从组件创建日期，合同ID: \(contract.contract_id)")
-                        continue
-                    }
-                    
-                    groupedContracts[dayDate, default: []].append(contract)
+                let contracts: [ContractInfo]
+                if showCorporationContracts {
+                    contracts = try await CorporationContractsAPI.shared.fetchContracts(
+                        characterId: characterId,
+                        forceRefresh: forceRefresh
+                    )
+                } else {
+                    contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                        characterId: characterId,
+                        forceRefresh: forceRefresh
+                    )
                 }
                 
-                let groups = groupedContracts.map { (date, contracts) -> ContractGroup in
-                    ContractGroup(date: date, contracts: contracts.sorted { $0.date_issued > $1.date_issued })
+                if Task.isCancelled { return }
+                
+                // 按日期分组
+                var groupedContracts: [Date: [ContractInfo]] = [:]
+                for contract in contracts {
+                    let date = calendar.startOfDay(for: contract.date_issued)
+                    if groupedContracts[date] == nil {
+                        groupedContracts[date] = []
+                    }
+                    groupedContracts[date]?.append(contract)
+                }
+                
+                // 创建分组并排序
+                let groups = groupedContracts.map { date, contracts in
+                    ContractGroup(
+                        date: date,
+                        contracts: contracts.sorted { $0.date_issued > $1.date_issued }
+                    )
                 }.sorted { $0.date > $1.date }
                 
-                Logger.debug("合同分组完成，共\(groups.count)个分组")
-                
-                // 再次检查任务是否已被取消
                 if Task.isCancelled { return }
                 
                 await MainActor.run {
                     self.contractGroups = groups
-                    Logger.debug("更新UI，设置contractGroups，包含\(groups.count)个分组")
                     self.isLoading = false
                     self.initialLoadDone = true
                 }
                 
             } catch {
-                Logger.error("加载合同数据失败: \(error.localizedDescription)")
                 if !Task.isCancelled {
                     await MainActor.run {
                         self.errorMessage = error.localizedDescription
@@ -101,7 +102,6 @@ final class PersonalContractsViewModel: ObservableObject {
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showCorporationContracts = false
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -165,7 +165,7 @@ struct PersonalContractsView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                Picker("Contract Type", selection: $showCorporationContracts) {
+                Picker("Contract Type", selection: $viewModel.showCorporationContracts) {
                     Text(NSLocalizedString("Contracts_Personal", comment: ""))
                         .tag(false)
                     Text(NSLocalizedString("Contracts_Corporation", comment: ""))
@@ -182,7 +182,7 @@ struct PersonalContractsView: View {
         .task {
             await viewModel.loadContractsData()
         }
-        .onChange(of: showCorporationContracts) { _, _ in
+        .onChange(of: viewModel.showCorporationContracts) { _, _ in
             Task {
                 await viewModel.loadContractsData()
             }

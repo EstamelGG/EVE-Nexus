@@ -156,7 +156,12 @@ class CorporationContractsAPI {
     }
     
     // 获取合同列表（公开方法）
-    public func fetchContracts(corporationId: Int, characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
+    public func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
+        // 1. 获取角色的军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
         if forceRefresh || shouldRefreshData(corporationId: corporationId) {
             return try await fetchContractsFromServer(corporationId: corporationId, characterId: characterId)
         }
@@ -171,7 +176,12 @@ class CorporationContractsAPI {
     }
     
     // 获取合同物品（公开方法）
-    public func fetchContractItems(corporationId: Int, contractId: Int, characterId: Int) async throws -> [ContractItemInfo] {
+    public func fetchContractItems(contractId: Int, characterId: Int) async throws -> [ContractItemInfo] {
+        // 获取角色的军团ID
+        guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
+            throw NetworkError.authenticationError("无法获取军团ID")
+        }
+        
         return try await fetchContractItemsFromServer(corporationId: corporationId, contractId: contractId, characterId: characterId)
     }
     
