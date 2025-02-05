@@ -705,12 +705,25 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                     
                     if sqlite3_step(statement) == SQLITE_ROW {
                         let corporationId = sqlite3_column_int64(statement, 0)
-                        continuation.resume(returning: corporationId > 0 ? Int(corporationId) : nil)
-                    } else {
-                        continuation.resume(returning: nil)
+                        sqlite3_finalize(statement)
+                        if corporationId > 0 {
+                            continuation.resume(returning: Int(corporationId))
+                            return
+                        }
                     }
                     
                     sqlite3_finalize(statement)
+                    
+                    // 如果数据库中没有找到，则尝试从API获取最新数据
+                    Task {
+                        do {
+                            let characterInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(characterId: characterId, forceRefresh: true)
+                            continuation.resume(returning: characterInfo.corporation_id)
+                        } catch {
+                            Logger.error("获取角色军团ID失败: \(error)")
+                            continuation.resume(returning: nil)
+                        }
+                    }
                 }
             }
         }
