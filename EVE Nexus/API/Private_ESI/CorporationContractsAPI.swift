@@ -510,7 +510,9 @@ class CorporationContractsAPI {
     }
     
     // 获取合同物品（公开方法）
-    public func fetchContractItems(contractId: Int, characterId: Int) async throws -> [ContractItemInfo] {
+    public func fetchContractItems(characterId: Int, contractId: Int) async throws -> [ContractItemInfo] {
+        Logger.debug("开始获取军团合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
+        
         // 获取角色的军团ID
         guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
             throw NetworkError.authenticationError("无法获取军团ID")
@@ -518,15 +520,22 @@ class CorporationContractsAPI {
         
         // 检查数据库中是否有数据
         if let items = getContractItemsFromDB(corporationId: corporationId, contractId: contractId) {
-            return items
+            if !items.isEmpty {
+                Logger.debug("从数据库获取到\(items.count)个军团合同物品")
+                return items
+            }
         }
         
         // 从服务器获取数据
+        Logger.debug("从服务器获取军团合同物品")
         let items = try await fetchContractItemsFromServer(corporationId: corporationId, contractId: contractId, characterId: characterId)
+        Logger.debug("从服务器获取到\(items.count)个军团合同物品")
         
         // 保存到数据库
         if !saveContractItemsToDB(corporationId: corporationId, contractId: contractId, items: items) {
-            Logger.error("保存合同物品到数据库失败")
+            Logger.error("保存军团合同物品到数据库失败")
+        } else {
+            Logger.debug("成功保存军团合同物品到数据库")
         }
         
         return items

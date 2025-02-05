@@ -322,7 +322,8 @@ struct ContractRow: View {
             ContractDetailView(
                 characterId: currentCharacterId,
                 contract: contract,
-                databaseManager: databaseManager
+                databaseManager: databaseManager,
+                isCorpContract: isCorpContract
             )
         } label: {
             VStack(alignment: .leading, spacing: 2) {

@@ -18,6 +18,7 @@ final class ContractDetailViewModel: ObservableObject {
     
     private let characterId: Int
     private let contract: ContractInfo
+    private let isCorpContract: Bool
     let databaseManager: DatabaseManager
     private lazy var locationLoader: LocationInfoLoader = {
         LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
@@ -52,26 +53,37 @@ final class ContractDetailViewModel: ObservableObject {
             }
     }
     
-    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
+    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager, isCorpContract: Bool) {
         self.characterId = characterId
         self.contract = contract
         self.databaseManager = databaseManager
+        self.isCorpContract = isCorpContract
     }
     
     func loadContractItems(forceRefresh: Bool = false) async {
-        Logger.debug("开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh)")
+        Logger.debug("开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh), 是否军团合同: \(isCorpContract)")
         isLoading = true
         errorMessage = nil
         
         // 使用withTaskCancellationHandler来处理任务取消
         await withTaskCancellationHandler(operation: {
             do {
-                // 从API获取最新数据（API内部会处理数据库的保存）
-                items = try await CharacterContractsAPI.shared.fetchContractItems(
-                    characterId: characterId,
-                    contractId: contract.contract_id,
-                    forceRefresh: forceRefresh
-                )
+                // 根据合同类型选择对应的 API
+                Logger.debug("isCorpContract: \(isCorpContract)")
+                if isCorpContract {
+                    // 使用军团合同 API
+                    items = try await CorporationContractsAPI.shared.fetchContractItems(
+                        characterId: characterId,
+                        contractId: contract.contract_id
+                    )
+                } else {
+                    // 使用个人合同 API
+                    items = try await CharacterContractsAPI.shared.fetchContractItems(
+                        characterId: characterId,
+                        contractId: contract.contract_id,
+                        forceRefresh: forceRefresh
+                    )
+                }
                 
                 isLoading = false
             } catch is CancellationError {
@@ -201,12 +213,13 @@ struct ContractDetailView: View {
     @State private var isRefreshing = false
     @Environment(\.dismiss) private var dismiss
     
-    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager) {
+    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager, isCorpContract: Bool) {
         self.contract = contract
         _viewModel = StateObject(wrappedValue: ContractDetailViewModel(
             characterId: characterId,
             contract: contract,
-            databaseManager: databaseManager
+            databaseManager: databaseManager,
+            isCorpContract: isCorpContract
         ))
     }
     
