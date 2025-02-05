@@ -226,11 +226,15 @@ final class PersonalContractsViewModel: ObservableObject {
         
         // 如果已经在加载中，等待加载完成
         if locationLoadingTasks.contains(locationId) {
-            while locationLoadingTasks.contains(locationId) {
+            // 最多等待3秒
+            for _ in 0..<30 {
                 if let cached = locationCache[locationId] {
                     return cached
                 }
+                try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
             }
+            // 如果等待超时，返回未知
+            return "Unknown"
         }
         
         // 标记为正在加载
@@ -241,9 +245,6 @@ final class PersonalContractsViewModel: ObservableObject {
             let name = locationInfo.solarSystemName
             locationCache[locationId] = name
             locationLoadingTasks.remove(locationId)
-            
-            // 当获取到新的地点名称时，触发UI更新
-            await updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
             return name
         }
         locationLoadingTasks.remove(locationId)
@@ -340,7 +341,8 @@ struct PersonalContractsView: View {
             let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
                 let filteredContracts = group.contracts.filter { contract in
                     contract.type == "courier" && contract.status == "outstanding"
-                }
+                }.sorted { $0.reward > $1.reward }  // 按照奖励金额从高到低排序
+                
                 return filteredContracts.isEmpty ? nil : ContractGroup(
                     date: group.date,
                     contracts: filteredContracts,
@@ -348,7 +350,10 @@ struct PersonalContractsView: View {
                     endLocation: group.endLocation
                 )
             }
-            return filteredGroups
+            // 按照组内第一个合同（最高奖励）的奖励金额排序
+            return filteredGroups.sorted { 
+                $0.contracts[0].reward > $1.contracts[0].reward 
+            }
         } else {
             // 先按照设置过滤合同
             let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
