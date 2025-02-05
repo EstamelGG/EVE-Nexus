@@ -1033,7 +1033,7 @@
 "Contract_Display_Unlimited" = "无限制（不推荐）";
 
 "Contract_Courier_Mode" = "快递模式";
-"Contract_Courier_Mode_Description" = "仅显示进行中的快递合同，按路线分组";
+"Contract_Courier_Mode_Description" = "仅显示未决的快递合同，按路线分组";
 "Contract_Route_Format" = "%@ → %@";
 "Contract_Show_Active_Only" = "仅显示未决合同";
 
