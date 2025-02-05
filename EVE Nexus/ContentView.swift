@@ -1010,6 +1010,7 @@ struct ContentView: View {
                     icon: "planets"
                 )
             }
+            .isHidden(true)
         } header: {
             Text(NSLocalizedString("Main_Business", comment: ""))
                 .fontWeight(.bold)
