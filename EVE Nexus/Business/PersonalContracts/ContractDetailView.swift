@@ -24,6 +24,9 @@ final class ContractDetailViewModel: ObservableObject {
         LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
     }()
     
+    // 添加物品信息缓存
+    private var itemDetailsCache: [Int: (name: String, description: String, iconFileName: String)] = [:]
+    
     struct LocationInfo {
         let stationName: String
         let solarSystemName: String
@@ -60,24 +63,60 @@ final class ContractDetailViewModel: ObservableObject {
         self.isCorpContract = isCorpContract
     }
     
+    // 批量加载物品详细信息
+    private func loadItemDetails(for items: [ContractItemInfo]) {
+        let typeIds = Set(items.map { $0.type_id })
+        let query = """
+            SELECT type_id, name, description, icon_filename
+            FROM types
+            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+        """
+        
+        let result = databaseManager.executeQuery(query)
+        if case .success(let rows) = result {
+            for row in rows {
+                if let typeId = (row["type_id"] as? Int64).map(Int.init) ?? (row["type_id"] as? Int),
+                   let name = row["name"] as? String,
+                   let description = row["description"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    itemDetailsCache[typeId] = (
+                        name: name,
+                        description: description,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                    )
+                }
+            }
+        }
+        Logger.debug("已缓存 \(itemDetailsCache.count) 个物品信息")
+    }
+    
+    func getItemDetails(for typeId: Int) -> (name: String, description: String, iconFileName: String)? {
+        // 从缓存中获取
+        if let cachedDetails = itemDetailsCache[typeId] {
+            return cachedDetails
+        }
+        
+        // 如果缓存中没有，返回默认值
+        return (
+            name: "Unknown Item",
+            description: "",
+            iconFileName: DatabaseConfig.defaultItemIcon
+        )
+    }
+    
     func loadContractItems(forceRefresh: Bool = false) async {
         Logger.debug("开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh), 是否军团合同: \(isCorpContract)")
         isLoading = true
         errorMessage = nil
         
-        // 使用withTaskCancellationHandler来处理任务取消
         await withTaskCancellationHandler(operation: {
             do {
-                // 根据合同类型选择对应的 API
-                Logger.debug("isCorpContract: \(isCorpContract)")
                 if isCorpContract {
-                    // 使用军团合同 API
                     items = try await CorporationContractsAPI.shared.fetchContractItems(
                         characterId: characterId,
                         contractId: contract.contract_id
                     )
                 } else {
-                    // 使用个人合同 API
                     items = try await CharacterContractsAPI.shared.fetchContractItems(
                         characterId: characterId,
                         contractId: contract.contract_id,
@@ -85,16 +124,17 @@ final class ContractDetailViewModel: ObservableObject {
                     )
                 }
                 
+                // 批量加载物品详细信息
+                loadItemDetails(for: items)
+                
                 isLoading = false
             } catch is CancellationError {
                 Logger.debug("合同物品加载任务被取消 - 合同ID: \(contract.contract_id)")
-                // 对于取消的任务，我们不显示错误信息
             } catch {
                 Logger.error("加载合同物品失败: \(error.localizedDescription)")
                 errorMessage = error.localizedDescription
             }
         }, onCancel: {
-            // 任务取消时的清理工作
             Task { @MainActor in
                 isLoading = false
                 Logger.debug("合同物品加载任务被取消，清理状态 - 合同ID: \(contract.contract_id)")
@@ -181,29 +221,6 @@ final class ContractDetailViewModel: ObservableObject {
             Logger.error("加载合同相关方名称失败: \(error)")
             isLoadingNames = false
         }
-    }
-    
-    func getItemDetails(for typeId: Int) -> (name: String, description: String, iconFileName: String)? {
-        let query = """
-            SELECT name, description, icon_filename
-            FROM types
-            WHERE type_id = ?
-        """
-        
-        let result = databaseManager.executeQuery(query, parameters: [typeId])
-        
-        if case .success(let rows) = result,
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let description = row["description"] as? String,
-           let iconFileName = row["icon_filename"] as? String {
-            return (
-                name: name,
-                description: description,
-                iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-            )
-        }
-        return nil
     }
 }
 

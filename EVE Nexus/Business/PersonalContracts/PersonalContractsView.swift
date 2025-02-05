@@ -13,12 +13,23 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var contractGroups: [ContractGroup] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var showCorporationContracts = false
+    @Published var showCorporationContracts = false {
+        didSet {
+            // 切换时，如果对应类型的合同还未加载过，则加载
+            Task {
+                await loadContractsIfNeeded()
+            }
+        }
+    }
     @Published var hasCorporationAccess = false
     
     private var loadingTask: Task<Void, Never>?
-    private var initialLoadDone = false
+    private var personalContractsInitialized = false
+    private var corporationContractsInitialized = false
+    private var cachedPersonalContracts: [ContractInfo] = []
+    private var cachedCorporationContracts: [ContractInfo] = []
     private var characterId: Int
+    let databaseManager: DatabaseManager
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -28,6 +39,7 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
+        self.databaseManager = DatabaseManager()
         // 初始化时检查军团访问权限
         Task {
             await checkCorporationAccess()
@@ -51,7 +63,64 @@ final class PersonalContractsViewModel: ObservableObject {
         }
     }
     
+    private func loadContractsIfNeeded() async {
+        // 取消之前的加载任务
+        loadingTask?.cancel()
+        
+        // 如果已经加载过且不是强制刷新，直接使用缓存
+        if showCorporationContracts && corporationContractsInitialized {
+            updateContractGroups(with: cachedCorporationContracts)
+            return
+        } else if !showCorporationContracts && personalContractsInitialized {
+            updateContractGroups(with: cachedPersonalContracts)
+            return
+        }
+        
+        // 创建新的加载任务
+        loadingTask = Task {
+            await loadContractsData(forceRefresh: false)
+        }
+        
+        // 等待任务完成
+        await loadingTask?.value
+    }
+    
+    private func updateContractGroups(with contracts: [ContractInfo]) {
+        // 按日期分组
+        var groupedContracts: [Date: [ContractInfo]] = [:]
+        for contract in contracts {
+            let date = calendar.startOfDay(for: contract.date_issued)
+            if groupedContracts[date] == nil {
+                groupedContracts[date] = []
+            }
+            groupedContracts[date]?.append(contract)
+        }
+        
+        // 创建分组并排序
+        let groups = groupedContracts.map { date, contracts in
+            ContractGroup(
+                date: date,
+                contracts: contracts.sorted { $0.date_issued > $1.date_issued }
+            )
+        }.sorted { $0.date > $1.date }
+        
+        self.contractGroups = groups
+    }
+    
     func loadContractsData(forceRefresh: Bool = false) async {
+        if isLoading { return }
+        
+        // 如果不是强制刷新，且数据已加载，则直接使用缓存
+        if !forceRefresh {
+            if showCorporationContracts && corporationContractsInitialized {
+                updateContractGroups(with: cachedCorporationContracts)
+                return
+            } else if !showCorporationContracts && personalContractsInitialized {
+                updateContractGroups(with: cachedPersonalContracts)
+                return
+            }
+        }
+        
         isLoading = true
         errorMessage = nil
         
@@ -63,34 +132,20 @@ final class PersonalContractsViewModel: ObservableObject {
                     characterId: characterId,
                     forceRefresh: forceRefresh
                 )
+                cachedCorporationContracts = contracts
+                corporationContractsInitialized = true
             } else {
                 // 获取个人合同
                 contracts = try await CharacterContractsAPI.shared.fetchContracts(
                     characterId: characterId,
                     forceRefresh: forceRefresh
                 )
+                cachedPersonalContracts = contracts
+                personalContractsInitialized = true
             }
             
-            // 按日期分组
-            var groupedContracts: [Date: [ContractInfo]] = [:]
-            for contract in contracts {
-                let date = calendar.startOfDay(for: contract.date_issued)
-                if groupedContracts[date] == nil {
-                    groupedContracts[date] = []
-                }
-                groupedContracts[date]?.append(contract)
-            }
-            
-            // 创建分组并排序
-            let groups = groupedContracts.map { date, contracts in
-                ContractGroup(
-                    date: date,
-                    contracts: contracts.sorted { $0.date_issued > $1.date_issued }
-                )
-            }.sorted { $0.date > $1.date }
-            
-            self.contractGroups = groups
-            self.isLoading = false
+            updateContractGroups(with: contracts)
+            isLoading = false
             
         } catch {
             self.errorMessage = error.localizedDescription
@@ -154,7 +209,8 @@ struct PersonalContractsView: View {
                             ForEach(group.contracts) { contract in
                                 ContractRow(
                                     contract: contract,
-                                    isCorpContract: viewModel.showCorporationContracts
+                                    isCorpContract: viewModel.showCorporationContracts,
+                                    databaseManager: viewModel.databaseManager
                                 )
                             }
                         } header: {
@@ -203,8 +259,8 @@ struct PersonalContractsView: View {
 struct ContractRow: View {
     let contract: ContractInfo
     let isCorpContract: Bool
+    let databaseManager: DatabaseManager
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-    @StateObject private var databaseManager = DatabaseManager()
     
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
