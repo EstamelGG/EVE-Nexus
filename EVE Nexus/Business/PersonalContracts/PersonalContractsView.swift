@@ -29,7 +29,7 @@ final class PersonalContractsViewModel: ObservableObject {
     private var corporationContractsInitialized = false
     private var cachedPersonalContracts: [ContractInfo] = []
     private var cachedCorporationContracts: [ContractInfo] = []
-    private var characterId: Int
+    let characterId: Int
     let databaseManager: DatabaseManager
     
     private let calendar: Calendar = {
@@ -192,6 +192,19 @@ final class PersonalContractsViewModel: ObservableObject {
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @Environment(\.colorScheme) private var colorScheme
+    @State private var showSettings = false
+    
+    // 使用计算属性来获取和设置带有角色ID的AppStorage键
+    private var showFinishedContractsKey: String { "showFinishedContracts_\(viewModel.characterId)" }
+    private var showCourierContractsKey: String { "showCourierContracts_\(viewModel.characterId)" }
+    private var showItemExchangeContractsKey: String { "showItemExchangeContracts_\(viewModel.characterId)" }
+    private var showAuctionContractsKey: String { "showAuctionContracts_\(viewModel.characterId)" }
+    
+    // 使用@AppStorage并使用动态key
+    @AppStorage("") private var showFinishedContracts: Bool = true
+    @AppStorage("") private var showCourierContracts: Bool = true
+    @AppStorage("") private var showItemExchangeContracts: Bool = true
+    @AppStorage("") private var showAuctionContracts: Bool = true
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -203,44 +216,35 @@ struct PersonalContractsView: View {
     
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
+        
+        // 初始化@AppStorage的key
+        _showFinishedContracts = AppStorage(wrappedValue: true, "showFinishedContracts_\(characterId)")
+        _showCourierContracts = AppStorage(wrappedValue: true, "showCourierContracts_\(characterId)")
+        _showItemExchangeContracts = AppStorage(wrappedValue: true, "showItemExchangeContracts_\(characterId)")
+        _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
     }
     
     var body: some View {
         VStack(spacing: 0) {
             List {
                 if viewModel.isLoading {
-                    Section {
-                        HStack {
-                            Spacer()
-                            if let page = viewModel.currentLoadingPage {
-                                    Text(NSLocalizedString("Loading_Page", comment: "") + " \(page)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            Spacer()
-                        }
-                    }
-                    .listSectionSpacing(.compact)
+                    loadingView
                 } else if viewModel.contractGroups.isEmpty {
-                    Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 4) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
-                        }
-                    }
-                    .listSectionSpacing(.compact)
+                    emptyView
                 } else {
                     ForEach(viewModel.contractGroups) { group in
                         Section {
-                            ForEach(group.contracts) { contract in
+                            ForEach(group.contracts.filter { contract in
+                                // 根据设置过滤合同
+                                let showByType = (contract.type == "courier" && showCourierContracts) ||
+                                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
+                                               (contract.type == "auction" && showAuctionContracts)
+                                
+                                let showByStatus = showFinishedContracts || 
+                                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                                
+                                return showByType && showByStatus
+                            }) { contract in
                                 ContractRow(
                                     contract: contract,
                                     isCorpContract: viewModel.showCorporationContracts,
@@ -279,11 +283,81 @@ struct PersonalContractsView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showSettings = true
+                }) {
+                    Image(systemName: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            NavigationView {
+                Form {
+                    Section {
+                        Toggle(isOn: $showFinishedContracts) {
+                            Text(NSLocalizedString("Contract_Show_Finished", comment: ""))
+                        }
+                        Toggle(isOn: $showCourierContracts) {
+                            Text(NSLocalizedString("Contract_Show_Courier", comment: ""))
+                        }
+                        Toggle(isOn: $showItemExchangeContracts) {
+                            Text(NSLocalizedString("Contract_Show_ItemExchange", comment: ""))
+                        }
+                        Toggle(isOn: $showAuctionContracts) {
+                            Text(NSLocalizedString("Contract_Show_Auction", comment: ""))
+                        }
+                    }
+                }
+                .navigationTitle(NSLocalizedString("Contract_Settings", comment: ""))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(NSLocalizedString("Contract_Done", comment: "")) {
+                            showSettings = false
+                        }
+                    }
+                }
+            }
+        }
         .task(id: viewModel.showCorporationContracts) {
-            // 使用新的task来避免取消错误
             try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
             await viewModel.loadContractsData()
         }
+    }
+    
+    private var loadingView: some View {
+        Section {
+            HStack {
+                Spacer()
+                if let page = viewModel.currentLoadingPage {
+                    Text(NSLocalizedString("Loading_Page", comment: "") + " \(page)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+        }
+        .listSectionSpacing(.compact)
+    }
+    
+    private var emptyView: some View {
+        Section {
+            HStack {
+                Spacer()
+                VStack(spacing: 4) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 30))
+                        .foregroundColor(.gray)
+                    Text(NSLocalizedString("Orders_No_Data", comment: ""))
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                Spacer()
+            }
+        }
+        .listSectionSpacing(.compact)
     }
 }
 
