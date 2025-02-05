@@ -238,20 +238,18 @@ final class PersonalContractsViewModel: ObservableObject {
         // 标记为正在加载
         locationLoadingTasks.insert(locationId)
         
-        do {
-            let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
-            if let locationInfo = locationInfos[locationId] {
-                let name = locationInfo.solarSystemName
-                locationCache[locationId] = name
-                locationLoadingTasks.remove(locationId)
-                
-                // 当获取到新的地点名称时，触发UI更新
-                await updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
-                return name
-            }
+        let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
+        if let locationInfo = locationInfos[locationId] {
+            let name = locationInfo.solarSystemName
+            locationCache[locationId] = name
             locationLoadingTasks.remove(locationId)
-            return "Unknown"
+            
+            // 当获取到新的地点名称时，触发UI更新
+            updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
+            return name
         }
+        locationLoadingTasks.remove(locationId)
+        return "Unknown"
     }
     
     // 修改按路线分组合同的方法
