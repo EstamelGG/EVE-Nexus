@@ -1008,3 +1008,14 @@
 "Main_Planetary_Type_Lava" = "熔岩星球";
 "Main_Planetary_Type_Storm" = "风暴星球";
 "Main_Planetary_Type_Plasma" = "等离子星球";
+
+"Contract_Item_Singleton" = "唯一物品";
+"Contracts_Personal" = "个人合同";
+"Contracts_Corporation" = "军团合同";
+"Contract_Show_Finished" = "显示已完成合同";
+"Contract_Show_Courier" = "显示运输合同";
+"Contract_Show_ItemExchange" = "显示物品交换合同";
+"Contract_Show_Auction" = "显示拍卖合同";
+"Contract_Settings" = "合同设置";
+"Contract_Done" = "完成";
+"Loading_Page" = "正在加载第%d页";

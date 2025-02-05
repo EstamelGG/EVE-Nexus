@@ -984,3 +984,13 @@
 "Main_Planetary_Unknown_Type" = "Unknown Type";
 "Main_Planetary_Loading" = "Loading...";
 "Main_Planetary_Error" = "Loading Failed";
+
+"Contracts_Personal" = "Personal";
+"Contracts_Corporation" = "Corporation";
+"Contract_Show_Finished" = "Show Finished Contracts";
+"Contract_Show_Courier" = "Show Courier Contracts";
+"Contract_Show_ItemExchange" = "Show Item Exchange Contracts";
+"Contract_Show_Auction" = "Show Auction Contracts";
+"Contract_Settings" = "Contract Settings";
+"Contract_Done" = "Done";
+"Loading_Page" = "Loading Page %d";
