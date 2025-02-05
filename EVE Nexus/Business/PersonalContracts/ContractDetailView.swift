@@ -321,10 +321,10 @@ struct ContractDetailView: View {
                         }
                         
                         // 保证金（如果有）
-                        if contract.collateral > 0 {
+                        if contract.collateral ?? 0 > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
-                                Text("\(FormatUtil.format(contract.collateral)) ISK")
+                                Text("\(FormatUtil.format(contract.collateral ?? 0)) ISK")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

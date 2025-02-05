@@ -246,7 +246,7 @@ class CharacterContractsAPI {
                     assignee_id: assigneeId.map(Int.init),
                     availability: row["availability"] as? String ?? "",
                     buyout: row["buyout"] as? Double,
-                    collateral: row["collateral"] as? Double ?? 0.0,
+                    collateral: row["collateral"] as? Double,
                     contract_id: contractId,
                     date_accepted: dateAccepted,
                     date_completed: dateCompleted,
@@ -335,7 +335,7 @@ class CharacterContractsAPI {
                 contract.assignee_id ?? 0,
                 contract.availability,
                 contract.buyout ?? 0,
-                contract.collateral,
+                contract.collateral ?? 0,
                 dateAccepted,
                 dateCompleted,
                 dateFormatter.string(from: contract.date_expired),
@@ -739,7 +739,7 @@ struct ContractInfo: Codable, Identifiable, Hashable {
     let assignee_id: Int?
     let availability: String
     let buyout: Double?
-    let collateral: Double
+    let collateral: Double?
     let contract_id: Int
     let date_accepted: Date?
     let date_completed: Date?
