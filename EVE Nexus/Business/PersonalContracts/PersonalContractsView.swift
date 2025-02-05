@@ -588,7 +588,6 @@ struct PersonalContractsView: View {
             }
         }
         .task(id: viewModel.showCorporationContracts) {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
             await viewModel.loadContractsData()
         }
     }
