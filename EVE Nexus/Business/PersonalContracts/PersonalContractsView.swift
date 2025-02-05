@@ -87,16 +87,48 @@ final class PersonalContractsViewModel: ObservableObject {
         }
     }
     
+    private func updateContractGroups(with contracts: [ContractInfo]) async {
+        if courierMode {
+            // 快递模式：确保在主线程更新 UI
+            let groups = await groupContractsByRoute(contracts)
+            await MainActor.run {
+                self.contractGroups = groups
+            }
+        } else {
+            // 普通模式的分组逻辑
+            var groupedContracts: [Date: [ContractInfo]] = [:]
+            for contract in contracts {
+                let date = calendar.startOfDay(for: contract.date_issued)
+                if groupedContracts[date] == nil {
+                    groupedContracts[date] = []
+                }
+                groupedContracts[date]?.append(contract)
+            }
+            
+            // 创建分组并排序
+            let groups = groupedContracts.map { date, contracts in
+                ContractGroup(
+                    date: date,
+                    contracts: contracts.sorted { $0.date_issued > $1.date_issued }
+                )
+            }.sorted { $0.date > $1.date }
+            
+            await MainActor.run {
+                self.contractGroups = groups
+            }
+        }
+    }
+    
     private func loadContractsIfNeeded() async {
         // 取消之前的加载任务
         loadingTask?.cancel()
         
-        // 如果已经加载过且不是强制刷新，直接使用缓存
+        // 如果已经加载过且不是强制刷新，直接使用缓存并重新分组
         if showCorporationContracts && corporationContractsInitialized {
-            updateContractGroups(with: cachedCorporationContracts)
+            await updateContractGroups(with: cachedCorporationContracts)
             return
         } else if !showCorporationContracts && personalContractsInitialized {
-            updateContractGroups(with: cachedPersonalContracts)
+            await updateContractGroups(with: cachedPersonalContracts)
             return
         }
         
@@ -109,53 +141,14 @@ final class PersonalContractsViewModel: ObservableObject {
         await loadingTask?.value
     }
     
-    private func updateContractGroups(with contracts: [ContractInfo]) {
-        Task {
-            if courierMode {
-                self.contractGroups = await groupContractsByRoute(contracts)
-            } else {
-                // 按日期分组
-                var groupedContracts: [Date: [ContractInfo]] = [:]
-                for contract in contracts {
-                    let date = calendar.startOfDay(for: contract.date_issued)
-                    if groupedContracts[date] == nil {
-                        groupedContracts[date] = []
-                    }
-                    groupedContracts[date]?.append(contract)
-                }
-                
-                // 创建分组并排序
-                let groups = groupedContracts.map { date, contracts in
-                    ContractGroup(
-                        date: date,
-                        contracts: contracts.sorted { $0.date_issued > $1.date_issued },
-                        startLocation: nil,
-                        endLocation: nil
-                    )
-                }.sorted { $0.date > $1.date }
-                
-                self.contractGroups = groups
-            }
-        }
-    }
-    
     func loadContractsData(forceRefresh: Bool = false) async {
         if isLoading { return }
         
-        // 如果不是强制刷新，且数据已加载，则直接使用缓存
-        if !forceRefresh {
-            if showCorporationContracts && corporationContractsInitialized {
-                updateContractGroups(with: cachedCorporationContracts)
-                return
-            } else if !showCorporationContracts && personalContractsInitialized {
-                updateContractGroups(with: cachedPersonalContracts)
-                return
-            }
+        await MainActor.run { 
+            isLoading = true 
+            errorMessage = nil
+            currentLoadingPage = nil
         }
-        
-        isLoading = true
-        errorMessage = nil
-        currentLoadingPage = nil
         
         do {
             let contracts: [ContractInfo]
@@ -201,17 +194,23 @@ final class PersonalContractsViewModel: ObservableObject {
                 }
             }
             
-            updateContractGroups(with: contracts)
-            isLoading = false
-            currentLoadingPage = nil
+            await updateContractGroups(with: contracts)
+            await MainActor.run { 
+                isLoading = false
+                currentLoadingPage = nil 
+            }
             
         } catch {
             if !(error is CancellationError) {
-                self.errorMessage = error.localizedDescription
-                Logger.error("加载\(showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    Logger.error("加载\(self.showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
+                }
             }
-            self.isLoading = false
-            self.currentLoadingPage = nil
+            await MainActor.run { 
+                self.isLoading = false
+                self.currentLoadingPage = nil
+            }
         }
     }
     
@@ -245,7 +244,7 @@ final class PersonalContractsViewModel: ObservableObject {
             locationLoadingTasks.remove(locationId)
             
             // 当获取到新的地点名称时，触发UI更新
-            updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
+            await updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
             return name
         }
         locationLoadingTasks.remove(locationId)
