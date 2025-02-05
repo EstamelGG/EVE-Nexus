@@ -341,8 +341,7 @@ struct PersonalContractsView: View {
             // 快递模式：只显示未完成的快递合同
             let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
                 let filteredContracts = group.contracts.filter { contract in
-                    contract.type == "courier" && 
-                    !["finished", "finished_issuer", "finished_contractor", "cancelled", "deleted", "failed"].contains(contract.status)
+                    contract.type == "courier" && contract.status == "outstanding"
                 }
                 return filteredContracts.isEmpty ? nil : ContractGroup(
                     date: group.date,
