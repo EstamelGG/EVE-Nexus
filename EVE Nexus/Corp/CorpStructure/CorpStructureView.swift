@@ -48,6 +48,17 @@ struct CorpStructureView: View {
                 structureListView
             }
         }
+        .refreshable {
+            do {
+                try await viewModel.loadStructures(forceRefresh: true)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("刷新建筑信息失败: \(error)")
+                }
+            }
+        }
         .navigationTitle(NSLocalizedString("Corp_Structure_Title", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -107,17 +118,6 @@ struct CorpStructureView: View {
                             showSettings = false
                         }
                     }
-                }
-            }
-        }
-        .refreshable {
-            do {
-                try await viewModel.loadStructures(forceRefresh: true)
-            } catch {
-                if !(error is CancellationError) {
-                    self.error = error
-                    self.showError = true
-                    Logger.error("刷新建筑信息失败: \(error)")
                 }
             }
         }
