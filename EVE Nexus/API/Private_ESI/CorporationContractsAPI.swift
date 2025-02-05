@@ -288,9 +288,11 @@ class CorporationContractsAPI {
     
     // 保存合同列表到数据库
     private func saveContractsToDB(corporationId: Int, contracts: [ContractInfo]) -> Bool {
-        // 首先过滤只保存指定给自己公司的合同
-        let filteredContracts = contracts.filter { $0.assignee_id == corporationId }
-        Logger.debug("过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count)")
+        // 过滤只保存指定给自己公司且未删除的合同
+        let filteredContracts = contracts.filter { contract in
+            contract.assignee_id == corporationId && contract.status != "deleted"
+        }
+        Logger.debug("过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (已排除指定给其他公司和已删除的合同)")
         
         // 获取已存在的合同ID和状态
         let checkQuery = "SELECT contract_id, status FROM corporation_contracts WHERE corporation_id = ?"
@@ -514,15 +516,17 @@ class CorporationContractsAPI {
             if !saveContractsToDB(corporationId: corporationId, contracts: contracts) {
                 Logger.error("保存军团合同到数据库失败")
             }
-            // 直接返回过滤后的合同列表，不需要再次过滤，因为saveContractsToDB已经处理了过滤
-            let filteredContracts = contracts.filter { $0.assignee_id == corporationId }
-            Logger.debug("从服务器获取的合同数量: \(contracts.count)，过滤后数量: \(filteredContracts.count)")
+            // 过滤出指定给自己公司且未删除的合同
+            let filteredContracts = contracts.filter { contract in
+                contract.assignee_id == corporationId && contract.status != "deleted"
+            }
+            Logger.debug("从服务器获取的合同数量: \(contracts.count)，过滤后数量: \(filteredContracts.count) (已排除指定给其他公司和已删除的合同)")
             return filteredContracts
         }
         
         // 4. 从数据库获取数据并返回
         if let contracts = await getContractsFromDB(corporationId: corporationId) {
-            // 不需要再次过滤，因为数据库中已经只有指定给自己公司的合同
+            // 不需要再次过滤，因为数据库中已经只有指定给自己公司且未删除的合同
             return contracts
         }
         return []
