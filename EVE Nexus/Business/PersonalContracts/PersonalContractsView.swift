@@ -321,28 +321,50 @@ struct ContractRow: View {
         switch contract.type {
         case "item_exchange":
             // 物品交换合同
-            if isIssuer {
-                // 发布者显示收入
-                Text("+\(FormatUtil.format(contract.price)) ISK")
-                    .foregroundColor(.green)
-                    .font(.system(.caption, design: .monospaced))
+            if isCorpContract {
+                // 军团合同：发起人是自己则显示收入（绿色），否则显示支出（红色）
+                if contract.issuer_id == currentCharacterId {
+                    Text("+\(FormatUtil.format(contract.price)) ISK")
+                        .foregroundColor(.green)
+                        .font(.system(.caption, design: .monospaced))
+                } else {
+                    Text("-\(FormatUtil.format(contract.price)) ISK")
+                        .foregroundColor(.red)
+                        .font(.system(.caption, design: .monospaced))
+                }
             } else {
-                // 接收者显示支出
-                Text("-\(FormatUtil.format(contract.price)) ISK")
-                    .foregroundColor(.red)
-                    .font(.system(.caption, design: .monospaced))
+                // 个人合同：保持原有逻辑
+                if isIssuer {
+                    Text("+\(FormatUtil.format(contract.price)) ISK")
+                        .foregroundColor(.green)
+                        .font(.system(.caption, design: .monospaced))
+                } else {
+                    Text("-\(FormatUtil.format(contract.price)) ISK")
+                        .foregroundColor(.red)
+                        .font(.system(.caption, design: .monospaced))
+                }
             }
             
         case "courier":
             // 运输合同
-            VStack(alignment: .trailing, spacing: 2) {
-                if isIssuer {
-                    // 发布者显示支出（报酬）和收回（保证金）
+            if isCorpContract {
+                // 军团合同：发起人是自己则显示支出（红色），否则显示收入（绿色）
+                if contract.issuer_id == currentCharacterId {
                     Text("-\(FormatUtil.format(contract.reward)) ISK")
                         .foregroundColor(.red)
                         .font(.system(.caption, design: .monospaced))
                 } else {
-                    // 接收者显示收入（报酬）和冻结（保证金）
+                    Text("+\(FormatUtil.format(contract.reward)) ISK")
+                        .foregroundColor(.green)
+                        .font(.system(.caption, design: .monospaced))
+                }
+            } else {
+                // 个人合同：保持原有逻辑
+                if isIssuer {
+                    Text("-\(FormatUtil.format(contract.reward)) ISK")
+                        .foregroundColor(.red)
+                        .font(.system(.caption, design: .monospaced))
+                } else {
                     Text("+\(FormatUtil.format(contract.reward)) ISK")
                         .foregroundColor(.green)
                         .font(.system(.caption, design: .monospaced))
@@ -350,19 +372,16 @@ struct ContractRow: View {
             }
             
         case "auction":
-            // 拍卖合同
+            // 拍卖合同：保持原有逻辑
             if isIssuer {
-                // 发布者显示预期收入
                 Text("+\(FormatUtil.format(contract.price)) ISK")
                     .foregroundColor(.green)
                     .font(.system(.caption, design: .monospaced))
             } else if isAcceptor {
-                // 当前最高出价者显示可能支出
                 Text("-\(FormatUtil.format(contract.price)) ISK")
                     .foregroundColor(.red)
                     .font(.system(.caption, design: .monospaced))
             } else {
-                // 其他人显示当前价格
                 Text("\(FormatUtil.format(contract.price)) ISK")
                     .foregroundColor(.orange)
                     .font(.system(.caption, design: .monospaced))
