@@ -494,7 +494,8 @@ class CorporationContractsAPI {
         // 2. 检查数据库中是否有数据
         if !forceRefresh {
             if let contracts = await getContractsFromDB(corporationId: corporationId) {
-                return contracts
+                // 过滤只返回指定给自己公司的合同
+                return contracts.filter { $0.assignee_id == corporationId }
             }
         }
         
@@ -506,7 +507,8 @@ class CorporationContractsAPI {
             Logger.error("保存合同到数据库失败")
         }
         
-        return contracts
+        // 5. 过滤只返回指定给自己公司的合同
+        return contracts.filter { $0.assignee_id == corporationId }
     }
     
     // 获取合同物品（公开方法）
