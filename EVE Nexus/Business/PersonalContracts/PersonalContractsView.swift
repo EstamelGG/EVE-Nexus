@@ -199,12 +199,14 @@ struct PersonalContractsView: View {
     private var showCourierContractsKey: String { "showCourierContracts_\(viewModel.characterId)" }
     private var showItemExchangeContractsKey: String { "showItemExchangeContracts_\(viewModel.characterId)" }
     private var showAuctionContractsKey: String { "showAuctionContracts_\(viewModel.characterId)" }
+    private var maxContractsKey: String { "maxContracts_\(viewModel.characterId)" }
     
     // 使用@AppStorage并使用动态key
     @AppStorage("") private var showFinishedContracts: Bool = true
     @AppStorage("") private var showCourierContracts: Bool = true
     @AppStorage("") private var showItemExchangeContracts: Bool = true
     @AppStorage("") private var showAuctionContracts: Bool = true
+    @AppStorage("") private var maxContracts: Int = 300
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -222,6 +224,7 @@ struct PersonalContractsView: View {
         _showCourierContracts = AppStorage(wrappedValue: true, "showCourierContracts_\(characterId)")
         _showItemExchangeContracts = AppStorage(wrappedValue: true, "showItemExchangeContracts_\(characterId)")
         _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
+        _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(characterId)")
     }
     
     // 添加计算属性来获取过滤后的合同组
@@ -248,7 +251,6 @@ struct PersonalContractsView: View {
         // 计算所有合同的总数
         var totalContracts = 0
         var limitedGroups: [ContractGroup] = []
-        let maxContracts = 300
         // 遍历排序后的组，直到达到maxContracts个合同的限制
         for group in filteredGroups {
             let remainingSlots = maxContracts - totalContracts
@@ -305,15 +307,28 @@ struct PersonalContractsView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 if viewModel.hasCorporationAccess {
-                    Picker("Contract Type", selection: $viewModel.showCorporationContracts) {
-                        Text(NSLocalizedString("Contracts_Personal", comment: ""))
-                            .tag(false)
-                        Text(NSLocalizedString("Contracts_Corporation", comment: ""))
-                            .tag(true)
+                    VStack(spacing: 4) {
+                        Picker("Contract Type", selection: $viewModel.showCorporationContracts) {
+                            Text(NSLocalizedString("Contracts_Personal", comment: ""))
+                                .tag(false)
+                            Text(NSLocalizedString("Contracts_Corporation", comment: ""))
+                                .tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.top, 4)
+                        
+                        // 计算总合同数
+                        let totalCount = viewModel.contractGroups.reduce(0) { count, group in
+                            count + group.contracts.count
+                        }
+                        if totalCount > maxContracts {
+                            Text("超过设置的最大合同数，只展示前\(maxContracts)个")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
+                        }
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
-                    .padding(.vertical, 4)
                 }
             }
             .background(Color(.systemGroupedBackground))
@@ -345,6 +360,21 @@ struct PersonalContractsView: View {
                         Toggle(isOn: $showAuctionContracts) {
                             Text(NSLocalizedString("Contract_Show_Auction", comment: ""))
                         }
+                    }
+                    
+                    Section {
+                        Picker("最大显示数量", selection: $maxContracts) {
+                            Text("50个").tag(50)
+                            Text("100个").tag(100)
+                            Text("300个").tag(300)
+                            Text("500个").tag(500)
+                            Text("不限制（不建议）").tag(Int.max)
+                        }
+                        .pickerStyle(.navigationLink)
+                    } header: {
+                        Text("合同显示限制")
+                    } footer: {
+                        Text("设置过大的显示数量可能会影响应用性能")
                     }
                 }
                 .navigationTitle(NSLocalizedString("Contract_Settings", comment: ""))
