@@ -458,10 +458,10 @@ struct PersonalContractsView: View {
                             }
                             
                             let countText = activeCourierCount > maxContracts ? 
-                                "\(activeCourierCount)个待处理合同，仅显示前\(maxContracts)个" :
-                                "\(activeCourierCount)个待处理合同"
+                                String(format: NSLocalizedString("Contract_Courier_Active_Count_Limited", comment: ""), activeCourierCount, maxContracts) :
+                                String(format: NSLocalizedString("Contract_Courier_Active_Count", comment: ""), activeCourierCount)
                             
-                            (Text("(快递模式)").foregroundColor(.red) +
+                            (Text("(" + NSLocalizedString("Contract_Courier_Mode", comment: "") + ")").foregroundColor(.red) +
                              Text(" ") +
                              Text(countText).foregroundColor(.secondary))
                                 .font(.caption)
