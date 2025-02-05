@@ -1036,3 +1036,7 @@
 "Contract_Courier_Mode_Description" = "仅显示进行中的快递合同，按路线分组";
 "Contract_Route_Format" = "%@ → %@";
 "Contract_Show_Active_Only" = "仅显示未决合同";
+
+// Contract Courier Mode Text
+"Contract_Courier_Active_Count" = "%d个待处理合同";
+"Contract_Courier_Active_Count_Limited" = "%d个待处理合同，仅显示前%d个";
