@@ -224,27 +224,39 @@ struct PersonalContractsView: View {
         _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
     }
     
+    // 添加计算属性来获取过滤后的合同组
+    private var filteredContractGroups: [ContractGroup] {
+        let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
+            // 过滤每个组内的合同
+            let filteredContracts = group.contracts.filter { contract in
+                // 根据设置过滤合同
+                let showByType = (contract.type == "courier" && showCourierContracts) ||
+                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
+                               (contract.type == "auction" && showAuctionContracts)
+                
+                let showByStatus = showFinishedContracts || 
+                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                
+                return showByType && showByStatus
+            }
+            
+            // 如果过滤后该组没有合同，返回nil（这样compactMap会自动移除这个组）
+            return filteredContracts.isEmpty ? nil : ContractGroup(date: group.date, contracts: filteredContracts)
+        }
+        return filteredGroups
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             List {
                 if viewModel.isLoading {
                     loadingView
-                } else if viewModel.contractGroups.isEmpty {
+                } else if filteredContractGroups.isEmpty {
                     emptyView
                 } else {
-                    ForEach(viewModel.contractGroups) { group in
+                    ForEach(filteredContractGroups) { group in
                         Section {
-                            ForEach(group.contracts.filter { contract in
-                                // 根据设置过滤合同
-                                let showByType = (contract.type == "courier" && showCourierContracts) ||
-                                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
-                                               (contract.type == "auction" && showAuctionContracts)
-                                
-                                let showByStatus = showFinishedContracts || 
-                                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
-                                
-                                return showByType && showByStatus
-                            }) { contract in
+                            ForEach(group.contracts) { contract in
                                 ContractRow(
                                     contract: contract,
                                     isCorpContract: viewModel.showCorporationContracts,
