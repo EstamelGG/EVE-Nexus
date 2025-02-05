@@ -5,6 +5,15 @@ struct ContractGroup: Identifiable {
     let id = UUID()
     let date: Date
     var contracts: [ContractInfo]
+    let startLocation: String?
+    let endLocation: String?
+    
+    init(date: Date, contracts: [ContractInfo], startLocation: String? = nil, endLocation: String? = nil) {
+        self.date = date
+        self.contracts = contracts
+        self.startLocation = startLocation
+        self.endLocation = endLocation
+    }
 }
 
 @MainActor
@@ -23,6 +32,7 @@ final class PersonalContractsViewModel: ObservableObject {
         }
     }
     @Published var hasCorporationAccess = false
+    @Published var courierMode = false
     
     private var loadingTask: Task<Void, Never>?
     private var personalContractsInitialized = false
@@ -31,6 +41,9 @@ final class PersonalContractsViewModel: ObservableObject {
     private var cachedCorporationContracts: [ContractInfo] = []
     let characterId: Int
     let databaseManager: DatabaseManager
+    private lazy var locationLoader: LocationInfoLoader = {
+        LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
+    }()
     
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -38,12 +51,20 @@ final class PersonalContractsViewModel: ObservableObject {
         return calendar
     }()
     
+    // 添加路线缓存
+    private var locationCache: [Int64: String] = [:]
+    
     init(characterId: Int) {
         self.characterId = characterId
         self.databaseManager = DatabaseManager()
         // 初始化时检查军团访问权限
         Task {
             await checkCorporationAccess()
+        }
+        
+        // 从 UserDefaults 读取快递模式设置
+        if let courierModeSetting = UserDefaults.standard.value(forKey: "courierMode_\(characterId)") as? Bool {
+            self.courierMode = courierModeSetting
         }
     }
     
@@ -87,25 +108,33 @@ final class PersonalContractsViewModel: ObservableObject {
     }
     
     private func updateContractGroups(with contracts: [ContractInfo]) {
-        // 按日期分组
-        var groupedContracts: [Date: [ContractInfo]] = [:]
-        for contract in contracts {
-            let date = calendar.startOfDay(for: contract.date_issued)
-            if groupedContracts[date] == nil {
-                groupedContracts[date] = []
+        Task {
+            if courierMode {
+                self.contractGroups = await groupContractsByRoute(contracts)
+            } else {
+                // 按日期分组
+                var groupedContracts: [Date: [ContractInfo]] = [:]
+                for contract in contracts {
+                    let date = calendar.startOfDay(for: contract.date_issued)
+                    if groupedContracts[date] == nil {
+                        groupedContracts[date] = []
+                    }
+                    groupedContracts[date]?.append(contract)
+                }
+                
+                // 创建分组并排序
+                let groups = groupedContracts.map { date, contracts in
+                    ContractGroup(
+                        date: date,
+                        contracts: contracts.sorted { $0.date_issued > $1.date_issued },
+                        startLocation: nil,
+                        endLocation: nil
+                    )
+                }.sorted { $0.date > $1.date }
+                
+                self.contractGroups = groups
             }
-            groupedContracts[date]?.append(contract)
         }
-        
-        // 创建分组并排序
-        let groups = groupedContracts.map { date, contracts in
-            ContractGroup(
-                date: date,
-                contracts: contracts.sorted { $0.date_issued > $1.date_issued }
-            )
-        }.sorted { $0.date > $1.date }
-        
-        self.contractGroups = groups
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
@@ -187,6 +216,64 @@ final class PersonalContractsViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
+    
+    // 获取地点名称
+    private func getLocationName(_ locationId: Int64) async -> String {
+        if let cached = locationCache[locationId] {
+            return cached
+        }
+        
+        do {
+            let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
+            if let locationInfo = locationInfos[locationId] {
+                let name = locationInfo.stationName
+                locationCache[locationId] = name
+                return name
+            }
+            return "Unknown"
+        }
+    }
+    
+    // 按路线分组合同
+    private func groupContractsByRoute(_ contracts: [ContractInfo]) async -> [ContractGroup] {
+        // 按路线分组
+        var groupedContracts: [String: [ContractInfo]] = [:]
+        var routeNames: [String: (start: String, end: String)] = [:]
+        
+        // 第一步：收集所有合同并获取位置名称
+        for contract in contracts {
+            let startId = contract.start_location_id
+            let endId = contract.end_location_id
+            let routeKey = "\(startId)-\(endId)"
+            
+            if groupedContracts[routeKey] == nil {
+                groupedContracts[routeKey] = []
+                // 异步获取位置名称
+                let startName = await getLocationName(startId)
+                let endName = await getLocationName(endId)
+                routeNames[routeKey] = (start: startName, end: endName)
+            }
+            groupedContracts[routeKey]?.append(contract)
+        }
+        
+        // 第二步：创建分组
+        var result: [ContractGroup] = []
+        for (routeKey, contracts) in groupedContracts {
+            let sortedContracts = contracts.sorted { $0.reward > $1.reward }
+            if let first = sortedContracts.first,
+               let routeName = routeNames[routeKey] {
+                result.append(ContractGroup(
+                    date: first.date_issued,
+                    contracts: sortedContracts,
+                    startLocation: routeName.start,
+                    endLocation: routeName.end
+                ))
+            }
+        }
+        
+        // 第三步：按照奖励排序
+        return result.sorted { $0.contracts[0].reward > $1.contracts[0].reward }
+    }
 }
 
 struct PersonalContractsView: View {
@@ -207,6 +294,7 @@ struct PersonalContractsView: View {
     @AppStorage("") private var showItemExchangeContracts: Bool = true
     @AppStorage("") private var showAuctionContracts: Bool = true
     @AppStorage("") private var maxContracts: Int = 300
+    @AppStorage("") private var courierMode: Bool = false
     
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -225,52 +313,80 @@ struct PersonalContractsView: View {
         _showItemExchangeContracts = AppStorage(wrappedValue: true, "showItemExchangeContracts_\(characterId)")
         _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
         _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(characterId)")
+        _courierMode = AppStorage(wrappedValue: false, "courierMode_\(characterId)")
     }
     
-    // 添加计算属性来获取过滤后的合同组
+    // 修改过滤逻辑
     private var filteredContractGroups: [ContractGroup] {
-        // 先按照设置过滤合同
-        let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
-            // 过滤每个组内的合同
-            let filteredContracts = group.contracts.filter { contract in
-                // 根据设置过滤合同
-                let showByType = (contract.type == "courier" && showCourierContracts) ||
-                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
-                               (contract.type == "auction" && showAuctionContracts)
+        if courierMode {
+            // 快递模式：只显示未完成的快递合同
+            let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
+                let filteredContracts = group.contracts.filter { contract in
+                    contract.type == "courier" && 
+                    !["finished", "finished_issuer", "finished_contractor", "cancelled", "deleted", "failed"].contains(contract.status)
+                }
+                return filteredContracts.isEmpty ? nil : ContractGroup(
+                    date: group.date,
+                    contracts: filteredContracts,
+                    startLocation: group.startLocation,
+                    endLocation: group.endLocation
+                )
+            }
+            return filteredGroups
+        } else {
+            // 先按照设置过滤合同
+            let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
+                // 过滤每个组内的合同
+                let filteredContracts = group.contracts.filter { contract in
+                    // 根据设置过滤合同
+                    let showByType = (contract.type == "courier" && showCourierContracts) ||
+                                   (contract.type == "item_exchange" && showItemExchangeContracts) ||
+                                   (contract.type == "auction" && showAuctionContracts)
+                    
+                    let showByStatus = showFinishedContracts || 
+                                     !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                    
+                    return showByType && showByStatus
+                }
                 
-                let showByStatus = showFinishedContracts || 
-                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
-                
-                return showByType && showByStatus
+                // 如果过滤后该组没有合同，返回nil（这样compactMap会自动移除这个组）
+                return filteredContracts.isEmpty ? nil : ContractGroup(
+                    date: group.date,
+                    contracts: filteredContracts,
+                    startLocation: group.startLocation,
+                    endLocation: group.endLocation
+                )
+            }.sorted { $0.date > $1.date }
+
+            // 计算所有合同的总数
+            var totalContracts = 0
+            var limitedGroups: [ContractGroup] = []
+            // 遍历排序后的组，直到达到maxContracts个合同的限制
+            for group in filteredGroups {
+                let remainingSlots = maxContracts - totalContracts
+                if remainingSlots <= 0 {
+                    break
+                }
+
+                if totalContracts + group.contracts.count <= maxContracts {
+                    // 如果添加整个组不会超过限制，直接添加
+                    limitedGroups.append(group)
+                    totalContracts += group.contracts.count
+                } else {
+                    // 如果添加整个组会超过限制，只添加部分合同
+                    let limitedContracts = Array(group.contracts.prefix(remainingSlots))
+                    limitedGroups.append(ContractGroup(
+                        date: group.date,
+                        contracts: limitedContracts,
+                        startLocation: group.startLocation,
+                        endLocation: group.endLocation
+                    ))
+                    break
+                }
             }
             
-            // 如果过滤后该组没有合同，返回nil（这样compactMap会自动移除这个组）
-            return filteredContracts.isEmpty ? nil : ContractGroup(date: group.date, contracts: filteredContracts)
-        }.sorted { $0.date > $1.date }
-
-        // 计算所有合同的总数
-        var totalContracts = 0
-        var limitedGroups: [ContractGroup] = []
-        // 遍历排序后的组，直到达到maxContracts个合同的限制
-        for group in filteredGroups {
-            let remainingSlots = maxContracts - totalContracts
-            if remainingSlots <= 0 {
-                break
-            }
-
-            if totalContracts + group.contracts.count <= maxContracts {
-                // 如果添加整个组不会超过限制，直接添加
-                limitedGroups.append(group)
-                totalContracts += group.contracts.count
-            } else {
-                // 如果添加整个组会超过限制，只添加部分合同
-                let limitedContracts = Array(group.contracts.prefix(remainingSlots))
-                limitedGroups.append(ContractGroup(date: group.date, contracts: limitedContracts))
-                break
-            }
+            return limitedGroups
         }
-        
-        return limitedGroups
     }
     
     var body: some View {
@@ -291,10 +407,19 @@ struct PersonalContractsView: View {
                                 )
                             }
                         } header: {
-                            Text(displayDateFormatter.string(from: group.date))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                                .textCase(nil)
+                            if courierMode {
+                                if let start = group.startLocation, let end = group.endLocation {
+                                    Text(String(format: NSLocalizedString("Contract_Route_Format", comment: ""), start, end))
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+                                        .textCase(nil)
+                                }
+                            } else {
+                                Text(displayDateFormatter.string(from: group.date))
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                    .textCase(nil)
+                            }
                         }
                     }
                 }
@@ -360,17 +485,30 @@ struct PersonalContractsView: View {
             NavigationView {
                 Form {
                     Section {
-                        Toggle(isOn: $showFinishedContracts) {
-                            Text(NSLocalizedString("Contract_Show_Finished", comment: ""))
+                        Toggle(isOn: $courierMode) {
+                            VStack(alignment: .leading) {
+                                Text(NSLocalizedString("Contract_Courier_Mode", comment: ""))
+                                Text(NSLocalizedString("Contract_Courier_Mode_Description", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
-                        Toggle(isOn: $showCourierContracts) {
-                            Text(NSLocalizedString("Contract_Show_Courier", comment: ""))
-                        }
-                        Toggle(isOn: $showItemExchangeContracts) {
-                            Text(NSLocalizedString("Contract_Show_ItemExchange", comment: ""))
-                        }
-                        Toggle(isOn: $showAuctionContracts) {
-                            Text(NSLocalizedString("Contract_Show_Auction", comment: ""))
+                    }
+                    
+                    if !courierMode {
+                        Section {
+                            Toggle(isOn: $showFinishedContracts) {
+                                Text(NSLocalizedString("Contract_Show_Finished", comment: ""))
+                            }
+                            Toggle(isOn: $showCourierContracts) {
+                                Text(NSLocalizedString("Contract_Show_Courier", comment: ""))
+                            }
+                            Toggle(isOn: $showItemExchangeContracts) {
+                                Text(NSLocalizedString("Contract_Show_ItemExchange", comment: ""))
+                            }
+                            Toggle(isOn: $showAuctionContracts) {
+                                Text(NSLocalizedString("Contract_Show_Auction", comment: ""))
+                            }
                         }
                     }
                     

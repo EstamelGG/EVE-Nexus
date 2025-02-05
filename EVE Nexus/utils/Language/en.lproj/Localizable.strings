@@ -1006,3 +1006,7 @@
 "Contract_Display_300" = "300 contracts";
 "Contract_Display_500" = "500 contracts";
 "Contract_Display_Unlimited" = "Unlimited (Not Recommended)";
+
+"Contract_Courier_Mode" = "Courier Mode";
+"Contract_Courier_Mode_Description" = "Only show active courier contracts, grouped by route";
+"Contract_Route_Format" = "%@ → %@";

@@ -1031,3 +1031,7 @@
 "Contract_Display_300" = "300个";
 "Contract_Display_500" = "500个";
 "Contract_Display_Unlimited" = "不限制（不建议）";
+
+"Contract_Courier_Mode" = "快递模式";
+"Contract_Courier_Mode_Description" = "仅显示进行中的快递合同，按路线分组";
+"Contract_Route_Format" = "%@ → %@";
