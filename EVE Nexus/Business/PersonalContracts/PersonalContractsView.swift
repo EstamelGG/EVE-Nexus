@@ -318,17 +318,35 @@ struct PersonalContractsView: View {
                         .padding(.horizontal)
                         .padding(.top, 4)
                         
-                        // 计算总合同数
+                        // 计算总合同数和过滤后的合同数
                         let totalCount = viewModel.contractGroups.reduce(0) { count, group in
                             count + group.contracts.count
                         }
-                        if totalCount > maxContracts {
-                            Text("超过设置的最大合同数，只展示前\(maxContracts)个")
+                        let filteredCount = viewModel.contractGroups.reduce(0) { count, group in
+                            count + group.contracts.filter { contract in
+                                let showByType = (contract.type == "courier" && showCourierContracts) ||
+                                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
+                                               (contract.type == "auction" && showAuctionContracts)
+                                
+                                let showByStatus = showFinishedContracts || 
+                                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                                
+                                return showByType && showByStatus
+                            }.count
+                        }
+                        
+                        if filteredCount > maxContracts {
+                            Text("共\(totalCount)个合同，过滤后剩余\(filteredCount)个，仅显示前\(maxContracts)个")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
+                        } else if filteredCount < totalCount {
+                            Text("共\(totalCount)个合同，过滤后剩余\(filteredCount)个")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
                         } else {
-                            Text("找到\(totalCount)个合同")
+                            Text("共\(totalCount)个合同")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)

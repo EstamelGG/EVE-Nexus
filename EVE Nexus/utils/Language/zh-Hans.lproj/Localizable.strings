@@ -681,7 +681,7 @@
 "Main_Skills_Plan_Name" = "计划名称";
 "Main_Skills_Plan_Skills" = "个技能";
 "Main_Skills_Plan_Total_Time" = "总训练时间";
-"Main_Skills_Plan_Total_SP" = "总技能点数";
+"Main_Skills_Plan_Total_SP" = "所需技能点数";
 "Main_Skills_Plan_Set_Public" = "设为公共计划";
 "Main_Skills_Plan_Public" = "公共计划";
 "Main_Skills_Plan_Private" = "私人计划";
