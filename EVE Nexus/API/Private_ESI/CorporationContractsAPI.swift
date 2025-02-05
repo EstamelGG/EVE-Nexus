@@ -142,7 +142,7 @@ class CorporationContractsAPI {
     private func getContractsFromDB(corporationId: Int) async -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
-                   collateral, date_accepted, date_completed, date_expired,
+                   buyout, collateral, date_accepted, date_completed, date_expired,
                    date_issued, days_to_complete, end_location_id,
                    for_corporation, issuer_corporation_id, issuer_id,
                    price, reward, start_location_id, status, title,
@@ -256,6 +256,7 @@ class CorporationContractsAPI {
                     acceptor_id: acceptorId,
                     assignee_id: assigneeId,
                     availability: row["availability"] as? String ?? "",
+                    buyout: row["buyout"] as? Double,
                     collateral: row["collateral"] as? Double ?? 0.0,
                     contract_id: contractId,
                     date_accepted: dateAccepted,
@@ -310,12 +311,12 @@ class CorporationContractsAPI {
         let insertSQL = """
             INSERT OR REPLACE INTO corporation_contracts (
                 contract_id, corporation_id, status, acceptor_id, assignee_id,
-                availability, collateral, date_accepted, date_completed,
+                availability, buyout, collateral, date_accepted, date_completed,
                 date_expired, date_issued, days_to_complete,
                 end_location_id, for_corporation, issuer_corporation_id,
                 issuer_id, price, reward, start_location_id,
                 title, type, volume, items_fetched
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         for contract in contracts {
@@ -344,6 +345,7 @@ class CorporationContractsAPI {
                 contract.acceptor_id ?? 0,
                 contract.assignee_id ?? 0,
                 contract.availability,
+                contract.buyout ?? 0,
                 contract.collateral,
                 dateAccepted,
                 dateCompleted,

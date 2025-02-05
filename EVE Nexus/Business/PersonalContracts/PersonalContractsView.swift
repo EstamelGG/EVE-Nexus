@@ -14,6 +14,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var showCorporationContracts = false
+    @Published var hasCorporationAccess = false
     
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
@@ -27,6 +28,27 @@ final class PersonalContractsViewModel: ObservableObject {
     
     init(characterId: Int) {
         self.characterId = characterId
+        // 初始化时检查军团访问权限
+        Task {
+            await checkCorporationAccess()
+        }
+    }
+    
+    // 检查是否有军团合同访问权限
+    private func checkCorporationAccess() async {
+        do {
+            if let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) {
+                // 如果能获取到军团ID，说明有访问权限
+                hasCorporationAccess = true
+            } else {
+                hasCorporationAccess = false
+                showCorporationContracts = false
+            }
+        } catch {
+            Logger.error("检查军团访问权限失败: \(error)")
+            hasCorporationAccess = false
+            showCorporationContracts = false
+        }
     }
     
     func loadContractsData(forceRefresh: Bool = false) async {
@@ -151,15 +173,17 @@ struct PersonalContractsView: View {
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
-                Picker("Contract Type", selection: $viewModel.showCorporationContracts) {
-                    Text(NSLocalizedString("Contracts_Personal", comment: ""))
-                        .tag(false)
-                    Text(NSLocalizedString("Contracts_Corporation", comment: ""))
-                        .tag(true)
+                if viewModel.hasCorporationAccess {
+                    Picker("Contract Type", selection: $viewModel.showCorporationContracts) {
+                        Text(NSLocalizedString("Contracts_Personal", comment: ""))
+                            .tag(false)
+                        Text(NSLocalizedString("Contracts_Corporation", comment: ""))
+                            .tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 4)
             }
             .background(Color(.systemGroupedBackground))
         }

@@ -123,7 +123,7 @@ class CharacterContractsAPI {
     private func getContractsFromDBSync(characterId: Int) -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
-                   collateral, date_accepted, date_completed, date_expired,
+                   buyout, collateral, date_accepted, date_completed, date_expired,
                    date_issued, days_to_complete, end_location_id,
                    for_corporation, issuer_corporation_id, issuer_id,
                    price, reward, start_location_id, status, title,
@@ -245,6 +245,7 @@ class CharacterContractsAPI {
                     acceptor_id: acceptorId.map(Int.init),
                     assignee_id: assigneeId.map(Int.init),
                     availability: row["availability"] as? String ?? "",
+                    buyout: row["buyout"] as? Double,
                     collateral: row["collateral"] as? Double ?? 0.0,
                     contract_id: contractId,
                     date_accepted: dateAccepted,
@@ -299,12 +300,12 @@ class CharacterContractsAPI {
         let insertSQL = """
             INSERT OR REPLACE INTO contracts (
                 contract_id, character_id, status, acceptor_id, assignee_id,
-                availability, collateral, date_accepted, date_completed,
+                availability, buyout, collateral, date_accepted, date_completed,
                 date_expired, date_issued, days_to_complete,
                 end_location_id, for_corporation, issuer_corporation_id,
                 issuer_id, price, reward, start_location_id,
                 title, type, volume, items_fetched
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         for contract in contracts {
@@ -333,6 +334,7 @@ class CharacterContractsAPI {
                 contract.acceptor_id ?? 0,
                 contract.assignee_id ?? 0,
                 contract.availability,
+                contract.buyout ?? 0,
                 contract.collateral,
                 dateAccepted,
                 dateCompleted,
@@ -736,6 +738,7 @@ struct ContractInfo: Codable, Identifiable, Hashable {
     let acceptor_id: Int?
     let assignee_id: Int?
     let availability: String
+    let buyout: Double?
     let collateral: Double
     let contract_id: Int
     let date_accepted: Date?
