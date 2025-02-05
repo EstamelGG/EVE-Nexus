@@ -327,22 +327,16 @@ struct PersonalContractsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
+                        } else {
+                            Text("找到\(totalCount)个合同")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
                         }
                     }
                 }
             }
             .background(Color(.systemGroupedBackground))
-        }
-        .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showSettings = true
-                }) {
-                    Image(systemName: "gear")
-                }
-            }
         }
         .sheet(isPresented: $showSettings) {
             NavigationView {
@@ -385,6 +379,17 @@ struct PersonalContractsView: View {
                             showSettings = false
                         }
                     }
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showSettings = true
+                }) {
+                    Image(systemName: "gear")
                 }
             }
         }
