@@ -130,25 +130,44 @@ final class PersonalContractsViewModel: ObservableObject {
             let contracts: [ContractInfo]
             if showCorporationContracts {
                 // 获取军团合同
-                contracts = try await CorporationContractsAPI.shared.fetchContracts(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh,
-                    progressCallback: { page in
-                        Task { @MainActor in
-                            self.currentLoadingPage = page
+                do {
+                    contracts = try await CorporationContractsAPI.shared.fetchContracts(
+                        characterId: characterId,
+                        forceRefresh: forceRefresh,
+                        progressCallback: { page in
+                            Task { @MainActor in
+                                self.currentLoadingPage = page
+                            }
                         }
-                    }
-                )
-                cachedCorporationContracts = contracts
-                corporationContractsInitialized = true
+                    )
+                    cachedCorporationContracts = contracts
+                    corporationContractsInitialized = true
+                } catch is CancellationError {
+                    // 如果是取消操作，不显示错误
+                    isLoading = false
+                    currentLoadingPage = nil
+                    return
+                }
             } else {
                 // 获取个人合同
-                contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh
-                )
-                cachedPersonalContracts = contracts
-                personalContractsInitialized = true
+                do {
+                    contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                        characterId: characterId,
+                        forceRefresh: forceRefresh,
+                        progressCallback: { page in
+                            Task { @MainActor in
+                                self.currentLoadingPage = page
+                            }
+                        }
+                    )
+                    cachedPersonalContracts = contracts
+                    personalContractsInitialized = true
+                } catch is CancellationError {
+                    // 如果是取消操作，不显示错误
+                    isLoading = false
+                    currentLoadingPage = nil
+                    return
+                }
             }
             
             updateContractGroups(with: contracts)
@@ -156,10 +175,12 @@ final class PersonalContractsViewModel: ObservableObject {
             currentLoadingPage = nil
             
         } catch {
-            self.errorMessage = error.localizedDescription
+            if !(error is CancellationError) {
+                self.errorMessage = error.localizedDescription
+                Logger.error("加载\(showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
+            }
             self.isLoading = false
             self.currentLoadingPage = nil
-            Logger.error("加载\(showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
         }
     }
     
@@ -258,13 +279,10 @@ struct PersonalContractsView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .task(id: viewModel.showCorporationContracts) {
+            // 使用新的task来避免取消错误
+            try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
             await viewModel.loadContractsData()
-        }
-        .onChange(of: viewModel.showCorporationContracts) { _, _ in
-            Task {
-                await viewModel.loadContractsData()
-            }
         }
     }
 }
