@@ -282,14 +282,14 @@ struct PersonalContractsView: View {
     @State private var showSettings = false
     
     // 使用计算属性来获取和设置带有角色ID的AppStorage键
-    private var showFinishedContractsKey: String { "showFinishedContracts_\(viewModel.characterId)" }
+    private var showActiveOnlyKey: String { "showActiveOnly_\(viewModel.characterId)" }
     private var showCourierContractsKey: String { "showCourierContracts_\(viewModel.characterId)" }
     private var showItemExchangeContractsKey: String { "showItemExchangeContracts_\(viewModel.characterId)" }
     private var showAuctionContractsKey: String { "showAuctionContracts_\(viewModel.characterId)" }
     private var maxContractsKey: String { "maxContracts_\(viewModel.characterId)" }
     
     // 使用@AppStorage并使用动态key
-    @AppStorage("") private var showFinishedContracts: Bool = true
+    @AppStorage("") private var showActiveOnly: Bool = false
     @AppStorage("") private var showCourierContracts: Bool = true
     @AppStorage("") private var showItemExchangeContracts: Bool = true
     @AppStorage("") private var showAuctionContracts: Bool = true
@@ -308,7 +308,7 @@ struct PersonalContractsView: View {
         _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
         
         // 初始化@AppStorage的key
-        _showFinishedContracts = AppStorage(wrappedValue: true, "showFinishedContracts_\(characterId)")
+        _showActiveOnly = AppStorage(wrappedValue: false, "showActiveOnly_\(characterId)")
         _showCourierContracts = AppStorage(wrappedValue: true, "showCourierContracts_\(characterId)")
         _showItemExchangeContracts = AppStorage(wrappedValue: true, "showItemExchangeContracts_\(characterId)")
         _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
@@ -343,8 +343,8 @@ struct PersonalContractsView: View {
                                    (contract.type == "item_exchange" && showItemExchangeContracts) ||
                                    (contract.type == "auction" && showAuctionContracts)
                     
-                    let showByStatus = showFinishedContracts || 
-                                     !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                    let showByStatus = !showActiveOnly || 
+                                     contract.status == "outstanding"
                     
                     return showByType && showByStatus
                 }
@@ -452,8 +452,7 @@ struct PersonalContractsView: View {
                             // 计算活跃的快递合同数量
                             let activeCourierCount = viewModel.contractGroups.reduce(0) { count, group in
                                 count + group.contracts.filter { contract in
-                                    contract.type == "courier" && 
-                                    !["finished", "finished_issuer", "finished_contractor", "cancelled", "deleted", "failed"].contains(contract.status)
+                                    contract.type == "courier" && contract.status == "outstanding"
                                 }.count
                             }
                             
@@ -473,8 +472,8 @@ struct PersonalContractsView: View {
                                                    (contract.type == "item_exchange" && showItemExchangeContracts) ||
                                                    (contract.type == "auction" && showAuctionContracts)
                                     
-                                    let showByStatus = showFinishedContracts || 
-                                                     !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                                    let showByStatus = !showActiveOnly || 
+                                                     contract.status == "outstanding"
                                     
                                     return showByType && showByStatus
                                 }.count
@@ -518,8 +517,8 @@ struct PersonalContractsView: View {
                     
                     if !courierMode {
                         Section {
-                            Toggle(isOn: $showFinishedContracts) {
-                                Text(NSLocalizedString("Contract_Show_Finished", comment: ""))
+                            Toggle(isOn: $showActiveOnly) {
+                                Text(NSLocalizedString("Contract_Show_Active_Only", comment: ""))
                             }
                             Toggle(isOn: $showCourierContracts) {
                                 Text(NSLocalizedString("Contract_Show_Courier", comment: ""))

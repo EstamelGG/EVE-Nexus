@@ -360,7 +360,7 @@
 "Contract_Type_unknown" = "未知";
 
 // Contract Status
-"Contract_Status_outstanding" = "待处理";
+"Contract_Status_outstanding" = "未决";
 "Contract_Status_in_progress" = "进行中";
 "Contract_Status_finished_issuer" = "已完成(发布方)";
 "Contract_Status_finished_contractor" = "已完成(承包方)";
@@ -1035,3 +1035,4 @@
 "Contract_Courier_Mode" = "快递模式";
 "Contract_Courier_Mode_Description" = "仅显示进行中的快递合同，按路线分组";
 "Contract_Route_Format" = "%@ → %@";
+"Contract_Show_Active_Only" = "仅显示未决合同";

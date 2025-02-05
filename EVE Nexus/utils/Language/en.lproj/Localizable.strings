@@ -1014,3 +1014,6 @@
 // Contract Courier Mode Text
 "Contract_Courier_Active_Count" = "%d active contracts";
 "Contract_Courier_Active_Count_Limited" = "%d active contracts, showing first %d";
+
+// Contract Settings
+"Contract_Show_Active_Only" = "Show Active Contracts Only";
