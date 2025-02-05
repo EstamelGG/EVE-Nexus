@@ -1019,3 +1019,15 @@
 "Contract_Settings" = "合同设置";
 "Contract_Done" = "完成";
 "Loading_Page" = "正在加载第%d页";
+
+"Contract_Total_Count" = "共%d个合同";
+"Contract_Filtered_Count" = "共%d个合同，过滤后剩余%d个";
+"Contract_Filtered_Limited" = "共%d个合同，过滤后剩余%d个，仅显示前%d个";
+"Contract_Max_Display" = "最大显示数量";
+"Contract_Display_Limit" = "合同显示限制";
+"Contract_Display_Limit_Warning" = "设置过大的显示数量可能会影响应用性能";
+"Contract_Display_50" = "50个";
+"Contract_Display_100" = "100个";
+"Contract_Display_300" = "300个";
+"Contract_Display_500" = "500个";
+"Contract_Display_Unlimited" = "不限制（不建议）";

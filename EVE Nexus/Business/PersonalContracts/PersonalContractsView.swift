@@ -336,17 +336,17 @@ struct PersonalContractsView: View {
                         }
                         
                         if filteredCount > maxContracts {
-                            Text("共\(totalCount)个合同，过滤后剩余\(filteredCount)个，仅显示前\(maxContracts)个")
+                            Text(String(format: NSLocalizedString("Contract_Filtered_Limited", comment: ""), totalCount, filteredCount, maxContracts))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
                         } else if filteredCount < totalCount {
-                            Text("共\(totalCount)个合同，过滤后剩余\(filteredCount)个")
+                            Text(String(format: NSLocalizedString("Contract_Filtered_Count", comment: ""), totalCount, filteredCount))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
                         } else {
-                            Text("共\(totalCount)个合同")
+                            Text(String(format: NSLocalizedString("Contract_Total_Count", comment: ""), totalCount))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
@@ -375,18 +375,18 @@ struct PersonalContractsView: View {
                     }
                     
                     Section {
-                        Picker("最大显示数量", selection: $maxContracts) {
-                            Text("50个").tag(50)
-                            Text("100个").tag(100)
-                            Text("300个").tag(300)
-                            Text("500个").tag(500)
-                            Text("不限制（不建议）").tag(Int.max)
+                        Picker(NSLocalizedString("Contract_Max_Display", comment: ""), selection: $maxContracts) {
+                            Text(NSLocalizedString("Contract_Display_50", comment: "")).tag(50)
+                            Text(NSLocalizedString("Contract_Display_100", comment: "")).tag(100)
+                            Text(NSLocalizedString("Contract_Display_300", comment: "")).tag(300)
+                            Text(NSLocalizedString("Contract_Display_500", comment: "")).tag(500)
+                            Text(NSLocalizedString("Contract_Display_Unlimited", comment: "")).tag(Int.max)
                         }
                         .pickerStyle(.navigationLink)
                     } header: {
-                        Text("合同显示限制")
+                        Text(NSLocalizedString("Contract_Display_Limit", comment: ""))
                     } footer: {
-                        Text("设置过大的显示数量可能会影响应用性能")
+                        Text(NSLocalizedString("Contract_Display_Limit_Warning", comment: ""))
                     }
                 }
                 .navigationTitle(NSLocalizedString("Contract_Settings", comment: ""))

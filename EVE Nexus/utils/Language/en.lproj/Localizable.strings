@@ -994,3 +994,15 @@
 "Contract_Settings" = "Contract Settings";
 "Contract_Done" = "Done";
 "Loading_Page" = "Loading Page %d";
+
+"Contract_Total_Count" = "Total %d contracts";
+"Contract_Filtered_Count" = "%d contracts, %d after filter";
+"Contract_Filtered_Limited" = "%d contracts, %d filtered, showing %d";
+"Contract_Max_Display" = "Maximum Display";
+"Contract_Display_Limit" = "Contract Display Limit";
+"Contract_Display_Limit_Warning" = "Setting a large display limit may affect app performance";
+"Contract_Display_50" = "50 contracts";
+"Contract_Display_100" = "100 contracts";
+"Contract_Display_300" = "300 contracts";
+"Contract_Display_500" = "500 contracts";
+"Contract_Display_Unlimited" = "Unlimited (Not Recommended)";
