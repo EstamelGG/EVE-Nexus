@@ -226,6 +226,7 @@ struct PersonalContractsView: View {
     
     // 添加计算属性来获取过滤后的合同组
     private var filteredContractGroups: [ContractGroup] {
+        // 先按照设置过滤合同
         let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
             // 过滤每个组内的合同
             let filteredContracts = group.contracts.filter { contract in
@@ -242,8 +243,32 @@ struct PersonalContractsView: View {
             
             // 如果过滤后该组没有合同，返回nil（这样compactMap会自动移除这个组）
             return filteredContracts.isEmpty ? nil : ContractGroup(date: group.date, contracts: filteredContracts)
+        }.sorted { $0.date > $1.date }
+
+        // 计算所有合同的总数
+        var totalContracts = 0
+        var limitedGroups: [ContractGroup] = []
+        let maxContracts = 300
+        // 遍历排序后的组，直到达到maxContracts个合同的限制
+        for group in filteredGroups {
+            let remainingSlots = maxContracts - totalContracts
+            if remainingSlots <= 0 {
+                break
+            }
+
+            if totalContracts + group.contracts.count <= maxContracts {
+                // 如果添加整个组不会超过限制，直接添加
+                limitedGroups.append(group)
+                totalContracts += group.contracts.count
+            } else {
+                // 如果添加整个组会超过限制，只添加部分合同
+                let limitedContracts = Array(group.contracts.prefix(remainingSlots))
+                limitedGroups.append(ContractGroup(date: group.date, contracts: limitedContracts))
+                break
+            }
         }
-        return filteredGroups
+        
+        return limitedGroups
     }
     
     var body: some View {
