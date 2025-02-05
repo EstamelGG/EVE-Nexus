@@ -581,7 +581,7 @@ struct PersonalContractsView: View {
             HStack {
                 Spacer()
                 if let page = viewModel.currentLoadingPage {
-                    Text(NSLocalizedString("Loading_Page", comment: "") + " \(page)")
+                    Text(String(format: NSLocalizedString("Loading_Page", comment: "") ,page))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
