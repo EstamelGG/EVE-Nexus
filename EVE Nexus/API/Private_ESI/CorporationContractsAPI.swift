@@ -493,23 +493,33 @@ class CorporationContractsAPI {
         }
         
         // 2. 检查数据库中是否有数据
-        if !forceRefresh {
-            if let contracts = await getContractsFromDB(corporationId: corporationId) {
-                // 过滤只返回指定给自己公司的合同
-                return contracts.filter { $0.assignee_id == corporationId }
+        let checkQuery = "SELECT COUNT(*) as count FROM corporation_contracts WHERE corporation_id = ?"
+        let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [corporationId])
+        let isEmpty = if case .success(let rows) = result,
+                        let row = rows.first,
+                        let count = row["count"] as? Int64 {
+            count == 0
+        } else {
+            true
+        }
+        
+        // 3. 如果数据为空或强制刷新，则从网络获取
+        if isEmpty || forceRefresh {
+            Logger.debug("军团合同数据为空或强制刷新，从网络获取数据")
+            let contracts = try await fetchContractsFromServer(corporationId: corporationId, characterId: characterId, progressCallback: progressCallback)
+            if !saveContractsToDB(corporationId: corporationId, contracts: contracts) {
+                Logger.error("保存军团合同到数据库失败")
             }
+            // 过滤只返回指定给自己公司的合同
+            return contracts.filter { $0.assignee_id == corporationId }
         }
         
-        // 3. 从服务器获取数据
-        let contracts = try await fetchContractsFromServer(corporationId: corporationId, characterId: characterId, progressCallback: progressCallback)
-        
-        // 4. 保存到数据库
-        if !saveContractsToDB(corporationId: corporationId, contracts: contracts) {
-            Logger.error("保存合同到数据库失败")
+        // 4. 从数据库获取数据并返回
+        if let contracts = await getContractsFromDB(corporationId: corporationId) {
+            // 过滤只返回指定给自己公司的合同
+            return contracts.filter { $0.assignee_id == corporationId }
         }
-        
-        // 5. 过滤只返回指定给自己公司的合同
-        return contracts.filter { $0.assignee_id == corporationId }
+        return []
     }
     
     // 获取合同物品（公开方法）

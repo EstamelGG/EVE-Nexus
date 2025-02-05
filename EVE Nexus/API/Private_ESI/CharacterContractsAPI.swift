@@ -487,7 +487,7 @@ class CharacterContractsAPI {
     }
     
     // 获取合同列表（公开方法）
-    public func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
+    public func fetchContracts(characterId: Int, forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil) async throws -> [ContractInfo] {
         // 检查数据库中是否有数据
         let checkQuery = "SELECT COUNT(*) as count FROM contracts WHERE character_id = ?"
         let result = CharacterDatabaseManager.shared.executeQuery(checkQuery, parameters: [characterId])
@@ -502,10 +502,11 @@ class CharacterContractsAPI {
         // 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
             Logger.debug("合同数据为空或强制刷新，从网络获取数据")
-            let contracts = try await fetchContractsFromServer(characterId: characterId)
+            let contracts = try await fetchContractsFromServer(characterId: characterId, progressCallback: progressCallback)
             if !saveContractsToDB(characterId: characterId, contracts: contracts) {
                 Logger.error("保存合同到数据库失败")
             }
+            return contracts
         }
         
         // 从数据库获取数据并返回
@@ -578,13 +579,15 @@ class CharacterContractsAPI {
         return items
     }
     
-    private func fetchContractsFromServer(characterId: Int) async throws -> [ContractInfo] {
+    // 从服务器获取合同列表
+    private func fetchContractsFromServer(characterId: Int, progressCallback: ((Int) -> Void)? = nil) async throws -> [ContractInfo] {
         var allContracts: [ContractInfo] = []
         var currentPage = 1
         var shouldContinue = true
         
         while shouldContinue {
             do {
+                progressCallback?(currentPage)
                 let pageContracts = try await fetchContractsPage(characterId: characterId, page: currentPage)
                 if pageContracts.isEmpty {
                     shouldContinue = false
