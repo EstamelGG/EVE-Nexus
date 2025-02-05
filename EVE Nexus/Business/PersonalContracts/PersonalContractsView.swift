@@ -226,7 +226,7 @@ final class PersonalContractsViewModel: ObservableObject {
         do {
             let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
             if let locationInfo = locationInfos[locationId] {
-                let name = locationInfo.stationName
+                let name = locationInfo.solarSystemName
                 locationCache[locationId] = name
                 return name
             }
@@ -447,34 +447,55 @@ struct PersonalContractsView: View {
                         let totalCount = viewModel.contractGroups.reduce(0) { count, group in
                             count + group.contracts.count
                         }
-                        let filteredCount = viewModel.contractGroups.reduce(0) { count, group in
-                            count + group.contracts.filter { contract in
-                                let showByType = (contract.type == "courier" && showCourierContracts) ||
-                                               (contract.type == "item_exchange" && showItemExchangeContracts) ||
-                                               (contract.type == "auction" && showAuctionContracts)
-                                
-                                let showByStatus = showFinishedContracts || 
-                                                 !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
-                                
-                                return showByType && showByStatus
-                            }.count
-                        }
                         
-                        if filteredCount > maxContracts {
-                            Text(String(format: NSLocalizedString("Contract_Filtered_Limited", comment: ""), totalCount, filteredCount, maxContracts))
+                        if courierMode {
+                            // 计算活跃的快递合同数量
+                            let activeCourierCount = viewModel.contractGroups.reduce(0) { count, group in
+                                count + group.contracts.filter { contract in
+                                    contract.type == "courier" && 
+                                    !["finished", "finished_issuer", "finished_contractor", "cancelled", "deleted", "failed"].contains(contract.status)
+                                }.count
+                            }
+                            
+                            let countText = activeCourierCount > maxContracts ? 
+                                "\(activeCourierCount)个待处理合同，仅显示前\(maxContracts)个" :
+                                "\(activeCourierCount)个待处理合同"
+                            
+                            (Text("(快递模式)").foregroundColor(.red) +
+                             Text(" ") +
+                             Text(countText).foregroundColor(.secondary))
                                 .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.bottom, 4)
-                        } else if filteredCount < totalCount {
-                            Text(String(format: NSLocalizedString("Contract_Filtered_Count", comment: ""), totalCount, filteredCount))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
                                 .padding(.bottom, 4)
                         } else {
-                            Text(String(format: NSLocalizedString("Contract_Total_Count", comment: ""), totalCount))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .padding(.bottom, 4)
+                            let filteredCount = viewModel.contractGroups.reduce(0) { count, group in
+                                count + group.contracts.filter { contract in
+                                    let showByType = (contract.type == "courier" && showCourierContracts) ||
+                                                   (contract.type == "item_exchange" && showItemExchangeContracts) ||
+                                                   (contract.type == "auction" && showAuctionContracts)
+                                    
+                                    let showByStatus = showFinishedContracts || 
+                                                     !["finished", "finished_issuer", "finished_contractor"].contains(contract.status)
+                                    
+                                    return showByType && showByStatus
+                                }.count
+                            }
+                            
+                            if filteredCount > maxContracts {
+                                Text(String(format: NSLocalizedString("Contract_Filtered_Limited", comment: ""), totalCount, filteredCount, maxContracts))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.bottom, 4)
+                            } else if filteredCount < totalCount {
+                                Text(String(format: NSLocalizedString("Contract_Filtered_Count", comment: ""), totalCount, filteredCount))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.bottom, 4)
+                            } else {
+                                Text(String(format: NSLocalizedString("Contract_Total_Count", comment: ""), totalCount))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.bottom, 4)
+                            }
                         }
                     }
                 }
