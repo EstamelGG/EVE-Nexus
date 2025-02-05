@@ -93,13 +93,14 @@ class CorporationContractsAPI {
     }
     
     // 从服务器获取合同列表
-    private func fetchContractsFromServer(corporationId: Int, characterId: Int) async throws -> [ContractInfo] {
+    private func fetchContractsFromServer(corporationId: Int, characterId: Int, progressCallback: ((Int) -> Void)? = nil) async throws -> [ContractInfo] {
         var allContracts: [ContractInfo] = []
         var currentPage = 1
         var shouldContinue = true
         
         while shouldContinue {
             do {
+                progressCallback?(currentPage)
                 let pageContracts = try await fetchContractsPage(corporationId: corporationId, characterId: characterId, page: currentPage)
                 if pageContracts.isEmpty {
                     shouldContinue = false
@@ -485,7 +486,7 @@ class CorporationContractsAPI {
     }
     
     // 获取合同列表（公开方法）
-    public func fetchContracts(characterId: Int, forceRefresh: Bool = false) async throws -> [ContractInfo] {
+    public func fetchContracts(characterId: Int, forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil) async throws -> [ContractInfo] {
         // 1. 获取角色的军团ID
         guard let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) else {
             throw NetworkError.authenticationError("无法获取军团ID")
@@ -500,7 +501,7 @@ class CorporationContractsAPI {
         }
         
         // 3. 从服务器获取数据
-        let contracts = try await fetchContractsFromServer(corporationId: corporationId, characterId: characterId)
+        let contracts = try await fetchContractsFromServer(corporationId: corporationId, characterId: characterId, progressCallback: progressCallback)
         
         // 4. 保存到数据库
         if !saveContractsToDB(corporationId: corporationId, contracts: contracts) {

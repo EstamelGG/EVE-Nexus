@@ -13,6 +13,7 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var contractGroups: [ContractGroup] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var currentLoadingPage: Int?
     @Published var showCorporationContracts = false {
         didSet {
             // 切换时，如果对应类型的合同还未加载过，则加载
@@ -49,7 +50,7 @@ final class PersonalContractsViewModel: ObservableObject {
     // 检查是否有军团合同访问权限
     private func checkCorporationAccess() async {
         do {
-            if let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId) {
+            if (try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId)) != nil {
                 // 如果能获取到军团ID，说明有访问权限
                 hasCorporationAccess = true
             } else {
@@ -123,6 +124,7 @@ final class PersonalContractsViewModel: ObservableObject {
         
         isLoading = true
         errorMessage = nil
+        currentLoadingPage = nil
         
         do {
             let contracts: [ContractInfo]
@@ -130,7 +132,12 @@ final class PersonalContractsViewModel: ObservableObject {
                 // 获取军团合同
                 contracts = try await CorporationContractsAPI.shared.fetchContracts(
                     characterId: characterId,
-                    forceRefresh: forceRefresh
+                    forceRefresh: forceRefresh,
+                    progressCallback: { page in
+                        Task { @MainActor in
+                            self.currentLoadingPage = page
+                        }
+                    }
                 )
                 cachedCorporationContracts = contracts
                 corporationContractsInitialized = true
@@ -146,10 +153,12 @@ final class PersonalContractsViewModel: ObservableObject {
             
             updateContractGroups(with: contracts)
             isLoading = false
+            currentLoadingPage = nil
             
         } catch {
             self.errorMessage = error.localizedDescription
             self.isLoading = false
+            self.currentLoadingPage = nil
             Logger.error("加载\(showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
         }
     }
@@ -182,7 +191,11 @@ struct PersonalContractsView: View {
                     Section {
                         HStack {
                             Spacer()
-                            ProgressView()
+                            if let page = viewModel.currentLoadingPage {
+                                    Text(NSLocalizedString("Loading_Page", comment: "") + " \(page)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             Spacer()
                         }
                     }
