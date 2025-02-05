@@ -227,7 +227,6 @@ final class PersonalContractsViewModel: ObservableObject {
         // 如果已经在加载中，等待加载完成
         if locationLoadingTasks.contains(locationId) {
             while locationLoadingTasks.contains(locationId) {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
                 if let cached = locationCache[locationId] {
                     return cached
                 }
