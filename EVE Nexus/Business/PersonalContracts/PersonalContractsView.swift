@@ -340,7 +340,8 @@ struct PersonalContractsView: View {
             let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
                 let filteredContracts = group.contracts.filter { contract in
                     contract.type == "courier" && contract.status == "outstanding"
-                }
+                }.sorted { $0.reward > $1.reward }  // 按照奖励金额从高到低排序
+                
                 return filteredContracts.isEmpty ? nil : ContractGroup(
                     date: group.date,
                     contracts: filteredContracts,
@@ -348,7 +349,10 @@ struct PersonalContractsView: View {
                     endLocation: group.endLocation
                 )
             }
-            return filteredGroups
+            // 按照组内第一个合同（最高奖励）的奖励金额排序
+            return filteredGroups.sorted { 
+                $0.contracts[0].reward > $1.contracts[0].reward 
+            }
         } else {
             // 先按照设置过滤合同
             let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
