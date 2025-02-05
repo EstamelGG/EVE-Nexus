@@ -51,8 +51,10 @@ final class PersonalContractsViewModel: ObservableObject {
         return calendar
     }()
     
-    // 添加路线缓存
+    // 添加地点名称缓存
     private var locationCache: [Int64: String] = [:]
+    // 添加地点名称加载状态追踪
+    private var locationLoadingTasks: Set<Int64> = []
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -217,24 +219,42 @@ final class PersonalContractsViewModel: ObservableObject {
         loadingTask?.cancel()
     }
     
-    // 获取地点名称
+    // 修改获取地点名称的方法
     private func getLocationName(_ locationId: Int64) async -> String {
         if let cached = locationCache[locationId] {
             return cached
         }
+        
+        // 如果已经在加载中，等待加载完成
+        if locationLoadingTasks.contains(locationId) {
+            while locationLoadingTasks.contains(locationId) {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
+                if let cached = locationCache[locationId] {
+                    return cached
+                }
+            }
+        }
+        
+        // 标记为正在加载
+        locationLoadingTasks.insert(locationId)
         
         do {
             let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
             if let locationInfo = locationInfos[locationId] {
                 let name = locationInfo.solarSystemName
                 locationCache[locationId] = name
+                locationLoadingTasks.remove(locationId)
+                
+                // 当获取到新的地点名称时，触发UI更新
+                await updateContractGroups(with: courierMode ? cachedCorporationContracts : cachedPersonalContracts)
                 return name
             }
+            locationLoadingTasks.remove(locationId)
             return "Unknown"
         }
     }
     
-    // 按路线分组合同
+    // 修改按路线分组合同的方法
     private func groupContractsByRoute(_ contracts: [ContractInfo]) async -> [ContractGroup] {
         // 按路线分组
         var groupedContracts: [String: [ContractInfo]] = [:]
@@ -248,6 +268,7 @@ final class PersonalContractsViewModel: ObservableObject {
             
             if groupedContracts[routeKey] == nil {
                 groupedContracts[routeKey] = []
+                
                 // 异步获取位置名称
                 let startName = await getLocationName(startId)
                 let endName = await getLocationName(endId)
