@@ -32,7 +32,16 @@ final class PersonalContractsViewModel: ObservableObject {
         }
     }
     @Published var hasCorporationAccess = false
-    @Published var courierMode = false
+    @Published var courierMode = false {
+        didSet {
+            // 保存设置到 UserDefaults
+            UserDefaults.standard.set(courierMode, forKey: "courierMode_\(characterId)")
+            // 当切换模式时，重新分组
+            Task {
+                await updateContractGroups(with: showCorporationContracts ? cachedCorporationContracts : cachedPersonalContracts)
+            }
+        }
+    }
     
     private var loadingTask: Task<Void, Never>?
     private var personalContractsInitialized = false
@@ -526,7 +535,13 @@ struct PersonalContractsView: View {
             NavigationView {
                 Form {
                     Section {
-                        Toggle(isOn: $courierMode) {
+                        Toggle(isOn: Binding(
+                            get: { courierMode },
+                            set: { newValue in
+                                courierMode = newValue
+                                viewModel.courierMode = newValue
+                            }
+                        )) {
                             VStack(alignment: .leading) {
                                 Text(NSLocalizedString("Contract_Courier_Mode", comment: ""))
                                 Text(NSLocalizedString("Contract_Courier_Mode_Description", comment: ""))
