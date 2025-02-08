@@ -240,6 +240,22 @@ struct ContractDetailView: View {
         ))
     }
     
+    // 根据状态返回对应的颜色
+    private func getStatusColor(_ status: String) -> Color {
+        switch status {
+        case "deleted":
+            return .secondary
+        case "rejected", "failed", "reversed":
+            return .red
+        case "outstanding", "in_progress":
+            return .blue  // 进行中和待处理状态显示为蓝色
+        case "finished", "finished_issuer", "finished_contractor":
+            return .green  // 完成状态显示为绿色
+        default:
+            return .primary  // 其他状态使用主色调
+        }
+    }
+    
     var body: some View {
         ZStack {
             if viewModel.isLoading || viewModel.isLoadingNames {
@@ -253,7 +269,7 @@ struct ContractDetailView: View {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
                             Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) [\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(getStatusColor(contract.status))
                         }
                         
                         // 地点信息
@@ -334,8 +350,8 @@ struct ContractDetailView: View {
                         if contract.price > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Price", comment: ""))
-                                Text("\(FormatUtil.format(contract.price)) ISK")
-                                    .font(.caption)
+                                Text("\(FormatUtil.format(contract.price)) ISK (\(FormatUtil.formatISK(contract.price)) ISK)")
+                                    .font(.system(.caption, design: .monospaced))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -344,8 +360,8 @@ struct ContractDetailView: View {
                         if contract.reward > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
-                                Text("\(FormatUtil.format(contract.reward)) ISK")
-                                    .font(.caption)
+                                Text("\(FormatUtil.format(contract.reward)) ISK (\(FormatUtil.formatISK(contract.reward)) ISK)")
+                                    .font(.system(.caption, design: .monospaced))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -354,8 +370,8 @@ struct ContractDetailView: View {
                         if contract.collateral ?? 0 > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
-                                Text("\(FormatUtil.format(contract.collateral ?? 0)) ISK")
-                                    .font(.caption)
+                                Text("\(FormatUtil.format(contract.collateral ?? 0)) ISK (\(FormatUtil.formatISK(contract.collateral ?? 0)) ISK)")
+                                    .font(.system(.caption, design: .monospaced))
                                     .foregroundColor(.secondary)
                             }
                         }
