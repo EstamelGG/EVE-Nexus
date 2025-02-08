@@ -267,9 +267,11 @@ struct ContractDetailView: View {
                         // 合同类型
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
-                            Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) [\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
+                            (Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) ")
+                                .foregroundColor(.secondary) +
+                            Text("[\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
+                                .foregroundColor(getStatusColor(contract.status)))
                                 .font(.caption)
-                                .foregroundColor(getStatusColor(contract.status))
                         }
                         
                         // 地点信息
