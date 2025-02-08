@@ -112,17 +112,50 @@ class CorpMemberListViewModel: ObservableObject {
             if case .success(let rows) = databaseManager.executeQuery(query) {
                 Logger.debug("查询到星系数量: \(rows.count)")
                 for row in rows {
-                    if let systemId = row["solarsystem_id"] as? Int64,
-                       let security = row["system_security"] as? Double,
-                       let systemName = row["solarSystemName"] as? String {
-                        locationCache[systemId] = LocationCacheInfo(
-                            systemName: systemName,
-                            security: security,
-                            stationName: nil
-                        )
-                        Logger.debug("缓存星系信息 - ID: \(systemId), 名称: \(systemName)")
+                    Logger.debug("处理星系数据行: \(row)")
+                    // 先获取原始值
+                    let rawSystemId = row["solarsystem_id"]
+                    let rawSystemName = row["solarSystemName"]
+                    let rawSecurity = row["system_security"]
+                    
+                    Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
+                    
+                    // 尝试不同的类型转换
+                    let systemId: Int64
+                    if let id = rawSystemId as? Int64 {
+                        systemId = id
+                    } else if let id = rawSystemId as? Int {
+                        systemId = Int64(id)
+                    } else {
+                        Logger.error("systemId 类型转换失败: \(String(describing: rawSystemId))")
+                        continue
                     }
+                    
+                    guard let systemName = rawSystemName as? String else {
+                        Logger.error("systemName 类型转换失败: \(String(describing: rawSystemName))")
+                        continue
+                    }
+                    
+                    let security: Double
+                    if let sec = rawSecurity as? Double {
+                        security = sec
+                    } else if let sec = rawSecurity as? String {
+                        security = Double(sec) ?? 0.0
+                    } else {
+                        Logger.error("security 类型转换失败: \(String(describing: rawSecurity))")
+                        continue
+                    }
+                    
+                    let info = LocationCacheInfo(
+                        systemName: systemName,
+                        security: security,
+                        stationName: nil
+                    )
+                    locationCache[systemId] = info
+                    Logger.debug("成功缓存星系信息 - ID: \(systemId), 名称: \(systemName), 安全等级: \(security)")
                 }
+            } else {
+                Logger.error("星系查询失败 - SQL: \(query)")
             }
         }
         
