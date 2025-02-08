@@ -17,7 +17,7 @@ class UniverseAPI {
     /// 从ESI获取ID对应的名称信息
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: 成功获取的数量
-    /// Resolve a set of IDs to names and categories. Supported ID’s for resolving are: Characters, Corporations, Alliances, Stations, Solar Systems, Constellations, Regions, Types, Factions
+    /// Resolve a set of IDs to names and categories. Supported ID's for resolving are: Characters, Corporations, Alliances, Stations, Solar Systems, Constellations, Regions, Types, Factions
     func fetchAndSaveNames(ids: [Int]) async throws -> Int {
         Logger.info("开始获取实体名称信息 - IDs: \(ids)")
         
@@ -126,27 +126,39 @@ class UniverseAPI {
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: ID到名称和类型的映射
     func getNamesWithFallback(ids: [Int]) async throws -> [Int: (name: String, category: String)] {
-        // 首先从数据库获取所有可用的名称
-        Logger.debug("Fetch from DB. \(ids)")
-        var namesMap = try await getNamesFromDatabase(ids: ids)
-        
-        // 找出数据库中不存在的ID
-        let missingIds = ids.filter { !namesMap.keys.contains($0) }
-        
-        // 如果有缺失的ID，从API获取
-        if !missingIds.isEmpty {
-            Logger.debug("Fetch from api. \(missingIds)")
-            let result = try await fetchAndSaveNames(ids: missingIds)
-            if result > 0 {
-                // 获取新保存的数据
-                let newNames = try await getNamesFromDatabase(ids: missingIds)
-                // 合并结果
-                namesMap.merge(newNames) { current, _ in current }
-            }
-        } else {
-            Logger.debug("All found in DB.")
+        // 将ID数组分成每批1000个的子数组
+        let batchSize = 1000
+        let batches = stride(from: 0, to: ids.count, by: batchSize).map {
+            Array(ids[$0..<min($0 + batchSize, ids.count)])
         }
         
-        return namesMap
+        var allNamesMap: [Int: (name: String, category: String)] = [:]
+        
+        // 处理每一批
+        for batch in batches {
+            // 首先从数据库获取所有可用的名称
+            Logger.debug("Fetch batch from DB. Size: \(batch.count)")
+            let namesMap = try await getNamesFromDatabase(ids: batch)
+            
+            // 找出数据库中不存在的ID
+            let missingIds = batch.filter { !namesMap.keys.contains($0) }
+            
+            // 如果有缺失的ID，从API获取
+            if !missingIds.isEmpty {
+                Logger.debug("Fetch from api. Missing IDs count: \(missingIds.count)")
+                let result = try await fetchAndSaveNames(ids: missingIds)
+                if result > 0 {
+                    // 获取新保存的数据
+                    let newNames = try await getNamesFromDatabase(ids: missingIds)
+                    // 合并结果
+                    allNamesMap.merge(newNames) { current, _ in current }
+                }
+            }
+            
+            // 合并当前批次的结果
+            allNamesMap.merge(namesMap) { current, _ in current }
+        }
+        
+        return allNamesMap
     }
 } 

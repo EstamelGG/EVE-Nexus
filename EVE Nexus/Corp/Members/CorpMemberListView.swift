@@ -1,12 +1,17 @@
 import SwiftUI
 import Kingfisher
 
-struct MemberDetailInfo {
+struct MemberDetailInfo: Identifiable {
     let member: MemberTrackingInfo
+    var characterName: String
+    var shipInfo: (name: String, iconFilename: String)?
+    var locationInfo: LocationInfoDetail?
+    
+    // 延迟加载的信息
     var characterInfo: CharacterPublicInfo?
     var portrait: UIImage?
-    var shipName: String?
-    var locationInfo: LocationInfoDetail?
+    
+    var id: Int { member.character_id }
 }
 
 class CorpMemberListViewModel: ObservableObject {
@@ -15,90 +20,133 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var error: Error?
     private let characterId: Int
     private let databaseManager: DatabaseManager
+    private var loadingTask: Task<Void, Never>?
     
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
     }
     
-    @MainActor
-    func loadMembers() async {
-        isLoading = true
-        error = nil
-        
-        do {
-            // 1. 获取成员基本信息
-            let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(characterId: characterId)
-            
-            // 2. 初始化成员列表（按ID排序）
-            members = memberList.sorted { $0.character_id < $1.character_id }
-                .map { MemberDetailInfo(member: $0) }
-            
-            // 3. 异步加载每个成员的详细信息
-            await withTaskGroup(of: Void.self) { group in
-                for index in members.indices {
-                    group.addTask { [weak self] in
-                        await self?.loadMemberDetails(at: index)
-                    }
-                }
-            }
-            
-        } catch {
-            self.error = error
-            Logger.error("加载军团成员列表失败: \(error)")
-        }
-        
-        isLoading = false
+    func cancelLoading() {
+        loadingTask?.cancel()
+        loadingTask = nil
     }
     
     @MainActor
-    private func loadMemberDetails(at index: Int) async {
-        guard index < members.count else { return }
-        let member = members[index]
+    func loadMembers() {
+        cancelLoading()
         
-        // 创建位置信息加载器
-        let locationLoader = LocationInfoLoader(
-            databaseManager: databaseManager,
-            characterId: Int64(characterId)
-        )
-        
-        async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: member.member.character_id
-        )
-        async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(
-            characterId: member.member.character_id,
-            size: 32
-        )
-        
-        // 加载位置信息
-        if let locationId = member.member.location_id {
-            let locationInfo = await locationLoader.loadLocationInfo(
-                locationIds: Set([Int64(locationId)])
-            )[Int64(locationId)]
+        loadingTask = Task { @MainActor in
+            isLoading = true
+            error = nil
             
-            if let locationInfo = locationInfo {
-                members[index].locationInfo = locationInfo
+            do {
+                // 1. 获取成员基本信息
+                let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(characterId: characterId)
+                
+                if Task.isCancelled { return }
+                
+                // 2. 获取所有角色ID
+                let characterIds = memberList.map { $0.character_id }
+                
+                // 3. 批量获取角色名称
+                let characterNames = try await UniverseAPI.shared.getNamesWithFallback(ids: characterIds)
+                
+                if Task.isCancelled { return }
+                
+                // 4. 批量获取飞船信息
+                let shipTypeIds = Set(memberList.compactMap { $0.ship_type_id })
+                var shipInfoMap: [Int: (name: String, iconFilename: String)] = [:]
+                
+                if !shipTypeIds.isEmpty {
+                    let query = """
+                        SELECT type_id, name, icon_filename 
+                        FROM types 
+                        WHERE type_id IN (\(shipTypeIds.map { String($0) }.joined(separator: ",")))
+                    """
+                    
+                    if case .success(let rows) = databaseManager.executeQuery(query) {
+                        for row in rows {
+                            if let typeId = row["type_id"] as? Int,
+                               let typeName = row["name"] as? String,
+                               let iconFilename = row["icon_filename"] as? String {
+                                shipInfoMap[typeId] = (name: typeName, iconFilename: iconFilename)
+                            }
+                        }
+                    }
+                }
+                
+                // 5. 创建初始成员列表
+                members = memberList.map { member in
+                    MemberDetailInfo(
+                        member: member,
+                        characterName: characterNames[member.character_id]?.name ?? String(member.character_id),
+                        shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] }
+                    )
+                }.sorted { $0.characterName < $1.characterName }
+                
+                // 6. 开始加载位置信息
+                let locationIds = Set(memberList.compactMap { $0.location_id }.map { Int64($0) })
+                if !locationIds.isEmpty {
+                    let locationLoader = LocationInfoLoader(
+                        databaseManager: databaseManager,
+                        characterId: Int64(characterId)
+                    )
+                    
+                    let locationInfoMap = await locationLoader.loadLocationInfo(locationIds: locationIds)
+                    
+                    if Task.isCancelled { return }
+                    
+                    // 更新位置信息
+                    for index in members.indices {
+                        if let locationId = members[index].member.location_id,
+                           let locationInfo = locationInfoMap[Int64(locationId)] {
+                            members[index].locationInfo = locationInfo
+                        }
+                    }
+                }
+                
+            } catch is CancellationError {
+                Logger.debug("军团成员列表加载已取消")
+            } catch {
+                Logger.error("加载军团成员列表失败: \(error)")
+                self.error = error
+            }
+            
+            isLoading = false
+        }
+    }
+    
+    // 延迟加载单个成员的详细信息
+    @MainActor
+    func loadMemberDetails(for memberId: Int) {
+        guard let index = members.firstIndex(where: { $0.id == memberId }),
+              members[index].characterInfo == nil else { return }
+        
+        Task {
+            do {
+                async let characterInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
+                    characterId: memberId
+                )
+                async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: memberId,
+                    size: 32
+                )
+                
+                let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
+                
+                if !Task.isCancelled {
+                    members[index].characterInfo = characterInfo
+                    members[index].portrait = portrait
+                }
+            } catch {
+                Logger.error("加载成员详细信息失败 - 角色ID: \(memberId), 错误: \(error)")
             }
         }
-        
-        // 加载飞船信息
-        if let shipTypeId = member.member.ship_type_id {
-            let query = "SELECT name FROM types WHERE type_id = ?"
-            if case .success(let rows) = databaseManager.executeQuery(query, parameters: [shipTypeId]),
-               let row = rows.first,
-               let shipName = row["name"] as? String {
-                members[index].shipName = shipName
-            }
-        }
-        
-        // 等待并更新角色信息和头像
-        do {
-            let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
-            members[index].characterInfo = characterInfo
-            members[index].portrait = portrait
-        } catch {
-            Logger.error("加载成员详细信息失败 - 角色ID: \(member.member.character_id), 错误: \(error)")
-        }
+    }
+    
+    deinit {
+        cancelLoading()
     }
 }
 
@@ -133,11 +181,26 @@ struct CorpMemberListView: View {
                 if viewModel.isLoading {
                     ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
                 } else if let error = viewModel.error {
-                    Text(error.localizedDescription)
-                        .foregroundColor(.red)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Text(error.localizedDescription)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Button(action: {
+                            viewModel.loadMembers()
+                        }) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
+                        }
+                        .padding(.top, 4)
+                    }
                 } else {
-                    ForEach(viewModel.members, id: \.member.character_id) { member in
+                    ForEach(viewModel.members) { member in
                         MemberRowView(member: member)
+                            .onAppear {
+                                viewModel.loadMemberDetails(for: member.id)
+                            }
                     }
                 }
             } header: {
@@ -148,10 +211,13 @@ struct CorpMemberListView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
         .refreshable {
-            await viewModel.loadMembers()
+            viewModel.loadMembers()
         }
         .task {
-            await viewModel.loadMembers()
+            viewModel.loadMembers()
+        }
+        .onDisappear {
+            viewModel.cancelLoading()
         }
     }
 }
@@ -178,7 +244,7 @@ struct MemberRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // 名称和称号
                 HStack {
-                    Text(member.characterInfo?.name ?? String(member.member.character_id))
+                    Text(member.characterName)
                         .font(.headline)
                     if let title = member.characterInfo?.title {
                         Text(title)
@@ -188,8 +254,8 @@ struct MemberRowView: View {
                 }
                 
                 // 飞船和位置信息
-                if let shipName = member.shipName {
-                    Text(shipName)
+                if let shipInfo = member.shipInfo {
+                    Text(shipInfo.name)
                         .font(.caption)
                 }
                 
