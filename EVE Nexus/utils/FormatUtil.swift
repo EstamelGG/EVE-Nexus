@@ -71,6 +71,7 @@ struct FormatUtil {
     static func formatISK(_ value: Double) -> String {
         let billion = 1_000_000_000.0
         let million = 1_000_000.0
+        let thousand = 1_000.0
         
         if value >= billion {
             let formatted = value / billion
@@ -90,14 +91,17 @@ struct FormatUtil {
             } else {
                 return String(format: "%.2fM", formatted)
             }
-        } else {
-            if value >= 100_000 {
-                return String(format: "%.0f", value)
-            } else if value >= 10_000 {
-                return String(format: "%.1f", value)
+        } else if value >= thousand {
+            let formatted = value / thousand
+            if formatted >= 100 {
+                return String(format: "%.0fK", formatted)
+            } else if formatted >= 10 {
+                return String(format: "%.1fK", formatted)
             } else {
-                return String(format: "%.2f", value)
+                return String(format: "%.2fK", formatted)
             }
+        } else {
+            return String(format: "%.0f", value)
         }
     }
     
