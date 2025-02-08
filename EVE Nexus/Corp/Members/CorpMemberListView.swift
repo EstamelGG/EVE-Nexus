@@ -397,7 +397,7 @@ struct LocationView: View {
     
     var body: some View {
         if let info = locationInfo {
-            HStack {
+            HStack(spacing: 4) {
                 Text(String(format: "%.1f", info.security))
                     .font(.caption)
                     .foregroundColor(getSecurityColor(info.security))
@@ -425,17 +425,18 @@ struct MemberRowView: View {
             if let portrait = member.portrait {
                 Image(uiImage: portrait)
                     .resizable()
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 Image(systemName: "person.crop.circle")
                     .resizable()
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .foregroundColor(.gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             
             // 成员信息
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 // 名称和称号
                 HStack {
                     Text(member.characterName)
@@ -447,15 +448,25 @@ struct MemberRowView: View {
                     }
                 }
                 
-                // 飞船信息
-                if let shipInfo = member.shipInfo {
-                    Text(shipInfo.name)
-                        .font(.caption)
-                }
-                
-                // 位置信息
-                if let locationId = member.member.location_id {
-                    LocationView(locationId: Int64(locationId), viewModel: viewModel)
+                // 飞船和位置信息
+                HStack(spacing: 4) {
+                    if let shipInfo = member.shipInfo {
+                        // 飞船图标和名称
+                        IconManager.shared.loadImage(for: shipInfo.iconFilename)
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                            .clipShape(Rectangle())
+                        Text(shipInfo.name)
+                            .font(.caption)
+                        Text(" - ")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    // 位置信息
+                    if let locationId = member.member.location_id {
+                        LocationView(locationId: Int64(locationId), viewModel: viewModel)
+                    }
                 }
             }
         }
