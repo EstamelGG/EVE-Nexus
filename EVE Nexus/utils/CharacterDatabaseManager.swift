@@ -570,6 +570,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     
     /// 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
+        Logger.debug(query)
         var result: SQLiteResult = .error("未知错误")
         
         dbQueue.sync {
@@ -609,7 +610,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                     sqlite3_bind_null(statement, parameterIndex)
                 default:
                     sqlite3_finalize(statement)
-                    result = .error("不支持的参数类型: \(type(of: parameter))")
+                    result = .error("index: \(index), value: \(parameters[index]) 不支持的参数类型: \(type(of: parameter))")
                     return
                 }
             }

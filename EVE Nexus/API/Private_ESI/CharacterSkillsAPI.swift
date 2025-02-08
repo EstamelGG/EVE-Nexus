@@ -409,6 +409,7 @@ public class CharacterSkillsAPI {
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             """
             
+            // 处理可选值，将nil转换为NSNull()
             let parameters: [Any] = [
                 characterId,
                 response.charisma,
@@ -416,9 +417,9 @@ public class CharacterSkillsAPI {
                 response.memory,
                 response.perception,
                 response.willpower,
-                response.bonus_remaps as Any,
-                response.accrued_remap_cooldown_date as Any,
-                response.last_remap_date as Any
+                response.bonus_remaps.map { $0 } ?? NSNull(),
+                response.accrued_remap_cooldown_date.map { $0 } ?? NSNull(),
+                response.last_remap_date.map { $0 } ?? NSNull()
             ]
             
             if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(query, parameters: parameters) {
