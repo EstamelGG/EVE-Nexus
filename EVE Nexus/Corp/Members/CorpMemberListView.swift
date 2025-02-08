@@ -21,6 +21,10 @@ class CorpMemberListViewModel: ObservableObject {
     private let characterId: Int
     private let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
+    // 跟踪需要作为建筑物处理的locationId
+    private var pendingStructureIds: Set<Int64> = []
+    // 缓存已获取的建筑物位置信息
+    private var structureLocationCache: [Int64: LocationInfoDetail] = [:]
     
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
@@ -33,52 +37,65 @@ class CorpMemberListViewModel: ObservableObject {
     }
     
     /// 从数据库加载星系和空间站信息
-    private func loadBasicLocationInfo(locationIds: Set<Int64>) async -> [Int64: LocationInfoDetail] {
+    private func loadBasicLocationInfo(locationIds: Set<Int64>) async -> (locations: [Int64: LocationInfoDetail], remainingIds: Set<Int64>) {
         var locationInfoCache: [Int64: LocationInfoDetail] = [:]
+        var remainingIds = locationIds  // 初始化为所有ID
         
         // 过滤掉无效的位置ID
-        let validIds = locationIds.filter { $0 > 0 }
+        remainingIds = remainingIds.filter { $0 > 0 }
         
-        if validIds.isEmpty {
+        if remainingIds.isEmpty {
             Logger.debug("没有有效的位置ID需要加载")
-            return locationInfoCache
+            return (locations: [:], remainingIds: [])
         }
         
-        Logger.debug("开始从数据库加载位置信息 - 有效位置IDs: \(validIds)")
+        // 将ID按范围分组
+        let solarSystemIds = remainingIds.filter { $0 >= 30000000 && $0 < 40000000 }
+        let stationIds = remainingIds.filter { $0 >= 60000000 && $0 < 70000000 }
+        let structureIds = remainingIds.filter { $0 >= 100000000 }
         
-        // 1. 尝试作为星系ID查询
-        let universeQuery = """
-            SELECT u.solarsystem_id, u.system_security,
-                   s.solarSystemName
-            FROM universe u
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            WHERE u.solarsystem_id IN (\(validIds.map { String($0) }.joined(separator: ",")))
-        """
+        Logger.debug("""
+            开始从数据库加载位置信息:
+            - 星系IDs: \(solarSystemIds)
+            - 空间站IDs: \(stationIds)
+            - 建筑物IDs: \(structureIds)
+            """)
         
-        if case .success(let rows) = databaseManager.executeQuery(universeQuery) {
-            for row in rows {
-                if let systemId = row["solarsystem_id"] as? Int64,
-                   let security = row["system_security"] as? Double,
-                   let systemName = row["solarSystemName"] as? String {
-                    locationInfoCache[systemId] = LocationInfoDetail(
-                        stationName: "",
-                        solarSystemName: systemName,
-                        security: security
-                    )
-                    Logger.debug("从数据库加载到星系信息 - ID: \(systemId), 名称: \(systemName)")
+        // 1. 处理星系ID
+        if !solarSystemIds.isEmpty {
+            let universeQuery = """
+                SELECT u.solarsystem_id, u.system_security,
+                       s.solarSystemName
+                FROM universe u
+                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+                WHERE u.solarsystem_id IN (\(solarSystemIds.map { String($0) }.joined(separator: ",")))
+            """
+            
+            if case .success(let rows) = databaseManager.executeQuery(universeQuery) {
+                for row in rows {
+                    if let systemId = row["solarsystem_id"] as? Int64,
+                       let security = row["system_security"] as? Double,
+                       let systemName = row["solarSystemName"] as? String {
+                        locationInfoCache[systemId] = LocationInfoDetail(
+                            stationName: "",
+                            solarSystemName: systemName,
+                            security: security
+                        )
+                        remainingIds.remove(systemId)
+                        Logger.debug("从数据库加载到星系信息 - ID: \(systemId), 名称: \(systemName)")
+                    }
                 }
             }
         }
         
-        // 2. 对于未解析的ID，尝试作为空间站ID查询
-        let remainingIds = validIds.filter { !locationInfoCache.keys.contains($0) }
-        if !remainingIds.isEmpty {
+        // 2. 处理空间站ID
+        if !stationIds.isEmpty {
             let stationQuery = """
                 SELECT s.stationID, s.stationName, ss.solarSystemName, u.system_security
                 FROM stations s
                 JOIN solarSystems ss ON s.solarSystemID = ss.solarSystemID
                 JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                WHERE s.stationID IN (\(remainingIds.map { String($0) }.joined(separator: ",")))
+                WHERE s.stationID IN (\(stationIds.map { String($0) }.joined(separator: ",")))
             """
             
             if case .success(let rows) = databaseManager.executeQuery(stationQuery) {
@@ -92,27 +109,35 @@ class CorpMemberListViewModel: ObservableObject {
                             solarSystemName: systemName,
                             security: security
                         )
+                        remainingIds.remove(stationId)
                         Logger.debug("从数据库加载到空间站信息 - ID: \(stationId), 名称: \(stationName)")
                     }
                 }
             }
         }
         
-        return locationInfoCache
+        // 3. 剩余的ID只包含未能在数据库中找到的ID，以及建筑物ID
+        // 我们将它们作为待处理的建筑物ID返回
+        Logger.debug("剩余待处理的ID数量: \(remainingIds.count), IDs: \(remainingIds)")
+        
+        return (locations: locationInfoCache, remainingIds: remainingIds)
     }
     
     /// 加载单个建筑物的位置信息
     @MainActor
     func loadStructureLocationInfo(locationId: Int64) async {
-        
-        // 检查是否已经加载过
-        if let index = members.firstIndex(where: { 
-            if let memberLocationId = $0.member.location_id {
-                return memberLocationId == locationId
+        // 检查缓存
+        if let cachedInfo = structureLocationCache[locationId] {
+            Logger.debug("使用缓存的建筑物信息 - ID: \(locationId)")
+            // 更新当前可见的成员的位置信息
+            if let index = members.firstIndex(where: { 
+                if let memberLocationId = $0.member.location_id {
+                    return Int64(memberLocationId) == locationId
+                }
+                return false
+            }) {
+                members[index].locationInfo = cachedInfo
             }
-            return false
-        }),
-           members[index].locationInfo != nil {
             return
         }
         
@@ -136,24 +161,41 @@ class CorpMemberListViewModel: ObservableObject {
                let systemName = row["solarSystemName"] as? String,
                let security = row["system_security"] as? Double {
                 
-                // 更新对应成员的位置信息
+                // 创建位置信息
+                let locationInfo = LocationInfoDetail(
+                    stationName: structureInfo.name,
+                    solarSystemName: systemName,
+                    security: security
+                )
+                
+                // 保存到缓存，供后续使用
+                structureLocationCache[locationId] = locationInfo
+                
+                // 只更新触发加载的当前成员的位置信息
                 if let index = members.firstIndex(where: { 
                     if let memberLocationId = $0.member.location_id {
-                        return memberLocationId == locationId
+                        return Int64(memberLocationId) == locationId
                     }
                     return false
                 }) {
-                    members[index].locationInfo = LocationInfoDetail(
-                        stationName: structureInfo.name,
-                        solarSystemName: systemName,
-                        security: security
-                    )
-                    Logger.debug("成功获取建筑物信息 - ID: \(locationId), 名称: \(structureInfo.name)")
+                    members[index].locationInfo = locationInfo
                 }
+                
+                // 成功加载后从待处理集合中移除
+                pendingStructureIds.remove(locationId)
+                Logger.debug("成功获取并缓存建筑物信息 - ID: \(locationId), 名称: \(structureInfo.name), 星系: \(systemName)")
             }
         } catch {
+            // 如果获取失败，也从待处理集合中移除，避免反复请求失败的ID
+            pendingStructureIds.remove(locationId)
             Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
         }
+    }
+    
+    // 重置缓存（在loadMembers开始时调用）
+    private func resetCache() {
+        structureLocationCache.removeAll()
+        pendingStructureIds.removeAll()
     }
     
     @MainActor
@@ -163,6 +205,7 @@ class CorpMemberListViewModel: ObservableObject {
         loadingTask = Task { @MainActor in
             isLoading = true
             error = nil
+            resetCache()  // 重置缓存
             
             do {
                 // 1. 获取成员基本信息
@@ -216,15 +259,20 @@ class CorpMemberListViewModel: ObservableObject {
                     }
                     return nil
                 })
-                let locationInfoMap = await loadBasicLocationInfo(locationIds: locationIds)
+                let (locationInfoMap, remainingIds) = await loadBasicLocationInfo(locationIds: locationIds)
                 
-                // 7. 更新成员的基本位置信息
+                // 7. 更新成员的基本位置信息，并记录需要作为建筑物处理的ID
                 for index in members.indices {
-                    if let locationId = members[index].member.location_id,
-                       let locationInfo = locationInfoMap[Int64(locationId)] {
-                        members[index].locationInfo = locationInfo
+                    if let locationId = members[index].member.location_id {
+                        if let locationInfo = locationInfoMap[Int64(locationId)] {
+                            members[index].locationInfo = locationInfo
+                        }
                     }
                 }
+                
+                // 设置需要处理的建筑物ID
+                pendingStructureIds = remainingIds
+                Logger.debug("需要加载的建筑物数量: \(pendingStructureIds.count), IDs: \(remainingIds)")
                 
             } catch is CancellationError {
                 Logger.debug("军团成员列表加载已取消")
@@ -389,13 +437,19 @@ struct MemberRowView: View {
                             .font(.caption)
                     }
                 } else if let locationId = member.member.location_id {
-                    Text("Loading...")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .task {
-                            // 当行出现在视图中时，加载建筑物信息
-                            await viewModel.loadStructureLocationInfo(locationId: Int64(locationId))
-                        }
+                    if locationId >= 100000000 {
+                        Text("Loading \(locationId)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .task {
+                                // 只对建筑物ID进行加载
+                                await viewModel.loadStructureLocationInfo(locationId: Int64(locationId))
+                            }
+                    } else {
+                        Text("Unknown Location")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
             }
         }

@@ -92,12 +92,11 @@ class LocationInfoLoader {
             }
         }
         
-        // 3. 对于仍未解析的ID，尝试作为玩家建筑物查询（仅处理大于100000000的ID）
-        let structureIds = remainingIds.filter { $0 >= 100000000 }
-        if !structureIds.isEmpty {
-            Logger.debug("需要从API获取的建筑物数量: \(structureIds.count)")
+        // 3. 对于仍未解析的ID，尝试作为玩家建筑物查询
+        if !remainingIds.isEmpty {
+            Logger.debug("需要从API获取的建筑物数量: \(remainingIds.count)")
             
-            for locationId in structureIds {
+            for locationId in remainingIds {
                 do {
                     Logger.debug("尝试获取建筑物信息 - ID: \(locationId)")
                     let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
@@ -128,12 +127,6 @@ class LocationInfoLoader {
                     Logger.error("获取建筑物信息失败 - ID: \(locationId), 错误: \(error)")
                 }
             }
-        }
-        
-        // 记录未能解析的ID
-        let unresolved = remainingIds.subtracting(structureIds)
-        if !unresolved.isEmpty {
-            Logger.debug("以下ID无法解析: \(unresolved)")
         }
         
         return locationInfoCache
