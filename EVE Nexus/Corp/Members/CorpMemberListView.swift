@@ -242,7 +242,7 @@ class CorpMemberListViewModel: ObservableObject {
     
     // MARK: - Loading Methods
     @MainActor
-    func loadMembers() {
+    func loadMembers(forceRefresh: Bool = false) {
         cancelLoading()
         
         loadingTask = Task { @MainActor in
@@ -252,7 +252,10 @@ class CorpMemberListViewModel: ObservableObject {
             
             do {
                 // 1. 获取成员基本信息
-                let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(characterId: characterId)
+                let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(
+                    characterId: characterId,
+                    forceRefresh: forceRefresh
+                )
                 
                 if Task.isCancelled { return }
                 
@@ -466,7 +469,7 @@ struct CorpMemberListView: View {
                             .font(.caption)
                             .foregroundColor(.gray)
                         Button(action: {
-                            viewModel.loadMembers()
+                            viewModel.loadMembers(forceRefresh: true)
                         }) {
                             Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
                         }
@@ -488,10 +491,10 @@ struct CorpMemberListView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
         .refreshable {
-            viewModel.loadMembers()
+            await viewModel.loadMembers(forceRefresh: true)
         }
         .task {
-            viewModel.loadMembers()
+            viewModel.loadMembers(forceRefresh: false)
         }
         .onDisappear {
             viewModel.cancelLoading()
