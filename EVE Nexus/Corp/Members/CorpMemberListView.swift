@@ -394,6 +394,7 @@ struct LocationView: View {
     let locationId: Int64
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var locationInfo: LocationCacheInfo?
+    @State private var loadingTask: Task<Void, Never>?
     
     var body: some View {
         if let info = locationInfo {
@@ -408,8 +409,21 @@ struct LocationView: View {
             Text("Loading...")
                 .font(.caption)
                 .foregroundColor(.gray)
-                .task {
-                    locationInfo = await viewModel.getLocationInfo(locationId: locationId)
+                .onAppear {
+                    // 取消之前的任务
+                    loadingTask?.cancel()
+                    
+                    // 创建新的延迟加载任务
+                    loadingTask = Task {
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
+                        if !Task.isCancelled {
+                            locationInfo = await viewModel.getLocationInfo(locationId: locationId)
+                        }
+                    }
+                }
+                .onDisappear {
+                    loadingTask?.cancel()
+                    loadingTask = nil
                 }
         }
     }
@@ -418,6 +432,7 @@ struct LocationView: View {
 struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
+    @State private var loadingTask: Task<Void, Never>?
     
     var body: some View {
         HStack(spacing: 12) {
@@ -425,12 +440,12 @@ struct MemberRowView: View {
             if let portrait = member.portrait {
                 Image(uiImage: portrait)
                     .resizable()
-                    .frame(width: 36, height: 36)
+                    .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
                 Image(systemName: "person.crop.circle")
                     .resizable()
-                    .frame(width: 36, height: 36)
+                    .frame(width: 48, height: 48)
                     .foregroundColor(.gray)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
@@ -471,6 +486,22 @@ struct MemberRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .onAppear {
+            // 取消之前的任务
+            loadingTask?.cancel()
+            
+            // 创建新的延迟加载任务
+            loadingTask = Task {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
+                if !Task.isCancelled {
+                    viewModel.loadMemberDetails(for: member.id)
+                }
+            }
+        }
+        .onDisappear {
+            loadingTask?.cancel()
+            loadingTask = nil
+        }
     }
 }
 
@@ -522,9 +553,6 @@ struct CorpMemberListView: View {
                 } else {
                     ForEach(viewModel.members) { member in
                         MemberRowView(member: member, viewModel: viewModel)
-                            .onAppear {
-                                viewModel.loadMemberDetails(for: member.id)
-                            }
                     }
                 }
             } header: {
