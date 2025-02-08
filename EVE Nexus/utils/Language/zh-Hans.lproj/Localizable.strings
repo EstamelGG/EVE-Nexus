@@ -633,6 +633,17 @@
 "Main_Setting_Show_Corporation_Affairs_detail" = "是否需要在首页展示军团管理相关的列表";
 "Main_Corporation_wallet" = "军团账户";
 "Main_Corporation_Members" = "军团成员";
+"Main_Corporation_Members_Title" = "军团成员列表";
+"Main_Corporation_Members_Loading" = "正在加载成员信息...";
+"Main_Corporation_Members_No_Data" = "暂无成员数据";
+"Main_Corporation_Members_Error" = "加载成员数据失败";
+"Main_Corporation_Members_Last_Login" = "最后登录";
+"Main_Corporation_Members_Last_Logout" = "最后登出";
+"Main_Corporation_Members_Location" = "当前位置";
+"Main_Corporation_Members_Ship" = "当前舰船";
+"Main_Corporation_Members_Join_Date" = "入团时间";
+"Main_Corporation_Members_Refresh" = "刷新";
+"Main_Corporation_Members_Total" = "%d名成员";
 "Main_Corporation_Structures" = "军团建筑";
 "Main_Corporation_Contracts" = "军团合同";
 "Main_Corporation_Market_Orders" = "军团市场订单";
@@ -1040,3 +1051,5 @@
 // Contract Courier Mode Text
 "Contract_Courier_Active_Count" = "%d个待处理合同";
 "Contract_Courier_Active_Count_Limited" = "%d个待处理合同，仅显示前%d个";
+
+"Main_Corporation_Members_Favorites" = "特别关注";

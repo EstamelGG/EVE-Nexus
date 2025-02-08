@@ -637,6 +637,17 @@
 "Main_Setting_Show_Corporation_Affairs_detail" = "Whether to show the list of corporation affairs on the home page";
 "Main_Corporation_wallet" = "Corp Wallet";
 "Main_Corporation_Members" = "Corp Members";
+"Main_Corporation_Members_Title" = "Corporation Members";
+"Main_Corporation_Members_Loading" = "Loading members...";
+"Main_Corporation_Members_No_Data" = "No member data available";
+"Main_Corporation_Members_Error" = "Failed to load member data";
+"Main_Corporation_Members_Last_Login" = "Last Login";
+"Main_Corporation_Members_Last_Logout" = "Last Logout";
+"Main_Corporation_Members_Location" = "Location";
+"Main_Corporation_Members_Ship" = "Current Ship";
+"Main_Corporation_Members_Join_Date" = "Join Date";
+"Main_Corporation_Members_Refresh" = "Refresh";
+"Main_Corporation_Members_Total" = "%d Members";
 "Main_Corporation_Structures" = "Corp Structures";
 "Main_Corporation_Contracts" = "Corp Contracts";
 "Main_Corporation_Market_Orders" = "Corp Market Orders";

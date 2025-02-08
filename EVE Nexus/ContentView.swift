@@ -695,6 +695,10 @@ struct ContentView: View {
                                 // KillMailListView(characterId: character.CharacterID)
                                 BRKillMailView(characterId: character.CharacterID)
                             }
+                        case "corporation_members":
+                            if let character = viewModel.selectedCharacter {
+                                CorpMemberListView(characterId: character.CharacterID)
+                            }
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -841,6 +845,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_wallet", comment: ""),
                     icon: "wallet"
+                )
+            }
+
+            NavigationLink(value: "corporation_members") {
+                RowView(
+                    title: NSLocalizedString("Main_Corporation_Members", comment: ""),
+                    icon: "corporation"
                 )
             }
 
