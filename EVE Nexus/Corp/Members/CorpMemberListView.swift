@@ -26,6 +26,11 @@ class CorpMemberListViewModel: ObservableObject {
     // 缓存已获取的建筑物位置信息
     private var structureLocationCache: [Int64: LocationInfoDetail] = [:]
     
+    // 获取缓存的位置信息
+    func getCachedLocationInfo(for locationId: Int64) -> LocationInfoDetail? {
+        return structureLocationCache[locationId]
+    }
+    
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
@@ -438,15 +443,9 @@ struct MemberRowView: View {
                     }
                 } else if let locationId = member.member.location_id {
                     if locationId >= 100000000 {
-                        Text("Loading \(locationId)")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .task {
-                                // 只对建筑物ID进行加载
-                                await viewModel.loadStructureLocationInfo(locationId: Int64(locationId))
-                            }
+                        LocationLoadingView(locationId: Int64(locationId), viewModel: viewModel)
                     } else {
-                        Text("Unknown Location")
+                        Text("Unknown Location: \(locationId)")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
@@ -454,6 +453,45 @@ struct MemberRowView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+    
+    private func securityColor(_ security: Double) -> Color {
+        if security >= 0.5 {
+            return .green
+        } else if security > 0.0 {
+            return .orange
+        } else {
+            return .red
+        }
+    }
+}
+
+struct LocationLoadingView: View {
+    let locationId: Int64
+    @ObservedObject var viewModel: CorpMemberListViewModel
+    @State private var isLoading = false
+    
+    var body: some View {
+        if let cachedInfo = viewModel.getCachedLocationInfo(for: locationId) {
+            HStack {
+                Text(String(format: "%.1f", cachedInfo.security))
+                    .font(.caption)
+                    .foregroundColor(securityColor(cachedInfo.security))
+                Text(cachedInfo.solarSystemName)
+                    .font(.caption)
+            }
+        } else {
+            Text("Loading...")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .task {
+                    if !isLoading {
+                        isLoading = true
+                        await viewModel.loadStructureLocationInfo(locationId: locationId)
+                        isLoading = false
+                    }
+                }
+        }
     }
     
     private func securityColor(_ security: Double) -> Color {
