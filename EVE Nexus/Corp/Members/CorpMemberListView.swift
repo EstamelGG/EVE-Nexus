@@ -364,7 +364,7 @@ class CorpMemberListViewModel: ObservableObject {
                 )
                 async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(
                     characterId: memberId,
-                    size: 32
+                    size: 64
                 )
                 
                 let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
@@ -455,7 +455,7 @@ struct MemberRowView: View {
                         IconManager.shared.loadImage(for: shipInfo.iconFilename)
                             .resizable()
                             .frame(width: 18, height: 18)
-                            .clipShape(Rectangle())
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
                         Text(shipInfo.name)
                             .font(.caption)
                         Text(" - ")
