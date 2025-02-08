@@ -1,6 +1,27 @@
 import SwiftUI
 import Kingfisher
 
+// 移除HTML标签的扩展
+fileprivate extension String {
+    func removeHTMLTags() -> String {
+        // 移除所有HTML标签
+        let text = self.replacingOccurrences(
+            of: "<[^>]+>",
+            with: "",
+            options: .regularExpression,
+            range: nil
+        )
+        // 将HTML实体转换为对应字符
+        return text.replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 // MARK: - Data Models
 struct MemberDetailInfo: Identifiable {
     let member: MemberTrackingInfo
@@ -453,16 +474,14 @@ struct MemberRowView: View {
             // 成员信息
             VStack(alignment: .leading, spacing: 4) {
                 // 名称和称号
-                HStack {
-                    Text(member.characterName)
-                        .font(.headline)
-                    if let title = member.characterInfo?.title {
-                        Text(title)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+                Text(member.characterName)
+                    .font(.headline)
+                if let title = member.characterInfo?.title {
+                    Text(title.removeHTMLTags())
+                    // Text(title)
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
-                
                 // 飞船和位置信息
                 HStack(spacing: 4) {
                     if let shipInfo = member.shipInfo {
@@ -563,7 +582,7 @@ struct CorpMemberListView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
         .refreshable {
-            await viewModel.loadMembers(forceRefresh: true)
+            viewModel.loadMembers(forceRefresh: true)
         }
         .task {
             viewModel.loadMembers(forceRefresh: false)
