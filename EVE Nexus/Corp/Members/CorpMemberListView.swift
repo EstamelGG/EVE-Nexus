@@ -72,8 +72,11 @@ class CorpMemberListViewModel: ObservableObject {
     func getLocationInfo(locationId: Int64) async -> LocationCacheInfo {
         // 1. 检查缓存
         if let cached = locationCache[locationId] {
+            Logger.debug("从缓存获取位置信息 - ID: \(locationId), 名称: \(cached.systemName)")
             return cached
         }
+        
+        Logger.debug("缓存未命中 - ID: \(locationId), 类型: \(LocationType.from(id: locationId))")
         
         // 2. 根据ID类型处理
         switch LocationType.from(id: locationId) {
@@ -82,6 +85,7 @@ class CorpMemberListViewModel: ObservableObject {
             return await loadStructureLocationInfo(locationId: locationId)
         default:
             // 其他类型如果缓存中没有，说明是未知位置
+            Logger.error("位置信息未找到 - ID: \(locationId)")
             return LocationCacheInfo.unknown
         }
     }
@@ -89,11 +93,14 @@ class CorpMemberListViewModel: ObservableObject {
     /// 初始化基础位置信息（星系和空间站）
     @MainActor
     private func initializeBasicLocationInfo(locationIds: Set<Int64>) async {
+        Logger.debug("开始初始化位置信息 - 总数: \(locationIds.count)")
+        
         // 按类型分组
         let groupedIds = Dictionary(grouping: locationIds) { LocationType.from(id: $0) }
         
         // 加载星系信息
         if let solarSystemIds = groupedIds[.solarSystem] {
+            Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
             let query = """
                 SELECT u.solarsystem_id, u.system_security,
                        s.solarSystemName
@@ -103,6 +110,7 @@ class CorpMemberListViewModel: ObservableObject {
             """
             
             if case .success(let rows) = databaseManager.executeQuery(query) {
+                Logger.debug("查询到星系数量: \(rows.count)")
                 for row in rows {
                     if let systemId = row["solarsystem_id"] as? Int64,
                        let security = row["system_security"] as? Double,
@@ -112,6 +120,7 @@ class CorpMemberListViewModel: ObservableObject {
                             security: security,
                             stationName: nil
                         )
+                        Logger.debug("缓存星系信息 - ID: \(systemId), 名称: \(systemName)")
                     }
                 }
             }
@@ -119,6 +128,7 @@ class CorpMemberListViewModel: ObservableObject {
         
         // 加载空间站信息
         if let stationIds = groupedIds[.station] {
+            Logger.debug("加载空间站信息 - 数量: \(stationIds.count)")
             let query = """
                 SELECT s.stationID, s.stationName,
                        ss.solarSystemName, u.system_security
@@ -129,19 +139,68 @@ class CorpMemberListViewModel: ObservableObject {
             """
             
             if case .success(let rows) = databaseManager.executeQuery(query) {
+                Logger.debug("查询到空间站数量: \(rows.count)")
                 for row in rows {
-                    if let stationId = row["stationID"] as? Int64,
-                       let stationName = row["stationName"] as? String,
-                       let systemName = row["solarSystemName"] as? String,
-                       let security = row["system_security"] as? Double {
-                        locationCache[stationId] = LocationCacheInfo(
-                            systemName: systemName,
-                            security: security,
-                            stationName: stationName
-                        )
+                    Logger.debug("处理空间站数据行: \(row)")
+                    // 先获取原始值
+                    let rawStationId = row["stationID"]
+                    let rawStationName = row["stationName"]
+                    let rawSystemName = row["solarSystemName"]
+                    let rawSecurity = row["system_security"]
+                    
+                    Logger.debug("原始数据类型 - stationID: \(type(of: rawStationId)), stationName: \(type(of: rawStationName)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
+                    
+                    // 尝试不同的类型转换
+                    let stationId: Int64
+                    if let id = rawStationId as? Int64 {
+                        stationId = id
+                    } else if let id = rawStationId as? Int {
+                        stationId = Int64(id)
+                    } else {
+                        Logger.error("stationID 类型转换失败: \(String(describing: rawStationId))")
+                        continue
                     }
+                    
+                    guard let stationName = rawStationName as? String else {
+                        Logger.error("stationName 类型转换失败: \(String(describing: rawStationName))")
+                        continue
+                    }
+                    
+                    guard let systemName = rawSystemName as? String else {
+                        Logger.error("systemName 类型转换失败: \(String(describing: rawSystemName))")
+                        continue
+                    }
+                    
+                    let security: Double
+                    if let sec = rawSecurity as? Double {
+                        security = sec
+                    } else if let sec = rawSecurity as? String {
+                        security = Double(sec) ?? 0.0
+                    } else {
+                        Logger.error("security 类型转换失败: \(String(describing: rawSecurity))")
+                        continue
+                    }
+                    
+                    let info = LocationCacheInfo(
+                        systemName: systemName,
+                        security: security,
+                        stationName: stationName
+                    )
+                    locationCache[stationId] = info
+                    Logger.debug("成功缓存空间站信息 - ID: \(stationId), 名称: \(stationName), 星系: \(systemName), 安全等级: \(security)")
                 }
+            } else {
+                Logger.error("空间站查询失败 - SQL: \(query)")
             }
+        }
+        
+        Logger.debug("位置信息缓存初始化完成 - 缓存数量: \(locationCache.count)")
+        
+        // 打印前20个缓存项
+        Logger.debug("缓存内容预览（前20个）:")
+        for (index, (id, info)) in locationCache.prefix(20).enumerated() {
+            let type = LocationType.from(id: id)
+            Logger.debug("\(index + 1). ID: \(id) (\(type)) - 星系: \(info.systemName), 安全等级: \(info.security)" + (info.stationName.map { ", 空间站: \($0)" } ?? ""))
         }
     }
     
@@ -305,14 +364,9 @@ struct LocationView: View {
             HStack {
                 Text(String(format: "%.1f", info.security))
                     .font(.caption)
-                    .foregroundColor(securityColor(info.security))
+                    .foregroundColor(getSecurityColor(info.security))
                 Text(info.systemName)
                     .font(.caption)
-                if let stationName = info.stationName {
-                    Text("(\(stationName))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                }
             }
         } else {
             Text("Loading...")
@@ -321,16 +375,6 @@ struct LocationView: View {
                 .task {
                     locationInfo = await viewModel.getLocationInfo(locationId: locationId)
                 }
-        }
-    }
-    
-    private func securityColor(_ security: Double) -> Color {
-        if security >= 0.5 {
-            return .green
-        } else if security > 0.0 {
-            return .orange
-        } else {
-            return .red
         }
     }
 }
