@@ -74,7 +74,11 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var members: [MemberDetailInfo] = []
     @Published var isLoading = true
     @Published var error: Error?
+    @Published var currentPage = 0
+    @Published var totalPages = 0
     
+    private let pageSize = 100
+    var allMembers: [MemberDetailInfo] = []
     private let characterId: Int
     private let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
@@ -85,6 +89,37 @@ class CorpMemberListViewModel: ObservableObject {
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+    }
+    
+    @MainActor
+    func updatePage() {
+        let start = currentPage * pageSize
+        let end = min(start + pageSize, allMembers.count)
+        members = Array(allMembers[start..<end])
+    }
+    
+    @MainActor
+    func nextPage() {
+        if currentPage < totalPages - 1 {
+            currentPage += 1
+            updatePage()
+        }
+    }
+    
+    @MainActor
+    func previousPage() {
+        if currentPage > 0 {
+            currentPage -= 1
+            updatePage()
+        }
+    }
+    
+    @MainActor
+    func goToPage(_ page: Int) {
+        if page >= 0 && page < totalPages {
+            currentPage = page
+            updatePage()
+        }
     }
     
     // MARK: - Location Methods
@@ -344,13 +379,19 @@ class CorpMemberListViewModel: ObservableObject {
                 }
                 
                 // 5. 创建初始成员列表
-                members = memberList.map { member in
+                allMembers = memberList.map { member in
                     MemberDetailInfo(
                         member: member,
                         characterName: characterNames[member.character_id]?.name ?? String(member.character_id),
                         shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] }
                     )
                 }.sorted { $0.characterName < $1.characterName }
+                
+                // 计算总页数
+                totalPages = (allMembers.count + pageSize - 1) / pageSize
+                // 重置到第一页
+                currentPage = 0
+                updatePage()
                 
                 // 6. 初始化基础位置信息
                 let locationIds = Set(memberList.compactMap { member in
@@ -538,46 +579,70 @@ struct CorpMemberListView: View {
     }
     
     var body: some View {
-        List {
-            // 特别关注部分
-            if !viewModel.isLoading && viewModel.error == nil {
+        VStack {
+            List {
+                // 特别关注部分
+                if !viewModel.isLoading && viewModel.error == nil {
+                    Section {
+                        Button(action: {
+                            showingFavorites.toggle()
+                        }) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
+                        }
+                    }
+                }
+                
+                // 成员列表部分
                 Section {
-                    Button(action: {
-                        showingFavorites.toggle()
-                    }) {
-                        Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
+                    if viewModel.isLoading {
+                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                    } else if let error = viewModel.error {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                                .font(.headline)
+                                .foregroundColor(.red)
+                            Text(error.localizedDescription)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Button(action: {
+                                viewModel.loadMembers(forceRefresh: true)
+                            }) {
+                                Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
+                            }
+                            .padding(.top, 4)
+                        }
+                    } else {
+                        ForEach(viewModel.members) { member in
+                            MemberRowView(member: member, viewModel: viewModel)
+                        }
+                    }
+                } header: {
+                    if !viewModel.isLoading && viewModel.error == nil {
+                        Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), viewModel.allMembers.count))
                     }
                 }
             }
             
-            // 成员列表部分
-            Section {
-                if viewModel.isLoading {
-                    ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
-                } else if let error = viewModel.error {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(.red)
-                        Text(error.localizedDescription)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Button(action: {
-                            viewModel.loadMembers(forceRefresh: true)
-                        }) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
-                        }
-                        .padding(.top, 4)
+            // 分页控制器
+            if !viewModel.isLoading && viewModel.error == nil && viewModel.totalPages > 1 {
+                HStack(spacing: 20) {
+                    Button(action: { viewModel.previousPage() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(viewModel.currentPage > 0 ? .blue : .gray)
                     }
-                } else {
-                    ForEach(viewModel.members) { member in
-                        MemberRowView(member: member, viewModel: viewModel)
+                    .disabled(viewModel.currentPage == 0)
+                    
+                    Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+                        .font(.caption)
+                    
+                    Button(action: { viewModel.nextPage() }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(viewModel.currentPage < viewModel.totalPages - 1 ? .blue : .gray)
                     }
+                    .disabled(viewModel.currentPage == viewModel.totalPages - 1)
                 }
-            } header: {
-                if !viewModel.isLoading && viewModel.error == nil {
-                    Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), viewModel.members.count))
-                }
+                .padding(.vertical, 8)
+                .background(Color(UIColor.systemBackground))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
