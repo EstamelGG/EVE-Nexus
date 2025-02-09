@@ -652,6 +652,10 @@
 "Main_Corporation_Contracts" = "Corp Contracts";
 "Main_Corporation_Market_Orders" = "Corp Market Orders";
 "Main_Corporation_Industry" = "Corp Industry";
+"Main_Corporation_Members_Favorites" = "Favorites";
+"Main_Corporation_Members_Favorites_Title" = "Favorite Members";
+"Main_Corporation_Members_Favorites_Total" = "%d Members Pinned";
+"Main_Corporation_Members_No_Favorites" = "No Favorite Members";
 
 // Corporation Divisions
 "Main_Corporation_Wallet_Division1" = "Master Wallet";

@@ -1053,6 +1053,9 @@
 "Contract_Courier_Active_Count_Limited" = "%d个待处理合同，仅显示前%d个";
 
 "Main_Corporation_Members_Favorites" = "特别关注";
+"Main_Corporation_Members_Favorites_Title" = "特别关注列表";
+"Main_Corporation_Members_Favorites_Total" = "已关注 %d 名成员";
+"Main_Corporation_Members_No_Favorites" = "暂无关注成员";
 
 // Structure Access
 "Structure_No_Access" = "无权限建筑物";
