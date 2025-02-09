@@ -52,6 +52,42 @@ class CacheManager {
     static let shared = CacheManager()
     private let fileManager = FileManager.default
     
+    // 定义需要清理的缓存键前缀
+    private let cachePrefixes = [
+        "incursions_cache",
+        "character_portrait_",
+        "corporation_info",
+        "corporation_info_",
+        "alliance_info_",
+        "structure_info_",
+        "character_info_",
+        "market_orders_",
+        "market_history_",
+        "contracts_",
+        "wallet_journal_",
+        "wallet_transactions_",
+        "mining_ledger_",
+        "industry_jobs_",
+        "location_info_"
+    ]
+    
+    // 清理指定前缀的缓存
+    private func clearCacheWithPrefixes() {
+        let defaults = UserDefaults.standard
+        let allKeys = defaults.dictionaryRepresentation().keys
+        
+        // 遍历所有键
+        for key in allKeys {
+            // 检查是否有匹配的前缀
+            if cachePrefixes.contains(where: { key.hasPrefix($0) }) {
+                Logger.debug("正在清理缓存键: \(key)")
+                defaults.removeObject(forKey: key)
+            }
+        }
+        defaults.synchronize()
+        Logger.info("基于前缀的缓存清理完成")
+    }
+    
     // 获取所有缓存统计信息
     func getAllCacheStats() async -> [String: CacheStats] {
         var stats: [String: CacheStats] = [:]
@@ -165,29 +201,36 @@ class CacheManager {
                 }
             }
         } catch {
-            Logger.error("Error clearing temp files: \(error)")
+            Logger.error("清理临时文件失败: \(error)")
         }
         
-        // 3. 清理入侵相关缓存
+        // 3. 清理基于前缀的缓存
         await MainActor.run {
-            UserDefaults.standard.removeObject(forKey: "incursions_cache")
+            clearCacheWithPrefixes()
+        }
+        
+        // 4. 清理入侵相关缓存
+        await MainActor.run {
             InfestedSystemsViewModel.clearCache()
         }
         
-        // 4. 清理数据库浏览器缓存
+        // 5. 清理数据库浏览器缓存
         await MainActor.run {
             DatabaseBrowserView.clearCache()
         }
         
-        // 5. 清理静态资源
+        // 6. 清理静态资源
         do {
             try StaticResourceManager.shared.clearAllStaticData()
         } catch {
-            Logger.error("Error clearing static data: \(error)")
+            Logger.error("清理静态资源失败: \(error)")
         }
         
-        // 6. 清理建筑物缓存
+        // 7. 清理建筑物缓存
         await UniverseStructureAPI.shared.clearCache()
+        
+        // 8. 清理 URL Session 缓存
+        await clearURLSessionCacheAsync()
         
         Logger.info("所有缓存清理完成")
     }
