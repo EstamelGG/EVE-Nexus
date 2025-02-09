@@ -36,10 +36,10 @@ struct EVE_NexusApp: App {
         }
         
         // 按大小排序并打印
-//        sizeMap.sort { $0.size > $1.size }
-//        for item in sizeMap {
-//            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
-//        }
+        sizeMap.sort { $0.size > $1.size }
+        for item in sizeMap {
+            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
+        }
         
         Logger.info("UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))")
         

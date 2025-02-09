@@ -60,9 +60,9 @@ final class CharacterAPI: @unchecked Sendable {
         let query = """
             INSERT OR REPLACE INTO character_info (
                 character_id, alliance_id, birthday, bloodline_id, corporation_id,
-                faction_id, gender, name, race_id, security_status,
+                faction_id, gender, name, race_id, security_status, title,
                 last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """
         
         let parameters: [Any] = [
@@ -75,7 +75,8 @@ final class CharacterAPI: @unchecked Sendable {
             info.gender,
             info.name,
             info.race_id,
-            info.security_status as Any? ?? NSNull()
+            info.security_status as Any? ?? NSNull(),
+            info.title as Any? ?? NSNull()
         ]
         
         // 字段名称数组，与参数数组顺序对应
@@ -89,7 +90,8 @@ final class CharacterAPI: @unchecked Sendable {
             "gender",
             "name",
             "race_id",
-            "security_status"
+            "security_status",
+            "title"
         ]
         
         if case .error(let error) = CharacterDatabaseManager.shared.executeQuery(query, parameters: parameters) {
@@ -131,6 +133,7 @@ final class CharacterAPI: @unchecked Sendable {
             let allianceId = (row["alliance_id"] as? Int64).map({ Int($0) })
             let factionId = (row["faction_id"] as? Int64).map({ Int($0) })
             let securityStatus = row["security_status"] as? Double
+            let title = row["title"] as? String
             
             return CharacterPublicInfo(
                 alliance_id: allianceId,
@@ -142,7 +145,7 @@ final class CharacterAPI: @unchecked Sendable {
                 name: name,
                 race_id: raceId,
                 security_status: securityStatus,
-                title: nil
+                title: title
             )
         }
         return nil

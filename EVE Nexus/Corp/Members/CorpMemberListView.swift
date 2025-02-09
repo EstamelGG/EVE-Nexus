@@ -426,7 +426,8 @@ class CorpMemberListViewModel: ObservableObject {
                 )
                 async let portraitTask = CharacterAPI.shared.fetchCharacterPortrait(
                     characterId: memberId,
-                    size: 64
+                    size: 64,
+                    catchImage: false
                 )
                 
                 let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)

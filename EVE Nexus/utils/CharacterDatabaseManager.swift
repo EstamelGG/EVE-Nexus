@@ -435,8 +435,10 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 name TEXT NOT NULL,
                 race_id INTEGER NOT NULL,
                 security_status REAL,
+                title TEXT,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE INDEX IF NOT EXISTS idx_character_info_last_updated ON character_info(last_updated);
 
             -- 克隆体状态表
             CREATE TABLE IF NOT EXISTS clones (
