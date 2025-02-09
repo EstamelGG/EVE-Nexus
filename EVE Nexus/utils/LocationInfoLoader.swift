@@ -21,16 +21,18 @@ private enum LocationType {
     case unknown
     
     static func from(id: Int64) -> LocationType {
-        switch id {
+        let type: LocationType = switch id {
         case 30000000...39999999:
-            return .solarSystem
+            .solarSystem
         case 60000000...69999999:
-            return .station
+            .station
         case 100000000...:
-            return .structure
+            .structure
         default:
-            return .unknown
+            .unknown
         }
+        Logger.debug("位置ID类型判断 - ID: \(id), 类型: \(type)")
+        return type
     }
 }
 
@@ -62,10 +64,11 @@ class LocationInfoLoader {
         
         // 按类型分组
         let groupedIds = Dictionary(grouping: validIds) { LocationType.from(id: $0) }
+        Logger.debug("位置ID分组结果: \(groupedIds.mapValues { $0.count })")
         
         // 1. 处理星系
         if let solarSystemIds = groupedIds[.solarSystem] {
-            Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
+            Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count), IDs: \(solarSystemIds)")
             let query = """
                 SELECT u.solarsystem_id, u.system_security,
                        s.solarSystemName
@@ -92,7 +95,7 @@ class LocationInfoLoader {
         
         // 2. 处理空间站
         if let stationIds = groupedIds[.station] {
-            Logger.debug("加载空间站信息 - 数量: \(stationIds.count)")
+            Logger.debug("加载空间站信息 - 数量: \(stationIds.count), IDs: \(stationIds)")
             let query = """
                 SELECT s.stationID, s.stationName,
                        ss.solarSystemName, u.system_security
@@ -103,25 +106,33 @@ class LocationInfoLoader {
             """
             
             if case .success(let rows) = databaseManager.executeQuery(query) {
+                Logger.debug("SQL查询返回行数: \(rows.count)")
                 for row in rows {
-                    if let stationId = row["stationID"] as? Int64,
+                    Logger.debug("处理空间站行: \(row)")
+                    if let stationId = row["stationID"] as? Int,
                        let stationName = row["stationName"] as? String,
                        let systemName = row["solarSystemName"] as? String,
                        let security = row["system_security"] as? Double {
-                        locationInfoCache[stationId] = LocationInfoDetail(
+                        let stationIdInt64 = Int64(stationId)
+                        locationInfoCache[stationIdInt64] = LocationInfoDetail(
                             stationName: stationName,
                             solarSystemName: systemName,
                             security: security
                         )
-                        Logger.debug("成功加载空间站信息 - ID: \(stationId), 名称: \(stationName)")
+                        Logger.debug("成功加载空间站信息 - ID: \(stationIdInt64), 名称: \(stationName)")
+                    } else {
+                        Logger.error("空间站数据类型转换失败 - Row: \(row)")
+                        Logger.error("类型信息 - stationID: \(type(of: row["stationID"])), stationName: \(type(of: row["stationName"])), systemName: \(type(of: row["solarSystemName"])), security: \(type(of: row["system_security"]))")
                     }
                 }
+            } else {
+                Logger.error("空间站SQL查询失败")
             }
         }
         
         // 3. 处理建筑物
         if let structureIds = groupedIds[.structure] {
-            Logger.debug("加载建筑物信息 - 数量: \(structureIds.count)")
+            Logger.debug("加载建筑物信息 - 数量: \(structureIds.count), IDs: \(structureIds)")
             
             for structureId in structureIds {
                 do {
@@ -148,10 +159,29 @@ class LocationInfoLoader {
                         )
                         Logger.debug("成功加载建筑物信息 - ID: \(structureId), 名称: \(structureInfo.name)")
                     }
+                } catch let error as NetworkError {
+                    if case .httpError(let statusCode, _) = error, statusCode == 403 {
+                        // 如果是403错误，说明没有访问权限，使用有限的信息
+                        locationInfoCache[structureId] = LocationInfoDetail(
+                            stationName: NSLocalizedString("Structure_No_Access", comment: ""),
+                            solarSystemName: NSLocalizedString("Unknown_System", comment: ""),
+                            security: 0.0
+                        )
+                        Logger.debug("建筑物无访问权限，使用默认信息 - ID: \(structureId)")
+                    } else {
+                        Logger.error("加载建筑物信息失败 - ID: \(structureId), 错误: \(error)")
+                    }
                 } catch {
                     Logger.error("加载建筑物信息失败 - ID: \(structureId), 错误: \(error)")
                 }
             }
+        }
+        
+        // 记录未能加载的位置ID
+        let loadedIds = Set(locationInfoCache.keys)
+        let unloadedIds = validIds.subtracting(loadedIds)
+        if !unloadedIds.isEmpty {
+            Logger.error("以下位置ID未能加载信息: \(unloadedIds)")
         }
         
         return locationInfoCache

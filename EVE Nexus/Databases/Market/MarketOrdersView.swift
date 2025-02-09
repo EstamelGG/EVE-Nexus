@@ -98,8 +98,8 @@ struct MarketOrdersView: View {
         .ignoresSafeArea(edges: .bottom)
         .task {
             isLoading = true
-            // 收集所有订单的位置ID并转换为 Int64
-            let locationIds = Set(orders.map { Int64($0.locationId) })
+            // 收集所有订单的位置ID
+            let locationIds = Set(orders.map { $0.locationId })
             // 加载位置信息
             let infos = await locationInfoLoader.loadLocationInfo(locationIds: locationIds)
             locationInfos = infos
@@ -143,7 +143,7 @@ struct MarketOrdersView: View {
                 } else {
                     Section {
                         ForEach(sortedOrders, id: \.orderId) { order in
-                            OrderRow(order: order, locationInfo: locationInfos[Int64(order.locationId)])
+                            OrderRow(order: order, locationInfo: locationInfos[order.locationId])
                         }
                     }
                     .listSectionSpacing(.compact)

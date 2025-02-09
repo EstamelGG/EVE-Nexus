@@ -1053,3 +1053,6 @@
 "Contract_Courier_Active_Count_Limited" = "%d个待处理合同，仅显示前%d个";
 
 "Main_Corporation_Members_Favorites" = "特别关注";
+
+// Structure Access
+"Structure_No_Access" = "无权限建筑物";

@@ -6,7 +6,7 @@ struct MarketOrder: Codable {
     let duration: Int
     let isBuyOrder: Bool
     let issued: String
-    let locationId: Int
+    let locationId: Int64
     let minVolume: Int
     let orderId: Int
     let price: Double

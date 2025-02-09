@@ -1028,3 +1028,6 @@
 
 // Contract Settings
 "Contract_Show_Active_Only" = "Show Active Contracts Only";
+
+// Structure Access
+"Structure_No_Access" = "No Access Structure";
