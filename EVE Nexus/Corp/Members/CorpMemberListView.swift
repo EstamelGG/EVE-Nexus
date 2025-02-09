@@ -31,6 +31,8 @@ struct MemberDetailInfo: Identifiable {
     // 延迟加载的信息
     var characterInfo: CharacterPublicInfo?
     var portrait: UIImage?
+    var isLoadingDetails = false
+    var isPinned: Bool = false
     
     var id: Int { member.character_id }
 }
@@ -87,9 +89,60 @@ class CorpMemberListViewModel: ObservableObject {
     // 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
     
+    // 特别关注成员ID集合
+    private var pinnedMemberIds: Set<Int> {
+        get {
+            // 使用当前用户角色ID作为缓存key的一部分
+            let cacheKey = "PinnedMembers_\(characterId)"
+            
+            if let data = UserDefaults.standard.data(forKey: cacheKey),
+               let ids = try? JSONDecoder().decode(Set<Int>.self, from: data) {
+                return ids
+            }
+            return []
+        }
+        set {
+            let cacheKey = "PinnedMembers_\(characterId)"
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: cacheKey)
+            }
+        }
+    }
+    
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+    }
+    
+    // 切换成员的置顶状态
+    @MainActor
+    func togglePinStatus(for memberId: Int) {
+        Task {
+            var ids = pinnedMemberIds
+            if ids.contains(memberId) {
+                ids.remove(memberId)
+            } else {
+                ids.insert(memberId)
+            }
+            pinnedMemberIds = ids
+            
+            // 更新成员列表中的状态
+            if let allMembersIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
+                allMembers[allMembersIndex].isPinned.toggle()
+                
+                // 同时更新当前页面显示的成员状态
+                if let currentIndex = members.firstIndex(where: { $0.id == memberId }) {
+                    members[currentIndex].isPinned = allMembers[allMembersIndex].isPinned
+                }
+            }
+        }
+    }
+    
+    // 获取特别关注的成员列表
+    @MainActor
+    func getPinnedMembers() -> [MemberDetailInfo] {
+        let ids = pinnedMemberIds
+        return allMembers.filter { ids.contains($0.id) }
     }
     
     @MainActor
@@ -385,11 +438,13 @@ class CorpMemberListViewModel: ObservableObject {
                 }
                 
                 // 5. 创建初始成员列表
+                let pinnedIds = pinnedMemberIds
                 allMembers = memberList.map { member in
                     MemberDetailInfo(
                         member: member,
                         characterName: characterNames[member.character_id]?.name ?? String(member.character_id),
-                        shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] }
+                        shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] },
+                        isPinned: pinnedIds.contains(member.character_id)
                     )
                 }.sorted { $0.characterName < $1.characterName }
                 
@@ -424,8 +479,9 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Member Detail Loading
     @MainActor
     func loadMemberDetails(for memberId: Int) {
-        guard let index = members.firstIndex(where: { $0.id == memberId }),
-              members[index].characterInfo == nil else { return }
+        guard let memberIndex = members.firstIndex(where: { $0.id == memberId }),
+              let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }),
+              members[memberIndex].characterInfo == nil else { return }
         
         Task {
             do {
@@ -441,8 +497,12 @@ class CorpMemberListViewModel: ObservableObject {
                 let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
                 
                 if !Task.isCancelled {
-                    members[index].characterInfo = characterInfo
-                    members[index].portrait = portrait
+                    // 同时更新两个数组中的数据
+                    members[memberIndex].characterInfo = characterInfo
+                    members[memberIndex].portrait = portrait
+                    
+                    allMembers[allMemberIndex].characterInfo = characterInfo
+                    allMembers[allMemberIndex].portrait = portrait
                 }
             } catch {
                 Logger.error("加载成员详细信息失败 - 角色ID: \(memberId), 错误: \(error)")
@@ -466,6 +526,18 @@ class CorpMemberListViewModel: ObservableObject {
     
     deinit {
         cancelLoading(clearData: true)
+    }
+
+    // 仅更新大头针状态
+    @MainActor
+    func refreshPinStatus() {
+        let ids = pinnedMemberIds
+        // 更新所有成员的置顶状态
+        for index in allMembers.indices {
+            allMembers[index].isPinned = ids.contains(allMembers[index].id)
+        }
+        // 更新当前页面显示的成员状态
+        updatePage()
     }
 }
 
@@ -562,6 +634,20 @@ struct MemberRowView: View {
                     }
                 }
             }
+            
+            Spacer()
+            
+            // 大头针按钮
+            Button {
+                viewModel.togglePinStatus(for: member.id)
+            } label: {
+                Image(systemName: member.isPinned ? "pin.fill" : "pin")
+                    .foregroundColor(member.isPinned ? .blue : .gray)
+                    .font(.system(size: 16))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
         .onAppear {
@@ -667,6 +753,10 @@ struct CorpMemberListView: View {
         .task {
             viewModel.loadMembers(forceRefresh: false)
         }
+        .onAppear {
+            // 仅更新大头针状态
+            viewModel.refreshPinStatus()
+        }
         .onDisappear {
             viewModel.cancelLoading(clearData: false)
         }
@@ -686,58 +776,42 @@ struct FavoriteMembersView: View {
     }
     
     var body: some View {
-        VStack {
-            List {
-                Section {
-                    if viewModel.isLoading {
-                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
-                    } else if let error = viewModel.error {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.red)
-                            Text(error.localizedDescription)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Button(action: {
-                                viewModel.loadMembers(forceRefresh: true)
-                            }) {
-                                Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
-                            }
-                            .padding(.top, 4)
+        List {
+            Section {
+                if viewModel.isLoading {
+                    ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                } else if let error = viewModel.error {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Text(error.localizedDescription)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Button(action: {
+                            viewModel.loadMembers(forceRefresh: true)
+                        }) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
                         }
+                        .padding(.top, 4)
+                    }
+                } else {
+                    let pinnedMembers = viewModel.getPinnedMembers()
+                    if pinnedMembers.isEmpty {
+                        Text(NSLocalizedString("Main_Corporation_Members_No_Favorites", comment: ""))
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
                     } else {
-                        ForEach(viewModel.members) { member in
+                        ForEach(pinnedMembers) { member in
                             MemberRowView(member: member, viewModel: viewModel)
                         }
                     }
-                } header: {
-                    if !viewModel.isLoading && viewModel.error == nil {
-                        Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), viewModel.allMembers.count))
-                    }
                 }
-            }
-            
-            // 分页控制器
-            if !viewModel.isLoading && viewModel.error == nil && viewModel.totalPages > 1 {
-                HStack(spacing: 20) {
-                    Button(action: { viewModel.previousPage() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(viewModel.currentPage > 0 ? .blue : .gray)
-                    }
-                    .disabled(viewModel.currentPage == 0)
-                    
-                    Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
-                        .font(.caption)
-                    
-                    Button(action: { viewModel.nextPage() }) {
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(viewModel.currentPage < viewModel.totalPages - 1 ? .blue : .gray)
-                    }
-                    .disabled(viewModel.currentPage == viewModel.totalPages - 1)
+            } header: {
+                if !viewModel.isLoading && viewModel.error == nil {
+                    Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), viewModel.getPinnedMembers().count))
                 }
-                .padding(.vertical, 8)
-                .background(Color(UIColor.systemBackground))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
