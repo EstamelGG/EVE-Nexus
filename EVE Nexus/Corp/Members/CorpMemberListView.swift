@@ -78,7 +78,19 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var error: Error?
     @Published var currentPage = 0
     @Published var totalPages = 0
-    @Published var sortOption: MemberSortOption = .name
+    @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
+    
+    var sortOption: MemberSortOption {
+        get {
+            MemberSortOption(rawValue: sortOptionRaw) ?? .name
+        }
+        set {
+            sortOptionRaw = newValue.rawValue
+            Task { @MainActor in
+                sortMembers()
+            }
+        }
+    }
     
     private let pageSize = 100
     var allMembers: [MemberDetailInfo] = []
@@ -90,7 +102,7 @@ class CorpMemberListViewModel: ObservableObject {
     // 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
     
-    enum MemberSortOption {
+    enum MemberSortOption: String {
         case name
         case ship
         
@@ -461,7 +473,10 @@ class CorpMemberListViewModel: ObservableObject {
                         shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] },
                         isPinned: pinnedIds.contains(member.character_id)
                     )
-                }.sorted { $0.characterName < $1.characterName }
+                }
+                
+                // 根据当前排序选项进行排序
+                sortMembers()
                 
                 // 计算总页数
                 totalPages = (allMembers.count + pageSize - 1) / pageSize
@@ -581,7 +596,6 @@ class CorpMemberListViewModel: ObservableObject {
     @MainActor
     func setSortOption(_ option: MemberSortOption) {
         sortOption = option
-        sortMembers()
     }
 }
 
