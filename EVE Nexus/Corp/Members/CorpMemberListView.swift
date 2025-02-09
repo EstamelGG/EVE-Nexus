@@ -36,7 +36,7 @@ struct MemberDetailInfo: Identifiable {
 }
 
 // MARK: - Location Types
-enum LocationType {
+private enum LocationType {
     case solarSystem    // 30000000...39999999
     case station       // 60000000...69999999
     case structure     // >= 100000000
