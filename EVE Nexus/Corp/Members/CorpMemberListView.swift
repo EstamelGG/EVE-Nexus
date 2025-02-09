@@ -78,6 +78,7 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var error: Error?
     @Published var currentPage = 0
     @Published var totalPages = 0
+    @Published var sortOption: MemberSortOption = .name
     
     private let pageSize = 100
     var allMembers: [MemberDetailInfo] = []
@@ -88,6 +89,20 @@ class CorpMemberListViewModel: ObservableObject {
     
     // 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
+    
+    enum MemberSortOption {
+        case name
+        case ship
+        
+        var localizedString: String {
+            switch self {
+            case .name:
+                return NSLocalizedString("Main_Corporation_Members_Sort_By_Name", comment: "")
+            case .ship:
+                return NSLocalizedString("Main_Corporation_Members_Sort_By_Ship", comment: "")
+            }
+        }
+    }
     
     // 特别关注成员ID集合
     private var pinnedMemberIds: Set<Int> {
@@ -539,6 +554,35 @@ class CorpMemberListViewModel: ObservableObject {
         // 更新当前页面显示的成员状态
         updatePage()
     }
+    
+    @MainActor
+    func sortMembers() {
+        allMembers.sort { member1, member2 in
+            switch sortOption {
+            case .name:
+                return member1.characterName.localizedCaseInsensitiveCompare(member2.characterName) == .orderedAscending
+            case .ship:
+                let ship1 = member1.shipInfo?.name ?? ""
+                let ship2 = member2.shipInfo?.name ?? ""
+                // 如果两个都是空，则按人名排序
+                if ship1.isEmpty && ship2.isEmpty {
+                    return member1.characterName.localizedCaseInsensitiveCompare(member2.characterName) == .orderedAscending
+                }
+                // 如果其中一个是空，空的排在后面
+                if ship1.isEmpty { return false }
+                if ship2.isEmpty { return true }
+                // 都不为空，则按船名排序
+                return ship1.localizedCaseInsensitiveCompare(ship2) == .orderedAscending
+            }
+        }
+        updatePage()
+    }
+    
+    @MainActor
+    func setSortOption(_ option: MemberSortOption) {
+        sortOption = option
+        sortMembers()
+    }
 }
 
 // MARK: - Views
@@ -669,6 +713,43 @@ struct MemberRowView: View {
     }
 }
 
+struct SortMenuView: View {
+    @ObservedObject var viewModel: CorpMemberListViewModel
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        Menu {
+            ForEach([
+                CorpMemberListViewModel.MemberSortOption.name,
+                .ship
+            ], id: \.self) { option in
+                Button(action: {
+                    viewModel.setSortOption(option)
+                }) {
+                    HStack {
+                        Text(option.localizedString)
+                        if viewModel.sortOption == option {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(NSLocalizedString("Main_Corporation_Members_Sort", comment: ""))
+                    .foregroundColor(.blue)
+                Image(systemName: "arrow.up.arrow.down")
+                    .foregroundColor(.blue)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(.systemBackground))
+            .cornerRadius(8)
+        }
+    }
+}
+
 struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
@@ -747,6 +828,11 @@ struct CorpMemberListView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+            }
+        }
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }
@@ -754,7 +840,6 @@ struct CorpMemberListView: View {
             viewModel.loadMembers(forceRefresh: false)
         }
         .onAppear {
-            // 仅更新大头针状态
             viewModel.refreshPinStatus()
         }
         .onDisappear {
@@ -815,6 +900,11 @@ struct FavoriteMembersView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+            }
+        }
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }

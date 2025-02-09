@@ -1059,3 +1059,9 @@
 
 // Structure Access
 "Structure_No_Access" = "无权限建筑物";
+
+"Main_Corporation_Members_Sort" = "排序";
+"Main_Corporation_Members_Sort_By_Name" = "按人名";
+"Main_Corporation_Members_Sort_By_Title" = "按称号";
+"Main_Corporation_Members_Sort_By_System" = "按星系";
+"Main_Corporation_Members_Sort_By_Ship" = "按舰船";
