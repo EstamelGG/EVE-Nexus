@@ -828,11 +828,6 @@ struct CorpMemberListView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
-            }
-        }
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }
@@ -844,6 +839,11 @@ struct CorpMemberListView: View {
         }
         .onDisappear {
             viewModel.cancelLoading(clearData: false)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+            }
         }
     }
 }
@@ -890,6 +890,10 @@ struct FavoriteMembersView: View {
                     } else {
                         ForEach(pinnedMembers) { member in
                             MemberRowView(member: member, viewModel: viewModel)
+                                .onAppear {
+                                    // 当每个成员行出现时加载其详细信息
+                                    viewModel.loadMemberDetails(for: member.id)
+                                }
                         }
                     }
                 }
@@ -900,11 +904,6 @@ struct FavoriteMembersView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
-            }
-        }
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }
@@ -913,6 +912,11 @@ struct FavoriteMembersView: View {
         }
         .onDisappear {
             viewModel.cancelLoading(clearData: false)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+            }
         }
     }
 }
