@@ -161,6 +161,9 @@ class CorpMemberListViewModel: ObservableObject {
                 if let currentIndex = members.firstIndex(where: { $0.id == memberId }) {
                     members[currentIndex].isPinned = allMembers[allMembersIndex].isPinned
                 }
+                
+                // 重新排序以确保UI更新
+                sortMembers()
             }
         }
     }
@@ -758,8 +761,6 @@ struct SortMenuView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color(.systemBackground))
-            .cornerRadius(8)
         }
     }
 }
@@ -782,7 +783,7 @@ struct CorpMemberListView: View {
                 // 特别关注部分
                 if !viewModel.isLoading && viewModel.error == nil {
                     Section {
-                        NavigationLink(destination: FavoriteMembersView(characterId: characterId)) {
+                        NavigationLink(destination: FavoriteMembersView(viewModel: viewModel)) {
                             Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
                         }
                     }
@@ -863,16 +864,7 @@ struct CorpMemberListView: View {
 }
 
 struct FavoriteMembersView: View {
-    let characterId: Int
-    @StateObject private var viewModel: CorpMemberListViewModel
-    
-    init(characterId: Int) {
-        self.characterId = characterId
-        self._viewModel = StateObject(wrappedValue: CorpMemberListViewModel(
-            characterId: characterId,
-            databaseManager: DatabaseManager.shared
-        ))
-    }
+    @ObservedObject var viewModel: CorpMemberListViewModel
     
     var body: some View {
         List {
@@ -904,10 +896,6 @@ struct FavoriteMembersView: View {
                     } else {
                         ForEach(pinnedMembers) { member in
                             MemberRowView(member: member, viewModel: viewModel)
-                                .onAppear {
-                                    // 当每个成员行出现时加载其详细信息
-                                    viewModel.loadMemberDetails(for: member.id)
-                                }
                         }
                     }
                 }
@@ -920,12 +908,6 @@ struct FavoriteMembersView: View {
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
-        }
-        .task {
-            viewModel.loadMembers(forceRefresh: false)
-        }
-        .onDisappear {
-            viewModel.cancelLoading(clearData: false)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
