@@ -582,17 +582,6 @@ struct CorpMemberListView: View {
     var body: some View {
         VStack {
             List {
-                // 特别关注部分
-                if !viewModel.isLoading && viewModel.error == nil {
-                    Section {
-                        Button(action: {
-                            showingFavorites.toggle()
-                        }) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
-                        }
-                    }
-                }
-                
                 // 成员列表部分
                 Section {
                     if viewModel.isLoading {
