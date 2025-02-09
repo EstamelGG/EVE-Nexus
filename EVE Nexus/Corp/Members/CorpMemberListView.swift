@@ -332,7 +332,7 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Loading Methods
     @MainActor
     func loadMembers(forceRefresh: Bool = false) {
-        cancelLoading()
+        cancelLoading(clearData: false)
         
         loadingTask = Task { @MainActor in
             isLoading = true
@@ -442,13 +442,21 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
     
-    func cancelLoading() {
+    func cancelLoading(clearData: Bool = false) {
         loadingTask?.cancel()
         loadingTask = nil
+        
+        if clearData {
+            allMembers.removeAll()
+            members.removeAll()
+            locationCache.removeAll()
+            currentPage = 0
+            totalPages = 0
+        }
     }
     
     deinit {
-        cancelLoading()
+        cancelLoading(clearData: true)
     }
 }
 
@@ -569,7 +577,6 @@ struct MemberRowView: View {
 struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
-    @State private var showingFavorites = false
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -582,6 +589,15 @@ struct CorpMemberListView: View {
     var body: some View {
         VStack {
             List {
+                // 特别关注部分
+                if !viewModel.isLoading && viewModel.error == nil {
+                    Section {
+                        NavigationLink(destination: FavoriteMembersView(characterId: characterId)) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
+                        }
+                    }
+                }
+                
                 // 成员列表部分
                 Section {
                     if viewModel.isLoading {
@@ -643,7 +659,87 @@ struct CorpMemberListView: View {
             viewModel.loadMembers(forceRefresh: false)
         }
         .onDisappear {
-            viewModel.cancelLoading()
+            viewModel.cancelLoading(clearData: false)
+        }
+    }
+}
+
+struct FavoriteMembersView: View {
+    let characterId: Int
+    @StateObject private var viewModel: CorpMemberListViewModel
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        self._viewModel = StateObject(wrappedValue: CorpMemberListViewModel(
+            characterId: characterId,
+            databaseManager: DatabaseManager.shared
+        ))
+    }
+    
+    var body: some View {
+        VStack {
+            List {
+                Section {
+                    if viewModel.isLoading {
+                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                    } else if let error = viewModel.error {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                                .font(.headline)
+                                .foregroundColor(.red)
+                            Text(error.localizedDescription)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Button(action: {
+                                viewModel.loadMembers(forceRefresh: true)
+                            }) {
+                                Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
+                            }
+                            .padding(.top, 4)
+                        }
+                    } else {
+                        ForEach(viewModel.members) { member in
+                            MemberRowView(member: member, viewModel: viewModel)
+                        }
+                    }
+                } header: {
+                    if !viewModel.isLoading && viewModel.error == nil {
+                        Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), viewModel.allMembers.count))
+                    }
+                }
+            }
+            
+            // 分页控制器
+            if !viewModel.isLoading && viewModel.error == nil && viewModel.totalPages > 1 {
+                HStack(spacing: 20) {
+                    Button(action: { viewModel.previousPage() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(viewModel.currentPage > 0 ? .blue : .gray)
+                    }
+                    .disabled(viewModel.currentPage == 0)
+                    
+                    Text("\(viewModel.currentPage + 1) / \(viewModel.totalPages)")
+                        .font(.caption)
+                    
+                    Button(action: { viewModel.nextPage() }) {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(viewModel.currentPage < viewModel.totalPages - 1 ? .blue : .gray)
+                    }
+                    .disabled(viewModel.currentPage == viewModel.totalPages - 1)
+                }
+                .padding(.vertical, 8)
+                .background(Color(UIColor.systemBackground))
+            }
+        }
+        .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
+        .refreshable {
+            viewModel.loadMembers(forceRefresh: true)
+        }
+        .task {
+            viewModel.loadMembers(forceRefresh: false)
+        }
+        .onDisappear {
+            viewModel.cancelLoading(clearData: false)
         }
     }
 }
