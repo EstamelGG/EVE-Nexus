@@ -82,6 +82,7 @@ class CorpMemberListViewModel: ObservableObject {
     private let characterId: Int
     private let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
+    private var initialLoadDone = false
     
     // 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
@@ -332,6 +333,11 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Loading Methods
     @MainActor
     func loadMembers(forceRefresh: Bool = false) {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         cancelLoading(clearData: false)
         
         loadingTask = Task { @MainActor in
@@ -402,6 +408,8 @@ class CorpMemberListViewModel: ObservableObject {
                 })
                 await initializeBasicLocationInfo(locationIds: locationIds)
                 
+                initialLoadDone = true
+                
             } catch is CancellationError {
                 Logger.debug("军团成员列表加载已取消")
             } catch {
@@ -452,6 +460,7 @@ class CorpMemberListViewModel: ObservableObject {
             locationCache.removeAll()
             currentPage = 0
             totalPages = 0
+            initialLoadDone = false
         }
     }
     
