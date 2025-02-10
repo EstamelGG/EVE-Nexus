@@ -492,7 +492,7 @@ class CorpStructureViewModel: ObservableObject {
     private func loadLocationInfo(systemIds: [Int]) async {
         // 1. 获取星系名称
         let systemQuery = """
-            SELECT solarSystemID, solarSystemName,  
+            SELECT solarSystemID, solarSystemName
             FROM solarsystems 
             WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
