@@ -525,7 +525,7 @@ class CorpStructureViewModel: ObservableObject {
         
         // 3. 获取星系安等
         let systemSecQuery = """
-            SELECT system_security,  
+            SELECT system_security
             FROM universe 
             WHERE solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
