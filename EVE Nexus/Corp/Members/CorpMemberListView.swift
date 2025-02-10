@@ -632,6 +632,35 @@ class CorpMemberListViewModel: ObservableObject {
     func setSortOption(_ option: MemberSortOption) {
         sortOption = option
     }
+    
+    // 添加公共方法获取过滤后的成员数量
+    @MainActor
+    func getFilteredMembersCount() -> Int {
+        if searchText.isEmpty {
+            return allMembers.count
+        }
+        
+        let searchQuery = searchText.lowercased()
+        return allMembers.filter { member in
+            member.characterName.lowercased().contains(searchQuery) ||
+            (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
+        }.count
+    }
+
+    // 添加公共方法获取过滤后的收藏成员数量
+    @MainActor
+    func getFilteredPinnedMembersCount() -> Int {
+        let pinnedMembers = getPinnedMembers()
+        if searchText.isEmpty {
+            return pinnedMembers.count
+        }
+        
+        let searchQuery = searchText.lowercased()
+        return pinnedMembers.filter { member in
+            member.characterName.lowercased().contains(searchQuery) ||
+            (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
+        }.count
+    }
 }
 
 // MARK: - Views
@@ -855,7 +884,18 @@ struct CorpMemberListView: View {
                 // 成员列表部分
                 Section {
                     if viewModel.isLoading {
-                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                        HStack {
+                            Spacer()
+                            VStack {
+                                ProgressView()
+                                    .padding(.bottom, 4)
+                                Text(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                        }
+                        .padding()
+                        .listRowBackground(Color.clear)
                     } else if let error = viewModel.error {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
@@ -879,7 +919,7 @@ struct CorpMemberListView: View {
                 } header: {
                     if !viewModel.isLoading && viewModel.error == nil {
                         let totalCount = viewModel.allMembers.count
-                        let filteredCount = viewModel.filteredMembers.count
+                        let filteredCount = viewModel.getFilteredMembersCount()
                         if viewModel.searchText.isEmpty {
                             Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), totalCount))
                         } else {
@@ -990,12 +1030,7 @@ struct FavoriteMembersView: View {
                 } header: {
                     if !viewModel.isLoading && viewModel.error == nil {
                         let totalCount = viewModel.getPinnedMembers().count
-                        let filteredCount = viewModel.getPinnedMembers().filter { member in
-                            if viewModel.searchText.isEmpty { return true }
-                            let searchQuery = viewModel.searchText.lowercased()
-                            return member.characterName.lowercased().contains(searchQuery) ||
-                                   (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
-                        }.count
+                        let filteredCount = viewModel.getFilteredPinnedMembersCount()
                         if viewModel.searchText.isEmpty {
                             Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), totalCount))
                         } else {
