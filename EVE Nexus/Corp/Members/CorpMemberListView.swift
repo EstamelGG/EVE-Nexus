@@ -78,6 +78,7 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var error: Error?
     @Published var currentPage = 0
     @Published var totalPages = 0
+    @Published var searchText: String = ""
     @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
     
     var sortOption: MemberSortOption {
@@ -175,11 +176,42 @@ class CorpMemberListViewModel: ObservableObject {
         return allMembers.filter { ids.contains($0.id) }
     }
     
+    private var filteredMembers: [MemberDetailInfo] {
+        if searchText.isEmpty {
+            return allMembers
+        }
+        
+        let searchQuery = searchText.lowercased()
+        return allMembers.filter { member in
+            // 搜索名称
+            if member.characterName.lowercased().contains(searchQuery) {
+                return true
+            }
+            // 搜索船名
+            if let shipName = member.shipInfo?.name,
+               shipName.lowercased().contains(searchQuery) {
+                return true
+            }
+            return false
+        }
+    }
+    
     @MainActor
     func updatePage() {
+        let filtered = filteredMembers
+        totalPages = max(1, (filtered.count + pageSize - 1) / pageSize)
+        currentPage = min(currentPage, max(0, totalPages - 1))
+        
         let start = currentPage * pageSize
-        let end = min(start + pageSize, allMembers.count)
-        members = Array(allMembers[start..<end])
+        let end = min(start + pageSize, filtered.count)
+        
+        // 安全检查
+        if start >= filtered.count {
+            members = []
+            return
+        }
+        
+        members = Array(filtered[start..<end])
     }
     
     @MainActor
@@ -684,7 +716,7 @@ struct MemberRowView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                         Text(shipInfo.name)
                             .font(.caption)
-                        Text(" - ")
+                        Text(" · ")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
@@ -765,6 +797,34 @@ struct SortMenuView: View {
     }
 }
 
+// MARK: - Search Bar View
+struct SearchBarView: View {
+    @Binding var text: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+            
+            TextField(NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: ""), text: $text)
+                .textFieldStyle(PlainTextFieldStyle())
+            
+            if !text.isEmpty {
+                Button(action: {
+                    text = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+        .padding(.horizontal)
+    }
+}
+
 struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
@@ -778,7 +838,10 @@ struct CorpMemberListView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
+            SearchBarView(text: $viewModel.searchText)
+                .padding(.vertical, 8)
+            
             List {
                 // 特别关注部分
                 if !viewModel.isLoading && viewModel.error == nil {
@@ -815,7 +878,13 @@ struct CorpMemberListView: View {
                     }
                 } header: {
                     if !viewModel.isLoading && viewModel.error == nil {
-                        Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), viewModel.allMembers.count))
+                        let totalCount = viewModel.allMembers.count
+                        let filteredCount = viewModel.filteredMembers.count
+                        if viewModel.searchText.isEmpty {
+                            Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), totalCount))
+                        } else {
+                            Text(String(format: NSLocalizedString("Main_Corporation_Members_Total", comment: ""), totalCount) + " · " + String(format: NSLocalizedString("Main_Corporation_Members_Filtered_Total", comment: ""), filteredCount))
+                        }
                     }
                 }
             }
@@ -860,6 +929,9 @@ struct CorpMemberListView: View {
                 SortMenuView(viewModel: viewModel, isPresented: .constant(false))
             }
         }
+        .onChange(of: viewModel.searchText) { _, _ in
+            viewModel.updatePage()
+        }
     }
 }
 
@@ -867,41 +939,69 @@ struct FavoriteMembersView: View {
     @ObservedObject var viewModel: CorpMemberListViewModel
     
     var body: some View {
-        List {
-            Section {
-                if viewModel.isLoading {
-                    ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
-                } else if let error = viewModel.error {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(.red)
-                        Text(error.localizedDescription)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Button(action: {
-                            viewModel.loadMembers(forceRefresh: true)
-                        }) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
+        VStack(spacing: 0) {
+            SearchBarView(text: $viewModel.searchText)
+                .padding(.vertical, 8)
+            
+            List {
+                Section {
+                    if viewModel.isLoading {
+                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                    } else if let error = viewModel.error {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                                .font(.headline)
+                                .foregroundColor(.red)
+                            Text(error.localizedDescription)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Button(action: {
+                                viewModel.loadMembers(forceRefresh: true)
+                            }) {
+                                Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
+                            }
+                            .padding(.top, 4)
                         }
-                        .padding(.top, 4)
-                    }
-                } else {
-                    let pinnedMembers = viewModel.getPinnedMembers()
-                    if pinnedMembers.isEmpty {
-                        Text(NSLocalizedString("Main_Corporation_Members_No_Favorites", comment: ""))
-                            .foregroundColor(.gray)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding()
                     } else {
-                        ForEach(pinnedMembers) { member in
-                            MemberRowView(member: member, viewModel: viewModel)
+                        let pinnedMembers = viewModel.getPinnedMembers().filter { member in
+                            if viewModel.searchText.isEmpty { return true }
+                            let searchQuery = viewModel.searchText.lowercased()
+                            return member.characterName.lowercased().contains(searchQuery) ||
+                                   (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
+                        }
+                        if pinnedMembers.isEmpty {
+                            if viewModel.searchText.isEmpty {
+                                Text(NSLocalizedString("Main_Corporation_Members_No_Favorites", comment: ""))
+                                    .foregroundColor(.gray)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding()
+                            } else {
+                                Text(NSLocalizedString("Main_Corporation_Members_No_Search_Results", comment: ""))
+                                    .foregroundColor(.gray)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding()
+                            }
+                        } else {
+                            ForEach(pinnedMembers) { member in
+                                MemberRowView(member: member, viewModel: viewModel)
+                            }
                         }
                     }
-                }
-            } header: {
-                if !viewModel.isLoading && viewModel.error == nil {
-                    Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), viewModel.getPinnedMembers().count))
+                } header: {
+                    if !viewModel.isLoading && viewModel.error == nil {
+                        let totalCount = viewModel.getPinnedMembers().count
+                        let filteredCount = viewModel.getPinnedMembers().filter { member in
+                            if viewModel.searchText.isEmpty { return true }
+                            let searchQuery = viewModel.searchText.lowercased()
+                            return member.characterName.lowercased().contains(searchQuery) ||
+                                   (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
+                        }.count
+                        if viewModel.searchText.isEmpty {
+                            Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), totalCount))
+                        } else {
+                            Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), totalCount) + " · " + String(format: NSLocalizedString("Main_Corporation_Members_Filtered_Total", comment: ""), filteredCount))
+                        }
+                    }
                 }
             }
         }

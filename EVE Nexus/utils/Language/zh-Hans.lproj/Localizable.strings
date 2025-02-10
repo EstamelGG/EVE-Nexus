@@ -1065,3 +1065,8 @@
 "Main_Corporation_Members_Sort_By_Title" = "按称号";
 "Main_Corporation_Members_Sort_By_System" = "按星系";
 "Main_Corporation_Members_Sort_By_Ship" = "按舰船";
+
+"Main_Corporation_Members_Search_Placeholder" = "搜索名称或舰船...";
+"Main_Corporation_Members_No_Search_Results" = "未找到匹配结果";
+
+"Main_Corporation_Members_Filtered_Total" = "搜索到%d名成员";

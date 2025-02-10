@@ -1041,3 +1041,8 @@
 "Main_Corporation_Members_Sort_By_Title" = "Title";
 "Main_Corporation_Members_Sort_By_System" = "Current System";
 "Main_Corporation_Members_Sort_By_Ship" = "Current Ship";
+
+"Main_Corporation_Members_Search_Placeholder" = "Search by name or ship...";
+"Main_Corporation_Members_No_Search_Results" = "No matching results";
+
+"Main_Corporation_Members_Filtered_Total" = "%d Members Found";
