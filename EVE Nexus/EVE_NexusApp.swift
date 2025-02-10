@@ -35,18 +35,18 @@ struct EVE_NexusApp: App {
             }
         }
         
-        // 按大小排序并打印
-        sizeMap.sort { $0.size > $1.size }
-        for item in sizeMap {
-            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
-        }
-        
         Logger.info("UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))")
         
         // 检查总大小是否接近限制（4MB）
         if totalSize > 3_000_000 {
             Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
         }
+        // 按大小排序并打印
+        sizeMap.sort { $0.size > $1.size }
+        for item in sizeMap {
+            Logger.info("键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))")
+        }
+
         
         // 初始化数据库
         _ = CharacterDatabaseManager.shared  // 确保角色数据库被初始化

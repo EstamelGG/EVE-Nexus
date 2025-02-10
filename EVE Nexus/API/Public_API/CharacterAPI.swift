@@ -234,8 +234,12 @@ final class CharacterAPI: @unchecked Sendable {
                 case .success(let imageResult):
                     // 保存到 UserDefaults
                     if let imageData = imageResult.image.jpegData(compressionQuality: 0.8) {
-                        Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(imageData.count) bytes")
-                        UserDefaults.standard.set(imageData, forKey: cacheKey)
+                        if catchImage {
+                            UserDefaults.standard.set(imageData, forKey: cacheKey)
+                            Logger.info("成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(imageData.count) bytes")
+                        } else  {
+                            Logger.info("成功获取角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(imageData.count) bytes")
+                        }
                     }
                     setTask(nil)
                     continuation.resume(returning: imageResult.image)
