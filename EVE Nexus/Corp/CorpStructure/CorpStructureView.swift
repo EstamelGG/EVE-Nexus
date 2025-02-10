@@ -348,6 +348,7 @@ class CorpStructureViewModel: ObservableObject {
     private var typeIcons: [Int: String] = [:]
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
+    private var regionSecs: [Int: Double] = [:]
     private let characterId: Int
     private var currentMonitorDays: Int
     
@@ -405,6 +406,7 @@ class CorpStructureViewModel: ObservableObject {
             if let systemId = structure["system_id"] as? Int {
                 let systemName = systemNames[systemId] ?? "Unknown"
                 let regionName = regionNames[systemId] ?? "Unknown"
+                let regionSec = regionSecs[systemId] ?? 0.0
                 let locationKey = "\(regionName) - \(systemName)"
                 
                 if groups[locationKey] == nil {
@@ -490,7 +492,7 @@ class CorpStructureViewModel: ObservableObject {
     private func loadLocationInfo(systemIds: [Int]) async {
         // 1. 获取星系名称
         let systemQuery = """
-            SELECT solarSystemID, solarSystemName 
+            SELECT solarSystemID, solarSystemName,  
             FROM solarsystems 
             WHERE solarSystemID IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
@@ -517,6 +519,22 @@ class CorpStructureViewModel: ObservableObject {
                 if let systemId = row["solarsystem_id"] as? Int,
                    let regionName = row["regionName"] as? String {
                     self.regionNames[systemId] = regionName
+                }
+            }
+        }
+        
+        // 3. 获取星系安等
+        let systemSecQuery = """
+            SELECT system_security,  
+            FROM universe 
+            WHERE solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
+        """
+        let systemSecResult = DatabaseManager.shared.executeQuery(systemSecQuery)
+        if case .success(let rows) = systemSecResult {
+            for row in rows {
+                if let systemId = row["solarsystem_id"] as? Int,
+                   let regionSec = row["system_security"] as? Double {
+                    self.regionSecs[systemId] = regionSec
                 }
             }
         }
