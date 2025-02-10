@@ -248,7 +248,11 @@ struct StructureSearchView: View {
                             try Task.checkCancellation()
                             
                             do {
-                                let info = try await StructureInfoAPI.shared.fetchStructureInfo(structureId: structureId, characterId: characterId)
+                                // 获取建筑物信息
+                                let info = try await UniverseStructureAPI.shared.fetchStructureInfo(
+                                    structureId: Int64(structureId),
+                                    characterId: characterId
+                                )
                                 
                                 try Task.checkCancellation()
                                 
@@ -270,7 +274,7 @@ struct StructureSearchView: View {
                                 )
                             } catch {
                                 if error is CancellationError { throw error }
-                                Logger.error("获取建筑信息失败: \(error)")
+                                Logger.error("获取建筑物信息失败 - ID: \(structureId), 错误: \(error)")
                                 return nil
                             }
                         }
