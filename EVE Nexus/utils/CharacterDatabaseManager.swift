@@ -505,6 +505,17 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
             CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
+
+            -- 建筑物缓存表
+            CREATE TABLE IF NOT EXISTS structure_cache (
+                structure_id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                owner_id INTEGER NOT NULL,
+                solar_system_id INTEGER NOT NULL,
+                type_id INTEGER NOT NULL,
+                timestamp INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_structure_cache_timestamp ON structure_cache(timestamp);
         """
         
         // 分割SQL语句并逐个执行
