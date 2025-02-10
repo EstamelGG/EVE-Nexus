@@ -544,9 +544,13 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Member Detail Loading
     @MainActor
     func loadMemberDetails(for memberId: Int) {
+        // 首先检查索引是否有效
         guard let memberIndex = members.firstIndex(where: { $0.id == memberId }),
               let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }),
-              members[memberIndex].characterInfo == nil else { return }
+              members[memberIndex].characterInfo == nil,
+              memberIndex < members.count,  // 添加额外的边界检查
+              allMemberIndex < allMembers.count  // 添加额外的边界检查
+        else { return }
         
         Task {
             do {
@@ -562,6 +566,10 @@ class CorpMemberListViewModel: ObservableObject {
                 let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
                 
                 if !Task.isCancelled {
+                    // 再次检查索引是否仍然有效
+                    guard memberIndex < members.count,
+                          allMemberIndex < allMembers.count else { return }
+                    
                     // 同时更新两个数组中的数据
                     members[memberIndex].characterInfo = characterInfo
                     members[memberIndex].portrait = portrait
@@ -661,6 +669,22 @@ class CorpMemberListViewModel: ObservableObject {
             (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
         }.count
     }
+
+    // 在 CorpMemberListViewModel 中添加刷新单个成员信息的方法
+    @MainActor
+    func refreshMemberDetails(for memberId: Int) {
+        // 重置成员信息
+        if let memberIndex = members.firstIndex(where: { $0.id == memberId }),
+           let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
+            members[memberIndex].characterInfo = nil
+            members[memberIndex].portrait = nil
+            allMembers[allMemberIndex].characterInfo = nil
+            allMembers[allMemberIndex].portrait = nil
+            
+            // 重新加载成员信息
+            loadMemberDetails(for: memberId)
+        }
+    }
 }
 
 // MARK: - Views
@@ -707,6 +731,7 @@ struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var loadingTask: Task<Void, Never>?
+    @State private var isRefreshing = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -731,7 +756,6 @@ struct MemberRowView: View {
                     .font(.headline)
                 if let title = member.characterInfo?.title {
                     Text(title.removeHTMLTags())
-                    // Text(title)
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -772,6 +796,28 @@ struct MemberRowView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle()) // 确保整个区域可点击
+        .onTapGesture {
+            // 点击时刷新该成员信息
+            withAnimation {
+                isRefreshing = true
+                viewModel.refreshMemberDetails(for: member.id)
+                // 0.5秒后重置刷新状态
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isRefreshing = false
+                }
+            }
+        }
+        .overlay(
+            isRefreshing ?
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                .scaleEffect(0.8)
+                .padding(8)
+                .background(Color(.systemBackground).opacity(0.8))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            : nil
+        )
         .onAppear {
             // 取消之前的任务
             loadingTask?.cancel()
@@ -986,7 +1032,18 @@ struct FavoriteMembersView: View {
             List {
                 Section {
                     if viewModel.isLoading {
-                        ProgressView(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                        HStack {
+                            Spacer()
+                            VStack {
+                                ProgressView()
+                                    .padding(.bottom, 4)
+                                Text(NSLocalizedString("Main_Corporation_Members_Loading", comment: ""))
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                        }
+                        .padding()
+                        .listRowBackground(Color.clear)
                     } else if let error = viewModel.error {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
