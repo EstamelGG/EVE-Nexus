@@ -545,12 +545,16 @@ class CorpMemberListViewModel: ObservableObject {
     @MainActor
     func loadMemberDetails(for memberId: Int) {
         // 首先检查索引是否有效
+        Logger.info("Loading \(memberId)")
         guard let memberIndex = members.firstIndex(where: { $0.id == memberId }),
               let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }),
               members[memberIndex].characterInfo == nil,
               memberIndex < members.count,  // 添加额外的边界检查
               allMemberIndex < allMembers.count  // 添加额外的边界检查
-        else { return }
+        else {
+            Logger.error("\(memberId) 越界")
+            return
+        }
         
         Task {
             do {
@@ -823,10 +827,10 @@ struct MemberRowView: View {
             loadingTask?.cancel()
             
             // 创建新的延迟加载任务
-            loadingTask = Task {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
-                if !Task.isCancelled {
-                    viewModel.loadMemberDetails(for: member.id)
+                loadingTask = Task {
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
+                    if !Task.isCancelled {
+                        viewModel.loadMemberDetails(for: member.id)
                 }
             }
         }
