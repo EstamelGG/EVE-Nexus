@@ -153,11 +153,25 @@ struct CorpStructureView: View {
     private var structureListView: some View {
         ForEach(viewModel.locationKeys, id: \.self) { location in
             if let structures = viewModel.groupedStructures[location] {
-                Section(header: Text(location)
-                    .fontWeight(.bold)
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .textCase(nil))
+                Section(header: {
+                    if let systemId = structures.first?["system_id"] as? Int,
+                       let securityLevel = viewModel.regionSecs[systemId] {
+                        (Text(formatSystemSecurity(securityLevel))
+                            .foregroundColor(getSecurityColor(securityLevel)) +
+                         Text(" ") +
+                         Text(location))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                    } else {
+                        Text(location)
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                    }
+                }())
                 {
                     ForEach(structures.indices, id: \.self) { index in
                         let structure = structures[index]
@@ -348,7 +362,7 @@ class CorpStructureViewModel: ObservableObject {
     private var typeIcons: [Int: String] = [:]
     private var systemNames: [Int: String] = [:]
     private var regionNames: [Int: String] = [:]
-    private var regionSecs: [Int: Double] = [:]
+    var regionSecs: [Int: Double] = [:]
     private let characterId: Int
     private var currentMonitorDays: Int
     
@@ -406,7 +420,6 @@ class CorpStructureViewModel: ObservableObject {
             if let systemId = structure["system_id"] as? Int {
                 let systemName = systemNames[systemId] ?? "Unknown"
                 let regionName = regionNames[systemId] ?? "Unknown"
-                let regionSec = regionSecs[systemId] ?? 0.0
                 let locationKey = "\(regionName) - \(systemName)"
                 
                 if groups[locationKey] == nil {
@@ -525,7 +538,7 @@ class CorpStructureViewModel: ObservableObject {
         
         // 3. 获取星系安等
         let systemSecQuery = """
-            SELECT system_security
+            SELECT solarsystem_id, system_security
             FROM universe 
             WHERE solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
         """
@@ -533,8 +546,8 @@ class CorpStructureViewModel: ObservableObject {
         if case .success(let rows) = systemSecResult {
             for row in rows {
                 if let systemId = row["solarsystem_id"] as? Int,
-                   let regionSec = row["system_security"] as? Double {
-                    self.regionSecs[systemId] = regionSec
+                   let systemSecurity = row["system_security"] as? Double {
+                    self.regionSecs[systemId] = systemSecurity
                 }
             }
         }
