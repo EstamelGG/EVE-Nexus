@@ -793,7 +793,6 @@ struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var loadingTask: Task<Void, Never>?
-    @State private var isRefreshing = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -858,37 +857,15 @@ struct MemberRowView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 4)
-        .contentShape(Rectangle()) // 确保整个区域可点击
-        .onTapGesture {
-            // 点击时刷新该成员信息
-            withAnimation {
-                isRefreshing = true
-                viewModel.refreshMemberDetails(for: member.id)
-                // 0.5秒后重置刷新状态
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isRefreshing = false
-                }
-            }
-        }
-        .overlay(
-            isRefreshing ?
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                .scaleEffect(0.8)
-                .padding(8)
-                .background(Color(.systemBackground).opacity(0.8))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            : nil
-        )
         .onAppear {
             // 取消之前的任务
             loadingTask?.cancel()
             
             // 创建新的延迟加载任务
-                loadingTask = Task {
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
-                    if !Task.isCancelled {
-                        viewModel.loadMemberDetails(for: member.id)
+            loadingTask = Task {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
+                if !Task.isCancelled {
+                    viewModel.loadMemberDetails(for: member.id)
                 }
             }
         }
