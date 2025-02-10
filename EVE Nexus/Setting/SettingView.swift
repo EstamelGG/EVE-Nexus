@@ -71,6 +71,11 @@ class CacheManager {
         "location_info_"
     ]
     
+    // 定义需要清理的目录列表
+    private let cacheDirs = [
+        "StructureCache",     // 建筑缓存
+    ]
+    
     // 清理指定前缀的缓存
     private func clearCacheWithPrefixes() {
         let defaults = UserDefaults.standard
@@ -88,6 +93,27 @@ class CacheManager {
         Logger.info("基于前缀的缓存清理完成")
     }
     
+    // 清理指定目录
+    private func clearCacheDirectories() async {
+        let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        for dirName in cacheDirs {
+            let dirPath = documentPath.appendingPathComponent(dirName)
+            
+            do {
+                if fileManager.fileExists(atPath: dirPath.path) {
+                    try fileManager.removeItem(at: dirPath)
+                    try fileManager.createDirectory(at: dirPath, withIntermediateDirectories: true)
+                    Logger.debug("成功清理并重建目录: \(dirName)")
+                }
+            } catch {
+                Logger.error("清理目录失败 - \(dirName): \(error)")
+            }
+        }
+        
+        Logger.info("目录缓存清理完成")
+    }
+    
     // 获取所有缓存统计信息
     func getAllCacheStats() async -> [String: CacheStats] {
         var stats: [String: CacheStats] = [:]
@@ -103,6 +129,41 @@ class CacheManager {
         
         // 5. 静态资源统计
         stats["StaticDataSet"] = await getStaticDataStats()
+        
+        // 6. 添加目录缓存统计
+        let dirStats = await getDirectoryCacheStats()
+        stats.merge(dirStats) { (_, new) in new }
+        
+        return stats
+    }
+    
+    // 获取目录缓存统计
+    private func getDirectoryCacheStats() async -> [String: CacheStats] {
+        var stats: [String: CacheStats] = [:]
+        let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        for dirName in cacheDirs {
+            let dirPath = documentPath.appendingPathComponent(dirName)
+            var totalSize: Int64 = 0
+            var fileCount: Int = 0
+            
+            if fileManager.fileExists(atPath: dirPath.path),
+               let enumerator = fileManager.enumerator(at: dirPath,
+                                                     includingPropertiesForKeys: [.fileSizeKey],
+                                                     options: [.skipsHiddenFiles]) {
+                for case let fileURL as URL in enumerator {
+                    do {
+                        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
+                        totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
+                        fileCount += 1
+                    } catch {
+                        Logger.error("Error calculating file size for \(fileURL.path): \(error)")
+                    }
+                }
+            }
+            
+            stats[dirName] = CacheStats(size: totalSize, count: fileCount)
+        }
         
         return stats
     }
@@ -209,27 +270,30 @@ class CacheManager {
             clearCacheWithPrefixes()
         }
         
-        // 4. 清理入侵相关缓存
+        // 4. 清理目录缓存
+        await clearCacheDirectories()
+        
+        // 5. 清理入侵相关缓存
         await MainActor.run {
             InfestedSystemsViewModel.clearCache()
         }
         
-        // 5. 清理数据库浏览器缓存
+        // 6. 清理数据库浏览器缓存
         await MainActor.run {
             DatabaseBrowserView.clearCache()
         }
         
-        // 6. 清理静态资源
+        // 7. 清理静态资源
         do {
             try StaticResourceManager.shared.clearAllStaticData()
         } catch {
             Logger.error("清理静态资源失败: \(error)")
         }
         
-        // 7. 清理建筑物缓存
+        // 8. 清理建筑物缓存
         await UniverseStructureAPI.shared.clearCache()
         
-        // 8. 清理 URL Session 缓存
+        // 9. 清理 URL Session 缓存
         await clearURLSessionCacheAsync()
         
         Logger.info("所有缓存清理完成")
