@@ -127,7 +127,7 @@ struct CharacterAssetsView: View {
                         .foregroundColor(.primary)
                         .textCase(.none)
                     ) {
-                        ForEach(group.locations, id: \.item_id) { location in
+                        ForEach(group.locations.sorted(by: { $0.location_id < $1.location_id }), id: \.item_id) { location in
                             NavigationLink(
                                 destination: LocationAssetsView(location: location)
                             ) {
@@ -203,7 +203,7 @@ private struct LocationsList: View {
         List {
             ForEach(filteredLocations, id: \.region) { regionGroup in
                 Section(header: Text(regionGroup.region)) {
-                    ForEach(regionGroup.locations, id: \.item_id) { location in
+                    ForEach(regionGroup.locations.sorted(by: { $0.location_id < $1.location_id }), id: \.item_id) { location in
                         NavigationLink(
                             destination: LocationAssetsView(location: location)
                         ) {
