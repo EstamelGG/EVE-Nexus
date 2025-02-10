@@ -41,36 +41,38 @@ class UniverseAPI {
         let responses = try JSONDecoder().decode([UniverseNameResponse].self, from: data)
         Logger.info("成功获取 \(responses.count) 个实体的名称信息")
         
-        // 保存到数据库
+        // 准备批量插入的SQL语句
         let insertSQL = """
             INSERT OR REPLACE INTO universe_names (
                 id,
                 name,
                 category
-            ) VALUES (?, ?, ?)
+            ) VALUES 
         """
         
-        var savedCount = 0
+        // 构建值部分和参数数组
+        let valuePlaceholders = responses.map { _ in "(?, ?, ?)" }.joined(separator: ",")
+        let finalSQL = insertSQL + valuePlaceholders
+        
+        // 准备参数数组
+        var parameters: [Any] = []
         for response in responses {
-            let result = databaseManager.executeQuery(
-                insertSQL,
-                parameters: [
-                    response.id,
-                    response.name,
-                    response.category
-                ]
-            )
-            
-            if case .success = result {
-                savedCount += 1
-                Logger.debug("成功保存实体信息 - ID: \(response.id), 名称: \(response.name), 类型: \(response.category)")
-            } else if case .error(let error) = result {
-                Logger.error("保存实体信息失败 - ID: \(response.id), 错误: \(error)")
-            }
+            parameters.append(response.id)
+            parameters.append(response.name)
+            parameters.append(response.category)
         }
         
-        Logger.info("成功保存 \(savedCount) 个实体的名称信息到数据库")
-        return savedCount
+        // 执行批量插入
+        let result = databaseManager.executeQuery(finalSQL, parameters: parameters)
+        
+        switch result {
+        case .success:
+            Logger.info("成功批量保存 \(responses.count) 个实体的名称信息到数据库")
+            return responses.count
+        case .error(let error):
+            Logger.error("批量保存实体信息失败 - 错误: \(error)")
+            return 0
+        }
     }
     
     /// 从数据库获取ID对应的名称信息

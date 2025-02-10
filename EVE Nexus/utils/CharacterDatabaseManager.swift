@@ -572,7 +572,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     
     /// 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
-        Logger.debug(query)
+        Logger.debug("\(query)?#\(parameters)")
         var result: SQLiteResult = .error("未知错误")
         
         dbQueue.sync {

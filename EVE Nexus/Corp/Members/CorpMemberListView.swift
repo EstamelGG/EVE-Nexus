@@ -297,13 +297,13 @@ class CorpMemberListViewModel: ObservableObject {
             if case .success(let rows) = databaseManager.executeQuery(query) {
                 Logger.debug("查询到星系数量: \(rows.count)")
                 for row in rows {
-                    Logger.debug("处理星系数据行: \(row)")
+                    // Logger.debug("处理星系数据行: \(row)")
                     // 先获取原始值
                     let rawSystemId = row["solarsystem_id"]
                     let rawSystemName = row["solarSystemName"]
                     let rawSecurity = row["system_security"]
                     
-                    Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
+                    // Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
                     
                     // 尝试不同的类型转换
                     let systemId: Int64
@@ -337,7 +337,7 @@ class CorpMemberListViewModel: ObservableObject {
                         stationName: nil
                     )
                     locationCache[systemId] = info
-                    Logger.debug("成功缓存星系信息 - ID: \(systemId), 名称: \(systemName), 安全等级: \(security)")
+                    // Logger.debug("成功缓存星系信息 - ID: \(systemId), 名称: \(systemName), 安全等级: \(security)")
                 }
             } else {
                 Logger.error("星系查询失败 - SQL: \(query)")
@@ -359,14 +359,14 @@ class CorpMemberListViewModel: ObservableObject {
             if case .success(let rows) = databaseManager.executeQuery(query) {
                 Logger.debug("查询到空间站数量: \(rows.count)")
                 for row in rows {
-                    Logger.debug("处理空间站数据行: \(row)")
+                    // Logger.debug("处理空间站数据行: \(row)")
                     // 先获取原始值
                     let rawStationId = row["stationID"]
                     let rawStationName = row["stationName"]
                     let rawSystemName = row["solarSystemName"]
                     let rawSecurity = row["system_security"]
                     
-                    Logger.debug("原始数据类型 - stationID: \(type(of: rawStationId)), stationName: \(type(of: rawStationName)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
+                    // Logger.debug("原始数据类型 - stationID: \(type(of: rawStationId)), stationName: \(type(of: rawStationName)), systemName: \(type(of: rawSystemName)), security: \(type(of: rawSecurity))")
                     
                     // 尝试不同的类型转换
                     let stationId: Int64
@@ -405,7 +405,7 @@ class CorpMemberListViewModel: ObservableObject {
                         stationName: stationName
                     )
                     locationCache[stationId] = info
-                    Logger.debug("成功缓存空间站信息 - ID: \(stationId), 名称: \(stationName), 星系: \(systemName), 安全等级: \(security)")
+                    // Logger.debug("成功缓存空间站信息 - ID: \(stationId), 名称: \(stationName), 星系: \(systemName), 安全等级: \(security)")
                 }
             } else {
                 Logger.error("空间站查询失败 - SQL: \(query)")

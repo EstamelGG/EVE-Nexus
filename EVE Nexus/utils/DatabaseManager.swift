@@ -47,7 +47,7 @@ class DatabaseManager: ObservableObject {
     
     // 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
-        Logger.debug(query)
+        Logger.debug("\(query)?#\(parameters)")
         // let startTime = CFAbsoluteTimeGetCurrent()
         let result = sqliteManager.executeQuery(query, parameters: parameters, useCache: useCache)
         // let endTime = CFAbsoluteTimeGetCurrent()
