@@ -75,7 +75,14 @@ struct LocationCacheInfo {
 class CorpMemberListViewModel: ObservableObject {
     @Published var members: [MemberDetailInfo] = []
     @Published var isLoading = true
-    @Published var error: Error?
+    @Published var error: Error? {
+        didSet {
+            if error != nil {
+                showError = true
+            }
+        }
+    }
+    @Published var showError = false
     @Published var currentPage = 0
     @Published var totalPages = 0
     @Published var searchText: String = ""
@@ -942,6 +949,7 @@ struct SearchBarView: View {
 struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
+    @Environment(\.dismiss) private var dismiss
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -958,7 +966,7 @@ struct CorpMemberListView: View {
             
             List {
                 // 特别关注部分
-                if !viewModel.isLoading && viewModel.error == nil {
+                if !viewModel.isLoading {
                     Section {
                         NavigationLink(destination: FavoriteMembersView(viewModel: viewModel)) {
                             Text(NSLocalizedString("Main_Corporation_Members_Favorites", comment: ""))
@@ -981,28 +989,13 @@ struct CorpMemberListView: View {
                         }
                         .padding()
                         .listRowBackground(Color.clear)
-                    } else if let error = viewModel.error {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.red)
-                            Text(error.localizedDescription)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Button(action: {
-                                viewModel.loadMembers(forceRefresh: true)
-                            }) {
-                                Text(NSLocalizedString("Main_Corporation_Members_Refresh", comment: ""))
-                            }
-                            .padding(.top, 4)
-                        }
                     } else {
                         ForEach(viewModel.members) { member in
                             MemberRowView(member: member, viewModel: viewModel)
                         }
                     }
                 } header: {
-                    if !viewModel.isLoading && viewModel.error == nil {
+                    if !viewModel.isLoading {
                         let totalCount = viewModel.allMembers.count
                         let filteredCount = viewModel.getFilteredMembersCount()
                         if viewModel.searchText.isEmpty {
@@ -1015,7 +1008,7 @@ struct CorpMemberListView: View {
             }
             
             // 分页控制器
-            if !viewModel.isLoading && viewModel.error == nil && viewModel.totalPages > 1 {
+            if !viewModel.isLoading && viewModel.totalPages > 1 {
                 HStack(spacing: 20) {
                     Button(action: { viewModel.previousPage() }) {
                         Image(systemName: "chevron.left")
@@ -1056,6 +1049,15 @@ struct CorpMemberListView: View {
         }
         .onChange(of: viewModel.searchText) { _, _ in
             viewModel.updatePage()
+        }
+        .alert(isPresented: $viewModel.showError) {
+            Alert(
+                title: Text(NSLocalizedString("Common_Error", comment: "")),
+                message: Text(viewModel.error?.localizedDescription ?? NSLocalizedString("Common_Unknown_Error", comment: "")),
+                dismissButton: .default(Text(NSLocalizedString("Common_OK", comment: ""))) {
+                    dismiss()
+                }
+            )
         }
     }
 }
