@@ -103,6 +103,8 @@ class CorpMemberListViewModel: ObservableObject {
     // 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
     
+    @Published var pinnedMembers: [MemberDetailInfo] = []
+    
     enum MemberSortOption: String {
         case name
         case ship
@@ -147,20 +149,31 @@ class CorpMemberListViewModel: ObservableObject {
     func togglePinStatus(for memberId: Int) {
         Task {
             var ids = pinnedMemberIds
-            if ids.contains(memberId) {
-                ids.remove(memberId)
-            } else {
+            let isPinning = !ids.contains(memberId)
+            
+            if isPinning {
                 ids.insert(memberId)
+            } else {
+                ids.remove(memberId)
             }
             pinnedMemberIds = ids
             
             // 更新成员列表中的状态
             if let allMembersIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
-                allMembers[allMembersIndex].isPinned.toggle()
+                allMembers[allMembersIndex].isPinned = isPinning
                 
                 // 同时更新当前页面显示的成员状态
                 if let currentIndex = members.firstIndex(where: { $0.id == memberId }) {
-                    members[currentIndex].isPinned = allMembers[allMembersIndex].isPinned
+                    members[currentIndex].isPinned = isPinning
+                }
+                
+                // 更新收藏列表
+                if isPinning {
+                    // 添加到收藏列表
+                    pinnedMembers.append(allMembers[allMembersIndex])
+                } else {
+                    // 从收藏列表中移除
+                    pinnedMembers.removeAll { $0.id == memberId }
                 }
                 
                 // 重新排序以确保UI更新
@@ -544,15 +557,18 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Member Detail Loading
     @MainActor
     func loadMemberDetails(for memberId: Int) {
-        // 首先检查索引是否有效
         Logger.info("Loading \(memberId)")
-        guard let memberIndex = members.firstIndex(where: { $0.id == memberId }),
-              let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }),
-              members[memberIndex].characterInfo == nil,
-              memberIndex < members.count,  // 添加额外的边界检查
-              allMemberIndex < allMembers.count  // 添加额外的边界检查
-        else {
-            Logger.error("\(memberId) 越界")
+        
+        // 在所有可能的数组中查找成员
+        let memberIndex = members.firstIndex(where: { $0.id == memberId })
+        let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId })
+        let pinnedIndex = pinnedMembers.firstIndex(where: { $0.id == memberId })
+        
+        // 如果成员不在任何列表中，或者已经加载过详情，则返回
+        if allMemberIndex == nil || 
+           (memberIndex.map { members[$0].characterInfo != nil } ?? false) ||
+           (allMemberIndex.map { allMembers[$0].characterInfo != nil } ?? false) ||
+           (pinnedIndex.map { pinnedMembers[$0].characterInfo != nil } ?? false) {
             return
         }
         
@@ -570,16 +586,21 @@ class CorpMemberListViewModel: ObservableObject {
                 let (characterInfo, portrait) = try await (characterInfoTask, portraitTask)
                 
                 if !Task.isCancelled {
-                    // 再次检查索引是否仍然有效
-                    guard memberIndex < members.count,
-                          allMemberIndex < allMembers.count else { return }
+                    // 更新所有包含该成员的数组
+                    if let idx = memberIndex, idx < members.count {
+                        members[idx].characterInfo = characterInfo
+                        members[idx].portrait = portrait
+                    }
                     
-                    // 同时更新两个数组中的数据
-                    members[memberIndex].characterInfo = characterInfo
-                    members[memberIndex].portrait = portrait
+                    if let idx = allMemberIndex, idx < allMembers.count {
+                        allMembers[idx].characterInfo = characterInfo
+                        allMembers[idx].portrait = portrait
+                    }
                     
-                    allMembers[allMemberIndex].characterInfo = characterInfo
-                    allMembers[allMemberIndex].portrait = portrait
+                    if let idx = pinnedIndex, idx < pinnedMembers.count {
+                        pinnedMembers[idx].characterInfo = characterInfo
+                        pinnedMembers[idx].portrait = portrait
+                    }
                 }
             } catch {
                 Logger.error("加载成员详细信息失败 - 角色ID: \(memberId), 错误: \(error)")
@@ -619,8 +640,9 @@ class CorpMemberListViewModel: ObservableObject {
     
     @MainActor
     func sortMembers() {
-        allMembers.sort { member1, member2 in
-            switch sortOption {
+        // 定义排序函数
+        let sortFunction: (MemberDetailInfo, MemberDetailInfo) -> Bool = { member1, member2 in
+            switch self.sortOption {
             case .name:
                 return member1.characterName.localizedCaseInsensitiveCompare(member2.characterName) == .orderedAscending
             case .ship:
@@ -637,12 +659,20 @@ class CorpMemberListViewModel: ObservableObject {
                 return ship1.localizedCaseInsensitiveCompare(ship2) == .orderedAscending
             }
         }
+
+        // 对主列表排序
+        allMembers.sort(by: sortFunction)
+        // 对收藏列表排序
+        pinnedMembers.sort(by: sortFunction)
+        // 更新当前页面
         updatePage()
     }
     
     @MainActor
     func setSortOption(_ option: MemberSortOption) {
         sortOption = option
+        // 确保在设置排序选项时也会触发收藏列表的排序
+        sortMembers()
     }
     
     // 添加公共方法获取过滤后的成员数量
@@ -659,35 +689,63 @@ class CorpMemberListViewModel: ObservableObject {
         }.count
     }
 
-    // 添加公共方法获取过滤后的收藏成员数量
+    // 添加公共方法获取过滤后的收藏成员
     @MainActor
-    func getFilteredPinnedMembersCount() -> Int {
-        let pinnedMembers = getPinnedMembers()
+    func getFilteredPinnedMembers() -> [MemberDetailInfo] {
         if searchText.isEmpty {
-            return pinnedMembers.count
+            return pinnedMembers
         }
         
         let searchQuery = searchText.lowercased()
         return pinnedMembers.filter { member in
             member.characterName.lowercased().contains(searchQuery) ||
             (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
-        }.count
+        }
     }
 
-    // 在 CorpMemberListViewModel 中添加刷新单个成员信息的方法
+    // 修改 refreshMemberDetails 方法
     @MainActor
     func refreshMemberDetails(for memberId: Int) {
-        // 重置成员信息
-        if let memberIndex = members.firstIndex(where: { $0.id == memberId }),
-           let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
+        // 在所有可能的数组中查找并重置成员信息
+        if let memberIndex = members.firstIndex(where: { $0.id == memberId }) {
             members[memberIndex].characterInfo = nil
             members[memberIndex].portrait = nil
+        }
+        
+        if let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
             allMembers[allMemberIndex].characterInfo = nil
             allMembers[allMemberIndex].portrait = nil
-            
-            // 重新加载成员信息
+        }
+        
+        if let pinnedIndex = pinnedMembers.firstIndex(where: { $0.id == memberId }) {
+            pinnedMembers[pinnedIndex].characterInfo = nil
+            pinnedMembers[pinnedIndex].portrait = nil
+        }
+        
+        // 重新加载成员信息
+        loadMemberDetails(for: memberId)
+    }
+
+    @MainActor
+    func loadPinnedMembers() {
+        let ids = pinnedMemberIds
+        // 从 allMembers 中获取基本信息
+        pinnedMembers = allMembers.filter { ids.contains($0.id) }
+        
+        // 为每个关注的成员加载详细信息
+        for memberId in ids {
             loadMemberDetails(for: memberId)
         }
+    }
+
+    // 添加公共方法来获取过滤后的收藏成员数量
+    @MainActor
+    func getFilteredPinnedMembersCount() -> Int {
+        if searchText.isEmpty {
+            return pinnedMembers.count
+        }
+        
+        return getFilteredPinnedMembers().count
     }
 }
 
@@ -1064,13 +1122,9 @@ struct FavoriteMembersView: View {
                             .padding(.top, 4)
                         }
                     } else {
-                        let pinnedMembers = viewModel.getPinnedMembers().filter { member in
-                            if viewModel.searchText.isEmpty { return true }
-                            let searchQuery = viewModel.searchText.lowercased()
-                            return member.characterName.lowercased().contains(searchQuery) ||
-                                   (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
-                        }
-                        if pinnedMembers.isEmpty {
+                        let filteredMembers = viewModel.getFilteredPinnedMembers()
+                        
+                        if filteredMembers.isEmpty {
                             if viewModel.searchText.isEmpty {
                                 Text(NSLocalizedString("Main_Corporation_Members_No_Favorites", comment: ""))
                                     .foregroundColor(.gray)
@@ -1083,14 +1137,14 @@ struct FavoriteMembersView: View {
                                     .padding()
                             }
                         } else {
-                            ForEach(pinnedMembers) { member in
+                            ForEach(filteredMembers) { member in
                                 MemberRowView(member: member, viewModel: viewModel)
                             }
                         }
                     }
                 } header: {
                     if !viewModel.isLoading && viewModel.error == nil {
-                        let totalCount = viewModel.getPinnedMembers().count
+                        let totalCount = viewModel.pinnedMembers.count
                         let filteredCount = viewModel.getFilteredPinnedMembersCount()
                         if viewModel.searchText.isEmpty {
                             Text(String(format: NSLocalizedString("Main_Corporation_Members_Favorites_Total", comment: ""), totalCount))
@@ -1109,6 +1163,9 @@ struct FavoriteMembersView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 SortMenuView(viewModel: viewModel, isPresented: .constant(false))
             }
+        }
+        .onAppear {
+            viewModel.loadPinnedMembers()
         }
     }
 }
