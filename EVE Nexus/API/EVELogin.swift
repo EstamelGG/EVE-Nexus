@@ -792,7 +792,6 @@ class ScopeManager {
     static let shared = ScopeManager()
     private let latestScopesFileName = "latest_scopes.json"
     private let hardcodedScopesFileName = "scopes.json"
-    private let cacheDuration: TimeInterval = 15 * 60 // 15分钟的缓存时间
     
     private init() {}
     
