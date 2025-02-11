@@ -714,22 +714,9 @@ class EVELogin {
     }
     
     private func loadConfig() {
-        // 从 scopes.json 加载所有权限
-        var allScopes: [String] = []
-        if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json") {
-            do {
-                let scopesData = try Data(contentsOf: scopesURL)
-                let scopesDict = try JSONDecoder().decode([String: [String]].self, from: scopesData)
-                allScopes = Array(Set(scopesDict.values.flatMap { $0 }))
-                Logger.info("EVELogin: 成功加载权限: \(allScopes)")
-            } catch {
-                Logger.error("EVELogin: 加载权限配置失败: \(error)")
-                return
-            }
-        }
-        
+        // 初始化基本配置，不加载 scopes
         var configWithScopes = EVELogin.defaultConfig
-        configWithScopes.scopes = allScopes
+        configWithScopes.scopes = []
         self.config = configWithScopes
     }
 
@@ -765,6 +752,16 @@ class EVELogin {
         
         Logger.info("EVELogin: 认证状态已保存")
     }
+
+    // 添加 getScopes 方法到类内部
+    func getScopes() async -> [String] {
+        let scopes = await ScopeManager.shared.getScopes()
+        // 更新配置中的 scopes
+        await MainActor.run {
+            self.config?.scopes = scopes
+        }
+        return scopes
+    }
 }
 
 // 在 EVELogin 类中添加私有静态配置
@@ -780,4 +777,76 @@ private extension EVELogin {
         ),
         scopes: []  // 将在 loadConfig 中填充
     )
+}
+
+// 添加 ScopeManager 类
+class ScopeManager {
+    static let shared = ScopeManager()
+    private let cacheKey = "cached_scopes"
+    private let cacheTimeKey = "scopes_cache_time"
+    private let cacheDuration: TimeInterval = 15 * 60 // 15分钟的缓存时间
+    
+    private init() {}
+    
+    // 从 swagger.json 获取最新的 scopes
+    func fetchLatestScopes() async throws -> [String] {
+        let url = URL(string: "https://esi.evetech.net/latest/swagger.json")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
+        
+        // 从 securityDefinitions.evesso.scopes 中提取所有的 scope keys
+        let scopes = swagger.securityDefinitions.evesso.scopes.keys.map { String($0) }
+        
+        // 缓存 scopes 和缓存时间
+        UserDefaults.standard.set(scopes, forKey: cacheKey)
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: cacheTimeKey)
+        
+        return scopes
+    }
+    
+    // 获取 scopes，优先使用缓存，如果缓存失效则尝试获取最新的
+    func getScopes() async -> [String] {
+        // 检查缓存是否有效
+        if let cachedTime = UserDefaults.standard.double(forKey: cacheTimeKey) as TimeInterval?,
+           let cachedScopes = UserDefaults.standard.stringArray(forKey: cacheKey),
+           !cachedScopes.isEmpty,
+           Date().timeIntervalSince1970 - cachedTime < cacheDuration {
+            Logger.info("使用缓存的 scopes，共 \(cachedScopes.count) 个")
+            return cachedScopes
+        }
+        
+        do {
+            // 尝试获取最新的 scopes
+            let latestScopes = try await fetchLatestScopes()
+            Logger.info("成功获取最新 scopes，共 \(latestScopes.count) 个")
+            return latestScopes
+        } catch {
+            Logger.error("获取最新 scopes 失败: \(error)，使用本地 scopes.json")
+            // 如果获取失败，使用本地的 scopes.json
+            return loadLocalScopes()
+        }
+    }
+    
+    // 从本地 scopes.json 加载 scopes
+    private func loadLocalScopes() -> [String] {
+        if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json"),
+           let scopesData = try? Data(contentsOf: scopesURL),
+           let scopesDict = try? JSONDecoder().decode([String: [String]].self, from: scopesData) {
+            return Array(Set(scopesDict.values.flatMap { $0 }))
+        }
+        return []
+    }
+}
+
+// 添加 SwaggerResponse 结构体
+private struct SwaggerResponse: Codable {
+    let securityDefinitions: SecurityDefinitions
+    
+    struct SecurityDefinitions: Codable {
+        let evesso: EveSSO
+        
+        struct EveSSO: Codable {
+            let scopes: [String: String]
+        }
+    }
 } 

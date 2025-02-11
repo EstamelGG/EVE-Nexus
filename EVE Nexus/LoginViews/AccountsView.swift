@@ -46,10 +46,14 @@ struct AccountsView: View {
                         }
                         
                         do {
+                            // 获取最新的 scopes
+                            let scopes = await EVELogin.shared.getScopes()
+                            Logger.info("准备使用 \(scopes.count) 个 scopes 进行登录")
+                            
                             // 由于我们已经在 @MainActor 上下文中，不需要额外的主线程包装
                             let authState = try await AuthTokenManager.shared.authorize(
                                 presenting: viewController,
-                                scopes: EVELogin.shared.config?.scopes ?? []
+                                scopes: scopes // 使用最新获取的 scopes
                             )
                             
                             // 获取角色信息
