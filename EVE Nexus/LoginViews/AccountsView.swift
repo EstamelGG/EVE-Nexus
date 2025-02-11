@@ -46,14 +46,10 @@ struct AccountsView: View {
                         }
                         
                         do {
-                            // 获取最新的 scopes
-                            let scopes = await EVELogin.shared.getScopes()
-                            Logger.info("准备使用 \(scopes.count) 个 scopes 进行登录")
-                            
-                            // 由于我们已经在 @MainActor 上下文中，不需要额外的主线程包装
+                            // 尝试使用当前配置的 scopes 进行登录
                             let authState = try await AuthTokenManager.shared.authorize(
                                 presenting: viewController,
-                                scopes: scopes // 使用最新获取的 scopes
+                                scopes: EVELogin.shared.config?.scopes ?? []
                             )
                             
                             // 获取角色信息
@@ -108,9 +104,80 @@ struct AccountsView: View {
                             
                             Logger.info("成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)")
                         } catch {
-                            viewModel.errorMessage = error.localizedDescription
-                            viewModel.showingError = true
-                            Logger.error("登录失败: \(error)")
+                            // 检查是否是 scope 无效错误
+                            if error.localizedDescription.lowercased().contains("invalid_scope") {
+                                Logger.info("检测到无效权限，尝试重新获取最新的 scopes")
+                                // 强制刷新获取最新的 scopes
+                                let scopes = await ScopeManager.shared.getScopes(forceRefresh: true)
+                                
+                                do {
+                                    // 使用新的 scopes 重试登录
+                                    let authState = try await AuthTokenManager.shared.authorize(
+                                        presenting: viewController,
+                                        scopes: scopes
+                                    )
+                                    
+                                    // 获取角色信息
+                                    let character = try await EVELogin.shared.processLogin(
+                                        authState: authState
+                                    )
+                                    
+                                    // 获取并保存角色公开信息到数据库
+                                    let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                                        characterId: character.CharacterID,
+                                        forceRefresh: true
+                                    )
+                                    Logger.info("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
+                                    
+                                    // UI 更新已经在 MainActor 上下文中
+                                    viewModel.characterInfo = character
+                                    viewModel.isLoggedIn = true
+                                    viewModel.loadCharacters()
+                                    
+                                    // 加载新角色的头像
+                                    await viewModel.loadCharacterPortrait(characterId: character.CharacterID)
+                                    
+                                    // 加载技能队列信息
+                                    await updateCharacterSkillQueue(character: character)
+                                    
+                                    // 保存更新后的角色信息到UserDefaults
+                                    if let index = await MainActor.run(body: { self.viewModel.characters.firstIndex(where: { $0.CharacterID == character.CharacterID }) }) {
+                                        let updatedCharacter = await MainActor.run { self.viewModel.characters[index] }
+                                        do {
+                                            // 获取 access token
+                                            let accessToken = try await AuthTokenManager.shared.getAccessToken(for: updatedCharacter.CharacterID)
+                                            // 创建 EVEAuthToken 对象
+                                            let token = EVEAuthToken(
+                                                access_token: accessToken,
+                                                expires_in: 1200, // 20分钟过期
+                                                token_type: "Bearer",
+                                                refresh_token: try SecureStorage.shared.loadToken(for: updatedCharacter.CharacterID) ?? ""
+                                            )
+                                            // 保存认证信息
+                                            try await EVELogin.shared.saveAuthInfo(
+                                                token: token,
+                                                character: updatedCharacter
+                                            )
+                                            Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
+                                            
+                                            // 立即刷新该角色的所有数据
+                                            await refreshCharacterData(updatedCharacter)
+                                        } catch {
+                                            Logger.error("保存认证信息失败: \(error)")
+                                        }
+                                    }
+                                    
+                                    Logger.info("成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)")
+                                } catch {
+                                    viewModel.errorMessage = "登录失败，请稍后重试：\(error.localizedDescription)"
+                                    viewModel.showingError = true
+                                    Logger.error("使用更新后的权限登录仍然失败: \(error)")
+                                }
+                            } else {
+                                viewModel.errorMessage = error.localizedDescription
+                                viewModel.showingError = true
+                                Logger.error("登录失败: \(error)")
+                            }
                         }
                         
                         // 确保在最后重置登录状态

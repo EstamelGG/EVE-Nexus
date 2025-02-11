@@ -714,10 +714,18 @@ class EVELogin {
     }
     
     private func loadConfig() {
-        // 初始化基本配置，不加载 scopes
+        // 初始化基本配置
         var configWithScopes = EVELogin.defaultConfig
         configWithScopes.scopes = []
         self.config = configWithScopes
+        
+        // 异步加载 scopes
+        Task {
+            let scopes = await ScopeManager.shared.getScopes()
+            await MainActor.run {
+                self.config?.scopes = scopes
+            }
+        }
     }
 
     
@@ -782,11 +790,45 @@ private extension EVELogin {
 // 添加 ScopeManager 类
 class ScopeManager {
     static let shared = ScopeManager()
-    private let cacheKey = "cached_scopes"
-    private let cacheTimeKey = "scopes_cache_time"
+    private let latestScopesFileName = "latest_scopes.json"
+    private let hardcodedScopesFileName = "scopes.json"
     private let cacheDuration: TimeInterval = 15 * 60 // 15分钟的缓存时间
     
     private init() {}
+    
+    // 获取文档目录路径
+    private var documentsDirectory: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+    
+    // 获取最新 scopes 文件路径
+    private var latestScopesPath: URL {
+        documentsDirectory.appendingPathComponent(latestScopesFileName)
+    }
+    
+    // 从本地文件加载 scopes
+    private func loadScopesFromFile(_ url: URL) -> [String]? {
+        do {
+            let data = try Data(contentsOf: url)
+            let scopesDict = try JSONDecoder().decode([String: [String]].self, from: data)
+            return Array(Set(scopesDict.values.flatMap { $0 }))
+        } catch {
+            Logger.error("从文件加载 scopes 失败: \(error)")
+            return nil
+        }
+    }
+    
+    // 保存 scopes 到本地文件
+    private func saveScopesToFile(_ scopes: [String]) {
+        do {
+            let scopesDict = ["scopes": scopes]
+            let data = try JSONEncoder().encode(scopesDict)
+            try data.write(to: latestScopesPath)
+            Logger.info("成功保存 scopes 到本地文件")
+        } catch {
+            Logger.error("保存 scopes 到本地文件失败: \(error)")
+        }
+    }
     
     // 从 swagger.json 获取最新的 scopes
     func fetchLatestScopes() async throws -> [String] {
@@ -797,44 +839,48 @@ class ScopeManager {
         // 从 securityDefinitions.evesso.scopes 中提取所有的 scope keys
         let scopes = swagger.securityDefinitions.evesso.scopes.keys.map { String($0) }
         
-        // 缓存 scopes 和缓存时间
-        UserDefaults.standard.set(scopes, forKey: cacheKey)
-        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: cacheTimeKey)
+        // 保存到本地文件
+        saveScopesToFile(scopes)
         
         return scopes
     }
     
-    // 获取 scopes，优先使用缓存，如果缓存失效则尝试获取最新的
-    func getScopes() async -> [String] {
-        // 检查缓存是否有效
-        if let cachedTime = UserDefaults.standard.double(forKey: cacheTimeKey) as TimeInterval?,
-           let cachedScopes = UserDefaults.standard.stringArray(forKey: cacheKey),
-           !cachedScopes.isEmpty,
-           Date().timeIntervalSince1970 - cachedTime < cacheDuration {
-            Logger.info("使用缓存的 scopes，共 \(cachedScopes.count) 个")
-            return cachedScopes
+    // 获取 scopes
+    func getScopes(forceRefresh: Bool = false) async -> [String] {
+        // 如果强制刷新或本地文件不存在，尝试从网络获取
+        if forceRefresh || !FileManager.default.fileExists(atPath: latestScopesPath.path) {
+            do {
+                Logger.info("尝试从网络获取最新 scopes")
+                return try await fetchLatestScopes()
+            } catch {
+                Logger.error("从网络获取 scopes 失败: \(error)，尝试使用本地硬编码的 scopes")
+                // 如果网络获取失败，尝试使用硬编码的 scopes
+                if let hardcodedScopes = loadHardcodedScopes() {
+                    return hardcodedScopes
+                }
+                // 如果硬编码的 scopes 也无法加载，返回空数组
+                Logger.error("加载硬编码的 scopes 也失败")
+                return []
+            }
         }
         
-        do {
-            // 尝试获取最新的 scopes
-            let latestScopes = try await fetchLatestScopes()
-            Logger.info("成功获取最新 scopes，共 \(latestScopes.count) 个")
-            return latestScopes
-        } catch {
-            Logger.error("获取最新 scopes 失败: \(error)，使用本地 scopes.json")
-            // 如果获取失败，使用本地的 scopes.json
-            return loadLocalScopes()
+        // 尝试从本地文件加载
+        if let scopes = loadScopesFromFile(latestScopesPath) {
+            Logger.info("从本地文件加载 scopes 成功")
+            return scopes
         }
+        
+        // 如果本地文件加载失败，使用硬编码的 scopes
+        Logger.info("从本地文件加载失败，使用硬编码的 scopes")
+        return loadHardcodedScopes() ?? []
     }
     
-    // 从本地 scopes.json 加载 scopes
-    private func loadLocalScopes() -> [String] {
-        if let scopesURL = Bundle.main.url(forResource: "scopes", withExtension: "json"),
-           let scopesData = try? Data(contentsOf: scopesURL),
-           let scopesDict = try? JSONDecoder().decode([String: [String]].self, from: scopesData) {
-            return Array(Set(scopesDict.values.flatMap { $0 }))
+    // 从硬编码的 scopes.json 加载
+    private func loadHardcodedScopes() -> [String]? {
+        if let scopesURL = Bundle.main.url(forResource: hardcodedScopesFileName, withExtension: nil) {
+            return loadScopesFromFile(scopesURL)
         }
-        return []
+        return nil
     }
 }
 
