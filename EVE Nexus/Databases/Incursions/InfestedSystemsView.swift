@@ -6,23 +6,17 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
     let systemName: String
     let security: Double
     let systemId: Int
-    let influence: Double
-    let regionName: String
-    let constellationName: String
     var allianceId: Int?
     var factionId: Int?
     @Published var icon: Image?
     @Published var isLoadingIcon: Bool = false
     @Published var allianceName: String?
     
-    init(systemName: String, security: Double, systemId: Int, influence: Double, regionName: String, constellationName: String) {
+    init(systemName: String, security: Double, systemId: Int) {
         self.id = systemId
         self.systemName = systemName
         self.security = security
         self.systemId = systemId
-        self.influence = influence
-        self.regionName = regionName
-        self.constellationName = constellationName
         super.init()
     }
 }
@@ -87,47 +81,27 @@ class InfestedSystemsViewModel: ObservableObject {
             Logger.error("无法获取主权数据: \(error)")
         }
         
-        // 获取入侵数据以获取影响力信息
-        var influence: Double = 0.0
-        do {
-            let incursions = try await IncursionsAPI.shared.fetchIncursions()
-            if let incursion = incursions.first(where: { $0.infestedSolarSystems.contains(where: { $0 == systemIds.first }) }) {
-                influence = incursion.influence
-            }
-        } catch {
-            Logger.error("无法获取入侵数据: \(error)")
-        }
-        
         for systemId in systemIds {
             // 从 universe 表获取安全等级和其他信息
             let universeQuery = """
-                SELECT u.system_security, u.constellation_id, u.region_id,
-                       s.solarSystemName,
-                       c.constellationName,
-                       r.regionName
+                SELECT u.system_security,
+                       s.solarSystemName
                 FROM universe u
                 JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                JOIN constellations c ON c.constellationID = u.constellation_id
-                JOIN regions r ON r.regionID = u.region_id
                 WHERE u.solarsystem_id = ?
             """
             
             guard case .success(let universeRows) = databaseManager.executeQuery(universeQuery, parameters: [systemId]),
                   let universeRow = universeRows.first,
                   let security = universeRow["system_security"] as? Double,
-                  let systemName = universeRow["solarSystemName"] as? String,
-                  let regionName = universeRow["regionName"] as? String,
-                  let constellationName = universeRow["constellationName"] as? String else {
+                  let systemName = universeRow["solarSystemName"] as? String else {
                 continue
             }
             
             let systemInfo = SystemInfo(
                 systemName: systemName,
                 security: security,
-                systemId: systemId,
-                influence: influence,
-                regionName: regionName,
-                constellationName: constellationName
+                systemId: systemId
             )
             
             // 设置主权信息并建立映射关系
@@ -151,23 +125,8 @@ class InfestedSystemsViewModel: ObservableObject {
             tempSystems.append(systemInfo)
         }
         
-        // 多级排序：影响力 > 星域名称 > 安全等级 > 星座名称
-        tempSystems.sort { s1, s2 in
-            // 首先按影响力从大到小排序
-            if s1.influence != s2.influence {
-                return s1.influence > s2.influence
-            }
-            // 然后按星域名称排序
-            if s1.regionName != s2.regionName {
-                return s1.regionName < s2.regionName
-            }
-            // 然后按安全等级从高到低排序
-            if s1.security != s2.security {
-                return s1.security > s2.security
-            }
-            // 最后按星座名称排序
-            return s1.constellationName < s2.constellationName
-        }
+        // 只按星系名称排序
+        tempSystems.sort { $0.systemName < $1.systemName }
         
         systems = tempSystems
         

@@ -109,7 +109,7 @@ final class IncursionsViewModel: ObservableObject {
         loadingTask?.cancel()
     }
     
-    func fetchIncursions(forceRefresh: Bool = false) async {
+    func fetchIncursionsData(forceRefresh: Bool = false) async {
         // 如果不是强制刷新，且缓存未过期，且已有数据，则直接返回
         if !forceRefresh,
            let lastFetch = lastFetchTime,
@@ -326,10 +326,10 @@ struct IncursionsView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable {
-            await viewModel.fetchIncursions(forceRefresh: true)
+            await viewModel.fetchIncursionsData(forceRefresh: true)
         }
         .task {
-            await viewModel.fetchIncursions()
+            await viewModel.fetchIncursionsData()
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }
