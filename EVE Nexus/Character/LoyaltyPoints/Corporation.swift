@@ -17,6 +17,6 @@ struct Corporation: Identifiable {
         self.id = corporationId
         self.name = name
         self.factionId = factionId
-        self.iconFileName = iconFileName.isEmpty ? "corporations_default.png" : iconFileName
+        self.iconFileName = iconFileName.isEmpty ? "corporations_default" : iconFileName
     }
 } 

@@ -15,22 +15,22 @@ struct ResistanceBarView: View {
     private let resistanceTypes = [
         ResistanceType(
             id: 0,
-            iconName: "items_22_32_20.png",
+            iconName: "anti_em",
             color: Color(red: 74/255, green: 128/255, blue: 192/255)    // EM - 蓝色
         ),
         ResistanceType(
             id: 1,
-            iconName: "items_22_32_18.png",
+            iconName: "anti_th",
             color: Color(red: 176/255, green: 53/255, blue: 50/255)    // Thermal - 红色
         ),
         ResistanceType(
             id: 2,
-            iconName: "items_22_32_17.png",
+            iconName: "anti_ki",
             color: Color(red: 155/255, green: 155/255, blue: 155/255)   // Kinetic - 灰色
         ),
         ResistanceType(
             id: 3,
-            iconName: "items_22_32_19.png",
+            iconName: "anti_ex",
             color: Color(red: 185/255, green: 138/255, blue: 62/255)    // Explosive - 橙色
         )
     ]
@@ -49,7 +49,7 @@ struct ResistanceBarView: View {
                     GeometryReader { geometry in
                         HStack(spacing: 2) {
                             // 图标
-                            IconManager.shared.loadImage(for: type.iconName)
+                            Image(type.iconName)
                                 .resizable()
                                 .frame(width: 20, height: 20)
                             

@@ -103,7 +103,7 @@ struct MoonExtractionRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // 月球图标
-            IconManager.shared.loadImage(for: "icon_14_64.png")
+            Image("moon")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 40, height: 40)

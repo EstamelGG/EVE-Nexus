@@ -24,7 +24,7 @@ struct CorporationLogoView: View {
                 ProgressView()
                     .frame(width: 36, height: 36)
             } else {
-                IconManager.shared.loadImage(for: "corporations_default.png")
+                Image("corporations_default")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 36, height: 36)

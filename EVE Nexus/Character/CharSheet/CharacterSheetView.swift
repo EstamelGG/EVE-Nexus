@@ -364,7 +364,7 @@ struct CharacterSheetView: View {
                                 .cornerRadius(6)
                         } else {
                             // 找不到图标时显示默认图标
-                            IconManager.shared.loadImage(for: "icon_0_64.png")
+                            Image("not_found")
                                 .resizable()
                                 .frame(width: 36, height: 36)
                                 .cornerRadius(6)
@@ -378,13 +378,13 @@ struct CharacterSheetView: View {
                                 .frame(width: 36, height: 36)
                                 .cornerRadius(6)
                         } else {
-                            IconManager.shared.loadImage(for: "icon_0_64.png")
+                            Image("not_found")
                                 .resizable()
                                 .frame(width: 36, height: 36)
                                 .cornerRadius(6)
                         }
                     } else {
-                        IconManager.shared.loadImage(for: "icon_0_64.png")
+                        Image("not_found")
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
@@ -435,7 +435,7 @@ struct CharacterSheetView: View {
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
                     } else {
-                        IconManager.shared.loadImage(for: "icon_0_64.png")
+                        Image("not_found")
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)

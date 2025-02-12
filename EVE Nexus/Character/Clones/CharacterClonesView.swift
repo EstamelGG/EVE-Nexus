@@ -100,7 +100,7 @@ struct CharacterClonesView: View {
                                         .frame(width: 36, height: 36)
                                         .cornerRadius(6)
                                 } else {
-                                    IconManager.shared.loadImage(for: "icon_0_64.png")
+                                    Image("not_found")
                                         .resizable()
                                         .frame(width: 36, height: 36)
                                         .cornerRadius(6)
@@ -358,7 +358,7 @@ struct CloneLocationRow: View {
                         .frame(width: 36, height: 36)
                         .cornerRadius(6)
                 } else {
-                    IconManager.shared.loadImage(for: "icon_0_64.png")
+                    Image("not_found")
                         .resizable()
                         .frame(width: 36, height: 36)
                         .cornerRadius(6)

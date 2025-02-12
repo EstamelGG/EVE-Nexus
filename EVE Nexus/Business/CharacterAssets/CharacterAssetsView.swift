@@ -14,7 +14,7 @@ private struct LocationRowView: View {
                     .cornerRadius(6)
             } else if location.name == nil {
                 // 位置未知时显示默认图标（ID为0）
-                IconManager.shared.loadImage(for: "icon_0_64.png")
+                Image("not_found")
                     .resizable()
                     .frame(width: 36, height: 36)
                     .cornerRadius(6)

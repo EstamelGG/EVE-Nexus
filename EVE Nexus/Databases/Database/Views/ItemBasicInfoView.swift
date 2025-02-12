@@ -85,7 +85,7 @@ struct ItemBasicInfoView: View {
                     )
                 } label: {
                     HStack {
-                        IconManager.shared.loadImage(for: "icon_52996_64.png")
+                        Image("isk")
                             .resizable()
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)
@@ -101,7 +101,7 @@ struct ItemBasicInfoView: View {
             Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
                 if let volume = itemDetails.volume {
                     HStack {
-                        IconManager.shared.loadImage(for: "items_2_64_9.png")
+                        Image("structure")
                             .resizable()
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)
@@ -115,7 +115,7 @@ struct ItemBasicInfoView: View {
                 
                 if let capacity = itemDetails.capacity {
                     HStack {
-                        IconManager.shared.loadImage(for: "items_3_64_13.png")
+                        Image("cargo")
                             .resizable()
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)
@@ -129,7 +129,7 @@ struct ItemBasicInfoView: View {
                 
                 if let mass = itemDetails.mass {
                     HStack {
-                        IconManager.shared.loadImage(for: "items_2_64_10.png")
+                        Image("hull")
                             .resizable()
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)

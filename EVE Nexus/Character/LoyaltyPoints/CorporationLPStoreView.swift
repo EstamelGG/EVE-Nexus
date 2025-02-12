@@ -295,7 +295,7 @@ struct CorporationLPStoreView: View {
                        let categoryId = row["categoryID"] as? Int {
                         infos[typeId] = LPStoreItemInfo(
                             name: name,
-                            iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName,
+                            iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName,
                             categoryName: categoryName,
                             categoryId: categoryId
                         )
@@ -319,7 +319,7 @@ struct CorporationLPStoreView: View {
                                let iconFileName = row["icon_filename"] as? String {
                                 categories[name] = CategoryInfo(
                                     name: name,
-                                    iconFileName: iconFileName.isEmpty ? "items_7_64_15.png" : iconFileName
+                                    iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
                                 )
                             }
                         }

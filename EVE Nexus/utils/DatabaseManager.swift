@@ -1337,7 +1337,7 @@ class DatabaseManager: ObservableObject {
                       let categoryId = row["categoryID"] as? Int
                 else { return nil }
                 
-                let iconFileName = (row["iconFileName"] as? String) ?? "items_7_64_15.png"
+                let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
                 let published = (row["published"] as? Int) ?? 0
                 let groupID = row["groupID"] as? Int
                 let groupName = row["groupName"] as? String
@@ -1651,7 +1651,7 @@ extension DatabaseManager {
                         id: typeId,
                         name: name,
                         description: description,
-                        icon: icon.isEmpty ? "items_7_64_15.png" : icon,
+                        icon: icon.isEmpty ? "not_found" : icon,
                         target: target,
                         stableTime: stableTime,
                         maxStableMass: maxStableMass,

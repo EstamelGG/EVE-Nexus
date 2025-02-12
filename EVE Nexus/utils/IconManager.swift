@@ -76,7 +76,13 @@ class IconManager {
     }
     
     func loadImage(for iconName: String) -> Image {
-        Image(uiImage: loadUIImage(for: iconName))
+        // 先尝试从 Assets 加载
+        if let uiImage = UIImage(named: iconName.replacingOccurrences(of: ".png", with: "")) {
+            return Image(uiImage: uiImage)
+        }
+        
+        // 如果 Assets 中找不到，从本地文件加载
+        return Image(uiImage: loadUIImage(for: iconName))
     }
     
     func preloadCommonIcons(icons: [String]) {

@@ -328,13 +328,13 @@ struct DatabaseListItemView: View {
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
-                                IconWithValueView(iconName: "items_2_64_7.png", numericValue: pgNeed, unit: " MW")
+                                IconWithValueView(iconName: "pg", numericValue: pgNeed, unit: " MW")
                             }
                             if let cpuNeed = item.cpuNeed {
-                                IconWithValueView(iconName: "icon_3887_64.png", numericValue: cpuNeed, unit: " Tf")
+                                IconWithValueView(iconName: "cpu", numericValue: cpuNeed, unit: " Tf")
                             }
                             if let rigCost = item.rigCost {
-                                IconWithValueView(iconName: "icon_21587_64.png", numericValue: rigCost)
+                                IconWithValueView(iconName: "rigcost", numericValue: rigCost)
                             }
                         }
                     }
@@ -344,7 +344,7 @@ struct DatabaseListItemView: View {
                             HStack(spacing: 8) {  // 增加整体的间距
                                 // 电磁伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_12.png")
+                                    Image("em")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -355,7 +355,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 热能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_10.png")
+                                    Image("th")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -366,7 +366,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 动能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_9.png")
+                                    Image("ki")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -377,7 +377,7 @@ struct DatabaseListItemView: View {
                                 
                                 // 爆炸伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
-                                    IconManager.shared.loadImage(for: "items_22_32_11.png")
+                                    Image("ex")
                                         .resizable()
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
@@ -392,22 +392,22 @@ struct DatabaseListItemView: View {
                     else if categoryID == 6 {
                         HStack(spacing: 8) {  // 减小槽位之间的间距
                             if let highSlot = item.highSlot, highSlot != 0 {
-                                IconWithValueView(iconName: "items_8_64_11.png", numericValue: highSlot)
+                                IconWithValueView(iconName: "highSlot", numericValue: highSlot)
                             }
                             if let midSlot = item.midSlot, midSlot != 0 {
-                                IconWithValueView(iconName: "items_8_64_10.png", numericValue: midSlot)
+                                IconWithValueView(iconName: "midSlot", numericValue: midSlot)
                             }
                             if let lowSlot = item.lowSlot, lowSlot != 0 {
-                                IconWithValueView(iconName: "items_8_64_9.png", numericValue: lowSlot)
+                                IconWithValueView(iconName: "lowSlot", numericValue: lowSlot)
                             }
                             if let rigSlot = item.rigSlot, rigSlot != 0 {
-                                IconWithValueView(iconName: "items_68_64_1.png", numericValue: rigSlot)
+                                IconWithValueView(iconName: "rigSlot", numericValue: rigSlot)
                             }
                             if let gunSlot = item.gunSlot, gunSlot != 0 {
-                                IconWithValueView(iconName: "icon_484_64.png", numericValue: gunSlot)
+                                IconWithValueView(iconName: "gunSlot", numericValue: gunSlot)
                             }
                             if let missSlot = item.missSlot, missSlot != 0 {
-                                IconWithValueView(iconName: "icon_499_64.png", numericValue: missSlot)
+                                IconWithValueView(iconName: "missSlot", numericValue: missSlot)
                             }
                         }
                     }
@@ -458,7 +458,7 @@ struct IconWithValueView: View {
     
     var body: some View {
         HStack(spacing: 2) {
-            IconManager.shared.loadImage(for: iconName)
+            Image(iconName)
                 .resizable()
                 .frame(width: 18, height: 18)
             Text(value)

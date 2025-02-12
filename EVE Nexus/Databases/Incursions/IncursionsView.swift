@@ -210,7 +210,7 @@ final class IncursionsViewModel: ObservableObject {
     }
     
     private func getFactionInfo(factionId: Int) async -> (iconName: String, name: String)? {
-        let iconName = factionId == 500019 ? "corporations_44_128_2.png" : "items_7_64_4.png"
+        let iconName = factionId == 500019 ? "corporations_44_128_2.png" : "corporations_default"
         
         let query = "SELECT name FROM factions WHERE id = ?"
         guard case .success(let rows) = databaseManager.executeQuery(query, parameters: [factionId]),

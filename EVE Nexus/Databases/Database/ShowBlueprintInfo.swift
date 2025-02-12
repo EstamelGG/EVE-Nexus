@@ -26,7 +26,7 @@ struct ProductItemView: View {
             }
         ) {
             HStack {
-                IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "items_7_64_15.png" : item.typeIcon)
+                IconManager.shared.loadImage(for: item.typeIcon.isEmpty ? "not_found" : item.typeIcon)
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
@@ -62,7 +62,7 @@ struct InventionProductItemView: View {
             }
         ) {
             HStack {
-                IconManager.shared.loadImage(for: product.typeIcon.isEmpty ? "items_7_64_15.png" : product.typeIcon)
+                IconManager.shared.loadImage(for: product.typeIcon.isEmpty ? "not_found" : product.typeIcon)
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
@@ -230,7 +230,7 @@ struct ShowBluePrintInfo: View {
                                         )
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "not_found" : material.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -274,7 +274,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "not_found" : skill.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -332,7 +332,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "not_found" : material.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -376,7 +376,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "not_found" : skill.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -447,7 +447,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "not_found" : material.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -491,7 +491,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "not_found" : skill.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -562,7 +562,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "not_found" : material.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -606,7 +606,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "not_found" : skill.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -671,7 +671,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "items_7_64_15.png" : material.typeIcon)
+                                            IconManager.shared.loadImage(for: material.typeIcon.isEmpty ? "not_found" : material.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)
@@ -715,7 +715,7 @@ struct ShowBluePrintInfo: View {
                                         }
                                     } label: {
                                         HStack {
-                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "items_7_64_15.png" : skill.typeIcon)
+                                            IconManager.shared.loadImage(for: skill.typeIcon.isEmpty ? "not_found" : skill.typeIcon)
                                                 .resizable()
                                                 .frame(width: 32, height: 32)
                                                 .cornerRadius(6)

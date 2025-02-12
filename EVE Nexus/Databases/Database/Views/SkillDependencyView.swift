@@ -57,7 +57,7 @@ struct SkillDependencySection: View {
     
     // 获取等级对应的图标名称
     private func getIconForLevel(_ level: Int) -> String {
-        return "items_79_64_\(level + 1).png"
+        return "skill_lv_\(level + 1)"
     }
     
     var body: some View {
@@ -76,7 +76,7 @@ struct SkillDependencySection: View {
                             )
                         } label: {
                             HStack {
-                                IconManager.shared.loadImage(for: getIconForLevel(level))
+                                Image(getIconForLevel(level))
                                     .resizable()
                                     .frame(width: 32, height: 32)
                                     .cornerRadius(6)
