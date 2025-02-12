@@ -16,7 +16,7 @@ public struct LocationInfoDetail {
 // 添加位置类型枚举
 private enum LocationType {
     case solarSystem    // 30000000...39999999
-    case station       // 60000000...69999999
+    case station       // 60000000...63999999
     case structure     // >= 100000000
     case unknown
     
@@ -24,7 +24,7 @@ private enum LocationType {
         let type: LocationType = switch id {
         case 30000000...39999999:
             .solarSystem
-        case 60000000...69999999:
+        case 60000000...63999999:
             .station
         case 100000000...:
             .structure
