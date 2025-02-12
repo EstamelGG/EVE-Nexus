@@ -115,7 +115,7 @@ struct ItemBasicInfoView: View {
                 
                 if let capacity = itemDetails.capacity {
                     HStack {
-                        Image("cargo")
+                        Image("cargo_fit")
                             .resizable()
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)
