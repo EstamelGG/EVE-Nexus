@@ -62,6 +62,7 @@ struct CharacterMailDetailView: View {
                             VStack(alignment: .leading) {
                                 Text(detail.senderName)
                                     .font(.subheadline)
+                                    .textSelection(.enabled)
                                 Text(mail.timestamp.formatDate())
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -74,6 +75,7 @@ struct CharacterMailDetailView: View {
                                 .foregroundColor(.secondary) +
                             Text(detail.content.recipients.compactMap { detail.recipientNames[$0.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "") }.joined(separator: ", ")))
                                 .font(.subheadline)
+                                .textSelection(.enabled)
                         }
                         
                         Divider()

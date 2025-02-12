@@ -10,6 +10,7 @@ struct RichTextView: View {
     
     var body: some View {
         RichTextProcessor.processRichText(text)
+            .textSelection(.enabled)
             .environment(\.openURL, OpenURLAction { url in
                 if url.scheme == "showinfo",
                    let itemID = Int(url.host ?? ""),
