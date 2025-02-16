@@ -1,0 +1,1115 @@
+/* 
+  Localizable.strings
+  EVE Panel
+
+  Created by GG Estamel on 2024/11/30.
+  
+*/
+
+"Main_Character" = "人物";
+"Main_Character_Sheet" = "人物表单";
+"Main_Jump_Clones" = "克隆体";
+"Main_Jump_Clones_Available" = "跳跃克隆可用: ";
+"Main_Skills" = "技能";
+"Main_Skills_Ponits" = "$num SP";
+"Main_Skills_Queue" = "队列长度：$num ($day天$hour时$minutes分)";
+"Main_Skills_Queue_Training" = "训练中: $num个技能 ($day天$hour时$minutes分)";
+"Main_Skills_Queue_Paused" = "已暂停: $num个技能";
+"Main_Skills_Queue_Empty" = "技能队列为空";
+"Main_EVE_Mail" = "EVE 邮件";
+"Main_Calendar" = "日历";
+"Main_Wealth" = "个人财产";
+"Main_Wealth_ISK" = "钱包余额: $num ISK";
+"Main_Loyalty_Points" = "忠诚点";
+"Main_Databases" = "数据";
+"Main_Database" = "数据库";
+"Main_Database_title" = "数据库";
+"Main_Database_nothing_found" = "无数据";
+"DatabaseName" = "item_db_zh";
+"Main_Database_unpublished" = "未发布";
+"Main_Database_published" = "已发布";
+"Main_Database_Search" = "搜索";
+"Main_Database_Searching" = "正在搜索...";
+"Main_Database_Variations" = "变体";
+"Main_Database_Browse_Variations" = "浏览 %d 个变体";
+"Main_Database_Item_info_Immune" = "免疫";
+"Main_Database_Item_info_NonImmune" = "不免疫";
+"Main_Database_Item_info_Reprocess" = "精炼产出";
+"Main_Database_Source" = "精炼来源";
+"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Bonuses_Per_Level" = "每级技能加成";
+"Main_Database_Required_By" = "技能等级适用于";
+"Main_Database_NPC_Scene" = "NPC";
+"Main_Database_NPC_Ships" = "舰船";
+"Main_Market_Current_Price" = "当前售价";
+"Main_Market_Price_History" = "历史价格";
+"Main_Market_Show_market_orders" = "查看市场订单";
+"Main_Market_Choose_Region" = "选择星域";
+"Main_Market_WH_info" = "虫洞信息";
+"Main_Market_WH_Details" = "详细信息";
+"Main_Market_WH_MaxStableTime" = "最大稳定时间";
+"Main_Market_WH_MaxStableMass" = "最大稳定质量";
+"Main_Market_WH_MaxJumpMass" = "最大单次跳跃质量";
+"Main_Market_WH_Leadsto" = "通往";
+"Main_Market_WH_Size" = "尺寸类型";
+"Main_Database_toComplete" = "精简";
+"Main_Database_toSimplified" = "完整";
+"Select_Item" = "选择项目";
+"Main_Market" = "市场";
+"Main_Market_Watch_List" = "市场关注列表";
+"Main_WH" = "虫洞";
+"Main_Incursions" = "入侵";
+"Main_Infested_Systems" = "受影响星系";
+"Main_Business" = "商业";
+"Main_Assets" = "个人资产";
+"Main_Market_Orders" = "市场订单";
+"Main_Contracts" = "合同列表";
+"Main_Market_Transactions" = "交易记录";
+"Main_Wallet_Journal" = "钱包日志";
+"Main_Industry_Jobs" = "工业任务";
+"Main_Other" = "其他";
+
+"Main_Setting" = "设置";
+"Main_Setting_Title" = "设置";
+"Main_Setting_Language" = "语言";
+"Main_Setting_Select_your_language" = "选择语言";
+"Main_Setting_Appearance" = "外观";
+"Main_Setting_ColorMode" = "颜色模式";
+"Main_Setting_Others" = "其他";
+"Main_Setting_Dark" = "深色";
+"Main_Setting_Light" = "浅色";
+"Main_Setting_Auto" = "跟随系统";
+"Main_Setting_Select_Language" = "选择语言";
+"Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
+"Main_Setting_Clean_Cache" = "清理缓存";
+"Main_Setting_Clean_Cache_Title" = "清理缓存";
+"Main_Setting_Clean_Cache_Message" = "这将清理应用缓存，包括网络缓存和临时文件。是否确认？";
+"Main_Setting_Reset_Icons" = "重置图标缓存";
+"Main_Setting_Reset_Icons_Detail" = "删除图标缓存并重新释放(只有缺失图标时使用)";
+"Main_Setting_Reset_Icons_Title" = "重置图标缓存";
+"Main_Setting_Reset_Icons_Message" = "这将删除所有已下载的图标缓存并重新解压。是否确认？";
+"Main_Setting_Cancel" = "取消";
+"Main_Setting_Clean" = "清理";
+"Main_Setting_Reset" = "重置";
+"Main_Setting_Cache_Total_Count" = "\n总数量：%d 项";
+"Main_Setting_Cache_Details" = "各项统计: ";
+"Main_Setting_Cache_Item_Format" = "%@: %@ (%d 项)";
+"Main_Setting_Cache_Type_Network" = "网络缓存";
+"Main_Setting_Cache_Type_Memory" = "内存缓存";
+"Main_Setting_Cache_Type_UserDefaults" = "用户设置";
+"Main_Setting_Cache_Type_Temp" = "临时文件";
+"Main_Setting_Cache_Type_Database" = "数据库缓存";
+"Main_Setting_Cache_Type_StaticDataSet" = "静态数据集";
+"Main_Setting_Cache_Cleared_Message" = "已清理%@缓存";
+"Main_Setting_Cache_Expiration_Days" = "剩余%d天";
+"Main_Setting_Cache_Expiration_Hours" = "剩余%d小时";
+"Main_Setting_Cache_Expiration_Days_Hours" = "剩余%d天%d小时";
+"Main_Setting_Cache_Expiration_Hours_Minutes" = "剩余%d小时%d分钟";
+"Main_Setting_Cache_Expiration_Minutes" = "剩余%d分钟";
+"Main_Setting_Cache_Expired" = "已过期";
+
+"Main_About" = "关于";
+"Main_About_Title" = "关于";
+"Main_About_Version" = "应用版本";
+"Main_About_Database_Version" = "数据库版本";
+"Main_About_Author" = "作者";
+"Main_About_Github" = "Github";
+"Main_About_Privacy_Title" = "隐私声明";
+"Main_About_Privacy_Statement" = "我们致力于保护您的隐私和数据安全：\n\n• 数据存储：所有个人数据仅存储在您的设备本地\n• ESI 授权：我们仅在获得您的明确授权后访问 EVE Online ESI API\n• 数据使用：您的游戏数据仅用于提供应用功能，不会用于其他目的\n• 第三方共享：我们不会将您的个人数据分享给任何第三方\n• 数据删除：您可以随时撤销授权并删除所有本地数据";
+"Main_About_Report_Bug" = "报告缺陷";
+
+"Misc_true" = "是";
+"Misc_false" = "否";
+"Misc_back" = "返回";
+"Misc_number_item" = "个";
+"Misc_number_item_x" = "×";
+"Misc_number_point" = "点";
+"Misc_number_types" = "种";
+"Misc_per" = "每";
+"Misc_unit" = "单位";
+
+// 蓝图详情
+"Blueprint_Product" = "产品";
+"Blueprint_Invention_Product" = "发明产出";
+"Blueprint_Success_Rate" = "成功率: %d%%";
+"Blueprint_Level" = "等级 %d";
+"Time_Year" = "年";
+"Time_Month" = "月";
+"Time_Day" = "日";
+"Time_Hour" = "时";
+"Time_Minute" = "分";
+"Time_Second" = "秒";
+
+"Item_Info" = "物品信息";
+"Blueprint_Info" = "蓝图信息";
+"Blueprint_Manufacturing" = "制造";
+"Blueprint_Research_Material" = "材料研究";
+"Blueprint_Research_Time" = "时间研究";
+"Blueprint_Copying" = "复制";
+"Blueprint_Invention" = "发明";
+"Blueprint_Required_Materials" = "所需材料";
+"Blueprint_Required_Skills" = "所需技能";
+"Blueprint_Manufacturing_Time" = "制造时间";
+"Blueprint_Research_Time_Label" = "研究时间";
+"Blueprint_Copying_Time" = "复制时间";
+"Blueprint_Invention_Time" = "发明时间";
+
+"Planetary_Input_Materials" = "输入";
+"Planetary_Output_Info" = "输出";
+"Planetary_Output_Quantity" = "产量";
+"Planetary_Cycle_Time" = "生产周期";
+"Planetary_Uses" = "用于生产";
+"Planetary_Facilities" = "加工设施";
+"Planetary_Harvest_from" = "采集来源";
+
+// 物品信息
+"Item_Info_Blueprint" = "蓝图";
+"Blueprint_Source" = "发明来源";
+"Setting_Cache" = "缓存";
+"Item_Basic_Info" = "基础信息";
+"Container_Basic_Info" = "容器";
+"Item_Volume" = "体积";
+"Item_Capacity" = "容量";
+"Item_Mass" = "质量";
+
+// 静态资源
+"Main_Setting_Static_Resources" = "静态资源";
+"Main_Setting_Static_Resource_Not_Downloaded" = "未下载";
+"Main_Setting_Static_Resource_No_Cache" = "无缓存";
+"Main_Setting_Static_Resource_Expired" = "已过期";
+"Main_Setting_Static_Resource_Last_Updated" = "更新时间：%@";
+"Main_Setting_Static_Resource_Sovereignty" = "星系主权归属";
+"Main_Setting_Static_Resource_Alliance_Icons" = "联盟图标";
+"Main_Setting_Static_Resource_Icon_Count" = " (%d个)";
+"Main_Setting_Static_Resource_Net_Renders" = "物品渲染图";
+"Main_Setting_Static_Resource_Incursions" = "入侵事件数据";
+"Main_Setting_Static_Resource_Faction_Icons" = "势力图标";
+"Main_Setting_Cache" = "缓存";
+"Main_Setting_Static_Resource_Character_Portraits" = "人物头像";
+"Account_Logout" = "登出";
+
+// 时间显示
+"Time_Days_Ago" = "%d天前";
+"Time_Hours_Ago" = "%d小时前";
+"Time_Minutes_Ago" = "%d分钟前";
+"Time_Just_Now" = "刚刚";
+"Common_OK" = "OK";
+// 网络错误
+"Network_Error_Invalid_URL" = "无效的URL";
+"Network_Error_Invalid_Response" = "无效的响应";
+"Network_Error_HTTP_Error" = "HTTP错误: %d";
+"Network_Error_Invalid_Image" = "无效的图片数据";
+"Network_Error_No_Price" = "没有有效的价格数据";
+"Network_Error_Invalid_Data" = "无效的数据";
+"Network_Error_Unauthed" = "未授权";
+
+"Main_Setting_Market_Data" = "市场数据 (%d个物品, %d条记录)";
+"Main_Setting_Market_Data_0" = "市场数据";
+
+"Main_Sovereignty" = "主权争夺";
+"Main_Sovereignty_Title" = "主权战争状态";
+"Main_Sovereignty_Started" = "已开始";
+"Main_Sovereignty_Time_Days" = "%d天%d时后";
+"Main_Sovereignty_Time_Hours" = "%d时%d分后";
+"Main_Sovereignty_Time_Minutes" = "%d分后";
+
+"Main_Market_Select_Region" = "选择星域";
+"Main_Market_Pinned_Regions" = "常用星域";
+"Main_Market_Available_Regions" = "可选星域";
+"Main_Market_All_Regions" = "所有星域";
+"Main_Market_Edit" = "编辑";
+"Main_Market_Done" = "完成";
+"Main_Market_Add_Region" = "管理常用星域";
+
+// Account Management
+"Account_Management" = "角色管理";
+"Account_Add_Character" = "添加角色";
+"Account_Logging_In" = "正在登录...";
+"Account_Logged_Characters" = "已登录角色";
+"Account_Cannot_Get_Auth_URL" = "无法获取授权链接";
+"Account_Login_Failed" = "登录失败";
+"Account_Remove_Confirm_Title" = "移除角色";
+"Account_Remove_Confirm_Cancel" = "取消";
+"Account_Remove_Confirm_Remove" = "移除";
+"Account_Character_ID" = "角色ID";
+"Account_Total_SP" = "总技能点";
+"Account_Wallet_value" = "钱包";
+
+// Language Settings
+"Main_Setting_Language_Switch_Title" = "切换语言";
+"Main_Setting_Language_Switch_Message" = "需要重新加载应用以应用语言更改，是否继续？";
+"Main_Setting_Language_Switch_Cancel" = "取消";
+"Main_Setting_Language_Switch_Confirm" = "切换";
+
+
+"Character_in_station" = "空间站中";
+"Character_in_structure" = "建筑物中";
+"Character_in_space" = "在太空中";
+"Character_Location" = "当前位置";
+"Character_Current_Ship" = "当前飞船";
+"Main_Setting_sovcam_No_Data" = "未找到入侵事件";
+// 日志
+"Main_Setting_Logs" = "应用日志";
+"Main_Setting_Logs_Detail" = "查看应用运行日志";
+"Main_Setting_Logs_Title" = "日志查看器";
+"Main_Setting_Logs_Select_Hint" = "选择一个日志文件查看内容";
+"Main_Setting_Logs_Delete_Title" = "清理日志";
+"Main_Setting_Logs_Delete_Message" = "这将删除所有日志文件，此操作无法撤销。";
+"Main_Setting_Logs_Delete" = "删除";
+"Main_Setting_Logs_Level_Debug" = "调试";
+"Main_Setting_Logs_Level_Info" = "信息";
+"Main_Setting_Logs_Level_Warning" = "警告";
+"Main_Setting_Logs_Level_Error" = "错误";
+"Main_Setting_Logs_Level_Fault" = "故障";
+"Main_Setting_Delete" = "删除";
+"Main_Setting_Logs_Search_Placeholder" = "搜索日志内容...";
+"Main_Setting_Logs_Search_No_Results" = "未找到匹配内容";
+
+// Assets Loading
+"Assets_Loading_Fetching" = "正在获取资产数据 (第%d页)";
+"Assets_Loading_Building_Tree" = "正在构建资产树 (%d/%d)";
+"Assets_Loading_Complete" = "加载完成";
+"Assets_Loading" = "加载中...";
+"Assets_Item_Count" = "包含%d个物品";
+"Assets_Loading_Names" = "正在加载容器名称 (%d/%d)";
+"Assets_Loading_Building_Tree" = "正在构建资产树";
+"Assets_Loading_Saving" = "正在保存缓存";
+"Assets_Loading_Complete" = "加载完成";
+"Unknown_System" = "未知星系";
+
+// Location Flags
+"Location_Flag_Hangar" = "机库";
+"Location_Flag_CorpSAG1" = "公司机库 1";
+"Location_Flag_CorpSAG2" = "公司机库 2";
+"Location_Flag_CorpSAG3" = "公司机库 3";
+"Location_Flag_CorpSAG4" = "公司机库 4";
+"Location_Flag_CorpSAG5" = "公司机库 5";
+"Location_Flag_CorpSAG6" = "公司机库 6";
+"Location_Flag_CorpSAG7" = "公司机库 7";
+"Location_Flag_CorpDeliveries" = "公司交付";
+"Location_Flag_AutoFit" = "自动装配";
+"Location_Flag_Cargo" = "货物";
+"Location_Flag_DroneBay" = "无人机舱";
+"Location_Flag_FleetHangar" = "舰队机库";
+"Location_Flag_Deliveries" = "交付";
+"Location_Flag_HiddenModifiers" = "隐藏修改器";
+"Location_Flag_ShipHangar" = "舰船机库";
+"Location_Flag_FighterBay" = "战斗机舱";
+"Location_Flag_FighterTubes" = "战斗机发射管";
+"Location_Flag_SubSystemBay" = "子系统舱";
+"Location_Flag_SubSystemSlots" = "子系统插槽";
+"Location_Flag_HiSlots" = "高槽";
+"Location_Flag_MedSlots" = "中槽";
+"Location_Flag_LoSlots" = "低槽";
+"Location_Flag_RigSlots" = "改装槽";
+"Location_Flag_SpecializedAmmoHold" = "特殊弹药仓";
+"Location_Flag_SpecializedCommandCenterHold" = "特殊指挥中心仓";
+"Location_Flag_SpecializedFuelBay" = "特殊燃料仓";
+"Location_Flag_SpecializedGasHold" = "特殊气体仓";
+"Location_Flag_SpecializedIndustrialShipHold" = "特殊工业舰船仓";
+"Location_Flag_SpecializedLargeShipHold" = "特殊大型舰船仓";
+"Location_Flag_SpecializedMaterialBay" = "特殊材料仓";
+"Location_Flag_SpecializedMediumShipHold" = "特殊中型舰船仓";
+"Location_Flag_SpecializedMineralHold" = "特殊矿物仓";
+"Location_Flag_SpecializedOreHold" = "特殊矿石仓";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = "特殊行星商品仓";
+"Location_Flag_SpecializedSalvageHold" = "特殊打捞仓";
+"Location_Flag_SpecializedShipHold" = "特殊舰船仓";
+"Location_Flag_SpecializedSmallShipHold" = "特殊小型舰船仓";
+
+// Assets Loading Status
+"Assets_Loading_Page" = "正在获取第%d页";
+"Assets_Loading_Calculating" = "正在计算";
+"Assets_Loading_Fetching_Names" = "正在获取名称";
+"Assets_Unknown_Location" = "未知位置";
+"Assets_Unknown_Region" = "未知星域";
+
+// Market Transactions
+"Main_Market_Transactions_Buy" = "买入";
+"Main_Market_Transactions_Sell" = "卖出";
+"Main_Market_Transactions_Loading" = "加载中...";
+"Main_Market_Transactions_No_Data" = "没有找到交易记录";
+"Main_Market_Transactions_Unit_Price" = "单价";
+"Main_Market_Transactions_Quantity" = "数量";
+"Main_Market_Transactions_Total" = "总额";
+
+// Market Orders
+"Orders_Remaining" = "剩余";
+"Orders_Buy" = "收购";
+"Orders_Sell" = "出售";
+"Orders_Corp" = "公司";
+"Orders_No_Buy_Orders" = "没有收购订单";
+"Orders_No_Sell_Orders" = "没有出售订单";
+
+// Market Orders Time
+"Orders_Expired" = "已过期";
+"Orders_Remaining_Days_Hours" = "%d天%d小时后过期";
+"Orders_Remaining_Days" = "%d天后过期";
+"Orders_Remaining_Hours_Minutes" = "%d小时%d分后过期";
+"Orders_Remaining_Hours" = "%d小时后过期";
+"Orders_Remaining_Minutes" = "%d分后过期";
+
+// Market Orders Status
+"Main_Database_Loading" = "正在加载...";
+"Orders_No_Data" = "没有数据";
+
+// Industry Orders Time
+"Industry_Expired" = "已完成";
+"Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
+"Industry_Remaining_Days" = "%d天后完成";
+"Industry_Remaining_Hours_Minutes" = "%d小时%d分后完成";
+"Industry_Remaining_Hours" = "%d小时后完成";
+"Industry_Remaining_Minutes" = "%d分后完成";
+
+// Contract Types
+"Contract_Type_item_exchange" = "物品交换";
+"Contract_Type_courier" = "运输";
+"Contract_Type_auction" = "拍卖";
+"Contract_Type_unknown" = "未知";
+
+// Contract Status
+"Contract_Status_outstanding" = "未决";
+"Contract_Status_in_progress" = "进行中";
+"Contract_Status_finished_issuer" = "已完成(发布方)";
+"Contract_Status_finished_contractor" = "已完成(承包方)";
+"Contract_Status_finished" = "已完成";
+"Contract_Status_cancelled" = "已取消";
+"Contract_Status_rejected" = "已拒绝";
+"Contract_Status_failed" = "已失败";
+"Contract_Status_deleted" = "已删除";
+"Contract_Status_reversed" = "已撤销";
+"Contract_Status_unknown" = "未知";
+"Contract_Issuer" = "发起人";
+"Contract_Assignee" = "合同对象";
+"Contract_Acceptor" = "接收人";
+"Contract_Days_To_Complete" = "完成期限";
+"Contract_Items_Included" = "提供的物品";
+"Contract_Items_Required" = "索取的物品";
+// Contract Details
+"Contract_Title" = "标题";
+"Contract_Collateral" = "保证金";
+"Contract_Volume" = "体积";
+"Contract_Details" = "合同详情";
+"Contract_Basic_Info" = "基本信息";
+"Contract_Items" = "合同物品";
+"Contract_Type" = "类型";
+"Contract_Status" = "状态";
+"Contract_Price" = "价格";
+"Contract_Reward" = "报酬";
+"Contract_Location" = "地点";
+"Contract_Start_Location" = "起点";
+"Contract_End_Location" = "终点";
+
+"Industry_Status_active" = "进行中";
+"Industry_Status_cancelled" = "已取消";
+"Industry_Status_delivered" = "已交付";
+"Industry_Status_completed" = "已完成";
+"Industry_Status_paused" = "已暂停";
+"Industry_Status_ready" = "已就绪";
+"Industry_Status_reverted" = "已撤销";
+
+// 工业活动状态
+"Industry_Status_Manufacturing" = "制造中";
+"Industry_Status_Research_Time" = "研究中";
+"Industry_Status_Research_Material" = "研究中";
+"Industry_Status_Copying" = "复制中";
+"Industry_Status_Invention" = "发明中";
+"Industry_Status_Reaction" = "反应中";
+
+// 工业活动类型（简短）
+"Industry_Type_Manufacturing" = "制造";
+"Industry_Type_Research_Time" = "时效";
+"Industry_Type_Research_Material" = "材效";
+"Industry_Type_Copying" = "复制";
+"Industry_Type_Invention" = "发明";
+"Industry_Type_Reaction" = "反应";
+
+// 工业列表标题
+"Industry_Started_On" = "开始于%@";
+
+// 日期格式
+"Date_Format_Month_Day" = "MM月dd日";
+
+"Main_Mining_Ledger" = "采矿记录";
+"Industry_In_Progress" = "进行中的任务";
+"Mining_No_Records" = "暂无采矿记录";
+"Mining_Loading" = "正在加载采矿记录...";
+"Mining_Error_Loading" = "加载失败";
+"Mining_Pull_to_Refresh" = "下拉刷新";
+"Mining_Monthly_Summary" = "%@月采矿汇总";
+"Mining_Total_Volume" = "总量";
+
+"Main_Setting_Reset_Database" = "重置数据库";
+"Main_Setting_Reset_Database_Detail" = "删除并重新初始化角色数据库";
+"Main_Setting_Reset_Database_Title" = "重置数据库";
+"Main_Setting_Reset_Database_Message" = "这将删除所有角色数据库内容并重新初始化。此操作无法撤销，是否继续？";
+"Main_Setting_Reset_Database_Success_Title" = "重置完成";
+"Main_Setting_Reset_Database_Success_Message" = "数据库已成功重置。";
+"Common_info" = "基本信息";
+"Character_Security_Status" = "安全等级";
+"Character_Current_Ship" = "当前飞船";
+"Character_Current_Location" = "当前位置";
+
+// 跳跃疲劳相关
+"Character_Jump_Fatigue" = "跳跃疲劳";
+"Character_No_Jump_Fatigue" = "无跳跃疲劳";
+"Character_Last_Jump" = "上次跳跃时间：%@";
+"Time_Days_Hours_Minutes" = "%d天%d小时%d分钟";
+"Time_Hours_Minutes" = "%d小时%d分钟";
+"Time_Minutes" = "%d分钟";
+"Time_Minutes_Seconds" = "%d分%d秒";
+
+// 角色信息
+"Character_Birthday" = "出生日期";
+"Character_Age" = "%d年%d月%d天";
+
+// 奖章相关
+"Character_Medals" = "奖章";
+
+// 克隆体相关
+"Character_Home_Station" = "基地空间站";
+"Character_Home_Location" = "基地位置";
+"Character_Last_Clone_Jump" = "最后克隆体跳跃";
+"Character_Last_Station_Change" = "最后空间站变更";
+"Character_Current_Implants" = "当前植入体";
+"Character_Jump_Clones" = "跳跃克隆体";
+"Character_Clone_Count" = "%d 个克隆体";
+"Character_View_Implants" = "查看植入体";
+"Character_Clone_Details" = "克隆体详情";
+"Character_Clone_Implants" = "植入体";
+"Character_No_Implants" = "无植入体";
+"Character_Clone_ID" = "克隆体 #%d";
+"Main_Jump_Clones" = "克隆体状态";
+"Main_Jump_Clones_Available" = "可用克隆体";
+"Main_Jump_Clones_Ready" = "下次跳跃：现在";
+"Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "下次跳跃：%d小时%d分钟后";
+"Main_Jump_Clones_Cooldown_Minutes" = "下次跳跃：%d分钟后";
+"Character_Never" = "从未";
+
+// Skills View
+"Main_Skills_Attribute" = "属性点";
+"Main_Skills_Category" = "技能目录详情";
+"Main_Skills_Queue_Count" = "技能队列 (%d)";
+"Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
+"Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
+"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Points_Progress" = "%@ / %@ SP";
+"Main_Skills_Time_Remaining" = "剩余: %@";
+"Main_Skills_Time_Required" = "需要: %@";
+"Main_Skills_Categories" = "技能目录";
+"Main_Skills_Not_Injected" = "未吸收";
+"Main_Skills_Completed" = "已完成";
+
+// 时间显示
+"Time_Days_Hours" = "%d天%d小时";
+"Time_Days" = "%d天";
+"Time_Hours" = "%d小时";
+"Time_Seconds" = "%d秒";
+"Time_Hours_Minutes" = "%d小时%d分钟";
+"Time_Minutes" = "%d分钟";
+
+// Character Attributes
+"Character_Attributes_Title" = "人物属性";
+"Character_Attributes_Basic" = "基础属性";
+"Character_Attributes_Remap" = "属性重映射";
+"Character_Attribute_Perception" = "感知";
+"Character_Attribute_Memory" = "记忆";
+"Character_Attribute_Willpower" = "毅力";
+"Character_Attribute_Intelligence" = "智力";
+"Character_Attribute_Charisma" = "魅力";
+"Character_Attributes_Bonus_Remaps" = "额外可用重置次数";
+"Character_Attributes_Last_Remap" = "上次重置时间";
+"Character_Attributes_Next_Remap" = "下次可重置时间";
+"Character_Attributes_Load_Failed" = "加载属性失败";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "现在";
+"Time_Months_Days" = "%d月%d日";
+"Time_Months" = "%d月";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "暂无技能";
+
+"Main_Skills_Required_Injectors" = "完成队列所需注入器";
+"Main_Skills_Total_Required_SP" = "总计所需技能点数：%@";
+"Main_Skills_Total_Injector_Cost" = "预计注入器总价值：%@ ISK";
+
+// 财富视图
+"Wealth_Total" = "总资产";
+"Wealth_Assets" = "资产";
+"Wealth_Implants" = "植入体";
+"Wealth_Orders" = "市场订单";
+"Wealth_Wallet" = "钱包余额";
+"Wealth_Assets_Count" = "%d 个物品";
+"Wealth_Implants_Count" = "%d 个植入体";
+"Wealth_Orders_Count" = "%d 个订单";
+"Wealth_Wallet_Balance" = "当前余额";
+
+// 财富详情
+"Wealth_Detail_Title" = "%@估价 (前20名)";
+"Wealth_Detail_NoData" = "暂无数据";
+"Wealth_Detail_Loading" = "加载中...";
+"Wealth_Detail_MarketPrice" = "市场价格";
+"Wealth_Detail_Quantity" = "数量";
+"Wealth_Detail_TotalValue" = "总价值";
+"Wealth_Detail_HasPrice" = "有市场价格的物品 (前20名)";
+"Wealth_Detail_NoPrice" = "无市场价格的物品 (前20名)";
+"Wealth_Detail_Unit_Price" = "单价";
+
+"Wealth_Distribution" = "资产分布";
+
+"Main_LP_Basic_Info" = "基本信息";
+"Main_LP_Store" = "忠诚点商店";
+"Main_LP_Required_Items" = "需要的物品";
+
+"Main_EVE_Mail_Title" = "EVE 邮件";
+"Main_EVE_Mail_All" = "全部邮件";
+"Main_EVE_Mail_Mailboxes" = "所有邮箱";
+"Main_EVE_Mail_List" = "邮件列表";
+"Main_EVE_Mail_No_Mail" = "没有邮件";
+"Main_EVE_Mail_Inbox" = "收件箱";
+"Main_EVE_Mail_Sent" = "已发送";
+"Main_EVE_Mail_Corporation" = "军团邮件";
+"Main_EVE_Mail_Alliance" = "联盟邮件";
+"Main_EVE_Mail_Spam" = "垃圾邮件";
+"Main_EVE_Mail_Loading" = "正在加载邮件...";
+"Main_EVE_Mail_Error" = "加载邮件失败";
+
+"Main_EVE_Mail_Lists" = "邮件列表";
+"Main_EVE_Mail_List_Name" = "列表名称";
+"Main_EVE_Mail_List_Members" = "成员数量";
+"Main_EVE_Mail_List_No_Lists" = "没有可用的邮件列表";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "新邮件";
+"Main_EVE_Mail_Recipients" = "收件人";
+"Main_EVE_Mail_Add_Recipient" = "添加收件人";
+"Main_EVE_Mail_Add_Mailing_List" = "添加邮件列表";
+"Main_EVE_Mail_Subject" = "主题";
+"Main_EVE_Mail_Body" = "正文";
+"Main_EVE_Mail_Send" = "发送";
+"Main_EVE_Mail_Cancel" = "取消";
+"Main_EVE_Mail_Search_Recipients" = "搜索角色、军团或联盟";
+"Main_EVE_Mail_Min_Search_Length" = "请至少输入3个字符";
+"Main_EVE_Mail_No_Results" = "未找到相关结果";
+"Main_EVE_Mail_Select_Mailing_List" = "选择邮件列表";
+"Main_EVE_Mail_No_Mailing_Lists" = "没有订阅的邮件列表";
+"Main_EVE_Mail_Done" = "完成";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "回复";
+"Main_EVE_Mail_Reply_All" = "回复全体";
+"Main_EVE_Mail_Forward" = "转发";
+"Main_EVE_Mail_From" = "发件人：";
+"Main_EVE_Mail_To" = "收件人：";
+"Main_EVE_Mail_Unknown_Recipient" = "未知收件人";
+"Main_EVE_Mail_Unknown_Sender" = "未知发件人";
+"Main_EVE_Mail_Load_Failed" = "加载邮件内容失败";
+"Main_EVE_Mail_Original_Message" = "-------- 原始邮件 --------";
+"Main_EVE_Mail_Wrote" = "-----------------";
+"Main_EVE_Mail_Forward_Header" = "-------- 转发的邮件 --------";
+"Main_EVE_Mail_Forward_From" = "发件人：%@";
+"Main_EVE_Mail_Forward_Date" = "日期：%@";
+"Main_EVE_Mail_Forward_Subject" = "主题：%@";
+"Main_EVE_Mail_Forward_To" = "收件人：%@";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "角色";
+"Main_EVE_Mail_Recipient_Corporation" = "军团";
+"Main_EVE_Mail_Recipient_Alliance" = "联盟";
+"Main_EVE_Mail_Recipient_Mailing_List" = "邮件列表";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "快速选择";
+"Main_EVE_Mail_Searching" = "搜索中...";
+"Main_EVE_Mail_Search_Failed" = "搜索失败";
+
+"Main_Setting_Corporation_Affairs" = "军团事务";
+"Main_Setting_Show_Corporation_Affairs" = "展示军团事务";
+
+// Corporation Section
+"Main_Corporation" = "军团";
+"Main_Setting_Show_Corporation_Affairs_detail" = "是否需要在首页展示军团管理相关的列表";
+"Main_Corporation_wallet" = "军团账户";
+"Main_Corporation_Members" = "军团成员";
+"Main_Corporation_Members_Title" = "军团成员列表";
+"Main_Corporation_Members_Loading" = "正在加载成员信息...";
+"Main_Corporation_Members_No_Data" = "暂无成员数据";
+"Main_Corporation_Members_Error" = "加载成员数据失败";
+"Main_Corporation_Members_Last_Login" = "最后登录";
+"Main_Corporation_Members_Last_Logout" = "最后登出";
+"Main_Corporation_Members_Location" = "当前位置";
+"Main_Corporation_Members_Ship" = "当前舰船";
+"Main_Corporation_Members_Join_Date" = "入团时间";
+"Main_Corporation_Members_Refresh" = "刷新";
+"Main_Corporation_Members_Total" = "%d名成员";
+"Main_Corporation_Structures" = "军团建筑";
+"Main_Corporation_Contracts" = "军团合同";
+"Main_Corporation_Market_Orders" = "军团市场订单";
+"Main_Corporation_Industry" = "军团工业";
+
+// Corporation Divisions
+"Main_Corporation_Wallet_Division1" = "主钱包";
+"Main_Corporation_Wallet_Division2" = "军团钱包 2";
+"Main_Corporation_Wallet_Division3" = "军团钱包 3";
+"Main_Corporation_Wallet_Division4" = "军团钱包 4";
+"Main_Corporation_Wallet_Division5" = "军团钱包 5";
+"Main_Corporation_Wallet_Division6" = "军团钱包 6";
+"Main_Corporation_Wallet_Division7" = "军团钱包 7";
+"Main_Corporation_Hangar_Default" = "军团机库 %d";
+"Main_Corporation_Wallet_Default" = "部门钱包 %d";
+"Balance: %@ ISK" = "余额: %@ ISK";
+
+// Wallet Journal
+"Summary" = "汇总(30天)";
+"Total Income" = "总收入";
+"Total Expense" = "总支出";
+"Transactions" = "交易记录";
+"Common_Error" = "错误";
+
+// 最优属性分配
+"Main_Skills_Optimal_Attributes" = "最优属性分配";
+"Main_Skills_Optimal_Attributes_Title" = "最优属性分配";
+"Main_Skills_Optimal_Attributes_Description" = "基于当前技能队列计算最优属性分配";
+"Main_Skills_Optimal_Attributes_Time_Saved" = "优化后可节省: %@";
+"Main_Skills_Optimal_Attributes_Current" = "当前";
+"Main_Skills_Optimal_Attributes_Optimal" = "最优";
+"Main_Skills_Optimal_Attributes_Difference" = "差值";
+"Main_Skills_Optimal_Attributes_No_Queue" = "技能队列为空，无法计算最优属性";
+"Main_Skills_Optimal_Attributes_Loading" = "正在计算最优属性...";
+"Main_Skills_Optimal_Attributes_Already_Optimal" = "当前已是最优分配";
+"Main_Skills_Optimal_Attributes_Note" = "大脑加速器等物品可能导致计算结果出现误差，请仅做参考";
+
+"Main_Database_Skill_Level_Detail" = "技能等级细节";
+
+// 技能计划相关
+"Main_Skills_Plan" = "技能计划";
+"Main_Skills_Plan_Add" = "添加计划";
+"Main_Skills_Plan_Edit" = "编辑";
+"Main_Skills_Plan_Delete" = "删除计划";
+"Main_Skills_Plan_Empty" = "暂无技能计划";
+"Main_Skills_Plan_Name" = "计划名称";
+"Main_Skills_Plan_Skills" = "个技能";
+"Main_Skills_Plan_Total_Time" = "总训练时间";
+"Main_Skills_Plan_Total_SP" = "所需技能点数";
+"Main_Skills_Plan_Set_Public" = "设为公共计划";
+"Main_Skills_Plan_Public" = "公共计划";
+"Main_Skills_Plan_Private" = "私人计划";
+"Main_Skills_Plan_Save_As_Public" = "保存为公共计划";
+"Main_Skills_Plan_Save_As_Private" = "保存为私有计划";
+"Main_Skills_Plan_Public_Tag" = "(共享)";
+"Main_Skills_Plan_Import_From_Clipboard" = "从剪贴板导入";
+"Main_Skills_Plan_Import_Alert_Title" = "导入结果";
+"Main_Skills_Plan_Import_Parse_Failed" = "以下内容解析失败：";
+"Main_Skills_Plan_Import_Not_Found" = "以下技能未找到：";
+"Main_Skills_Plan_Import_Success" = "成功导入";
+"Main_Skills_Plan_Show_Completed" = "显示已完成的技能";
+
+"Main_Search" = "搜索";
+
+// 搜索页面
+"Main_Search_Title" = "搜索";
+"Main_Search_Placeholder" = "输入搜索内容...";
+"Main_Search_Type_Character" = "人物";
+"Main_Search_Type_Corporation" = "军团";
+"Main_Search_Type_Alliance" = "联盟";
+"Main_Search_Type_Structure" = "建筑";
+
+// 搜索过滤
+"Main_Search_Filter_Title" = "过滤条件(可留空)";
+"Main_Search_Filter_Corporation" = "所属军团";
+"Main_Search_Filter_Alliance" = "所属联盟";
+"Main_Search_Filter_Ticker" = "简写";
+"Main_Search_Filter_Security" = "安全等级";
+"Main_Search_Filter_Structure_Type" = "建筑类型";
+"Main_Search_Filter_Location" = "地点（星系/星座/星域）";
+"Main_Search_Filter_All" = "全部";
+"Main_Search_Filter_High_Sec" = "高安";
+"Main_Search_Filter_Low_Sec" = "低安";
+"Main_Search_Filter_Null_Sec" = "零安";
+"Main_Search_Filter_Station" = "空间站";
+"Main_Search_Filter_Structure" = "建筑";
+"Main_Search_Filter_Clear" = "清除过滤";
+
+// 搜索状态
+"Main_Search_Status_Searching" = "正在搜索...";
+"Main_Search_Status_Finding_Characters" = "正在查找角色...";
+"Main_Search_Status_Loading_Names" = "正在加载名称...";
+"Main_Search_Status_Loading_Details" = "正在加载详细信息...";
+"Main_Search_Status_Loading_Corps" = "正在加载军团信息...";
+"Main_Search_Status_Loading_Alliances" = "正在加载联盟信息...";
+"Main_Search_Status_Finding_Corporations" = "正在查找军团...";
+"Main_Search_Status_Finding_Alliances" = "正在查找联盟...";
+
+// 搜索结果
+"Main_Search_Results" = "搜索结果";
+"Main_Search_Failed" = "搜索失败";
+"Main_Search_Min_Length" = "请至少输入3个字符";
+"Main_Search_No_Results" = "未找到匹配结果";
+"Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
+"Main_Search_Load_More" = "加载更多";
+"Main_Search_Load_More_Status" = "正在加载更多结果...";
+
+// Structure Search Status
+"Main_Search_Status_Finding_Structures" = "正在搜索建筑...";
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息...";
+"Main_Search_Status_Loading_Station_Progress" = "正在处理空间站信息(%d/%d)";
+"Main_Search_Status_Loading_Structure_Progress" = "正在处理建筑信息(%d/%d)";
+
+
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息...";
+"Main_Search_Status_Loading_Alliance_Names" = "正在加载联盟名称...";
+
+
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
+
+// Character Detail View
+"Character_Detail_Organization" = "所属组织";
+"Character_Detail_Employment_History" = "就职历史";
+
+
+"Main_Search_Status_Loading_Station_Info" = "正在加载空间站信息...";
+"Main_Search_Status_Loading_Structure_Info" = "正在加载建筑信息..."; 
+
+"Main_Search_Loading_Contacts" = "正在加载声望数据...";
+"Main_Search_Loading_Failed" = "无法加载声望数据";
+
+// 声望相关
+"Standings" = "声望";
+"Employment History" = "雇佣历史";
+"Personal Standings" = "个人声望";
+"Corporation Standings" = "军团声望";
+"Alliance Standings" = "联盟声望";
+"Standing_Loading" = "正在加载声望数据...";
+"Standing_Loading_Failed" = "加载声望数据失败";
+"Standing_No_Data" = "暂无声望数据";
+"Standing_Unknown" = "[未知]";
+
+"CEO" = "CEO";
+"No Alliance" = "无联盟";
+"Member Count" = "成员数量";
+"Tax Rate" = "税率";
+"Description" = "描述";
+"Creator Corp" = "创建者军团";
+"Creator" = "创建者";
+"Executor" = "执行军团";
+"Unknown" = "未知";
+
+"Main_Market_Watch_List_Empty" = "暂无关注物品";
+"Main_Market_Watch_List_Add" = "添加关注列表";
+"Main_Market_Watch_List_Name" = "列表名称";
+"Main_Market_Watch_List_Add_Item" = "添加物品";
+"Main_Market_Watch_List_Items" = "%d 个物品";
+
+// Market Watch List
+"Main_Market_Watch_List" = "市场关注列表";
+"Main_Market_Watch_List_Empty" = "暂无关注物品";
+"Main_Market_Watch_List_Add" = "添加关注列表";
+"Main_Market_Watch_List_Name" = "关注列表名称";
+"Main_Market_Watch_List_Items" = "%d个物品";
+"Main_Market_Watch_List_Add_Item" = "添加物品";
+
+// Market Location
+"Main_Market_Location" = "市场地点";
+"Main_Market_Order_Type" = "订单类型";
+"Main_Market_Price" = "市场价格";
+"Main_Market_Item_List" = "物品列表";
+"Main_Market_Edit_Quantity" = "编辑数量...";
+"Main_Market_Done_Edit" = "完成";
+"Main_Market_No_Orders" = "暂无订单";
+"Main_Market_Insufficient_Stock" = "(库存不足)";
+"Main_Market_Avg_Price" = "均价: ";
+"Main_Market_Total_Price" = "总价: ";
+"Main_Market_Calculating" = "计算中..."; 
+
+"Main_Ore_Variations" = "衍生矿石";
+
+// Market Order Types
+"Main_Market_Order_Buy" = "买单";
+"Main_Market_Order_Sell" = "卖单";
+
+"Main_Battle" = "战斗";
+"Main_Killboard" = "击杀记录";
+"Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "所有记录";
+"KillMail_Kill_Records" = "击杀记录";
+"KillMail_Loss_Records" = "损失记录";
+"KillMail_Invalid_Character_ID" = "无效的角色ID: %d";
+"KillMail_Invalid_Response_Format" = "无效的响应数据格式";
+"KillMail_Loading_Page" = "正在加载第%d页";
+"KillMail_Loading_More_Failed" = "加载更多击杀记录失败: %@";
+"KillMail_Loading_Failed" = "加载击杀记录失败: %@";
+"KillMail_All_Title" = "所有记录";
+"KillMail_Loading" = "加载中...";
+"KillMail_No_Records" = "暂无记录";
+"KillMail_Load_More" = "加载更多";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "摧毁价值";
+"KillMail_Lost_Value" = "损失价值";
+"KillMail_Search_Title" = "搜索战斗记录";
+"KillMail_Battle_Records" = "我参与的战斗";
+"KillMail_Filter" = "筛选";
+"KillMail_Filter_All" = "全部";
+"KillMail_Filter_Kills" = "击杀";
+"KillMail_Filter_Losses" = "损失";
+"KillMail_Unknown_Item" = "未知物品";
+"KillMail_Unknown_Location" = "未知";
+"KillMail_Load_More" = "获取更多";
+"KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";
+
+// KillMail View
+"KillMail_View_Title" = "战斗记录";
+
+// KillMail Stats
+"KillMail_Data_Source" = "数据来自zkillboard和kb.evetools.org";
+
+"KillMail_Search_Prompt" = "点击这里开始搜索...";
+"KillMail_Search_Input_Prompt" = "输入搜索关键词";
+"KillMail_Search" = "搜索";
+"KillMail_Cancel" = "取消";
+"KillMail_Search_Alliance" = "联盟";
+"KillMail_Search_Character" = "角色";
+"KillMail_Search_Corporation" = "军团";
+"KillMail_Search_Item" = "物品";
+"KillMail_Search_System" = "星系";
+"KillMail_Search_Region" = "区域";
+"Main_Search_Network_Min_Length" = "联网搜索需要最少3个字符";
+
+"Main_Search_Results_Placeholder" = "搜索结果将在这里展示";
+
+"Main_KM_Ship_Value" = "舰船价值:";
+"Main_KM_Destroyed_Value" = "被摧毁价值:";
+"Main_KM_Dropped_Value" = "掉落价值:";
+"Main_KM_Total" = "总计:";
+"Main_KM_Ship" = "舰船:";
+"Main_KM_System" = "星系:";
+"Main_KM_EVE_Time" = "EVE时间:";
+"Main_KM_Local_Time" = "本地时间:";
+"Main_KM_Damage" = "受到伤害:";
+
+// 战斗日志详情
+"Main_KM_High_Slots" = "高槽";
+"Main_KM_Medium_Slots" = "中槽";
+"Main_KM_Low_Slots" = "低槽";
+"Main_KM_Rig_Slots" = "改装槽";
+"Main_KM_Subsystem_Slots" = "子系统";
+"Main_KM_Fighter_Tubes" = "战斗机发射管";
+"Main_KM_Cargo" = "货舱";
+"KillMail_Unknown_Item" = "未知物品";
+
+"Main_KM_Drone_Bay" = "无人机舱";
+"Main_KM_Fighter_Bay" = "战斗机舱";
+"Main_KM_Specialized_Holds" = "特殊舱室";
+"Main_KM_Fleet_Hangar" = "舰队机库";
+"Main_KM_Frigate_Escape_Bay" = "护卫舰逃生舱";
+
+// Flag Names
+"LoSlot" = "低槽";
+"MedSlot" = "中槽";
+"HiSlot" = "高槽";
+"RigSlot" = "改装槽";
+"SubSystemSlot" = "子系统槽";
+"FighterTube" = "战斗机发射管";
+
+"Cargo" = "货舱";
+"DroneBay" = "无人机舱";
+"ShipHangar" = "舰船机库";
+"FleetHangar" = "舰队机库";
+"FrigateEscapeBay" = "护卫舰逃生舱";
+"FighterBay" = "战斗机舱";
+
+"SpecializedFuelBay" = "燃料舱";
+"SpecializedOreHold" = "矿石舱";
+"SpecializedGasHold" = "气云舱";
+"SpecializedMineralHold" = "矿物舱";
+"SpecializedSalvageHold" = "残骸舱";
+"SpecializedShipHold" = "舰船舱";
+"SpecializedSmallShipHold" = "小型舰船舱";
+"SpecializedMediumShipHold" = "中型舰船舱";
+"SpecializedLargeShipHold" = "大型舰船舱";
+"SpecializedIndustrialShipHold" = "工业舰船舱";
+"SpecializedAmmoHold" = "弹药舱";
+"SpecializedCommandCenterHold" = "指挥中心舱";
+"SpecializedPlanetaryCommoditiesHold" = "行星商品舱";
+"SpecializedMaterialBay" = "材料舱";
+"SpecializedIceHold" = "冰矿舱";
+"SpecializedAsteroidHold" = "小行星舱";
+
+// Corporation Moon Mining
+"Main_Corporation_Moon_Mining" = "军团月矿作业";
+"Main_Corporation_Moon_Mining_This_Week" = "本周月矿(本地时间)";
+"Main_Corporation_Moon_Mining_Later" = "未来月矿(本地时间)";
+"Main_Corporation_Moon_Mining_Unknown_Moon" = "未知月球";
+"Main_Corporation_Moon_Mining_Chunk_Arrival" = "矿石抵达: ";
+"Main_Corporation_Moon_Mining_Natural_Decay" = "自然碎裂: ";
+
+"Language_Identifier" = "zh_CN";
+
+"Main_Corporation_Moon_Mining_Today" = "[今天]";
+"Main_Corporation_Moon_Mining_Days_Later" = "[%d天后]";
+
+// Corporation Structure View
+"Corp_Structure_Title" = "军团建筑";
+"Corp_Structure_Low_Fuel" = "⚠️ 燃料不足（%d天内）";
+"Corp_Structure_No_Data" = "暂无建筑数据";
+"Corp_Structure_Settings" = "设置";
+"Corp_Structure_Monitor_Time" = "燃料监控时间";
+"Corp_Structure_Days" = "%d天";
+"Corp_Structure_Done" = "完成";
+"Corp_Structure_Error" = "错误";
+"Corp_Structure_Unknown_Error" = "未知错误";
+"Corp_Structure_OK" = "确定";
+
+// Structure Cell
+"Corp_Structure_Unknown" = "未知建筑";
+"Corp_Structure_Fuel_Expires" = "燃料耗尽：";
+"Corp_Structure_Time_Remaining" = "耗尽时间：";
+"Corp_Structure_Status" = "状态：";
+"Corp_Structure_Services" = "服务：";
+
+// Structure States
+"Corp_Structure_State_Shield_Vulnerable" = "护盾可被攻击";
+"Corp_Structure_State_Armor_Vulnerable" = "装甲可被攻击";
+"Corp_Structure_State_Armor_Reinforce" = "装甲增强中";
+"Corp_Structure_State_Hull_Vulnerable" = "船体可被攻击";
+"Corp_Structure_State_Hull_Reinforce" = "船体增强中";
+"Corp_Structure_State_Online_Deprecated" = "已弃用";
+"Corp_Structure_State_Anchor_Vulnerable" = "锚定可被攻击";
+"Corp_Structure_State_Anchoring" = "锚定中";
+"Corp_Structure_State_Deploy_Vulnerable" = "部署可被攻击";
+"Corp_Structure_State_Fitting_Invulnerable" = "装配无敌";
+"Corp_Structure_State_Unanchored" = "未锚定";
+"Corp_Structure_State_Unknown" = "未知状态";
+
+// Monitor Time Options
+"Corp_Structure_Monitor_1Week" = "1周";
+"Corp_Structure_Monitor_2Weeks" = "2周";
+"Corp_Structure_Monitor_3Weeks" = "3周";
+"Corp_Structure_Monitor_1Month" = "1个月";
+"Corp_Structure_Monitor_2Months" = "2个月";
+
+// Time Format
+"Corp_Structure_Time_Format_UTC" = " (UTC+8)";
+"Corp_Structure_Time_Format_Days_Hours" = "%d天%d小时后";
+"Corp_Structure_Time_Format_Days" = "%d天后";
+"Corp_Structure_Time_Format_Hours" = "%d小时后";
+"Corp_Structure_Time_Format_Minutes" = "%d分钟后";
+
+"Main_Planetary" = "行星开发";
+"Main_Planetary_Title" = "行星开发";
+"Main_Planetary_No_Planets" = "暂无行星";
+"Main_Planetary_Unknown_Planet" = "未知行星";
+"Main_Planetary_Unknown_Type" = "未知类型";
+"Main_Planetary_Loading" = "加载中...";
+"Main_Planetary_Error" = "加载失败";
+
+// 行星类型
+"Main_Planetary_Type_Temperate" = "温和星球";
+"Main_Planetary_Type_Barren" = "贫瘠星球";
+"Main_Planetary_Type_Oceanic" = "海洋星球";
+"Main_Planetary_Type_Ice" = "冰体星球";
+"Main_Planetary_Type_Gas" = "气体星球";
+"Main_Planetary_Type_Lava" = "熔岩星球";
+"Main_Planetary_Type_Storm" = "风暴星球";
+"Main_Planetary_Type_Plasma" = "等离子星球";
+
+// 采集器相关
+"Total_Yield" = "总产量:";
+"Current_Cycle_Yield" = "当前周期产量:";
+"Current_Cycle_Elapsed" = "当前周期已过时间:";
+"Cycle_Time" = "周期时间:";
+"Time_Remaining" = "剩余时间:";
+
+// 工厂相关
+"Factory_Input" = "输入:";
+"Factory_Output" = "输出:";
+"Factory_Inventory" = "库存:";
+"Factory_Processing" = "正在加工";
+"Factory_Waiting_Materials" = "等待材料";
+"Factory_Stopped" = "已停止";
+"Factory_Not_Started" = "未启动";
+"Factory_No_Recipe" = "无配方";
+
+
+// 合同
+"Contract_Item_Singleton" = "唯一物品";
+"Contracts_Personal" = "个人合同";
+"Contracts_Corporation" = "军团合同";
+"Contract_Show_Finished" = "显示已完成合同";
+"Contract_Show_Courier" = "显示运输合同";
+"Contract_Show_ItemExchange" = "显示物品交换合同";
+"Contract_Show_Auction" = "显示拍卖合同";
+"Contract_Settings" = "合同设置";
+"Contract_Done" = "完成";
+"Loading_Page" = "正在加载第%d页";
+
+"Contract_Total_Count" = "共 %d 个合同";
+"Contract_Filtered_Count" = "共 %d 个合同，过滤后 %d 个";
+"Contract_Filtered_Limited" = "共 %d 个合同，过滤后 %d 个，显示 %d 个";
+"Contract_Max_Display" = "最大显示数量";
+"Contract_Display_Limit" = "合同显示限制";
+"Contract_Display_Limit_Warning" = "设置较大的显示限制可能会影响应用性能";
+"Contract_Display_50" = "50个合同";
+"Contract_Display_100" = "100个合同";
+"Contract_Display_300" = "300个合同";
+"Contract_Display_500" = "500个合同";
+"Contract_Display_Unlimited" = "无限制（不推荐）";
+
+"Contract_Courier_Mode" = "快递模式";
+"Contract_Courier_Mode_Description" = "仅显示未决的快递合同，按路线分组";
+"Contract_Route_Format" = "%@ → %@";
+"Contract_Show_Active_Only" = "仅显示未决合同";
+
+// Contract Courier Mode Text
+"Contract_Courier_Active_Count" = "%d个待处理合同";
+"Contract_Courier_Active_Count_Limited" = "%d个待处理合同，仅显示前%d个";
+
+"Main_Corporation_Members_Favorites" = "特别关注";
+"Main_Corporation_Members_Favorites_Title" = "特别关注列表";
+"Main_Corporation_Members_Favorites_Total" = "已关注 %d 名成员";
+"Main_Corporation_Members_No_Favorites" = "暂无关注成员";
+
+// Structure Access
+"Structure_No_Access" = "无权限建筑物";
+
+"Main_Corporation_Members_Sort" = "排序";
+"Main_Corporation_Members_Sort_By_Name" = "按人名";
+"Main_Corporation_Members_Sort_By_Title" = "按称号";
+"Main_Corporation_Members_Sort_By_System" = "按星系";
+"Main_Corporation_Members_Sort_By_Ship" = "按舰船";
+
+"Main_Corporation_Members_Search_Placeholder" = "搜索名称或舰船...";
+"Main_Corporation_Members_No_Search_Results" = "未找到匹配结果";
+
+"Main_Corporation_Members_Filtered_Total" = "搜索到%d名成员";
+
+"Main_Setting_Use_English_System_Names" = "使用英文星系名";
+
+// 多语言对照工具
+"Main_Language_Map" = "语言对照";
+"Main_Language_Map_Search" = "搜索";
+"Main_Language_Map_No_Results" = "无搜索结果";
+"Main_Language_Map_Type_Item" = "物品";
+"Main_Language_Map_Type_System" = "星系";
+"Main_Language_Map_Type_Constellation" = "星座";
+"Main_Language_Map_Type_Region" = "星域";
+"Main_Language_Map_Type_Faction" = "势力";
+"Main_Language_Map_Type_NPC_Corp" = "NPC军团";
+"Main_Language_Map_Languages" = "显示语言";
+"Main_Language_Map_Settings" = "语言设置";
+"Misc_Done" = "完成";
+
+"Main_Language_Map_Exact_Match" = "完全匹配";
+"Main_Language_Map_Prefix_Match" = "前缀匹配";
+"Main_Language_Map_Fuzzy_Match" = "模糊匹配";
+
+// 钱包日志加载状态
+"Wallet_Loading_Fetching" = "正在获取第%d页钱包日志";
+"Wallet_Loading_Complete" = "加载完成";
