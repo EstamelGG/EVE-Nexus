@@ -44,16 +44,28 @@ class ExtractorYieldCalculator {
         return Int(totalSeconds / Double(cycleTime)) - 1
     }
     
-    static func getCurrentCycle(installTime: String, cycleTime: Int) -> Int {
+    static func getCurrentCycle(installTime: String, expiryTime: String, cycleTime: Int) -> Int {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime]
         
-        guard let installDate = dateFormatter.date(from: installTime) else {
+        guard let installDate = dateFormatter.date(from: installTime),
+              let expiryDate = dateFormatter.date(from: expiryTime) else {
             return 0
         }
         
         let elapsedSeconds = Date().timeIntervalSince(installDate)
-        return Int(elapsedSeconds / Double(cycleTime))
+        let currentCycle = Int(elapsedSeconds / Double(cycleTime))
+        
+        // 计算总周期数
+        let totalSeconds = expiryDate.timeIntervalSince(installDate)
+        let totalCycles = Int(totalSeconds / Double(cycleTime)) - 1
+        
+        // 如果超过了总周期数，返回-1表示已结束
+        if currentCycle > totalCycles {
+            return -1
+        }
+        
+        return currentCycle
     }
 }
 
@@ -66,14 +78,14 @@ struct ExtractorYieldChartView: View {
     let cycleTime: Int
     let installTime: String
     let expiryTime: String
-    @State private var currentTime = Date()
+    let currentTime: Date
     
     // 图表常量
-    private let chartHeight: CGFloat = 160  // 从100增加到160
+    private let chartHeight: CGFloat = 160
     private let yAxisWidth: CGFloat = 40
     private let gridLines: Int = 5
     
-    init(extractor: PlanetaryExtractor, installTime: String, expiryTime: String?) {
+    init(extractor: PlanetaryExtractor, installTime: String, expiryTime: String?, currentTime: Date) {
         guard let qtyPerCycle = extractor.qtyPerCycle,
               let cycleTime = extractor.cycleTime,
               let expiryTime = expiryTime else {
@@ -84,20 +96,21 @@ struct ExtractorYieldChartView: View {
             self.cycleTime = 0
             self.installTime = ""
             self.expiryTime = ""
+            self.currentTime = currentTime
             return
         }
         
         let calculator = ExtractorYieldCalculator(quantityPerCycle: qtyPerCycle, cycleTime: cycleTime)
-        self.currentCycle = ExtractorYieldCalculator.getCurrentCycle(installTime: installTime, cycleTime: cycleTime)
+        self.currentCycle = ExtractorYieldCalculator.getCurrentCycle(installTime: installTime, expiryTime: expiryTime, cycleTime: cycleTime)
         self.totalCycles = ExtractorYieldCalculator.calculateTotalCycles(installTime: installTime, expiryTime: expiryTime, cycleTime: cycleTime)
         self.cycleTime = cycleTime
         self.installTime = installTime
         self.expiryTime = expiryTime
+        self.currentTime = currentTime
         
         // 计算所有周期的数据
         yields = calculator.calculateRange(startCycle: 0, endCycle: totalCycles)
         let actualMaxYield = yields.map { $0.yield }.max() ?? 0
-        // 增加10%的缓冲区
         maxYield = Int(Double(actualMaxYield) * 1.1)
     }
     
@@ -111,6 +124,10 @@ struct ExtractorYieldChartView: View {
     }
     
     private func formatTimeInterval(_ interval: TimeInterval) -> String {
+        if interval <= 0 {
+            return "00:00:00"
+        }
+        
         let days = Int(interval) / 86400
         let hours = Int(interval) / 3600 % 24
         let minutes = Int(interval) / 60 % 60
@@ -126,13 +143,19 @@ struct ExtractorYieldChartView: View {
         guard let installDate = ISO8601DateFormatter().date(from: installTime) else {
             return "00:00:00"
         }
+        
+        // 检查是否所有周期都已结束
+        if currentCycle == -1 {
+            return "00:00:00"
+        }
+        
         let elapsedTime = currentTime.timeIntervalSince(installDate)
         let cycleElapsed = elapsedTime.truncatingRemainder(dividingBy: Double(cycleTime))
         return formatTimeInterval(cycleElapsed)
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {  // 增加spacing从4到8，让整体布局更加舒适
+        VStack(alignment: .leading, spacing: 8) {
             // 图表区域
             HStack(alignment: .center, spacing: 0) {
                 // Y轴
@@ -141,7 +164,7 @@ struct ExtractorYieldChartView: View {
                     VStack(spacing: 0) {
                         ForEach(0...gridLines, id: \.self) { i in
                             Text(formatYAxisLabel(maxYield * (gridLines - i) / gridLines))
-                                .font(.system(size: 9))  // 稍微增加字体大小，从8到9
+                                .font(.system(size: 9))
                                 .foregroundColor(.primary)
                                 .frame(height: chartHeight / CGFloat(gridLines))
                         }
@@ -182,10 +205,10 @@ struct ExtractorYieldChartView: View {
                         }
                         
                         // 柱状图
-                        HStack(alignment: .bottom, spacing: 1) {  // 设置固定的间隔为1
+                        HStack(alignment: .bottom, spacing: 1) {
                             ForEach(yields, id: \.cycle) { yield in
                                 Rectangle()
-                                    .fill(yield.cycle == currentCycle + 1 ? Color.blue : Color.gray.opacity(0.6))
+                                    .fill(currentCycle != -1 && yield.cycle == currentCycle + 1 ? Color.teal : Color.gray.opacity(0.6))
                                     .frame(width: (geometry.size.width - CGFloat(yields.count - 1)) / CGFloat(yields.count),
                                           height: CGFloat(yield.yield) / CGFloat(maxYield) * chartHeight)
                             }
@@ -217,18 +240,19 @@ struct ExtractorYieldChartView: View {
                         .foregroundColor(.secondary)
                     if let currentYield = yields.first(where: { $0.cycle == currentCycle + 1 }) {
                         Text("\(currentYield.yield)")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.teal)
                     } else {
                         Text("0")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.teal)
                     }
                     Text(formatElapsedTime(installTime: installTime))
                         .foregroundColor(.secondary)
                     Text(formatTimeInterval(TimeInterval(cycleTime)))
                         .foregroundColor(.secondary)
                     if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
-                        Text(formatTimeInterval(expiryDate.timeIntervalSince(currentTime)))
-                            .foregroundColor(expiryDate.timeIntervalSince(currentTime) > 24 * 3600 ? .secondary : .red)
+                        let timeRemaining = expiryDate.timeIntervalSince(currentTime)
+                        Text(formatTimeInterval(timeRemaining))
+                            .foregroundColor(timeRemaining > 24 * 3600 ? .secondary : .red)
                     } else {
                         Text("00:00:00")
                             .foregroundColor(.secondary)
@@ -238,10 +262,7 @@ struct ExtractorYieldChartView: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.vertical, 8)  // 增加垂直内边距从4到8
+        .padding(.vertical, 8)
         .padding(.horizontal, -16)
-        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            currentTime = Date()
-        }
     }
 } 

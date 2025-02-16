@@ -994,13 +994,31 @@
 "Corp_Structure_Time_Format_Hours" = "%d hours later";
 "Corp_Structure_Time_Format_Minutes" = "%d minutes later";
 
-"Main_Planetary" = "Planetary Industry";
-"Main_Planetary_Title" = "Planetary Development";
+"Main_Planetary" = "Planetary Interaction";
+"Main_Planetary_Title" = "Planetary Interaction";
 "Main_Planetary_No_Planets" = "No Planets";
 "Main_Planetary_Unknown_Planet" = "Unknown Planet";
 "Main_Planetary_Unknown_Type" = "Unknown Type";
 "Main_Planetary_Loading" = "Loading...";
 "Main_Planetary_Error" = "Loading Failed";
+
+// Extractor Related
+"Total_Yield" = "Total Yield:";
+"Current_Cycle_Yield" = "Current Cycle Yield:";
+"Current_Cycle_Elapsed" = "Current Cycle Elapsed:";
+"Cycle_Time" = "Cycle Time:";
+"Time_Remaining" = "Time Remaining:";
+
+// Factory Related
+"Factory_Input" = "Input:";
+"Factory_Output" = "Output:";
+"Factory_Inventory" = "Stock:";
+"Factory_Processing" = "Processing";
+"Factory_Waiting_Materials" = "Waiting for Materials";
+"Factory_Stopped" = "Stopped";
+"Factory_Not_Started" = "Not Started";
+"Factory_No_Recipe" = "No Recipe";
+"Planet_Detail_No_Data" = "No Data.";
 
 "Contracts_Personal" = "Personal";
 "Contracts_Corporation" = "Corporation";

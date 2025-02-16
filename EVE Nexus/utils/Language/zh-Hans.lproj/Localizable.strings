@@ -1022,6 +1022,25 @@
 "Main_Planetary_Type_Storm" = "风暴星球";
 "Main_Planetary_Type_Plasma" = "等离子星球";
 
+// 采集器相关
+"Total_Yield" = "总产量:";
+"Current_Cycle_Yield" = "当前周期产量:";
+"Current_Cycle_Elapsed" = "当前周期已过时间:";
+"Cycle_Time" = "周期时间:";
+"Time_Remaining" = "剩余时间:";
+
+// 工厂相关
+"Factory_Input" = "输入:";
+"Factory_Output" = "输出:";
+"Factory_Inventory" = "库存:";
+"Factory_Processing" = "正在加工";
+"Factory_Waiting_Materials" = "等待材料";
+"Factory_Stopped" = "已停止";
+"Factory_Not_Started" = "未启动";
+"Factory_No_Recipe" = "无配方";
+
+
+// 合同
 "Contract_Item_Singleton" = "唯一物品";
 "Contracts_Personal" = "个人合同";
 "Contracts_Corporation" = "军团合同";
