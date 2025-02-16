@@ -1,0 +1,24 @@
+
+*.xcuserstate
+.DS_Store
+.Trashes
+*.swp
+*.lock
+*~.nib
+build/
+*.xccheckout
+xcuserdata/
+*.xcuserstate
+project.xcworkspace
+xcuserdata
+UserInterfaceState.xcuserstate
+project.xcworkspace/
+UserInterface.xcuserstate 
+Neocom III/utils/icons_zip/icons.zip
+/.idea
+/Neocom III/utils/icons_arch
+/Neocom III/utils/icons_archive
+EVE Nexus/ESI_config.json
+EVE Nexus/ESI/ESI_config.json
+/EVE Nexus/API/Samples
+/Third_tools

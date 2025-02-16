@@ -1,0 +1,677 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C61378522D1A686600B9FB6B /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C61378512D1A686600B9FB6B /* AppAuth */; };
+		C61378552D1A772100B9FB6B /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = C61378542D1A772100B9FB6B /* Kingfisher */; };
+		C68E07512D047AD2007DA6D8 /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = C68E07502D047AD2007DA6D8 /* Zip */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C6417FD52CF80C4F0032F75C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C6417FB92CF80C4D0032F75C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C6417FC02CF80C4D0032F75C;
+			remoteInfo = "EVE Nexus";
+		};
+		C6417FDF2CF80C4F0032F75C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C6417FB92CF80C4D0032F75C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C6417FC02CF80C4D0032F75C;
+			remoteInfo = "EVE Nexus";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		C6417FC12CF80C4D0032F75C /* EVE Nexus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "EVE Nexus.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6417FD42CF80C4F0032F75C /* EVE NexusTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "EVE NexusTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6417FDE2CF80C4F0032F75C /* EVE NexusUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "EVE NexusUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C61469072D12933200ADB16A /* Exceptions for "EVE Nexus" folder in "EVE Nexus" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C6417FC02CF80C4D0032F75C /* EVE Nexus */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		C6417FC32CF80C4D0032F75C /* EVE Nexus */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C61469072D12933200ADB16A /* Exceptions for "EVE Nexus" folder in "EVE Nexus" target */,
+			);
+			path = "EVE Nexus";
+			sourceTree = "<group>";
+		};
+		C6417FD72CF80C4F0032F75C /* EVE NexusTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "EVE NexusTests";
+			sourceTree = "<group>";
+		};
+		C6417FE12CF80C4F0032F75C /* EVE NexusUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "EVE NexusUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C6417FBE2CF80C4D0032F75C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C61378552D1A772100B9FB6B /* Kingfisher in Frameworks */,
+				C61378522D1A686600B9FB6B /* AppAuth in Frameworks */,
+				C68E07512D047AD2007DA6D8 /* Zip in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FD12CF80C4F0032F75C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FDB2CF80C4F0032F75C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C6417FB82CF80C4D0032F75C = {
+			isa = PBXGroup;
+			children = (
+				C6417FC32CF80C4D0032F75C /* EVE Nexus */,
+				C6417FD72CF80C4F0032F75C /* EVE NexusTests */,
+				C6417FE12CF80C4F0032F75C /* EVE NexusUITests */,
+				C6417FC22CF80C4D0032F75C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C6417FC22CF80C4D0032F75C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C6417FC12CF80C4D0032F75C /* EVE Nexus.app */,
+				C6417FD42CF80C4F0032F75C /* EVE NexusTests.xctest */,
+				C6417FDE2CF80C4F0032F75C /* EVE NexusUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C6417FC02CF80C4D0032F75C /* EVE Nexus */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6417FE82CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE Nexus" */;
+			buildPhases = (
+				C6417FBD2CF80C4D0032F75C /* Sources */,
+				C6417FBE2CF80C4D0032F75C /* Frameworks */,
+				C6417FBF2CF80C4D0032F75C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C6417FC32CF80C4D0032F75C /* EVE Nexus */,
+			);
+			name = "EVE Nexus";
+			packageProductDependencies = (
+				C68E07502D047AD2007DA6D8 /* Zip */,
+				C61378512D1A686600B9FB6B /* AppAuth */,
+				C61378542D1A772100B9FB6B /* Kingfisher */,
+			);
+			productName = "EVE Nexus";
+			productReference = C6417FC12CF80C4D0032F75C /* EVE Nexus.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C6417FD32CF80C4F0032F75C /* EVE NexusTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6417FEB2CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE NexusTests" */;
+			buildPhases = (
+				C6417FD02CF80C4F0032F75C /* Sources */,
+				C6417FD12CF80C4F0032F75C /* Frameworks */,
+				C6417FD22CF80C4F0032F75C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C6417FD62CF80C4F0032F75C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C6417FD72CF80C4F0032F75C /* EVE NexusTests */,
+			);
+			name = "EVE NexusTests";
+			packageProductDependencies = (
+			);
+			productName = "EVE NexusTests";
+			productReference = C6417FD42CF80C4F0032F75C /* EVE NexusTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		C6417FDD2CF80C4F0032F75C /* EVE NexusUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6417FEE2CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE NexusUITests" */;
+			buildPhases = (
+				C6417FDA2CF80C4F0032F75C /* Sources */,
+				C6417FDB2CF80C4F0032F75C /* Frameworks */,
+				C6417FDC2CF80C4F0032F75C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C6417FE02CF80C4F0032F75C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C6417FE12CF80C4F0032F75C /* EVE NexusUITests */,
+			);
+			name = "EVE NexusUITests";
+			packageProductDependencies = (
+			);
+			productName = "EVE NexusUITests";
+			productReference = C6417FDE2CF80C4F0032F75C /* EVE NexusUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C6417FB92CF80C4D0032F75C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1610;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					C6417FC02CF80C4D0032F75C = {
+						CreatedOnToolsVersion = 16.1;
+					};
+					C6417FD32CF80C4F0032F75C = {
+						CreatedOnToolsVersion = 16.1;
+						TestTargetID = C6417FC02CF80C4D0032F75C;
+					};
+					C6417FDD2CF80C4F0032F75C = {
+						CreatedOnToolsVersion = 16.1;
+						TestTargetID = C6417FC02CF80C4D0032F75C;
+					};
+				};
+			};
+			buildConfigurationList = C6417FBC2CF80C4D0032F75C /* Build configuration list for PBXProject "EVE Nexus" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = C6417FB82CF80C4D0032F75C;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C68E074F2D047AD2007DA6D8 /* XCLocalSwiftPackageReference "Thirdparty/Zip" */,
+				C61378502D1A686600B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/AppAuth-iOS" */,
+				C61378532D1A772100B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Kingfisher" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C6417FC22CF80C4D0032F75C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C6417FC02CF80C4D0032F75C /* EVE Nexus */,
+				C6417FD32CF80C4F0032F75C /* EVE NexusTests */,
+				C6417FDD2CF80C4F0032F75C /* EVE NexusUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C6417FBF2CF80C4D0032F75C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FD22CF80C4F0032F75C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FDC2CF80C4F0032F75C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C6417FBD2CF80C4D0032F75C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FD02CF80C4F0032F75C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6417FDA2CF80C4F0032F75C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C6417FD62CF80C4F0032F75C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C6417FC02CF80C4D0032F75C /* EVE Nexus */;
+			targetProxy = C6417FD52CF80C4F0032F75C /* PBXContainerItemProxy */;
+		};
+		C6417FE02CF80C4F0032F75C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C6417FC02CF80C4D0032F75C /* EVE Nexus */;
+			targetProxy = C6417FDF2CF80C4F0032F75C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		C6417FE62CF80C4F0032F75C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C6417FE72CF80C4F0032F75C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		C6417FE92CF80C4F0032F75C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "EVE Nexus/EVE_Nexus.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"EVE Nexus/Preview Content\"";
+				DEVELOPMENT_TEAM = PWM6W3HMW9;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tritanium;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-Nexus";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Debug;
+		};
+		C6417FEA2CF80C4F0032F75C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = "EVE Nexus/EVE_Nexus.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_ASSET_PATHS = "\"EVE Nexus/Preview Content\"";
+				DEVELOPMENT_TEAM = PWM6W3HMW9;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Tritanium;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIRequiredDeviceCapabilities = armv7;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-Nexus";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Release;
+		};
+		C6417FEC2CF80C4F0032F75C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-NexusTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EVE Nexus.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/EVE Nexus";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Debug;
+		};
+		C6417FED2CF80C4F0032F75C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-NexusTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EVE Nexus.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/EVE Nexus";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Release;
+		};
+		C6417FEF2CF80C4F0032F75C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-NexusUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = "EVE Nexus";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Debug;
+		};
+		C6417FF02CF80C4F0032F75C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.1;
+				MACOSX_DEPLOYMENT_TARGET = 15.1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-NexusUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = "EVE Nexus";
+				XROS_DEPLOYMENT_TARGET = 2.1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C6417FBC2CF80C4D0032F75C /* Build configuration list for PBXProject "EVE Nexus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C6417FE62CF80C4F0032F75C /* Debug */,
+				C6417FE72CF80C4F0032F75C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C6417FE82CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE Nexus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C6417FE92CF80C4F0032F75C /* Debug */,
+				C6417FEA2CF80C4F0032F75C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C6417FEB2CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE NexusTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C6417FEC2CF80C4F0032F75C /* Debug */,
+				C6417FED2CF80C4F0032F75C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C6417FEE2CF80C4F0032F75C /* Build configuration list for PBXNativeTarget "EVE NexusUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C6417FEF2CF80C4F0032F75C /* Debug */,
+				C6417FF02CF80C4F0032F75C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C61378502D1A686600B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/AppAuth-iOS" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Thirdparty/AppAuth-iOS";
+		};
+		C61378532D1A772100B9FB6B /* XCLocalSwiftPackageReference "Thirdparty/Kingfisher" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Thirdparty/Kingfisher;
+		};
+		C68E074F2D047AD2007DA6D8 /* XCLocalSwiftPackageReference "Thirdparty/Zip" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Thirdparty/Zip;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C61378512D1A686600B9FB6B /* AppAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppAuth;
+		};
+		C61378542D1A772100B9FB6B /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Kingfisher;
+		};
+		C68E07502D047AD2007DA6D8 /* Zip */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Zip;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = C6417FB92CF80C4D0032F75C /* Project object */;
+}

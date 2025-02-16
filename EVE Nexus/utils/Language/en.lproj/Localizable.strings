@@ -1,0 +1,1086 @@
+/* 
+  Localizable.strings
+  EVE Panel
+
+  Created by GG Estamel on 2024/11/30.
+  
+*/
+
+"Main_Character" = "Character";
+"Main_Character_Sheet" = "Character Sheet";
+"Main_Jump_Clones" = "Jump Clones";
+"Main_Jump_Clones_Available" = "Jump Clones Available: ";
+"Main_Skills" = "Skills";
+"Main_Skills_Ponits" = "$num SP";
+"Main_Skills_Queue" = "$num skills in queue ($dayd $hourh $minutesm)";
+"Main_Skills_Queue_Training" = "Training: $num skills ($dayd $hourh $minutesm)";
+"Main_Skills_Queue_Paused" = "Paused: $num skills";
+"Main_EVE_Mail" = "EVE Mail";
+"Main_Calendar" = "Calendar";
+"Main_Wealth" = "Wealth";
+"Main_Wealth_ISK" = "Wallet: $num ISK";
+"Main_Loyalty_Points" = "Loyalty Points";
+"Main_Databases" = "Databases";
+"Main_Database" = "Database";
+"Main_Database_title" = "Database";
+"Main_Database_nothing_found" = "Nothing found.";
+"DatabaseName" = "item_db_en";
+"Main_Database_unpublished" = "Unpublished";
+"Main_Database_published" = "Published";
+"Main_Database_Search" = "Search";
+"Main_Database_Searching" = "Searching...";
+"Main_Database_Variations" = "Variations";
+"Main_Database_Browse_Variations" = "Browse %d variations";
+"Main_Database_Item_info_Immune" = "Immune";
+"Main_Database_Item_info_NonImmune" = "Non-immune";
+"Main_Database_Item_info_Reprocess" = "Reprocess Output";
+"Main_Database_Source" = "Reprocess Source";
+"Main_Database_Required_By" = "Required for";
+"Main_Database_NPC_Scene" = "NPC";
+"Main_Database_NPC_Ships" = "Ships";
+"Main_Market_Current_Price" = "Current Price";
+"Main_Market_Price_History" = "Price History";
+"Main_Market_Show_market_orders" = "Show market orders";
+"Main_Market_Choose_Region" = "Choose region";
+"Main_Market_WH_info" = "Info of wormhole";
+"Main_Market_WH_Details" = "Details";
+"Main_Market_WH_MaxStableTime" = "Maximum Stable Time";
+"Main_Market_WH_MaxStableMass" = "Maximum Stable Mass";
+"Main_Market_WH_MaxJumpMass" = "Maximum Jump Mass";
+"Main_Market_WH_Leadsto" = "Leads Into";
+"Main_Market_WH_Size" = "Size";
+"Main_Database_toComplete" = "Lite";
+"Main_Database_toSimplified" = "Full";
+"Contract_Items_Included" = "Items to Give";
+"Contract_Items_Required" = "Items Required";
+"Contract_Issuer" = "Issuer";
+"Contract_Assignee" = "Assignee";
+"Contract_Acceptor" = "Acceptor";
+"Contract_Days_To_Complete" = "Days to Complete";
+"Select_Item" = "Select Item";
+"Main_Market" = "Market";
+"Main_Market_Watch_List" = "Market Watch List";
+"Main_Market_Watch_List_Empty" = "No watched items";
+"Main_Market_Watch_List_Add" = "Add Watch List";
+"Main_Market_Watch_List_Name" = "List Name";
+"Main_Market_Watch_List_Add_Item" = "Add Item";
+"Main_Market_Watch_List_Items" = "%d items";
+"Main_WH" = "Wormholes";
+"Main_Incursions" = "Incursions";
+"Main_Infested_Systems" = "Infested Systems";
+"Main_Business" = "Business";
+"Main_Assets" = "Assets";
+"Main_Market_Orders" = "Market Orders";
+"Main_Contracts" = "Contracts";
+"Main_Market_Transactions" = "Market Transactions";
+"Main_Wallet_Journal" = "Wallet Journal";
+"Main_Industry_Jobs" = "Industry Jobs";
+"Main_Other" = "Other";
+
+"Main_Setting" = "Setting";
+"Main_Setting_Title" = "Setting";
+"Main_Setting_Language" = "Language";
+"Main_Setting_Select_your_language" = "Select your language";
+"Main_Setting_Appearance" = "Appearance";
+"Main_Setting_ColorMode" = "Appearance Mode";
+"Main_Setting_Others" = "Others";
+"Main_Setting_Dark" = "Dark";
+"Main_Setting_Light" = "Light";
+"Main_Setting_Auto" = "Auto";
+"Main_Setting_Select_Language" = "Select Language";
+"Main_Setting_SwitchLanguageConfirmation" = "Require reload to switch language.";
+"Main_Setting_Clean_Cache" = "Clean Cache";
+"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Bonuses_Per_Level" = "bonuses per level";
+
+"Main_About" = "About";
+"Main_About_Title" = "About";
+"Main_About_Version" = "Version";
+"Main_About_Database_Version" = "Database Version";
+"Main_About_Author" = "Author";
+"Main_About_Github" = "Github";
+"Main_About_Report_Bug" = "Report Bug";
+"Main_About_Privacy_Title" = "Privacy Statement";
+"Main_About_Privacy_Statement" =  "We are committed to protecting your privacy and data security:\n\n• Data Storage: All personal data is stored locally on your device only\n• ESI Authorization: We only access EVE Online ESI API with your explicit consent\n• Data Usage: Your game data is used solely for app functionality and not for any other purpose\n• Third-party Sharing: We do not share your personal data with any third parties\n• Data Deletion: You can revoke authorization and delete all local data at any time";
+
+"Misc_true" = "True";
+"Misc_false" = "False";
+"Misc_back" = "Back";
+"Misc_number_item" = "×";
+"Misc_number_item_x" = "×";
+"Misc_number_point" = "points";
+"Misc_number_types" = " Items";
+"Misc_per" = "per";
+"Misc_unit" = "unit(s)";
+
+// Blueprint Details
+"Blueprint_Product" = "Product";
+"Blueprint_Invention_Product" = "Invention Product";
+"Blueprint_Success_Rate" = "Success Rate: %d%%";
+"Blueprint_Level" = "Level %d";
+"Time_Year" = "y";
+"Time_Month" = "mon";
+"Time_Day" = "d";
+"Time_Hour" = "h";
+"Time_Minute" = "m";
+"Time_Second" = "s";
+
+"Item_Info" = "Item Info";
+"Blueprint_Info" = "Blueprint Info";
+"Blueprint_Manufacturing" = "Manufacturing";
+"Blueprint_Research_Material" = "Material Research";
+"Blueprint_Research_Time" = "Time Research";
+"Blueprint_Copying" = "Copying";
+"Blueprint_Invention" = "Invention";
+"Blueprint_Required_Materials" = "Required Materials";
+"Blueprint_Required_Skills" = "Required Skills";
+"Blueprint_Manufacturing_Time" = "Manufacturing Time";
+"Blueprint_Research_Time_Label" = "Research Time";
+"Blueprint_Copying_Time" = "Copying Time";
+"Blueprint_Invention_Time" = "Invention Time";
+
+"Planetary_Input_Materials" = "Input";
+"Planetary_Output_Info" = "Output";
+"Planetary_Output_Quantity" = "Quantity";
+"Planetary_Cycle_Time" = "Cycle time";
+"Planetary_Uses" = "Required for";
+"Planetary_Facilities" = "Facilities";
+"Planetary_Harvest_from" = "Harvest from";
+
+// Item Info
+"Item_Info_Blueprint" = "Blueprint";
+
+"Blueprint_Source" = "Source";
+"Setting_Cache" = "Cache";
+"Item_Basic_Info" = "Basic Info";
+"Container_Basic_Info" = "Container";
+"Item_Volume" = "Volume";
+"Item_Capacity" = "Capacity";
+"Item_Mass" = "Mass";
+
+"Main_Setting_Clean_Cache_Title" = "Clean Cache";
+"Main_Setting_Clean_Cache_Message" = "This will clean app cache, including network cache and temporary files. Are you sure?";
+"Main_Setting_Reset_Icons" = "Reset Icons Cache";
+"Main_Setting_Reset_Icons_Detail" = "Delete all icon cache and re-release";
+"Main_Setting_Reset_Icons_Title" = "Reset Icons Cache";
+"Main_Setting_Reset_Icons_Message" = "This will delete all downloaded icon cache and unzip icons. Are you sure?";
+"Main_Setting_Cancel" = "Cancel";
+"Main_Setting_Clean" = "Clean";
+"Main_Setting_Reset" = "Reset";
+"Main_Setting_Delete" = "Delete";
+"Main_Setting_Cache_Total_Count" = "\nTotal Count: %d items";
+"Main_Setting_Cache_Details" = "Details:";
+"Main_Setting_Cache_Item_Format" = "%@: %@ (%d items)";
+"Main_Setting_Cache_Type_Network" = "Network Cache";
+"Main_Setting_Cache_Type_Memory" = "Memory Cache";
+"Main_Setting_Cache_Type_UserDefaults" = "User Defaults";
+"Main_Setting_Cache_Type_Temp" = "Temporary Files";
+"Main_Setting_Cache_Type_Database" = "Database Cache";
+"Main_Setting_Cache_Type_StaticDataSet" = "Static Dataset";
+"Main_Setting_Cache_Cleared_Message" = "Cleared %@ cache";
+"Main_Setting_Cache_Expiration_Days" = "%d days remaining";
+"Main_Setting_Cache_Expiration_Hours" = "%d hours remaining";
+"Main_Setting_Cache_Expiration_Days_Hours" = "%dd %dh remaining";
+"Main_Setting_Cache_Expiration_Hours_Minutes" = "%dh %dm remaining";
+"Main_Setting_Cache_Expiration_Minutes" = "%dm remaining";
+"Main_Setting_Static_Resource_Expired" = "Expired";
+"Main_Setting_Cache" = "Cache";
+"Main_Setting_Static_Resource_Character_Portraits" = "Character Icon";
+
+// Static Resources
+"Main_Setting_Static_Resources" = "Static Resources";
+"Main_Setting_Static_Resource_Not_Downloaded" = "Not Downloaded";
+"Main_Setting_Static_Resource_No_Cache" = "No Cache";
+"Main_Setting_Static_Resource_Last_Updated" = "Last Updated: %@";
+"Main_Setting_Static_Resource_Download_Time" = "Downloaded: %@";
+"Main_Setting_Static_Resource_Sovereignty" = "Sovereignty Data";
+"Main_Setting_Static_Resource_Alliance_Icons" = "Alliance Icons";
+"Main_Setting_Static_Resource_Icon_Count" = " (%d)";
+"Main_Setting_Static_Resource_Net_Renders" = "Item Renders";
+"Main_Setting_Static_Resource_Incursions" = "Incursions Data";
+"Main_Setting_Static_Resource_Faction_Icons" = "Faction Icons";
+
+// Time Display
+"Time_Days_Ago" = "%d days ago";
+"Time_Hours_Ago" = "%d hours ago";
+"Time_Minutes_Ago" = "%d minutes ago";
+"Time_Just_Now" = "just now";
+"Time_Days_Hours" = "%dd %dh";
+"Time_Days" = "%dd";
+"Time_Hours" = "%dh";
+"Time_Seconds" = "%ds";
+"Time_Hours_Minutes" = "%dh %dm";
+"Time_Minutes" = "%dm";
+"Time_Minutes_Seconds" = "%dm %ds";
+
+// Network Errors
+"Network_Error_Invalid_URL" = "Invalid URL";
+"Network_Error_Invalid_Response" = "Invalid Response";
+"Network_Error_HTTP_Error" = "HTTP Error: %d";
+"Network_Error_Invalid_Image" = "Invalid Image Data";
+"Network_Error_No_Price" = "No Valid Price Data";
+"Network_Error_Invalid_Data" = "Invalid Data";
+"Network_Error_Unauthed" = "Unauthed";
+
+"Main_Setting_Market_Data" = "Market Data (%d items, %d records)";
+"Main_Setting_Market_Data_0" = "Market Data";
+
+"Main_Sovereignty" = "Sovereignty";
+"Main_Sovereignty_Title" = "Sovereignty Campaigns";
+"Main_Sovereignty_Started" = "Started";
+"Main_Sovereignty_Time_Days" = "%dd %dh";
+"Main_Sovereignty_Time_Hours" = "%dh %dmin";
+"Main_Sovereignty_Time_Minutes" = "%dmin";
+"Main_Setting_sovcam_No_Data" = "Sovereignty Campaigns not found";
+"Main_Market_Select_Region" = "Select Region";
+"Main_Market_Pinned_Regions" = "Pinned Regions";
+"Main_Market_Available_Regions" = "Available Regions";
+"Main_Market_All_Regions" = "All Regions";
+"Main_Market_Edit" = "Edit";
+"Main_Market_Done" = "Done";
+"Main_Market_Add_Region" = "Manage Region";
+"Account_Logout" = "Logout";
+// Account Management
+"Account_Management" = "Character Management";
+"Account_Add_Character" = "Add Character";
+"Account_Logging_In" = "Logging in...";
+"Account_Logged_Characters" = "Logged Characters";
+"Account_Cannot_Get_Auth_URL" = "Cannot get authorization URL";
+"Account_Login_Failed" = "Login Failed";
+"Account_Remove_Confirm_Title" = "Remove Character";
+"Account_Remove_Confirm_Cancel" = "Cancel";
+"Account_Remove_Confirm_Remove" = "Remove";
+"Account_Character_ID" = "Character ID";
+"Account_Total_SP" = "Total SP";
+"Account_Wallet_value" = "Wallet";
+
+"Common_OK" = "OK";
+
+// Language Settings
+"Main_Setting_Language_Switch_Title" = "Switch Language";
+"Main_Setting_Language_Switch_Message" = "The app needs to reload to apply the language change. Do you want to continue?";
+"Main_Setting_Language_Switch_Cancel" = "Cancel";
+"Main_Setting_Language_Switch_Confirm" = "Switch";
+
+
+"Character_in_station" = "in Station";
+"Character_in_structure" = "in Structure";
+"Character_in_space" = "in Space";
+"Character_Location" = "Location";
+"Character_Current_Ship" = "Current Ship";
+
+// Logs
+"Main_Setting_Logs" = "App Logs";
+"Main_Setting_Logs_Detail" = "View application logs";
+"Main_Setting_Logs_Title" = "Log Viewer";
+"Main_Setting_Logs_Select_Hint" = "Select a log file to view";
+"Main_Setting_Logs_Delete_Title" = "Clear Logs";
+"Main_Setting_Logs_Delete_Message" = "This will delete all log files. This action cannot be undone.";
+"Main_Setting_Logs_Delete" = "Delete";
+"Main_Setting_Logs_Level_Debug" = "DEBUG";
+"Main_Setting_Logs_Level_Info" = "INFO";
+"Main_Setting_Logs_Level_Warning" = "WARNING";
+"Main_Setting_Logs_Level_Error" = "ERROR";
+"Main_Setting_Logs_Level_Fault" = "FAULT";
+"Main_Setting_Logs_Search_Placeholder" = "Search in log...";
+"Main_Setting_Logs_Search_No_Results" = "No results found";
+
+// Assets Loading
+"Assets_Loading_Fetching" = "Fetching assets data (Page %d)";
+"Assets_Loading_Building_Tree" = "Building asset tree (%d/%d)";
+"Assets_Loading_Complete" = "Loading complete";
+"Assets_Loading" = "Loading...";
+"Assets_Item_Count" = "Include %d items";
+"Assets_Loading_Names" = "Loading container names (%d/%d)";
+"Assets_Loading_Building_Tree" = "Building asset tree";
+"Assets_Loading_Saving" = "Saving to cache";
+"Assets_Loading_Complete" = "Loading complete";
+"Unknown_System" = "Unknown System";
+
+// Location Flags
+"Location_Flag_Hangar" = "Hangar";
+"Location_Flag_CorpSAG1" = "Corporation Hangar 1";
+"Location_Flag_CorpSAG2" = "Corporation Hangar 2";
+"Location_Flag_CorpSAG3" = "Corporation Hangar 3";
+"Location_Flag_CorpSAG4" = "Corporation Hangar 4";
+"Location_Flag_CorpSAG5" = "Corporation Hangar 5";
+"Location_Flag_CorpSAG6" = "Corporation Hangar 6";
+"Location_Flag_CorpSAG7" = "Corporation Hangar 7";
+"Location_Flag_CorpDeliveries" = "Corporation Deliveries";
+"Location_Flag_AutoFit" = "Auto Fit";
+"Location_Flag_Cargo" = "Cargo";
+"Location_Flag_DroneBay" = "Drone Bay";
+"Location_Flag_FleetHangar" = "Fleet Hangar";
+"Location_Flag_Deliveries" = "Deliveries";
+"Location_Flag_HiddenModifiers" = "Hidden Modifiers";
+"Location_Flag_ShipHangar" = "Ship Hangar";
+"Location_Flag_FighterBay" = "Fighter Bay";
+"Location_Flag_FighterTubes" = "Fighter Tubes";
+"Location_Flag_SubSystemBay" = "SubSystem Bay";
+"Location_Flag_SubSystemSlots" = "SubSystem Slots";
+"Location_Flag_HiSlots" = "High Slots";
+"Location_Flag_MedSlots" = "Medium Slots";
+"Location_Flag_LoSlots" = "Low Slots";
+"Location_Flag_RigSlots" = "Rig Slots";
+"Location_Flag_SpecializedAmmoHold" = " Ammo Hold";
+"Location_Flag_SpecializedCommandCenterHold" = " Command Center Hold";
+"Location_Flag_SpecializedFuelBay" = " Fuel Bay";
+"Location_Flag_SpecializedGasHold" = " Gas Hold";
+"Location_Flag_SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"Location_Flag_SpecializedLargeShipHold" = " Large Ship Hold";
+"Location_Flag_SpecializedMaterialBay" = " Material Bay";
+"Location_Flag_SpecializedMediumShipHold" = " Medium Ship Hold";
+"Location_Flag_SpecializedMineralHold" = " Mineral Hold";
+"Location_Flag_SpecializedOreHold" = " Ore Hold";
+"Location_Flag_SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"Location_Flag_SpecializedSalvageHold" = " Salvage Hold";
+"Location_Flag_SpecializedShipHold" = " Ship Hold";
+"Location_Flag_SpecializedSmallShipHold" = " Small Ship Hold";
+
+// Assets Loading Status
+"Assets_Loading_Page" = "Fetching page %d";
+"Assets_Loading_Calculating" = "Calculating";
+"Assets_Loading_Fetching_Names" = "Fetching names";
+"Assets_Unknown_Location" = "Unknown Location";
+"Assets_Unknown_Region" = "Unknown Region";
+
+// Market Transactions
+"Main_Market_Transactions_Buy" = "Buy";
+"Main_Market_Transactions_Sell" = "Sell";
+"Main_Market_Transactions_Loading" = "Loading...";
+"Main_Market_Transactions_No_Data" = "No transactions found";
+"Main_Market_Transactions_Unit_Price" = "Unit Price";
+"Main_Market_Transactions_Quantity" = "Quantity";
+"Main_Market_Transactions_Total" = "Total";
+
+// Market Orders
+"Orders_Remaining" = "remaining";
+"Orders_Buy" = "Buy";
+"Orders_Sell" = "Sell";
+"Orders_Corp" = "Corp";
+"Orders_No_Data" = "No Data.";
+"Orders_No_Buy_Orders" = "No Buy Orders";
+"Orders_No_Sell_Orders" = "No Sell Orders";
+
+// Market Orders Time
+"Orders_Expired" = "Expired";
+"Orders_Remaining_Days_Hours" = "Expire in %dd %dh";
+"Orders_Remaining_Days" = "Expire in %dd";
+"Orders_Remaining_Hours_Minutes" = "Expire in %dh %dm";
+"Orders_Remaining_Hours" = "Expire in %dh";
+"Orders_Remaining_Minutes" = "Expire in %dm";
+
+// Market Orders Status
+"Main_Database_Loading" = "Loading...";
+
+// Contract Types
+"Contract_Type_item_exchange" = "Item Exchange";
+"Contract_Type_courier" = "Courier";
+"Contract_Type_auction" = "Auction";
+"Contract_Type_unknown" = "Unknown";
+
+// Contract Status
+"Contract_Status_outstanding" = "Outstanding";
+"Contract_Status_in_progress" = "In Progress";
+"Contract_Status_finished_issuer" = "Finished (Issuer)";
+"Contract_Status_finished_contractor" = "Finished (Contractor)";
+"Contract_Status_finished" = "Finished";
+"Contract_Status_cancelled" = "Cancelled";
+"Contract_Status_rejected" = "Rejected";
+"Contract_Status_failed" = "Failed";
+"Contract_Status_deleted" = "Deleted";
+"Contract_Status_reversed" = "Reversed";
+"Contract_Status_unknown" = "Unknown";
+
+// Contract Details
+"Contract_Title" = "Title";
+"Contract_Collateral" = "Collateral";
+"Contract_Volume" = "Volume";
+"Contract_Details" = "Contract Details";
+"Contract_Basic_Info" = "Basic Information";
+"Contract_Items" = "Contract Items";
+"Contract_Type" = "Type";
+"Contract_Status" = "Status";
+"Contract_Price" = "Price";
+"Contract_Reward" = "Reward";
+"Contract_Days_To_Complete" = "Days to Complete";
+"Contract_Item_Singleton" = "Singleton";
+"Contract_Item_Included" = "Included";
+"Contract_Item_Required" = "Required";
+
+"Contract_Location" = "Location";
+"Contract_Start_Location" = "Start Location";
+"Contract_End_Location" = "End Location";
+
+"Industry_Status_active" = "Active";
+"Industry_Status_cancelled" = "Cancelled";
+"Industry_Status_delivered" = "Delivered";
+"Industry_Status_completed" = "Completed";
+"Industry_Status_paused" = "Paused";
+"Industry_Status_ready" = "Ready";
+"Industry_Status_reverted" = "Reverted";
+
+// Industry Activity Status
+"Industry_Status_Manufacturing" = "Manufacturing";
+"Industry_Status_Research_Time" = "Researching";
+"Industry_Status_Research_Material" = "Researching";
+"Industry_Status_Copying" = "Copying";
+"Industry_Status_Invention" = "Inventing";
+"Industry_Status_Reaction" = "Reacting";
+
+// Industry Activity Types (Short)
+"Industry_Type_Manufacturing" = "MFG";
+"Industry_Type_Research_Time" = "TE";
+"Industry_Type_Research_Material" = "ME";
+"Industry_Type_Copying" = "Copy";
+"Industry_Type_Invention" = "Inv";
+"Industry_Type_Reaction" = "React";
+
+// Industry List Headers
+"Industry_Started_On" = "Started on %@";
+
+// Date Formats
+"Date_Format_Month_Day" = "MMM d";
+
+"Main_Mining_Ledger" = "Mining Ledger";
+"Mining_No_Records" = "No Mining Records";
+"Mining_Loading" = "Loading Mining Records...";
+"Mining_Error_Loading" = "Failed to Load";
+"Mining_Pull_to_Refresh" = "Pull to Refresh";
+"Mining_Monthly_Summary" = "Mining Summary for %@";
+"Mining_Total_Volume" = "Total Volume";
+
+"Main_Setting_Reset_Database" = "Reset Database";
+"Main_Setting_Reset_Database_Detail" = "Delete and reinitialize character database";
+"Main_Setting_Reset_Database_Title" = "Reset Database";
+"Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
+"Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
+"Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
+"Common_info" = "Basic info";
+
+"Character_Security_Status" = "Security Status";
+"Character_Current_Ship" = "Current Ship";
+"Character_Current_Location" = "Current Location";
+
+// Jump Fatigue
+"Character_Jump_Fatigue" = "Jump Fatigue";
+"Character_No_Jump_Fatigue" = "No Jump Fatigue";
+"Character_Last_Jump" = "Last Jump: %@";
+
+// Character Info
+"Character_Birthday" = "Birthday";
+"Character_Age" = "%dy %dm %dd";
+
+// Medals
+"Character_Medals" = "Medals";
+
+// Clone related
+"Character_Home_Station" = "Home Station";
+"Character_Home_Location" = "Home Location";
+"Character_Last_Clone_Jump" = "Last Clone Jump";
+"Character_Last_Station_Change" = "Last Station Change";
+"Character_Current_Implants" = "Current Implants";
+"Character_Jump_Clones" = "Jump Clones";
+"Character_Clone_Count" = "%d Clone(s)";
+"Character_View_Implants" = "View Implants";
+"Character_Clone_Details" = "Clone Details";
+"Character_Clone_Implants" = "Implants";
+"Character_No_Implants" = "No Implants";
+"Character_Clone_ID" = "Clone #%d";
+"Main_Jump_Clones" = "Clone Status";
+"Main_Jump_Clones_Available" = "Available Clones";
+"Main_Jump_Clones_Ready" = "Next Jump: Now";
+"Main_Jump_Clones_Cooldown" = "Next Jump: %d hours";
+"Main_Jump_Clones_Cooldown_Hours_Minutes" = "Next Jump: %dh %dm";
+"Main_Jump_Clones_Cooldown_Minutes" = "Next Jump: %dm";
+"Character_Never" = "Never";
+
+// Skills View
+"Main_Skills_Attribute" = "Attributes";
+"Main_Skills_Category" = "Skill Categories";
+"Main_Skills_Queue_Count" = "Skill Queue (%d)";
+"Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
+"Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
+"Main_Skills_Queue_Empty" = "No skills in training queue";
+"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Points_Progress" = "%@ / %@ SP";
+"Main_Skills_Time_Remaining" = "Remaining: %@";
+"Main_Skills_Time_Required" = "Required: %@";
+"Main_Skills_Categories" = "Skill Categories";
+"Main_Skills_Not_Injected" = "Not Injected";
+"Main_Skills_Completed" = "Completed";
+
+// Time Format
+"Time_Days_Hours_Minutes" = "%dd %dh %dm";
+"Time_Hours_Minutes" = "%dh %dm";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "Now";
+"Time_Months_Days" = "%dM %dD";
+"Time_Months" = "%dM";
+
+// Character Attributes
+"Character_Attributes_Title" = "Character Attributes";
+"Character_Attributes_Basic" = "Basic Attributes";
+"Character_Attributes_Remap" = "Attribute Remap";
+"Character_Attribute_Perception" = "Perception";
+"Character_Attribute_Memory" = "Memory";
+"Character_Attribute_Willpower" = "Willpower";
+"Character_Attribute_Intelligence" = "Intelligence";
+"Character_Attribute_Charisma" = "Charisma";
+"Character_Attributes_Bonus_Remaps" = "Available Bonus Remaps";
+"Character_Attributes_Next_Remap" = "Next Remap Available";
+"Character_Attributes_Load_Failed" = "Failed to load attributes";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "No skills found";
+
+"Main_Skills_Required_Injectors" = "Required Skill Injectors";
+"Main_Skills_Total_Required_SP" = "Total Required Skill Points: %@";
+"Main_Skills_Total_Injector_Cost" = "Estimated Injector Cost: %@ ISK";
+
+// Wealth View
+"Wealth_Total" = "Total Wealth";
+"Wealth_Assets" = "Assets";
+"Wealth_Implants" = "Implants";
+"Wealth_Orders" = "Market Orders";
+"Wealth_Wallet" = "Wallet Balance";
+"Wealth_Assets_Count" = "%d Items";
+"Wealth_Implants_Count" = "%d Implants";
+"Wealth_Orders_Count" = "%d Orders";
+"Wealth_Wallet_Balance" = "Current Balance";
+
+// Wealth Detail View
+"Wealth_Detail_Title" = "%@ Est. (Top 20)";
+"Wealth_Detail_NoData" = "No Data";
+"Wealth_Detail_Loading" = "Loading...";
+"Wealth_Detail_MarketPrice" = "Market Price";
+"Wealth_Detail_Quantity" = "Quantity";
+"Wealth_Detail_TotalValue" = "Total Value";
+"Wealth_Detail_HasPrice" = "Items with Market Price (Top 20)";
+"Wealth_Detail_NoPrice" = "Items without Market Price (Top 20)";
+"Wealth_Detail_Unit_Price" = "Unit Price";
+
+"Wealth_Distribution" = "Wealth Distribution";
+
+"Main_LP_Basic_Info" = "Basic Information";
+"Main_LP_Store" = "LP Store";
+"Main_LP_Required_Items" = "Required Items";
+
+"Main_EVE_Mail_Title" = "EVE Mail";
+"Main_EVE_Mail_All" = "All Mails";
+"Main_EVE_Mail_Mailboxes" = "All Mailboxes";
+"Main_EVE_Mail_List" = "Mail List";
+"Main_EVE_Mail_No_Mail" = "No Mail";
+"Main_EVE_Mail_Inbox" = "Inbox";
+"Main_EVE_Mail_Sent" = "Sent";
+"Main_EVE_Mail_Corporation" = "Corporation";
+"Main_EVE_Mail_Alliance" = "Alliance";
+"Main_EVE_Mail_Spam" = "Spam";
+"Main_EVE_Mail_Loading" = "Loading mails...";
+"Main_EVE_Mail_Error" = "Failed to load mails";
+
+"Main_EVE_Mail_Lists" = "Mail Lists";
+"Main_EVE_Mail_List_Name" = "List Name";
+"Main_EVE_Mail_List_Members" = "Member Count";
+"Main_EVE_Mail_List_No_Lists" = "No mailing lists subscribed";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "New Mail";
+"Main_EVE_Mail_Recipients" = "Recipients";
+"Main_EVE_Mail_Add_Recipient" = "Add Recipient";
+"Main_EVE_Mail_Add_Mailing_List" = "Add Mailing List";
+"Main_EVE_Mail_Subject" = "Subject";
+"Main_EVE_Mail_Body" = "Body";
+"Main_EVE_Mail_Send" = "Send";
+"Main_EVE_Mail_Cancel" = "Cancel";
+"Main_EVE_Mail_Search_Recipients" = "Search characters, corporations or alliances";
+"Main_EVE_Mail_Min_Search_Length" = "Please enter at least 3 characters";
+"Main_EVE_Mail_No_Results" = "No results found";
+"Main_EVE_Mail_Select_Mailing_List" = "Select Mailing List";
+"Main_EVE_Mail_No_Mailing_Lists" = "No mailing lists subscribed";
+"Main_EVE_Mail_Done" = "Done";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "Reply";
+"Main_EVE_Mail_Reply_All" = "Reply All";
+"Main_EVE_Mail_Forward" = "Forward";
+"Main_EVE_Mail_From" = "From: ";
+"Main_EVE_Mail_To" = "To: ";
+"Main_EVE_Mail_Unknown_Recipient" = "Unknown Recipient";
+"Main_EVE_Mail_Unknown_Sender" = "Unknown Sender";
+"Main_EVE_Mail_Load_Failed" = "Failed to load mail content";
+"Main_EVE_Mail_Original_Message" = "-------- Original Message --------";
+"Main_EVE_Mail_Wrote" = "-----------------";
+"Main_EVE_Mail_Forward_Header" = "-------- Forwarded Message --------";
+"Main_EVE_Mail_Forward_From" = "From: %@";
+"Main_EVE_Mail_Forward_Date" = "Date: %@";
+"Main_EVE_Mail_Forward_Subject" = "Subject: %@";
+"Main_EVE_Mail_Forward_To" = "To: %@";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "Character";
+"Main_EVE_Mail_Recipient_Corporation" = "Corporation";
+"Main_EVE_Mail_Recipient_Alliance" = "Alliance";
+"Main_EVE_Mail_Recipient_Mailing_List" = "Mailing List";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "Quick Select";
+"Main_EVE_Mail_Searching" = "Searching...";
+"Main_EVE_Mail_Search_Failed" = "Search Failed";
+
+"Main_Setting_Corporation_Affairs" = "Corporation Affairs";
+"Main_Setting_Show_Corporation_Affairs" = "Show Corporation Affairs";
+
+// Corporation Section
+"Main_Corporation" = "Corporation";
+"Main_Setting_Show_Corporation_Affairs_detail" = "Whether to show the list of corporation affairs on the home page";
+"Main_Corporation_wallet" = "Corp Wallet";
+"Main_Corporation_Members" = "Corp Members";
+"Main_Corporation_Members_Title" = "Corporation Members";
+"Main_Corporation_Members_Loading" = "Loading members...";
+"Main_Corporation_Members_No_Data" = "No member data available";
+"Main_Corporation_Members_Error" = "Failed to load member data";
+"Main_Corporation_Members_Last_Login" = "Last Login";
+"Main_Corporation_Members_Last_Logout" = "Last Logout";
+"Main_Corporation_Members_Location" = "Location";
+"Main_Corporation_Members_Ship" = "Current Ship";
+"Main_Corporation_Members_Join_Date" = "Join Date";
+"Main_Corporation_Members_Refresh" = "Refresh";
+"Main_Corporation_Members_Total" = "%d Members";
+"Main_Corporation_Structures" = "Corp Structures";
+"Main_Corporation_Contracts" = "Corp Contracts";
+"Main_Corporation_Market_Orders" = "Corp Market Orders";
+"Main_Corporation_Industry" = "Corp Industry";
+"Main_Corporation_Members_Favorites" = "Favorites";
+"Main_Corporation_Members_Favorites_Title" = "Favorite Members";
+"Main_Corporation_Members_Favorites_Total" = "%d Members Pinned";
+"Main_Corporation_Members_No_Favorites" = "No Favorite Members";
+
+// Corporation Divisions
+"Main_Corporation_Wallet_Division1" = "Master Wallet";
+"Main_Corporation_Wallet_Division2" = "Corp Wallet 2";
+"Main_Corporation_Wallet_Division3" = "Corp Wallet 3";
+"Main_Corporation_Wallet_Division4" = "Corp Wallet 4";
+"Main_Corporation_Wallet_Division5" = "Corp Wallet 5";
+"Main_Corporation_Wallet_Division6" = "Corp Wallet 6";
+"Main_Corporation_Wallet_Division7" = "Corp Wallet 7";
+"Main_Corporation_Hangar_Default" = "Corp Hangar %d";
+"Main_Corporation_Wallet_Default" = "Wallet Division %d";
+"Balance: %@ ISK" = "Balance: %@ ISK";
+
+// Wallet Journal
+"Summary" = "Summary(30d)";
+"Total Income" = "Total Income";
+"Total Expense" = "Total Expense";
+"Transactions" = "Transactions";
+"Common_Error" = "Error";
+
+// Optimal Attributes
+"Main_Skills_Optimal_Attributes" = "Optimal Attributes";
+"Main_Skills_Optimal_Attributes_Title" = "Optimal Attributes";
+"Main_Skills_Optimal_Attributes_Description" = "Calculate optimal attribute distribution based on current skill queue";
+"Main_Skills_Optimal_Attributes_Time_Saved" = "Time saved with optimization: %@";
+"Main_Skills_Optimal_Attributes_Current" = "Current";
+"Main_Skills_Optimal_Attributes_Optimal" = "Optimal";
+"Main_Skills_Optimal_Attributes_Difference" = "Difference";
+"Main_Skills_Optimal_Attributes_No_Queue" = "Cannot calculate optimal attributes with empty skill queue";
+"Main_Skills_Optimal_Attributes_Loading" = "Calculating optimal attributes...";
+"Main_Skills_Optimal_Attributes_Already_Optimal" = "Current attributes are already optimal";
+"Main_Skills_Optimal_Attributes_Note" = "Results may be inaccurate due to items like accelerator, for reference only";
+
+"Main_Database_Skill_Level_Detail" = "Detail of skill level";
+
+// Skill Plan
+"Main_Skills_Plan" = "Skill Plans";
+"Main_Skills_Plan_Add" = "Add Plan";
+"Main_Skills_Plan_Edit" = "Edit Plan";
+"Main_Skills_Plan_Delete" = "Delete Plan";
+"Main_Skills_Plan_Empty" = "No Skill Plans";
+"Main_Skills_Plan_Name" = "Plan Name";
+"Main_Skills_Plan_Skills" = "skills";
+"Main_Skills_Plan_Total_Time" = "Total Training Time";
+"Main_Skills_Plan_Total_SP" = "Required Skill Points";
+"Main_Skills_Plan_Set_Public" = "Set as Public Plan";
+"Main_Skills_Plan_Public" = "Public Plan";
+"Main_Skills_Plan_Private" = "Private Plan";
+"Main_Skills_Plan_Save_As_Public" = "Save as Public Plan";
+"Main_Skills_Plan_Save_As_Private" = "Save as Private Plan";
+"Main_Skills_Plan_Public_Tag" = "(Public)";
+"Main_Skills_Plan_Import_From_Clipboard" = "Import from Clipboard";
+"Main_Skills_Plan_Import_Alert_Title" = "Import Result";
+"Main_Skills_Plan_Import_Parse_Failed" = "Failed to parse the following content:";
+"Main_Skills_Plan_Import_Not_Found" = "The following skills were not found:";
+"Main_Skills_Plan_Import_Success" = "Import successfully";
+"Main_Skills_Plan_Show_Completed" = "Show Completed Skills";
+
+"Main_Search" = "Search";
+
+// Searcher View
+"Main_Search_Title" = "Search";
+"Main_Search_Placeholder" = "Enter search content...";
+"Main_Search_Type_Character" = "Character";
+"Main_Search_Type_Corporation" = "Corp";
+"Main_Search_Type_Alliance" = "Alliance";
+"Main_Search_Type_Structure" = "Structure";
+
+// Search Filters
+"Main_Search_Filter_Title" = "Filters(can be empty)";
+"Main_Search_Filter_Corporation" = "Corporation";
+"Main_Search_Filter_Alliance" = "Alliance";
+"Main_Search_Filter_Ticker" = "Ticker";
+"Main_Search_Filter_Security" = "Security Status";
+"Main_Search_Filter_Structure_Type" = "Structure Type";
+"Main_Search_Filter_Location" = "Location (System/Constellation/Region)";
+"Main_Search_Filter_All" = "All";
+"Main_Search_Filter_High_Sec" = "High Sec";
+"Main_Search_Filter_Low_Sec" = "Low Sec";
+"Main_Search_Filter_Null_Sec" = "Null Sec";
+"Main_Search_Filter_Station" = "Station";
+"Main_Search_Filter_Structure" = "Structure";
+"Main_Search_Filter_Clear" = "Clear Filters";
+
+// Search Status
+"Main_Search_Status_Searching" = "Searching...";
+"Main_Search_Status_Finding_Characters" = "Finding characters...";
+"Main_Search_Status_Finding_Corporations" = "Finding corporations...";
+"Main_Search_Status_Finding_Alliances" = "Finding alliances...";
+"Main_Search_Status_Loading_Names" = "Loading names...";
+"Main_Search_Status_Loading_Details" = "Loading details...";
+"Main_Search_Status_Loading_Corps" = "Loading corporation info...";
+"Main_Search_Status_Loading_Alliances" = "Loading alliance info...";
+"Main_Search_Status_Loading_Alliance_Names" = "Loading alliance names...";
+
+// Search Results
+"Main_Search_Results" = "Search Results";
+"Main_Search_Failed" = "Search Failed";
+"Main_Search_Min_Length" = "Please enter at least 3 characters";
+"Main_Search_No_Results" = "No matching results found";
+"Main_Search_No_Filtered_Results" = "No results match the filter criteria";
+"Main_Search_Load_More" = "Load More";
+"Main_Search_Load_More_Status" = "Loading more results...";
+
+// Structure Search Status
+"Main_Search_Status_Finding_Structures" = "Searching for structures...";
+"Main_Search_Status_Loading_Station_Info" = "Loading station information...";
+"Main_Search_Status_Loading_Structure_Info" = "Loading structure information...";
+"Main_Search_Status_Loading_Station_Progress" = "Processing station info (%d/%d)";
+"Main_Search_Status_Loading_Structure_Progress" = "Processing structure info (%d/%d)";
+
+// Character Detail View
+"Character_Detail_Organization" = "Organization";
+"Character_Detail_Employment_History" = "Employment History";
+
+"Main_Search_Loading_Contacts" = "Loading contacts data...";
+"Main_Search_Loading_Failed" = "Failed to load contacts data";
+
+// Standings Related
+"Standings" = "Standings";
+"Employment History" = "Employment History";
+"Personal Standings" = "Personal Standings";
+"Corporation Standings" = "Corporation Standings";
+"Alliance Standings" = "Alliance Standings";
+"Standing_Loading" = "Loading standings data...";
+"Standing_Loading_Failed" = "Failed to load standings data";
+"Standing_No_Data" = "No standings data available";
+"Standing_Unknown" = "[Unknown]";
+
+"CEO" = "CEO";
+"No Alliance" = "No Alliance";
+"Member Count" = "Member Count";
+"Tax Rate" = "Tax Rate";
+"Description" = "Description";
+"Creator Corp" = "Creator Corp";
+"Creator" = "Creator";
+"Unknown" = "Unknown";
+"Executor" = "Executor";
+
+// Market Watch List
+"Main_Market_Watch_List" = "Market Watch List";
+"Main_Market_Watch_List_Empty" = "No items in watch list";
+"Main_Market_Watch_List_Add" = "Add Watch List";
+"Main_Market_Watch_List_Name" = "Watch List Name";
+"Main_Market_Watch_List_Items" = "%d items";
+"Main_Market_Watch_List_Add_Item" = "Add Item";
+
+// Market Location
+"Main_Market_Location" = "Market Location";
+"Main_Market_Order_Type" = "Order Type";
+"Main_Market_Price" = "Market Price";
+"Main_Market_Item_List" = "Item List";
+"Main_Market_Edit_Quantity" = "Edit Qty...";
+"Main_Market_Done_Edit" = "Done";
+"Main_Market_No_Orders" = "No orders";
+"Main_Market_Insufficient_Stock" = "(Insufficient stock)";
+"Main_Market_Avg_Price" = "Avg price: ";
+"Main_Market_Total_Price" = "Sum price: ";
+"Main_Market_Calculating" = "Calculating..."; 
+
+"Main_Ore_Variations" = "Ore Variations";
+
+// Market Order Types
+"Main_Market_Order_Buy" = "Buy Orders";
+"Main_Market_Order_Sell" = "Sell Orders";
+
+"Main_Battle" = "Battle";
+"Main_Killboard" = "Kill Reports";
+"Main_ZKillboard" = "ZkillBoard";
+
+// KillMail Related
+"KillMail_All_Records" = "All Records";
+"KillMail_Kill_Records" = "Kill Records";
+"KillMail_Loss_Records" = "Loss Records";
+"KillMail_Invalid_Character_ID" = "Invalid Character ID: %d";
+"KillMail_Invalid_Response_Format" = "Invalid Response Format";
+"KillMail_Loading_Page" = "Loading page %d";
+"KillMail_Loading_More_Failed" = "Failed to load more kill records: %@";
+"KillMail_Loading_Failed" = "Failed to load kill records: %@";
+"KillMail_All_Title" = "All Records";
+"KillMail_Loading" = "Loading...";
+"KillMail_No_Records" = "No Records";
+"KillMail_Load_More" = "Load More";
+
+// KillMail Stats
+"KillMail_Destroyed_Value" = "Destroyed Value";
+"KillMail_Lost_Value" = "Lost Value";
+"KillMail_Search_Title" = "Search Battle Records";
+"KillMail_Battle_Records" = "Battle Records";
+"KillMail_Filter" = "Filter";
+"KillMail_Filter_All" = "All";
+"KillMail_Filter_Kills" = "Kills";
+"KillMail_Filter_Losses" = "Losses";
+"KillMail_Unknown_Item" = "Unknown Item";
+"KillMail_Unknown_Location" = "Unknown";
+"KillMail_Load_More" = "Load More";
+"KillMail_Stats_Failed" = "Failed to load battle statistics: %@";
+
+// KillMail View
+"KillMail_View_Title" = "Killboard";
+
+// KillMail Stats
+"KillMail_Data_Source" = "Data from zkillboard and kb.evetools.org";
+
+"KillMail_Search_Prompt" = "Tap here to start searching...";
+"KillMail_Search_Input_Prompt" = "Enter search keyword";
+"KillMail_Search" = "Search";
+"KillMail_Cancel" = "Cancel";
+"KillMail_Search_Alliance" = "Alliance";
+"KillMail_Search_Character" = "Character";
+"KillMail_Search_Corporation" = "Corporation";
+"KillMail_Search_Item" = "Item";
+"KillMail_Search_System" = "Solar System";
+"KillMail_Search_Region" = "Region";
+"Main_Search_Network_Min_Length" = "At least 3 characters to search online";
+
+"Main_Search_Results_Placeholder" = "Search results will be shown here";
+
+"Main_KM_Ship_Value" = "Ship value:";
+"Main_KM_Destroyed_Value" = "Destroyed:";
+"Main_KM_Dropped_Value" = "Dropped:";
+"Main_KM_Total" = "Total:";
+"Main_KM_Ship" = "Ship:";
+"Main_KM_System" = "System:";
+"Main_KM_EVE_Time" = "EVE Time:";
+"Main_KM_Local_Time" = "Local Time:";
+"Main_KM_Damage" = "Damage:";
+
+// Kill Mail Detail
+"Main_KM_High_Slots" = "High Slot";
+"Main_KM_Medium_Slots" = "Medium Slot";
+"Main_KM_Low_Slots" = "Low Slot";
+"Main_KM_Rig_Slots" = "Rig Slot";
+"Main_KM_Subsystem_Slots" = "Subsystem";
+"Main_KM_Fighter_Tubes" = "Fighter Tube";
+"Main_KM_Cargo" = "Cargo Hold";
+"KillMail_Unknown_Item" = "Unknown Item";
+
+"Main_KM_Drone_Bay" = "Drone Bay";
+"Main_KM_Fighter_Bay" = "Fighter Bay";
+"Main_KM_Specialized_Holds" = " Holds";
+"Main_KM_Fleet_Hangar" = "Fleet Hangar";
+"Main_KM_Frigate_Escape_Bay" = "Frigate Escape Bay";
+
+// Flag Names
+"LoSlot" = "Low Slot";
+"MedSlot" = "Medium Slot";
+"HiSlot" = "High Slot";
+"RigSlot" = "Rig Slot";
+"SubSystemSlot" = "Subsystem Slot";
+"FighterTube" = "Fighter Tube";
+
+"Cargo" = "Cargo Hold";
+"DroneBay" = "Drone Bay";
+"ShipHangar" = "Ship Hangar";
+"FleetHangar" = "Fleet Hangar";
+"FrigateEscapeBay" = "Frigate Escape Bay";
+"FighterBay" = "Fighter Bay";
+
+"SpecializedFuelBay" = "Fuel Bay";
+"SpecializedOreHold" = " Ore Hold";
+"SpecializedGasHold" = " Gas Hold";
+"SpecializedMineralHold" = " Mineral Hold";
+"SpecializedSalvageHold" = " Salvage Hold";
+"SpecializedShipHold" = " Ship Hold";
+"SpecializedSmallShipHold" = " Small Ship Hold";
+"SpecializedMediumShipHold" = " Medium Ship Hold";
+"SpecializedLargeShipHold" = " Large Ship Hold";
+"SpecializedIndustrialShipHold" = " Industrial Ship Hold";
+"SpecializedAmmoHold" = " Ammo Hold";
+"SpecializedCommandCenterHold" = " Command Center Hold";
+"SpecializedPlanetaryCommoditiesHold" = " Planetary Commodities Hold";
+"SpecializedMaterialBay" = " Material Bay";
+"SpecializedIceHold" = " Ice Hold";
+"SpecializedAsteroidHold" = " Asteroid Hold";
+
+// Corporation Moon Mining
+"Main_Corporation_Moon_Mining" = "Corp Moon";
+"Main_Corporation_Moon_Mining_This_Week" = "This Week (Local Time)";
+"Main_Corporation_Moon_Mining_Later" = "Later (Local Time)";
+"Main_Corporation_Moon_Mining_Unknown_Moon" = "Unknown Moon";
+"Main_Corporation_Moon_Mining_Chunk_Arrival" = "Chunk Arrival: ";
+"Main_Corporation_Moon_Mining_Natural_Decay" = "Natural Decay: ";
+
+"Language_Identifier" = "en_US";
+
+"Main_Corporation_Moon_Mining_Today" = "[Today]";
+"Main_Corporation_Moon_Mining_Days_Later" = "[%d days later]";
+
+// Corporation Structure View
+"Corp_Structure_Title" = "Corporation Structures";
+"Corp_Structure_Low_Fuel" = "⚠️ Low Fuel (%d days)";
+"Corp_Structure_No_Data" = "No structure data";
+"Corp_Structure_Settings" = "Settings";
+"Corp_Structure_Monitor_Time" = "Fuel Monitor Time";
+"Corp_Structure_Days" = "%d days";
+"Corp_Structure_Done" = "Done";
+"Corp_Structure_Error" = "Error";
+"Corp_Structure_Unknown_Error" = "Unknown error";
+"Corp_Structure_OK" = "OK";
+
+// Structure Cell
+"Corp_Structure_Unknown" = "Unknown Structure";
+"Corp_Structure_Fuel_Expires" = "Fuel Expires: ";
+"Corp_Structure_Time_Remaining" = "Time Remaining: ";
+"Corp_Structure_Status" = "Status: ";
+"Corp_Structure_Services" = "Services: ";
+
+// Structure States
+"Corp_Structure_State_Shield_Vulnerable" = "Shield Vulnerable";
+"Corp_Structure_State_Armor_Vulnerable" = "Armor Vulnerable";
+"Corp_Structure_State_Armor_Reinforce" = "Armor Reinforced";
+"Corp_Structure_State_Hull_Vulnerable" = "Hull Vulnerable";
+"Corp_Structure_State_Hull_Reinforce" = "Hull Reinforced";
+"Corp_Structure_State_Online_Deprecated" = "Deprecated";
+"Corp_Structure_State_Anchor_Vulnerable" = "Anchor Vulnerable";
+"Corp_Structure_State_Anchoring" = "Anchoring";
+"Corp_Structure_State_Deploy_Vulnerable" = "Deploy Vulnerable";
+"Corp_Structure_State_Fitting_Invulnerable" = "Fitting Invulnerable";
+"Corp_Structure_State_Unanchored" = "Unanchored";
+"Corp_Structure_State_Unknown" = "Unknown State";
+
+// Monitor Time Options
+"Corp_Structure_Monitor_1Week" = "1 Week";
+"Corp_Structure_Monitor_2Weeks" = "2 Weeks";
+"Corp_Structure_Monitor_3Weeks" = "3 Weeks";
+"Corp_Structure_Monitor_1Month" = "1 Month";
+"Corp_Structure_Monitor_2Months" = "2 Months";
+
+// Time Format
+"Corp_Structure_Time_Format_UTC" = " (UTC+8)";
+"Corp_Structure_Time_Format_Days_Hours" = "%d days %d hours later";
+"Corp_Structure_Time_Format_Days" = "%d days later";
+"Corp_Structure_Time_Format_Hours" = "%d hours later";
+"Corp_Structure_Time_Format_Minutes" = "%d minutes later";
+
+"Main_Planetary" = "Planetary Interaction";
+"Main_Planetary_Title" = "Planetary Interaction";
+"Main_Planetary_No_Planets" = "No Planets";
+"Main_Planetary_Unknown_Planet" = "Unknown Planet";
+"Main_Planetary_Unknown_Type" = "Unknown Type";
+"Main_Planetary_Loading" = "Loading...";
+"Main_Planetary_Error" = "Loading Failed";
+
+// Extractor Related
+"Total_Yield" = "Total Yield:";
+"Current_Cycle_Yield" = "Current Cycle Yield:";
+"Current_Cycle_Elapsed" = "Current Cycle Elapsed:";
+"Cycle_Time" = "Cycle Time:";
+"Time_Remaining" = "Time Remaining:";
+
+// Factory Related
+"Factory_Input" = "Input:";
+"Factory_Output" = "Output:";
+"Factory_Inventory" = "Stock:";
+"Factory_Processing" = "Processing";
+"Factory_Waiting_Materials" = "Waiting for Materials";
+"Factory_Stopped" = "Stopped";
+"Factory_Not_Started" = "Not Started";
+"Factory_No_Recipe" = "No Recipe";
+"Planet_Detail_No_Data" = "No Data.";
+
+"Contracts_Personal" = "Personal";
+"Contracts_Corporation" = "Corporation";
+"Contract_Show_Finished" = "Show Finished Contracts";
+"Contract_Show_Courier" = "Show Courier Contracts";
+"Contract_Show_ItemExchange" = "Show Item Exchange Contracts";
+"Contract_Show_Auction" = "Show Auction Contracts";
+"Contract_Settings" = "Contract Settings";
+"Contract_Done" = "Done";
+"Loading_Page" = "Loading Page %d";
+
+"Contract_Total_Count" = "Total %d contracts";
+"Contract_Filtered_Count" = "%d contracts, %d after filter";
+"Contract_Filtered_Limited" = "%d contracts, %d filtered, showing %d";
+"Contract_Max_Display" = "Maximum Display";
+"Contract_Display_Limit" = "Contract Display Limit";
+"Contract_Display_Limit_Warning" = "Setting a large display limit may affect app performance";
+"Contract_Display_50" = "50 contracts";
+"Contract_Display_100" = "100 contracts";
+"Contract_Display_300" = "300 contracts";
+"Contract_Display_500" = "500 contracts";
+"Contract_Display_Unlimited" = "Unlimited (Not Recommended)";
+
+"Contract_Courier_Mode" = "Courier Mode";
+"Contract_Courier_Mode_Description" = "Only show active courier contracts, grouped by route";
+"Contract_Route_Format" = "%@ → %@";
+
+// Contract Courier Mode Text
+"Contract_Courier_Active_Count" = "%d active contracts";
+"Contract_Courier_Active_Count_Limited" = "%d active contracts, showing first %d";
+
+// Contract Settings
+"Contract_Show_Active_Only" = "Show Active Contracts Only";
+
+// Structure Access
+"Structure_No_Access" = "No Access Structure";
+
+"Main_Corporation_Members_Sort" = "Sort By";
+"Main_Corporation_Members_Sort_By_Name" = "Character Name";
+"Main_Corporation_Members_Sort_By_Title" = "Title";
+"Main_Corporation_Members_Sort_By_System" = "Current System";
+"Main_Corporation_Members_Sort_By_Ship" = "Current Ship";
+
+"Main_Corporation_Members_Search_Placeholder" = "Search by name or ship...";
+"Main_Corporation_Members_No_Search_Results" = "No matching results";
+
+"Main_Corporation_Members_Filtered_Total" = "%d Members Found";
+
+"Main_Setting_Use_English_System_Names" = "Use English System Names";
+
+// Language Map Tool
+"Main_Language_Map" = "Language Map";
+"Main_Language_Map_Search" = "Search";
+"Main_Language_Map_No_Results" = "No Results";
+"Main_Language_Map_Type_Item" = "Item";
+"Main_Language_Map_Type_System" = "Solar System";
+"Main_Language_Map_Type_Constellation" = "Constellation";
+"Main_Language_Map_Type_Region" = "Region";
+"Main_Language_Map_Type_Faction" = "Faction";
+"Main_Language_Map_Type_NPC_Corp" = "NPC Corporation";
+"Main_Language_Map_Exact_Match" = "Exact Match";
+"Main_Language_Map_Prefix_Match" = "Prefix Match";
+"Main_Language_Map_Fuzzy_Match" = "Fuzzy Match";
+
+// Wallet Journal Loading Status
+"Wallet_Loading_Fetching" = "Fetching wallet journal page %d";
+"Wallet_Loading_Complete" = "Loading complete";
