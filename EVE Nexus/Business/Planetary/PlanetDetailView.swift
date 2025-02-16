@@ -3,6 +3,8 @@ import SwiftUI
 struct PlanetDetailView: View {
     let characterId: Int
     let planetId: Int
+    let planetName: String
+    let lastUpdate: String  // 添加lastUpdate参数
     @State private var planetDetail: PlanetaryDetail?
     @State private var isLoading = true
     @State private var error: Error?
@@ -11,12 +13,36 @@ struct PlanetDetailView: View {
     @State private var typeGroupIds: [Int: Int] = [:]  // 存储type_id到group_id的映射
     @State private var typeVolumes: [Int: Double] = [:] // 存储type_id到体积的映射
     @State private var schematicDetails: [Int: (outputTypeId: Int, cycleTime: Int, outputValue: Int, inputs: [(typeId: Int, value: Int)])] = [:]
+    @State private var simulatedColony: Colony? // 添加模拟结果状态
+    @State private var currentTime = Date()
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var hasInitialized = false  // 添加初始化标记
     
     private let storageCapacities: [Int: Double] = [
         1027: 500.0,    // 500m3
         1030: 10000.0,  // 10000m3
         1029: 12000.0   // 12000m3
     ]
+    
+    private func getTypeName(for typeId: Int) -> String {
+        let query = "SELECT groupID, volume, capacity, name, icon_filename FROM types WHERE type_id = ?"
+        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
+        
+        if case .success(let rows) = result, let row = rows.first {
+            return row["name"] as? String ?? "Null"
+        }
+        return "Null"
+    }
+    
+    private func getTypeIcon(for typeId: Int) -> String {
+        let query = "SELECT groupID, volume, capacity, name, icon_filename FROM types WHERE type_id = ?"
+        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
+        
+        if case .success(let rows) = result, let row = rows.first {
+            return row["icon_filename"] as? String ?? "icon_0_64.png"
+        }
+        return "icon_0_64.png"
+    }
     
     var body: some View {
         ZStack {
@@ -29,9 +55,30 @@ struct PlanetDetailView: View {
                         .multilineTextAlignment(.center)
                         .padding()
                 }
-            } else if let detail = planetDetail {
+            } else if let detail = planetDetail, !isLoading {
                 List {
-                    ForEach(detail.pins, id: \.pinId) { pin in
+                    // 对设施进行排序
+                    let sortedPins = detail.pins.sorted { pin1, pin2 in
+                        let group1 = typeGroupIds[pin1.typeId] ?? 0
+                        let group2 = typeGroupIds[pin2.typeId] ?? 0
+                        
+                        // 定义组的优先级
+                        func getPriority(_ groupId: Int) -> Int {
+                            switch groupId {
+                            case 1027, 1029, 1030: return 0  // 仓库类（指挥中心、存储设施、发射台）优先级最高
+                            case 1063: return 1  // 采集器次之
+                            case 1028: return 2  // 工厂优先级最低
+                            default: return 3
+                            }
+                        }
+                        
+                        let priority1 = getPriority(group1)
+                        let priority2 = getPriority(group2)
+                        
+                        return priority1 < priority2
+                    }
+                    
+                    ForEach(sortedPins, id: \.pinId) { pin in
                         if let groupId = typeGroupIds[pin.typeId] {
                             if storageCapacities.keys.contains(groupId) {
                                 // 存储设施的显示方式
@@ -47,21 +94,18 @@ struct PlanetDetailView: View {
                                         
                                         VStack(alignment: .leading, spacing: 6) {
                                             HStack {
-                                                Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                                                    .font(.headline)
-                                                Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.secondary)
+                                                Text("[\(PlanetaryFacility(identifier: pin.pinId).name)] \(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))")
+                                                    .lineLimit(1)
                                             }
                                             
                                             // 容量进度条
                                             if let capacity = storageCapacities[groupId] {
-                                                let total = calculateTotalVolume(contents: pin.contents, volumes: typeVolumes)
+                                                let total = calculateStorageVolume(for: pin)
                                                 VStack(alignment: .leading, spacing: 2) {
                                                     ProgressView(value: total, total: capacity)
                                                         .progressViewStyle(.linear)
                                                         .frame(height: 6)
-                                                        .tint(total > capacity ? .red : .blue)
+                                                        .tint(capacity > 0 ? (total / capacity >= 0.9 ? .red : .blue) : .blue) // 容量快满时标红提示
                                                     
                                                     Text("\(Int(total.rounded()))m³ / \(Int(capacity))m³")
                                                         .font(.caption)
@@ -86,14 +130,17 @@ struct PlanetDetailView: View {
                                                     VStack(alignment: .leading, spacing: 2) {
                                                         Text(typeNames[content.typeId] ?? "")
                                                             .font(.subheadline)
-                                                        HStack {
-                                                            Text("\(content.amount)")
-                                                                .font(.caption)
-                                                                .foregroundColor(.secondary)
-                                                            if let volume = typeVolumes[content.typeId] {
-                                                                Text("(\(Int(Double(content.amount) * volume))m³)")
+                                                        if let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }),
+                                                           let simAmount = simPin.contents.first(where: { $0.key.id == content.typeId })?.value {
+                                                            HStack {
+                                                                Text("\(simAmount)")
                                                                     .font(.caption)
                                                                     .foregroundColor(.secondary)
+                                                                if let volume = typeVolumes[content.typeId] {
+                                                                    Text("(\(Int(Double(simAmount) * volume))m³)")
+                                                                        .font(.caption)
+                                                                        .foregroundColor(.secondary)
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -119,38 +166,45 @@ struct PlanetDetailView: View {
                                         VStack(alignment: .leading, spacing: 6) {
                                             // 设施名称
                                             HStack {
-                                                Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                                                    .font(.headline)
-                                                Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.secondary)
+                                                Text("[\(PlanetaryFacility(identifier: pin.pinId).name)] \(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))")
+                                                    .lineLimit(1)
                                             }
                                             
                                             // 加工进度
                                             if let schematicId = pin.schematicId,
-                                               let schematic = schematicDetails[schematicId] {
-                                                if let lastCycleStart = pin.lastCycleStart {
-                                                    let startDate = ISO8601DateFormatter().date(from: lastCycleStart) ?? Date()
-                                                    let cycleEndDate = startDate.addingTimeInterval(TimeInterval(schematic.cycleTime))
-                                                    let progress = 1.0 - Date().timeIntervalSince(startDate) / TimeInterval(schematic.cycleTime)
+                                               let schematic = schematicDetails[schematicId],
+                                               let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) as? FactoryPin {
+                                                if let lastRunTime = simPin.lastRunTime {
+                                                    let cycleEndTime = lastRunTime.addingTimeInterval(TimeInterval(schematic.cycleTime))
+                                                    let hasEnoughInput = schematic.inputs.allSatisfy { input in
+                                                        let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
+                                                        return currentAmount >= input.value
+                                                    }
+                                                    let progress = calculateProgress(lastRunTime: lastRunTime, cycleTime: TimeInterval(schematic.cycleTime), hasEnoughInput: hasEnoughInput)
                                                     
-                                                    if progress > 0 && progress <= 1 {
-                                                        VStack(alignment: .leading, spacing: 2) {
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        if simPin.isActive && progress > 0 && progress <= 1 {
                                                             ProgressView(value: progress)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
-                                                                .tint(.blue)
-                                                            Text(cycleEndDate, style: .relative)
-                                                                .font(.caption)
-                                                                .foregroundColor(.secondary)
-                                                        }
-                                                    } else {
-                                                        VStack(alignment: .leading, spacing: 2) {
+                                                                .tint(Color(red: 0.8, green: 0.6, blue: 0.0)) // 深黄色
+                                                            HStack {
+                                                                Text(NSLocalizedString("Factory_Processing", comment: ""))
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.green)
+                                                                Text("·")
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                                Text(cycleEndTime, style: .relative)
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                            }
+                                                        } else {
                                                             ProgressView(value: 0)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
                                                                 .tint(.gray)
-                                                            Text("已停止")
+                                                            Text(simPin.isActive ? NSLocalizedString("Factory_Waiting_Materials", comment: "") : NSLocalizedString("Factory_Stopped", comment: ""))
                                                                 .font(.caption)
                                                                 .foregroundColor(.secondary)
                                                         }
@@ -161,7 +215,7 @@ struct PlanetDetailView: View {
                                                             .progressViewStyle(.linear)
                                                             .frame(height: 6)
                                                             .tint(.gray)
-                                                        Text("未启动")
+                                                        Text(NSLocalizedString("Factory_Not_Started", comment: ""))
                                                             .font(.caption)
                                                             .foregroundColor(.secondary)
                                                     }
@@ -172,7 +226,7 @@ struct PlanetDetailView: View {
                                                         .progressViewStyle(.linear)
                                                         .frame(height: 6)
                                                         .tint(.gray)
-                                                    Text("无配方")
+                                                    Text(NSLocalizedString("Factory_No_Recipe", comment: ""))
                                                         .font(.caption)
                                                         .foregroundColor(.secondary)
                                                 }
@@ -187,24 +241,19 @@ struct PlanetDetailView: View {
                                         ForEach(schematic.inputs, id: \.typeId) { input in
                                             NavigationLink(destination: ShowPlanetaryInfo(itemID: input.typeId, databaseManager: DatabaseManager.shared)) {
                                                 HStack(alignment: .center, spacing: 12) {
-                                                    if let iconName = typeIcons[input.typeId] {
-                                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                            .resizable()
-                                                            .frame(width: 32, height: 32)
-                                                            .cornerRadius(4)
-                                                    }
+                                                    Image(uiImage: IconManager.shared.loadUIImage(for: getTypeIcon(for: input.typeId)))
+                                                        .resizable()
+                                                        .frame(width: 32, height: 32)
+                                                        .cornerRadius(4)
                                                     
                                                     VStack(alignment: .leading, spacing: 2) {
                                                         HStack {
-                                                            Text("输入: ")
-                                                                .foregroundColor(.secondary)
-                                                            Text(typeNames[input.typeId] ?? "")
-                                                                .font(.subheadline)
+                                                            Text(NSLocalizedString("Factory_Input", comment: "") + " \(getTypeName(for: input.typeId))")
                                                         }
                                                         
                                                         // 显示当前存储量与需求量的比例
                                                         let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
-                                                        Text("库存: \(currentAmount)/\(input.value)")
+                                                        Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)/\(input.value)")
                                                             .font(.caption)
                                                             .foregroundColor(currentAmount >= input.value ? .secondary : .red)
                                                     }
@@ -216,19 +265,14 @@ struct PlanetDetailView: View {
                                         // 输出物品
                                         NavigationLink(destination: ShowPlanetaryInfo(itemID: schematic.outputTypeId, databaseManager: DatabaseManager.shared)) {
                                             HStack(alignment: .center, spacing: 12) {
-                                                if let iconName = typeIcons[schematic.outputTypeId] {
-                                                    Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                        .resizable()
-                                                        .frame(width: 32, height: 32)
-                                                        .cornerRadius(4)
-                                                }
+                                                Image(uiImage: IconManager.shared.loadUIImage(for: getTypeIcon(for: schematic.outputTypeId)))
+                                                    .resizable()
+                                                    .frame(width: 32, height: 32)
+                                                    .cornerRadius(4)
                                                 
                                                 VStack(alignment: .leading, spacing: 2) {
                                                     HStack {
-                                                        Text("输出: ")
-                                                            .foregroundColor(.secondary)
-                                                        Text(typeNames[schematic.outputTypeId] ?? "")
-                                                            .font(.subheadline)
+                                                        Text(NSLocalizedString("Factory_Output", comment: "") + " \(getTypeName(for: schematic.outputTypeId))")
                                                         Spacer()
                                                         Text("× \(schematic.outputValue)")
                                                             .font(.subheadline)
@@ -237,7 +281,7 @@ struct PlanetDetailView: View {
                                                     
                                                     // 显示当前存储的输出物品数量
                                                     if let currentAmount = pin.contents?.first(where: { $0.typeId == schematic.outputTypeId })?.amount {
-                                                        Text("库存: \(currentAmount)")
+                                                        Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)")
                                                             .font(.caption)
                                                             .foregroundColor(.secondary)
                                                     }
@@ -255,9 +299,12 @@ struct PlanetDetailView: View {
                                         
                                         if let extractor = pin.extractorDetails,
                                            let installTime = pin.installTime {
-                                            ExtractorYieldChartView(extractor: extractor, 
-                                                                  installTime: installTime,
-                                                                  expiryTime: pin.expiryTime)
+                                            ExtractorYieldChartView(
+                                                extractor: extractor, 
+                                                installTime: installTime,
+                                                expiryTime: pin.expiryTime,
+                                                currentTime: currentTime
+                                            )
                                         }
                                     }
                                 }
@@ -265,9 +312,8 @@ struct PlanetDetailView: View {
                         }
                     }
                 }
-                .refreshable {
-                    await loadPlanetDetail(forceRefresh: true)
-                }
+            } else if isLoading {
+                ProgressView()
             } else {
                 Text(NSLocalizedString("Planet_Detail_No_Data", comment: ""))
             }
@@ -276,11 +322,19 @@ struct PlanetDetailView: View {
                 ProgressView()
             }
         }
-        .navigationTitle(NSLocalizedString("Planet_Detail_Title", comment: ""))
-        .onAppear {
-            Task {
+        .navigationTitle(planetName)
+        .task {
+            // 只在第一次加载时初始化数据
+            if !hasInitialized {
                 await loadPlanetDetail()
+                hasInitialized = true
             }
+        }
+        .refreshable {
+            await loadPlanetDetail(forceRefresh: true)
+        }
+        .onReceive(timer) { _ in
+            currentTime = Date()
         }
     }
     
@@ -294,6 +348,16 @@ struct PlanetDetailView: View {
                 planetId: planetId,
                 forceRefresh: forceRefresh
             )
+            
+            // 进行殖民地模拟并保存结果，使用lastUpdate作为起始时间
+            if let detail = planetDetail {
+                simulatedColony = PlanetaryManager.shared.simulateColony(
+                    characterId: characterId,
+                    planetId: planetId,
+                    esiResponse: detail,
+                    startTime: lastUpdate  // 使用传入的 lastUpdate 参数
+                )
+            }
             
             var typeIds = Set<Int>()
             var contentTypeIds = Set<Int>()
@@ -402,6 +466,25 @@ struct PlanetDetailView: View {
             sum + (Double(content.amount) * (volumes[content.typeId] ?? 0))
         }
     }
+    
+    private func calculateStorageVolume(for pin: PlanetaryPin) -> Double {
+        if let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) {
+            let simContents = simPin.contents.map { 
+                PlanetaryContent(amount: $0.value, typeId: $0.key.id)
+            }
+            return calculateTotalVolume(contents: simContents, volumes: typeVolumes)
+        }
+        return calculateTotalVolume(contents: pin.contents, volumes: typeVolumes)
+    }
+    
+    private func calculateProgress(lastRunTime: Date, cycleTime: TimeInterval, hasEnoughInput: Bool = true) -> Double {
+        if !hasEnoughInput {
+            return 0
+        }
+        let elapsedTime = currentTime.timeIntervalSince(lastRunTime)
+        let progress = elapsedTime / cycleTime
+        return min(max(progress, 0), 1)
+    }
 }
 
 // MARK: - 子视图
@@ -411,6 +494,16 @@ struct PinView: View {
     let typeIcons: [Int: String]
     let typeGroupIds: [Int: Int]
     let typeVolumes: [Int: Double]
+    
+    private func getTypeName(for typeId: Int) -> String {
+        let query = "SELECT groupID, volume, capacity, name, icon_filename FROM types WHERE type_id = ?"
+        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
+        
+        if case .success(let rows) = result, let row = rows.first {
+            return row["name"] as? String ?? "Null"
+        }
+        return "Null"
+    }
     
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -425,17 +518,13 @@ struct PinView: View {
             VStack(alignment: .leading, spacing: 6) {
                 // 设施名称
                 HStack {
-                    Text(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                        .font(.headline)
-                    Text("(\(PlanetaryFacility(identifier: pin.pinId).name))")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Text("[\(PlanetaryFacility(identifier: pin.pinId).name)] \(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))")
+                        .lineLimit(1)
                 }
                 
                 // 采集器采集物名称
                 if let extractor = pin.extractorDetails,
-                   let productTypeId = extractor.productTypeId,
-                   let productName = typeNames[productTypeId] {
+                   let productTypeId = extractor.productTypeId {
                     HStack(spacing: 4) {
                         if let iconName = typeIcons[productTypeId] {
                             Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
@@ -443,7 +532,7 @@ struct PinView: View {
                                 .frame(width: 20, height: 20)
                                 .cornerRadius(4)
                         }
-                        Text(productName)
+                        Text(getTypeName(for: productTypeId))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -468,7 +557,7 @@ struct PinView: View {
                                             .frame(width: 20, height: 20)
                                             .cornerRadius(4)
                                     }
-                                    Text(typeNames[content.typeId] ?? "")
+                                    Text(getTypeName(for: content.typeId))
                                     Spacer()
                                     Text("\(content.amount)")
                                 }

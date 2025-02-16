@@ -5,6 +5,9 @@ struct PlanetaryFacility {
     let identifier: Int64
     private(set) var name: String
     
+    // 缓存字典，用于存储identifier和pinName的映射关系
+    private static var nameCache: [Int64: String] = [:]
+    
     init(identifier: Int64) {
         self.identifier = identifier
         self.name = Self.generatePinName(from: identifier)
@@ -15,6 +18,11 @@ struct PlanetaryFacility {
     /// - Parameter identifier: 设施ID
     /// - Returns: 生成的设施名称
     private static func generatePinName(from identifier: Int64) -> String {
+        // 如果缓存中存在，直接返回
+        if let cachedName = nameCache[identifier] {
+            return cachedName
+        }
+        
         // 基础字符集
         let baseString = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         let len = Int64(baseString.count - 1)  // 注意这里减1，与原始代码保持一致
@@ -35,19 +43,9 @@ struct PlanetaryFacility {
             pinName += String(baseString[index])
         }
         
+        // 将结果存入缓存
+        nameCache[identifier] = pinName
+        Logger.debug("\(identifier):\(pinName)")
         return pinName
     }
 }
-
-// MARK: - 测试
-#if DEBUG
-extension PlanetaryFacility {
-    static func test() {
-        let testIds: [Int64] = [12345, 67890, 11111, 22222, 33333]
-        for id in testIds {
-            let facility = PlanetaryFacility(identifier: id)
-            print("ID: \(id) -> Name: \(facility.name)")
-        }
-    }
-}
-#endif 

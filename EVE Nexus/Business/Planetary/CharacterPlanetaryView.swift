@@ -38,7 +38,12 @@ struct CharacterPlanetaryView: View {
                 }
             } else {
                 ForEach(planets, id: \.planetId) { planet in
-                    NavigationLink(destination: PlanetDetailView(characterId: characterId, planetId: planet.planetId)) {
+                    NavigationLink(destination: PlanetDetailView(
+                        characterId: characterId,
+                        planetId: planet.planetId,
+                        planetName: planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: ""),
+                        lastUpdate: planet.lastUpdate
+                    )) {
                         HStack {
                             if let typeInfo = planetTypeInfo[typeIdMapping[planet.planetType] ?? 0] {
                                 Image(uiImage: IconManager.shared.loadUIImage(for: typeInfo.icon))

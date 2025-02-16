@@ -170,22 +170,23 @@ class CharacterPlanetaryAPI {
         }
         
         // 检查缓存（除非强制刷新）
-        if !forceRefresh, let cachedData = checkPlanetCache(characterId: characterId, planetId: planetId) {
-            return cachedData
-        }
+//        if !forceRefresh, let cachedData = checkPlanetCache(characterId: characterId, planetId: planetId) {
+//            Logger.debug("Fetch from cache.")
+//            return cachedData
+//        }
         
         // 使用fetchWithToken发起请求
         let data = try await NetworkManager.shared.fetchDataWithToken(
             from: url,
             characterId: characterId
         )
-        
+        Logger.debug("Fetched from Netowrk.")
         // 解析数据
         let planetaryDetail = try JSONDecoder().decode(PlanetaryDetail.self, from: data)
         
         // 缓存数据
         try? saveToPlanetCache(data: data, characterId: characterId, planetId: planetId)
-        
+        Logger.debug("Save to cache.")
         return planetaryDetail
     }
     
