@@ -14,7 +14,7 @@ struct PlanetDetailView: View {
     @State private var lastCycleCheck: Int = -1
     @State private var hasInitialized = false
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
+
     var body: some View {
         ZStack {
             if let error = error {
@@ -101,10 +101,10 @@ struct PlanetDetailView: View {
             }
         }
     }
-    
+
     private func shouldUpdateView(newTime: Date) -> Bool {
         guard let detail = planetDetail else { return false }
-        
+
         // 检查是否有任何提取器需要更新
         for pin in detail.pins {
             if let extractor = pin.extractorDetails,
@@ -116,7 +116,7 @@ struct PlanetDetailView: View {
                     expiryTime: expiryTime,
                     cycleTime: cycleTime
                 )
-                
+
                 // 如果周期发生变化，需要更新视图
                 if currentCycle != lastCycleCheck {
                     lastCycleCheck = currentCycle
@@ -124,24 +124,24 @@ struct PlanetDetailView: View {
                 }
             }
         }
-        
+
         // 如果没有周期变化，只在整秒时更新（用于更新倒计时显示）
         return floor(newTime.timeIntervalSince1970) != floor(currentTime.timeIntervalSince1970)
     }
-    
+
     private func loadPlanetDetail(forceRefresh: Bool = false) async {
         isLoading = true
         error = nil
-        
+
         do {
             planetDetail = try await CharacterPlanetaryAPI.fetchPlanetaryDetail(
                 characterId: characterId,
                 planetId: planetId,
                 forceRefresh: forceRefresh
             )
-            
+
             var typeIds = Set<Int>()
-            
+
             // 只收集提取器相关的类型ID
             planetDetail?.pins.forEach { pin in
                 typeIds.insert(pin.typeId)
@@ -149,15 +149,15 @@ struct PlanetDetailView: View {
                     typeIds.insert(productTypeId)
                 }
             }
-            
+
             if !typeIds.isEmpty {
                 let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
                 let query = """
                     SELECT type_id, name, icon_filename
-                    FROM types 
+                    FROM types
                     WHERE type_id IN (\(typeIdsString))
                 """
-                
+
                 if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
                     for row in rows {
                         if let typeId = row["type_id"] as? Int,
@@ -170,23 +170,13 @@ struct PlanetDetailView: View {
                     }
                 }
             }
-            
+
         } catch {
             if (error as? CancellationError) == nil {
                 self.error = error
             }
         }
-        
+
         isLoading = false
-    }
-    
-    private func getTypeName(for typeId: Int) -> String {
-        let query = "SELECT name FROM types WHERE type_id = ?"
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
-        
-        if case .success(let rows) = result, let row = rows.first {
-            return row["name"] as? String ?? "Null"
-        }
-        return "Null"
     }
 } 

@@ -90,10 +90,7 @@ class ExtractionSimulation {
         let barHeight = decayValue * (1.0 + noiseFactor * sinStuff)
         let output = barWidth * barHeight
         
-        // 特殊的向下取整逻辑，与Kotlin版本保持一致
-        if output - Double(Int64(output)) == 0.0 {
-            return Int64(output) - 1
-        }
-        return Int64(output)
+        // 向下取整
+        return Int64(floor(output))
     }
 } 
