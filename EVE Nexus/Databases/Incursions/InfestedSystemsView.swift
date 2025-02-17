@@ -28,31 +28,31 @@ class InfestedSystemsViewModel: ObservableObject {
     @Published var incursion_isRefreshing: Bool = false
     let databaseManager: DatabaseManager
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
-    private var systemIds: [Int] = []  // 保存系统ID列表
+    private var systemIds: [Int] = []
     
-    // 存储联盟ID到系统的映射
     private var allianceToSystems: [Int: [SystemInfo]] = [:]
-    // 存储派系ID到系统的映射
     private var factionToSystems: [Int: [SystemInfo]] = [:]
     
-    private static var systemsCache: [Int: [SystemInfo]] = [:]
+    // 修改缓存结构，只缓存系统ID
+    private static var systemIdsCache: Set<Int> = []
     
-    // 添加公共的清理缓存方法
     static func clearCache() {
-        systemsCache.removeAll()
+        systemIdsCache.removeAll()
     }
     
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
-        self.systemIds = systemIds  // 保存系统ID列表
+        self.systemIds = systemIds
         
-        // 先尝试从缓存加载
-        if let cachedSystems = Self.systemsCache[systemIds.hashValue] {
-            self.systems = cachedSystems
-            Logger.info("使用缓存的受影响星系数据: \(systemIds.count) 个星系")
+        // 检查是否需要重新加载
+        let systemIdsSet = Set(systemIds)
+        if systemIdsSet == Self.systemIdsCache {
+            Logger.info("使用缓存的受影响星系ID列表: \(systemIds.count) 个星系")
         } else {
-            loadSystems(systemIds: systemIds)
+            Self.systemIdsCache = systemIdsSet
         }
+        
+        loadSystems(systemIds: systemIds)
     }
     
     // 修改刷新方法
@@ -61,7 +61,7 @@ class InfestedSystemsViewModel: ObservableObject {
         incursion_isRefreshing = true
         
         // 清除缓存
-        Self.systemsCache.removeValue(forKey: systemIds.hashValue)
+        Self.systemIdsCache.removeAll()
         
         var tempSystems: [SystemInfo] = []
         
@@ -80,6 +80,9 @@ class InfestedSystemsViewModel: ObservableObject {
         } catch {
             Logger.error("无法获取主权数据: \(error)")
         }
+        
+        // 更新缓存
+        Self.systemIdsCache = Set(systemIds)
         
         for systemId in systemIds {
             // 从 universe 表获取安全等级和其他信息
@@ -136,9 +139,6 @@ class InfestedSystemsViewModel: ObservableObject {
         
         // 开始加载图标
         loadAllIcons()
-        
-        // 更新缓存
-        Self.systemsCache[systemIds.hashValue] = tempSystems
         
         incursion_isRefreshing = false
     }
