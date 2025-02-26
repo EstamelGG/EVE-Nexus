@@ -13,6 +13,7 @@ struct PlanetDetailView: View {
     @State private var currentTime = Date()
     @State private var lastCycleCheck: Int = -1
     @State private var hasInitialized = false
+    @State private var loadingTask: Task<Void, Never>?
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
@@ -87,18 +88,22 @@ struct PlanetDetailView: View {
         .navigationTitle(planetName)
         .task {
             if !hasInitialized {
-                await loadPlanetDetail()
+                await startLoadingPlanetDetail()
                 hasInitialized = true
             }
         }
         .refreshable {
-            await loadPlanetDetail(forceRefresh: true)
+            await startLoadingPlanetDetail(forceRefresh: true)
         }
         .onReceive(timer) { newTime in
             let shouldUpdate = shouldUpdateView(newTime: newTime)
             if shouldUpdate {
                 currentTime = newTime
             }
+        }
+        .onDisappear {
+            // 取消正在进行的任务
+            loadingTask?.cancel()
         }
     }
     
@@ -129,16 +134,41 @@ struct PlanetDetailView: View {
         return floor(newTime.timeIntervalSince1970) != floor(currentTime.timeIntervalSince1970)
     }
     
+    private func startLoadingPlanetDetail(forceRefresh: Bool = false) async {
+        // 取消之前的任务
+        loadingTask?.cancel()
+        
+        // 创建新任务
+        loadingTask = Task {
+            await loadPlanetDetail(forceRefresh: forceRefresh)
+        }
+        
+        // 等待任务完成
+        await loadingTask?.value
+    }
+    
     private func loadPlanetDetail(forceRefresh: Bool = false) async {
         isLoading = true
         error = nil
         
         do {
+            // 检查任务是否已取消
+            if Task.isCancelled {
+                isLoading = false
+                return
+            }
+            
             planetDetail = try await CharacterPlanetaryAPI.fetchPlanetaryDetail(
                 characterId: characterId,
                 planetId: planetId,
                 forceRefresh: forceRefresh
             )
+            
+            // 再次检查任务是否已取消
+            if Task.isCancelled {
+                isLoading = false
+                return
+            }
             
             var typeIds = Set<Int>()
             
@@ -172,12 +202,17 @@ struct PlanetDetailView: View {
             }
             
         } catch {
-            if (error as? CancellationError) == nil {
+            // 只有当任务没有被取消时，才设置错误
+            if !Task.isCancelled && (error as? CancellationError) == nil {
                 self.error = error
+                Logger.error("加载行星详情失败: \(error.localizedDescription)")
             }
         }
         
-        isLoading = false
+        // 只有当任务没有被取消时，才更新加载状态
+        if !Task.isCancelled {
+            isLoading = false
+        }
     }
     
     private func getTypeName(for typeId: Int) -> String {
