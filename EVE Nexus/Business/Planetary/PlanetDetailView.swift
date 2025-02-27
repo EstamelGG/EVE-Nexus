@@ -166,16 +166,17 @@ struct PlanetDetailView: View {
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
                                                                 .tint(Color(red: 0.8, green: 0.6, blue: 0.0)) // 深黄色
-                                                            
-                                                            Text(NSLocalizedString("Factory_Processing", comment: ""))
-                                                                .font(.caption)
-                                                                .foregroundColor(.green)
-                                                            Text("·")
-                                                                .font(.caption)
-                                                                .foregroundColor(.secondary)
-                                                            Text(cycleEndTime, style: .relative)
-                                                                .font(.caption)
-                                                                .foregroundColor(.secondary)
+                                                            HStack{
+                                                                Text(NSLocalizedString("Factory_Processing", comment: ""))
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.green)
+                                                                Text("·")
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                                Text(cycleEndTime, style: .relative)
+                                                                    .font(.caption)
+                                                                    .foregroundColor(.secondary)
+                                                            }
                                                         } else {
                                                             // 没有lastCycleStartTime或isActive为false，工厂不在生产周期中
                                                             ProgressView(value: 0)
