@@ -41,7 +41,7 @@ struct LinkText: View {
         case .url:
             if let urlString = url,
                let url = URL(string: urlString) {
-                Link(text, destination: url)
+                SwiftUI.Link(text, destination: url)
                     .foregroundColor(.blue)
             } else {
                 Text(text)

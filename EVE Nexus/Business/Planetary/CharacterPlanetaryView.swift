@@ -41,8 +41,7 @@ struct CharacterPlanetaryView: View {
                     NavigationLink(destination: PlanetDetailView(
                         characterId: characterId,
                         planetId: planet.planetId,
-                        planetName: planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: ""),
-                        lastUpdate: planet.lastUpdate
+                        planetName: planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: "")
                     )) {
                         HStack {
                             if let typeInfo = planetTypeInfo[typeIdMapping[planet.planetType] ?? 0] {
