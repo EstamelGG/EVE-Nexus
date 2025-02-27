@@ -414,8 +414,8 @@ struct PlanetDetailView: View {
                     // 使用ColonySimulationManager执行模拟
                     simulatedColony = ColonySimulationManager.shared.simulateColony(
                         colony: colony,
-                        // targetTime: Date()
-                        targetTime: Date().addingTimeInterval(2.2 * 60 * 60)
+                        targetTime: Date()
+                        // targetTime: Date().addingTimeInterval(2.2 * 60 * 60)
                     )
             }
             
