@@ -96,8 +96,7 @@ class SQLiteManager {
                 // Logger.debug("从缓存中获取结果: \(cacheKey)")
                 return .success(cachedResult)
             }
-            let paramString = parameters.map { String(describing: $0) }.joined(separator: ",")
-            Logger.debug("\(query)#\(paramString)")
+            Logger.info("\(query)?#\(parameters)")
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
             

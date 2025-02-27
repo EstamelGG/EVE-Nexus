@@ -98,21 +98,20 @@ struct PlanetDetailView: View {
                                     // 存储的内容物，每个内容物单独一行
                                     if let contents = pin.contents {
                                         ForEach(contents, id: \.typeId) { content in
-                                            if let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }),
-                                               let simAmount = simPin.contents.first(where: { $0.key.id == content.typeId })?.value,
-                                               simAmount > 0 {
-                                                NavigationLink(destination: ShowPlanetaryInfo(itemID: content.typeId, databaseManager: DatabaseManager.shared)) {
-                                                    HStack(alignment: .center, spacing: 12) {
-                                                        if let iconName = typeIcons[content.typeId] {
-                                                            Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                                .resizable()
-                                                                .frame(width: 32, height: 32)
-                                                                .cornerRadius(4)
-                                                        }
-                                                        
-                                                        VStack(alignment: .leading, spacing: 2) {
-                                                            Text(typeNames[content.typeId] ?? "")
-                                                                .font(.subheadline)
+                                            NavigationLink(destination: ShowPlanetaryInfo(itemID: content.typeId, databaseManager: DatabaseManager.shared)) {
+                                                HStack(alignment: .center, spacing: 12) {
+                                                    if let iconName = typeIcons[content.typeId] {
+                                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                            .resizable()
+                                                            .frame(width: 32, height: 32)
+                                                            .cornerRadius(4)
+                                                    }
+                                                    
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(typeNames[content.typeId] ?? "")
+                                                            .font(.subheadline)
+                                                        if let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }),
+                                                           let simAmount = simPin.contents.first(where: { $0.key.id == content.typeId })?.value {
                                                             HStack {
                                                                 Text("\(simAmount)")
                                                                     .font(.caption)
@@ -124,8 +123,8 @@ struct PlanetDetailView: View {
                                                                 }
                                                             }
                                                         }
-                                                        Spacer()
                                                     }
+                                                    Spacer()
                                                 }
                                             }
                                         }
@@ -154,14 +153,17 @@ struct PlanetDetailView: View {
                                             // 加工进度
                                             if let schematicId = pin.schematicId,
                                                let schematic = schematicDetails[schematicId],
-                                               let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) as? Pin.Factory {
+                                               let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) as? FactoryPin {
                                                 if let lastRunTime = simPin.lastRunTime {
+                                                    let cycleEndTime = lastRunTime.addingTimeInterval(TimeInterval(schematic.cycleTime))
+                                                    let hasEnoughInput = schematic.inputs.allSatisfy { input in
+                                                        let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
+                                                        return currentAmount >= input.value
+                                                    }
+                                                    let progress = calculateProgress(lastRunTime: lastRunTime, cycleTime: TimeInterval(schematic.cycleTime), hasEnoughInput: hasEnoughInput)
+                                                    
                                                     VStack(alignment: .leading, spacing: 2) {
-                                                        if let lastCycleStartTime = simPin.lastCycleStartTime {
-                                                            // 如果有lastCycleStartTime，说明工厂正在生产周期中
-                                                            let cycleEndTime = lastCycleStartTime.addingTimeInterval(TimeInterval(schematic.cycleTime))
-                                                            let progress = calculateProgress(lastRunTime: lastRunTime, cycleTime: TimeInterval(schematic.cycleTime), hasEnoughInput: true)
-                                                            
+                                                        if simPin.isActive && progress > 0 && progress <= 1 {
                                                             ProgressView(value: progress)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
@@ -178,7 +180,6 @@ struct PlanetDetailView: View {
                                                                     .foregroundColor(.secondary)
                                                             }
                                                         } else {
-                                                            // 没有lastCycleStartTime，工厂不在生产周期中
                                                             ProgressView(value: 0)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
@@ -194,7 +195,7 @@ struct PlanetDetailView: View {
                                                             .progressViewStyle(.linear)
                                                             .frame(height: 6)
                                                             .tint(.gray)
-                                                        Text(NSLocalizedString("Factory_No_Recipe", comment: ""))
+                                                        Text(NSLocalizedString("Factory_Not_Started", comment: ""))
                                                             .font(.caption)
                                                             .foregroundColor(.secondary)
                                                     }
@@ -233,17 +234,10 @@ struct PlanetDetailView: View {
                                                         }
                                                         
                                                         // 显示当前存储量与需求量的比例
-                                                        if let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) {
-                                                            let currentAmount = simPin.contents.first(where: { $0.key.id == input.typeId })?.value ?? 0
-                                                            Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)/\(input.value)")
-                                                                .font(.caption)
-                                                                .foregroundColor(currentAmount >= input.value ? .secondary : .red)
-                                                        } else {
-                                                            let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
-                                                            Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)/\(input.value)")
-                                                                .font(.caption)
-                                                                .foregroundColor(currentAmount >= input.value ? .secondary : .red)
-                                                        }
+                                                        let currentAmount = pin.contents?.first(where: { $0.typeId == input.typeId })?.amount ?? 0
+                                                        Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)/\(input.value)")
+                                                            .font(.caption)
+                                                            .foregroundColor(currentAmount >= input.value ? .secondary : .red)
                                                     }
                                                 }
                                             }
@@ -268,6 +262,13 @@ struct PlanetDetailView: View {
                                                             .font(.subheadline)
                                                             .foregroundColor(.secondary)
                                                     }
+                                                    
+                                                    // 显示当前存储的输出物品数量
+                                                    if let currentAmount = pin.contents?.first(where: { $0.typeId == schematic.outputTypeId })?.amount {
+                                                        Text(NSLocalizedString("Factory_Inventory", comment: "") + " \(currentAmount)")
+                                                            .font(.caption)
+                                                            .foregroundColor(.secondary)
+                                                    }
                                                 }
                                             }
                                         }
@@ -276,47 +277,47 @@ struct PlanetDetailView: View {
                                 }
                             } else if let extractor = pin.extractorDetails {
                                 // 提取器设施
-                            Section {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    // 提取器基本信息
-                                    HStack(alignment: .top, spacing: 12) {
-                                        if let iconName = typeIcons[pin.typeId] {
-                                            Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                .resizable()
-                                                .frame(width: 40, height: 40)
-                                                .cornerRadius(6)
-                                        }
+                                Section {
+                                    VStack(alignment: .leading, spacing: 0) {
+                                        // 提取器基本信息
+                                        HStack(alignment: .top, spacing: 12) {
+                                            if let iconName = typeIcons[pin.typeId] {
+                                                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                    .resizable()
+                                                    .frame(width: 40, height: 40)
+                                                    .cornerRadius(6)
+                                            }
 
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            // 设施名称
-                                            Text("[\(PlanetaryFacility(identifier: pin.pinId).name)] \(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))")
-                                                .lineLimit(1)
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                // 设施名称
+                                                Text("[\(PlanetaryFacility(identifier: pin.pinId).name)] \(typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))")
+                                                    .lineLimit(1)
 
-                                            // 采集物名称
-                                            if let productTypeId = extractor.productTypeId {
-                                                HStack(spacing: 4) {
-                                                    if let iconName = typeIcons[productTypeId] {
-                                                        Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
-                                                            .resizable()
-                                                            .frame(width: 20, height: 20)
-                                                            .cornerRadius(4)
+                                                // 采集物名称
+                                                if let productTypeId = extractor.productTypeId {
+                                                    HStack(spacing: 4) {
+                                                        if let iconName = typeIcons[productTypeId] {
+                                                            Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+                                                                .resizable()
+                                                                .frame(width: 20, height: 20)
+                                                                .cornerRadius(4)
+                                                        }
+                                                        Text(typeNames[productTypeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
+                                                            .font(.subheadline)
+                                                            .foregroundColor(.secondary)
                                                     }
-                                                    Text(typeNames[productTypeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: ""))
-                                                        .font(.subheadline)
-                                                        .foregroundColor(.secondary)
                                                 }
                                             }
                                         }
-                                    }
 
-                                    // 提取器产量图表
-                                    if let installTime = pin.installTime {
-                                        ExtractorYieldChartView(
-                                            extractor: extractor,
-                                            installTime: installTime,
-                                            expiryTime: pin.expiryTime,
-                                            currentTime: currentTime
-                                        )
+                                        // 提取器产量图表
+                                        if let installTime = pin.installTime {
+                                            ExtractorYieldChartView(
+                                                extractor: extractor,
+                                                installTime: installTime,
+                                                expiryTime: pin.expiryTime,
+                                                currentTime: currentTime
+                                            )
                                         }
                                     }
                                 }
@@ -324,7 +325,7 @@ struct PlanetDetailView: View {
                         }
                     }
                 }
-                 .listStyle(.insetGrouped)
+                .listStyle(.insetGrouped)
             } else if isLoading {
                 ProgressView()
             } else {
@@ -382,52 +383,40 @@ struct PlanetDetailView: View {
     
     private func loadPlanetDetail(forceRefresh: Bool = false) async {
         let task = Task { @MainActor in
-        isLoading = true
-        error = nil
-        
-        do {
+            isLoading = true
+            error = nil
+            
+            do {
                 // 获取行星基本信息
                 let planetaryInfo = try await CharacterPlanetaryAPI.fetchCharacterPlanetary(characterId: characterId)
                 let currentPlanetInfo = planetaryInfo.first { $0.planetId == planetId }
-            
-            // 获取行星详情
-            planetDetail = try await CharacterPlanetaryAPI.fetchPlanetaryDetail(
-                characterId: characterId,
-                planetId: planetId,
-                forceRefresh: forceRefresh
-            )
-            
+                
+                // 获取行星详情
+                planetDetail = try await CharacterPlanetaryAPI.fetchPlanetaryDetail(
+                    characterId: characterId,
+                    planetId: planetId,
+                    forceRefresh: forceRefresh
+                )
+                
                 // 进行殖民地模拟并保存结果
                 if let detail = planetDetail, let info = currentPlanetInfo {
-                    // 将PlanetaryDetail转换为Colony模型
-                    let colony = PlanetaryConverter.convertToColony(
-                        detail: detail,
+                    simulatedColony = PlanetaryManager.shared.simulateColony(
                         characterId: characterId,
                         planetId: planetId,
-                        planetName: planetName,
-                        planetType: info.planetType,
-                        systemId: info.solarSystemId,
-                        systemName: getSystemName(systemId: info.solarSystemId),
-                        upgradeLevel: info.upgradeLevel,
-                        lastUpdate: info.lastUpdate
+                        planetaryInfo: info,
+                        esiResponse: detail
                     )
-                    
-                    // 使用ColonySimulationManager执行模拟
-                    simulatedColony = ColonySimulationManager.shared.simulateColony(
-                        colony: colony,
-                        targetTime: Date()
-                    )
-            }
-            
-            var typeIds = Set<Int>()
+                }
+                
+                var typeIds = Set<Int>()
                 var contentTypeIds = Set<Int>()
                 var schematicIds = Set<Int>()
-            
-            planetDetail?.pins.forEach { pin in
-                typeIds.insert(pin.typeId)
-                if let productTypeId = pin.extractorDetails?.productTypeId {
-                    typeIds.insert(productTypeId)
-                }
+                
+                planetDetail?.pins.forEach { pin in
+                    typeIds.insert(pin.typeId)
+                    if let productTypeId = pin.extractorDetails?.productTypeId {
+                        typeIds.insert(productTypeId)
+                    }
                     if let schematicId = pin.schematicId {
                         schematicIds.insert(schematicId)
                     }
@@ -435,23 +424,23 @@ struct PlanetDetailView: View {
                         typeIds.insert(content.typeId)
                         contentTypeIds.insert(content.typeId)
                     }
-            }
-            
-            if !typeIds.isEmpty {
-                let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
-                let query = """
-                        SELECT type_id, name, icon_filename, groupID, volume
-                    FROM types 
-                    WHERE type_id IN (\(typeIdsString))
-                """
+                }
                 
-                if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let name = row["name"] as? String {
-                            typeNames[typeId] = name
-                            if let iconFilename = row["icon_filename"] as? String {
-                                typeIcons[typeId] = iconFilename
+                if !typeIds.isEmpty {
+                    let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
+                    let query = """
+                        SELECT type_id, name, icon_filename, groupID, volume
+                        FROM types 
+                        WHERE type_id IN (\(typeIdsString))
+                    """
+                    
+                    if case .success(let rows) = DatabaseManager.shared.executeQuery(query) {
+                        for row in rows {
+                            if let typeId = row["type_id"] as? Int,
+                               let name = row["name"] as? String {
+                                typeNames[typeId] = name
+                                if let iconFilename = row["icon_filename"] as? String {
+                                    typeIcons[typeId] = iconFilename
                                 }
                                 if let groupId = row["groupID"] as? Int {
                                     typeGroupIds[typeId] = groupId
@@ -492,14 +481,14 @@ struct PlanetDetailView: View {
                                     outputValue: outputValue,
                                     inputs: inputs
                                 )
+                            }
                         }
                     }
                 }
-            }
-            
-        } catch {
+                
+            } catch {
                 if (error as? CancellationError) == nil {
-                self.error = error
+                    self.error = error
                 }
             }
             
@@ -543,18 +532,5 @@ struct PlanetDetailView: View {
             return row["name"] as? String ?? "Null"
         }
         return "Null"
-    }
-    
-    /// 获取恒星系名称
-    /// - Parameter systemId: 恒星系ID
-    /// - Returns: 恒星系名称
-    private func getSystemName(systemId: Int) -> String {
-        let query = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [systemId])
-        
-        if case .success(let rows) = result, let row = rows.first {
-            return row["solarSystemName"] as? String ?? "Unknown System"
-        }
-        return "Unknown System"
     }
 } 

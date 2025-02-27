@@ -48,22 +48,7 @@ class DatabaseManager: ObservableObject {
     
     // 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true) -> SQLiteResult {
-        Logger.debug("\(query)?#\(parameters)")
-        // let startTime = CFAbsoluteTimeGetCurrent()
-        let result = sqliteManager.executeQuery(query, parameters: parameters, useCache: useCache)
-        // let endTime = CFAbsoluteTimeGetCurrent()
-        // let executionTime = (endTime - startTime) * 1000 // 转换为毫秒
-        
-        // 获取查询结果行数
-//        var rowCount = 0
-//        if case .success(let rows) = result {
-//            rowCount = rows.count
-//        }
-        
-        // 记录执行时间和结果行数
-        // Logger.debug("SQL执行耗时: \(String(format: "%.2f", executionTime))ms - 结果行数: \(rowCount) - Query: \(query)")
-        
-        return result
+        return sqliteManager.executeQuery(query, parameters: parameters, useCache: useCache)
     }
     
     // 加载分类
