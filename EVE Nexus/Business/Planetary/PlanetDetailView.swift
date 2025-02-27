@@ -157,8 +157,8 @@ struct PlanetDetailView: View {
                                                let simPin = simulatedColony?.pins.first(where: { $0.id == pin.pinId }) as? Pin.Factory {
                                                 if let lastRunTime = simPin.lastRunTime {
                                                     VStack(alignment: .leading, spacing: 2) {
-                                                        if let lastCycleStartTime = simPin.lastCycleStartTime {
-                                                            // 如果有lastCycleStartTime，说明工厂正在生产周期中
+                                                        if let lastCycleStartTime = simPin.lastCycleStartTime, simPin.isActive {
+                                                            // 如果有lastCycleStartTime且isActive为true，说明工厂正在生产周期中
                                                             let cycleEndTime = lastCycleStartTime.addingTimeInterval(TimeInterval(schematic.cycleTime))
                                                             let progress = calculateProgress(lastRunTime: lastRunTime, cycleTime: TimeInterval(schematic.cycleTime), hasEnoughInput: true)
                                                             
@@ -166,7 +166,7 @@ struct PlanetDetailView: View {
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
                                                                 .tint(Color(red: 0.8, green: 0.6, blue: 0.0)) // 深黄色
-                                                            HStack {
+                                                            HStack{
                                                                 Text(NSLocalizedString("Factory_Processing", comment: ""))
                                                                     .font(.caption)
                                                                     .foregroundColor(.green)
@@ -178,7 +178,7 @@ struct PlanetDetailView: View {
                                                                     .foregroundColor(.secondary)
                                                             }
                                                         } else {
-                                                            // 没有lastCycleStartTime，工厂不在生产周期中
+                                                            // 没有lastCycleStartTime或isActive为false，工厂不在生产周期中
                                                             ProgressView(value: 0)
                                                                 .progressViewStyle(.linear)
                                                                 .frame(height: 6)
@@ -416,6 +416,7 @@ struct PlanetDetailView: View {
                     simulatedColony = ColonySimulationManager.shared.simulateColony(
                         colony: colony,
                         targetTime: Date()
+                        // targetTime: Date().addingTimeInterval(2.2 * 60 * 60)
                     )
             }
             
