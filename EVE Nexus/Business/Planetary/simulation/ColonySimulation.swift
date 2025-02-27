@@ -623,15 +623,18 @@ class ColonySimulation {
                 // 清除上一个周期的开始时间，表示已经完成了这个周期
                 factory.lastCycleStartTime = nil
                 
+                // 与Kotlin版本保持一致，在生产周期结束后设置isActive为false
+                factory.isActive = false
+                
                 // 工厂开始生产后，尝试从仓储设施重新填充其缓冲区
                 refillFactoryBuffer(factory: factory, time: time)
                 
                 return .completedCycle
-            } else {
-                // 当前时间还未到达周期结束时间，继续等待
-                Logger.debug("工厂(\(factory.id)) 正在生产中，等待周期结束")
-                return .startedCycle
             }
+            
+            // 当前时间还未到达周期结束时间，继续等待
+            Logger.debug("工厂(\(factory.id)) 正在生产中，等待周期结束")
+            return .startedCycle
         }
         
         // 检查是否在生产周期内
@@ -659,7 +662,16 @@ class ColonySimulation {
         Logger.info("\(timeString): 工厂(\(factory.id)) 运行前缓冲区状态: [\(bufferStatus)]")
         
         // 检查是否有足够的输入材料
-        if hasEnoughInputs(factory: factory) {
+        var canConsume = true
+        for (inputType, requiredQuantity) in schematic.inputs {
+            let availableQuantity = factory.contents[inputType] ?? 0
+            if availableQuantity < requiredQuantity {
+                canConsume = false
+                break
+            }
+        }
+        
+        if canConsume {
             // 记录输入材料消耗
             var inputsLog = ""
             for (inputType, requiredQuantity) in schematic.inputs {
@@ -708,28 +720,14 @@ class ColonySimulation {
             
             return .startedCycle // 开始新的生产周期
         } else {
+            // 与Kotlin版本保持一致，如果不能消耗材料，设置isActive为false
             factory.isActive = false
-            
-            // 记录缺少的材料
-            var missingInputsLog = ""
-            for (inputType, requiredQuantity) in schematic.inputs {
-                let availableQuantity = factory.contents[inputType] ?? 0
-                if availableQuantity < requiredQuantity {
-                    if !missingInputsLog.isEmpty {
-                        missingInputsLog += ", "
-                    }
-                    missingInputsLog += "\(inputType.name)(\(availableQuantity)/\(requiredQuantity))"
-                }
-            }
-            
-            Logger.warning("\(timeString): 工厂(\(factory.id)) 缺少材料 [\(missingInputsLog)]")
-            
-            // 更新运行时间和输入状态
             factory.lastRunTime = time
             factory.receivedInputsLastCycle = factory.hasReceivedInputs
             factory.hasReceivedInputs = false
             
-            return .notProduced // 没有生产产品
+            Logger.info("\(timeString): 工厂(\(factory.id)) 缺少材料，无法开始生产")
+            return .notProduced
         }
     }
     
@@ -877,8 +875,10 @@ class ColonySimulation {
                 return true
             }
             
-            // 检查是否有足够的输入材料
-            return hasEnoughInputs(factory: factory)
+            // 与Kotlin版本保持一致，如果有足够的输入材料，返回false
+            if hasEnoughInputs(factory: factory) {
+                return false
+            }
         }
         
         // 存储类设施不需要激活

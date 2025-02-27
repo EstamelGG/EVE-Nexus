@@ -115,11 +115,7 @@ func getPinStatus(pin: Pin, now: Date, routes: [Route]) -> PinStatus {
         case .outputNotRouted: return .outputNotRouted
         }
         
-        // 优先检查工厂是否在生产周期中
-        if factory.lastCycleStartTime != nil {
-            return .producing
-        }
-        
+        // 与Kotlin版本保持一致，只检查isActive属性
         if factory.isActive {
             return .producing
         }
