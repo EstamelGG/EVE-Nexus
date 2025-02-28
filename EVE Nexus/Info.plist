@@ -47,7 +47,5 @@
 	</array>
 	<key>EVEDatabaseVersion</key>
 	<string>2025-01-01-001</string>
-	<key>AppVersion</key>
-	<string>v1.1.1</string>
 </dict>
 </plist>

@@ -4,7 +4,7 @@ enum AppConfiguration {
     // 应用版本信息
     enum Version {
         static var fullVersion: String {
-            Bundle.main.object(forInfoDictionaryKey: "AppVersion") as? String ?? "Unknown"
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
         }        
     }
     

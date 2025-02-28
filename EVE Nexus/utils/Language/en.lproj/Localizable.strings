@@ -199,6 +199,7 @@
 "Main_Setting_Static_Resource_Net_Renders" = "Item Renders";
 "Main_Setting_Static_Resource_Incursions" = "Incursions Data";
 "Main_Setting_Static_Resource_Faction_Icons" = "Faction Icons";
+"Main_Setting_Static_Resource_Incursions_num" = "incursion(s) found";
 
 // Time Display
 "Time_Days_Ago" = "%d days ago";
@@ -999,6 +1000,8 @@
 "Main_Planetary_Unknown_Type" = "Unknown Type";
 "Main_Planetary_Loading" = "Loading...";
 "Main_Planetary_Error" = "Loading Failed";
+"Planet_Detail_Last_Update" = "Planetary layout submit at";
+"Main_Planetary_Total_Count" = "Total %d planets";
 
 // Extractor Related
 "Total_Yield" = "Total Yield:";
@@ -1010,12 +1013,12 @@
 // Factory Related
 "Factory_Input" = "Input:";
 "Factory_Output" = "Output:";
-"Factory_Inventory" = "Stock:";
-"Factory_Processing" = "Processing";
+"Factory_Inventory" = "Cache:";
+"Factory_Processing" = "In production";
 "Factory_Waiting_Materials" = "Waiting for Materials";
 "Factory_Stopped" = "Stopped";
 "Factory_Not_Started" = "Not Started";
-"Factory_No_Recipe" = "No Recipe";
+"Factory_No_Recipe" = "No Schematic";
 "Planet_Detail_No_Data" = "No Data.";
 
 "Contracts_Personal" = "Personal";

@@ -1,0 +1,54 @@
+让我们梳理一下完整的流程：
+1. 当工厂收到资源时，hasReceivedInputs被设置为true
+2. 工厂被重新安排运行（通过schedulePin）
+3. 在schedulePin中，调用getNextRunTime获取下一次运行时间
+4. 如果工厂不活跃但有足够的输入材料，getNextRunTime返回null
+5. 当nextRunTime为null时，schedulePin会在当前时间安排工厂运行（addTimer(pin.id, currentSimTime)）
+6. 这个事件被添加到事件队列中
+7. 在事件处理循环中，工厂的事件被处理，调用evaluatePin
+8. 在evaluatePin中，工厂会检查材料是否足够，如果足够，就会消耗材料并开始生产
+
+工厂收到资源到开始生产的完整流程:
+
+情况一：收到足够的资源
+1. 当工厂收到资源时，hasReceivedInputs被设置为true
+这发生在addCommodity方法中，只要收到任何数量的资源就会设置此标志
+2. 工厂被重新安排运行（通过schedulePin）
+这发生在资源转移完成后，对所有收到资源的消费者设施执行
+3. 在schedulePin中，调用getNextRunTime获取下一次运行时间
+这是决定工厂何时运行的关键步骤
+4. 如果工厂不活跃但有足够的输入材料，getNextRunTime返回null
+这是通过if (!isActive() && hasEnoughInputs()) return null实现的
+null在这里表示"立即运行"
+5. 当nextRunTime为null时，schedulePin会在当前时间安排工厂运行（addTimer(pin.id, currentSimTime)）
+这确保工厂在当前模拟时间点被处理，而不是等待未来
+6. 这个事件被添加到事件队列中
+通过eventQueue.add(runTime to pinId)实现
+7. 在事件处理循环中，工厂的事件被处理，调用evaluatePin
+这发生在同一模拟时间点，但在代码执行上是下一个事件循环迭代
+8. 在evaluatePin中，工厂会检查材料是否足够，如果足够，就会消耗材料并开始生产
+工厂会设置isActive = true并记录生产开始时间
+
+情况二：收到不足的资源
+1-3相同，但如果在步骤4中，工厂没有足够的输入材料，流程会有所不同：
+4. 如果工厂没有足够的输入材料，getNextRunTime返回lastRunTime + cycleTime
+这表示工厂需要等待到下一个周期
+5. schedulePin会在下一个周期时间安排工厂运行（addTimer(pin.id, nextRunTime)）
+工厂会被安排在未来的某个时间点运行，而不是立即运行
+6-8. 其余步骤相同，但会在未来的时间点执行，而不是当前时间
+
+让我列出工厂相关的关键方法，这些方法在模拟过程中会被调用：
+1. simulate - 主模拟方法
+2. runEventDrivenSimulation - 事件驱动模拟的核心循环
+3. initializeSimulation - 初始化事件队列
+4. canRun - 检查设施是否可以运行
+5. canActivate - 检查设施是否可以激活
+6. isActive - 检查设施是否处于激活状态
+7. hasEnoughInputs - 检查工厂是否有足够的输入材料
+8. getNextRunTime - 获取设施的下一次运行时间
+9. schedulePin - 安排设施的下一次运行
+10. run - 运行设施
+11. runFactory - 运行工厂
+12. routeCommodityInput - 处理输入路由
+13. routeCommodityOutput - 处理输出路由
+现在，让我们按照调用顺序的逆向顺序，从底层方法开始分析。

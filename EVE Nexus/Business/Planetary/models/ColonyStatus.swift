@@ -115,12 +115,24 @@ func getPinStatus(pin: Pin, now: Date, routes: [Route]) -> PinStatus {
         case .outputNotRouted: return .outputNotRouted
         }
         
-        // 与Kotlin版本保持一致，只检查isActive属性
-        if factory.isActive {
-            return .producing
+        // 使用与Kotlin版本相似的逻辑判断工厂是否处于活跃状态
+        if let lastCycleStartTime = factory.lastCycleStartTime, 
+           let schematic = factory.schematic {
+            let cycleTime = schematic.cycleTime
+            let lastCycleAgo = now.timeIntervalSince(lastCycleStartTime)
+            
+            // 如果上次周期开始时间到现在的时间小于一个完整周期，则工厂处于活跃状态
+            if lastCycleAgo < cycleTime {
+                return .producing
+            }
         }
         
-        return .factoryIdle
+        // 检查是否有足够的输入材料
+        if factory.hasEnoughInputs() {
+            return .factoryIdle // 有足够材料但未生产
+        } else {
+            return .inputNotRouted // 材料不足
+        }
     } else if pin is Pin.CommandCenter || pin is Pin.Launchpad || pin is Pin.Storage {
         let incomingRoutes = routes.filter { $0.destinationPinId == pin.id }
         if !incomingRoutes.isEmpty {

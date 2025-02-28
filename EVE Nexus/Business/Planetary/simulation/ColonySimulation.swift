@@ -58,6 +58,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let startTimeString = dateFormatter.string(from: simulatedColony.currentSimTime)
         let endTimeString = dateFormatter.string(from: targetTime)
         
@@ -151,6 +152,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         // 检查并处理已经在生产周期中的工厂
         for pin in simulatedColony.pins {
@@ -290,6 +292,18 @@ class ColonySimulation {
                 return lastRunTime.addingTimeInterval(cycleTime)
             }
         } else if let factory = pin as? Pin.Factory {
+            // 如果工厂不活跃但有足够的输入材料，返回nil表示立即运行
+            if !factory.isActive && hasEnoughInputs(factory: factory) {
+                return nil
+            }
+            
+            // 如果工厂收到了输入但材料不足，使用正常的周期时间
+            if (factory.hasReceivedInputs || factory.receivedInputsLastCycle) && !hasEnoughInputs(factory: factory) {
+                if let lastRunTime = factory.lastRunTime, let schematic = factory.schematic {
+                    return lastRunTime.addingTimeInterval(schematic.cycleTime)
+                }
+            }
+            
             // 如果工厂正在生产中（有lastCycleStartTime），则返回周期结束时间
             if let lastCycleStartTime = factory.lastCycleStartTime, let schematic = factory.schematic {
                 return lastCycleStartTime.addingTimeInterval(schematic.cycleTime)
@@ -314,9 +328,15 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         // 为每个可运行的设施安排事件
         for pin in colony.pins {
+            // 跳过存储类设施
+            if isStorage(pin: pin) {
+                continue
+            }
+            
             // 特别处理正在生产中的工厂
             if let factory = pin as? Pin.Factory, 
                let lastCycleStartTime = factory.lastCycleStartTime, 
@@ -377,6 +397,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         Logger.info("开始事件驱动模拟，从 \(dateFormatter.string(from: currentSimTime)) 到 \(dateFormatter.string(from: targetTime))")
         
@@ -421,6 +442,18 @@ class ColonySimulation {
             let pinType = getPinTypeName(pin: pin)
             Logger.info("\(dateFormatter.string(from: currentSimTime)): 处理 \(pinType)(\(pin.id)) 的事件")
             
+            // 检查设施是否可以激活或已经激活，如果都不是，则检查是否是工厂且有足够的输入材料
+            if !canActivate(pin: pin) && !isActive(pin: pin) {
+                // 特殊处理工厂：如果是工厂且有足够的输入材料，即使canActivate返回false也应该继续处理
+                if let factory = pin as? Pin.Factory, hasEnoughInputs(factory: factory) {
+                    // 继续处理，不跳过
+                    Logger.info("\(dateFormatter.string(from: currentSimTime)): 工厂(\(factory.id)) 有足够的输入材料，继续处理")
+                } else {
+                    Logger.info("\(dateFormatter.string(from: currentSimTime)): 设施 \(pinType)(\(pin.id)) 既不能激活也不处于激活状态，跳过")
+                    continue
+                }
+            }
+            
             // 检查工厂是否正在生产中
             if let factory = pin as? Pin.Factory, 
                let lastCycleStartTime = factory.lastCycleStartTime, 
@@ -448,7 +481,8 @@ class ColonySimulation {
                 let commodities = run(pin: pin, time: currentSimTime)
                 
                 // 3. 重新安排该设施的下一次运行
-                if isActive(pin: pin) || canActivate(pin: pin) {
+                // 修改这里：只有当工厂可以激活或处于活跃状态，且如果是工厂，还要检查是否有足够的输入材料
+                if isActive(pin: pin) || (canActivate(pin: pin) && (!(pin is Pin.Factory) || hasEnoughInputs(factory: pin as! Pin.Factory))) {
                     schedulePin(pin: pin, currentTime: currentSimTime)
                 }
                 
@@ -556,6 +590,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let timeString = dateFormatter.string(from: time)
         
         Logger.info("\(timeString): 提取器(\(extractor.id)) 生产 [\(productType.name)x\(output)]")
@@ -596,6 +631,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let timeString = dateFormatter.string(from: time)
         
         // 首先检查是否有配方
@@ -641,7 +677,8 @@ class ColonySimulation {
         // 检查是否在生产周期内
         if let lastRunTime = factory.lastRunTime {
             let nextRunTime = lastRunTime.addingTimeInterval(schematic.cycleTime)
-            if time < nextRunTime {
+            // 特殊处理：如果工厂有足够的输入材料，允许立即开始新的生产周期，不受上一次运行时间的限制
+            if time < nextRunTime && !hasEnoughInputs(factory: factory) {
                 Logger.debug("工厂(\(factory.id)) 尚未到达下一个生产周期")
                 return .notProduced
             }
@@ -738,12 +775,52 @@ class ColonySimulation {
     ///   - currentTime: 当前时间
     private static func schedulePin(pin: Pin, currentTime: Date) {
         // 获取下一次运行时间
-        guard let nextRunTime = getNextRunTime(pin: pin) else {
-            return
+        let nextRunTime = getNextRunTime(pin: pin)
+        
+        // 添加检查：如果是工厂且没有足够的输入材料，确保不会在当前时间点调度
+        if let factory = pin as? Pin.Factory, !hasEnoughInputs(factory: factory) && (factory.hasReceivedInputs || factory.receivedInputsLastCycle) {
+            // 使用lastRunTime + cycleTime作为下一次运行时间
+            if let lastRunTime = factory.lastRunTime, let schematic = factory.schematic {
+                let nextTime = lastRunTime.addingTimeInterval(schematic.cycleTime)
+                
+                // 检查是否已经在队列中
+                if let index = eventQueue.firstIndex(where: { $0.pinId == pin.id }) {
+                    // 如果新的运行时间更早，则更新事件
+                    if nextTime < eventQueue[index].date {
+                        eventQueue.remove(at: index)
+                        eventQueue.append((nextTime, pin.id))
+                        // 重新排序队列
+                        eventQueue.sort { event1, event2 in
+                            if event1.date == event2.date {
+                                return event1.pinId < event2.pinId
+                            }
+                            return event1.date < event2.date
+                        }
+                    }
+                } else {
+                    // 添加新事件到队列
+                    eventQueue.append((nextTime, pin.id))
+                    // 重新排序队列
+                    eventQueue.sort { event1, event2 in
+                        if event1.date == event2.date {
+                            return event1.pinId < event2.pinId
+                        }
+                        return event1.date < event2.date
+                    }
+                }
+                
+                // 记录日志
+                let dateFormatter = DateFormatter()
+                dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+                Logger.info("工厂(\(factory.id)) 材料不足，安排在 \(dateFormatter.string(from: nextTime)) 运行")
+                
+                return
+            }
         }
         
-        // 如果下一次运行时间早于当前时间，则使用当前时间
-        let scheduleTime = nextRunTime > currentTime ? nextRunTime : currentTime
+        // 如果nextRunTime为nil，表示立即运行
+        let scheduleTime = nextRunTime != nil ? (nextRunTime! > currentTime ? nextRunTime! : currentTime) : currentTime
         
         // 检查是否已经在队列中
         if let index = eventQueue.firstIndex(where: { $0.pinId == pin.id }) {
@@ -838,13 +915,31 @@ class ColonySimulation {
     ///   - time: 当前时间
     /// - Returns: 是否可以运行
     private static func canRun(pin: Pin, time: Date) -> Bool {
+        // 存储类设施不需要运行
+        if isStorage(pin: pin) {
+            return false
+        }
+        
         // 首先检查设施是否可以激活或已经激活
         if !canActivate(pin: pin) && !isActive(pin: pin) {
-            return false
+            // 特殊处理工厂：如果是工厂且有足够的输入材料，即使canActivate返回false也应该继续处理
+            if let factory = pin as? Pin.Factory, hasEnoughInputs(factory: factory) {
+                // 继续处理，不返回false
+            } else {
+                return false
+            }
         }
         
         // 获取下一次运行时间
         let nextRunTime = getNextRunTime(pin: pin)
+        
+        // 如果是工厂且收到了输入但材料不足，确保不会在当前时间点运行
+        if let factory = pin as? Pin.Factory, 
+           (factory.hasReceivedInputs || factory.receivedInputsLastCycle) && 
+           !hasEnoughInputs(factory: factory) {
+            // 只有当下一次运行时间小于等于当前时间时才运行
+            return nextRunTime != nil && nextRunTime! <= time
+        }
         
         // 如果没有下一次运行时间或者下一次运行时间小于等于当前时间，则可以运行
         return nextRunTime == nil || nextRunTime! <= time
@@ -871,15 +966,12 @@ class ColonySimulation {
                 return true
             }
             
-            // 如果当前周期或上一周期收到了输入，可以激活
-            if factory.hasReceivedInputs || factory.receivedInputsLastCycle {
+            // 修改这里：只有当工厂收到了输入且有足够的输入材料时才返回true
+            if (factory.hasReceivedInputs || factory.receivedInputsLastCycle) && hasEnoughInputs(factory: factory) {
                 return true
             }
             
-            // 与Kotlin版本保持一致，如果有足够的输入材料，返回false
-            if hasEnoughInputs(factory: factory) {
-                return false
-            }
+            return false // 简化逻辑，其他情况都返回false
         }
         
         // 存储类设施不需要激活
@@ -1017,6 +1109,7 @@ class ColonySimulation {
                 // 格式化时间
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
                 let timeString = dateFormatter.string(from: currentTime)
                 
                 Logger.info("\(timeString): \(sourcePinType)(\(sourcePin.id)) 输出 [\(type.name)x\(transferredQuantity)] 到 \(destinationPinType)(\(destinationPin.id))")
@@ -1063,6 +1156,7 @@ class ColonySimulation {
         // 记录路由排序信息
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let timeString = dateFormatter.string(from: currentTime)
         
         if !processorRoutes.isEmpty {
@@ -1351,6 +1445,7 @@ class ColonySimulation {
                 // 格式化时间
                 let dateFormatter = DateFormatter()
                 dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
                 let timeString = dateFormatter.string(from: currentTime)
                 
                 Logger.info("\(timeString): 工厂(\(factory.id)) 缓冲区状态: [\(bufferStatus)] 总体完成度: \(Int(overallBufferState * 100))%")
@@ -1443,6 +1538,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let timeString = dateFormatter.string(from: colony.currentSimTime)
         
         Logger.info("当前模拟时间: \(timeString)")
@@ -1511,8 +1607,11 @@ class ColonySimulation {
                     } else if factory.isActive {
                         // 没有lastCycleStartTime但isActive为true，表示工厂有足够材料但尚未开始生产
                         Logger.info("生产状态: 活跃但未开始生产")
+                    } else if hasEnoughInputs(factory: factory) {
+                        // 没有lastCycleStartTime，isActive为false，但有足够的输入材料，表示工厂准备生产
+                        Logger.info("生产状态: 准备生产")
                     } else {
-                        // 既没有lastCycleStartTime，isActive也为false，表示工厂缺少材料
+                        // 既没有lastCycleStartTime，isActive为false，也没有足够的输入材料，表示工厂缺少材料
                         Logger.info("生产状态: 等待材料")
                     }
                 } else {
@@ -1557,6 +1656,7 @@ class ColonySimulation {
         // 格式化时间
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         let timeString = dateFormatter.string(from: time)
         
         Logger.info("\(timeString): 尝试为工厂(\(factory.id))重新填充缓冲区")

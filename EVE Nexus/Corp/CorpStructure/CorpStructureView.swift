@@ -289,6 +289,7 @@ struct StructureCell: View {
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         let localTime = formatter.string(from: date) + NSLocalizedString("Corp_Structure_Time_Format_UTC", comment: "")
         
         let remainingTime = date.timeIntervalSince(Date())

@@ -397,7 +397,7 @@ struct BRKillMailView: View {
             if viewModel.killMails.isEmpty {
                 async let stats: () = viewModel.loadStats()
                 async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
-                await (_, _) = (killmails, stats)
+                await (_, _) = (stats, killmails)
             }
         }
     }

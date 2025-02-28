@@ -232,6 +232,13 @@ class PlanetaryConverter {
                 }
             }
             
+            // 计算工厂活跃状态 - 与Kotlin版本保持一致
+            let cycleTime = schematic?.cycleTime ?? 0
+            let lastCycleAgo = lastCycleStart != nil ? Date().timeIntervalSince(lastCycleStart!) : Double.infinity
+            let activityState = lastCycleAgo < cycleTime && schematicId != nil
+            
+            Logger.info("工厂 ID: \(planetaryPin.pinId), 活跃状态: \(activityState), 上次周期开始: \(String(describing: lastCycleStart)), 周期时间: \(cycleTime), 已过时间: \(lastCycleAgo)")
+            
             return Pin.Factory(
                 id: planetaryPin.pinId,
                 type: pinType,
@@ -240,7 +247,7 @@ class PlanetaryConverter {
                 lastRunTime: lastCycleStart,
                 contents: contents,
                 capacityUsed: capacityUsed,
-                isActive: false,
+                isActive: activityState,
                 latitude: Double(planetaryPin.latitude),
                 longitude: Double(planetaryPin.longitude),
                 status: .notSetup,

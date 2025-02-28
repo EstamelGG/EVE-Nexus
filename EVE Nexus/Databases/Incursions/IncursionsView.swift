@@ -320,7 +320,7 @@ struct IncursionsView: View {
                 }
             } footer: {
                 if !viewModel.preparedIncursions.isEmpty {
-                    Text("\(viewModel.preparedIncursions.count) incursions found")
+                    Text("\(viewModel.preparedIncursions.count) \(NSLocalizedString("Main_Setting_Static_Resource_Incursions_num", comment: ""))")
                 }
             }
         }

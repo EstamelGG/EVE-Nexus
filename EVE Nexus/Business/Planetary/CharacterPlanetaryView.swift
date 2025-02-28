@@ -37,29 +37,33 @@ struct CharacterPlanetaryView: View {
                     }
                 }
             } else {
-                ForEach(planets, id: \.planetId) { planet in
-                    NavigationLink(destination: PlanetDetailView(
-                        characterId: characterId,
-                        planetId: planet.planetId,
-                        planetName: planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: "")
-                    )) {
-                        HStack {
-                            if let typeInfo = planetTypeInfo[typeIdMapping[planet.planetType] ?? 0] {
-                                Image(uiImage: IconManager.shared.loadUIImage(for: typeInfo.icon))
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                            }
-                            
-                            VStack(alignment: .leading) {
-                                Text(planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: ""))
-                                    .font(.headline)
-                                Text(planetTypeInfo[typeIdMapping[planet.planetType] ?? 0]?.name ?? NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""))
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
+                Section {
+                    ForEach(planets, id: \.planetId) { planet in
+                        NavigationLink(destination: PlanetDetailView(
+                            characterId: characterId,
+                            planetId: planet.planetId,
+                            planetName: planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: "")
+                        )) {
+                            HStack {
+                                if let typeInfo = planetTypeInfo[typeIdMapping[planet.planetType] ?? 0] {
+                                    Image(uiImage: IconManager.shared.loadUIImage(for: typeInfo.icon))
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                        .cornerRadius(6)
+                                }
+                                
+                                VStack(alignment: .leading) {
+                                    Text(planetNames[planet.planetId] ?? NSLocalizedString("Main_Planetary_Unknown_Planet", comment: ""))
+                                        .font(.headline)
+                                    Text(planetTypeInfo[typeIdMapping[planet.planetType] ?? 0]?.name ?? NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""))
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                }
                             }
                         }
                     }
+                } footer: {
+                    Text(String(format: NSLocalizedString("Main_Planetary_Total_Count", comment: ""), planets.count))
                 }
             }
         }

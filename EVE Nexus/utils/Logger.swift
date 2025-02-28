@@ -12,6 +12,7 @@ class Logger {
     
     private init() {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         // 确保在访问 StaticResourceManager 之前完成基本初始化
         DispatchQueue.main.async { [weak self] in

@@ -97,6 +97,35 @@ class Pin {
             super.init(id: id, type: type, name: name, designator: designator, lastRunTime: lastRunTime, contents: contents, capacityUsed: capacityUsed, isActive: isActive, latitude: latitude, longitude: longitude, status: status)
         }
         
+        /// 获取输入缓冲区状态
+        func getInputBufferState() -> Double {
+            guard let schematic = schematic, !schematic.inputs.isEmpty else {
+                return 0.0
+            }
+            
+            var productsRatio: Double = 0.0
+            for (inputType, requiredQuantity) in schematic.inputs {
+                let availableQuantity = contents[inputType] ?? 0
+                productsRatio += Double(availableQuantity) / Double(requiredQuantity)
+            }
+            
+            return (1.0 - productsRatio / Double(schematic.inputs.count))
+        }
+        
+        /// 检查是否有足够的输入材料
+        func hasEnoughInputs() -> Bool {
+            guard let schematic = schematic else { return false }
+            
+            for (inputType, requiredQuantity) in schematic.inputs {
+                let availableQuantity = contents[inputType] ?? 0
+                if availableQuantity < requiredQuantity {
+                    return false
+                }
+            }
+            
+            return true
+        }
+        
         override func clone() -> Pin {
             let contentsCopy = contents
             return Factory(id: id, type: type, name: name, designator: designator, lastRunTime: lastRunTime, contents: contentsCopy, capacityUsed: capacityUsed, isActive: isActive, latitude: latitude, longitude: longitude, status: status, schematic: schematic, hasReceivedInputs: hasReceivedInputs, receivedInputsLastCycle: receivedInputsLastCycle, lastCycleStartTime: lastCycleStartTime)

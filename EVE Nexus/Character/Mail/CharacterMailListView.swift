@@ -478,7 +478,7 @@ extension String {
         let outputFormatter = DateFormatter()
         outputFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         outputFormatter.timeZone = TimeZone.current
-        outputFormatter.locale = Locale.current
+        outputFormatter.locale = Locale(identifier: "en_US_POSIX")
         
         return outputFormatter.string(from: date)
     }

@@ -161,6 +161,7 @@
 "Planetary_Uses" = "用于生产";
 "Planetary_Facilities" = "加工设施";
 "Planetary_Harvest_from" = "采集来源";
+"Planet_Detail_Last_Update" = "行星布局提交于";
 
 // 物品信息
 "Item_Info_Blueprint" = "蓝图";
@@ -183,6 +184,7 @@
 "Main_Setting_Static_Resource_Icon_Count" = " (%d个)";
 "Main_Setting_Static_Resource_Net_Renders" = "物品渲染图";
 "Main_Setting_Static_Resource_Incursions" = "入侵事件数据";
+"Main_Setting_Static_Resource_Incursions_num" = "起入侵事件";
 "Main_Setting_Static_Resource_Faction_Icons" = "势力图标";
 "Main_Setting_Cache" = "缓存";
 "Main_Setting_Static_Resource_Character_Portraits" = "人物头像";
@@ -1009,6 +1011,8 @@
 "Main_Planetary_Unknown_Type" = "未知类型";
 "Main_Planetary_Loading" = "加载中...";
 "Main_Planetary_Error" = "加载失败";
+"Planet_Detail_Last_Update" = "行星布局提交于";
+"Main_Planetary_Total_Count" = "共 %d 个行星";
 
 // 行星类型
 "Main_Planetary_Type_Temperate" = "温和星球";
