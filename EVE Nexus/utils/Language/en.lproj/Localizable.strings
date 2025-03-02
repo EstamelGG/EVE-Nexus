@@ -205,6 +205,11 @@
 "Time_Days_Ago" = "%d days ago";
 "Time_Hours_Ago" = "%d hours ago";
 "Time_Minutes_Ago" = "%d minutes ago";
+"Time_Seconds_Ago" = "%d seconds ago";
+"Time_Days_Ago_shord" = "%dd ago";
+"Time_Hours_Ago_short" = "%dh ago";
+"Time_Minutes_Ago_short" = "%dm ago";
+"Time_Seconds_Ago_short" = "%ds ago";
 "Time_Just_Now" = "just now";
 "Time_Days_Hours" = "%dd %dh";
 "Time_Days" = "%dd";
@@ -1087,3 +1092,54 @@
 // Wallet Journal Loading Status
 "Wallet_Loading_Fetching" = "Fetching wallet journal page %d";
 "Wallet_Loading_Complete" = "Loading complete";
+
+// MARK: - ESI Status
+"Main_Setting_ESI_Status" = "ESI Status";
+"Main_Setting_ESI_Status_Detail" = "Check EVE Online service interface status";
+
+// ESI Status View
+"ESI_Status_Title" = "ESI Status";
+"ESI_Status_Overview" = "Status Overview";
+"ESI_Status_Good" = "Healthy";
+"ESI_Status_Fair" = "Degraded";
+"ESI_Status_Poor" = "Critical";
+"ESI_Status_Last_Refresh" = "Updated: %@";
+"ESI_Status_Loading" = "Loading...";
+"ESI_Status_Load_Failed" = "Load Failed";
+"ESI_Status_Retry" = "Retry";
+"ESI_Status_OK" = "OK";
+
+// ESI Tag Names
+"ESI_Tag_Alliance" = "Alliance";
+"ESI_Tag_Assets" = "Assets";
+"ESI_Tag_Bookmarks" = "Bookmarks";
+"ESI_Tag_Calendar" = "Calendar";
+"ESI_Tag_Character" = "Character";
+"ESI_Tag_Clones" = "Clones";
+"ESI_Tag_Contacts" = "Contacts";
+"ESI_Tag_Contracts" = "Contracts";
+"ESI_Tag_Corporation" = "Corporation";
+"ESI_Tag_Dogma" = "Dogma";
+"ESI_Tag_FactionWarfare" = "Faction Warfare";
+"ESI_Tag_Fittings" = "Fittings";
+"ESI_Tag_Fleets" = "Fleets";
+"ESI_Tag_Incursions" = "Incursions";
+"ESI_Tag_Industry" = "Industry";
+"ESI_Tag_Insurance" = "Insurance";
+"ESI_Tag_Killmails" = "Killmails";
+"ESI_Tag_Location" = "Location";
+"ESI_Tag_Loyalty" = "Loyalty";
+"ESI_Tag_Mail" = "Mail";
+"ESI_Tag_Market" = "Market";
+"ESI_Tag_Opportunities" = "Opportunities";
+"ESI_Tag_PlanetaryInteraction" = "Planetary Interaction";
+"ESI_Tag_Routes" = "Routes";
+"ESI_Tag_Search" = "Search";
+"ESI_Tag_Skills" = "Skills";
+"ESI_Tag_Sovereignty" = "Sovereignty";
+"ESI_Tag_Status" = "Status";
+"ESI_Tag_Universe" = "Universe";
+"ESI_Tag_UserInterface" = "User Interface";
+"ESI_Tag_Wallet" = "Wallet";
+"ESI_Tag_Wars" = "Wars";
+"ESI_Tag_Other" = "Other";

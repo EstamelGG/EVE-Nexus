@@ -358,6 +358,7 @@ struct SettingView: View {
     @State private var showResetIconsAlert = false
     @State private var showResetDatabaseAlert = false
     @State private var showResetDatabaseSuccessAlert = false
+    @State private var showingESIStatusView = false
     
     // MARK: - 时间处理工具
     private func getRelativeTimeString(from date: Date) -> String {
@@ -492,6 +493,13 @@ struct SettingView: View {
                 detail: NSLocalizedString("Main_Setting_Select_your_language", comment: ""),
                 icon: "translate",
                 action: { showingLanguageView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_ESI_Status", comment: ""),
+                detail: NSLocalizedString("Main_Setting_ESI_Status_Detail", comment: ""),
+                icon: "waveform.path.ecg.rectangle",
+                iconColor: .blue,
+                action: { showingESIStatusView = true }
             ),
 //            SettingItem(
 //                title: NSLocalizedString("Main_Setting_Logs", comment: ""),
@@ -643,6 +651,9 @@ struct SettingView: View {
         }
         .navigationDestination(isPresented: $showingLogViewer) {
             LogViewer()
+        }
+        .navigationDestination(isPresented: $showingESIStatusView) {
+            ESIStatusView()
         }
         .alert(NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""), isPresented: $showingCleanCacheAlert) {
             Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) { }

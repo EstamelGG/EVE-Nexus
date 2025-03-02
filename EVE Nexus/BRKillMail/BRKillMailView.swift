@@ -56,6 +56,11 @@ class KillMailViewModel: ObservableObject {
     }
     
     func loadDataIfNeeded(for filter: KillMailFilter) async {
+        if cachedData[filter] == nil {
+            await loadData(for: filter)
+            return
+        }
+        
         if let cached = cachedData[filter] {
             await MainActor.run {
                 killMails = cached.mails
@@ -63,10 +68,7 @@ class KillMailViewModel: ObservableObject {
                 allianceIconMap = cached.allianceIcons
                 corporationIconMap = cached.corporationIcons
             }
-            return
         }
-        
-        await loadData(for: filter)
     }
     
     private func loadData(for filter: KillMailFilter) async {
@@ -75,6 +77,7 @@ class KillMailViewModel: ObservableObject {
             return
         }
         
+        // 设置加载状态
         await MainActor.run { isLoading = true }
         
         do {
@@ -114,6 +117,7 @@ class KillMailViewModel: ObservableObject {
                 if let total = response["totalPages"] as? Int {
                     self.totalPages = total
                 }
+                // 始终重置isLoading，因为loadData是最后一个完成的操作
                 self.isLoading = false
             }
         } catch {
@@ -208,13 +212,31 @@ class KillMailViewModel: ObservableObject {
     }
     
     func loadStats() async {
+        // 如果已经加载过数据，则直接返回
+        if characterStats != nil {
+            return
+        }
+        
+        // 设置加载状态
+        await MainActor.run { isLoading = true }
+        
         do {
             let stats = try await ZKillMailsAPI.shared.fetchCharacterStats(characterId: characterId)
             await MainActor.run {
                 self.characterStats = stats
+                // 只有在没有加载killMails时才重置isLoading
+                if self.killMails.isEmpty {
+                    self.isLoading = false
+                }
             }
         } catch {
             Logger.error(String(format: NSLocalizedString("KillMail_Stats_Failed", comment: ""), error.localizedDescription))
+            // 出错时也需要重置isLoading
+            await MainActor.run {
+                if self.killMails.isEmpty {
+                    self.isLoading = false
+                }
+            }
         }
     }
     
@@ -260,6 +282,7 @@ struct BRKillMailView: View {
     let characterId: Int
     @StateObject private var viewModel: KillMailViewModel
     @State private var selectedFilter: KillMailFilter = .all
+    @State private var isLoading = false
     
     init(characterId: Int) {
         self.characterId = characterId
@@ -277,6 +300,27 @@ struct BRKillMailView: View {
             return String(format: "%.2fK ISK", value / 1_000)
         } else {
             return String(format: "%.2f ISK", value)
+        }
+    }
+    
+    private func loadData() {
+        guard !isLoading else { return }
+        
+        isLoading = true
+        Task {
+            // 创建一个任务组，同时加载战斗统计信息和战斗记录
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await viewModel.loadStats()
+                }
+                
+                group.addTask {
+                    await viewModel.loadDataIfNeeded(for: selectedFilter)
+                }
+            }
+            
+            // 所有任务完成后重置isLoading
+            isLoading = false
         }
     }
     
@@ -332,9 +376,10 @@ struct BRKillMailView: View {
                     }
                 }
                 
-                if viewModel.isLoading {
+                if isLoading || viewModel.isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 20)
                 } else if viewModel.killMails.isEmpty {
                     Text(NSLocalizedString("KillMail_No_Records", comment: ""))
                         .foregroundColor(.secondary)
@@ -388,17 +433,11 @@ struct BRKillMailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("KillMail_View_Title", comment: ""))
         .refreshable {
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await viewModel.loadStats() }
-                group.addTask { await viewModel.refreshData(for: selectedFilter) }
-            }
+            await viewModel.loadStats()
+            await viewModel.refreshData(for: selectedFilter)
         }
-        .task {
-            if viewModel.killMails.isEmpty {
-                async let stats: () = viewModel.loadStats()
-                async let killmails: () = viewModel.loadDataIfNeeded(for: selectedFilter)
-                await (_, _) = (stats, killmails)
-            }
+        .onAppear {
+            loadData()
         }
     }
 }
