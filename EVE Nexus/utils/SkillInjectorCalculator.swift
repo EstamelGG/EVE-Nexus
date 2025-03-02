@@ -22,34 +22,52 @@ public enum SkillInjectorCalculator {
     ///   - characterTotalSP: 角色当前总技能点数
     /// - Returns: 注入器计算结果
     public static func calculate(requiredSkillPoints: Int, characterTotalSP: Int) -> InjectorCalculation {
-        // 根据角色总技能点数确定每个注入器提供的技能点数
-        let largeInjectorSP: Int
-        let smallInjectorSP: Int
+        var remainingSP = requiredSkillPoints
+        var currentTotalSP = characterTotalSP
+        var largeCount = 0
+        var smallCount = 0
         
-        switch characterTotalSP {
-        case ..<5_000_000:
-            largeInjectorSP = 500_000
-            smallInjectorSP = 100_000
-        case 5_000_000..<50_000_000:
-            largeInjectorSP = 400_000
-            smallInjectorSP = 80_000
-        case 50_000_000..<80_000_000:
-            largeInjectorSP = 300_000
-            smallInjectorSP = 60_000
-        default:
-            largeInjectorSP = 150_000
-            smallInjectorSP = 30_000
+        // 优先使用大型注入器
+        while remainingSP > 0 {
+            // 获取当前技能点下大型注入器的注入量
+            let largeInjectorSP = getInjectorSkillPoints(isLarge: true, characterTotalSP: currentTotalSP)
+            
+            // 如果剩余所需技能点小于大型注入器的注入量，考虑使用小型注入器
+            if remainingSP < largeInjectorSP {
+                break
+            }
+            
+            // 使用一个大型注入器
+            largeCount += 1
+            remainingSP -= largeInjectorSP
+            currentTotalSP += largeInjectorSP
         }
         
-        // 计算所需注入器数量
-        var largeCount = requiredSkillPoints / largeInjectorSP
-        let remainingPoints = requiredSkillPoints % largeInjectorSP
-        var smallCount = (remainingPoints + smallInjectorSP - 1) / smallInjectorSP
-        
-        // 如果小型注入器数量达到5个，转换为1个大型注入器
-        if smallCount >= 5 {
-            largeCount += 1
-            smallCount = 0
+        // 如果还有剩余技能点，使用小型注入器
+        if remainingSP > 0 {
+            // 获取当前技能点下小型注入器的注入量
+            let smallInjectorSP = getInjectorSkillPoints(isLarge: false, characterTotalSP: currentTotalSP)
+            
+            // 计算需要的小型注入器数量（向上取整）
+            smallCount = (remainingSP + smallInjectorSP - 1) / smallInjectorSP
+            
+            // 如果小型注入器数量达到5个或以上，转换为1个大型注入器可能更划算
+            if smallCount >= 5 {
+                // 计算使用1个大型注入器的情况
+                let largeInjectorSP = getInjectorSkillPoints(isLarge: true, characterTotalSP: currentTotalSP)
+                
+                // 如果大型注入器的注入量足够，使用大型注入器
+                if largeInjectorSP >= remainingSP {
+                    largeCount += 1
+                    smallCount = 0
+                } else {
+                    // 否则，需要精确计算小型注入器
+                    smallCount = calculateSmallInjectors(remainingSP: remainingSP, startingSP: currentTotalSP)
+                }
+            } else {
+                // 小型注入器数量少于5个，但需要考虑注入过程中技能点变化
+                smallCount = calculateSmallInjectors(remainingSP: remainingSP, startingSP: currentTotalSP)
+            }
         }
         
         Logger.debug("largeCount: \(largeCount), smallCount: \(smallCount), totalSkillPoints: \(requiredSkillPoints)")
@@ -58,6 +76,31 @@ public enum SkillInjectorCalculator {
             smallInjectorCount: smallCount,
             totalSkillPoints: requiredSkillPoints
         )
+    }
+    
+    /// 精确计算所需小型注入器数量，考虑注入过程中技能点变化
+    /// - Parameters:
+    ///   - remainingSP: 剩余所需技能点
+    ///   - startingSP: 起始技能点
+    /// - Returns: 所需小型注入器数量
+    private static func calculateSmallInjectors(remainingSP: Int, startingSP: Int) -> Int {
+        var remaining = remainingSP
+        var currentSP = startingSP
+        var count = 0
+        
+        while remaining > 0 {
+            let injectorSP = getInjectorSkillPoints(isLarge: false, characterTotalSP: currentSP)
+            count += 1
+            
+            if injectorSP >= remaining {
+                break
+            }
+            
+            remaining -= injectorSP
+            currentSP += injectorSP
+        }
+        
+        return count
     }
     
     /// 获取技能注入器在指定技能点数下提供的技能点数
@@ -77,4 +120,4 @@ public enum SkillInjectorCalculator {
             return isLarge ? 150_000 : 30_000
         }
     }
-} 
+}

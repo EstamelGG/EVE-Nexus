@@ -67,7 +67,8 @@ class KbEvetoolAPI {
             from: url,
             method: "POST",
             body: bodyData,
-            headers: headers
+            headers: headers,
+            timeouts: [3, 3, 5, 5, 10]
         )
         Logger.debug("收到网络响应，数据大小: \(data.count) 字节")
         

@@ -23,8 +23,8 @@ struct SkillTrainingCalculator {
         // 验证属性ID是否存在
         static func validateAttributeIds() {
             let query = """
-                SELECT attribute_id, attribute_name
-                FROM attributeTypes
+                SELECT attribute_id, name
+                FROM dogmaAttributes
                 WHERE attribute_id IN (175, 176, 177, 178, 179)
             """
             
@@ -32,7 +32,7 @@ struct SkillTrainingCalculator {
                 Logger.debug("植入体属性ID验证结果:")
                 for row in rows {
                     if let attrId = row["attribute_id"] as? Int,
-                       let attrName = row["attribute_name"] as? String {
+                       let attrName = row["name"] as? String {
                         Logger.debug("属性ID: \(attrId), 名称: \(attrName)")
                     }
                 }

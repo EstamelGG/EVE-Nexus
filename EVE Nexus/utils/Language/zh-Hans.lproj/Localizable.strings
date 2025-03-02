@@ -194,8 +194,14 @@
 "Time_Days_Ago" = "%d天前";
 "Time_Hours_Ago" = "%d小时前";
 "Time_Minutes_Ago" = "%d分钟前";
+"Time_Seconds_Ago" = "%d秒前";
 "Time_Just_Now" = "刚刚";
 "Common_OK" = "OK";
+"Time_Days_Ago_shord" = "%d天前";
+"Time_Hours_Ago_short" = "%d小时前";
+"Time_Minutes_Ago_short" = "%d分钟前";
+"Time_Seconds_Ago_short" = "%d秒前";
+
 // 网络错误
 "Network_Error_Invalid_URL" = "无效的URL";
 "Network_Error_Invalid_Response" = "无效的响应";
@@ -1117,3 +1123,54 @@
 // 钱包日志加载状态
 "Wallet_Loading_Fetching" = "正在获取第%d页钱包日志";
 "Wallet_Loading_Complete" = "加载完成";
+
+// MARK: - ESI状态
+"Main_Setting_ESI_Status" = "ESI 端口状态";
+"Main_Setting_ESI_Status_Detail" = "查看EVE在线服务接口状态";
+
+// ESI状态视图
+"ESI_Status_Title" = "ESI 端口状态";
+"ESI_Status_Overview" = "端口健康度总览";
+"ESI_Status_Good" = "健康";
+"ESI_Status_Fair" = "警告";
+"ESI_Status_Poor" = "严重";
+"ESI_Status_Last_Refresh" = "上次刷新: %@";
+"ESI_Status_Loading" = "加载中...";
+"ESI_Status_Load_Failed" = "加载失败";
+"ESI_Status_Retry" = "重试";
+"ESI_Status_OK" = "确定";
+
+// ESI标签名称
+"ESI_Tag_Alliance" = "联盟";
+"ESI_Tag_Assets" = "资产";
+"ESI_Tag_Bookmarks" = "书签";
+"ESI_Tag_Calendar" = "日历";
+"ESI_Tag_Character" = "角色";
+"ESI_Tag_Clones" = "克隆";
+"ESI_Tag_Contacts" = "联系人";
+"ESI_Tag_Contracts" = "合同";
+"ESI_Tag_Corporation" = "公司";
+"ESI_Tag_Dogma" = "属性";
+"ESI_Tag_FactionWarfare" = "势力战争";
+"ESI_Tag_Fittings" = "装配";
+"ESI_Tag_Fleets" = "舰队";
+"ESI_Tag_Incursions" = "入侵";
+"ESI_Tag_Industry" = "工业";
+"ESI_Tag_Insurance" = "保险";
+"ESI_Tag_Killmails" = "击杀邮件";
+"ESI_Tag_Location" = "位置";
+"ESI_Tag_Loyalty" = "忠诚点";
+"ESI_Tag_Mail" = "邮件";
+"ESI_Tag_Market" = "市场";
+"ESI_Tag_Opportunities" = "机会";
+"ESI_Tag_PlanetaryInteraction" = "行星开发";
+"ESI_Tag_Routes" = "路径";
+"ESI_Tag_Search" = "搜索";
+"ESI_Tag_Skills" = "技能";
+"ESI_Tag_Sovereignty" = "主权";
+"ESI_Tag_Status" = "状态";
+"ESI_Tag_Universe" = "宇宙";
+"ESI_Tag_UserInterface" = "用户界面";
+"ESI_Tag_Wallet" = "钱包";
+"ESI_Tag_Wars" = "战争";
+"ESI_Tag_Other" = "其他";
