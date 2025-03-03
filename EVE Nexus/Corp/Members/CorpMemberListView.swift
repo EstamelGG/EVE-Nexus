@@ -37,27 +37,6 @@ struct MemberDetailInfo: Identifiable {
     var id: Int { member.character_id }
 }
 
-// MARK: - Location Types
-private enum LocationType {
-    case solarSystem    // 30000000...39999999
-    case station       // 60000000...69999999
-    case structure     // >= 100000000
-    case unknown
-    
-    static func from(id: Int64) -> LocationType {
-        switch id {
-        case 30000000...39999999:
-            return .solarSystem
-        case 60000000...69999999:
-            return .station
-        case 100000000...:
-            return .structure
-        default:
-            return .unknown
-        }
-    }
-}
-
 // MARK: - Location Cache Info
 struct LocationCacheInfo {
     let systemName: String

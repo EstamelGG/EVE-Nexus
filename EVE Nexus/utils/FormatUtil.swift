@@ -76,8 +76,6 @@ struct FormatUtil {
         if value >= billion {
             let formatted = value / billion
             if formatted >= 100 {
-                return String(format: "%.0fB", formatted)
-            } else if formatted >= 10 {
                 return String(format: "%.1fB", formatted)
             } else {
                 return String(format: "%.2fB", formatted)
@@ -85,8 +83,6 @@ struct FormatUtil {
         } else if value >= million {
             let formatted = value / million
             if formatted >= 100 {
-                return String(format: "%.0fM", formatted)
-            } else if formatted >= 10 {
                 return String(format: "%.1fM", formatted)
             } else {
                 return String(format: "%.2fM", formatted)
@@ -94,14 +90,12 @@ struct FormatUtil {
         } else if value >= thousand {
             let formatted = value / thousand
             if formatted >= 100 {
-                return String(format: "%.0fK", formatted)
-            } else if formatted >= 10 {
                 return String(format: "%.1fK", formatted)
             } else {
                 return String(format: "%.2fK", formatted)
             }
         } else {
-            return String(format: "%.0f", value)
+            return String(format: "%.1f", value)
         }
     }
     
