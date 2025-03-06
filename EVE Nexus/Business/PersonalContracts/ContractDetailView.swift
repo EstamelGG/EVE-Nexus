@@ -228,6 +228,7 @@ struct ContractDetailView: View {
     let contract: ContractInfo
     @StateObject private var viewModel: ContractDetailViewModel
     @State private var isRefreshing = false
+    @State private var hasLoadedInitialData = false
     @Environment(\.dismiss) private var dismiss
     
     init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager, isCorpContract: Bool) {
@@ -446,13 +447,26 @@ struct ContractDetailView: View {
             
         }
         .task {
-            Logger.debug("ContractDetailView.task 开始执行")
+            guard !hasLoadedInitialData else { return }
+            Logger.debug("ContractDetailView.task 开始执行初始数据加载")
             // 使用withTaskGroup来更好地管理并发任务
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await viewModel.loadContractItems() }
                 group.addTask { await viewModel.loadContractParties() }
             }
-            Logger.debug("ContractDetailView.task 执行完成")
+            hasLoadedInitialData = true
+            Logger.debug("ContractDetailView.task 初始数据加载完成")
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if !viewModel.items.isEmpty {
+                    NavigationLink {
+                        ContractAppraisalView(contract: contract, items: viewModel.items)
+                    } label: {
+                        Image(systemName: "list.clipboard")
+                    }
+                }
+            }
         }
     }
 }

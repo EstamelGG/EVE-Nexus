@@ -39,61 +39,6 @@ public class UniverseStructureAPI {
         return try await fetchFromAPI(structureId: structureId, characterId: characterId)
     }
     
-    // 批量获取建筑物信息
-    public func fetchStructureInfoBatch(structureIds: [Int64], characterId: Int) async throws -> [Int64: UniverseStructureInfo] {
-        var results: [Int64: UniverseStructureInfo] = [:]
-        
-        // 1. 从缓存批量加载
-        let cachedStructures = loadStructuresFromCache(structureIds: structureIds)
-        results = cachedStructures
-        
-        // 2. 找出缓存中没有的ID
-        let missingIds = structureIds.filter { !results.keys.contains($0) }
-        
-        if !missingIds.isEmpty {
-            Logger.info("需要从API获取 \(missingIds.count) 个建筑物信息")
-            
-            // 将缺失的ID分批处理，每批20个
-            let batchSize = 20
-            for batch in missingIds.chunked(into: batchSize) {
-                // 创建任务组并发获取
-                try await withThrowingTaskGroup(of: (Int64, UniverseStructureInfo)?.self) { group in
-                    for id in batch {
-                        group.addTask {
-                            do {
-                                let info = try await self.fetchFromAPI(structureId: id, characterId: characterId)
-                                return (id, info)
-                            } catch {
-                                Logger.error("获取建筑物信息失败 - ID: \(id), 错误: \(error)")
-                                return nil
-                            }
-                        }
-                    }
-                    
-                    // 收集结果
-                    var batchResults: [(Int64, UniverseStructureInfo)] = []
-                    for try await result in group {
-                        if let result = result {
-                            batchResults.append(result)
-                        }
-                    }
-                    
-                    // 批量保存到缓存
-                    if !batchResults.isEmpty {
-                        saveStructuresToCache(batchResults)
-                        
-                        // 添加到结果集
-                        for (id, info) in batchResults {
-                            results[id] = info
-                        }
-                    }
-                }
-            }
-        }
-        
-        return results
-    }
-    
     private func fetchFromAPI(structureId: Int64, characterId: Int) async throws -> UniverseStructureInfo {
         let urlString = "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {

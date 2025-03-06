@@ -7,7 +7,7 @@ struct MarketOrdersView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showBuyOrders = false
     @State private var locationInfos: [Int64: LocationInfoDetail] = [:]
-    @State private var isLoading = true
+    @State private var isLoading = false
     let locationInfoLoader: LocationInfoLoader
     
     init(itemID: Int, itemName: String, orders: [MarketOrder], databaseManager: DatabaseManager) {
@@ -57,53 +57,90 @@ struct MarketOrdersView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if isLoading {
-                VStack {
-                    ProgressView()
-                    Text(NSLocalizedString("Main_Database_Loading", comment: ""))
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                }
-                .padding()
-            } else {
-                // 顶部选择器
-                Picker("Order Type", selection: $showBuyOrders) {
-                    Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
-                    Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 4)
+            // 顶部选择器
+            Picker("Order Type", selection: $showBuyOrders) {
+                Text("\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))").tag(false)
+                Text("\(NSLocalizedString("Orders_Buy", comment: "")) (\(orders.filter { $0.isBuyOrder }.count))").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 4)
+            
+            // 内容视图
+            TabView(selection: $showBuyOrders) {
+                OrderListView(
+                    orders: orders.filter { !$0.isBuyOrder },
+                    locationInfos: locationInfos,
+                    isLoadingLocations: isLoading
+                )
+                .tag(false)
                 
-                // 内容视图
-                TabView(selection: $showBuyOrders) {
-                    OrderListView(
-                        orders: orders.filter { !$0.isBuyOrder },
-                        locationInfos: locationInfos
-                    )
-                    .tag(false)
-                    
-                    OrderListView(
-                        orders: orders.filter { $0.isBuyOrder },
-                        locationInfos: locationInfos
-                    )
-                    .tag(true)
+                OrderListView(
+                    orders: orders.filter { $0.isBuyOrder },
+                    locationInfos: locationInfos,
+                    isLoadingLocations: isLoading
+                )
+                .tag(true)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea(edges: .bottom)
+            
+            if isLoading {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text(NSLocalizedString("Loading_Location_Info", comment: "正在加载地点信息..."))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea(edges: .bottom)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity)
+                .background(Color(UIColor.systemGroupedBackground))
             }
         }
         .navigationTitle(itemName).lineLimit(1)
         .navigationBarTitleDisplayMode(.inline)
         .ignoresSafeArea(edges: .bottom)
         .task {
+            // 立即显示订单列表，同时异步加载地点信息
             isLoading = true
+            
             // 收集所有订单的位置ID
             let locationIds = Set(orders.map { $0.locationId })
-            // 加载位置信息
-            let infos = await locationInfoLoader.loadLocationInfo(locationIds: locationIds)
-            locationInfos = infos
-            isLoading = false
+            
+            // 按类型分组位置ID
+            let groupedIds = Dictionary(grouping: locationIds) { LocationType.from(id: $0) }
+            
+            // 先同步加载空间站信息（通常在本地数据库中，加载速度快）
+            if let stationIds = groupedIds[.station] {
+                let stationInfos = await locationInfoLoader.loadLocationInfo(locationIds: Set(stationIds))
+                locationInfos = stationInfos
+            }
+            
+            // 异步加载其他类型的位置信息（星系、建筑物等）
+            Task {
+                var otherIds = locationIds
+                if let stationIds = groupedIds[.station] {
+                    // 从总ID集合中移除已加载的空间站ID
+                    otherIds.subtract(stationIds)
+                }
+                
+                if !otherIds.isEmpty {
+                    let otherInfos = await locationInfoLoader.loadLocationInfo(locationIds: otherIds)
+                    
+                    // 在主线程更新UI
+                    await MainActor.run {
+                        // 合并空间站信息和其他位置信息
+                        locationInfos.merge(otherInfos) { (_, new) in new }
+                        isLoading = false
+                    }
+                } else {
+                    // 如果没有其他ID需要加载，直接结束加载状态
+                    await MainActor.run {
+                        isLoading = false
+                    }
+                }
+            }
         }
     }
     
@@ -111,6 +148,7 @@ struct MarketOrdersView: View {
     private struct OrderListView: View {
         let orders: [MarketOrder]
         let locationInfos: [Int64: LocationInfoDetail]
+        let isLoadingLocations: Bool
         
         private var sortedOrders: [MarketOrder] {
             orders.sorted { (order1, order2) -> Bool in
@@ -143,7 +181,11 @@ struct MarketOrdersView: View {
                 } else {
                     Section {
                         ForEach(sortedOrders, id: \.orderId) { order in
-                            OrderRow(order: order, locationInfo: locationInfos[order.locationId])
+                            OrderRow(
+                                order: order, 
+                                locationInfo: locationInfos[order.locationId],
+                                isLoadingLocation: isLoadingLocations
+                            )
                         }
                     }
                     .listSectionSpacing(.compact)
@@ -157,6 +199,7 @@ struct MarketOrdersView: View {
     private struct OrderRow: View {
         let order: MarketOrder
         let locationInfo: LocationInfoDetail?
+        let isLoadingLocation: Bool
         
         var body: some View {
             HStack {
@@ -178,6 +221,15 @@ struct MarketOrdersView: View {
                             font: .caption,
                             textColor: .secondary
                         )
+                    } else if isLoadingLocation {
+                        // 地点信息加载中的占位视图
+                        HStack(spacing: 4) {
+                            Text(NSLocalizedString("Loading_Location", comment: "加载中..."))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            ProgressView()
+                                .scaleEffect(0.5)
+                        }
                     } else {
                         Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
                             .font(.caption)

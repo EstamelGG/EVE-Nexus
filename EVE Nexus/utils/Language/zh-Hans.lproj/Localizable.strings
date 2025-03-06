@@ -1174,3 +1174,21 @@
 "ESI_Tag_Wallet" = "钱包";
 "ESI_Tag_Wars" = "战争";
 "ESI_Tag_Other" = "其他";
+
+// 合同估价相关
+"Contract_Appraisal_Title" = "合同估价";
+"Contract_Appraisal_Via_Janice" = "通过Janice估算";
+"Contract_Appraisal_Via_ESI" = "通过ESI估算";
+"Contract_Appraisal_Buy_Price" = "买入价格";
+"Contract_Appraisal_Middle_Price" = "中间价格";
+"Contract_Appraisal_Sell_Price" = "卖出价格";
+"Contract_Appraisal_View_Details" = "在Janice查看详情";
+"Contract_Appraisal_Result" = "Janice 估价结果: %@";
+"Contract_Appraisal_Error" = "错误";
+"Contract_Appraisal_OK" = "确定";
+"Contract_Appraisal_Unknown_Error" = "未知错误";
+"Contract_Appraisal_Parse_Failed" = "解析响应数据失败：%@";
+"Contract_Appraisal_ESI_Result" = "吉他市场估价 (ESI)";
+
+"Loading_Location_Info" = "正在加载地点信息...";
+"Loading_Location" = "加载中...";

@@ -1143,3 +1143,21 @@
 "ESI_Tag_Wallet" = "Wallet";
 "ESI_Tag_Wars" = "Wars";
 "ESI_Tag_Other" = "Other";
+
+// Contract Appraisal
+"Contract_Appraisal_Title" = "Contract Appraisal";
+"Contract_Appraisal_Via_Janice" = "Appraise via Janice";
+"Contract_Appraisal_Via_ESI" = "Appraise via ESI";
+"Contract_Appraisal_Buy_Price" = "Buy Price";
+"Contract_Appraisal_Middle_Price" = "Middle Price";
+"Contract_Appraisal_Sell_Price" = "Sell Price";
+"Contract_Appraisal_View_Details" = "View Details on Janice";
+"Contract_Appraisal_Result" = "Janice Appraisal Result: %@";
+"Contract_Appraisal_Error" = "Error";
+"Contract_Appraisal_OK" = "OK";
+"Contract_Appraisal_Unknown_Error" = "Unknown Error";
+"Contract_Appraisal_Parse_Failed" = "Failed to parse response data: %@";
+"Contract_Appraisal_ESI_Result" = "Jita Market Appraisal (ESI)";
+
+"Loading_Location_Info" = "Loading location information...";
+"Loading_Location" = "Loading...";

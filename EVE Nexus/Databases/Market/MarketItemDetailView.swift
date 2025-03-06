@@ -11,51 +11,6 @@ struct MarketHistoryChartView: View {
     let history: [MarketHistory]
     let orders: [MarketOrder]
     
-    // 格式化价格显示（简化版）
-    private func formatPriceSimple(_ price: Double) -> String {
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-        let thousand = 1_000.0
-        
-        if price >= billion {
-            let value = price / billion
-            if value >= 100 {
-                return String(format: "%.0fB", value)
-            } else if value >= 10 {
-                return String(format: "%.1fB", value)
-            } else {
-                return String(format: "%.2fB", value)
-            }
-        } else if price >= million {
-            let value = price / million
-            if value >= 100 {
-                return String(format: "%.0fM", value)
-            } else if value >= 10 {
-                return String(format: "%.1fM", value)
-            } else {
-                return String(format: "%.2fM", value)
-            }
-        } else if price >= thousand {
-            // 新增千位(K)的处理
-            let value = price / thousand
-            if value >= 100 {
-                return String(format: "%.0fK", value)
-            } else if value >= 10 {
-                return String(format: "%.1fK", value)
-            } else {
-                return String(format: "%.2fK", value)
-            }
-        } else {
-            if price >= 100 {
-                return String(format: "%.0f", price)
-            } else if price >= 10 {
-                return String(format: "%.1f", price)
-            } else {
-                return String(format: "%.2f", price)
-            }
-        }
-    }
-    
     // 格式化日期显示（只显示月份）
     private func formatMonth(_ dateString: String) -> String {
         let dateFormatter = DateFormatter()
@@ -133,7 +88,7 @@ struct MarketHistoryChartView: View {
             AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
                 if let price = value.as(Double.self) {
                     AxisValueLabel {
-                        Text(formatPriceSimple(price))
+                        Text(FormatUtil.formatISK(price))
                             .font(.system(size: 10))
                     }
                     AxisGridLine()

@@ -13,29 +13,6 @@ public struct LocationInfoDetail {
     }
 }
 
-// 添加位置类型枚举
-private enum LocationType {
-    case solarSystem    // 30000000...39999999
-    case station       // 60000000...63999999
-    case structure     // >= 100000000
-    case unknown
-    
-    static func from(id: Int64) -> LocationType {
-        let type: LocationType = switch id {
-        case 30000000...39999999:
-            .solarSystem
-        case 60000000...63999999:
-            .station
-        case 100000000...:
-            .structure
-        default:
-            .unknown
-        }
-        Logger.debug("位置ID类型判断 - ID: \(id), 类型: \(type)")
-        return type
-    }
-}
-
 // 修改为 internal 访问级别
 class LocationInfoLoader {
     private let databaseManager: DatabaseManager
