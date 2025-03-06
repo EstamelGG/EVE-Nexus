@@ -638,6 +638,8 @@ struct ContentView: View {
                             MarketQuickbarView(databaseManager: databaseManager)
                         case "npc":
                             NPCBrowserView(databaseManager: databaseManager)
+                        case "agents":
+                            AgentSearchView(databaseManager: databaseManager)
                         case "wormhole":
                             WormholeView(databaseManager: databaseManager)
                         case "incursions":
@@ -934,6 +936,13 @@ struct ContentView: View {
                 RowView(
                     title: "NPC",
                     icon: "criminal"
+                )
+            }
+            
+            NavigationLink(value: "agents") {
+                RowView(
+                    title: NSLocalizedString("Main_Agents", comment: ""),
+                    icon: "agent"
                 )
             }
             

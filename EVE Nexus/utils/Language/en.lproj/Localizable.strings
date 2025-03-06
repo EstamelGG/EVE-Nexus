@@ -65,6 +65,7 @@
 "Main_Market_Watch_List_Name" = "List Name";
 "Main_Market_Watch_List_Add_Item" = "Add Item";
 "Main_Market_Watch_List_Items" = "%d items";
+"Main_Agents" = "Agents";
 "Main_WH" = "Wormholes";
 "Main_Incursions" = "Incursions";
 "Main_Infested_Systems" = "Infested Systems";
@@ -76,6 +77,7 @@
 "Main_Wallet_Journal" = "Wallet Journal";
 "Main_Industry_Jobs" = "Industry Jobs";
 "Main_Other" = "Other";
+"COSMOS_Agent" = "COSMOS";
 
 "Main_Setting" = "Setting";
 "Main_Setting_Title" = "Setting";
@@ -1161,3 +1163,5 @@
 
 "Loading_Location_Info" = "Loading location information...";
 "Loading_Location" = "Loading...";
+
+"Unknown_Location" = "Unknown Location";

@@ -57,6 +57,7 @@
 "Select_Item" = "选择项目";
 "Main_Market" = "市场";
 "Main_Market_Watch_List" = "市场关注列表";
+"Main_Agents" = "代理人";
 "Main_WH" = "虫洞";
 "Main_Incursions" = "入侵";
 "Main_Infested_Systems" = "受影响星系";
@@ -68,6 +69,7 @@
 "Main_Wallet_Journal" = "钱包日志";
 "Main_Industry_Jobs" = "工业任务";
 "Main_Other" = "其他";
+"COSMOS_Agent" = "空间代理人";
 
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
@@ -1192,3 +1194,5 @@
 
 "Loading_Location_Info" = "正在加载地点信息...";
 "Loading_Location" = "加载中...";
+
+"Unknown_Location" = "未知位置";
