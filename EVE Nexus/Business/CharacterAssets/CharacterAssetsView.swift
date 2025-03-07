@@ -1,7 +1,7 @@
 import SwiftUI
 
 private struct DatabaseManagerKey: EnvironmentKey {
-    static let defaultValue: DatabaseManager = DatabaseManager.shared
+    static let defaultValue: DatabaseManager = .shared
 }
 
 extension EnvironmentValues {
@@ -14,7 +14,7 @@ extension EnvironmentValues {
 // 位置行视图
 private struct LocationRowView: View {
     let location: AssetTreeNode
-    
+
     var body: some View {
         HStack {
             // 位置图标
@@ -30,18 +30,22 @@ private struct LocationRowView: View {
                     .frame(width: 36, height: 36)
                     .cornerRadius(6)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 // 安全等级和位置名称
                 LocationNameView(location: location)
                     .font(.subheadline)
                     .lineLimit(1)
-                
+
                 // 物品数量
                 if let items = location.items {
-                    Text(String(format: NSLocalizedString("Assets_Item_Count", comment: ""), items.count))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text(
+                        String(
+                            format: NSLocalizedString("Assets_Item_Count", comment: ""), items.count
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
             }
         }
@@ -54,7 +58,7 @@ private struct LocationNameView: View {
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
     @State private var solarSystemName: String?
     @Environment(\.databaseManager) private var databaseManager
-    
+
     var body: some View {
         LocationInfoView(
             stationName: location.name,
@@ -63,11 +67,14 @@ private struct LocationNameView: View {
             locationId: location.location_id,
             font: .body,
             textColor: .primary,
-            inSpaceNote: location.location_type == "solar_system" ? NSLocalizedString("Character_in_space", comment: "") : nil
+            inSpaceNote: location.location_type == "solar_system"
+                ? NSLocalizedString("Character_in_space", comment: "") : nil
         )
         .task {
             if let systemId = location.system_id {
-                if let systemInfo = await getSolarSystemInfo(solarSystemId: systemId, databaseManager: databaseManager) {
+                if let systemInfo = await getSolarSystemInfo(
+                    solarSystemId: systemId, databaseManager: databaseManager
+                ) {
                     solarSystemName = systemInfo.systemName
                 }
             }
@@ -78,7 +85,7 @@ private struct LocationNameView: View {
 // 搜索结果行视图
 private struct SearchResultRowView: View {
     let result: AssetSearchResult
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -87,12 +94,12 @@ private struct SearchResultRowView: View {
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     // 物品名称
                     Text(result.itemInfo.name)
                         .font(.headline)
-                    
+
                     // 完整位置路径
                     Text(result.formattedPath)
                         .font(.caption)
@@ -108,11 +115,11 @@ struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
     @State private var isSearching = false
-    
+
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
     }
-    
+
     var body: some View {
         List {
             // 加载进度部分
@@ -121,19 +128,28 @@ struct CharacterAssetsView: View {
                     HStack {
                         Spacer()
                         if let progress = viewModel.loadingProgress {
-                            let text: String = switch progress {
-                            case .loading(let page):
-                                String(format: NSLocalizedString("Assets_Loading_Fetching", comment: ""), page)
-                            case .loadingNames(let current, let total):
-                                String(format: NSLocalizedString("Assets_Loading_Names", comment: ""), current, total)
-                            case .buildingTree:
-                                NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
-                            case .savingCache:
-                                NSLocalizedString("Assets_Loading_Saving", comment: "")
-                            case .completed:
-                                NSLocalizedString("Assets_Loading_Complete", comment: "")
-                            }
-                            
+                            let text: String =
+                                switch progress {
+                                case let .loading(page):
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Assets_Loading_Fetching", comment: ""
+                                        ), page
+                                    )
+                                case let .loadingNames(current, total):
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Assets_Loading_Names", comment: ""
+                                        ), current, total
+                                    )
+                                case .buildingTree:
+                                    NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
+                                case .savingCache:
+                                    NSLocalizedString("Assets_Loading_Saving", comment: "")
+                                case .completed:
+                                    NSLocalizedString("Assets_Loading_Complete", comment: "")
+                                }
+
                             Text(text)
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
@@ -148,7 +164,7 @@ struct CharacterAssetsView: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
-            
+
             // 搜索结果为空的提示
             if !searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isLoading {
                 Section {
@@ -165,7 +181,7 @@ struct CharacterAssetsView: View {
                         Spacer()
                     }
                 }
-            } 
+            }
             // 搜索结果
             else if !searchText.isEmpty {
                 ForEach(viewModel.searchResults) { result in
@@ -175,17 +191,21 @@ struct CharacterAssetsView: View {
                         SearchResultRowView(result: result)
                     }
                 }
-            } 
+            }
             // 正常的资产列表
             else if !viewModel.isLoading {
                 ForEach(viewModel.locationsByRegion, id: \.region) { group in
-                    Section(header: Text(group.region)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
+                    Section(
+                        header: Text(group.region)
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
                     ) {
-                        ForEach(group.locations.sorted(by: { $0.location_id < $1.location_id }), id: \.item_id) { location in
+                        ForEach(
+                            group.locations.sorted(by: { $0.location_id < $1.location_id }),
+                            id: \.item_id
+                        ) { location in
                             NavigationLink(
                                 destination: LocationAssetsView(location: location)
                             ) {
@@ -202,7 +222,7 @@ struct CharacterAssetsView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
-        .onChange(of: searchText) { oldValue, newValue in
+        .onChange(of: searchText) { _, newValue in
             Task {
                 isSearching = true
                 await viewModel.searchAssets(query: newValue)
@@ -213,7 +233,6 @@ struct CharacterAssetsView: View {
             Task {
                 await viewModel.loadAssets(forceRefresh: true)
             }
-            return
         }
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
         .task {

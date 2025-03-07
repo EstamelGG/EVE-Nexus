@@ -6,4 +6,4 @@ struct SchematicInfo {
     let cycleTime: Int
     let outputValue: Int
     let inputs: [(typeId: Int, value: Int)]
-} 
+}

@@ -6,7 +6,7 @@ struct FactionDetailView: View {
     @State private var isLoading = true
     @State private var error: Error?
     @State private var searchText = ""
-    
+
     private var filteredCorporations: [Corporation] {
         if searchText.isEmpty {
             return corporations
@@ -14,7 +14,7 @@ struct FactionDetailView: View {
             return corporations.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     var body: some View {
         List {
             if isLoading {
@@ -38,14 +38,18 @@ struct FactionDetailView: View {
                 }
             } else {
                 ForEach(filteredCorporations) { corporation in
-                    NavigationLink(destination: CorporationLPStoreView(corporationId: corporation.id, corporationName: corporation.name)) {
+                    NavigationLink(
+                        destination: CorporationLPStoreView(
+                            corporationId: corporation.id, corporationName: corporation.name
+                        )
+                    ) {
                         HStack {
                             IconManager.shared.loadImage(for: corporation.iconFileName)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 36, height: 36)
                                 .cornerRadius(6)
-                            
+
                             Text(corporation.name)
                                 .padding(.leading, 8)
                         }
@@ -64,28 +68,30 @@ struct FactionDetailView: View {
             loadCorporations()
         }
     }
-    
+
     private func loadCorporations() {
         isLoading = true
         error = nil
-        
+
         let query = """
-            SELECT c.corporation_id, c.name, c.faction_id, i.iconFile_new
-            FROM npcCorporations c
-            LEFT JOIN iconIDs i ON c.icon_id = i.icon_id
-            WHERE c.faction_id = ?
-            ORDER BY c.name
-        """
-        
+                SELECT c.corporation_id, c.name, c.faction_id, i.iconFile_new
+                FROM npcCorporations c
+                LEFT JOIN iconIDs i ON c.icon_id = i.icon_id
+                WHERE c.faction_id = ?
+                ORDER BY c.name
+            """
+
         let result = DatabaseManager.shared.executeQuery(query, parameters: [faction.id])
         switch result {
-        case .success(let rows):
+        case let .success(rows):
             corporations = rows.compactMap { Corporation(from: $0) }
             isLoading = false
-        case .error(let errorMessage):
-            error = NSError(domain: "com.eve.nexus", 
-                          code: -1, 
-                          userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        case let .error(errorMessage):
+            error = NSError(
+                domain: "com.eve.nexus",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
             isLoading = false
         }
     }

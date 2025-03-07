@@ -9,7 +9,7 @@ struct StandingRowView: View {
     let standing: Double?
     @State private var leftImage: UIImage?
     @State private var rightImage: UIImage?
-    
+
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
@@ -30,12 +30,14 @@ struct StandingRowView: View {
                     }
                 }
                 .frame(width: geometry.size.width * 0.4, alignment: .trailing)
-                
+
                 // 中间声望值
                 if let standing = standing {
-                    Text(standing > 0 ? "+\(String(format: "%.0f", standing))" :
-                            standing < 0 ? "\(String(format: "%.0f", standing))" :
-                            "0")
+                    Text(
+                        standing > 0
+                            ? "+\(String(format: "%.0f", standing))"
+                            : standing < 0 ? "\(String(format: "%.0f", standing))" : "0"
+                    )
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(getStandingColor(standing: standing))
                     .frame(width: geometry.size.width * 0.2, alignment: .center)
@@ -45,7 +47,7 @@ struct StandingRowView: View {
                         .foregroundColor(.secondary)
                         .frame(width: geometry.size.width * 0.2, alignment: .center)
                 }
-                
+
                 // 右侧头像和名称
                 HStack(spacing: 6) {
                     if let image = rightImage {
@@ -70,38 +72,45 @@ struct StandingRowView: View {
             // 加载左侧头像
             switch leftPortrait.type {
             case .character:
-                leftImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: leftPortrait.id)
+                leftImage = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: leftPortrait.id)
             case .corporation:
-                leftImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: leftPortrait.id)
+                leftImage = try? await CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: leftPortrait.id)
             case .alliance:
-                leftImage = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: leftPortrait.id)
+                leftImage = try? await AllianceAPI.shared.fetchAllianceLogo(
+                    allianceID: leftPortrait.id)
             default:
                 break
             }
-            
+
             // 加载右侧头像
             switch rightPortrait.type {
             case .character:
-                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: rightPortrait.id, catchImage: false)
+                rightImage = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: rightPortrait.id, catchImage: false
+                )
             case .corporation:
-                rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: rightPortrait.id)
+                rightImage = try? await CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: rightPortrait.id)
             case .alliance:
-                rightImage = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: rightPortrait.id)
+                rightImage = try? await AllianceAPI.shared.fetchAllianceLogo(
+                    allianceID: rightPortrait.id)
             default:
                 break
             }
         }
     }
-    
+
     private func getStandingColor(standing: Double) -> Color {
         switch standing {
         case 5.0...10.0:
             return Color.blue  // 蓝色
         case 0.01...4.99:
             return Color(red: 0.0, green: 0.5, blue: 1.0)  // 浅蓝
-        case (-4.99)...(-0.01):
+        case -4.99 ... -0.01:
             return Color(red: 1.0, green: 0.5, blue: 0.0)  // 橙红
-        case (-10.0)...(-5.0):
+        case -10.0 ... -5.0:
             return Color.red  // 红色
         case ..<(-10.0):
             return Color.red  // 红色
@@ -121,13 +130,13 @@ private struct AllianceStandingsView: View {
     let allianceStandings: [Int: Double]
     let myCorpInfo: (name: String, icon: UIImage?)?
     let myAllianceInfo: (name: String, icon: UIImage?)?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(NSLocalizedString("Alliance Standings", comment: ""))
                 .font(.headline)
                 .padding(.bottom, 4)
-            
+
             // 我对目标联盟
             StandingRowView(
                 leftPortrait: (id: character.CharacterID, type: .character),
@@ -136,24 +145,26 @@ private struct AllianceStandingsView: View {
                 rightName: allianceName,
                 standing: personalStandings[allianceId]
             )
-            
+
             // 我军团对目标联盟
             if let corpId = character.corporationId {
                 StandingRowView(
                     leftPortrait: (id: corpId, type: .corporation),
                     rightPortrait: (id: allianceId, type: .alliance),
-                    leftName: myCorpInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                    leftName: myCorpInfo?.name
+                        ?? NSLocalizedString("Standing_Unknown", comment: ""),
                     rightName: allianceName,
                     standing: corpStandings[allianceId]
                 )
             }
-            
+
             // 我联盟对目标联盟
             if let myAllianceId = character.allianceId {
                 StandingRowView(
                     leftPortrait: (id: myAllianceId, type: .alliance),
                     rightPortrait: (id: allianceId, type: .alliance),
-                    leftName: myAllianceInfo?.name ?? NSLocalizedString("Standing_Unknown", comment: ""),
+                    leftName: myAllianceInfo?.name
+                        ?? NSLocalizedString("Standing_Unknown", comment: ""),
                     rightName: allianceName,
                     standing: allianceStandings[allianceId]
                 )
@@ -165,24 +176,24 @@ private struct AllianceStandingsView: View {
 struct AllianceDetailView: View {
     let allianceId: Int
     let character: EVECharacterInfo
-    
+
     @State private var allianceInfo: AllianceInfo?
     @State private var allianceLogo: UIImage?
     @State private var creatorCorpInfo: (name: String, icon: UIImage?)?
     @State private var executorCorpInfo: (name: String, icon: UIImage?)?
     @State private var creatorInfo: (name: String, icon: UIImage?)?
-    
+
     @State private var personalStandings: [Int: Double] = [:]
     @State private var corpStandings: [Int: Double] = [:]
     @State private var allianceStandings: [Int: Double] = [:]
-    
+
     @State private var myCorpInfo: (name: String, icon: UIImage?)?
     @State private var myAllianceInfo: (name: String, icon: UIImage?)?
-    
+
     @State private var error: Error?
     @State private var isLoading = true
     @State private var standingsLoaded = false
-    
+
     var body: some View {
         List {
             if isLoading {
@@ -224,7 +235,7 @@ struct AllianceDetailView: View {
                                 .frame(width: 96, height: 96)
                                 .foregroundColor(.gray)
                         }
-                        
+
                         VStack(alignment: .leading, spacing: 8) {
                             // 联盟名称和代号
                             VStack(alignment: .leading, spacing: 4) {
@@ -236,7 +247,7 @@ struct AllianceDetailView: View {
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
                             }
-                            
+
                             // 执行军团
                             if let executorInfo = executorCorpInfo {
                                 HStack(spacing: 4) {
@@ -246,12 +257,14 @@ struct AllianceDetailView: View {
                                             .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    Text("\(NSLocalizedString("Executor", comment: "")): \(executorInfo.name)")
-                                        .font(.system(size: 14))
-                                        .lineLimit(1)
+                                    Text(
+                                        "\(NSLocalizedString("Executor", comment: "")): \(executorInfo.name)"
+                                    )
+                                    .font(.system(size: 14))
+                                    .lineLimit(1)
                                 }
                             }
-                            
+
                             // 创建者军团
                             if let creatorCorpInfo = creatorCorpInfo {
                                 HStack(spacing: 4) {
@@ -261,12 +274,14 @@ struct AllianceDetailView: View {
                                             .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    Text("\(NSLocalizedString("Creator Corp", comment: "")): \(creatorCorpInfo.name)")
-                                        .font(.system(size: 14))
-                                        .lineLimit(1)
+                                    Text(
+                                        "\(NSLocalizedString("Creator Corp", comment: "")): \(creatorCorpInfo.name)"
+                                    )
+                                    .font(.system(size: 14))
+                                    .lineLimit(1)
                                 }
                             }
-                            
+
                             // 创建者
                             if let creatorInfo = creatorInfo {
                                 HStack(spacing: 4) {
@@ -276,16 +291,18 @@ struct AllianceDetailView: View {
                                             .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    Text("\(NSLocalizedString("Creator", comment: "")): \(creatorInfo.name)")
-                                        .font(.system(size: 14))
-                                        .lineLimit(1)
+                                    Text(
+                                        "\(NSLocalizedString("Creator", comment: "")): \(creatorInfo.name)"
+                                    )
+                                    .font(.system(size: 14))
+                                    .lineLimit(1)
                                 }
                             }
                         }
                     }
                     .padding(.vertical, 4)
                 }
-                
+
                 // 联盟基本信息
                 Section {
                     // 成立时间
@@ -298,7 +315,7 @@ struct AllianceDetailView: View {
                         }
                     }
                 }
-                
+
                 // 声望信息
                 Section {
                     AllianceStandingsView(
@@ -320,41 +337,57 @@ struct AllianceDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadAllianceDetails()
-            
+
             if !standingsLoaded {
                 await loadStandings()
                 standingsLoaded = true
             }
         }
     }
-    
+
     private func loadAllianceDetails() async {
         isLoading = true
-        
+
         do {
             // 加载联盟基本信息和图标
-            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId)
-            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 128)
-            
+            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
+                allianceId: allianceId)
+            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
+                allianceID: allianceId, size: 128
+            )
+
             let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
-            
+
             // 加载执行军团信息
-            async let executorCorpInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: info.executor_corporation_id)
-            async let executorCorpLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: info.executor_corporation_id)
-            
+            async let executorCorpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: info.executor_corporation_id)
+            async let executorCorpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                corporationId: info.executor_corporation_id)
+
             // 加载创建者军团信息
-            async let creatorCorpInfoTask = CorporationAPI.shared.fetchCorporationInfo(corporationId: info.creator_corporation_id)
-            async let creatorCorpLogoTask = CorporationAPI.shared.fetchCorporationLogo(corporationId: info.creator_corporation_id)
-            
+            async let creatorCorpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: info.creator_corporation_id)
+            async let creatorCorpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                corporationId: info.creator_corporation_id)
+
             // 加载创建者信息
-            let creatorNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [info.creator_id])
-            let creatorName = creatorNames[info.creator_id]?.name ?? NSLocalizedString("Unknown", comment: "")
-            let creatorIcon = try? await CharacterAPI.shared.fetchCharacterPortrait(characterId: info.creator_id, catchImage: false)
-            
+            let creatorNames = try await UniverseAPI.shared.getNamesWithFallback(ids: [
+                info.creator_id
+            ])
+            let creatorName =
+                creatorNames[info.creator_id]?.name ?? NSLocalizedString("Unknown", comment: "")
+            let creatorIcon = try? await CharacterAPI.shared.fetchCharacterPortrait(
+                characterId: info.creator_id, catchImage: false
+            )
+
             // 等待所有信息加载完成
-            let (executorCorpInfo, executorCorpLogo) = try await (executorCorpInfoTask, executorCorpLogoTask)
-            let (creatorCorpInfo, creatorCorpLogo) = try await (creatorCorpInfoTask, creatorCorpLogoTask)
-            
+            let (executorCorpInfo, executorCorpLogo) = try await (
+                executorCorpInfoTask, executorCorpLogoTask
+            )
+            let (creatorCorpInfo, creatorCorpLogo) = try await (
+                creatorCorpInfoTask, creatorCorpLogoTask
+            )
+
             // 更新UI
             await MainActor.run {
                 self.allianceInfo = info
@@ -363,55 +396,68 @@ struct AllianceDetailView: View {
                 self.creatorCorpInfo = (name: creatorCorpInfo.name, icon: creatorCorpLogo)
                 self.creatorInfo = (name: creatorName, icon: creatorIcon)
             }
-            
+
         } catch {
             Logger.error("加载联盟详细信息失败: \(error)")
             self.error = error
         }
-        
+
         isLoading = false
         Logger.info("联盟详细信息加载完成")
     }
-    
+
     private func loadStandings() async {
         // 加载我的军团信息
         if let corpId = character.corporationId {
-            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(corporationId: corpId) {
-                let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
+            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: corpId)
+            {
+                let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: corpId)
                 myCorpInfo = (name: corpInfo.name, icon: corpIcon)
             }
         }
-        
+
         // 加载我的联盟信息
         if let allianceId = character.allianceId {
-            let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+            let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId]
+            )
             if let allianceName = allianceNames?[allianceId]?.name {
-                let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+                let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(
+                    allianceID: allianceId)
                 myAllianceInfo = (name: allianceName, icon: allianceIcon)
             }
         }
-        
+
         // 加载个人声望
-        if let contacts = try? await GetCharContacts.shared.fetchContacts(characterId: character.CharacterID) {
+        if let contacts = try? await GetCharContacts.shared.fetchContacts(
+            characterId: character.CharacterID)
+        {
             for contact in contacts {
                 personalStandings[contact.contact_id] = contact.standing
             }
         }
-        
+
         // 加载军团声望
         if let corpId = character.corporationId,
-           let contacts = try? await GetCorpContacts.shared.fetchContacts(characterId: character.CharacterID, corporationId: corpId) {
+            let contacts = try? await GetCorpContacts.shared.fetchContacts(
+                characterId: character.CharacterID, corporationId: corpId
+            )
+        {
             for contact in contacts {
                 corpStandings[contact.contact_id] = contact.standing
             }
         }
-        
+
         // 加载联盟声望
         if let allianceId = character.allianceId,
-           let contacts = try? await GetAllianceContacts.shared.fetchContacts(characterId: character.CharacterID, allianceId: allianceId) {
+            let contacts = try? await GetAllianceContacts.shared.fetchContacts(
+                characterId: character.CharacterID, allianceId: allianceId
+            )
+        {
             for contact in contacts {
                 allianceStandings[contact.contact_id] = contact.standing
             }
         }
     }
-} 
+}

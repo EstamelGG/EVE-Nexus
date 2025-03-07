@@ -10,7 +10,7 @@ struct CharacterMailView: View {
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showingComposeView = false
-    
+
     var body: some View {
         List {
             // 全部邮件部分
@@ -23,15 +23,15 @@ struct CharacterMailView: View {
                             .foregroundColor(.gray)
                             .frame(width: 24, height: 24)
                         Text(NSLocalizedString("Main_EVE_Mail_All", comment: ""))
-//                        Spacer()
-//                        if let totalUnread = totalUnread {
-//                            Text("\(totalUnread)")
-//                                .foregroundColor(.blue)
-//                        }
+                        //                        Spacer()
+                        //                        if let totalUnread = totalUnread {
+                        //                            Text("\(totalUnread)")
+                        //                                .foregroundColor(.blue)
+                        //                        }
                     }
                 }
             }
-            
+
             // 邮箱列表部分
             Section {
                 ForEach(MailboxType.allCases, id: \.self) { mailbox in
@@ -66,27 +66,27 @@ struct CharacterMailView: View {
                             //         .frame(width: 24, height: 24)
                             }
                             Text(mailbox.title)
-                            //Spacer()
+                            // Spacer()
                             // 显示未读数
-//                            switch mailbox {
-//                            case .inbox:
-//                                if let unread = inboxUnread {
-//                                    Text("\(unread)")
-//                                        .foregroundColor(.blue)
-//                                }
-//                            case .corporation:
-//                                if let unread = corpUnread {
-//                                    Text("\(unread)")
-//                                        .foregroundColor(.blue)
-//                                }
-//                            case .alliance:
-//                                if let unread = allianceUnread {
-//                                    Text("\(unread)")
-//                                        .foregroundColor(.blue)
-//                                }
-//                            default:
-//                                EmptyView()
-//                            }
+                            //                            switch mailbox {
+                            //                            case .inbox:
+                            //                                if let unread = inboxUnread {
+                            //                                    Text("\(unread)")
+                            //                                        .foregroundColor(.blue)
+                            //                                }
+                            //                            case .corporation:
+                            //                                if let unread = corpUnread {
+                            //                                    Text("\(unread)")
+                            //                                        .foregroundColor(.blue)
+                            //                                }
+                            //                            case .alliance:
+                            //                                if let unread = allianceUnread {
+                            //                                    Text("\(unread)")
+                            //                                        .foregroundColor(.blue)
+                            //                                }
+                            //                            default:
+                            //                                EmptyView()
+                            //                            }
                         }
                     }
                 }
@@ -123,32 +123,41 @@ struct CharacterMailView: View {
             await viewModel.fetchMailLabels(characterId: characterId)
         }
     }
-    
+
     private func loadUnreadCounts(forceRefresh: Bool = false) async {
         do {
             isLoading = true
             defer { isLoading = false }
-            
+
             // 获取总未读数
-            totalUnread = try await CharacterMailAPI.shared.getTotalUnreadCount(characterId: characterId, forceRefresh: forceRefresh)
-            
+            totalUnread = try await CharacterMailAPI.shared.getTotalUnreadCount(
+                characterId: characterId, forceRefresh: forceRefresh
+            )
+
             // 获取收件箱未读数
-            inboxUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 1, forceRefresh: forceRefresh)
-            
+            inboxUnread = try await CharacterMailAPI.shared.getUnreadCount(
+                characterId: characterId, labelId: 1, forceRefresh: forceRefresh
+            )
+
             // 获取军团邮箱未读数
-            corpUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 4, forceRefresh: forceRefresh)
-            
+            corpUnread = try await CharacterMailAPI.shared.getUnreadCount(
+                characterId: characterId, labelId: 4, forceRefresh: forceRefresh
+            )
+
             // 获取联盟邮箱未读数
-            allianceUnread = try await CharacterMailAPI.shared.getUnreadCount(characterId: characterId, labelId: 8, forceRefresh: forceRefresh)
-            
-            Logger.info("""
+            allianceUnread = try await CharacterMailAPI.shared.getUnreadCount(
+                characterId: characterId, labelId: 8, forceRefresh: forceRefresh
+            )
+
+            Logger.info(
+                """
                 邮件未读数统计\(forceRefresh ? "(强制刷新)" : ""):
                 总未读: \(totalUnread ?? 0)
                 收件箱: \(inboxUnread ?? 0)
                 军团邮箱: \(corpUnread ?? 0)
                 联盟邮箱: \(allianceUnread ?? 0)
                 """)
-            
+
         } catch {
             Logger.error("获取未读数失败: \(error)")
             self.error = error
@@ -161,7 +170,7 @@ struct MailLabelDetailView: View {
     let characterId: Int
     let label: CharacterMailViewModel.MailLabel
     @ObservedObject var viewModel: CharacterMailViewModel
-    
+
     var body: some View {
         List {
             if viewModel.isLoading {
@@ -176,7 +185,7 @@ struct MailLabelDetailView: View {
             } else {
                 ForEach(viewModel.selectedLabelMails) { mail in
                     NavigationLink {
-                        Text("Mail Details") // 待实现
+                        Text("Mail Details")  // 待实现
                     } label: {
                         MailRowView(mail: mail)
                     }
@@ -200,7 +209,7 @@ enum MailboxType: CaseIterable {
     case corporation
     case alliance
     // case spam
-    
+
     var title: String {
         switch self {
         case .inbox: return NSLocalizedString("Main_EVE_Mail_Inbox", comment: "")
@@ -210,7 +219,7 @@ enum MailboxType: CaseIterable {
         // case .spam: return NSLocalizedString("Main_EVE_Mail_Spam", comment: "")
         }
     }
-    
+
     var labelId: Int {
         switch self {
         case .inbox: return 1
@@ -225,7 +234,7 @@ enum MailboxType: CaseIterable {
 // 邮件行视图
 struct MailRowView: View {
     let mail: Mail
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -237,13 +246,13 @@ struct MailRowView: View {
                     .font(.caption)
                     .foregroundColor(.gray)
             }
-            
+
             HStack {
                 Text(mail.from)
                     .font(.subheadline)
                     .foregroundColor(.gray)
                     .lineLimit(1)
-                
+
                 if !mail.isRead {
                     Circle()
                         .fill(.blue)
@@ -262,7 +271,7 @@ struct Mail: Identifiable {
     let from: String
     let date: Date
     let isRead: Bool
-    
+
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -276,13 +285,16 @@ extension Color {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
+        let a: UInt64
+        let r: UInt64
+        let g: UInt64
+        let b: UInt64
         switch hex.count {
-        case 3: // RGB (12-bit)
+        case 3:  // RGB (12-bit)
             (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
+        case 6:  // RGB (24-bit)
             (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
+        case 8:  // ARGB (32-bit)
             (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
         default:
             (a, r, g, b) = (255, 0, 0, 0)
@@ -291,7 +303,7 @@ extension Color {
             .sRGB,
             red: Double(r) / 255,
             green: Double(g) / 255,
-            blue:  Double(b) / 255,
+            blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
     }

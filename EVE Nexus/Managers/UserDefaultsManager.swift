@@ -3,13 +3,13 @@ import Foundation
 class UserDefaultsManager {
     static let shared = UserDefaultsManager()
     private let defaults = UserDefaults.standard
-    
+
     // The Forge 的 regionID 是 10000002
-    private let defaultRegionID = 10000002
+    private let defaultRegionID = 10_000_002
     let defaultRegionName = "The Forge"
-    
+
     // 键名常量
-    private struct Keys {
+    private enum Keys {
         static let selectedRegionID = "selectedRegionID"
         static let pinnedRegionIDs = "pinnedRegionIDs"
         static let selectedLanguage = "selectedLanguage"
@@ -18,21 +18,22 @@ class UserDefaultsManager {
         static let lastMarketUpdate = "lastMarketUpdate"
         static let isSimplifiedMode = "isSimplifiedMode"
     }
-    
+
     private init() {}
-    
+
     // 选中的星域ID
     var selectedRegionID: Int {
         get {
             // Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedRegionID)")
-            return defaults.integer(forKey: Keys.selectedRegionID) == 0 ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
+            return defaults.integer(forKey: Keys.selectedRegionID) == 0
+                ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
         }
         set {
             // Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedRegionID), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size) bytes")
             defaults.set(newValue, forKey: Keys.selectedRegionID)
         }
     }
-    
+
     // 置顶的星域ID列表
     var pinnedRegionIDs: [Int] {
         get {
@@ -47,7 +48,7 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)
         }
     }
-    
+
     // 选中的语言
     var selectedLanguage: String {
         get {
@@ -59,7 +60,7 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.selectedLanguage)
         }
     }
-    
+
     // 是否使用简化模式
     var isSimplifiedMode: Bool {
         get {
@@ -71,7 +72,7 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.isSimplifiedMode)
         }
     }
-    
+
     // 最后检查更新时间
     var lastUpdateCheck: Date? {
         get {
@@ -83,7 +84,7 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.lastUpdateCheck)
         }
     }
-    
+
     // 最后数据库更新时间
     var lastDatabaseUpdate: Date? {
         get {
@@ -95,7 +96,7 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.lastDatabaseUpdate)
         }
     }
-    
+
     // 最后市场数据更新时间
     var lastMarketUpdate: Date? {
         get {
@@ -107,4 +108,4 @@ class UserDefaultsManager {
             defaults.set(newValue, forKey: Keys.lastMarketUpdate)
         }
     }
-} 
+}

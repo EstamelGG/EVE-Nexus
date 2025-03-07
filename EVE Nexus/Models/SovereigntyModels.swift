@@ -1,6 +1,7 @@
 import Foundation
 
 // MARK: - 主权战役数据模型
+
 public struct SovereigntyCampaign: Codable {
     public let attackers_score: Float?
     public let campaign_id: Int
@@ -11,7 +12,7 @@ public struct SovereigntyCampaign: Codable {
     public let solar_system_id: Int
     public let start_time: String
     public let structure_id: Int64
-    
+
     public init(
         attackers_score: Float?,
         campaign_id: Int,
@@ -36,19 +37,20 @@ public struct SovereigntyCampaign: Codable {
 }
 
 // MARK: - 主权数据模型
+
 public struct SovereigntyData: Codable {
     public let systemId: Int
     public let allianceId: Int?
     public let corporationId: Int?
     public let factionId: Int?
-    
+
     public enum CodingKeys: String, CodingKey {
         case systemId = "system_id"
         case allianceId = "alliance_id"
         case corporationId = "corporation_id"
         case factionId = "faction_id"
     }
-    
+
     public init(
         systemId: Int,
         allianceId: Int?,
@@ -60,4 +62,4 @@ public struct SovereigntyData: Codable {
         self.corporationId = corporationId
         self.factionId = factionId
     }
-} 
+}

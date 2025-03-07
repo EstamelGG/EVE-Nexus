@@ -4,12 +4,16 @@ import SwiftUI
 final class CorpWalletDivisionViewModel: ObservableObject {
     let journalViewModel: CorpWalletJournalViewModel
     let transactionsViewModel: CorpWalletTransactionsViewModel
-    
+
     init(characterId: Int, division: Int, databaseManager: DatabaseManager) {
-        self.journalViewModel = CorpWalletJournalViewModel(characterId: characterId, division: division)
-        self.transactionsViewModel = CorpWalletTransactionsViewModel(characterId: characterId, division: division, databaseManager: databaseManager)
+        journalViewModel = CorpWalletJournalViewModel(
+            characterId: characterId, division: division
+        )
+        transactionsViewModel = CorpWalletTransactionsViewModel(
+            characterId: characterId, division: division, databaseManager: databaseManager
+        )
     }
-    
+
     func loadInitialData() async {
         // 同时加载两个视图的数据
         await withTaskGroup(of: Void.self) { group in
@@ -21,7 +25,7 @@ final class CorpWalletDivisionViewModel: ObservableObject {
             }
         }
     }
-    
+
     func refreshData() async {
         // 同时刷新两个视图的数据
         await withTaskGroup(of: Void.self) { group in
@@ -41,18 +45,19 @@ struct CorpWalletDivisionDetails: View {
     let divisionName: String
     @State private var selectedTab = 0
     @StateObject private var viewModel: CorpWalletDivisionViewModel
-    
+
     init(characterId: Int, division: Int, divisionName: String) {
         self.characterId = characterId
         self.division = division
         self.divisionName = divisionName
-        self._viewModel = StateObject(wrappedValue: CorpWalletDivisionViewModel(
-            characterId: characterId,
-            division: division,
-            databaseManager: DatabaseManager.shared
-        ))
+        _viewModel = StateObject(
+            wrappedValue: CorpWalletDivisionViewModel(
+                characterId: characterId,
+                division: division,
+                databaseManager: DatabaseManager.shared
+            ))
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 顶部选择器
@@ -65,12 +70,12 @@ struct CorpWalletDivisionDetails: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, 4)
-            
+
             // 内容视图
             TabView(selection: $selectedTab) {
                 CorpWalletJournalView(viewModel: viewModel.journalViewModel)
                     .tag(0)
-                
+
                 CorpWalletTransactionsView(viewModel: viewModel.transactionsViewModel)
                     .tag(1)
             }
@@ -88,4 +93,4 @@ struct CorpWalletDivisionDetails: View {
             await viewModel.refreshData()
         }
     }
-} 
+}

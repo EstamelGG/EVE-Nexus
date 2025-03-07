@@ -8,4 +8,4 @@ struct Route {
     let quantity: Int64
     let routeId: Int64
     let waypoints: [Int64]?
-} 
+}

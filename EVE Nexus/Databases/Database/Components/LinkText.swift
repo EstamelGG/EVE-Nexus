@@ -7,12 +7,12 @@ struct LinkText: View {
     let url: String?
     @ObservedObject var databaseManager: DatabaseManager
     @State private var showingSheet = false
-    
+
     enum LinkType {
         case showInfo
         case url
     }
-    
+
     var body: some View {
         switch type {
         case .showInfo:
@@ -27,7 +27,8 @@ struct LinkText: View {
                 }
                 .sheet(isPresented: $showingSheet) {
                     if let itemID = itemID,
-                       let categoryID = databaseManager.getCategoryID(for: itemID) {
+                        let categoryID = databaseManager.getCategoryID(for: itemID)
+                    {
                         NavigationStack {
                             ItemInfoMap.getItemInfoView(
                                 itemID: itemID,
@@ -37,10 +38,11 @@ struct LinkText: View {
                         }
                     }
                 }
-            
+
         case .url:
             if let urlString = url,
-               let url = URL(string: urlString) {
+                let url = URL(string: urlString)
+            {
                 SwiftUI.Link(text, destination: url)
                     .foregroundColor(.blue)
             } else {
@@ -49,4 +51,4 @@ struct LinkText: View {
             }
         }
     }
-} 
+}

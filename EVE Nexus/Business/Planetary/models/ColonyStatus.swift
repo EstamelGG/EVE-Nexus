@@ -12,7 +12,7 @@ enum ColonyStatus {
     case producing(pins: [Pin])
     /// 采集中
     case extracting(pins: [Pin])
-    
+
     /// 排序顺序
     var order: Int {
         switch self {
@@ -23,7 +23,7 @@ enum ColonyStatus {
         case .extracting: return 5
         }
     }
-    
+
     /// 是否正在工作
     var isWorking: Bool {
         switch self {
@@ -31,11 +31,12 @@ enum ColonyStatus {
         case .producing, .extracting: return true
         }
     }
-    
+
     /// 相关的设施
     var pins: [Pin] {
         switch self {
-        case .notSetup(let pins), .needsAttention(let pins), .idle(let pins), .producing(let pins), .extracting(let pins):
+        case let .notSetup(pins), let .needsAttention(pins), let .idle(pins), let .producing(pins),
+            let .extracting(pins):
             return pins
         }
     }
@@ -51,28 +52,29 @@ func getColonyStatus(pins: [Pin]) -> ColonyStatus {
     if !notSetupPins.isEmpty {
         return .notSetup(pins: notSetupPins)
     }
-    
+
     let needsAttentionPins = pins.filter { pin in
-        pin.status == .extractorExpired || pin.status == .extractorInactive || pin.status == .storageFull
+        pin.status == .extractorExpired || pin.status == .extractorInactive
+            || pin.status == .storageFull
     }
     if !needsAttentionPins.isEmpty {
         return .needsAttention(pins: needsAttentionPins)
     }
-    
+
     let extractingPins = pins.filter { pin in
         pin.status == .extracting
     }
     if !extractingPins.isEmpty {
         return .extracting(pins: extractingPins)
     }
-    
+
     let producingPins = pins.filter { pin in
         pin.status == .producing
     }
     if !producingPins.isEmpty {
         return .producing(pins: producingPins)
     }
-    
+
     return .idle(pins: [])
 }
 
@@ -84,54 +86,58 @@ func getColonyStatus(pins: [Pin]) -> ColonyStatus {
 /// - Returns: 设施状态
 func getPinStatus(pin: Pin, now: Date, routes: [Route]) -> PinStatus {
     if let extractor = pin as? Pin.Extractor {
-        let isSetup = extractor.installTime != nil && extractor.expiryTime != nil && extractor.cycleTime != nil && extractor.baseValue != nil && extractor.productType != nil
+        let isSetup =
+            extractor.installTime != nil && extractor.expiryTime != nil
+            && extractor.cycleTime != nil && extractor.baseValue != nil
+            && extractor.productType != nil
         if !isSetup {
             return .notSetup
         }
-        
+
         if let expiryTime = extractor.expiryTime, expiryTime <= now {
             return .extractorExpired
         }
-        
+
         switch isRouted(pin: pin, routes: routes) {
         case .routed: break
         case .inputNotRouted: return .inputNotRouted
         case .outputNotRouted: return .outputNotRouted
         }
-        
+
         if extractor.isActive {
             return .extracting
         }
-        
+
         return .extractorInactive
     } else if let factory = pin as? Pin.Factory {
         if factory.schematic == nil {
             return .notSetup
         }
-        
+
         switch isRouted(pin: pin, routes: routes) {
         case .routed: break
         case .inputNotRouted: return .inputNotRouted
         case .outputNotRouted: return .outputNotRouted
         }
-        
+
         // 使用与Kotlin版本相似的逻辑判断工厂是否处于活跃状态
-        if let lastCycleStartTime = factory.lastCycleStartTime, 
-           let schematic = factory.schematic {
+        if let lastCycleStartTime = factory.lastCycleStartTime,
+            let schematic = factory.schematic
+        {
             let cycleTime = schematic.cycleTime
             let lastCycleAgo = now.timeIntervalSince(lastCycleStartTime)
-            
+
             // 如果上次周期开始时间到现在的时间小于一个完整周期，则工厂处于活跃状态
             if lastCycleAgo < cycleTime {
                 return .producing
             }
         }
-        
+
         // 检查是否有足够的输入材料
         if factory.hasEnoughInputs() {
-            return .factoryIdle // 有足够材料但未生产
+            return .factoryIdle  // 有足够材料但未生产
         } else {
-            return .inputNotRouted // 材料不足
+            return .inputNotRouted  // 材料不足
         }
     } else if pin is Pin.CommandCenter || pin is Pin.Launchpad || pin is Pin.Storage {
         let incomingRoutes = routes.filter { $0.destinationPinId == pin.id }
@@ -143,10 +149,10 @@ func getPinStatus(pin: Pin, now: Date, routes: [Route]) -> PinStatus {
                 return .storageFull
             }
         }
-        
+
         return .static
     }
-    
+
     return .static
 }
 
@@ -160,7 +166,8 @@ func isRouted(pin: Pin, routes: [Route]) -> RoutedState {
     if let factory = pin as? Pin.Factory {
         if let schematic = factory.schematic {
             let inputTypes = schematic.inputs.map { $0.key.id }
-            let inputTypesReceived = Set(routes.filter { $0.destinationPinId == pin.id }.map { $0.type.id })
+            let inputTypesReceived = Set(
+                routes.filter { $0.destinationPinId == pin.id }.map { $0.type.id })
             isInputRouted = inputTypes.allSatisfy { inputTypesReceived.contains($0) }
         } else {
             isInputRouted = true
@@ -168,14 +175,14 @@ func isRouted(pin: Pin, routes: [Route]) -> RoutedState {
     } else {
         isInputRouted = true
     }
-    
+
     let isOutputRouted: Bool
     if pin is Pin.Factory || pin is Pin.Extractor {
         isOutputRouted = routes.contains { $0.sourcePinId == pin.id }
     } else {
         isOutputRouted = true
     }
-    
+
     if !isInputRouted {
         return .inputNotRouted
     }
@@ -195,12 +202,12 @@ func getCapacity(for pin: Pin) -> Int? {
     case is Pin.Factory:
         return nil
     case is Pin.Storage:
-        return 12_000
+        return 12000
     case is Pin.CommandCenter:
         return 500
     case is Pin.Launchpad:
-        return 10_000
+        return 10000
     default:
         return nil
     }
-} 
+}

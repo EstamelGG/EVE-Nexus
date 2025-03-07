@@ -4,21 +4,32 @@ import SwiftUI
 struct SkillDependencyListView: View {
     let skillID: Int
     let level: Int
-    let items: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)]
+    let items:
+        [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)]
     @ObservedObject var databaseManager: DatabaseManager
-    
+
     // 按分类分组的物品
-    private var itemsByCategory: [(categoryName: String, items: [(typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String)])] {
+    private var itemsByCategory:
+        [(
+            categoryName: String,
+            items: [(
+                typeID: Int, name: String, iconFileName: String, categoryID: Int,
+                categoryName: String
+            )]
+        )]
+    {
         // 按分类名称分组
         let groupedItems = Dictionary(grouping: items) { item in
             item.categoryName
         }
-        
+
         // 按分类名称排序
-        return groupedItems.map { (categoryName: $0.key, items: $0.value.sorted { $0.name < $1.name }) }
-            .sorted { $0.categoryName < $1.categoryName }
+        return groupedItems.map {
+            (categoryName: $0.key, items: $0.value.sorted { $0.name < $1.name })
+        }
+        .sorted { $0.categoryName < $1.categoryName }
     }
-    
+
     var body: some View {
         List {
             ForEach(itemsByCategory, id: \.categoryName) { category in
@@ -36,7 +47,7 @@ struct SkillDependencyListView: View {
                                     .resizable()
                                     .frame(width: 32, height: 32)
                                     .cornerRadius(6)
-                                
+
                                 Text(item.name)
                                     .font(.body)
                             }
@@ -54,17 +65,20 @@ struct SkillDependencyListView: View {
 struct SkillDependencySection: View {
     let skillID: Int
     @ObservedObject var databaseManager: DatabaseManager
-    
+
     // 获取等级对应的图标名称
     private func getIconForLevel(_ level: Int) -> String {
         return "skill_lv_\(level + 1)"
     }
-    
+
     var body: some View {
         let itemsByLevel = databaseManager.getAllItemsRequiringSkill(skillID: skillID)
-        
+
         if !itemsByLevel.isEmpty {
-            Section(header: Text(NSLocalizedString("Main_Database_Required_By", comment: "")).font(.headline)) {
+            Section(
+                header: Text(NSLocalizedString("Main_Database_Required_By", comment: "")).font(
+                    .headline)
+            ) {
                 ForEach(1...5, id: \.self) { level in
                     if let items = itemsByLevel[level], !items.isEmpty {
                         NavigationLink {
@@ -80,7 +94,7 @@ struct SkillDependencySection: View {
                                     .resizable()
                                     .frame(width: 32, height: 32)
                                     .cornerRadius(6)
-                                
+
                                 Text("Level \(level)")
                             }
                         }
@@ -89,4 +103,4 @@ struct SkillDependencySection: View {
             }
         }
     }
-} 
+}

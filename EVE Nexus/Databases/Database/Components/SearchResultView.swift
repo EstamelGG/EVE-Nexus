@@ -1,5 +1,5 @@
-import SwiftUI
 import Combine
+import SwiftUI
 
 // 通用的数据项模型
 struct DatabaseListItem: Identifiable {
@@ -30,20 +30,21 @@ struct DatabaseListItem: Identifiable {
 
 // 分组类型
 enum GroupingType {
-    case publishedOnly    // Categories 和 Groups 用：只分已发布和未发布
-    case metaGroups      // Items 用：按 metaGroup 分组，外加未发布组
+    case publishedOnly  // Categories 和 Groups 用：只分已发布和未发布
+    case metaGroups  // Items 用：按 metaGroup 分组，外加未发布组
 }
 
 // 统一的列表视图
 struct DatabaseListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
-    
+
     let title: String
     let groupingType: GroupingType
     let loadData: (DatabaseManager) -> ([DatabaseListItem], [Int: String])
-    let searchData: ((DatabaseManager, String) -> ([DatabaseListItem], [Int: String], [Int: String]))?
-    
+    let searchData:
+        ((DatabaseManager, String) -> ([DatabaseListItem], [Int: String], [Int: String]))?
+
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var groupNames: [Int: String] = [:]  // 添加组名字典
@@ -52,18 +53,19 @@ struct DatabaseListView: View {
     @State private var lastSearchResults: ([DatabaseListItem], [Int: String], [Int: String])? = nil
     @State private var isShowingSearchResults = false
     @State private var isSearchActive = false  // 新增：控制搜索框激活状态
-    
+
     // Combine 用于处理搜索
     @StateObject private var searchController = SearchController()
-    
+
     // 新增：提取已发布物品的视图
     private var publishedItemsView: some View {
         ForEach(groupedPublishedItems, id: \.id) { group in
-            Section(header: Text(group.name)
-                .fontWeight(.bold)
-                .font(.system(size: 18))
-                .foregroundColor(.primary)
-                .textCase(.none)
+            Section(
+                header: Text(group.name)
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
             ) {
                 ForEach(group.items) { item in
                     NavigationLink(destination: item.navigationDestination) {
@@ -77,14 +79,15 @@ struct DatabaseListView: View {
             }
         }
     }
-    
+
     // 新增：提取未发布物品的视图
     private var unpublishedItemsView: some View {
-        Section(header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
-            .fontWeight(.bold)
-            .font(.system(size: 18))
-            .foregroundColor(.primary)
-            .textCase(.none)
+        Section(
+            header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
         ) {
             ForEach(items.filter { !$0.published }) { item in
                 NavigationLink(destination: item.navigationDestination) {
@@ -97,7 +100,7 @@ struct DatabaseListView: View {
             }
         }
     }
-    
+
     // 新增：提取加载状态的视图
     @ViewBuilder
     private var loadingOverlay: some View {
@@ -125,7 +128,7 @@ struct DatabaseListView: View {
                 }
         }
     }
-    
+
     var body: some View {
         List {
             // 已发布的物品
@@ -133,7 +136,7 @@ struct DatabaseListView: View {
             if !publishedItems.isEmpty {
                 publishedItemsView
             }
-            
+
             // 未发布的物品
             let unpublishedItems = items.filter { !$0.published }
             if !unpublishedItems.isEmpty {
@@ -188,7 +191,7 @@ struct DatabaseListView: View {
             setupSearch()
         }
     }
-    
+
     private func loadInitialData() {
         let (loadedItems, loadedMetaGroupNames) = loadData(databaseManager)
         items = loadedItems
@@ -196,7 +199,7 @@ struct DatabaseListView: View {
         isShowingSearchResults = false  // 重置搜索结果标志
         lastSearchResults = nil  // 清除搜索结果缓存
     }
-    
+
     private func setupSearch() {
         searchController.debouncedSearchPublisher
             .receive(on: DispatchQueue.main)
@@ -207,19 +210,21 @@ struct DatabaseListView: View {
             }
             .store(in: &searchController.cancellables)
     }
-    
+
     private func performSearch(with text: String) {
         guard let searchData = searchData else { return }
-        
+
         isLoading = true  // 开始搜索，显示加载状态
-        
+
         // 在主线程中执行搜索
         DispatchQueue.main.async {
-            let (searchResults, searchMetaGroupNames, searchGroupNames) = searchData(databaseManager, text)
-            
+            let (searchResults, searchMetaGroupNames, searchGroupNames) = searchData(
+                databaseManager, text
+            )
+
             // 更新 UI
             items = searchResults
-            
+
             // 更新 metaGroupNames
             if searchMetaGroupNames.isEmpty {
                 let metaGroupIDs = Set(searchResults.compactMap { $0.metaGroupID })
@@ -227,7 +232,7 @@ struct DatabaseListView: View {
             } else {
                 metaGroupNames = searchMetaGroupNames
             }
-            
+
             // 更新 groupNames
             if searchGroupNames.isEmpty {
                 let groupIDs = Set(searchResults.compactMap { $0.groupID })
@@ -235,32 +240,39 @@ struct DatabaseListView: View {
             } else {
                 groupNames = searchGroupNames
             }
-            
+
             // 保存搜索结果
             lastSearchResults = (searchResults, metaGroupNames, groupNames)
             isShowingSearchResults = true  // 搜索结果标志
-            
+
             isLoading = false  // 搜索完成，隐藏加载状态
         }
     }
-    
+
     // 已发布物品的分组
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
-        
+
         // 使用 isShowingSearchResults 而不是 searchText.isEmpty
         if isShowingSearchResults {
             return groupItemsByGroup(publishedItems)
         } else if groupingType == .metaGroups {
             return groupItemsByMetaGroup(publishedItems)
         } else {
-            return [(id: 0, name: NSLocalizedString("Main_Database_published", comment: ""), items: publishedItems)]
+            return [
+                (
+                    id: 0, name: NSLocalizedString("Main_Database_published", comment: ""),
+                    items: publishedItems
+                )
+            ]
         }
     }
-    
-    private func groupItemsByGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
+
+    private func groupItemsByGroup(_ items: [DatabaseListItem]) -> [(
+        id: Int, name: String, items: [DatabaseListItem]
+    )] {
         var grouped: [Int: [DatabaseListItem]] = [:]
-        
+
         for item in items {
             let groupID = item.groupID ?? 0
             if grouped[groupID] == nil {
@@ -268,13 +280,16 @@ struct DatabaseListView: View {
             }
             grouped[groupID]?.append(item)
         }
-        
+
         return grouped.sorted { $0.key < $1.key }
-            .map { (groupID, items) in
+            .map { groupID, items in
                 if groupID == 0 {
-                    return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
+                    return (
+                        id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"),
+                        items: items
+                    )
                 }
-                
+
                 if let groupName = groupNames[groupID] {
                     return (id: groupID, name: groupName, items: items)
                 } else {
@@ -284,10 +299,12 @@ struct DatabaseListView: View {
             }
             .filter { !$0.items.isEmpty }
     }
-    
-    private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
+
+    private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(
+        id: Int, name: String, items: [DatabaseListItem]
+    )] {
         var grouped: [Int: [DatabaseListItem]] = [:]
-        
+
         for item in items {
             let metaGroupID = item.metaGroupID ?? 0
             if grouped[metaGroupID] == nil {
@@ -295,13 +312,16 @@ struct DatabaseListView: View {
             }
             grouped[metaGroupID]?.append(item)
         }
-        
+
         return grouped.sorted { $0.key < $1.key }
-            .map { (metaGroupID, items) in
+            .map { metaGroupID, items in
                 if metaGroupID == 0 {
-                    return (id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"), items: items)
+                    return (
+                        id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"),
+                        items: items
+                    )
                 }
-                
+
                 if let groupName = metaGroupNames[metaGroupID] {
                     return (id: metaGroupID, name: groupName, items: items)
                 } else {
@@ -318,7 +338,7 @@ class SearchController: ObservableObject {
     private let searchSubject = PassthroughSubject<String, Never>()
     private let debounceInterval: TimeInterval = 0.5
     var cancellables = Set<AnyCancellable>()
-    
+
     // 防抖处理后的搜索
     var debouncedSearchPublisher: AnyPublisher<String, Never> {
         searchSubject
@@ -331,7 +351,7 @@ class SearchController: ObservableObject {
             .compactMap { $0 }
             .eraseToAnyPublisher()
     }
-    
+
     func processSearchInput(_ query: String) {
         searchSubject.send(query)
     }

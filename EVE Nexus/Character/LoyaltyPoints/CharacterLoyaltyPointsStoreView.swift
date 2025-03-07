@@ -6,7 +6,7 @@ struct CharacterLoyaltyPointsStoreView: View {
     @State private var error: Error?
     @State private var hasLoadedData = false
     @State private var searchText = ""
-    
+
     private var filteredFactions: [Faction] {
         if searchText.isEmpty {
             return factions
@@ -14,7 +14,7 @@ struct CharacterLoyaltyPointsStoreView: View {
             return factions.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     var body: some View {
         List {
             if isLoading {
@@ -43,7 +43,7 @@ struct CharacterLoyaltyPointsStoreView: View {
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 36)
-                            
+
                             Text(faction.name)
                                 .padding(.leading, 8)
                         }
@@ -54,9 +54,10 @@ struct CharacterLoyaltyPointsStoreView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))
-        .searchable(text: $searchText,
-                    placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
         )
         .onAppear {
             if !hasLoadedData {
@@ -64,31 +65,32 @@ struct CharacterLoyaltyPointsStoreView: View {
             }
         }
     }
-    
+
     private func loadFactions() {
         if hasLoadedData {
             return
         }
-        
+
         isLoading = true
         error = nil
-        
+
         let query = """
-            SELECT * FROM factions
-        """
-        
+                SELECT * FROM factions
+            """
+
         let result = DatabaseManager.shared.executeQuery(query)
         switch result {
-        case .success(let rows):
+        case let .success(rows):
             factions = rows.compactMap { Faction(from: $0) }
             isLoading = false
             hasLoadedData = true
-        case .error(let errorMessage):
-            error = NSError(domain: "com.eve.nexus", 
-                          code: -1, 
-                          userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        case let .error(errorMessage):
+            error = NSError(
+                domain: "com.eve.nexus",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: errorMessage]
+            )
             isLoading = false
         }
     }
 }
-

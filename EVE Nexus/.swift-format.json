@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "indentation": {
+    "spaces": 4
+  },
+  "lineBreakBeforeControlFlowKeywords": false,
+  "lineBreakBeforeEachArgument": false,
+  "respectsExistingLineBreaks": true,
+  "maximumLineLength": 100,
+  "blankLineBetweenMembers": true,
+  "lineBreakAfterControlFlowKeywords": true,
+  "groupImportDeclarations": true,
+  "stripUnusedImports": true
+}

@@ -65,6 +65,7 @@
 "Main_Market_Watch_List_Name" = "List Name";
 "Main_Market_Watch_List_Add_Item" = "Add Item";
 "Main_Market_Watch_List_Items" = "%d items";
+"Main_Agents" = "Agents";
 "Main_WH" = "Wormholes";
 "Main_Incursions" = "Incursions";
 "Main_Infested_Systems" = "Infested Systems";
@@ -1161,3 +1162,76 @@
 
 "Loading_Location_Info" = "Loading location information...";
 "Loading_Location" = "Loading...";
+
+"Unknown_Location" = "Unknown Location";
+
+// Security Levels
+"Security_HighSec" = "High Sec";
+"Security_LowSec" = "Low Sec";
+"Security_NullSec" = "Null Sec";
+
+// Agent Tags
+"Agent_Locator" = "Locator";
+"Agent_Space" = "in Space";
+"Agent_Level" = "L%d";
+
+// Agent Search
+"Agent_Search_Title" = "Agent Search";
+"Agent_Search_Filter" = "Filter Criteria";
+"Agent_Search_Button" = "Show Agents";
+"Agent_Search_Results" = "Search Results";
+"Agent_Search_No_Results" = "No agents found matching your criteria";
+"Agent_Search_Division" = "Division";
+"Agent_Search_Level" = "Level";
+"Agent_Search_Security" = "System Security";
+"Agent_Search_Faction" = "Faction";
+"Agent_Search_Corporation" = "Corporation";
+"Agent_Search_Locator_Only" = "Locator Agents Only";
+"Agent_Search_Space_Only" = "Agents In-Space Only";
+"Agent_Search_All_Divisions" = "All Divisions";
+"Agent_Search_All_Levels" = "All Levels";
+"Agent_Search_All_Security" = "All Security Levels";
+"Agent_Search_All_Factions" = "All Factions";
+"Agent_Search_All_Corporations" = "All Corporations";
+"Agent_Count" = "%d Agents";
+"Agent_Unknown_Division" = "Unknown Division";
+"Agent_Loading" = "Loading...";
+"Agent_Not_Found" = "No agents found.";
+"Agent_Search_Locator_Description" = "Agents can find another player character.";
+"Agent_inspace_Description" = "Including COSMOS, Epic Arc etc.";
+
+// Agent Types
+"Agent_Type_NonAgent" = "Non-Agent";
+"Agent_Type_BasicAgent" = "Basic Agent";
+"Agent_Type_TutorialAgent" = "Tutorial Agent";
+"Agent_Type_ResearchAgent" = "Research Agent";
+"Agent_Type_CONCORDAgent" = "CONCORD Agent";
+"Agent_Type_GenericStorylineMissionAgent" = "Generic Storyline Agent";
+"Agent_Type_StorylineMissionAgent" = "Storyline Agent";
+"Agent_Type_EventMissionAgent" = "Event Agent";
+"Agent_Type_FactionalWarfareAgent" = "Factional Warfare Agent";
+"Agent_Type_EpicArcAgent" = "Epic Arc Agent";
+"Agent_Type_AuraAgent" = "Aura Agent";
+"Agent_Type_CareerAgent" = "Career Agent";
+"Agent_Type_HeraldryAgent" = "Heraldry Agent";
+"Agent_Type_Other" = "Other";
+
+// Agent Types Short Names (for tags)
+"Agent_Type_Short_NonAgent" = "Non-Agent";
+"Agent_Type_Short_BasicAgent" = "Basic";
+"Agent_Type_Short_TutorialAgent" = "Tutorial";
+"Agent_Type_Short_ResearchAgent" = "Research";
+"Agent_Type_Short_CONCORDAgent" = "CONCORD";
+"Agent_Type_Short_GenericStorylineMissionAgent" = "Storyline";
+"Agent_Type_Short_StorylineMissionAgent" = "Storyline";
+"Agent_Type_Short_EventMissionAgent" = "Event";
+"Agent_Type_Short_FactionalWarfareAgent" = "FW";
+"Agent_Type_Short_EpicArcAgent" = "Epic";
+"Agent_Type_Short_AuraAgent" = "Aura";
+"Agent_Type_Short_CareerAgent" = "Career";
+"Agent_Type_Short_HeraldryAgent" = "Heraldry";
+"Agent_Type_Short_Other" = "Other";
+
+// Agent Search Type
+"Agent_Search_Type" = "Agent Type";
+"Agent_Search_All_Types" = "All Agent Types";

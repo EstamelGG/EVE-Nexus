@@ -1,21 +1,21 @@
-import SwiftUI
 import SQLite3
+import SwiftUI
 
 // 浏览层级
 enum BrowserLevel: Hashable {
-    case categories    // 分类层级
-    case groups(categoryID: Int, categoryName: String)    // 组层级
-    case items(groupID: Int, groupName: String)    // 物品层级
-    
+    case categories  // 分类层级
+    case groups(categoryID: Int, categoryName: String)  // 组层级
+    case items(groupID: Int, groupName: String)  // 物品层级
+
     // 实现 Hashable
     func hash(into hasher: inout Hasher) {
         switch self {
         case .categories:
             hasher.combine(0)
-        case .groups(let categoryID, _):
+        case let .groups(categoryID, _):
             hasher.combine(1)
             hasher.combine(categoryID)
-        case .items(let groupID, _):
+        case let .items(groupID, _):
             hasher.combine(2)
             hasher.combine(groupID)
         }
@@ -25,22 +25,22 @@ enum BrowserLevel: Hashable {
 struct DatabaseBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let level: BrowserLevel
-    
+
     // 静态缓存
     private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String])] = [:]
-    private static let maxCacheSize = 10 // 最大缓存层级数
-    private static var cacheAccessTime: [BrowserLevel: Date] = [:] // 记录访问时间
-    
+    private static let maxCacheSize = 10  // 最大缓存层级数
+    private static var cacheAccessTime: [BrowserLevel: Date] = [:]  // 记录访问时间
+
     // 清除缓存的方法
     static func clearCache() {
         navigationCache.removeAll()
         cacheAccessTime.removeAll()
     }
-    
+
     // 更新缓存访问时间
     private static func updateAccessTime(for level: BrowserLevel) {
         cacheAccessTime[level] = Date()
-        
+
         // 如果超出最大缓存大小，移除最旧的缓存
         if navigationCache.count > maxCacheSize {
             let oldestLevel = cacheAccessTime.sorted { $0.value < $1.value }.first?.key
@@ -50,7 +50,7 @@ struct DatabaseBrowserView: View {
             }
         }
     }
-    
+
     // 获取缓存数据
     private func getCachedData(for level: BrowserLevel) -> ([DatabaseListItem], [Int: String])? {
         if let cachedData = Self.navigationCache[level] {
@@ -61,13 +61,13 @@ struct DatabaseBrowserView: View {
         }
         return nil
     }
-    
+
     // 设置缓存数据
     private func setCacheData(for level: BrowserLevel, data: ([DatabaseListItem], [Int: String])) {
         Self.navigationCache[level] = data
         Self.updateAccessTime(for: level)
     }
-    
+
     // 根据层级返回分组类型
     private var groupingType: GroupingType {
         switch level {
@@ -77,13 +77,13 @@ struct DatabaseBrowserView: View {
             return .metaGroups
         }
     }
-    
+
     // 搜索时使用的分组类型
     private var searchGroupingType: GroupingType {
         // 搜索结果总是显示衍生等级
         return .metaGroups
     }
-    
+
     var body: some View {
         NavigationStack {
             DatabaseListView(
@@ -95,18 +95,18 @@ struct DatabaseBrowserView: View {
                     if let cachedData = getCachedData(for: level) {
                         return cachedData
                     }
-                    
+
                     // 如果没有缓存，加载数据并缓存
                     let data = loadDataForLevel(dbManager)
                     setCacheData(for: level, data: data)
-                    
+
                     // 预加载图标
                     if case .categories = level {
                         // 预加载分类图标
                         let icons = data.0.map { $0.iconFileName }
                         IconManager.shared.preloadCommonIcons(icons: icons)
                     }
-                    
+
                     return data
                 },
                 searchData: { dbManager, searchText in
@@ -114,9 +114,9 @@ struct DatabaseBrowserView: View {
                     switch level {
                     case .categories:
                         return dbManager.searchItems(searchText: searchText)
-                    case .groups(let categoryID, _):
+                    case let .groups(categoryID, _):
                         return dbManager.searchItems(searchText: searchText, categoryID: categoryID)
-                    case .items(let groupID, _):
+                    case let .items(groupID, _):
                         return dbManager.searchItems(searchText: searchText, groupID: groupID)
                     }
                 }
@@ -127,30 +127,34 @@ struct DatabaseBrowserView: View {
             cleanupCache()
         }
     }
-    
+
     // 根据层级加载数据
-    private func loadDataForLevel(_ dbManager: DatabaseManager) -> ([DatabaseListItem], [Int: String]) {
+    private func loadDataForLevel(_ dbManager: DatabaseManager) -> (
+        [DatabaseListItem], [Int: String]
+    ) {
         // 检查缓存
         if let cachedData = getCachedData(for: level) {
             return cachedData
         }
-        
+
         // 如果没有缓存，加载数据并缓存
         let data = loadDataFromDatabase(dbManager)
         setCacheData(for: level, data: data)
-        
+
         // 预加载图标
         if case .categories = level {
             // 预加载分类图标
             let icons = data.0.map { $0.iconFileName }
             IconManager.shared.preloadCommonIcons(icons: icons)
         }
-        
+
         return data
     }
-    
+
     // 从数据库加载数据
-    private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> ([DatabaseListItem], [Int: String]) {
+    private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> (
+        [DatabaseListItem], [Int: String]
+    ) {
         switch level {
         case .categories:
             let (published, unpublished) = dbManager.loadCategories()
@@ -187,8 +191,8 @@ struct DatabaseBrowserView: View {
                 )
             }
             return (items, [:])
-            
-        case .groups(let categoryID, _):
+
+        case let .groups(categoryID, _):
             let (published, unpublished) = dbManager.loadGroups(for: categoryID)
             let items = (published + unpublished).map { group in
                 DatabaseListItem(
@@ -223,8 +227,8 @@ struct DatabaseBrowserView: View {
                 )
             }
             return (items, [:])
-            
-        case .items(let groupID, let groupName):
+
+        case let .items(groupID, groupName):
             let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
             let items = (published + unpublished).map { item in
                 DatabaseListItem(
@@ -260,47 +264,47 @@ struct DatabaseBrowserView: View {
             return (items, metaGroupNames)
         }
     }
-    
+
     // 清理缓存，只保留当前层级和上一层级的数据
     private func cleanupCache() {
         let keysToKeep = getRelevantLevels()
         Self.navigationCache = Self.navigationCache.filter { keysToKeep.contains($0.key) }
     }
-    
+
     // 获取需要保留的层级
     private func getRelevantLevels() -> Set<BrowserLevel> {
         var levels = Set<BrowserLevel>([level])
-        
+
         // 添加上一层级
         switch level {
         case .categories:
-            break // 没有上一层级
-        case .groups(_, _):
+            break  // 没有上一层级
+        case .groups:
             levels.insert(.categories)
-        case .items(_, let groupName):
+        case let .items(_, groupName):
             // 尝试从组名推断出分类ID
             if let categoryID = getCategoryIDFromGroupName(groupName) {
                 levels.insert(.groups(categoryID: categoryID, categoryName: ""))
             }
         }
-        
+
         return levels
     }
-    
+
     // 从组名推断分类ID（这个方法需要根据你的数据结构来实现）
-    private func getCategoryIDFromGroupName(_ groupName: String) -> Int? {
+    private func getCategoryIDFromGroupName(_: String) -> Int? {
         // TODO: 实现从组名获取分类ID的逻辑
         return nil
     }
-    
+
     // 根据层级返回标题
     private var title: String {
         switch level {
         case .categories:
             return NSLocalizedString("Main_Database_title", comment: "")
-        case .groups(_, let categoryName):
+        case let .groups(_, categoryName):
             return categoryName
-        case .items(_, let groupName):
+        case let .items(_, groupName):
             return groupName
         }
     }
@@ -310,7 +314,7 @@ struct DatabaseBrowserView: View {
 struct DatabaseListItemView: View {
     let item: DatabaseListItem
     let showDetails: Bool
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -321,7 +325,7 @@ struct DatabaseListItemView: View {
                     .cornerRadius(6)
                 Text(item.name)
             }
-            
+
             if showDetails, let categoryID = item.categoryID {
                 VStack(alignment: .leading, spacing: 2) {
                     // 装备、建筑装备和改装件
@@ -331,7 +335,9 @@ struct DatabaseListItemView: View {
                                 IconWithValueView(iconName: "pg", numericValue: pgNeed, unit: " MW")
                             }
                             if let cpuNeed = item.cpuNeed {
-                                IconWithValueView(iconName: "cpu", numericValue: cpuNeed, unit: " Tf")
+                                IconWithValueView(
+                                    iconName: "cpu", numericValue: cpuNeed, unit: " Tf"
+                                )
                             }
                             if let rigCost = item.rigCost {
                                 IconWithValueView(iconName: "rigcost", numericValue: rigCost)
@@ -349,10 +355,12 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.emDamage ?? 0),
-                                        color: Color(red: 74/255, green: 128/255, blue: 192/255)
+                                        color: Color(
+                                            red: 74 / 255, green: 128 / 255, blue: 192 / 255
+                                        )
                                     )
                                 }
-                                
+
                                 // 热能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
                                     Image("th")
@@ -360,10 +368,12 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.themDamage ?? 0),
-                                        color: Color(red: 176/255, green: 53/255, blue: 50/255)
+                                        color: Color(
+                                            red: 176 / 255, green: 53 / 255, blue: 50 / 255
+                                        )
                                     )
                                 }
-                                
+
                                 // 动能伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
                                     Image("ki")
@@ -371,10 +381,12 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.kinDamage ?? 0),
-                                        color: Color(red: 155/255, green: 155/255, blue: 155/255)
+                                        color: Color(
+                                            red: 155 / 255, green: 155 / 255, blue: 155 / 255
+                                        )
                                     )
                                 }
-                                
+
                                 // 爆炸伤害
                                 HStack(spacing: 4) {  // 增加图标和条之间的间距
                                     Image("ex")
@@ -382,7 +394,9 @@ struct DatabaseListItemView: View {
                                         .frame(width: 18, height: 18)
                                     DamageBarView(
                                         percentage: calculateDamagePercentage(item.expDamage ?? 0),
-                                        color: Color(red: 185/255, green: 138/255, blue: 62/255)
+                                        color: Color(
+                                            red: 185 / 255, green: 138 / 255, blue: 62 / 255
+                                        )
                                     )
                                 }
                             }
@@ -417,23 +431,23 @@ struct DatabaseListItemView: View {
             }
         }
     }
-    
+
     private var hasAnyDamage: Bool {
         let damages = [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
         return !damages.contains(nil) && damages.compactMap { $0 }.contains { $0 > 0 }
     }
-    
+
     private func calculateDamagePercentage(_ damage: Double) -> Int {
         let damages = [
             item.emDamage,
             item.themDamage,
             item.kinDamage,
-            item.expDamage
+            item.expDamage,
         ].compactMap { $0 }
-        
+
         let totalDamage = damages.reduce(0, +)
         guard totalDamage > 0 else { return 0 }
-        
+
         // 直接计算百分比并四舍五入
         return Int(round((damage / totalDamage) * 100))
     }
@@ -443,19 +457,21 @@ struct DatabaseListItemView: View {
 struct IconWithValueView: View {
     let iconName: String
     let value: String
-    
+
     // 添加一个便利初始化方法，用于处理数值类型
     init(iconName: String, numericValue: Int, unit: String? = nil) {
         self.iconName = iconName
-        self.value = unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" } ?? FormatUtil.format(Double(numericValue))
+        value =
+            unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" }
+            ?? FormatUtil.format(Double(numericValue))
     }
-    
+
     // 原有的字符串初始化方法
     init(iconName: String, value: String) {
         self.iconName = iconName
         self.value = value
     }
-    
+
     var body: some View {
         HStack(spacing: 2) {
             Image(iconName)

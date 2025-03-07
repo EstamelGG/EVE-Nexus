@@ -6,16 +6,17 @@ struct SkillRequirementRow: View {
     let level: Int
     let timeMultiplier: Double?
     @ObservedObject var databaseManager: DatabaseManager
-    
+
     private var skillPointsText: String {
         guard let multiplier = timeMultiplier,
-              level > 0 && level <= SkillTreeManager.levelBasePoints.count else {
+            level > 0 && level <= SkillTreeManager.levelBasePoints.count
+        else {
             return ""
         }
         let points = Int(Double(SkillTreeManager.levelBasePoints[level - 1]) * multiplier)
         return "\(FormatUtil.format(Double(points))) SP"
     }
-    
+
     var body: some View {
         if let skillName = SkillTreeManager.shared.getSkillName(for: skillID) {
             NavigationLink {
@@ -35,12 +36,12 @@ struct SkillRequirementRow: View {
                             .frame(width: 32, height: 32)
                             .cornerRadius(6)
                     }
-                    
+
                     VStack(alignment: .leading) {
                         // 技能名称
                         Text(skillName)
                             .font(.body)
-                        
+
                         // 所需技能点数
                         if !skillPointsText.isEmpty {
                             Text(skillPointsText)
@@ -48,9 +49,9 @@ struct SkillRequirementRow: View {
                                 .foregroundColor(.secondary)
                         }
                     }
-                    
+
                     Spacer()
-                    
+
                     // 等级要求
                     Text("Lv \(level)")
                         .font(.body)

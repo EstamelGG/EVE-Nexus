@@ -1,5 +1,5 @@
-import SwiftUI
 import Charts
+import SwiftUI
 
 // 星域数据模型
 struct Region: Identifiable {
@@ -10,49 +10,49 @@ struct Region: Identifiable {
 struct MarketHistoryChartView: View {
     let history: [MarketHistory]
     let orders: [MarketOrder]
-    
+
     // 格式化日期显示（只显示月份）
     private func formatMonth(_ dateString: String) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.locale = Locale(identifier: "en_US")
         guard let date = dateFormatter.date(from: dateString) else { return "" }
-        
+
         dateFormatter.dateFormat = "MMM"
         return dateFormatter.string(from: date).uppercased()
     }
-    
+
     // 获取当前总交易量
     private var totalVolume: Int {
         orders.filter { !$0.isBuyOrder }.reduce(0) { $0 + $1.volumeTotal }
     }
-    
+
     // 判断是否是月份的第一个数据点
     private func isFirstDayOfMonth(date: String, in dates: [String]) -> Bool {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
-        
+
         guard let targetDate = dateFormatter.date(from: date) else { return false }
         let targetMonth = Calendar.current.component(.month, from: targetDate)
-        
+
         // 找到当前日期在数组中的索引
         guard let currentIndex = dates.firstIndex(of: date) else { return false }
-        
+
         // 如果是第一个数据点，或者前一个数据点是不同的月份，则返回true
         if currentIndex == 0 { return true }
-        
+
         let previousDate = dates[currentIndex - 1]
         guard let previousDateTime = dateFormatter.date(from: previousDate) else { return false }
         let previousMonth = Calendar.current.component(.month, from: previousDateTime)
-        
+
         return targetMonth != previousMonth
     }
-    
+
     var body: some View {
         let priceValues = history.map { $0.average }
         let volumeValues = history.map { Double($0.volume) }
         let maxVolume = volumeValues.max() ?? 1
-        
+
         // 计算价格范围
         let minPrice = priceValues.min() ?? 0
         let maxPrice = priceValues.max() ?? 1
@@ -60,18 +60,20 @@ struct MarketHistoryChartView: View {
         let yMin = max(0, minPrice - priceRange * 0.15)
         let yMax = maxPrice + priceRange * 0.15
         let effectiveRange = yMax - yMin
-        
+
         Chart {
             ForEach(history, id: \.date) { item in
                 // 成交量柱状图 - 从yMin开始，高度为归一化后的值
                 BarMark(
                     x: .value("Date", item.date),
                     yStart: .value("VolumeStart", yMin),
-                    yEnd: .value("VolumeEnd", yMin + (Double(item.volume) / maxVolume) * effectiveRange * 0.7)
+                    yEnd: .value(
+                        "VolumeEnd", yMin + (Double(item.volume) / maxVolume) * effectiveRange * 0.7
+                    )
                 )
                 .foregroundStyle(.gray.opacity(0.8))
             }
-            
+
             ForEach(history, id: \.date) { item in
                 // 价格线
                 LineMark(
@@ -117,7 +119,8 @@ struct MarketHistoryChartView: View {
             let dates = history.map { $0.date }
             AxisMarks(values: dates) { value in
                 if let dateStr = value.as(String.self),
-                   isFirstDayOfMonth(date: dateStr, in: dates) {
+                    isFirstDayOfMonth(date: dateStr, in: dates)
+                {
                     AxisValueLabel(anchor: .top) {
                         Text(formatMonth(dateStr))
                             .font(.system(size: 8))
@@ -135,20 +138,22 @@ struct MarketHistoryChartView: View {
 struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
     let marketPath: [String]
-    
+
     var body: some View {
         HStack {
             IconManager.shared.loadImage(for: itemDetails.iconFileName)
                 .resizable()
                 .frame(width: 60, height: 60)
                 .cornerRadius(8)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(itemDetails.name)
                     .font(.title)
-                Text("\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                Text(
+                    "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
+                )
+                .font(.subheadline)
+                .foregroundColor(.gray)
             }
         }
     }
@@ -158,7 +163,7 @@ struct MarketItemBasicInfoView: View {
 struct CachedMarketHistoryChartView: View {
     let history: [MarketHistory]
     let orders: [MarketOrder]
-    
+
     var body: some View {
         MarketHistoryChartView(history: history, orders: orders)
     }
@@ -177,46 +182,47 @@ struct RegionPickerView: View {
     @Binding var selectedRegionName: String
     let databaseManager: DatabaseManager
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
-    
+
     @State private var isEditMode = false
     @State private var allRegions: [Region] = []
     @State private var pinnedRegions: [Region] = []
-    
+
     private var unpinnedRegions: [Region] {
         allRegions.filter { region in
             !pinnedRegions.contains { $0.id == region.id }
         }
     }
-    
+
     // 加载星域数据
     private func loadRegions() {
         let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-        
+
         let query = """
-            SELECT r.regionID, r.regionName, r.regionName_en
-            FROM regions r
-            WHERE r.regionID < 11000000
-            ORDER BY r.regionName
-        """
-        
-        if case .success(let rows) = databaseManager.executeQuery(query) {
+                SELECT r.regionID, r.regionName, r.regionName_en
+                FROM regions r
+                WHERE r.regionID < 11000000
+                ORDER BY r.regionName
+            """
+
+        if case let .success(rows) = databaseManager.executeQuery(query) {
             allRegions = rows.compactMap { row in
                 guard let id = row["regionID"] as? Int,
-                      let nameLocal = row["regionName"] as? String,
-                      let nameEn = row["regionName_en"] as? String else {
+                    let nameLocal = row["regionName"] as? String,
+                    let nameEn = row["regionName_en"] as? String
+                else {
                     return nil
                 }
                 let name = useEnglishSystemNames ? nameEn : nameLocal
                 return Region(id: id, name: name)
             }
-            
+
             // 从 UserDefaults 加载置顶的星域，保持用户设置的顺序
             let pinnedRegionIDs = UserDefaultsManager.shared.pinnedRegionIDs
             // 按照 pinnedRegionIDs 的顺序加载星域
             pinnedRegions = pinnedRegionIDs.compactMap { id in
                 allRegions.first { $0.id == id }
             }
-            
+
             // 如果当前选中的星域存在，确保它显示在正确的位置
             if let currentRegion = allRegions.first(where: { $0.id == selectedRegionID }) {
                 if pinnedRegionIDs.contains(currentRegion.id) {
@@ -228,17 +234,18 @@ struct RegionPickerView: View {
             }
         }
     }
-    
+
     private func savePinnedRegions() {
         let pinnedIDs = pinnedRegions.map { $0.id }
         UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
     }
-    
+
     var body: some View {
         NavigationStack {
             List {
                 // 置顶星域 Section
-                Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {
+                Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: "")))
+                {
                     if !pinnedRegions.isEmpty {
                         ForEach(pinnedRegions) { region in
                             RegionRow(
@@ -248,7 +255,7 @@ struct RegionPickerView: View {
                                 onSelect: {
                                     selectedRegionID = region.id
                                     selectedRegionName = region.name
-                                    let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                    let defaults = UserDefaultsManager.shared
                                     defaults.selectedRegionID = region.id
                                     if !isEditMode {
                                         dismiss()
@@ -267,7 +274,7 @@ struct RegionPickerView: View {
                             savePinnedRegions()
                         }
                     }
-                    
+
                     if !isEditMode {
                         Button(action: {
                             withAnimation {
@@ -283,9 +290,14 @@ struct RegionPickerView: View {
                         }
                     }
                 }
-                
+
                 // 所有星域 Section
-                Section(header: Text(isEditMode ? NSLocalizedString("Main_Market_Available_Regions", comment: "") : NSLocalizedString("Main_Market_All_Regions", comment: ""))) {
+                Section(
+                    header: Text(
+                        isEditMode
+                            ? NSLocalizedString("Main_Market_Available_Regions", comment: "")
+                            : NSLocalizedString("Main_Market_All_Regions", comment: ""))
+                ) {
                     ForEach(unpinnedRegions) { region in
                         RegionRow(
                             region: region,
@@ -294,7 +306,7 @@ struct RegionPickerView: View {
                             onSelect: {
                                 selectedRegionID = region.id
                                 selectedRegionName = region.name
-                                let defaults: UserDefaultsManager = UserDefaultsManager.shared
+                                let defaults = UserDefaultsManager.shared
                                 defaults.selectedRegionID = region.id
                                 if !isEditMode {
                                     dismiss()
@@ -340,14 +352,14 @@ struct RegionRow: View {
     let onSelect: () -> Void
     var onPin: (() -> Void)?
     var onUnpin: (() -> Void)?
-    
+
     var body: some View {
         HStack {
             Text(region.name)
                 .foregroundColor(isSelected ? .blue : .primary)
-            
+
             Spacer()
-            
+
             if isEditMode {
                 if onUnpin != nil {
                     Button(role: .destructive, action: { onUnpin?() }) {
@@ -414,7 +426,7 @@ struct MarketItemDetailView: View {
             return UIScreen.main.bounds.height * 0.25  // 使用屏幕高度的 25%
         }
     }
-    
+
     // 计算分组的星域列表
     private func calculateGroupedRegions() {
         let grouped = Dictionary(grouping: regions) { region in
@@ -423,19 +435,20 @@ struct MarketItemDetailView: View {
         groupedRegionsCache = grouped.map { (key: $0.key, regions: $0.value) }
             .sorted { $0.key < $1.key }
     }
-    
+
     // 格式化价格显示
     private func formatPrice(_ price: Double) -> String {
         let billion = 1_000_000_000.0
         let million = 1_000_000.0
-        
+
         let numberFormatter = NumberFormatter()
         numberFormatter.numberStyle = .decimal
         numberFormatter.maximumFractionDigits = 2
         numberFormatter.minimumFractionDigits = 2
-        
-        let formattedFullPrice = numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-        
+
+        let formattedFullPrice =
+            numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
+
         if price >= billion {
             let value = price / billion
             return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
@@ -446,7 +459,7 @@ struct MarketItemDetailView: View {
             return "\(formattedFullPrice) ISK"
         }
     }
-    
+
     var body: some View {
         List {
             // 基本信息部分
@@ -468,7 +481,7 @@ struct MarketItemDetailView: View {
                     }
                 }
             }
-            
+
             // 价格信息部分
             Section {
                 // 当前价格
@@ -476,7 +489,7 @@ struct MarketItemDetailView: View {
                     IconManager.shared.loadImage(for: "icon_52996_64.png")
                         .resizable()
                         .frame(width: 40, height: 40)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(NSLocalizedString("Main_Market_Current_Price", comment: ""))
@@ -509,7 +522,7 @@ struct MarketItemDetailView: View {
                         .frame(height: 15)
                     }
                 }
-                
+
                 // 市场订单按钮
                 NavigationLink {
                     if let orders = marketOrders, let details = itemDetails {
@@ -532,7 +545,7 @@ struct MarketItemDetailView: View {
                 }
                 .disabled(marketOrders == nil || isLoadingPrice || (marketOrders?.isEmpty ?? true))
             }
-            
+
             // 历史价格图表部分
             Section {
                 VStack(alignment: .leading) {
@@ -551,7 +564,7 @@ struct MarketItemDetailView: View {
                             }
                         }
                     }
-                    
+
                     // 使用 ZStack 来保持固定高度
                     ZStack {
                         if isLoadingHistory {
@@ -583,9 +596,12 @@ struct MarketItemDetailView: View {
             }
         }
         .sheet(isPresented: $showRegionPicker) {
-            RegionPickerView(selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName, databaseManager: databaseManager)
+            RegionPickerView(
+                selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName,
+                databaseManager: databaseManager
+            )
         }
-        .onChange(of: selectedRegionID) { _, newValue in
+        .onChange(of: selectedRegionID) { _, _ in
             Task {
                 await loadAllMarketData(forceRefresh: true)
             }
@@ -596,14 +612,14 @@ struct MarketItemDetailView: View {
                 selectedRegionID = defaults.selectedRegionID
                 selectedRegionName = defaults.defaultRegionName
             }
-            
+
             itemDetails = databaseManager.getItemDetails(for: itemID)
             loadRegions()
-            
+
             if let region = regions.first(where: { $0.id == selectedRegionID }) {
                 selectedRegionName = region.name
             }
-            
+
             if isFromParent {
                 Task {
                     await loadAllMarketData()
@@ -613,17 +629,16 @@ struct MarketItemDetailView: View {
         }
     }
 
-    
     private func loadMarketData(forceRefresh: Bool = false) async {
         guard !isLoadingPrice else { return }
-        
+
         // 开始加载前清除旧数据
         marketOrders = nil
         lowestPrice = nil
         isLoadingPrice = true
-        
+
         defer { isLoadingPrice = false }
-        
+
         do {
             // 从 MarketOrdersAPI 获取数据
             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
@@ -631,7 +646,7 @@ struct MarketItemDetailView: View {
                 regionID: selectedRegionID,
                 forceRefresh: forceRefresh
             )
-            
+
             // 更新UI
             marketOrders = orders
             let sellOrders = orders.filter { !$0.isBuyOrder }
@@ -642,16 +657,16 @@ struct MarketItemDetailView: View {
             lowestPrice = nil
         }
     }
-    
+
     private func loadHistoryData(forceRefresh: Bool = false) async {
         guard !isLoadingHistory else { return }
-        
+
         // 开始加载前清除旧数据
         marketHistory = nil
         isLoadingHistory = true
-        
+
         defer { isLoadingHistory = false }
-        
+
         do {
             // 从 MarketHistoryAPI 获取数据
             let history = try await MarketHistoryAPI.shared.fetchMarketHistory(
@@ -659,7 +674,7 @@ struct MarketItemDetailView: View {
                 regionID: selectedRegionID,
                 forceRefresh: forceRefresh
             )
-            
+
             // 更新UI
             marketHistory = history
         } catch {
@@ -667,22 +682,23 @@ struct MarketItemDetailView: View {
             marketHistory = []
         }
     }
-    
+
     private func loadRegions() {
         let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-        
+
         let query = """
-            SELECT r.regionID, r.regionName, r.regionName_en
-            FROM regions r
-            WHERE r.regionID < 11000000
-            ORDER BY r.regionName
-        """
-        
-        if case .success(let rows) = databaseManager.executeQuery(query) {
+                SELECT r.regionID, r.regionName, r.regionName_en
+                FROM regions r
+                WHERE r.regionID < 11000000
+                ORDER BY r.regionName
+            """
+
+        if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let regionId = row["regionID"] as? Int,
-                   let regionNameLocal = row["regionName"] as? String,
-                   let regionNameEn = row["regionName_en"] as? String {
+                    let regionNameLocal = row["regionName"] as? String,
+                    let regionNameEn = row["regionName_en"] as? String
+                {
                     let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
                     regions.append(Region(id: regionId, name: regionName))
                 }
@@ -690,14 +706,14 @@ struct MarketItemDetailView: View {
             calculateGroupedRegions()
         }
     }
-    
+
     // 并发加载所有市场数据
     private func loadAllMarketData(forceRefresh: Bool = false) async {
         // 并发执行两个加载任务
         async let marketDataTask: () = loadMarketData(forceRefresh: forceRefresh)
         async let historyDataTask: () = loadHistoryData(forceRefresh: forceRefresh)
-        
+
         // 等待两个任务都完成
-        await (_, _) = (marketDataTask, historyDataTask)
+        await _ = (marketDataTask, historyDataTask)
     }
 }

@@ -13,7 +13,7 @@ struct BRKillMailSearchView: View {
     @State private var allianceIconMap: [Int: UIImage] = [:]
     @State private var corporationIconMap: [Int: UIImage] = [:]
     @State private var selectedFilter: KillMailFilter = .all
-    
+
     var body: some View {
         List {
             // 搜索对象选择区域
@@ -48,27 +48,35 @@ struct BRKillMailSearchView: View {
                     }
                 }
             }
-            
+
             // 搜索结果展示区域
             if viewModel.selectedResult != nil {
                 Section {
                     // 只在非星系和星域搜索时显示过滤器
                     if let selectedResult = viewModel.selectedResult,
-                       selectedResult.category != .solar_system && selectedResult.category != .region {
-                        Picker(NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter) {
-                            Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(KillMailFilter.all)
-                            Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(KillMailFilter.kill)
-                            Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(KillMailFilter.loss)
+                        selectedResult.category != .solar_system
+                            && selectedResult.category != .region
+                    {
+                        Picker(
+                            NSLocalizedString("KillMail_Filter", comment: ""),
+                            selection: $selectedFilter
+                        ) {
+                            Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(
+                                KillMailFilter.all)
+                            Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(
+                                KillMailFilter.kill)
+                            Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(
+                                KillMailFilter.loss)
                         }
                         .pickerStyle(.segmented)
                         .padding(.vertical, 2)
-                        .onChange(of: selectedFilter) { oldValue, newValue in
+                        .onChange(of: selectedFilter) { _, _ in
                             Task {
                                 await loadKillMails()
                             }
                         }
                     }
-                    
+
                     if isLoading && killMails.isEmpty {
                         ProgressView()
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -79,19 +87,26 @@ struct BRKillMailSearchView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
                     } else {
-                        ForEach(Array(killMails.enumerated()), id: \.offset) { index, killmail in
-                            if let shipId = viewModel.kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
+                        ForEach(Array(killMails.enumerated()), id: \.offset) { _, killmail in
+                            if let shipId = viewModel.kbAPI.getShipInfo(
+                                killmail, path: "vict", "ship"
+                            ).id {
                                 let victInfo = killmail["vict"] as? [String: Any]
                                 let allyInfo = victInfo?["ally"] as? [String: Any]
                                 let corpInfo = victInfo?["corp"] as? [String: Any]
-                                
+
                                 let allyId = allyInfo?["id"] as? Int
                                 let corpId = corpInfo?["id"] as? Int
-                                
+
                                 BRKillMailCell(
                                     killmail: killmail,
                                     kbAPI: viewModel.kbAPI,
-                                    shipInfo: shipInfoMap[shipId] ?? (name: NSLocalizedString("KillMail_Unknown_Item", comment: ""), iconFileName: DatabaseConfig.defaultItemIcon),
+                                    shipInfo: shipInfoMap[shipId] ?? (
+                                        name: NSLocalizedString(
+                                            "KillMail_Unknown_Item", comment: ""
+                                        ),
+                                        iconFileName: DatabaseConfig.defaultItemIcon
+                                    ),
                                     allianceIcon: allianceIconMap[allyId ?? 0],
                                     corporationIcon: corporationIconMap[corpId ?? 0],
                                     characterId: characterId,
@@ -99,7 +114,7 @@ struct BRKillMailSearchView: View {
                                 )
                             }
                         }
-                        
+
                         if totalPages > 1 && currentPage < totalPages {
                             HStack {
                                 Spacer()
@@ -133,7 +148,7 @@ struct BRKillMailSearchView: View {
         .sheet(isPresented: $showSearchSheet) {
             SearchSelectorSheet(characterId: characterId, viewModel: viewModel)
         }
-        .onChange(of: viewModel.selectedResult) { oldValue, newValue in
+        .onChange(of: viewModel.selectedResult) { _, newValue in
             if newValue != nil {
                 // 如果是星系或星域搜索，重置过滤器为all
                 if newValue?.category == .solar_system || newValue?.category == .region {
@@ -145,10 +160,10 @@ struct BRKillMailSearchView: View {
             }
         }
     }
-    
+
     private func loadKillMails() async {
         guard let selectedResult = viewModel.selectedResult else { return }
-        
+
         isLoading = true
         currentPage = 1
         totalPages = 1
@@ -156,9 +171,11 @@ struct BRKillMailSearchView: View {
         shipInfoMap = [:]
         allianceIconMap = [:]
         corporationIconMap = [:]
-        
+
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(result: selectedResult, page: currentPage, filter: selectedFilter)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(
+                result: selectedResult, page: currentPage, filter: selectedFilter
+            )
             if let data = response["data"] as? [[String: Any]] {
                 killMails = data
                 await loadShipInfo(for: data)
@@ -170,20 +187,23 @@ struct BRKillMailSearchView: View {
         } catch {
             Logger.error("加载战斗日志失败: \(error)")
         }
-        
+
         isLoading = false
     }
-    
+
     private func loadMoreKillMails() async {
         guard let selectedResult = viewModel.selectedResult,
-              !isLoadingMore,
-              currentPage < totalPages else { return }
-        
+            !isLoadingMore,
+            currentPage < totalPages
+        else { return }
+
         isLoadingMore = true
         currentPage += 1
-        
+
         do {
-            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(result: selectedResult, page: currentPage, filter: selectedFilter)
+            let response = try await KbEvetoolAPI.shared.fetchKillMailsBySearchResult(
+                result: selectedResult, page: currentPage, filter: selectedFilter
+            )
             if let data = response["data"] as? [[String: Any]] {
                 killMails.append(contentsOf: data)
                 await loadShipInfo(for: data)
@@ -196,62 +216,67 @@ struct BRKillMailSearchView: View {
             Logger.error("加载更多战斗日志失败: \(error)")
             currentPage -= 1
         }
-        
+
         isLoadingMore = false
     }
-    
+
     private func loadShipInfo(for mails: [[String: Any]]) async {
         let shipIds = mails.compactMap { viewModel.kbAPI.getShipInfo($0, path: "vict", "ship").id }
         guard !shipIds.isEmpty else { return }
-        
+
         let placeholders = String(repeating: "?,", count: shipIds.count).dropLast()
         let query = """
-            SELECT type_id, name, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(placeholders))
-        """
-        
+                SELECT type_id, name, icon_filename 
+                FROM types 
+                WHERE type_id IN (\(placeholders))
+            """
+
         let result = DatabaseManager.shared.executeQuery(query, parameters: shipIds)
-        if case .success(let rows) = result {
+        if case let .success(rows) = result {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                {
                     shipInfoMap[typeId] = (name: name, iconFileName: iconFileName)
                 }
             }
         }
     }
-    
+
     private func loadOrganizationIcons(for mails: [[String: Any]]) async {
         for mail in mails {
             if let victInfo = mail["vict"] as? [String: Any] {
                 // 优先检查联盟ID
                 if let allyInfo = victInfo["ally"] as? [String: Any],
-                   let allyId = allyInfo["id"] as? Int,
-                   allyId > 0 {
+                    let allyId = allyInfo["id"] as? Int,
+                    allyId > 0
+                {
                     // 只有当联盟ID有效且图标未加载时才加载联盟图标
                     if allianceIconMap[allyId] == nil,
-                       let icon = await loadOrganizationIcon(type: "alliance", id: allyId) {
+                        let icon = await loadOrganizationIcon(type: "alliance", id: allyId)
+                    {
                         allianceIconMap[allyId] = icon
                     }
                 } else if let corpInfo = victInfo["corp"] as? [String: Any],
-                          let corpId = corpInfo["id"] as? Int,
-                          corpId > 0 {
+                    let corpId = corpInfo["id"] as? Int,
+                    corpId > 0
+                {
                     // 只有在没有有效联盟ID的情况下才加载军团图标
                     if corporationIconMap[corpId] == nil,
-                       let icon = await loadOrganizationIcon(type: "corporation", id: corpId) {
+                        let icon = await loadOrganizationIcon(type: "corporation", id: corpId)
+                    {
                         corporationIconMap[corpId] = icon
                     }
                 }
             }
         }
     }
-    
+
     private func loadOrganizationIcon(type: String, id: Int) async -> UIImage? {
         let baseURL = "https://images.evetech.net/\(type)s/\(id)/logo"
         guard let iconURL = URL(string: "\(baseURL)?size=64") else { return nil }
-        
+
         do {
             let data = try await NetworkManager.shared.fetchData(from: iconURL)
             return UIImage(data: data)
@@ -268,7 +293,7 @@ struct SearchSelectorSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -277,25 +302,32 @@ struct SearchSelectorSheet: View {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.gray)
-                        TextField(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""), text: $searchText)
-                            .textFieldStyle(.plain)
-                            .focused($isSearchFocused)
-                            .onChange(of: searchText) { oldValue, newValue in
-                                if !newValue.isEmpty {
-                                    viewModel.debounceSearch(characterId: characterId, searchText: newValue)
-                                } else {
-                                    viewModel.searchResults = [:]
+                        TextField(
+                            NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""),
+                            text: $searchText
+                        )
+                        .textFieldStyle(.plain)
+                        .focused($isSearchFocused)
+                        .onChange(of: searchText) { _, newValue in
+                            if !newValue.isEmpty {
+                                viewModel.debounceSearch(
+                                    characterId: characterId, searchText: newValue
+                                )
+                            } else {
+                                viewModel.searchResults = [:]
+                            }
+                        }
+                        .submitLabel(.search)
+                        .onSubmit {
+                            if !searchText.isEmpty {
+                                Task {
+                                    await viewModel.search(
+                                        characterId: characterId, searchText: searchText
+                                    )
                                 }
                             }
-                            .submitLabel(.search)
-                            .onSubmit {
-                                if !searchText.isEmpty {
-                                    Task {
-                                        await viewModel.search(characterId: characterId, searchText: searchText)
-                                    }
-                                }
-                            }
-                        
+                        }
+
                         if !searchText.isEmpty {
                             Button {
                                 searchText = ""
@@ -309,7 +341,7 @@ struct SearchSelectorSheet: View {
                     .padding(8)
                     .background(Color(uiColor: .secondarySystemBackground))
                     .cornerRadius(8)
-                    
+
                     if searchText.count < 3 {
                         Text(NSLocalizedString("Main_Search_Network_Min_Length", comment: ""))
                             .font(.caption)
@@ -318,7 +350,7 @@ struct SearchSelectorSheet: View {
                 }
                 .padding()
                 .background(Color(uiColor: .systemBackground))
-                
+
                 if viewModel.isSearching {
                     Spacer()
                     ProgressView()
@@ -333,7 +365,8 @@ struct SearchSelectorSheet: View {
                     } else {
                         List {
                             ForEach(viewModel.categories, id: \.self) { category in
-                                if let results = viewModel.searchResults[category], !results.isEmpty {
+                                if let results = viewModel.searchResults[category], !results.isEmpty
+                                {
                                     Section(header: Text(category.localizedTitle)) {
                                         ForEach(results) { result in
                                             Button {
@@ -374,7 +407,7 @@ struct SearchSelectorSheet: View {
 struct KMSearchResultRow: View {
     let result: SearchResult
     @State private var loadedIcon: UIImage?
-    
+
     var body: some View {
         HStack {
             if let image = result.icon ?? loadedIcon {
@@ -391,7 +424,7 @@ struct KMSearchResultRow: View {
                         await loadIcon()
                     }
             }
-            
+
             VStack(alignment: .leading) {
                 Text(result.name)
                 Text(result.category.localizedTitle)
@@ -400,13 +433,13 @@ struct KMSearchResultRow: View {
             }
         }
     }
-    
+
     private func loadIcon() async {
         // 替换图标尺寸
         Logger.debug("Load img from result: \(result.imageURL)")
         let urlString = result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")
         guard let url = URL(string: urlString) else { return }
-        
+
         do {
             let data = try await NetworkManager.shared.fetchData(from: url)
             if let image = UIImage(data: data) {
@@ -428,7 +461,7 @@ enum SearchResultCategory: String {
     case inventory_type
     case solar_system
     case region
-    
+
     var localizedTitle: String {
         switch self {
         case .alliance: return NSLocalizedString("KillMail_Search_Alliance", comment: "")
@@ -448,7 +481,7 @@ struct SearchResult: Identifiable, Equatable {
     let category: SearchResultCategory
     let imageURL: String
     var icon: UIImage?
-    
+
     static func == (lhs: SearchResult, rhs: SearchResult) -> Bool {
         return lhs.id == rhs.id && lhs.category == rhs.category
     }
@@ -459,41 +492,41 @@ class BRKillMailSearchViewModel: ObservableObject {
     @Published var searchResults: [SearchResultCategory: [SearchResult]] = [:]
     @Published var isSearching = false
     @Published var selectedResult: SearchResult?
-    
+
     let categories: [SearchResultCategory] = [
         .character, .corporation, .alliance,
-        .inventory_type, .solar_system, .region
+        .inventory_type, .solar_system, .region,
     ]
     let kbAPI = KbEvetoolAPI.shared
-    
+
     private var searchTask: Task<Void, Never>?
-    
+
     func debounceSearch(characterId: Int, searchText: String) {
         // 取消之前的任务
         searchTask?.cancel()
-        
+
         // 创建新的搜索任务
         searchTask = Task {
             // 等待300毫秒
             try? await Task.sleep(nanoseconds: 300_000_000)
-            
+
             // 如果任务被取消，直接返回
             guard !Task.isCancelled else { return }
-            
+
             // 执行搜索
             await search(characterId: characterId, searchText: searchText)
         }
     }
-    
+
     func search(characterId: Int, searchText: String) async {
         guard !searchText.isEmpty else {
             searchResults = [:]
             return
         }
-        
+
         isSearching = true
         defer { isSearching = false }
-        
+
         // 联网搜索
         var networkResults: [SearchResultCategory: [SearchResult]] = [:]
         do {
@@ -502,36 +535,43 @@ class BRKillMailSearchViewModel: ObservableObject {
                 characterId: characterId,
                 searchText: searchText
             )
-            
+
             // 处理搜索结果
             for (categoryStr, items) in apiResults {
                 guard let category = SearchResultCategory(rawValue: categoryStr) else { continue }
-                
+
                 var results: [SearchResult] = []
                 for item in items {
-                    results.append(SearchResult(
-                        id: item.id,
-                        name: item.name,
-                        category: category,
-                        imageURL: item.image,
-                        icon: nil
-                    ))
+                    results.append(
+                        SearchResult(
+                            id: item.id,
+                            name: item.name,
+                            category: category,
+                            imageURL: item.image,
+                            icon: nil
+                        ))
                 }
-                
+
                 if !results.isEmpty {
                     networkResults[category] = results
                 }
             }
-            
+
             // 开始异步加载图标
             Task {
                 for category in categories {
                     if let results = networkResults[category] {
                         for result in results {
-                            if let url = URL(string: result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")),
-                               let data = try? await NetworkManager.shared.fetchData(from: url),
-                               let image = UIImage(data: data) {
-                                if let index = self.searchResults[category]?.firstIndex(where: { $0.id == result.id }) {
+                            if let url = URL(
+                                string: result.imageURL.replacingOccurrences(
+                                    of: "size=32", with: "size=64"
+                                )),
+                                let data = try? await NetworkManager.shared.fetchData(from: url),
+                                let image = UIImage(data: data)
+                            {
+                                if let index = self.searchResults[category]?.firstIndex(where: {
+                                    $0.id == result.id
+                                }) {
                                     self.searchResults[category]?[index].icon = image
                                 }
                             }
@@ -539,12 +579,12 @@ class BRKillMailSearchViewModel: ObservableObject {
                     }
                 }
             }
-            
+
         } catch {
             Logger.error("联网搜索失败: \(error)")
         }
-        
+
         // 更新UI
-        self.searchResults = networkResults
+        searchResults = networkResults
     }
-} 
+}

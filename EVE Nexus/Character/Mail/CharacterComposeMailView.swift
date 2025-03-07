@@ -5,19 +5,19 @@ struct CharacterComposeMailView: View {
     let initialRecipients: [MailRecipient]
     let initialSubject: String
     let initialBody: String
-    
+
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = CharacterComposeMailViewModel()
-    
+
     @State private var recipients: [MailRecipient]
     @State private var subject: String
     @State private var mailBody: String
-    
+
     // 使用枚举来管理 sheet 状态
     private enum SheetType: Identifiable {
         case recipientPicker
         case mailListPicker
-        
+
         var id: Int {
             switch self {
             case .recipientPicker: return 1
@@ -25,9 +25,9 @@ struct CharacterComposeMailView: View {
             }
         }
     }
-    
+
     @State private var activeSheet: SheetType?
-    
+
     init(
         characterId: Int,
         initialRecipients: [MailRecipient] = [],
@@ -38,17 +38,17 @@ struct CharacterComposeMailView: View {
         self.initialRecipients = initialRecipients
         self.initialSubject = initialSubject
         self.initialBody = initialBody
-        
+
         let uniqueRecipients = Array(Set(initialRecipients))
         _recipients = State(initialValue: uniqueRecipients)
         _subject = State(initialValue: initialSubject)
         _mailBody = State(initialValue: initialBody)
-        
+
         if !uniqueRecipients.isEmpty {
             Logger.debug("初始化邮件编辑视图 - 收件人: \(uniqueRecipients)")
         }
     }
-    
+
     var body: some View {
         Form {
             Section {
@@ -73,7 +73,7 @@ struct CharacterComposeMailView: View {
                         }
                     }
                 }
-                
+
                 // 添加收件人按钮
                 Button {
                     activeSheet = .recipientPicker
@@ -83,7 +83,7 @@ struct CharacterComposeMailView: View {
                         Text(NSLocalizedString("Main_EVE_Mail_Add_Recipient", comment: ""))
                     }
                 }
-                
+
                 // 添加邮件列表按钮
                 Button {
                     activeSheet = .mailListPicker
@@ -96,14 +96,14 @@ struct CharacterComposeMailView: View {
             } header: {
                 Text(NSLocalizedString("Main_EVE_Mail_Recipients", comment: ""))
             }
-            
+
             Section {
                 TextField(NSLocalizedString("Main_EVE_Mail_Subject", comment: ""), text: $subject)
                     .textInputAutocapitalization(.none)
             } header: {
                 Text(NSLocalizedString("Main_EVE_Mail_Subject", comment: ""))
             }
-            
+
             Section {
                 TextEditor(text: $mailBody)
                     .frame(minHeight: 200)
@@ -120,7 +120,7 @@ struct CharacterComposeMailView: View {
                     dismiss()
                 }
             }
-            
+
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(NSLocalizedString("Main_EVE_Mail_Send", comment: "")) {
                     Task {
@@ -148,17 +148,18 @@ struct CharacterComposeMailView: View {
                         activeSheet = nil
                     }
                 )
-                
+
             case .mailListPicker:
                 MailListPickerView(
                     characterId: characterId,
                     onSelect: { mailList in
                         if !recipients.contains(where: { $0.id == mailList.mailing_list_id }) {
-                            recipients.append(MailRecipient(
-                                id: mailList.mailing_list_id,
-                                name: mailList.name,
-                                type: .mailingList
-                            ))
+                            recipients.append(
+                                MailRecipient(
+                                    id: mailList.mailing_list_id,
+                                    name: mailList.name,
+                                    type: .mailingList
+                                ))
                         }
                         activeSheet = nil
                     }
@@ -173,24 +174,24 @@ struct MailRecipient: Identifiable, Hashable {
     let id: Int
     let name: String
     let type: RecipientType
-    
+
     // 实现 Hashable 协议
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(type)
     }
-    
+
     // 实现相等性比较
     static func == (lhs: MailRecipient, rhs: MailRecipient) -> Bool {
         return lhs.id == rhs.id && lhs.type == rhs.type
     }
-    
+
     enum RecipientType: String {
         case character
         case corporation
         case alliance
         case mailingList
-        
+
         var rawValue: String {
             switch self {
             case .character:
@@ -212,19 +213,23 @@ struct RecipientPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = RecipientPickerViewModel()
     @State private var searchText = ""
-    
+
     var body: some View {
         NavigationStack {
             List {
                 if searchText.isEmpty {
                     // 快速选择部分
-                    Section(header: Text(NSLocalizedString("Main_EVE_Mail_Quick_Select", comment: ""))) {
+                    Section(
+                        header: Text(NSLocalizedString("Main_EVE_Mail_Quick_Select", comment: ""))
+                    ) {
                         if viewModel.isLoadingQuickSelect {
                             ProgressView()
                         } else {
                             // 最近的收件人
                             ForEach(viewModel.recentRecipients) { recipient in
-                                QuickSelectRow(recipient: recipient, onSelect: onSelect, dismiss: dismiss)
+                                QuickSelectRow(
+                                    recipient: recipient, onSelect: onSelect, dismiss: dismiss
+                                )
                             }
                         }
                     }
@@ -263,7 +268,10 @@ struct RecipientPickerView: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: ""))
+            .searchable(
+                text: $searchText,
+                prompt: NSLocalizedString("Main_EVE_Mail_Search_Recipients", comment: "")
+            )
             .onChange(of: searchText) { _, _ in
                 if searchText.isEmpty || searchText.count <= 2 {
                     viewModel.searchResults = []
@@ -304,7 +312,7 @@ private struct QuickSelectRow: View {
     let recipient: RecipientPickerViewModel.SearchResult
     let onSelect: (MailRecipient) -> Void
     let dismiss: DismissAction
-    
+
     var body: some View {
         Button {
             onSelect(MailRecipient(id: recipient.id, name: recipient.name, type: recipient.type))
@@ -346,7 +354,7 @@ struct MailListPickerView: View {
     let onSelect: (EVEMailList) -> Void
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = MailListPickerViewModel()
-    
+
     var body: some View {
         NavigationStack {
             List {
@@ -414,11 +422,11 @@ class MailListPickerViewModel: ObservableObject {
     @Published var mailLists: [EVEMailList] = []
     @Published var isLoading = false
     @Published var error: Error?
-    
+
     func fetchMailLists(characterId: Int) async {
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             mailLists = try await CharacterMailAPI.shared.fetchMailLists(characterId: characterId)
             Logger.info("成功获取 \(mailLists.count) 个邮件列表")
@@ -442,16 +450,16 @@ class RecipientPickerViewModel: ObservableObject {
     @Published var isSearching = false
     @Published var error: Error?
     @Published var searchingStatus = ""
-    
+
     // 快速选择相关
     @Published var isLoadingQuickSelect = false
     @Published var recentRecipients: [SearchResult] = []
-    
+
     // 用于防抖的任务
     private var searchTask: Task<Void, Never>?
     private var corporationNames: [Int: String] = [:]
     private var allianceNames: [Int: String] = [:]
-    
+
     struct SearchResult: Identifiable {
         let id: Int
         let name: String
@@ -459,31 +467,34 @@ class RecipientPickerViewModel: ObservableObject {
         var corporationName: String?
         var allianceName: String?
     }
-    
+
     // 加载快速选择收件人
     func loadQuickSelectRecipients(characterId: Int) async {
         isLoadingQuickSelect = true
         defer { isLoadingQuickSelect = false }
-        
+
         do {
             // 获取最近的邮件
-            let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(characterId: characterId)
-            
+            let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(
+                characterId: characterId)
+
             // 创建一个字典来存储每个联系人的最近邮件时间
             var recipientLastContact: [Int: Date] = [:]
-            
+
             // 收集联系人ID和他们最近的联系时间
             for mail in recentMails {
                 guard let mailDate = mail.timestamp.toDate() else { continue }
-                
+
                 // 处理发件人
                 if mail.from != characterId {
                     // 如果这个联系人还没有记录时间，或者这个邮件更新，更新时间
-                    if recipientLastContact[mail.from] == nil || mailDate > recipientLastContact[mail.from]! {
+                    if recipientLastContact[mail.from] == nil
+                        || mailDate > recipientLastContact[mail.from]!
+                    {
                         recipientLastContact[mail.from] = mailDate
                     }
                 }
-                
+
                 // 处理收件人
                 for recipient in mail.recipients where recipient.recipient_type != "mailing_list" {
                     let id = recipient.recipient_id
@@ -494,126 +505,140 @@ class RecipientPickerViewModel: ObservableObject {
                     }
                 }
             }
-            
+
             // 将联系人按最近联系时间排序
             let sortedRecipients = recipientLastContact.sorted { $0.value > $1.value }
-            
+
             // 获取前10个联系人的ID
             let topRecipientIds = sortedRecipients.prefix(10).map { $0.key }
-            
+
             // 获取这些ID的名称信息
-            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(topRecipientIds))
-            
+            let names = try await UniverseAPI.shared.getNamesWithFallback(
+                ids: Array(topRecipientIds))
+
             // 转换为SearchResult数组，保持时间排序
             recentRecipients = topRecipientIds.compactMap { id in
                 guard let info = names[id] else { return nil }
                 return SearchResult(
                     id: id,
                     name: info.name,
-                    type: info.category == "character" ? .character :
-                          info.category == "corporation" ? .corporation : .alliance
+                    type: info.category == "character"
+                        ? .character : info.category == "corporation" ? .corporation : .alliance
                 )
             }
-            
+
         } catch {
             Logger.error("加载快速选择收件人失败: \(error)")
         }
     }
-    
+
     func debounceSearch(characterId: Int, searchText: String) {
         // 取消之前的搜索任务
         searchTask?.cancel()
-        
+
         // 创建新的搜索任务，延迟500毫秒
         searchTask = Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-            
+            try? await Task.sleep(nanoseconds: 500_000_000)  // 500ms
+
             // 如果任务被取消了，就直接返回
             if Task.isCancelled { return }
-            
+
             // 执行实际的搜索
             await search(characterId: characterId, searchText: searchText)
         }
     }
-    
+
     func search(characterId: Int, searchText: String) async {
         guard !searchText.isEmpty else {
             searchResults = []
             return
         }
-        
+
         guard !isSearching else { return }
-        
+
         isSearching = true
         searchingStatus = NSLocalizedString("Main_Search_Status_Searching", comment: "")
         defer { isSearching = false }
-        
+
         do {
             error = nil
             searchResults = []
             corporationNames = [:]
             allianceNames = [:]
-            
+
             // 使用新的搜索API
-            searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Characters", comment: "")
+            searchingStatus = NSLocalizedString(
+                "Main_Search_Status_Finding_Characters", comment: ""
+            )
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: characterId,
                 categories: [.character, .corporation, .alliance],
                 searchText: searchText
             )
-            
+
             if Task.isCancelled { return }
-            
+
             // 解析搜索结果
             let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
             var results: [SearchResult] = []
-            
+
             // 获取所有需要查询的ID
             var allIds: Set<Int> = []
             if let characters = searchResponse.character { allIds.formUnion(characters) }
             if let corporations = searchResponse.corporation { allIds.formUnion(corporations) }
             if let alliances = searchResponse.alliance { allIds.formUnion(alliances) }
-            
+
             // 一次性获取所有名称
             searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
             let names = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(allIds))
-            
+
             if Task.isCancelled { return }
-            
+
             // 处理角色搜索结果
             if let characters = searchResponse.character {
                 // 获取角色的军团和联盟信息
-                searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Details", comment: "")
-                let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliationsInBatches(characterIds: characters)
-                
+                searchingStatus = NSLocalizedString(
+                    "Main_Search_Status_Loading_Details", comment: ""
+                )
+                let affiliations = try await CharacterAffiliationAPI.shared
+                    .fetchAffiliationsInBatches(characterIds: characters)
+
                 // 收集所有需要查询的军团和联盟ID
                 var corpIds = Set<Int>()
                 var allianceIds = Set<Int>()
-                
+
                 for affiliation in affiliations {
                     corpIds.insert(affiliation.corporation_id)
                     if let allianceId = affiliation.alliance_id {
                         allianceIds.insert(allianceId)
                     }
                 }
-                
+
                 // 获取军团名称
                 searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Corps", comment: "")
-                corporationNames = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(corpIds))
-                    .mapValues { $0.name }
-                
+                corporationNames = try await UniverseAPI.shared.getNamesWithFallback(
+                    ids: Array(corpIds)
+                )
+                .mapValues { $0.name }
+
                 // 获取联盟名称
                 if !allianceIds.isEmpty {
-                    searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Alliances", comment: "")
-                    allianceNames = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(allianceIds))
-                        .mapValues { $0.name }
+                    searchingStatus = NSLocalizedString(
+                        "Main_Search_Status_Loading_Alliances", comment: ""
+                    )
+                    allianceNames = try await UniverseAPI.shared.getNamesWithFallback(
+                        ids: Array(allianceIds)
+                    )
+                    .mapValues { $0.name }
                 }
-                
+
                 // 创建角色搜索结果
                 for character in characters {
                     if let info = names[character] {
                         var result = SearchResult(id: character, name: info.name, type: .character)
-                        if let affiliation = affiliations.first(where: { $0.character_id == character }) {
+                        if let affiliation = affiliations.first(where: {
+                            $0.character_id == character
+                        }) {
                             result.corporationName = corporationNames[affiliation.corporation_id]
                             if let allianceId = affiliation.alliance_id {
                                 result.allianceName = allianceNames[allianceId]
@@ -623,31 +648,33 @@ class RecipientPickerViewModel: ObservableObject {
                     }
                 }
             }
-            
+
             // 处理军团搜索结果
             if let corporations = searchResponse.corporation {
-                results.append(contentsOf: corporations.compactMap { id in
-                    guard let info = names[id] else { return nil }
-                    return SearchResult(id: id, name: info.name, type: .corporation)
-                })
+                results.append(
+                    contentsOf: corporations.compactMap { id in
+                        guard let info = names[id] else { return nil }
+                        return SearchResult(id: id, name: info.name, type: .corporation)
+                    })
             }
-            
+
             // 处理联盟搜索结果
             if let alliances = searchResponse.alliance {
-                results.append(contentsOf: alliances.compactMap { id in
-                    guard let info = names[id] else { return nil }
-                    return SearchResult(id: id, name: info.name, type: .alliance)
-                })
+                results.append(
+                    contentsOf: alliances.compactMap { id in
+                        guard let info = names[id] else { return nil }
+                        return SearchResult(id: id, name: info.name, type: .alliance)
+                    })
             }
-            
+
             if Task.isCancelled { return }
-            
+
             // 按名称排序结果
             results.sort { $0.name < $1.name }
-            
+
             searchResults = results
             Logger.info("搜索完成，找到 \(results.count) 个结果")
-            
+
         } catch {
             if error is CancellationError {
                 Logger.debug("搜索任务被取消")
@@ -664,22 +691,26 @@ class RecipientPickerViewModel: ObservableObject {
 class CharacterComposeMailViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: Error?
-    
-    func sendMail(characterId: Int, recipients: [MailRecipient], subject: String, body: String) async {
+
+    func sendMail(characterId: Int, recipients: [MailRecipient], subject: String, body: String)
+        async
+    {
         isLoading = true
         defer { isLoading = false }
-        
+
         do {
             // 转换收件人格式
             let recipientsList = recipients.map { recipient in
                 EVEMailRecipient(
                     recipient_id: recipient.id,
-                    recipient_type: recipient.type == .mailingList ? "mailing_list" :
-                                  recipient.type == .character ? "character" :
-                                  recipient.type == .corporation ? "corporation" : "alliance"
+                    recipient_type: recipient.type == .mailingList
+                        ? "mailing_list"
+                        : recipient.type == .character
+                            ? "character"
+                            : recipient.type == .corporation ? "corporation" : "alliance"
                 )
             }
-            
+
             try await CharacterMailAPI.shared.sendMail(
                 characterId: characterId,
                 recipients: recipientsList,
@@ -703,4 +734,4 @@ extension String {
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         return dateFormatter.date(from: self)
     }
-} 
+}

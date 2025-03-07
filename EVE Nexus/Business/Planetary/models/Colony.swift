@@ -13,7 +13,7 @@ struct Colony {
     let routes: [Route]
     var status: ColonyStatus
     var overview: ColonyOverview
-    
+
     /// 克隆殖民地
     func clone() -> Colony {
         return Colony(
@@ -50,4 +50,4 @@ struct Colony {
 struct SolarSystem {
     let id: Int
     let name: String
-} 
+}

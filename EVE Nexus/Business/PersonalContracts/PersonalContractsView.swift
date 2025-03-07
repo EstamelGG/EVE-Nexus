@@ -7,8 +7,11 @@ struct ContractGroup: Identifiable {
     var contracts: [ContractInfo]
     let startLocation: String?
     let endLocation: String?
-    
-    init(date: Date, contracts: [ContractInfo], startLocation: String? = nil, endLocation: String? = nil) {
+
+    init(
+        date: Date, contracts: [ContractInfo], startLocation: String? = nil,
+        endLocation: String? = nil
+    ) {
         self.date = date
         self.contracts = contracts
         self.startLocation = startLocation
@@ -31,6 +34,7 @@ final class PersonalContractsViewModel: ObservableObject {
             }
         }
     }
+
     @Published var hasCorporationAccess = false
     @Published var courierMode = false {
         didSet {
@@ -38,11 +42,13 @@ final class PersonalContractsViewModel: ObservableObject {
             UserDefaults.standard.set(courierMode, forKey: "courierMode_\(characterId)")
             // 当切换模式时，重新分组
             Task {
-                await updateContractGroups(with: showCorporationContracts ? cachedCorporationContracts : cachedPersonalContracts)
+                await updateContractGroups(
+                    with: showCorporationContracts
+                        ? cachedCorporationContracts : cachedPersonalContracts)
             }
         }
     }
-    
+
     private var loadingTask: Task<Void, Never>?
     private var personalContractsInitialized = false
     private var corporationContractsInitialized = false
@@ -50,39 +56,46 @@ final class PersonalContractsViewModel: ObservableObject {
     private var cachedCorporationContracts: [ContractInfo] = []
     let characterId: Int
     let databaseManager: DatabaseManager
-    private lazy var locationLoader: LocationInfoLoader = {
-        LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
-    }()
-    
+    private lazy var locationLoader: LocationInfoLoader = .init(
+        databaseManager: databaseManager, characterId: Int64(characterId))
+
+    // 添加一个标志来跟踪是否正在进行强制刷新
+    private var isForceRefreshing = false
+
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         return calendar
     }()
-    
+
     // 添加地点名称缓存
     private var locationCache: [Int64: String] = [:]
     // 添加地点名称加载状态追踪
     private var locationLoadingTasks: Set<Int64> = []
-    
+
     init(characterId: Int) {
         self.characterId = characterId
-        self.databaseManager = DatabaseManager()
+        databaseManager = DatabaseManager()
         // 初始化时检查军团访问权限
         Task {
             await checkCorporationAccess()
         }
-        
+
         // 从 UserDefaults 读取快递模式设置
-        if let courierModeSetting = UserDefaults.standard.value(forKey: "courierMode_\(characterId)") as? Bool {
-            self.courierMode = courierModeSetting
+        if let courierModeSetting = UserDefaults.standard.value(
+            forKey: "courierMode_\(characterId)") as? Bool
+        {
+            courierMode = courierModeSetting
         }
     }
-    
+
     // 检查是否有军团合同访问权限
     private func checkCorporationAccess() async {
         do {
-            if (try await CharacterDatabaseManager.shared.getCharacterCorporationId(characterId: characterId)) != nil {
+            if try
+                (await CharacterDatabaseManager.shared.getCharacterCorporationId(
+                    characterId: characterId)) != nil
+            {
                 // 如果能获取到军团ID，说明有访问权限
                 hasCorporationAccess = true
             } else {
@@ -95,7 +108,7 @@ final class PersonalContractsViewModel: ObservableObject {
             showCorporationContracts = false
         }
     }
-    
+
     private func updateContractGroups(with contracts: [ContractInfo]) async {
         if courierMode {
             // 快递模式：确保在主线程更新 UI
@@ -113,7 +126,7 @@ final class PersonalContractsViewModel: ObservableObject {
                 }
                 groupedContracts[date]?.append(contract)
             }
-            
+
             // 创建分组并排序
             let groups = groupedContracts.map { date, contracts in
                 ContractGroup(
@@ -121,17 +134,17 @@ final class PersonalContractsViewModel: ObservableObject {
                     contracts: contracts.sorted { $0.date_issued > $1.date_issued }
                 )
             }.sorted { $0.date > $1.date }
-            
+
             await MainActor.run {
                 self.contractGroups = groups
             }
         }
     }
-    
+
     private func loadContractsIfNeeded() async {
         // 取消之前的加载任务
         loadingTask?.cancel()
-        
+
         // 如果已经加载过且不是强制刷新，直接使用缓存并重新分组
         if showCorporationContracts && corporationContractsInitialized {
             await updateContractGroups(with: cachedCorporationContracts)
@@ -140,25 +153,42 @@ final class PersonalContractsViewModel: ObservableObject {
             await updateContractGroups(with: cachedPersonalContracts)
             return
         }
-        
+
         // 创建新的加载任务
         loadingTask = Task {
             await loadContractsData(forceRefresh: false)
         }
-        
+
         // 等待任务完成
         await loadingTask?.value
     }
-    
+
     func loadContractsData(forceRefresh: Bool = false) async {
-        if isLoading { return }
-        
-        await MainActor.run { 
-            isLoading = true 
+        // 如果已经在加载中且不是强制刷新，则直接返回
+        if isLoading && !forceRefresh { return }
+
+        // 如果是强制刷新，设置标志
+        if forceRefresh {
+            isForceRefreshing = true
+        }
+
+        // 如果已经加载过且不是强制刷新，直接使用缓存
+        if !forceRefresh {
+            if showCorporationContracts && corporationContractsInitialized {
+                await updateContractGroups(with: cachedCorporationContracts)
+                return
+            } else if !showCorporationContracts && personalContractsInitialized {
+                await updateContractGroups(with: cachedPersonalContracts)
+                return
+            }
+        }
+
+        await MainActor.run {
+            isLoading = true
             errorMessage = nil
             currentLoadingPage = nil
         }
-        
+
         do {
             let contracts: [ContractInfo]
             if showCorporationContracts {
@@ -179,6 +209,7 @@ final class PersonalContractsViewModel: ObservableObject {
                     // 如果是取消操作，不显示错误
                     isLoading = false
                     currentLoadingPage = nil
+                    isForceRefreshing = false
                     return
                 }
             } else {
@@ -199,16 +230,18 @@ final class PersonalContractsViewModel: ObservableObject {
                     // 如果是取消操作，不显示错误
                     isLoading = false
                     currentLoadingPage = nil
+                    isForceRefreshing = false
                     return
                 }
             }
-            
+
             await updateContractGroups(with: contracts)
-            await MainActor.run { 
+            await MainActor.run {
                 isLoading = false
-                currentLoadingPage = nil 
+                currentLoadingPage = nil
+                isForceRefreshing = false
             }
-            
+
         } catch {
             if !(error is CancellationError) {
                 await MainActor.run {
@@ -216,23 +249,24 @@ final class PersonalContractsViewModel: ObservableObject {
                     Logger.error("加载\(self.showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
                 }
             }
-            await MainActor.run { 
+            await MainActor.run {
                 self.isLoading = false
                 self.currentLoadingPage = nil
+                self.isForceRefreshing = false
             }
         }
     }
-    
+
     deinit {
         loadingTask?.cancel()
     }
-    
+
     // 修改获取地点名称的方法
     private func getLocationName(_ locationId: Int64) async -> String {
         if let cached = locationCache[locationId] {
             return cached
         }
-        
+
         // 如果已经在加载中，等待加载完成
         if locationLoadingTasks.contains(locationId) {
             // 最多等待3秒
@@ -240,15 +274,15 @@ final class PersonalContractsViewModel: ObservableObject {
                 if let cached = locationCache[locationId] {
                     return cached
                 }
-                try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
+                try? await Task.sleep(nanoseconds: 100_000_000)  // 等待100ms
             }
             // 如果等待超时，返回未知
             return "Unknown"
         }
-        
+
         // 标记为正在加载
         locationLoadingTasks.insert(locationId)
-        
+
         let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
         if let locationInfo = locationInfos[locationId] {
             let name = locationInfo.solarSystemName
@@ -259,22 +293,22 @@ final class PersonalContractsViewModel: ObservableObject {
         locationLoadingTasks.remove(locationId)
         return "Unknown"
     }
-    
+
     // 修改按路线分组合同的方法
     private func groupContractsByRoute(_ contracts: [ContractInfo]) async -> [ContractGroup] {
         // 按路线分组
         var groupedContracts: [String: [ContractInfo]] = [:]
         var routeNames: [String: (start: String, end: String)] = [:]
-        
+
         // 第一步：收集所有合同并获取位置名称
         for contract in contracts {
             let startId = contract.start_location_id
             let endId = contract.end_location_id
             let routeKey = "\(startId)-\(endId)"
-            
+
             if groupedContracts[routeKey] == nil {
                 groupedContracts[routeKey] = []
-                
+
                 // 异步获取位置名称
                 let startName = await getLocationName(startId)
                 let endName = await getLocationName(endId)
@@ -282,22 +316,24 @@ final class PersonalContractsViewModel: ObservableObject {
             }
             groupedContracts[routeKey]?.append(contract)
         }
-        
+
         // 第二步：创建分组
         var result: [ContractGroup] = []
         for (routeKey, contracts) in groupedContracts {
             let sortedContracts = contracts.sorted { $0.reward > $1.reward }
             if let first = sortedContracts.first,
-               let routeName = routeNames[routeKey] {
-                result.append(ContractGroup(
-                    date: first.date_issued,
-                    contracts: sortedContracts,
-                    startLocation: routeName.start,
-                    endLocation: routeName.end
-                ))
+                let routeName = routeNames[routeKey]
+            {
+                result.append(
+                    ContractGroup(
+                        date: first.date_issued,
+                        contracts: sortedContracts,
+                        startLocation: routeName.start,
+                        endLocation: routeName.end
+                    ))
             }
         }
-        
+
         // 第三步：按照奖励排序
         return result.sorted { $0.contracts[0].reward > $1.contracts[0].reward }
     }
@@ -307,14 +343,17 @@ struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showSettings = false
-    
+
     // 使用计算属性来获取和设置带有角色ID的AppStorage键
     private var showActiveOnlyKey: String { "showActiveOnly_\(viewModel.characterId)" }
     private var showCourierContractsKey: String { "showCourierContracts_\(viewModel.characterId)" }
-    private var showItemExchangeContractsKey: String { "showItemExchangeContracts_\(viewModel.characterId)" }
+    private var showItemExchangeContractsKey: String {
+        "showItemExchangeContracts_\(viewModel.characterId)"
+    }
+
     private var showAuctionContractsKey: String { "showAuctionContracts_\(viewModel.characterId)" }
     private var maxContractsKey: String { "maxContracts_\(viewModel.characterId)" }
-    
+
     // 使用@AppStorage并使用动态key
     @AppStorage("") private var showActiveOnly: Bool = false
     @AppStorage("") private var showCourierContracts: Bool = true
@@ -322,7 +361,10 @@ struct PersonalContractsView: View {
     @AppStorage("") private var showAuctionContracts: Bool = true
     @AppStorage("") private var maxContracts: Int = 300
     @AppStorage("") private var courierMode: Bool = false
-    
+
+    // 添加一个状态变量来跟踪是否已经初始化
+    @State private var isInitialized = false
+
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -330,19 +372,25 @@ struct PersonalContractsView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     init(characterId: Int) {
         _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
-        
+
         // 初始化@AppStorage的key
         _showActiveOnly = AppStorage(wrappedValue: false, "showActiveOnly_\(characterId)")
-        _showCourierContracts = AppStorage(wrappedValue: true, "showCourierContracts_\(characterId)")
-        _showItemExchangeContracts = AppStorage(wrappedValue: true, "showItemExchangeContracts_\(characterId)")
-        _showAuctionContracts = AppStorage(wrappedValue: true, "showAuctionContracts_\(characterId)")
+        _showCourierContracts = AppStorage(
+            wrappedValue: true, "showCourierContracts_\(characterId)"
+        )
+        _showItemExchangeContracts = AppStorage(
+            wrappedValue: true, "showItemExchangeContracts_\(characterId)"
+        )
+        _showAuctionContracts = AppStorage(
+            wrappedValue: true, "showAuctionContracts_\(characterId)"
+        )
         _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(characterId)")
         _courierMode = AppStorage(wrappedValue: false, "courierMode_\(characterId)")
     }
-    
+
     // 修改过滤逻辑
     private var filteredContractGroups: [ContractGroup] {
         if courierMode {
@@ -351,17 +399,19 @@ struct PersonalContractsView: View {
                 let filteredContracts = group.contracts.filter { contract in
                     contract.type == "courier" && contract.status == "outstanding"
                 }.sorted { $0.reward > $1.reward }  // 按照奖励金额从高到低排序
-                
-                return filteredContracts.isEmpty ? nil : ContractGroup(
-                    date: group.date,
-                    contracts: filteredContracts,
-                    startLocation: group.startLocation,
-                    endLocation: group.endLocation
-                )
+
+                return filteredContracts.isEmpty
+                    ? nil
+                    : ContractGroup(
+                        date: group.date,
+                        contracts: filteredContracts,
+                        startLocation: group.startLocation,
+                        endLocation: group.endLocation
+                    )
             }
             // 按照组内第一个合同（最高奖励）的奖励金额排序
-            return filteredGroups.sorted { 
-                $0.contracts[0].reward > $1.contracts[0].reward 
+            return filteredGroups.sorted {
+                $0.contracts[0].reward > $1.contracts[0].reward
             }
         } else {
             // 先按照设置过滤合同
@@ -369,23 +419,25 @@ struct PersonalContractsView: View {
                 // 过滤每个组内的合同
                 let filteredContracts = group.contracts.filter { contract in
                     // 根据设置过滤合同
-                    let showByType = (contract.type == "courier" && showCourierContracts) ||
-                                   (contract.type == "item_exchange" && showItemExchangeContracts) ||
-                                   (contract.type == "auction" && showAuctionContracts)
-                    
-                    let showByStatus = !showActiveOnly || 
-                                     contract.status == "outstanding"
-                    
+                    let showByType =
+                        (contract.type == "courier" && showCourierContracts)
+                        || (contract.type == "item_exchange" && showItemExchangeContracts)
+                        || (contract.type == "auction" && showAuctionContracts)
+
+                    let showByStatus = !showActiveOnly || contract.status == "outstanding"
+
                     return showByType && showByStatus
                 }
-                
+
                 // 如果过滤后该组没有合同，返回nil（这样compactMap会自动移除这个组）
-                return filteredContracts.isEmpty ? nil : ContractGroup(
-                    date: group.date,
-                    contracts: filteredContracts,
-                    startLocation: group.startLocation,
-                    endLocation: group.endLocation
-                )
+                return filteredContracts.isEmpty
+                    ? nil
+                    : ContractGroup(
+                        date: group.date,
+                        contracts: filteredContracts,
+                        startLocation: group.startLocation,
+                        endLocation: group.endLocation
+                    )
             }.sorted { $0.date > $1.date }
 
             // 计算所有合同的总数
@@ -405,26 +457,27 @@ struct PersonalContractsView: View {
                 } else {
                     // 如果添加整个组会超过限制，只添加部分合同
                     let limitedContracts = Array(group.contracts.prefix(remainingSlots))
-                    limitedGroups.append(ContractGroup(
-                        date: group.date,
-                        contracts: limitedContracts,
-                        startLocation: group.startLocation,
-                        endLocation: group.endLocation
-                    ))
+                    limitedGroups.append(
+                        ContractGroup(
+                            date: group.date,
+                            contracts: limitedContracts,
+                            startLocation: group.startLocation,
+                            endLocation: group.endLocation
+                        ))
                     break
                 }
             }
-            
+
             return limitedGroups
         }
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             List {
-                if viewModel.isLoading {
+                if viewModel.isLoading && !isInitialized {
                     loadingView
-                } else if filteredContractGroups.isEmpty {
+                } else if filteredContractGroups.isEmpty && !viewModel.isLoading {
                     emptyView
                 } else {
                     ForEach(filteredContractGroups) { group in
@@ -439,10 +492,16 @@ struct PersonalContractsView: View {
                         } header: {
                             if courierMode {
                                 if let start = group.startLocation, let end = group.endLocation {
-                                    Text(String(format: NSLocalizedString("Contract_Route_Format", comment: ""), start, end))
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                        .textCase(nil)
+                                    Text(
+                                        String(
+                                            format: NSLocalizedString(
+                                                "Contract_Route_Format", comment: ""
+                                            ), start, end
+                                        )
+                                    )
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                    .textCase(nil)
                                 }
                             } else {
                                 Text(displayDateFormatter.string(from: group.date))
@@ -458,6 +517,16 @@ struct PersonalContractsView: View {
             .refreshable {
                 await viewModel.loadContractsData(forceRefresh: true)
             }
+            .navigationDestination(for: ContractInfo.self) { contract in
+                ContractDetailView(
+                    characterId: viewModel.characterId,
+                    contract: contract,
+                    databaseManager: viewModel.databaseManager,
+                    isCorpContract: viewModel.showCorporationContracts
+                )
+            }
+            // 添加id以防止视图在数据变化时重建
+            .id("contractsList")
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
@@ -472,58 +541,96 @@ struct PersonalContractsView: View {
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
                         .padding(.top, 4)
-                        
+
                         // 计算总合同数和过滤后的合同数
                         let totalCount = viewModel.contractGroups.reduce(0) { count, group in
                             count + group.contracts.count
                         }
-                        
+
                         if courierMode {
                             // 计算活跃的快递合同数量
-                            let activeCourierCount = viewModel.contractGroups.reduce(0) { count, group in
-                                count + group.contracts.filter { contract in
-                                    contract.type == "courier" && contract.status == "outstanding"
-                                }.count
+                            let activeCourierCount = viewModel.contractGroups.reduce(0) {
+                                count, group in
+                                count
+                                    + group.contracts.filter { contract in
+                                        contract.type == "courier"
+                                            && contract.status == "outstanding"
+                                    }.count
                             }
-                            
-                            let countText = activeCourierCount > maxContracts ? 
-                                String(format: NSLocalizedString("Contract_Courier_Active_Count_Limited", comment: ""), activeCourierCount, maxContracts) :
-                                String(format: NSLocalizedString("Contract_Courier_Active_Count", comment: ""), activeCourierCount)
-                            
-                            (Text("(" + NSLocalizedString("Contract_Courier_Mode", comment: "") + ")").foregroundColor(.red) +
-                             Text(" ") +
-                             Text(countText).foregroundColor(.secondary))
+
+                            let countText =
+                                activeCourierCount > maxContracts
+                                ? String(
+                                    format: NSLocalizedString(
+                                        "Contract_Courier_Active_Count_Limited", comment: ""
+                                    ),
+                                    activeCourierCount, maxContracts
+                                )
+                                : String(
+                                    format: NSLocalizedString(
+                                        "Contract_Courier_Active_Count", comment: ""
+                                    ),
+                                    activeCourierCount
+                                )
+
+                            (Text(
+                                "(" + NSLocalizedString("Contract_Courier_Mode", comment: "") + ")"
+                            ).foregroundColor(.red) + Text(" ")
+                                + Text(countText).foregroundColor(.secondary))
                                 .font(.caption)
                                 .padding(.bottom, 4)
                         } else {
                             let filteredCount = viewModel.contractGroups.reduce(0) { count, group in
-                                count + group.contracts.filter { contract in
-                                    let showByType = (contract.type == "courier" && showCourierContracts) ||
-                                                   (contract.type == "item_exchange" && showItemExchangeContracts) ||
-                                                   (contract.type == "auction" && showAuctionContracts)
-                                    
-                                    let showByStatus = !showActiveOnly || 
-                                                     contract.status == "outstanding"
-                                    
-                                    return showByType && showByStatus
-                                }.count
+                                count
+                                    + group.contracts.filter { contract in
+                                        let showByType =
+                                            (contract.type == "courier" && showCourierContracts)
+                                            || (contract.type == "item_exchange"
+                                                && showItemExchangeContracts)
+                                            || (contract.type == "auction" && showAuctionContracts)
+
+                                        let showByStatus =
+                                            !showActiveOnly || contract.status == "outstanding"
+
+                                        return showByType && showByStatus
+                                    }.count
                             }
-                            
+
                             if filteredCount > maxContracts {
-                                Text(String(format: NSLocalizedString("Contract_Filtered_Limited", comment: ""), totalCount, filteredCount, maxContracts))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.bottom, 4)
+                                Text(
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Contract_Filtered_Limited", comment: ""
+                                        ), totalCount,
+                                        filteredCount, maxContracts
+                                    )
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
                             } else if filteredCount < totalCount {
-                                Text(String(format: NSLocalizedString("Contract_Filtered_Count", comment: ""), totalCount, filteredCount))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.bottom, 4)
+                                Text(
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Contract_Filtered_Count", comment: ""
+                                        ), totalCount,
+                                        filteredCount
+                                    )
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
                             } else {
-                                Text(String(format: NSLocalizedString("Contract_Total_Count", comment: ""), totalCount))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.bottom, 4)
+                                Text(
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Contract_Total_Count", comment: ""
+                                        ), totalCount
+                                    )
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
                             }
                         }
                     }
@@ -535,22 +642,28 @@ struct PersonalContractsView: View {
             NavigationView {
                 Form {
                     Section {
-                        Toggle(isOn: Binding(
-                            get: { courierMode },
-                            set: { newValue in
-                                courierMode = newValue
-                                viewModel.courierMode = newValue
-                            }
-                        )) {
+                        Toggle(
+                            isOn: Binding(
+                                get: { courierMode },
+                                set: { newValue in
+                                    courierMode = newValue
+                                    viewModel.courierMode = newValue
+                                }
+                            )
+                        ) {
                             VStack(alignment: .leading) {
                                 Text(NSLocalizedString("Contract_Courier_Mode", comment: ""))
-                                Text(NSLocalizedString("Contract_Courier_Mode_Description", comment: ""))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    NSLocalizedString(
+                                        "Contract_Courier_Mode_Description", comment: ""
+                                    )
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                         }
                     }
-                    
+
                     if !courierMode {
                         Section {
                             Toggle(isOn: $showActiveOnly) {
@@ -567,14 +680,18 @@ struct PersonalContractsView: View {
                             }
                         }
                     }
-                    
+
                     Section {
-                        Picker(NSLocalizedString("Contract_Max_Display", comment: ""), selection: $maxContracts) {
+                        Picker(
+                            NSLocalizedString("Contract_Max_Display", comment: ""),
+                            selection: $maxContracts
+                        ) {
                             Text(NSLocalizedString("Contract_Display_50", comment: "")).tag(50)
                             Text(NSLocalizedString("Contract_Display_100", comment: "")).tag(100)
                             Text(NSLocalizedString("Contract_Display_300", comment: "")).tag(300)
                             Text(NSLocalizedString("Contract_Display_500", comment: "")).tag(500)
-                            Text(NSLocalizedString("Contract_Display_Unlimited", comment: "")).tag(Int.max)
+                            Text(NSLocalizedString("Contract_Display_Unlimited", comment: "")).tag(
+                                Int.max)
                         }
                         .pickerStyle(.navigationLink)
                     } header: {
@@ -605,17 +722,27 @@ struct PersonalContractsView: View {
                 }
             }
         }
-        .task(id: viewModel.showCorporationContracts) {
-            await viewModel.loadContractsData()
+        // 修改task，只在初始化时加载一次数据
+        .task {
+            if !isInitialized {
+                await viewModel.loadContractsData()
+                isInitialized = true
+            }
+        }
+        // 添加onChange监听器，当切换合同类型时重新加载
+        .onChange(of: viewModel.showCorporationContracts) { _, _ in
+            Task {
+                await viewModel.loadContractsData()
+            }
         }
     }
-    
+
     private var loadingView: some View {
         Section {
             HStack {
                 Spacer()
                 if let page = viewModel.currentLoadingPage {
-                    Text(String(format: NSLocalizedString("Loading_Page", comment: "") ,page))
+                    Text(String(format: NSLocalizedString("Loading_Page", comment: ""), page))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -624,7 +751,7 @@ struct PersonalContractsView: View {
         }
         .listSectionSpacing(.compact)
     }
-    
+
     private var emptyView: some View {
         Section {
             HStack {
@@ -649,7 +776,7 @@ struct ContractRow: View {
     let isCorpContract: Bool
     let databaseManager: DatabaseManager
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-    
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
@@ -657,15 +784,15 @@ struct ContractRow: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     private func formatContractType(_ type: String) -> String {
         return NSLocalizedString("Contract_Type_\(type)", comment: "")
     }
-    
+
     private func formatContractStatus(_ status: String) -> String {
         return NSLocalizedString("Contract_Status_\(status)", comment: "")
     }
-    
+
     // 根据状态返回对应的颜色
     private func getStatusColor(_ status: String) -> Color {
         switch status {
@@ -681,7 +808,7 @@ struct ContractRow: View {
             return .primary  // 其他状态使用主色调
         }
     }
-    
+
     // 判断当前角色是否是合同发布者
     private var isIssuer: Bool {
         if isCorpContract {
@@ -692,7 +819,7 @@ struct ContractRow: View {
             return contract.issuer_id == currentCharacterId
         }
     }
-    
+
     // 判断当前角色是否是合同接收者
     private var isAcceptor: Bool {
         if isCorpContract {
@@ -703,7 +830,7 @@ struct ContractRow: View {
             return contract.acceptor_id == currentCharacterId
         }
     }
-    
+
     @ViewBuilder
     private func priceView() -> some View {
         switch contract.type {
@@ -732,7 +859,7 @@ struct ContractRow: View {
                         .font(.system(.caption, design: .monospaced))
                 }
             }
-            
+
         case "courier":
             // 运输合同
             if isCorpContract {
@@ -758,7 +885,7 @@ struct ContractRow: View {
                         .font(.system(.caption, design: .monospaced))
                 }
             }
-            
+
         case "auction":
             // 拍卖合同：保持原有逻辑
             if isIssuer {
@@ -774,21 +901,14 @@ struct ContractRow: View {
                     .foregroundColor(.orange)
                     .font(.system(.caption, design: .monospaced))
             }
-            
+
         default:
             EmptyView()
         }
     }
-    
+
     var body: some View {
-        NavigationLink {
-            ContractDetailView(
-                characterId: currentCharacterId,
-                contract: contract,
-                databaseManager: databaseManager,
-                isCorpContract: isCorpContract
-            )
-        } label: {
+        NavigationLink(value: contract) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(formatContractStatus(contract.status))
@@ -806,7 +926,7 @@ struct ContractRow: View {
                     Spacer()
                     priceView()
                 }
-                
+
                 if !contract.title.isEmpty {
                     Text(NSLocalizedString("Contract_Title", comment: "") + ": \(contract.title)")
                         .font(.caption)
@@ -815,19 +935,22 @@ struct ContractRow: View {
                 }
                 HStack {
                     if contract.volume > 0 {
-                        Text(NSLocalizedString("Contract_Volume", comment: "") + ": \(FormatUtil.format(contract.volume)) m³")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
+                        Text(
+                            NSLocalizedString("Contract_Volume", comment: "")
+                                + ": \(FormatUtil.format(contract.volume)) m³"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                     }
                     Spacer()
                     Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
-                
             }
             .padding(.vertical, 2)
         }
+        .buttonStyle(PlainButtonStyle())
     }
-} 
+}

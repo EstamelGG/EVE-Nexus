@@ -15,87 +15,97 @@ final class ContractDetailViewModel: ObservableObject {
     @Published private(set) var startLocationInfo: LocationInfo?
     @Published private(set) var endLocationInfo: LocationInfo?
     @Published var isLoadingNames = true
-    
+
     private let characterId: Int
     private let contract: ContractInfo
     private let isCorpContract: Bool
     let databaseManager: DatabaseManager
-    private lazy var locationLoader: LocationInfoLoader = {
-        LocationInfoLoader(databaseManager: databaseManager, characterId: Int64(characterId))
-    }()
-    
+    private lazy var locationLoader: LocationInfoLoader = .init(
+        databaseManager: databaseManager, characterId: Int64(characterId))
+
     // 添加物品信息缓存
-    private var itemDetailsCache: [Int: (name: String, description: String, iconFileName: String)] = [:]
-    
+    private var itemDetailsCache: [Int: (name: String, description: String, iconFileName: String)] =
+        [:]
+
     struct LocationInfo {
         let stationName: String
         let solarSystemName: String
         let security: Double
-        
+
         init(stationName: String, solarSystemName: String, security: Double) {
             self.stationName = stationName
             self.solarSystemName = solarSystemName
             self.security = security
         }
     }
-    
+
     // 添加排序后的物品列表计算属性
     var sortedIncludedItems: [ContractItemInfo] {
-        return items
+        return
+            items
             .filter { $0.is_included }
             .sorted { item1, item2 in
                 item1.record_id < item2.record_id
             }
     }
-    
+
     var sortedRequiredItems: [ContractItemInfo] {
-        return items
+        return
+            items
             .filter { !$0.is_included }
             .sorted { item1, item2 in
                 item1.record_id < item2.record_id
             }
     }
-    
-    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager, isCorpContract: Bool) {
+
+    init(
+        characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager,
+        isCorpContract: Bool
+    ) {
         self.characterId = characterId
         self.contract = contract
         self.databaseManager = databaseManager
         self.isCorpContract = isCorpContract
     }
-    
+
     // 批量加载物品详细信息
     private func loadItemDetails(for items: [ContractItemInfo]) {
         let typeIds = Set(items.map { $0.type_id })
         let query = """
-            SELECT type_id, name, description, icon_filename
-            FROM types
-            WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
-        """
-        
+                SELECT type_id, name, description, icon_filename
+                FROM types
+                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+            """
+
         let result = databaseManager.executeQuery(query)
-        if case .success(let rows) = result {
+        if case let .success(rows) = result {
             for row in rows {
-                if let typeId = (row["type_id"] as? Int64).map(Int.init) ?? (row["type_id"] as? Int),
-                   let name = row["name"] as? String,
-                   let description = row["description"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
+                if let typeId = (row["type_id"] as? Int64).map(Int.init)
+                    ?? (row["type_id"] as? Int),
+                    let name = row["name"] as? String,
+                    let description = row["description"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                {
                     itemDetailsCache[typeId] = (
                         name: name,
                         description: description,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                        iconFileName: iconFileName.isEmpty
+                            ? DatabaseConfig.defaultItemIcon : iconFileName
                     )
                 }
             }
         }
         Logger.debug("已缓存 \(itemDetailsCache.count) 个物品信息")
     }
-    
-    func getItemDetails(for typeId: Int) -> (name: String, description: String, iconFileName: String)? {
+
+    func getItemDetails(for typeId: Int) -> (
+        name: String, description: String, iconFileName: String
+    )? {
         // 从缓存中获取
         if let cachedDetails = itemDetailsCache[typeId] {
             return cachedDetails
         }
-        
+
         // 如果缓存中没有，返回默认值
         return (
             name: "Unknown Item",
@@ -103,56 +113,62 @@ final class ContractDetailViewModel: ObservableObject {
             iconFileName: DatabaseConfig.defaultItemIcon
         )
     }
-    
+
     func loadContractItems(forceRefresh: Bool = false) async {
-        Logger.debug("开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh), 是否军团合同: \(isCorpContract)")
+        Logger.debug(
+            "开始加载合同物品 - 角色ID: \(characterId), 合同ID: \(contract.contract_id), 强制刷新: \(forceRefresh), 是否军团合同: \(isCorpContract)"
+        )
         isLoading = true
         errorMessage = nil
-        
-        await withTaskCancellationHandler(operation: {
-            do {
-                if isCorpContract {
-                    items = try await CorporationContractsAPI.shared.fetchContractItems(
-                        characterId: characterId,
-                        contractId: contract.contract_id
-                    )
-                } else {
-                    items = try await CharacterContractsAPI.shared.fetchContractItems(
-                        characterId: characterId,
-                        contractId: contract.contract_id,
-                        forceRefresh: forceRefresh
-                    )
+
+        await withTaskCancellationHandler(
+            operation: {
+                do {
+                    if isCorpContract {
+                        items = try await CorporationContractsAPI.shared.fetchContractItems(
+                            characterId: characterId,
+                            contractId: contract.contract_id
+                        )
+                    } else {
+                        items = try await CharacterContractsAPI.shared.fetchContractItems(
+                            characterId: characterId,
+                            contractId: contract.contract_id,
+                            forceRefresh: forceRefresh
+                        )
+                    }
+
+                    // 批量加载物品详细信息
+                    loadItemDetails(for: items)
+
+                    isLoading = false
+                } catch is CancellationError {
+                    Logger.debug("合同物品加载任务被取消 - 合同ID: \(contract.contract_id)")
+                } catch {
+                    Logger.error("加载合同物品失败: \(error.localizedDescription)")
+                    errorMessage = error.localizedDescription
                 }
-                
-                // 批量加载物品详细信息
-                loadItemDetails(for: items)
-                
-                isLoading = false
-            } catch is CancellationError {
-                Logger.debug("合同物品加载任务被取消 - 合同ID: \(contract.contract_id)")
-            } catch {
-                Logger.error("加载合同物品失败: \(error.localizedDescription)")
-                errorMessage = error.localizedDescription
+            },
+            onCancel: {
+                Task { @MainActor in
+                    isLoading = false
+                    Logger.debug("合同物品加载任务被取消，清理状态 - 合同ID: \(contract.contract_id)")
+                }
             }
-        }, onCancel: {
-            Task { @MainActor in
-                isLoading = false
-                Logger.debug("合同物品加载任务被取消，清理状态 - 合同ID: \(contract.contract_id)")
-            }
-        })
+        )
     }
-    
+
     func loadContractParties() async {
         isLoadingNames = true
         var ids = Set<Int>()
-        
+
         // 添加人物和军团ID
-        Logger.debug("开始加载合同相关方信息 - 发起人ID: \(contract.issuer_id), 军团ID: \(contract.issuer_corporation_id)")
-        
+        Logger.debug(
+            "开始加载合同相关方信息 - 发起人ID: \(contract.issuer_id), 军团ID: \(contract.issuer_corporation_id)")
+
         // 添加发起人ID
         ids.insert(contract.issuer_id)
         ids.insert(contract.issuer_corporation_id)
-        
+
         // 添加其他相关方ID
         if let assigneeId = contract.assignee_id {
             ids.insert(assigneeId)
@@ -160,12 +176,12 @@ final class ContractDetailViewModel: ObservableObject {
         if let acceptorId = contract.acceptor_id {
             ids.insert(acceptorId)
         }
-        
+
         // 加载位置信息
         let locationIds = Set<Int64>([contract.start_location_id, contract.end_location_id])
         Logger.debug("开始加载位置信息 - 位置IDs: \(locationIds)")
         let locationInfos = await locationLoader.loadLocationInfo(locationIds: locationIds)
-        
+
         // 更新位置信息
         if let startInfo = locationInfos[contract.start_location_id] {
             startLocationInfo = LocationInfo(
@@ -175,7 +191,7 @@ final class ContractDetailViewModel: ObservableObject {
             )
             Logger.debug("已加载起始位置信息: \(startInfo.stationName)")
         }
-        
+
         if let endInfo = locationInfos[contract.end_location_id] {
             endLocationInfo = LocationInfo(
                 stationName: endInfo.stationName,
@@ -184,38 +200,40 @@ final class ContractDetailViewModel: ObservableObject {
             )
             Logger.debug("已加载目标位置信息: \(endInfo.stationName)")
         }
-        
+
         do {
             Logger.debug("开始获取名称信息，IDs: \(ids)")
             let names = try await UniverseNameCache.shared.getNames(for: ids)
-            
+
             // 更新名称
             if let name = names[contract.issuer_id] {
                 Logger.debug("获取到发起人名称: \(name)")
-                self.issuerName = name
+                issuerName = name
             } else {
                 Logger.error("未找到发起人名称 - ID: \(contract.issuer_id)")
             }
-            
+
             if let corpName = names[contract.issuer_corporation_id] {
                 Logger.debug("获取到军团名称: \(corpName)")
-                self.issuerCorpName = corpName
+                issuerCorpName = corpName
             } else {
                 Logger.error("未找到军团名称 - ID: \(contract.issuer_corporation_id)")
             }
-            
+
             if let assigneeId = contract.assignee_id,
-               let assigneeName = names[assigneeId] {
+                let assigneeName = names[assigneeId]
+            {
                 Logger.debug("获取到指定人名称: \(assigneeName)")
                 self.assigneeName = assigneeName
             }
-            
+
             if let acceptorId = contract.acceptor_id, acceptorId > 0,
-               let acceptorName = names[acceptorId] {
+                let acceptorName = names[acceptorId]
+            {
                 Logger.debug("获取到接受人名称: \(acceptorName)")
                 self.acceptorName = acceptorName
             }
-            
+
             isLoadingNames = false
         } catch {
             Logger.error("加载合同相关方名称失败: \(error)")
@@ -230,17 +248,21 @@ struct ContractDetailView: View {
     @State private var isRefreshing = false
     @State private var hasLoadedInitialData = false
     @Environment(\.dismiss) private var dismiss
-    
-    init(characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager, isCorpContract: Bool) {
+
+    init(
+        characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager,
+        isCorpContract: Bool
+    ) {
         self.contract = contract
-        _viewModel = StateObject(wrappedValue: ContractDetailViewModel(
-            characterId: characterId,
-            contract: contract,
-            databaseManager: databaseManager,
-            isCorpContract: isCorpContract
-        ))
+        _viewModel = StateObject(
+            wrappedValue: ContractDetailViewModel(
+                characterId: characterId,
+                contract: contract,
+                databaseManager: databaseManager,
+                isCorpContract: isCorpContract
+            ))
     }
-    
+
     // 根据状态返回对应的颜色
     private func getStatusColor(_ status: String) -> Color {
         switch status {
@@ -256,7 +278,7 @@ struct ContractDetailView: View {
             return .primary  // 其他状态使用主色调
         }
     }
-    
+
     var body: some View {
         ZStack {
             if viewModel.isLoading || viewModel.isLoadingNames {
@@ -268,13 +290,17 @@ struct ContractDetailView: View {
                         // 合同类型
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Contract_Type", comment: ""))
-                            (Text("\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) ")
-                                .foregroundColor(.secondary) +
-                            Text("[\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]")
+                            (Text(
+                                "\(NSLocalizedString("Contract_Type_\(contract.type)", comment: "")) "
+                            )
+                            .foregroundColor(.secondary)
+                                + Text(
+                                    "[\(NSLocalizedString("Contract_Status_\(contract.status)", comment: ""))]"
+                                )
                                 .foregroundColor(getStatusColor(contract.status)))
                                 .font(.caption)
                         }
-                        
+
                         // 地点信息
                         if let startInfo = viewModel.startLocationInfo {
                             if contract.start_location_id == contract.end_location_id {
@@ -300,7 +326,8 @@ struct ContractDetailView: View {
                                 // 显示终点（如果存在）
                                 if let endInfo = viewModel.endLocationInfo {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(NSLocalizedString("Contract_End_Location", comment: ""))
+                                        Text(
+                                            NSLocalizedString("Contract_End_Location", comment: ""))
                                         LocationInfoView(
                                             stationName: endInfo.stationName,
                                             solarSystemName: endInfo.solarSystemName,
@@ -310,12 +337,13 @@ struct ContractDetailView: View {
                                 }
                             }
                         }
-                        
+
                         // 合同发起人
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Contract_Issuer", comment: ""))
                             HStack(spacing: 4) {
-                                Text(viewModel.issuerName.isEmpty ? "Unknown" : viewModel.issuerName)
+                                Text(
+                                    viewModel.issuerName.isEmpty ? "Unknown" : viewModel.issuerName)
                                 if !viewModel.issuerCorpName.isEmpty {
                                     Text("[\(viewModel.issuerCorpName)]")
                                 }
@@ -323,11 +351,12 @@ struct ContractDetailView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         }
-                        
+
                         // 合同对象（如果存在）
                         if let assigneeId = contract.assignee_id,
-                           assigneeId > 0,
-                           !viewModel.assigneeName.isEmpty {
+                            assigneeId > 0,
+                            !viewModel.assigneeName.isEmpty
+                        {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Assignee", comment: ""))
                                 Text(viewModel.assigneeName)
@@ -335,12 +364,13 @@ struct ContractDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // 如果接收人存在且与对象不同，显示接收人
                         if let acceptorId = contract.acceptor_id,
-                           acceptorId > 0,
-                           !viewModel.acceptorName.isEmpty && 
-                           viewModel.acceptorName != viewModel.assigneeName {
+                            acceptorId > 0,
+                            !viewModel.acceptorName.isEmpty
+                                && viewModel.acceptorName != viewModel.assigneeName
+                        {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Acceptor", comment: ""))
                                 Text(viewModel.acceptorName)
@@ -348,37 +378,43 @@ struct ContractDetailView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // 合同价格（如果有）
                         if contract.price > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Price", comment: ""))
-                                Text("\(FormatUtil.format(contract.price)) ISK (\(FormatUtil.formatISK(contract.price)) ISK)")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(FormatUtil.format(contract.price)) ISK (\(FormatUtil.formatISK(contract.price)) ISK)"
+                                )
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // 合同报酬（如果有）
                         if contract.reward > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
-                                Text("\(FormatUtil.format(contract.reward)) ISK (\(FormatUtil.formatISK(contract.reward)) ISK)")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(FormatUtil.format(contract.reward)) ISK (\(FormatUtil.formatISK(contract.reward)) ISK)"
+                                )
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // 保证金（如果有）
                         if contract.collateral ?? 0 > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
-                                Text("\(FormatUtil.format(contract.collateral ?? 0)) ISK (\(FormatUtil.formatISK(contract.collateral ?? 0)) ISK)")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(FormatUtil.format(contract.collateral ?? 0)) ISK (\(FormatUtil.formatISK(contract.collateral ?? 0)) ISK)"
+                                )
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
                             }
                         }
-                        
+
                         // 完成期限
                         if contract.days_to_complete > 0 {
                             VStack(alignment: .leading, spacing: 2) {
@@ -396,13 +432,16 @@ struct ContractDetailView: View {
                             .textCase(.none)
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    
+
                     // 提供的物品列表
                     if !viewModel.sortedIncludedItems.isEmpty {
                         Section {
                             ForEach(viewModel.sortedIncludedItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                                    ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
+                                    ContractItemRow(
+                                        item: item, itemDetails: itemDetails,
+                                        databaseManager: viewModel.databaseManager
+                                    )
                                 }
                             }
                         } header: {
@@ -414,13 +453,16 @@ struct ContractDetailView: View {
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
-                    
+
                     // 需求的物品列表
                     if !viewModel.sortedRequiredItems.isEmpty {
                         Section {
                             ForEach(viewModel.sortedRequiredItems) { item in
                                 if let itemDetails = viewModel.getItemDetails(for: item.type_id) {
-                                    ContractItemRow(item: item, itemDetails: itemDetails, databaseManager: viewModel.databaseManager)
+                                    ContractItemRow(
+                                        item: item, itemDetails: itemDetails,
+                                        databaseManager: viewModel.databaseManager
+                                    )
                                 }
                             }
                         } header: {
@@ -444,7 +486,6 @@ struct ContractDetailView: View {
                 }
                 .listStyle(.insetGrouped)
             }
-            
         }
         .task {
             guard !hasLoadedInitialData else { return }
@@ -475,7 +516,7 @@ struct ContractItemRow: View {
     let item: ContractItemInfo
     let itemDetails: (name: String, description: String, iconFileName: String)
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         NavigationLink {
             MarketItemDetailView(databaseManager: databaseManager, itemID: item.type_id)

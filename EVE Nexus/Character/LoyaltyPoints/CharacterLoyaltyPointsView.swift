@@ -5,7 +5,7 @@ struct CorporationLogoView: View {
     let iconFileName: String
     @State private var corporationLogo: UIImage?
     @State private var isLoading = true
-    
+
     var body: some View {
         ZStack {
             if !iconFileName.isEmpty {
@@ -36,7 +36,8 @@ struct CorporationLogoView: View {
                 isLoading = true
                 Task {
                     do {
-                        corporationLogo = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
+                        corporationLogo = try await CorporationAPI.shared.fetchCorporationLogo(
+                            corporationId: corporationId)
                     } catch {
                         Logger.error("获取军团图标失败: \(error)")
                     }
@@ -50,7 +51,7 @@ struct CorporationLogoView: View {
 struct CharacterLoyaltyPointsView: View {
     @StateObject private var viewModel = CharacterLoyaltyPointsViewModel()
     let characterId: Int
-    
+
     var body: some View {
         List {
             if !viewModel.loyaltyPoints.isEmpty {
@@ -79,13 +80,18 @@ struct CharacterLoyaltyPointsView: View {
                         }
                     } else {
                         ForEach(viewModel.loyaltyPoints) { loyalty in
-                            NavigationLink(destination: CorporationLPStoreView(
-                                corporationId: loyalty.corporationId,
-                                corporationName: loyalty.corporationName
-                            )) {
+                            NavigationLink(
+                                destination: CorporationLPStoreView(
+                                    corporationId: loyalty.corporationId,
+                                    corporationName: loyalty.corporationName
+                                )
+                            ) {
                                 HStack {
-                                    CorporationLogoView(corporationId: loyalty.corporationId, iconFileName: loyalty.iconFileName)
-                                    
+                                    CorporationLogoView(
+                                        corporationId: loyalty.corporationId,
+                                        iconFileName: loyalty.iconFileName
+                                    )
+
                                     VStack(alignment: .leading) {
                                         Text(loyalty.corporationName)
                                         Text("\(loyalty.loyaltyPoints) LP")
@@ -108,7 +114,7 @@ struct CharacterLoyaltyPointsView: View {
                     }
                 }
             }
-            
+
             Section {
                 NavigationLink(destination: CharacterLoyaltyPointsStoreView()) {
                     HStack {

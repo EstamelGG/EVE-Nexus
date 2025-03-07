@@ -6,4 +6,4 @@ struct Usage {
     let cpuSupply: Int
     let powerUsage: Int
     let powerSupply: Int
-} 
+}

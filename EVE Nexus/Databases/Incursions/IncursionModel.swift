@@ -8,7 +8,7 @@ struct Incursion: Codable {
     let stagingSolarSystemId: Int
     let state: String
     let infestedSolarSystems: [Int]
-    
+
     enum CodingKeys: String, CodingKey {
         case constellationId = "constellation_id"
         case factionId = "faction_id"
@@ -18,4 +18,4 @@ struct Incursion: Codable {
         case state
         case infestedSolarSystems = "infested_solar_systems"
     }
-} 
+}

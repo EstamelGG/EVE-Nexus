@@ -1,23 +1,23 @@
 import Foundation
 
 enum SearchCategory: String {
-    case agent = "agent"
-    case alliance = "alliance"
-    case character = "character"
-    case constellation = "constellation"
-    case corporation = "corporation"
-    case faction = "faction"
+    case agent
+    case alliance
+    case character
+    case constellation
+    case corporation
+    case faction
     case inventoryType = "inventory_type"
-    case region = "region"
+    case region
     case solarSystem = "solar_system"
-    case station = "station"
-    case structure = "structure"
+    case station
+    case structure
 }
 
 class CharacterSearchAPI {
     static let shared = CharacterSearchAPI()
     private init() {}
-    
+
     /// 搜索指定类别的内容
     /// - Parameters:
     ///   - characterId: 角色ID
@@ -32,27 +32,28 @@ class CharacterSearchAPI {
         strict: Bool = false
     ) async throws -> Data {
         // 构建URL
-        var components = URLComponents(string: "https://esi.evetech.net/latest/characters/\(characterId)/search/")
-        
+        var components = URLComponents(
+            string: "https://esi.evetech.net/latest/characters/\(characterId)/search/")
+
         // 将categories转换为字符串数组并用逗号连接
         let categoriesString = categories.map { $0.rawValue }.joined(separator: ",")
-        
+
         // 添加查询参数
         components?.queryItems = [
             URLQueryItem(name: "categories", value: categoriesString),
             URLQueryItem(name: "search", value: searchText),
             URLQueryItem(name: "strict", value: strict ? "true" : "false"),
-            URLQueryItem(name: "language", value: "en")
+            URLQueryItem(name: "language", value: "en"),
         ]
-        
+
         guard let url = components?.url else {
             throw NetworkError.invalidURL
         }
-        
+
         // 发起请求
         return try await NetworkManager.shared.fetchDataWithToken(
             from: url,
             characterId: characterId
         )
     }
-} 
+}

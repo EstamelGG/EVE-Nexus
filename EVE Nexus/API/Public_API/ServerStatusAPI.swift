@@ -1,13 +1,14 @@
 import Foundation
 
 // MARK: - 服务器状态数据模型
+
 struct ServerStatus: Codable {
     let players: Int
     let serverVersion: String
     let startTime: String
     let error: String?
     let timeout: Int?
-    
+
     enum CodingKeys: String, CodingKey {
         case players
         case serverVersion = "server_version"
@@ -15,13 +16,14 @@ struct ServerStatus: Codable {
         case error
         case timeout
     }
-    
+
     var isOnline: Bool {
         return error == nil
     }
 }
 
 // MARK: - 错误类型
+
 enum ServerStatusAPIError: LocalizedError {
     case invalidURL
     case networkError(Error)
@@ -30,18 +32,18 @@ enum ServerStatusAPIError: LocalizedError {
     case httpError(Int)
     case rateLimitExceeded
     case timeout
-    
+
     var errorDescription: String? {
         switch self {
         case .invalidURL:
             return "无效的URL"
-        case .networkError(let error):
+        case let .networkError(error):
             return "网络错误: \(error.localizedDescription)"
         case .invalidResponse:
             return "无效的响应"
-        case .decodingError(let error):
+        case let .decodingError(error):
             return "数据解码错误: \(error.localizedDescription)"
-        case .httpError(let code):
+        case let .httpError(code):
             return "HTTP错误: \(code)"
         case .rateLimitExceeded:
             return "超出请求限制"
@@ -52,6 +54,7 @@ enum ServerStatusAPIError: LocalizedError {
 }
 
 // MARK: - 服务器状态API
+
 @globalActor actor ServerStatusAPIActor {
     static let shared = ServerStatusAPIActor()
 }
@@ -59,46 +62,47 @@ enum ServerStatusAPIError: LocalizedError {
 @ServerStatusAPIActor
 class ServerStatusAPI {
     static let shared = ServerStatusAPI()
-    
+
     private var lastStatus: ServerStatus?
     private var lastFetchTime: Date?
-    
+
     // 缓存时间常量
-    private let normalCacheInterval: TimeInterval = 30 * 60 // 30分钟
-    private let maintenanceCacheInterval: TimeInterval = 60 // 1分钟
-    
+    private let normalCacheInterval: TimeInterval = 30 * 60  // 30分钟
+    private let maintenanceCacheInterval: TimeInterval = 60  // 1分钟
+
     private init() {}
-    
+
     // 检查是否在维护时间窗口内
     private func isInMaintenanceWindow(_ date: Date = Date()) -> Bool {
         let calendar = Calendar.current
         let utc = TimeZone(identifier: "UTC")!
         let components = calendar.dateComponents(in: utc, from: date)
-        
+
         guard let hour = components.hour else { return false }
-        return hour >= 11 && hour < 24 // 11AM - 12AM UTC
+        return hour >= 11 && hour < 24  // 11AM - 12AM UTC
     }
-    
+
     // 检查是否需要刷新缓存
     private func shouldRefreshCache() -> Bool {
         guard let lastFetch = lastFetchTime else { return true }
-        
+
         let currentTime = Date()
         let wasInMaintenanceWindow = isInMaintenanceWindow(lastFetch)
         let isNowInMaintenanceWindow = isInMaintenanceWindow(currentTime)
-        
+
         // 如果刚进入维护时间窗口，立即刷新
         if !wasInMaintenanceWindow && isNowInMaintenanceWindow {
             return true
         }
-        
+
         // 根据时间窗口决定缓存间隔
-        let cacheInterval = isNowInMaintenanceWindow ? maintenanceCacheInterval : normalCacheInterval
+        let cacheInterval =
+            isNowInMaintenanceWindow ? maintenanceCacheInterval : normalCacheInterval
         return currentTime.timeIntervalSince(lastFetch) > cacheInterval
     }
-    
+
     // MARK: - 公共方法
-    
+
     /// 获取服务器状态（使用智能缓存）
     /// - Parameter forceRefresh: 是否强制刷新，忽略缓存
     /// - Returns: 服务器状态
@@ -107,22 +111,22 @@ class ServerStatusAPI {
         if !forceRefresh && !shouldRefreshCache(), let cachedStatus = lastStatus {
             return cachedStatus
         }
-        
+
         let baseURL = "https://esi.evetech.net/latest/status/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "datasource", value: "tranquility"),
-            URLQueryItem(name: "t", value: "\(Date().timeIntervalSince1970)")
+            URLQueryItem(name: "t", value: "\(Date().timeIntervalSince1970)"),
         ]
-        
+
         guard let url = components?.url else {
             throw ServerStatusAPIError.invalidURL
         }
-        
+
         do {
             let data = try await NetworkManager.shared.fetchData(from: url)
             let status = try JSONDecoder().decode(ServerStatus.self, from: data)
-            
+
             // 如果响应中包含 error 字段，返回离线状态
             if status.error != nil {
                 let offlineStatus = ServerStatus(
@@ -137,7 +141,7 @@ class ServerStatusAPI {
                 lastFetchTime = Date()
                 return offlineStatus
             }
-            
+
             // 更新缓存
             lastStatus = status
             lastFetchTime = Date()
@@ -159,4 +163,4 @@ class ServerStatusAPI {
             throw error
         }
     }
-} 
+}

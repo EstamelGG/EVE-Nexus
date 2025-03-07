@@ -7,8 +7,8 @@ struct WealthDetailItem: Identifiable {
     let quantity: Int
     let value: Double
     let iconFileName: String
-    
+
     var formattedValue: String {
         return FormatUtil.formatISK(value) + " ISK"
     }
-} 
+}

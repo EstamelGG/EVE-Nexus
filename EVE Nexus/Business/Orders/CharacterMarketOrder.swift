@@ -15,7 +15,7 @@ public struct CharacterMarketOrder: Identifiable, Codable, Hashable {
     public let typeId: Int64
     public let volumeRemain: Int
     public let volumeTotal: Int
-    
+
     public enum CodingKeys: String, CodingKey {
         case duration
         case escrow
@@ -32,19 +32,19 @@ public struct CharacterMarketOrder: Identifiable, Codable, Hashable {
         case volumeRemain = "volume_remain"
         case volumeTotal = "volume_total"
     }
-    
+
     public var id: Int64 { orderId }
-    
+
     public var isSellOrder: Bool {
         return !(isBuyOrder ?? false)
     }
-    
+
     // 实现 Hashable
     public func hash(into hasher: inout Hasher) {
         hasher.combine(orderId)
     }
-    
+
     public static func == (lhs: CharacterMarketOrder, rhs: CharacterMarketOrder) -> Bool {
         return lhs.orderId == rhs.orderId
     }
-} 
+}

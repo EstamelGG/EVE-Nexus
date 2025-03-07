@@ -57,6 +57,7 @@
 "Select_Item" = "选择项目";
 "Main_Market" = "市场";
 "Main_Market_Watch_List" = "市场关注列表";
+"Main_Agents" = "代理人";
 "Main_WH" = "虫洞";
 "Main_Incursions" = "入侵";
 "Main_Infested_Systems" = "受影响星系";
@@ -729,7 +730,7 @@
 "Main_Search_Filter_Corporation" = "所属军团";
 "Main_Search_Filter_Alliance" = "所属联盟";
 "Main_Search_Filter_Ticker" = "简写";
-"Main_Search_Filter_Security" = "安全等级";
+"Main_Search_Filter_Security" = "星系安等";
 "Main_Search_Filter_Structure_Type" = "建筑类型";
 "Main_Search_Filter_Location" = "地点（星系/星座/星域）";
 "Main_Search_Filter_All" = "全部";
@@ -1192,3 +1193,76 @@
 
 "Loading_Location_Info" = "正在加载地点信息...";
 "Loading_Location" = "加载中...";
+
+"Unknown_Location" = "未知位置";
+
+// Security Levels
+"Security_HighSec" = "高安";
+"Security_LowSec" = "低安";
+"Security_NullSec" = "零安";
+
+// Agent Tags
+"Agent_Locator" = "定位";
+"Agent_Space" = "空代";
+"Agent_Level" = "L%d";
+
+// Agent Search
+"Agent_Search_Title" = "代理人搜索";
+"Agent_Search_Filter" = "过滤条件";
+"Agent_Search_Button" = "展示代理人";
+"Agent_Search_Results" = "搜索结果";
+"Agent_Search_No_Results" = "没有找到符合条件的代理人";
+"Agent_Search_Division" = "部门";
+"Agent_Search_Level" = "等级";
+"Agent_Search_Security" = "星系安等";
+"Agent_Search_Faction" = "势力";
+"Agent_Search_Corporation" = "军团";
+"Agent_Search_Locator_Only" = "仅显示定位代理人";
+"Agent_Search_Space_Only" = "仅显示空间代理人";
+"Agent_Search_All_Divisions" = "所有部门";
+"Agent_Search_All_Levels" = "所有等级";
+"Agent_Search_All_Security" = "所有安全等级";
+"Agent_Search_All_Factions" = "所有势力";
+"Agent_Search_All_Corporations" = "所有军团";
+"Agent_Count" = "%d个代理人";
+"Agent_Unknown_Division" = "未知部门";
+"Agent_Loading" = "加载中...";
+"Agent_Not_Found" = "未找到代理人";
+"Agent_Search_Locator_Description" = "能够定位另一玩家的具体位置的代理人";
+"Agent_inspace_Description" = "空间代理人，包括：COSMOS、史诗任务等";
+
+// Agent Types
+"Agent_Type_NonAgent" = "非代理人";
+"Agent_Type_BasicAgent" = "基本代理人";
+"Agent_Type_TutorialAgent" = "教程代理人";
+"Agent_Type_ResearchAgent" = "科研代理人";
+"Agent_Type_CONCORDAgent" = "统合部代理人";
+"Agent_Type_GenericStorylineMissionAgent" = "故事线代理人";
+"Agent_Type_StorylineMissionAgent" = "剧情任务代理人";
+"Agent_Type_EventMissionAgent" = "事件任务代理人";
+"Agent_Type_FactionalWarfareAgent" = "势力战争代理人";
+"Agent_Type_EpicArcAgent" = "史诗任务代理人";
+"Agent_Type_AuraAgent" = "Aura代理人";
+"Agent_Type_CareerAgent" = "职业代理人";
+"Agent_Type_HeraldryAgent" = "徽章代理人";
+"Agent_Type_Other" = "其他";
+
+// Agent Types Short Names (for tags)
+"Agent_Type_Short_NonAgent" = "非代理";
+"Agent_Type_Short_BasicAgent" = "基础";
+"Agent_Type_Short_TutorialAgent" = "教程";
+"Agent_Type_Short_ResearchAgent" = "科研";
+"Agent_Type_Short_CONCORDAgent" = "统合部";
+"Agent_Type_Short_GenericStorylineMissionAgent" = "故事线";
+"Agent_Type_Short_StorylineMissionAgent" = "剧情";
+"Agent_Type_Short_EventMissionAgent" = "事件";
+"Agent_Type_Short_FactionalWarfareAgent" = "势力战争";
+"Agent_Type_Short_EpicArcAgent" = "史诗";
+"Agent_Type_Short_AuraAgent" = "Aura";
+"Agent_Type_Short_CareerAgent" = "职业";
+"Agent_Type_Short_HeraldryAgent" = "徽章";
+"Agent_Type_Short_Other" = "其他";
+
+// Agent Search Type
+"Agent_Search_Type" = "代理人类型";
+"Agent_Search_All_Types" = "所有类型";

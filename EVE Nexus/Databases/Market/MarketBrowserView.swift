@@ -7,7 +7,7 @@ struct MarketBaseView<Content: View>: View {
     let content: () -> Content  // 常规内容视图
     let searchQuery: (String) -> String  // SQL查询语句生成器
     let searchParameters: (String) -> [Any]  // SQL参数生成器
-    
+
     @State private var items: [DatabaseListItem] = []
     @State private var marketGroupNames: [Int: String] = [:]
     @State private var searchText = ""
@@ -15,15 +15,15 @@ struct MarketBaseView<Content: View>: View {
     @State private var isLoading = false
     @State private var isShowingSearchResults = false
     @StateObject private var searchController = SearchController()
-    
+
     // 搜索结果分组
     var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
         guard !items.isEmpty else { return [] }
-        
+
         // 按物品组分类
         var groupItems: [Int: (name: String, items: [DatabaseListItem])] = [:]
         var ungroupedItems: [DatabaseListItem] = []
-        
+
         for item in items {
             if let groupID = item.groupID, let groupName = item.groupName {
                 if groupItems[groupID] == nil {
@@ -34,32 +34,33 @@ struct MarketBaseView<Content: View>: View {
                 ungroupedItems.append(item)
             }
         }
-        
+
         var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
-        
+
         // 添加有物品组的物品
         for (groupID, group) in groupItems.sorted(by: { $0.value.name < $1.value.name }) {
             result.append((id: groupID, name: group.name, items: group.items))
         }
-        
+
         // 添加未分组的物品
         if !ungroupedItems.isEmpty {
             result.append((id: -1, name: "No group", items: ungroupedItems))
         }
-        
+
         return result
     }
-    
+
     var body: some View {
         List {
             if isShowingSearchResults {
                 // 搜索结果视图，按市场组分类显示
                 ForEach(groupedSearchResults, id: \.id) { group in
-                    Section(header: Text(group.name)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
+                    Section(
+                        header: Text(group.name)
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
                     ) {
                         ForEach(group.items) { item in
                             NavigationLink {
@@ -129,7 +130,7 @@ struct MarketBaseView<Content: View>: View {
             setupSearch()
         }
     }
-    
+
     private func setupSearch() {
         searchController.debouncedSearchPublisher
             .receive(on: DispatchQueue.main)
@@ -139,16 +140,16 @@ struct MarketBaseView<Content: View>: View {
             }
             .store(in: &searchController.cancellables)
     }
-    
+
     private func performSearch(with text: String) {
         isLoading = true
-        
+
         let whereClause = searchQuery(text)
         let parameters = searchParameters(text)
-        
+
         items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
         isShowingSearchResults = true
-        
+
         isLoading = false
     }
 }
@@ -157,7 +158,7 @@ struct MarketBaseView<Content: View>: View {
 struct MarketBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var marketGroups: [MarketGroup] = []
-    
+
     var body: some View {
         NavigationStack {
             MarketBaseView(
@@ -165,7 +166,9 @@ struct MarketBrowserView: View {
                 title: NSLocalizedString("Main_Market", comment: ""),
                 content: {
                     ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
-                        MarketGroupRow(group: group, allGroups: marketGroups, databaseManager: databaseManager)
+                        MarketGroupRow(
+                            group: group, allGroups: marketGroups, databaseManager: databaseManager
+                        )
                     }
                 },
                 searchQuery: { _ in
@@ -176,7 +179,8 @@ struct MarketBrowserView: View {
                 }
             )
             .onAppear {
-                marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+                marketGroups = MarketManager.shared.loadMarketGroups(
+                    databaseManager: databaseManager)
             }
         }
     }
@@ -187,20 +191,25 @@ struct MarketGroupView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let group: MarketGroup
     let allGroups: [MarketGroup]
-    
+
     var body: some View {
         MarketBaseView(
             databaseManager: databaseManager,
             title: group.name,
             content: {
                 ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
-                    MarketGroupRow(group: subGroup, allGroups: allGroups, databaseManager: databaseManager)
+                    MarketGroupRow(
+                        group: subGroup, allGroups: allGroups, databaseManager: databaseManager
+                    )
                 }
             },
             searchQuery: { _ in
-                let groupIDs = MarketManager.shared.getAllSubGroupIDs(allGroups, startingFrom: group.id)
+                let groupIDs = MarketManager.shared.getAllSubGroupIDs(
+                    allGroups, startingFrom: group.id
+                )
                 let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
-                return "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                return
+                    "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
             },
             searchParameters: { text in
                 ["%\(text)%", "%\(text)%"]
@@ -216,13 +225,13 @@ struct MarketItemListView: View {
     let title: String
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
-    
+
     var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         let unpublishedItems = items.filter { !$0.published }
-        
+
         var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
-        
+
         // 按科技等级分组
         var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
         for item in publishedItems {
@@ -232,39 +241,50 @@ struct MarketItemListView: View {
             }
             techLevelGroups[techLevel]?.append(item)
         }
-        
+
         // 添加已发布物品组
         for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
             if let techLevel = techLevel {
-                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                let name =
+                    metaGroupNames[techLevel]
+                    ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
                 result.append((id: techLevel, name: name, items: items))
             }
         }
-        
+
         // 添加未分组的物品
         if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
-            result.append((id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"), items: ungroupedItems))
+            result.append(
+                (
+                    id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
+                    items: ungroupedItems
+                ))
         }
-        
+
         // 添加未发布物品组
         if !unpublishedItems.isEmpty {
-            result.append((id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"), items: unpublishedItems))
+            result.append(
+                (
+                    id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
+                    items: unpublishedItems
+                ))
         }
-        
+
         return result
     }
-    
+
     var body: some View {
         MarketBaseView(
             databaseManager: databaseManager,
             title: title,
             content: {
                 ForEach(groupedItems, id: \.id) { group in
-                    Section(header: Text(group.name)
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
+                    Section(
+                        header: Text(group.name)
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
                     ) {
                         ForEach(group.items) { item in
                             NavigationLink {
@@ -294,13 +314,13 @@ struct MarketItemListView: View {
             loadItems()
         }
     }
-    
+
     private func loadItems() {
         items = databaseManager.loadMarketItems(
             whereClause: "t.marketGroupID = ?",
             parameters: [marketGroupID]
         )
-        
+
         // 加载科技等级名称
         let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
         metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
@@ -314,7 +334,7 @@ struct MarketGroupRow: View {
     let group: MarketGroup
     let allGroups: [MarketGroup]
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         if MarketManager.shared.isLeafGroup(group, in: allGroups) {
             // 最后一级目录，显示物品列表
@@ -344,14 +364,14 @@ struct MarketGroupRow: View {
 
 struct MarketGroupLabel: View {
     let group: MarketGroup
-    
+
     var body: some View {
         HStack {
             IconManager.shared.loadImage(for: group.iconName)
                 .resizable()
                 .frame(width: 32, height: 32)
                 .cornerRadius(6)
-            
+
             Text(group.name)
                 .font(.body)
         }
