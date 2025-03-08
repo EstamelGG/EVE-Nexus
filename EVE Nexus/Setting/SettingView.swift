@@ -85,6 +85,7 @@ class CacheManager {
     private let cacheDirs = [
         "StructureCache",  // 建筑缓存
         "AssetCache",  // 资产缓存
+        "Logs", // 日志
     ]
 
     // 清理指定前缀的缓存
@@ -492,7 +493,7 @@ struct SettingView: View {
         var body: some View {
             HStack {
                 Toggle(isOn: $showCorporationAffairs) {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading) {
                         Text(
                             NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: "")
                         )

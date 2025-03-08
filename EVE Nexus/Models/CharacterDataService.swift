@@ -4,6 +4,7 @@ import UIKit
 /// 角色数据服务类
 class CharacterDataService {
     static let shared = CharacterDataService()
+    let databaseManager = DatabaseManager()
     private init() {}
 
     // MARK: - 基础信息

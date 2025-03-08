@@ -855,6 +855,7 @@ class ScopeManager {
         do {
             let data = try Data(contentsOf: url)
             let scopesDict = try JSONDecoder().decode([String: [String]].self, from: data)
+            Logger.info("从文件加载 scopes 成功: \(url)")
             return Array(Set(scopesDict.values.flatMap { $0 }))
         } catch {
             Logger.error("从文件加载 scopes 失败: \(error)")

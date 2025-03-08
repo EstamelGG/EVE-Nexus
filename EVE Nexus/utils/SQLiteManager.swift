@@ -90,8 +90,21 @@ class SQLiteManager {
             dbLock.lock()
             defer { dbLock.unlock() }
 
+            // 对参数进行排序以生成一致的缓存键
+            let sortedParameters: [Any]
+            if parameters.count > 1 {
+                // 对参数进行排序，确保相同参数集合但顺序不同的查询能够使用相同的缓存
+                sortedParameters = parameters.sorted { 
+                    let str1 = String(describing: $0)
+                    let str2 = String(describing: $1)
+                    return str1 < str2
+                }
+            } else {
+                sortedParameters = parameters
+            }
+
             // 生成缓存键
-            let cacheKey = generateCacheKey(query: query, parameters: parameters) as NSString
+            let cacheKey = generateCacheKey(query: query, parameters: sortedParameters) as NSString
 
             // 如果启用缓存且缓存中存在结果，直接返回
             if useCache, let cachedResult = queryCache.object(forKey: cacheKey) as? [[String: Any]]
@@ -113,7 +126,7 @@ class SQLiteManager {
                 return .error("准备语句失败: \(errorMessage)")
             }
 
-            // 绑定参数
+            // 绑定参数 - 使用原始参数顺序，而不是排序后的参数
             for (index, parameter) in parameters.enumerated() {
                 let parameterIndex = Int32(index + 1)
                 switch parameter {
