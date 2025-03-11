@@ -49,6 +49,8 @@ struct SearchConditions {
     var corporationID: Int?
     var isLocatorOnly: Bool
     var agentType: Int?
+    var regionID: Int?  // 添加星域ID
+    var solarSystemID: Int?  // 添加星系ID
 }
 
 // 代理人类型ID列表
@@ -139,6 +141,8 @@ struct AgentSearchView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var isNavigatingToResults = false
     @State private var searchResultsDestination: String? = nil
+    @State private var isNavigatingToRegionSearch = false  // 添加星域搜索导航状态
+    @State private var isNavigatingToSystemSearch = false  // 添加星系搜索导航状态
 
     // 过滤条件
     @State private var selectedDivisionID: Int?
@@ -149,6 +153,10 @@ struct AgentSearchView: View {
     @State private var isLocatorOnly = false
     @State private var isSpaceAgentOnly = false  // 添加空间代理人筛选条件
     @State private var selectedAgentType: Int? = nil  // 不默认选择任何代理人类型
+    @State private var selectedRegionID: Int? = nil  // 添加选中的星域ID
+    @State private var selectedRegionName: String? = nil  // 添加选中的星域名称
+    @State private var selectedSolarSystemID: Int? = nil  // 添加选中的星系ID
+    @State private var selectedSolarSystemName: String? = nil  // 添加选中的星系名称
 
     // 可用的选项数据
     @State private var availableFactions: [(Int, String, String)] = []
@@ -175,9 +183,67 @@ struct AgentSearchView: View {
     var body: some View {
         VStack {
             List {
-                // 所有过滤条件放在同一个Section中
+                // 所有其他过滤条件放在一个Section中
                 Section(header: Text(NSLocalizedString("Agent_Search_Filter", comment: "过滤条件"))) {
-                    // 1. 部门过滤
+                    // 1. 等级过滤
+                    Picker(
+                        NSLocalizedString("Agent_Search_Level", comment: "等级"),
+                        selection: $selectedLevel
+                    ) {
+                        Text(NSLocalizedString("Agent_Search_All_Levels", comment: "所有等级")).tag(
+                            nil as Int?)
+                        ForEach(levels, id: \.0) { level in
+                            Text(level.1).tag(level.0 as Int?)
+                        }
+                    }
+
+                    // 2. 安全等级过滤
+                    Picker(
+                        NSLocalizedString("Agent_Search_Security", comment: "安全等级"),
+                        selection: $selectedSecurityLevel
+                    ) {
+                        Text(NSLocalizedString("Agent_Search_All_Security", comment: "所有安全等级")).tag(
+                            nil as String?)
+                        ForEach(securityLevels, id: \.0) { security in
+                            Text(security.1).tag(security.0 as String?)
+                        }
+                    }
+
+                    // 3. 势力过滤
+                    Picker(
+                        selection: $selectedFactionID,
+                        label: Text(NSLocalizedString("Agent_Search_Faction", comment: "势力"))
+                    ) {
+                        Text(NSLocalizedString("Agent_Search_All_Factions", comment: "所有势力")).tag(
+                            nil as Int?)
+                        ForEach(availableFactions, id: \.0) { faction in
+                            Text(faction.1).tag(faction.0 as Int?)
+                        }
+                    }
+                    .onChange(of: selectedFactionID) { _, newValue in
+                        selectedCorporationID = nil
+                        if let factionID = newValue {
+                            loadCorporationsForFaction(factionID)
+                        }
+                    }
+
+                    // 4. 军团过滤 (仅当选择了势力时显示)
+                    if selectedFactionID != nil {
+                        Picker(
+                            selection: $selectedCorporationID,
+                            label: Text(
+                                NSLocalizedString("Agent_Search_Corporation", comment: "军团"))
+                        ) {
+                            Text(
+                                NSLocalizedString("Agent_Search_All_Corporations", comment: "所有军团")
+                            ).tag(nil as Int?)
+                            ForEach(availableCorporations, id: \.0) { corp in
+                                Text(corp.1).tag(corp.0 as Int?)
+                            }
+                        }
+                    }
+                    
+                    // 5. 部门过滤
                     Picker(
                         selection: $selectedDivisionID,
                         label: Text(NSLocalizedString("Agent_Search_Division", comment: "部门"))
@@ -206,65 +272,7 @@ struct AgentSearchView: View {
                         }
                     }
 
-                    // 2. 等级过滤
-                    Picker(
-                        NSLocalizedString("Agent_Search_Level", comment: "等级"),
-                        selection: $selectedLevel
-                    ) {
-                        Text(NSLocalizedString("Agent_Search_All_Levels", comment: "所有等级")).tag(
-                            nil as Int?)
-                        ForEach(levels, id: \.0) { level in
-                            Text(level.1).tag(level.0 as Int?)
-                        }
-                    }
-
-                    // 3. 安全等级过滤
-                    Picker(
-                        NSLocalizedString("Agent_Search_Security", comment: "安全等级"),
-                        selection: $selectedSecurityLevel
-                    ) {
-                        Text(NSLocalizedString("Agent_Search_All_Security", comment: "所有安全等级")).tag(
-                            nil as String?)
-                        ForEach(securityLevels, id: \.0) { security in
-                            Text(security.1).tag(security.0 as String?)
-                        }
-                    }
-
-                    // 4. 势力过滤
-                    Picker(
-                        selection: $selectedFactionID,
-                        label: Text(NSLocalizedString("Agent_Search_Faction", comment: "势力"))
-                    ) {
-                        Text(NSLocalizedString("Agent_Search_All_Factions", comment: "所有势力")).tag(
-                            nil as Int?)
-                        ForEach(availableFactions, id: \.0) { faction in
-                            Text(faction.1).tag(faction.0 as Int?)
-                        }
-                    }
-                    .onChange(of: selectedFactionID) { _, newValue in
-                        selectedCorporationID = nil
-                        if let factionID = newValue {
-                            loadCorporationsForFaction(factionID)
-                        }
-                    }
-
-                    // 5. 军团过滤 (仅当选择了势力时显示)
-                    if selectedFactionID != nil {
-                        Picker(
-                            selection: $selectedCorporationID,
-                            label: Text(
-                                NSLocalizedString("Agent_Search_Corporation", comment: "军团"))
-                        ) {
-                            Text(
-                                NSLocalizedString("Agent_Search_All_Corporations", comment: "所有军团")
-                            ).tag(nil as Int?)
-                            ForEach(availableCorporations, id: \.0) { corp in
-                                Text(corp.1).tag(corp.0 as Int?)
-                            }
-                        }
-                    }
-
-                    // 7. 代理人类型过滤
+                    // 6. 代理人类型过滤
                     Picker(
                         NSLocalizedString("Agent_Search_Type", comment: "代理人类型"),
                         selection: $selectedAgentType
@@ -315,7 +323,7 @@ struct AgentSearchView: View {
                     // 定位代理人开关
                     HStack {
                         Toggle(isOn: $isLocatorOnly) {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading) {
                                 Text(
                                     NSLocalizedString("Agent_Search_Locator_Only", comment: "仅显示定位代理人")
                                 )
@@ -335,7 +343,7 @@ struct AgentSearchView: View {
                     // 空间代理人开关
                     HStack {
                         Toggle(isOn: $isSpaceAgentOnly) {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading) {
                                 Text(
                                     NSLocalizedString("Agent_Search_Space_Only", comment: "仅显示空间代理人")
                                 )
@@ -353,6 +361,40 @@ struct AgentSearchView: View {
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                
+                // 位置过滤条件放在最后一个Section中
+                Section(header: Text(NSLocalizedString("Location_Filter", comment: "位置过滤"))) {
+                    // 星域过滤
+                    NavigationLink(destination: RegionSearchView(
+                        databaseManager: databaseManager,
+                        selectedRegionID: $selectedRegionID,
+                        selectedRegionName: $selectedRegionName
+                    )) {
+                        HStack {
+                            Text(NSLocalizedString("Region_Filter", comment: "过滤星域"))
+                            Spacer()
+                            Text(selectedRegionName ?? NSLocalizedString("Region_All", comment: "所有星域"))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    // 星系过滤
+                    NavigationLink(destination: SolarSystemSearchView(
+                        databaseManager: databaseManager,
+                        selectedSolarSystemID: $selectedSolarSystemID,
+                        selectedSolarSystemName: $selectedSolarSystemName,
+                        regionID: selectedRegionID
+                    )) {
+                        HStack {
+                            Text(NSLocalizedString("System_Filter", comment: "过滤星系"))
+                            Spacer()
+                            Text(selectedSolarSystemName ?? (selectedRegionID == nil 
+                                ? NSLocalizedString("System_All", comment: "所有星系")
+                                : NSLocalizedString("System_All_In_Region", comment: "该星域内所有星系")))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
             }
 
             Button(action: {
@@ -403,6 +445,10 @@ struct AgentSearchView: View {
         isLocatorOnly = false
         isSpaceAgentOnly = false  // 重置空间代理人筛选条件
         selectedAgentType = nil  // 重置为nil
+        selectedRegionID = nil  // 重置星域过滤
+        selectedRegionName = nil
+        selectedSolarSystemID = nil  // 重置星系过滤
+        selectedSolarSystemName = nil
     }
 
     // 搜索代理人
@@ -465,6 +511,53 @@ struct AgentSearchView: View {
             conditions.append("a.agent_type = ?")
             parameters.append(agentType)
         }
+        
+        // 添加星域过滤条件
+        if let regionID = selectedRegionID {
+            conditions.append("""
+                (
+                    (a.solarSystemID IS NOT NULL AND a.solarSystemID IN (
+                        SELECT solarsystem_id FROM universe WHERE region_id = ? AND region_id < 11000000
+                    )) OR
+                    (a.locationID IN (
+                        SELECT stationID FROM stations WHERE solarSystemID IN (
+                            SELECT solarsystem_id FROM universe WHERE region_id = ? AND region_id < 11000000
+                        )
+                    ))
+                )
+            """)
+            parameters.append(regionID)
+            parameters.append(regionID)
+        } else {
+            // 如果没有选择特定星域，也要限制只在regionID < 11000000的星域中搜索
+            conditions.append("""
+                (
+                    (a.solarSystemID IS NULL) OR
+                    (a.solarSystemID IN (
+                        SELECT solarsystem_id FROM universe WHERE region_id < 11000000
+                    )) OR
+                    (a.locationID IN (
+                        SELECT stationID FROM stations WHERE solarSystemID IN (
+                            SELECT solarsystem_id FROM universe WHERE region_id < 11000000
+                        )
+                    ))
+                )
+            """)
+        }
+        
+        // 添加星系过滤条件
+        if let solarSystemID = selectedSolarSystemID {
+            conditions.append("""
+                (
+                    (a.solarSystemID = ?) OR
+                    (a.locationID IN (
+                        SELECT stationID FROM stations WHERE solarSystemID = ?
+                    ))
+                )
+            """)
+            parameters.append(solarSystemID)
+            parameters.append(solarSystemID)
+        }
 
         // 构建查询
         let whereClause = conditions.isEmpty ? "" : "WHERE " + conditions.joined(separator: " AND ")
@@ -473,17 +566,19 @@ struct AgentSearchView: View {
                 SELECT a.agent_id, a.agent_type, n.itemName as name, a.level, a.corporationID, a.divisionID, a.isLocator, a.locationID,
                        l.itemName as locationName, a.solarSystemID, s.solarSystemName as solarSystemName,
                        c.name as corporationName, f.id as factionID, f.name as factionName, f.iconName as factionIcon,
-                       c.icon_id as corporationIconID, d.name as divisionName
+                       c.icon_id as corporationIconID, d.name as divisionName,
+                       COALESCE(s.solarSystemName, ss.solarSystemName, l.itemName) as sortLocation
                 FROM agents a
                 JOIN invNames n ON a.agent_id = n.itemID
                 LEFT JOIN invNames l ON a.locationID = l.itemID
                 LEFT JOIN solarsystems s ON a.solarSystemID = s.solarSystemID
                 LEFT JOIN stations st ON a.locationID = st.stationID
+                LEFT JOIN solarsystems ss ON st.solarSystemID = ss.solarSystemID
                 JOIN npcCorporations c ON a.corporationID = c.corporation_id
                 JOIN factions f ON c.faction_id = f.id
                 LEFT JOIN divisions d ON a.divisionID = d.division_id
                 \(whereClause)
-                ORDER BY f.name, c.name, d.name, a.level DESC, n.itemName
+                ORDER BY sortLocation, f.name, c.name, d.name, a.level DESC, n.itemName
             """
 
         var results: [AgentItem] = []
@@ -1272,8 +1367,8 @@ struct AgentListHierarchyView: View {
                 if let (factionID, factionName, iconName) = corporationToFaction[
                     agent.corporationID
                 ] {
-                    if let (name, icon, count) = factionData[factionID] {
-                        factionData[factionID] = (name, icon, count + 1)
+                    if let (name, _, count) = factionData[factionID] {
+                        factionData[factionID] = (name, iconName, count + 1)
                     } else {
                         factionData[factionID] = (factionName, iconName, 1)
                     }
@@ -1605,5 +1700,276 @@ struct AgentCellView: View {
         case 13: return Color.brown.opacity(0.8)
         default: return Color.gray.opacity(0.8)
         }
+    }
+}
+
+// 星域搜索视图
+struct RegionSearchView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var regions: [(Int, String)] = []
+    @State private var isLoading = true
+    @Binding var selectedRegionID: Int?
+    @Binding var selectedRegionName: String?
+    
+    var body: some View {
+        VStack {
+            // 搜索框
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                    .padding(.leading, 8)
+                
+                TextField(NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域..."), text: $searchText)
+                    .padding(10)
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                    }) {
+                        Image(systemName: "multiply.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.trailing, 8)
+                }
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
+            .padding(.top, 10)
+            
+            if isLoading {
+                Spacer()
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding()
+                Text(NSLocalizedString("Loading_Regions", comment: "加载星域中..."))
+                    .foregroundColor(.gray)
+                Spacer()
+            } else {
+                List {
+                    // 添加"所有星域"选项
+                    Button(action: {
+                        selectedRegionID = nil
+                        selectedRegionName = nil
+                        dismiss()
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Region_All", comment: "所有星域"))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedRegionID == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    
+                    // 过滤并显示星域列表
+                    ForEach(filteredRegions, id: \.0) { regionID, regionName in
+                        Button(action: {
+                            selectedRegionID = regionID
+                            selectedRegionName = regionName
+                            dismiss()
+                        }) {
+                            HStack {
+                                Text(regionName)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if selectedRegionID == regionID {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("Region_Search_Title", comment: "选择星域"))
+        .onAppear {
+            loadRegions()
+        }
+    }
+    
+    // 过滤后的星域列表
+    private var filteredRegions: [(Int, String)] {
+        if searchText.isEmpty {
+            return regions
+        } else {
+            return regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+    
+    // 加载所有星域
+    private func loadRegions() {
+        isLoading = true
+        
+        let query = """
+            SELECT regionID, regionName
+            FROM regions
+            WHERE regionID < 11000000
+            ORDER BY regionName
+        """
+        
+        if case let .success(rows) = databaseManager.executeQuery(query) {
+            regions = rows.compactMap { row in
+                guard let regionID = row["regionID"] as? Int,
+                      let regionName = row["regionName"] as? String
+                else {
+                    return nil
+                }
+                return (regionID, regionName)
+            }
+        }
+        
+        isLoading = false
+    }
+}
+
+// 星系搜索视图
+struct SolarSystemSearchView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var searchText = ""
+    @State private var solarSystems: [(Int, String, Double)] = []  // ID, 名称, 安全等级
+    @State private var isLoading = true
+    @Binding var selectedSolarSystemID: Int?
+    @Binding var selectedSolarSystemName: String?
+    var regionID: Int?  // 可选的星域ID，用于过滤星系
+    
+    var body: some View {
+        VStack {
+            // 搜索框
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                    .padding(.leading, 8)
+                
+                TextField(NSLocalizedString("System_Search_Placeholder", comment: "搜索星系..."), text: $searchText)
+                    .padding(10)
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                    }) {
+                        Image(systemName: "multiply.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.trailing, 8)
+                }
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            .padding(.horizontal)
+            .padding(.top, 10)
+            
+            if isLoading {
+                Spacer()
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding()
+                Text(NSLocalizedString("Loading_Systems", comment: "加载星系中..."))
+                    .foregroundColor(.gray)
+                Spacer()
+            } else {
+                List {
+                    // 添加"所有星系"选项
+                    Button(action: {
+                        selectedSolarSystemID = nil
+                        selectedSolarSystemName = nil
+                        dismiss()
+                    }) {
+                        HStack {
+                            Text(regionID == nil 
+                                 ? NSLocalizedString("System_All", comment: "所有星系")
+                                 : NSLocalizedString("System_All_In_Region", comment: "该星域内所有星系"))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedSolarSystemID == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    
+                    // 过滤并显示星系列表
+                    ForEach(filteredSystems, id: \.0) { systemID, systemName, security in
+                        Button(action: {
+                            selectedSolarSystemID = systemID
+                            selectedSolarSystemName = systemName
+                            dismiss()
+                        }) {
+                            HStack {
+                                Text(systemName)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                // 显示安全等级
+                                Text(String(format: "%.1f", security))
+                                    .foregroundColor(getSecurityColor(security))
+                                
+                                if selectedSolarSystemID == systemID {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                        .padding(.leading, 4)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("System_Search_Title", comment: "选择星系"))
+        .onAppear {
+            loadSolarSystems()
+        }
+    }
+    
+    // 过滤后的星系列表
+    private var filteredSystems: [(Int, String, Double)] {
+        if searchText.isEmpty {
+            return solarSystems
+        } else {
+            return solarSystems.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+    
+    // 加载星系
+    private func loadSolarSystems() {
+        isLoading = true
+        
+        var query = """
+            SELECT s.solarSystemID, s.solarSystemName, s.security_status
+            FROM solarsystems s
+            JOIN universe u ON s.solarSystemID = u.solarsystem_id
+            WHERE u.region_id < 11000000
+        """
+        
+        var parameters: [Any] = []
+        
+        // 如果指定了星域ID，则只加载该星域内的星系
+        if let regionID = regionID {
+            query += " AND u.region_id = ?"
+            parameters.append(regionID)
+        }
+        
+        query += " ORDER BY s.solarSystemName"
+        
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
+            solarSystems = rows.compactMap { row in
+                guard let systemID = row["solarSystemID"] as? Int,
+                      let systemName = row["solarSystemName"] as? String,
+                      let security = row["security_status"] as? Double
+                else {
+                    return nil
+                }
+                return (systemID, systemName, security)
+            }
+        }
+        
+        isLoading = false
     }
 }

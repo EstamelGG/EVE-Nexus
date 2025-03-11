@@ -855,6 +855,7 @@ class ScopeManager {
         do {
             let data = try Data(contentsOf: url)
             let scopesDict = try JSONDecoder().decode([String: [String]].self, from: data)
+            Logger.info("从文件加载 scopes 成功: \(url)")
             return Array(Set(scopesDict.values.flatMap { $0 }))
         } catch {
             Logger.error("从文件加载 scopes 失败: \(error)")
@@ -876,8 +877,19 @@ class ScopeManager {
 
     // 从 swagger.json 获取最新的 scopes
     func fetchLatestScopes() async throws -> [String] {
-        let url = URL(string: "https://esi.evetech.net/latest/swagger.json")!
-        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let url = URL(string: "https://esi.evetech.net/latest/swagger.json") else {
+            throw NetworkError.invalidURL
+        }
+        
+        // 使用NetworkManager实现超时重试机制
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            method: "GET",
+            headers: ["Accept": "application/json"],
+            noRetryKeywords: nil,
+            timeouts: [2, 5, 5, 10, 10]
+        )
+        
         let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
 
         // 从 securityDefinitions.evesso.scopes 中提取所有的 scope keys
@@ -885,6 +897,8 @@ class ScopeManager {
 
         // 保存到本地文件
         saveScopesToFile(scopes)
+        
+        Logger.info("成功从网络获取最新scopes，共 \(scopes.count) 个权限")
 
         return scopes
     }

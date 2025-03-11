@@ -13,7 +13,10 @@ struct AccountsView: View {
     @State private var refreshingCharacters: Set<Int> = []
     @State private var expiredTokenCharacters: Set<Int> = []
     @State private var isLoggingIn = false
+    @State private var isRefreshingScopes = false
     @Binding var selectedItem: String?
+    @State private var successMessage: String = ""
+    @State private var showingSuccess: Bool = false
 
     // 添加角色选择回调
     var onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)?
@@ -38,6 +41,9 @@ struct AccountsView: View {
                     Task { @MainActor in
                         // 设置登录状态为true
                         isLoggingIn = true
+                        
+                        // 检查并更新scopes（如果需要）
+                        await checkAndUpdateScopesIfNeeded()
 
                         guard
                             let scene = UIApplication.shared.connectedScenes.first
@@ -231,6 +237,50 @@ struct AccountsView: View {
                     }
                 }
                 .disabled(isLoggingIn)
+            } footer: {
+                HStack {
+                    Text(NSLocalizedString("Scopes_refresh_hint", comment: ""))
+                    Button(action: {
+                        // 添加刷新状态指示
+                        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                        impactFeedback.impactOccurred()
+                        
+                        // 设置刷新状态
+                        isRefreshingScopes = true
+                        
+                        Task {
+                            // 强制刷新 scopes
+                            Logger.info("手动强制刷新 scopes")
+                            let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
+                            
+                            // 更新 EVELogin 中的 scopes 配置
+                            let scopes = await EVELogin.shared.getScopes()
+                            Logger.info("成功刷新 scopes，获取到 \(scopes.count) 个权限")
+                            
+                            // 显示成功提示
+                            await MainActor.run {
+                                isRefreshingScopes = false  // 重置刷新状态
+                                successMessage = String(format: NSLocalizedString("Scopes_Refresh_Success", comment: ""), scopes.count)
+                                showingSuccess = true
+                            }
+                        }
+                    }) {
+                        HStack {
+                            if isRefreshingScopes {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .padding(.trailing, 2)
+                            }
+                            Text("scopes")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .disabled(isRefreshingScopes)
+                    Text(".")
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
             }
 
             // 已登录角色列表
@@ -346,6 +396,14 @@ struct AccountsView: View {
             Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage)
+        }
+        .alert(
+            NSLocalizedString("Operation_Success", comment: ""),
+            isPresented: $showingSuccess
+        ) {
+            Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) {}
+        } message: {
+            Text(successMessage)
         }
         .alert(
             NSLocalizedString("Account_Remove_Confirm_Title", comment: ""),
@@ -927,6 +985,49 @@ struct AccountsView: View {
             Logger.info("成功刷新角色数据 - \(character.CharacterName)")
         } catch {
             Logger.error("刷新角色数据失败 - \(character.CharacterName): \(error)")
+        }
+        
+        // 从刷新集合中移除角色
+        await updateUI {
+            refreshingCharacters.remove(character.CharacterID)
+        }
+    }
+
+    // 在AccountsView结构体内添加一个检查scopes更新时间的函数
+    private func checkAndUpdateScopesIfNeeded() async {
+        // 获取文档目录路径
+        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let latestScopesPath = documentsDirectory.appendingPathComponent("latest_scopes.json")
+        
+        // 检查文件是否存在
+        if FileManager.default.fileExists(atPath: latestScopesPath.path) {
+            do {
+                // 获取文件属性
+                let attributes = try FileManager.default.attributesOfItem(atPath: latestScopesPath.path)
+                if let modificationDate = attributes[.modificationDate] as? Date {
+                    // 计算文件最后修改时间与当前时间的差值
+                    let timeInterval = Date().timeIntervalSince(modificationDate)
+                    // 如果超过8小时（28800秒），则更新
+                    if timeInterval > 28800 {
+                        Logger.info("latest_scopes.json 文件已超过8小时未更新，正在自动刷新...")
+                        // 强制刷新 scopes
+                        let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
+                        // 更新 EVELogin 中的 scopes 配置
+                        let scopes = await EVELogin.shared.getScopes()
+                        Logger.info("成功自动刷新 scopes，获取到 \(scopes.count) 个权限")
+                    } else {
+                        Logger.info("latest_scopes.json 文件在8小时内已更新，无需刷新")
+                    }
+                }
+            } catch {
+                Logger.error("检查 latest_scopes.json 文件属性失败: \(error)")
+                // 如果检查失败，尝试刷新
+                let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
+            }
+        } else {
+            Logger.info("latest_scopes.json 文件不存在，正在创建...")
+            // 文件不存在，强制刷新
+            let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
         }
     }
 }

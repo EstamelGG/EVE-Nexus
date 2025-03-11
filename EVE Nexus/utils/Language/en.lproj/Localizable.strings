@@ -260,7 +260,7 @@
 "Account_Character_ID" = "Character ID";
 "Account_Total_SP" = "Total SP";
 "Account_Wallet_value" = "Wallet";
-
+"Scopes_refresh_hint" = "Click to refresh invalid scopes:";
 "Common_OK" = "OK";
 
 // Language Settings
@@ -830,13 +830,13 @@
 "Main_Market_Order_Sell" = "Sell Orders";
 
 "Main_Battle" = "Battle";
-"Main_Killboard" = "Kill Reports";
+"Main_Killboard" = "KillBoard";
 "Main_ZKillboard" = "ZkillBoard";
 
 // KillMail Related
-"KillMail_All_Records" = "All Records";
-"KillMail_Kill_Records" = "Kill Records";
-"KillMail_Loss_Records" = "Loss Records";
+"KillMail_All_Records" = "All";
+"KillMail_Kill_Records" = "Kill";
+"KillMail_Loss_Records" = "Loss";
 "KillMail_Invalid_Character_ID" = "Invalid Character ID: %d";
 "KillMail_Invalid_Response_Format" = "Invalid Response Format";
 "KillMail_Loading_Page" = "Loading page %d";
@@ -1165,6 +1165,10 @@
 
 "Unknown_Location" = "Unknown Location";
 
+// Success Messages
+"Operation_Success" = "Successful";
+"Scopes_Refresh_Success" = "Scopes refreshed, got %d permissions";
+
 // Security Levels
 "Security_HighSec" = "High Sec";
 "Security_LowSec" = "Low Sec";
@@ -1183,16 +1187,18 @@
 "Agent_Search_No_Results" = "No agents found matching your criteria";
 "Agent_Search_Division" = "Division";
 "Agent_Search_Level" = "Level";
-"Agent_Search_Security" = "System Security";
+"Agent_Search_Security" = "System";
 "Agent_Search_Faction" = "Faction";
 "Agent_Search_Corporation" = "Corporation";
 "Agent_Search_Locator_Only" = "Locator Agents Only";
-"Agent_Search_Space_Only" = "Agents In-Space Only";
-"Agent_Search_All_Divisions" = "All Divisions";
-"Agent_Search_All_Levels" = "All Levels";
-"Agent_Search_All_Security" = "All Security Levels";
-"Agent_Search_All_Factions" = "All Factions";
-"Agent_Search_All_Corporations" = "All Corporations";
+"Agent_Search_Space_Only" = "In-Space Agents Only";
+"Agent_Search_All_Divisions" = "Any";
+"Agent_Search_All_Levels" = "Any";
+"Agent_Search_All_Security" = "Any";
+"Agent_Search_All_Factions" = "Any";
+"Agent_Search_All_Corporations" = "Any";
+"Agent_Search_Type" = "Type";
+"Agent_Search_All_Types" = "Any";
 "Agent_Count" = "%d Agents";
 "Agent_Unknown_Division" = "Unknown Division";
 "Agent_Loading" = "Loading...";
@@ -1232,6 +1238,17 @@
 "Agent_Type_Short_HeraldryAgent" = "Heraldry";
 "Agent_Type_Short_Other" = "Other";
 
-// Agent Search Type
-"Agent_Search_Type" = "Agent Type";
-"Agent_Search_All_Types" = "All Agent Types";
+// Region and System Search
+"Location_Filter" = "Location Filter";
+"Region_Filter" = "Filter by Region";
+"System_Filter" = "Filter by System";
+"Region_All" = "All Regions";
+"System_All" = "All Systems";
+"System_All_In_Region" = "All Systems in Region";
+"Region_Search_Title" = "Select Region";
+"System_Search_Title" = "Select System";
+"Region_Search_Placeholder" = "Search regions...";
+"System_Search_Placeholder" = "Search systems...";
+"Loading_Regions" = "Loading regions...";
+"Loading_Systems" = "Loading systems...";
+

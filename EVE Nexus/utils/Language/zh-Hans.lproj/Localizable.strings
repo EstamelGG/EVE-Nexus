@@ -243,7 +243,7 @@
 "Account_Character_ID" = "角色ID";
 "Account_Total_SP" = "总技能点";
 "Account_Wallet_value" = "钱包";
-
+"Scopes_refresh_hint" = "出错时点击按钮刷新Scope列表:";
 // Language Settings
 "Main_Setting_Language_Switch_Title" = "切换语言";
 "Main_Setting_Language_Switch_Message" = "需要重新加载应用以应用语言更改，是否继续？";
@@ -842,7 +842,7 @@
 "Main_Market_Order_Sell" = "卖单";
 
 "Main_Battle" = "战斗";
-"Main_Killboard" = "击杀记录";
+"Main_Killboard" = "战斗记录";
 "Main_ZKillboard" = "ZkillBoard";
 
 // KillMail Related
@@ -1191,10 +1191,14 @@
 "Contract_Appraisal_Parse_Failed" = "解析响应数据失败：%@";
 "Contract_Appraisal_ESI_Result" = "吉他市场估价 (ESI)";
 
-"Loading_Location_Info" = "正在加载地点信息...";
+"Loading_Location_Info" = "正在加载位置信息...";
 "Loading_Location" = "加载中...";
 
 "Unknown_Location" = "未知位置";
+
+// Success Messages
+"Operation_Success" = "操作成功";
+"Scopes_Refresh_Success" = "成功刷新权限，获取到 %d 个权限";
 
 // Security Levels
 "Security_HighSec" = "高安";
@@ -1214,16 +1218,18 @@
 "Agent_Search_No_Results" = "没有找到符合条件的代理人";
 "Agent_Search_Division" = "部门";
 "Agent_Search_Level" = "等级";
-"Agent_Search_Security" = "星系安等";
+"Agent_Search_Security" = "星系";
 "Agent_Search_Faction" = "势力";
 "Agent_Search_Corporation" = "军团";
 "Agent_Search_Locator_Only" = "仅显示定位代理人";
 "Agent_Search_Space_Only" = "仅显示空间代理人";
-"Agent_Search_All_Divisions" = "所有部门";
-"Agent_Search_All_Levels" = "所有等级";
-"Agent_Search_All_Security" = "所有安全等级";
-"Agent_Search_All_Factions" = "所有势力";
-"Agent_Search_All_Corporations" = "所有军团";
+"Agent_Search_All_Divisions" = "任意";
+"Agent_Search_All_Levels" = "任意";
+"Agent_Search_All_Security" = "任意";
+"Agent_Search_All_Factions" = "任意";
+"Agent_Search_All_Corporations" = "任意";
+"Agent_Search_Type" = "类型";
+"Agent_Search_All_Types" = "任意";
 "Agent_Count" = "%d个代理人";
 "Agent_Unknown_Division" = "未知部门";
 "Agent_Loading" = "加载中...";
@@ -1263,6 +1269,17 @@
 "Agent_Type_Short_HeraldryAgent" = "徽章";
 "Agent_Type_Short_Other" = "其他";
 
-// Agent Search Type
-"Agent_Search_Type" = "代理人类型";
-"Agent_Search_All_Types" = "所有类型";
+// Region and System Search
+"Location_Filter" = "位置过滤";
+"Region_Filter" = "过滤星域";
+"System_Filter" = "过滤星系";
+"Region_All" = "所有星域";
+"System_All" = "所有星系";
+"System_All_In_Region" = "该星域内所有星系";
+"Region_Search_Title" = "选择星域";
+"System_Search_Title" = "选择星系";
+"Region_Search_Placeholder" = "搜索星域...";
+"System_Search_Placeholder" = "搜索星系...";
+"Loading_Regions" = "加载星域中...";
+"Loading_Systems" = "加载星系中...";
+
