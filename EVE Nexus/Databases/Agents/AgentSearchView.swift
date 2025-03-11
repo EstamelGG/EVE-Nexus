@@ -1712,33 +1712,10 @@ struct RegionSearchView: View {
     @State private var isLoading = true
     @Binding var selectedRegionID: Int?
     @Binding var selectedRegionName: String?
+    @State private var isSearchActive = false
     
     var body: some View {
         VStack {
-            // 搜索框
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                    .padding(.leading, 8)
-                
-                TextField(NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域..."), text: $searchText)
-                    .padding(10)
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                    }) {
-                        Image(systemName: "multiply.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.trailing, 8)
-                }
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-            .padding(.horizontal)
-            .padding(.top, 10)
-            
             if isLoading {
                 Spacer()
                 ProgressView()
@@ -1787,6 +1764,12 @@ struct RegionSearchView: View {
                 }
             }
         }
+        .searchable(
+            text: $searchText,
+            isPresented: $isSearchActive,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域...")
+        )
         .navigationTitle(NSLocalizedString("Region_Search_Title", comment: "选择星域"))
         .onAppear {
             loadRegions()
@@ -1837,34 +1820,11 @@ struct SolarSystemSearchView: View {
     @State private var isLoading = true
     @Binding var selectedSolarSystemID: Int?
     @Binding var selectedSolarSystemName: String?
+    @State private var isSearchActive = false
     var regionID: Int?  // 可选的星域ID，用于过滤星系
     
     var body: some View {
         VStack {
-            // 搜索框
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                    .padding(.leading, 8)
-                
-                TextField(NSLocalizedString("System_Search_Placeholder", comment: "搜索星系..."), text: $searchText)
-                    .padding(10)
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                    }) {
-                        Image(systemName: "multiply.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.trailing, 8)
-                }
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-            .padding(.horizontal)
-            .padding(.top, 10)
-            
             if isLoading {
                 Spacer()
                 ProgressView()
@@ -1922,6 +1882,12 @@ struct SolarSystemSearchView: View {
                 }
             }
         }
+        .searchable(
+            text: $searchText,
+            isPresented: $isSearchActive,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("System_Search_Placeholder", comment: "搜索星系...")
+        )
         .navigationTitle(NSLocalizedString("System_Search_Title", comment: "选择星系"))
         .onAppear {
             loadSolarSystems()

@@ -32,26 +32,6 @@ public final class SolarSystemInfo: Codable {
     }
 }
 
-// 缓存管理器
-private let solarSystemCache: NSCache<NSNumber, SolarSystemInfo> = {
-    let cache = NSCache<NSNumber, SolarSystemInfo>()
-    cache.countLimit = 1000  // 最多缓存1000个星系信息
-
-    // 添加对useEnglishSystemNames的观察
-    NotificationCenter.default.addObserver(
-        forName: UserDefaults.didChangeNotification,
-        object: nil,
-        queue: .main
-    ) { _ in
-        if UserDefaults.standard.object(forKey: "useEnglishSystemNames") != nil {
-            cache.removeAllObjects()
-            Logger.debug("语言设置已更改，清空星系信息缓存")
-        }
-    }
-
-    return cache
-}()
-
 // 计算显示用的安全等级
 func calculateDisplaySecurity(_ trueSec: Double) -> Double {
     if trueSec > 0.0 && trueSec < 0.05 {
@@ -93,10 +73,6 @@ func getSecurityColor(_ trueSec: Double) -> Color {
 func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) async
     -> SolarSystemInfo?
 {
-    // 检查缓存
-    if let cachedInfo = solarSystemCache.object(forKey: NSNumber(value: solarSystemId)) {
-        return cachedInfo
-    }
 
     let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
 
@@ -143,14 +119,5 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
         regionId: regionId,
         regionName: regionName
     )
-
-    // 存入缓存
-    solarSystemCache.setObject(solarSystemInfo, forKey: NSNumber(value: solarSystemId))
-
     return solarSystemInfo
-}
-
-// 清除缓存的函数
-func clearSolarSystemCache() {
-    solarSystemCache.removeAllObjects()
 }

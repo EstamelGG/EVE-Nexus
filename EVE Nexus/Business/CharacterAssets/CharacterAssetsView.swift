@@ -136,14 +136,24 @@ struct CharacterAssetsView: View {
                                             "Assets_Loading_Fetching", comment: ""
                                         ), page
                                     )
+                                case .buildingTree:
+                                    NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
+                                case .processingLocations:
+                                    NSLocalizedString("Assets_Loading_Processing_Locations", comment: "")
+                                case let .fetchingLocationInfo(current, total):
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Assets_Loading_Fetching_Location_Info", comment: ""
+                                        ), current, total
+                                    )
+                                case .preparingContainers:
+                                    NSLocalizedString("Assets_Loading_Preparing_Containers", comment: "")
                                 case let .loadingNames(current, total):
                                     String(
                                         format: NSLocalizedString(
                                             "Assets_Loading_Names", comment: ""
                                         ), current, total
                                     )
-                                case .buildingTree:
-                                    NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
                                 case .savingCache:
                                     NSLocalizedString("Assets_Loading_Saving", comment: "")
                                 case .completed:
@@ -182,6 +192,41 @@ struct CharacterAssetsView: View {
                     }
                 }
             }
+            // 显示错误信息
+            else if let error = viewModel.error, !viewModel.isLoading && viewModel.assetLocations.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 40))
+                                .foregroundColor(.orange)
+                            Text(NSLocalizedString("Assets_Loading_Error", comment: ""))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Text(error.localizedDescription)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button(action: {
+                                Task {
+                                    await viewModel.loadAssets(forceRefresh: true)
+                                }
+                            }) {
+                                Text(NSLocalizedString("Main_Retry", comment: ""))
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(Color.accentColor)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                            }
+                            .padding(.top, 8)
+                        }
+                        .padding()
+                        Spacer()
+                    }
+                }
+            }
             // 搜索结果
             else if !searchText.isEmpty {
                 ForEach(viewModel.searchResults) { result in
@@ -193,7 +238,7 @@ struct CharacterAssetsView: View {
                 }
             }
             // 正常的资产列表
-            else if !viewModel.isLoading {
+            else if !viewModel.isLoading && !viewModel.assetLocations.isEmpty {
                 ForEach(viewModel.locationsByRegion, id: \.region) { group in
                     Section(
                         header: Text(group.region)

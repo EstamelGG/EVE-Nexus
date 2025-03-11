@@ -81,8 +81,11 @@ public enum AssetError: Error {
 
 public enum AssetLoadingProgress {
     case loading(page: Int)  // 正在加载特定页面
-    case loadingNames(current: Int, total: Int)  // 正在加载容器名称
     case buildingTree  // 正在构建资产树
+    case processingLocations  // 正在处理位置信息
+    case fetchingLocationInfo(current: Int, total: Int)  // 正在获取位置详情
+    case preparingContainers  // 正在准备容器信息
+    case loadingNames(current: Int, total: Int)  // 正在加载容器名称
     case savingCache  // 正在保存缓存
     case completed  // 加载完成
 }
@@ -430,10 +433,20 @@ public class CharacterAssetsJsonAPI {
             topLocations.remove(asset.item_id)
         }
 
+        // 添加进度回调 - 处理位置信息
+        progressCallback?(.processingLocations)
+
         // 获取建筑物的 type_id
+        let totalLocations = topLocations.count
+        var processedLocations = 0
         for locationId in topLocations {
             if let items = locationMap[locationId] {
                 let locationType = items.first?.location_type ?? "unknown"
+                
+                // 更新进度 - 获取位置详情
+                processedLocations += 1
+                progressCallback?(.fetchingLocationInfo(current: processedLocations, total: totalLocations))
+                
                 let info = try await fetchLocationInfo(
                     locationId: locationId,
                     locationType: locationType,
@@ -456,9 +469,13 @@ public class CharacterAssetsJsonAPI {
             characterId: characterId,
             databaseManager: databaseManager,
             names: names,
-            iconMap: iconMap
+            iconMap: iconMap,
+            progressCallback: progressCallback
         )
 
+        // 添加进度回调 - 准备容器信息
+        progressCallback?(.preparingContainers)
+        
         // 收集所有容器的ID
         let containerIds = collectContainerIds(from: rootNodes)
 
@@ -482,7 +499,8 @@ public class CharacterAssetsJsonAPI {
             characterId: characterId,
             databaseManager: databaseManager,
             names: allNames,
-            iconMap: iconMap
+            iconMap: iconMap,
+            progressCallback: progressCallback
         )
 
         // 创建包装对象
@@ -629,7 +647,8 @@ public class CharacterAssetsJsonAPI {
         characterId: Int,
         databaseManager: DatabaseManager,
         names: [Int64: String] = [:],
-        iconMap: [Int: String]
+        iconMap: [Int: String],
+        progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> [AssetTreeNode] {
         var rootNodes: [AssetTreeNode] = []
         let concurrentLimit = 5  // 并发数量限制
@@ -720,6 +739,9 @@ public class CharacterAssetsJsonAPI {
             }
 
             currentIndex += concurrentLimit
+            
+            // 更新进度
+            progressCallback?(.fetchingLocationInfo(current: min(currentIndex, locationArray.count), total: locationArray.count))
 
             // 添加短暂延迟以避免请求过于频繁
             if currentIndex < locationArray.count {
