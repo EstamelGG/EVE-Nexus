@@ -127,13 +127,29 @@ class CharacterAssetsViewModel: ObservableObject {
 
                     // 获取所有星系的信息
                     await loadRegionNames()
+                    
+                    // 成功加载数据后，清除错误状态
+                    self.error = nil
                 }
             }
         } catch {
-            Logger.error("加载资产失败: \(error)")
-            self.error = error
+            // 检查是否是取消错误
+            if let nsError = error as NSError?, nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                Logger.info("资产加载任务被取消")
+            } else if error is CancellationError {
+                Logger.info("资产加载任务被取消: \(error)")
+            } else {
+                Logger.error("加载资产失败: \(error)")
+                self.error = error
+                
+                // 在非取消错误的情况下，确保UI显示错误状态
+                isLoading = false
+                loadingProgress = nil
+            }
+            return
         }
 
+        // 只有在成功完成时才重置加载状态
         isLoading = false
         loadingProgress = nil
     }

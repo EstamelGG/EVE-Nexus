@@ -597,8 +597,8 @@ struct AccountsView: View {
             }
         }
 
-        // 分批处理角色，每批最多3个
-        let batchSize = 3
+        // 分批处理角色，每批最多 10 个
+        let batchSize = 10
         for batch in stride(from: 0, to: characterAuths.count, by: batchSize) {
             let end = min(batch + batchSize, characterAuths.count)
             let currentBatch = characterAuths[batch..<end]

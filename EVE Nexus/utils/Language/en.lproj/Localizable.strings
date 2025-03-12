@@ -294,14 +294,17 @@
 
 // Assets Loading
 "Assets_Loading_Fetching" = "Fetching assets data (Page %d)";
-"Assets_Loading_Building_Tree" = "Building asset tree (%d/%d)";
 "Assets_Loading_Complete" = "Loading complete";
 "Assets_Loading" = "Loading...";
 "Assets_Item_Count" = "Include %d items";
 "Assets_Loading_Names" = "Loading container names (%d/%d)";
 "Assets_Loading_Building_Tree" = "Building asset tree";
+"Assets_Loading_Processing_Locations" = "Processing location information";
+"Assets_Loading_Fetching_Location_Info" = "Fetching location details (%d/%d)";
+"Assets_Loading_Preparing_Containers" = "Preparing container information";
 "Assets_Loading_Saving" = "Saving to cache";
 "Assets_Loading_Complete" = "Loading complete";
+"Assets_Loading_Error" = "Failed to load assets";
 "Unknown_System" = "Unknown System";
 
 // Location Flags
@@ -1237,6 +1240,11 @@
 "Agent_Type_Short_CareerAgent" = "Career";
 "Agent_Type_Short_HeraldryAgent" = "Heraldry";
 "Agent_Type_Short_Other" = "Other";
+
+"Main_Language_Map_Supported_Search_Objects" = "Supported search objects:";
+"Main_Language_Map_Search_Object_1" = "1. Items (ships, modules, space entities, etc.)";
+"Main_Language_Map_Search_Object_2" = "2. Solar systems, constellations, regions";
+"Main_Language_Map_Search_Object_3" = "3. NPC factions, corporations";
 
 // Region and System Search
 "Location_Filter" = "Location Filter";

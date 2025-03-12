@@ -204,7 +204,6 @@ class StaticResourceManager {
         let staticDataSetPath = getStaticDataSetPath()
         if fileManager.fileExists(atPath: staticDataSetPath.path) {
             try fileManager.removeItem(at: staticDataSetPath)
-            Logger.info("Cleared all static data")
 
             // 重新创建必要的目录
             try fileManager.createDirectory(

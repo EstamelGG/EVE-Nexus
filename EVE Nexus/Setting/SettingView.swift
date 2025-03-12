@@ -88,6 +88,11 @@ class CacheManager {
         "Logs", // 日志
     ]
 
+    // 获取缓存目录列表
+    func getCacheDirs() -> [String] {
+        return cacheDirs
+    }
+
     // 清理指定前缀的缓存
     private func clearCacheWithPrefixes() {
         let defaults = UserDefaults.standard
@@ -108,22 +113,43 @@ class CacheManager {
     // 清理指定目录
     private func clearCacheDirectories() async {
         let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-
+        var totalFilesRemoved = 0
+        
         for dirName in cacheDirs {
             let dirPath = documentPath.appendingPathComponent(dirName)
-
+            
             do {
                 if fileManager.fileExists(atPath: dirPath.path) {
+                    // 只统计目录中的文件数量
+                    var fileCount = 0
+                    
+                    if let enumerator = fileManager.enumerator(
+                        at: dirPath,
+                        includingPropertiesForKeys: nil,
+                        options: [.skipsHiddenFiles]
+                    ) {
+                        for case _ as URL in enumerator {
+                            // 只计算文件数量
+                            fileCount += 1
+                        }
+                    }
+                    
+                    // 删除并重建目录
                     try fileManager.removeItem(at: dirPath)
                     try fileManager.createDirectory(at: dirPath, withIntermediateDirectories: true)
-                    Logger.debug("成功清理并重建目录: \(dirName)")
+                    
+                    // 更新总计数
+                    totalFilesRemoved += fileCount
+                    
+                    // 记录日志
+                    Logger.debug("成功清理并重建目录: \(dirName)，删除了 \(fileCount) 个文件")
                 }
             } catch {
                 Logger.error("清理目录失败 - \(dirName): \(error)")
             }
         }
-
-        Logger.info("目录缓存清理完成")
+        
+        Logger.info("目录缓存清理完成，共删除 \(totalFilesRemoved) 个文件")
     }
 
     // 获取所有缓存统计信息
@@ -436,6 +462,44 @@ struct SettingView: View {
                     }
                 } else {
                     Logger.error("Failed to create directory enumerator")
+                }
+            }
+            
+            // 计算缓存目录大小
+            let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            // 使用CacheManager中的缓存目录列表
+            let cacheDirs = CacheManager.shared.getCacheDirs()
+            
+            for dirName in cacheDirs {
+                let dirPath = documentPath.appendingPathComponent(dirName)
+                
+                if fileManager.fileExists(atPath: dirPath.path),
+                   let enumerator = fileManager.enumerator(
+                    at: dirPath,
+                    includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
+                    options: [.skipsHiddenFiles]
+                   ) {
+                    for case let fileURL as URL in enumerator {
+                        do {
+                            let resourceValues = try fileURL.resourceValues(forKeys: [
+                                .isDirectoryKey
+                            ])
+                            // 跳过目录，只计算文件大小
+                            if resourceValues.isDirectory == true {
+                                continue
+                            }
+                            Logger.info(
+                                "Calculating file size for \(fileURL.path)")
+                            let attributes = try fileManager.attributesOfItem(
+                                atPath: fileURL.path)
+                            if let fileSize = attributes[.size] as? Int64 {
+                                totalSize += fileSize
+                            }
+                        } catch {
+                            Logger.error(
+                                "Error calculating file size for \(fileURL.path): \(error)")
+                        }
+                    }
                 }
             }
 
@@ -913,17 +977,12 @@ struct SettingView: View {
                 // 清理所有缓存
                 await CacheManager.shared.clearAllCaches()
 
-                // 清理静态资源缓存
-                try StaticResourceManager.shared.clearAllStaticData()
-
                 // 更新UI
                 await MainActor.run {
                     updateAllData()
                 }
 
                 Logger.info("Cache cleaned successfully")
-            } catch {
-                Logger.error("Failed to clean cache: \(error)")
             }
         }
     }

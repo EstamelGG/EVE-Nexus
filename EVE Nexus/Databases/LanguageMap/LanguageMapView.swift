@@ -7,6 +7,7 @@ struct LanguageMapView: View {
     @State private var fuzzyMatchResults: [(id: Int, names: [String: String])] = []  // 模糊匹配结果
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
+    @State private var isSearchActive = false
 
     let availableLanguages = [
         "de": "Deutsch:",
@@ -21,109 +22,110 @@ struct LanguageMapView: View {
 
     var body: some View {
         VStack {
-            // 搜索框
-            HStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    TextField(
-                        NSLocalizedString("Main_Language_Map_Search", comment: ""),
-                        text: $searchText
-                    )
-                    .submitLabel(.search)
-                    .onChange(of: searchText) { _, newValue in
-                        // 取消之前的搜索任务
-                        searchTask?.cancel()
-
-                        if newValue.isEmpty {
-                            exactMatchResults = []
-                            prefixMatchResults = []
-                            fuzzyMatchResults = []
-                            return
-                        }
-
-                        // 创建新的搜索任务
-                        searchTask = Task {
-                            // 延迟500毫秒
-                            try? await Task.sleep(nanoseconds: 500_000_000)
-
-                            // 如果任务被取消，直接返回
-                            if Task.isCancelled { return }
-
-                            // 在主线程执行搜索
-                            await MainActor.run {
-                                performSearch()
+            // 搜索结果或提示信息
+            if exactMatchResults.isEmpty && prefixMatchResults.isEmpty && fuzzyMatchResults.isEmpty {
+                // 显示提示信息
+                VStack(spacing: 16) {
+                    Text(NSLocalizedString("Main_Language_Map_Supported_Search_Objects", comment: "支持的搜索对象："))
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("Main_Language_Map_Search_Object_1", comment: "1. 物品（舰船、装备、空间实体等）"))
+                            .foregroundColor(.secondary)
+                        Text(NSLocalizedString("Main_Language_Map_Search_Object_2", comment: "2. 星系、星座、星域名"))
+                            .foregroundColor(.secondary)
+                        Text(NSLocalizedString("Main_Language_Map_Search_Object_3", comment: "3. NPC势力名、军团名"))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                // 搜索结果列表
+                List {
+                    // 完全匹配结果
+                    if !exactMatchResults.isEmpty {
+                        Section(
+                            header: Text(
+                                NSLocalizedString("Main_Language_Map_Exact_Match", comment: "完全匹配")
+                            )
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                        ) {
+                            ForEach(exactMatchResults, id: \.id) { result in
+                                ResultRow(result: result, availableLanguages: availableLanguages)
                             }
                         }
                     }
 
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
+                    // 前缀匹配结果
+                    if !prefixMatchResults.isEmpty {
+                        Section(
+                            header: Text(
+                                NSLocalizedString("Main_Language_Map_Prefix_Match", comment: "前缀匹配")
+                            )
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                        ) {
+                            ForEach(prefixMatchResults, id: \.id) { result in
+                                ResultRow(result: result, availableLanguages: availableLanguages)
+                            }
+                        }
+                    }
+
+                    // 模糊匹配结果
+                    if !fuzzyMatchResults.isEmpty {
+                        Section(
+                            header: Text(
+                                NSLocalizedString("Main_Language_Map_Fuzzy_Match", comment: "模糊匹配")
+                            )
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                        ) {
+                            ForEach(fuzzyMatchResults, id: \.id) { result in
+                                ResultRow(result: result, availableLanguages: availableLanguages)
+                            }
                         }
                     }
                 }
-                .padding(8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+        }
+        .searchable(
+            text: $searchText,
+            isPresented: $isSearchActive,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Database_Search", comment: "")
+        )
+        .onChange(of: searchText) { _, newValue in
+            // 取消之前的搜索任务
+            searchTask?.cancel()
 
-            // 搜索结果列表
-            List {
-                // 完全匹配结果
-                if !exactMatchResults.isEmpty {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Language_Map_Exact_Match", comment: "完全匹配")
-                        )
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                    ) {
-                        ForEach(exactMatchResults, id: \.id) { result in
-                            ResultRow(result: result, availableLanguages: availableLanguages)
-                        }
-                    }
-                }
+            if newValue.isEmpty {
+                exactMatchResults = []
+                prefixMatchResults = []
+                fuzzyMatchResults = []
+                return
+            }
 
-                // 前缀匹配结果
-                if !prefixMatchResults.isEmpty {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Language_Map_Prefix_Match", comment: "前缀匹配")
-                        )
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                    ) {
-                        ForEach(prefixMatchResults, id: \.id) { result in
-                            ResultRow(result: result, availableLanguages: availableLanguages)
-                        }
-                    }
-                }
+            // 创建新的搜索任务
+            searchTask = Task {
+                // 延迟500毫秒
+                try? await Task.sleep(nanoseconds: 500_000_000)
 
-                // 模糊匹配结果
-                if !fuzzyMatchResults.isEmpty {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Language_Map_Fuzzy_Match", comment: "模糊匹配")
-                        )
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(nil)
-                    ) {
-                        ForEach(fuzzyMatchResults, id: \.id) { result in
-                            ResultRow(result: result, availableLanguages: availableLanguages)
-                        }
-                    }
+                // 如果任务被取消，直接返回
+                if Task.isCancelled { return }
+
+                // 在主线程执行搜索
+                await MainActor.run {
+                    performSearch()
                 }
             }
         }
