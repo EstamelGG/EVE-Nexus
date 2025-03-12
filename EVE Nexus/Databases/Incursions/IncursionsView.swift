@@ -312,8 +312,13 @@ struct IncursionsView: View {
     @StateObject private var viewModel: IncursionsViewModel
 
     init(databaseManager: DatabaseManager) {
-        _viewModel = StateObject(
-            wrappedValue: IncursionsViewModel(databaseManager: databaseManager))
+        let vm = IncursionsViewModel(databaseManager: databaseManager)
+        _viewModel = StateObject(wrappedValue: vm)
+        
+        // 在初始化时立即开始加载数据
+        Task {
+            await vm.fetchIncursionsData()
+        }
     }
 
     var body: some View {
@@ -355,9 +360,6 @@ struct IncursionsView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.fetchIncursionsData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.fetchIncursionsData()
         }
         .navigationTitle(NSLocalizedString("Main_Incursions", comment: ""))
     }

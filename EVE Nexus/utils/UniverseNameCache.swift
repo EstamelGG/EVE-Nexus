@@ -66,7 +66,7 @@ actor UniverseNameCache {
 
         // 2. 检查数据库缓存（包含过期检查）
         if !uncachedIds.isEmpty {
-            let idList = uncachedIds.map { String($0) }.joined(separator: ",")
+            let idList = uncachedIds.sorted().map { String($0) }.joined(separator: ",")
             let query = """
                     SELECT id, name 
                     FROM universe_names 

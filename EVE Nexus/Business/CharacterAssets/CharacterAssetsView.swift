@@ -14,6 +14,7 @@ extension EnvironmentValues {
 // 位置行视图
 private struct LocationRowView: View {
     let location: AssetTreeNode
+    @EnvironmentObject private var viewModel: CharacterAssetsViewModel
 
     var body: some View {
         HStack {
@@ -36,6 +37,7 @@ private struct LocationRowView: View {
                 LocationNameView(location: location)
                     .font(.subheadline)
                     .lineLimit(1)
+                    .environmentObject(viewModel)
 
                 // 物品数量
                 if let items = location.items {
@@ -58,6 +60,7 @@ private struct LocationNameView: View {
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
     @State private var solarSystemName: String?
     @Environment(\.databaseManager) private var databaseManager
+    @EnvironmentObject private var viewModel: CharacterAssetsViewModel
 
     var body: some View {
         LocationInfoView(
@@ -72,10 +75,17 @@ private struct LocationNameView: View {
         )
         .task {
             if let systemId = location.system_id {
-                if let systemInfo = await getSolarSystemInfo(
-                    solarSystemId: systemId, databaseManager: databaseManager
-                ) {
+                // 首先尝试从ViewModel的缓存中获取
+                if let systemInfo = viewModel.systemInfoCache[systemId] {
                     solarSystemName = systemInfo.systemName
+                } else {
+                    // 如果缓存中没有，再查询数据库
+                    if let systemInfo = await getSolarSystemInfo(
+                        solarSystemId: systemId,
+                        databaseManager: databaseManager
+                    ) {
+                        solarSystemName = systemInfo.systemName
+                    }
                 }
             }
         }
@@ -117,7 +127,13 @@ struct CharacterAssetsView: View {
     @State private var isSearching = false
 
     init(characterId: Int) {
-        _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
+        // 创建ViewModel并立即开始加载资产
+        let vm = CharacterAssetsViewModel(characterId: characterId)
+        _viewModel = StateObject(wrappedValue: vm)
+        // 在初始化时启动资产加载任务
+        Task {
+            await vm.loadAssets()
+        }
     }
 
     var body: some View {
@@ -140,7 +156,7 @@ struct CharacterAssetsView: View {
                                     NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
                                 case .processingLocations:
                                     NSLocalizedString("Assets_Loading_Processing_Locations", comment: "")
-                                case let .fetchingLocationInfo(current, total):
+                                case let .fetchingStructureInfo(current, total):
                                     String(
                                         format: NSLocalizedString(
                                             "Assets_Loading_Fetching_Location_Info", comment: ""
@@ -231,7 +247,7 @@ struct CharacterAssetsView: View {
             else if !searchText.isEmpty {
                 ForEach(viewModel.searchResults) { result in
                     NavigationLink(
-                        destination: LocationAssetsView(location: result.containerNode)
+                        destination: LocationAssetsView(location: result.containerNode, preloadedItemInfo: viewModel.itemInfoCache)
                     ) {
                         SearchResultRowView(result: result)
                     }
@@ -252,9 +268,10 @@ struct CharacterAssetsView: View {
                             id: \.item_id
                         ) { location in
                             NavigationLink(
-                                destination: LocationAssetsView(location: location)
+                                destination: LocationAssetsView(location: location, preloadedItemInfo: viewModel.itemInfoCache)
                             ) {
                                 LocationRowView(location: location)
+                                    .environmentObject(viewModel)
                             }
                         }
                     }
@@ -280,10 +297,5 @@ struct CharacterAssetsView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
-        .task {
-            if viewModel.assetLocations.isEmpty {
-                await viewModel.loadAssets()
-            }
-        }
     }
 }

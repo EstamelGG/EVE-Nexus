@@ -199,7 +199,7 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text(NSLocalizedString("Main_KM_Destroyed_Value", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    Text(formatISK(destroyedValue))
+                    Text(FormatUtil.formatISK(destroyedValue))
                         .foregroundColor(.red)
                         .font(.system(.body, design: .monospaced))
                 }
@@ -209,7 +209,7 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text(NSLocalizedString("Main_KM_Dropped_Value", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    Text(formatISK(droppedValue))
+                    Text(FormatUtil.formatISK(droppedValue))
                         .foregroundColor(.green)
                         .font(.system(.body, design: .monospaced))
                 }
@@ -219,7 +219,7 @@ struct BRKillMailDetailView: View {
                 HStack {
                     Text(NSLocalizedString("Main_KM_Total", comment: ""))
                         .frame(width: 110, alignment: .leading)
-                    Text(formatISK(totalValue))
+                    Text(FormatUtil.formatISK(totalValue))
                         .font(.system(.body, design: .monospaced))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -667,20 +667,6 @@ struct BRKillMailDetailView: View {
         return formatter.string(from: date)
     }
 
-    private func formatISK(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "%.2fB ISK", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "%.2fM ISK", value / 1_000_000)
-        } else if value >= 1000 {
-            return String(format: "%.2fK ISK", value / 1000)
-        } else {
-            return String(format: "%.2f ISK", value)
-        }
-    }
-
     private func formatNumber(_ number: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -864,7 +850,7 @@ struct ItemRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(itemInfo.name)
-                        Text(formatISK(getItemPrice() * Double(quantity)))
+                        Text(FormatUtil.formatISK(getItemPrice() * Double(quantity)))
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -887,19 +873,5 @@ struct ItemRow: View {
 
     private func getItemPrice() -> Double {
         return prices[String(typeId)] ?? 0.0
-    }
-
-    private func formatISK(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "%.2fB ISK", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "%.2fM ISK", value / 1_000_000)
-        } else if value >= 1000 {
-            return String(format: "%.2fK ISK", value / 1000)
-        } else {
-            return String(format: "%.2f ISK", value)
-        }
     }
 }

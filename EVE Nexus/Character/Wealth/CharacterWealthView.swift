@@ -47,7 +47,7 @@ struct CharacterWealthView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         } else {
-                            Text(FormatUtil.formatISK(cachedTotalWealth) + " ISK")
+                            Text(FormatUtil.formatISK(cachedTotalWealth))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

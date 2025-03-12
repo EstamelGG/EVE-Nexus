@@ -95,7 +95,7 @@ class SkillCategoryViewModel: ObservableObject {
             let timeMultiplierQuery = """
                     SELECT type_id, value
                     FROM typeAttributes
-                    WHERE type_id IN (\(allSkillIds.map { String($0) }.joined(separator: ",")))
+                    WHERE type_id IN (\(allSkillIds.sorted().map { String($0) }.joined(separator: ",")))
                     AND attribute_id = 275
                 """
 

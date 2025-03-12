@@ -61,25 +61,6 @@ class GetAllianceContacts {
         }
     }
 
-    // 获取单页联系人数据
-    private func fetchContactsPage(characterId: Int, allianceId: Int, page: Int) async throws
-        -> [ContactInfo]
-    {
-        let url = URL(
-            string:
-                "https://esi.evetech.net/latest/alliances/\(allianceId)/contacts/?datasource=tranquility&page=\(page)"
-        )!
-
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url,
-            characterId: characterId,
-            noRetryKeywords: ["Requested page does not exist"]
-        )
-
-        let decoder = JSONDecoder()
-        return try decoder.decode([ContactInfo].self, from: data)
-    }
-
     // 获取所有联系人数据
     public func fetchContacts(characterId: Int, allianceId: Int, forceRefresh: Bool = false)
         async throws -> [ContactInfo]
@@ -91,39 +72,22 @@ class GetAllianceContacts {
             }
         }
 
-        var allContacts: [ContactInfo] = []
-        var currentPage = 1
-        var shouldContinue = true
-
-        while shouldContinue {
-            do {
-                let pageContacts = try await fetchContactsPage(
-                    characterId: characterId, allianceId: allianceId, page: currentPage
-                )
-                if pageContacts.isEmpty {
-                    shouldContinue = false
-                } else {
-                    allContacts.append(contentsOf: pageContacts)
-                    currentPage += 1
-                }
-                if currentPage > 100 {  // 最多取100页
-                    shouldContinue = false
-                }
-            } catch let error as NetworkError {
-                if case let .httpError(_, message) = error,
-                    message?.contains("Requested page does not exist") == true
-                {
-                    shouldContinue = false
-                } else {
-                    throw error
-                }
-            }
+        let baseUrlString = "https://esi.evetech.net/latest/alliances/\(allianceId)/contacts/?datasource=tranquility"
+        guard let baseUrl = URL(string: baseUrlString) else {
+            throw NetworkError.invalidURL
         }
 
-        // 保存到缓存
-        saveToCache(contacts: allContacts, allianceId: allianceId)
+        let contacts = try await NetworkManager.shared.fetchPaginatedData(
+            from: baseUrl,
+            characterId: characterId,
+            maxConcurrentPages: 3,
+            decoder: { try JSONDecoder().decode([ContactInfo].self, from: $0) }
+        )
 
-        return allContacts
+        // 保存到缓存
+        saveToCache(contacts: contacts, allianceId: allianceId)
+
+        return contacts
     }
 
     // 清除缓存

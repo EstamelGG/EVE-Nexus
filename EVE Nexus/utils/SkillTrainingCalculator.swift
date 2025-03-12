@@ -75,7 +75,7 @@ enum SkillTrainingCalculator {
         let attributesQuery = """
                 SELECT type_id, attribute_id, value
                 FROM typeAttributes
-                WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(skillIds.sorted().map { String($0) }.joined(separator: ",")))
                 AND attribute_id IN (180, 181)
             """
 
@@ -310,7 +310,7 @@ enum SkillTrainingCalculator {
         let attributesQuery = """
                 SELECT type_id, attribute_id, value
                 FROM typeAttributes
-                WHERE type_id IN (\(skillIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(skillIds.sorted().map { String($0) }.joined(separator: ",")))
                 AND attribute_id IN (180, 181)
             """
 

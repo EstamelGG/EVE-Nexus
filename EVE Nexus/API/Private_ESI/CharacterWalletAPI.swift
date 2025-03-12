@@ -414,55 +414,28 @@ class CharacterWalletAPI {
 
     // 从服务器获取钱包日志
     private func fetchJournalFromServer(characterId: Int) async throws -> [[String: Any]] {
-        var allJournalEntries: [[String: Any]] = []
-        var page = 1
-
-        while true {
-            do {
-                let urlString =
-                    "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility&page=\(page)"
-                guard let url = URL(string: urlString) else {
-                    throw NetworkError.invalidURL
-                }
-
-                let data = try await NetworkManager.shared.fetchDataWithToken(
-                    from: url,
-                    characterId: characterId,
-                    noRetryKeywords: ["Requested page does not exist"]
-                )
-
-                // 解析JSON数据
-                guard
-                    let pageEntries = try? JSONSerialization.jsonObject(with: data)
-                        as? [[String: Any]]
-                else {
-                    throw NetworkError.invalidResponse
-                }
-
-                allJournalEntries.append(contentsOf: pageEntries)
-                Logger.info("成功获取第\(page)页钱包日志，本页包含\(pageEntries.count)条记录")
-
-                page += 1
-                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000))  // 100ms延迟
-                if page >= 1000 {  // 最多取1000页
-                    break
-                }
-            } catch let error as NetworkError {
-                if case let .httpError(_, message) = error,
-                    message?.contains("Requested page does not exist") == true
-                {
-                    // 这是正常的分页结束情况
-                    Logger.info("钱包日志获取完成，共\(allJournalEntries.count)条记录")
-                    break
-                }
-                // 其他网络错误则抛出
-                throw error
-            } catch {
-                throw error
-            }
+        let baseUrlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility"
+        guard let baseUrl = URL(string: baseUrlString) else {
+            throw NetworkError.invalidURL
         }
 
-        return allJournalEntries
+        let journalEntries = try await NetworkManager.shared.fetchPaginatedData(
+            from: baseUrl,
+            characterId: characterId,
+            maxConcurrentPages: 3,
+            decoder: { data in
+                guard let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                    throw NetworkError.invalidResponse
+                }
+                return entries
+            },
+            progressCallback: { page in
+                Logger.debug("正在获取第 \(page) 页钱包日志数据")
+            }
+        )
+
+        Logger.info("钱包日志获取完成，共\(journalEntries.count)条记录")
+        return journalEntries
     }
 
     // 获取钱包交易记录的缓存键

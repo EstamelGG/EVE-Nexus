@@ -114,6 +114,6 @@ class CharacterImplantsAPI {
             Logger.info("成功缓存植入体数据 - 角色ID: \(characterId)")
         }
 
-        return implants
+        return implants.sorted()
     }
 }

@@ -745,19 +745,3 @@ struct SlotSection: Shape {
         return path
     }
 }
-
-// 预览
-struct BRKillMailFittingView_Previews: PreviewProvider {
-    static var previews: some View {
-        // 创建一个示例 JSON 数据用于预览
-        let sampleData: [String: Any] = [
-            "vict": [
-                "ship": 123_456,
-                "itms": [[27, 12345, 1, 1]],
-            ]
-        ]
-        BRKillMailFittingView(killMailData: sampleData)
-            .frame(width: 400, height: 400)
-            .preferredColorScheme(.dark)
-    }
-}

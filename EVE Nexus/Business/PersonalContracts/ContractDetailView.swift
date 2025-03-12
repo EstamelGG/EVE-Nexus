@@ -74,7 +74,7 @@ final class ContractDetailViewModel: ObservableObject {
         let query = """
                 SELECT type_id, name, description, icon_filename
                 FROM types
-                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         let result = databaseManager.executeQuery(query)
@@ -384,7 +384,7 @@ struct ContractDetailView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Price", comment: ""))
                                 Text(
-                                    "\(FormatUtil.format(contract.price)) ISK (\(FormatUtil.formatISK(contract.price)) ISK)"
+                                    "\(FormatUtil.format(contract.price)) ISK (\(FormatUtil.formatISK(contract.price)))"
                                 )
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)
@@ -396,7 +396,7 @@ struct ContractDetailView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
                                 Text(
-                                    "\(FormatUtil.format(contract.reward)) ISK (\(FormatUtil.formatISK(contract.reward)) ISK)"
+                                    "\(FormatUtil.format(contract.reward)) ISK (\(FormatUtil.formatISK(contract.reward)))"
                                 )
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)
@@ -408,7 +408,7 @@ struct ContractDetailView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
                                 Text(
-                                    "\(FormatUtil.format(contract.collateral ?? 0)) ISK (\(FormatUtil.formatISK(contract.collateral ?? 0)) ISK)"
+                                    "\(FormatUtil.format(contract.collateral ?? 0)) ISK (\(FormatUtil.formatISK(contract.collateral ?? 0)))"
                                 )
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundColor(.secondary)

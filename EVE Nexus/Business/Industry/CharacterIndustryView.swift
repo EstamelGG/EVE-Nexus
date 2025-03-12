@@ -170,7 +170,7 @@ class CharacterIndustryViewModel: ObservableObject {
         let query = """
                 SELECT type_id, name, icon_filename
                 FROM types
-                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {

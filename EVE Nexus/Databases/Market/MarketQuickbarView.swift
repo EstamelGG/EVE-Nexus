@@ -376,7 +376,7 @@ struct MarketItemSelectorGroupView: View {
                 let groupIDs = MarketManager.shared.getAllSubGroupIDs(
                     allGroups, startingFrom: group.id
                 )
-                let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
+                let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
                 return
                     "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
             },
@@ -677,31 +677,6 @@ struct MarketQuickbarView: View {
         .padding(.vertical, 4)
     }
 
-    private func formatDate(_ date: Date) -> String {
-        let now = Date()
-        let components = Calendar.current.dateComponents(
-            [.minute, .hour, .day], from: date, to: now
-        )
-
-        if let days = components.day {
-            if days > 30 {
-                let formatter = DateFormatter()
-                formatter.dateFormat = NSLocalizedString("Date_Format_Month_Day", comment: "")
-                return formatter.string(from: date)
-            } else if days > 0 {
-                return String(format: NSLocalizedString("Time_Days_Ago", comment: ""), days)
-            }
-        }
-
-        if let hours = components.hour, hours > 0 {
-            return String(format: NSLocalizedString("Time_Hours_Ago", comment: ""), hours)
-        } else if let minutes = components.minute, minutes > 0 {
-            return String(format: NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
-        } else {
-            return NSLocalizedString("Time_Just_Now", comment: "")
-        }
-    }
-
     private func deleteQuickbar(at offsets: IndexSet) {
         let quickbarsToDelete = offsets.map { filteredQuickbars[$0] }
         for quickbar in quickbarsToDelete {
@@ -726,6 +701,7 @@ struct MarketQuickbarDetailView: View {
     @State private var marketOrders: [Int: [MarketOrder]] = [:]  // typeID: orders
     @State private var isLoadingOrders = false
     @State private var orderType: OrderType = .sell  // 新增：订单类型选择
+    @State private var hasLoadedOrders = false  // 标记是否已加载过订单
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -834,10 +810,12 @@ struct MarketQuickbarDetailView: View {
                         } else if let region = regions.first(where: { $0.name == newValue }) {
                             quickbar.marketLocation = "region_id:\(region.id)"
                         }
-                        // 保存更改并重新加载订单
+                        // 更改市场位置时立即保存
+                        Logger.info("市场位置更改，进行保存")
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                         Task {
-                            await loadAllMarketOrders()
+                            // 强制刷新市场订单
+                            await loadAllMarketOrders(forceRefresh: true)
                         }
                     }
 
@@ -863,7 +841,7 @@ struct MarketQuickbarDetailView: View {
                         } else {
                             let priceInfo = calculateTotalPrice()
                             if priceInfo.total > 0 {
-                                Text("\(formatTotalPrice(priceInfo.total)) ISK")
+                                Text("\(FormatUtil.formatISK(priceInfo.total))")
                                     .foregroundColor(
                                         priceInfo.hasInsufficientStock ? .red : .secondary)
                             } else {
@@ -892,7 +870,8 @@ struct MarketQuickbarDetailView: View {
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                         // 删除物品后自动加载市场订单
                         Task {
-                            await loadAllMarketOrders()
+                            // 强制刷新市场订单
+                            await loadAllMarketOrders(forceRefresh: true)
                         }
                     }
                 } header: {
@@ -909,6 +888,12 @@ struct MarketQuickbarDetailView: View {
                                 : NSLocalizedString("Main_Market_Edit_Quantity", comment: "")
                         ) {
                             withAnimation {
+                                // 如果正在退出编辑模式，保存数据
+                                if isEditingQuantity {
+                                    Logger.info("编辑完成，进行保存")
+                                    // 保存所有更改，包括物品数量和市场位置
+                                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                                }
                                 isEditingQuantity.toggle()
                             }
                         }
@@ -953,7 +938,7 @@ struct MarketQuickbarDetailView: View {
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                         // 添加物品后自动加载市场订单
                         Task {
-                            await loadAllMarketOrders()
+                            await loadAllMarketOrders(forceRefresh: true)
                         }
                     }
                 },
@@ -970,8 +955,12 @@ struct MarketQuickbarDetailView: View {
             loadItems()
             loadRegions()
             selectedRegion = initialMarketLocation
-            // 加载市场订单
-            await loadAllMarketOrders()
+            
+            // 只在第一次加载时获取市场订单
+            if !hasLoadedOrders {
+                await loadAllMarketOrders()
+                hasLoadedOrders = true
+            }
         }
     }
 
@@ -980,7 +969,10 @@ struct MarketQuickbarDetailView: View {
         guard !items.isEmpty else { return }
 
         isLoadingOrders = true
-        defer { isLoadingOrders = false }
+        defer { 
+            isLoadingOrders = false
+            hasLoadedOrders = true  // 标记已加载过订单
+        }
 
         // 清除旧数据
         marketOrders.removeAll()
@@ -1083,29 +1075,6 @@ struct MarketQuickbarDetailView: View {
         return (totalPrice / Double(quantity), false)
     }
 
-    // 格式化价格显示
-    private func formatPrice(_ price: Double) -> String {
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.maximumFractionDigits = 2
-        numberFormatter.minimumFractionDigits = 2
-
-        return numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-    }
-
-    // 格式化总价显示(使用缩写)
-    private func formatTotalPrice(_ price: Double) -> String {
-        if price >= 1_000_000_000 {
-            return String(format: "%.3fB", price / 1_000_000_000)
-        } else if price >= 1_000_000 {
-            return String(format: "%.3fM", price / 1_000_000)
-        } else if price >= 1000 {
-            return String(format: "%.3fK", price / 1000)
-        } else {
-            return String(format: "%.3f", price)
-        }
-    }
-
     @ViewBuilder
     private func itemRow(_ item: DatabaseListItem) -> some View {
         if isEditingQuantity {
@@ -1123,14 +1092,16 @@ struct MarketQuickbarDetailView: View {
                     if let price = priceInfo.price {
                         Text(
                             NSLocalizedString("Main_Market_Avg_Price", comment: "")
-                                + formatPrice(price)
+                                + FormatUtil.format(price)
+                                + " ISK"
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
                         HStack(spacing: 4) {
                             Text(
                                 NSLocalizedString("Main_Market_Total_Price", comment: "")
-                                    + formatPrice(price * Double(itemQuantities[item.id] ?? 1))
+                                    + FormatUtil.format(price * Double(itemQuantities[item.id] ?? 1))
+                                    + " ISK"
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -1163,7 +1134,6 @@ struct MarketQuickbarDetailView: View {
                                     $0.typeID == item.id
                                 }) {
                                     quickbar.items[index].quantity = validValue
-                                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
                                 }
                             } else {
                                 itemQuantities[item.id] = 1
@@ -1171,7 +1141,6 @@ struct MarketQuickbarDetailView: View {
                                     $0.typeID == item.id
                                 }) {
                                     quickbar.items[index].quantity = 1
-                                    MarketQuickbarManager.shared.saveQuickbar(quickbar)
                                 }
                             }
                         }
@@ -1204,17 +1173,19 @@ struct MarketQuickbarDetailView: View {
                         if let price = priceInfo.price {
                             Text(
                                 NSLocalizedString("Main_Market_Avg_Price", comment: "")
-                                    + formatPrice(price)
+                                    + FormatUtil.format(price)
+                                    + " ISK"
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
                             Text(
                                 NSLocalizedString("Main_Market_Total_Price", comment: "")
-                                    + formatPrice(
+                                    + FormatUtil.format(
                                         price
                                             * Double(
                                                 quickbar.items.first(where: { $0.typeID == item.id }
                                                 )?.quantity ?? 1))
+                                    + " ISK"
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -1269,7 +1240,6 @@ struct MarketQuickbarDetailView: View {
                     quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                 )
             }
-            MarketQuickbarManager.shared.saveQuickbar(quickbar)
         }
     }
 

@@ -86,6 +86,7 @@ class CacheManager {
         "StructureCache",  // 建筑缓存
         "AssetCache",  // 资产缓存
         "Logs", // 日志
+        "ContactsCache", // 声望
     ]
 
     // 获取缓存目录列表
