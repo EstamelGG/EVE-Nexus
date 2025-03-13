@@ -57,7 +57,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalBuyPrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalBuyPrice))")
                             .foregroundColor(.red)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -66,7 +66,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSplitPrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSplitPrice))")
                             .foregroundColor(.orange)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -75,7 +75,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSellPrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSellPrice))")
                             .foregroundColor(.green)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -109,7 +109,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalBuyPrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.totalBuyPrice))")
                             .foregroundColor(.red)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -118,7 +118,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalMiddlePrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.totalMiddlePrice))")
                             .foregroundColor(.orange)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -127,7 +127,7 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalSellPrice)) ISK")
+                        Text("\(FormatUtil.formatISK(result.totalSellPrice))")
                             .foregroundColor(.green)
                             .font(.system(.body, design: .monospaced))
                     }

@@ -88,56 +88,26 @@ public class CorpStructureAPI {
         }
 
         // 3. 从API获取
-        return try await fetchFromAPI(corporationId: corporationId, characterId: characterId)
+        return try await fetchStructuresFromServer(corporationId: corporationId, characterId: characterId)
     }
 
-    private func fetchFromAPI(corporationId: Int, characterId: Int) async throws -> [StructureInfo]
-    {
-        var allStructures: [StructureInfo] = []
-        var currentPage = 1
-        var hasMorePages = true
-
+    private func fetchStructuresFromServer(corporationId: Int, characterId: Int) async throws -> [StructureInfo] {
         Logger.info("开始获取军团建筑物信息 - 军团ID: \(corporationId)")
 
-        while hasMorePages {
-            Logger.debug("正在获取第 \(currentPage) 页数据")
-
-            let urlString =
-                "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en&page=\(currentPage)"
-            guard let url = URL(string: urlString) else {
-                throw NetworkError.invalidURL
-            }
-
-            do {
-                let headers = [
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                ]
-
-                let data = try await NetworkManager.shared.fetchDataWithToken(
-                    from: url,
-                    characterId: characterId,
-                    headers: headers,
-                    noRetryKeywords: ["Requested page does not exist"]
-                )
-
-                let structures = try JSONDecoder().decode([StructureInfo].self, from: data)
-                Logger.debug("成功获取第 \(currentPage) 页数据，共 \(structures.count) 条记录")
-                allStructures.append(contentsOf: structures)
-                currentPage += 1
-
-            } catch let error as NetworkError {
-                if case let .httpError(_, message) = error,
-                    message?.contains("Requested page does not exist") == true
-                {
-                    Logger.debug("第 \(currentPage) 页不存在，停止获取")
-                    hasMorePages = false
-                    break
-                }
-                Logger.error("获取建筑物信息失败 - 军团ID: \(corporationId), 页码: \(currentPage), 错误: \(error)")
-                throw error
-            }
+        let baseUrlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en"
+        guard let baseUrl = URL(string: baseUrlString) else {
+            throw NetworkError.invalidURL
         }
+
+        let allStructures = try await NetworkManager.shared.fetchPaginatedData(
+            from: baseUrl,
+            characterId: characterId,
+            maxConcurrentPages: 3,
+            decoder: { try JSONDecoder().decode([StructureInfo].self, from: $0) },
+            progressCallback: { page in
+                Logger.debug("正在获取第 \(page) 页军团建筑物数据")
+            }
+        )
 
         // 保存到缓存
         saveStructuresToCache(allStructures, corporationId: corporationId)

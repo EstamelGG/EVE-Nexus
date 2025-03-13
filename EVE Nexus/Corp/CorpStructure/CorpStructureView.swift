@@ -573,7 +573,7 @@ class CorpStructureViewModel: ObservableObject {
 
     private func loadTypeIcons(typeIds: [Int]) async {
         let query =
-            "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.map(String.init).joined(separator: ",")))"
+            "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.sorted().map(String.init).joined(separator: ",")))"
         let result = DatabaseManager.shared.executeQuery(query)
         if case let .success(rows) = result {
             for row in rows {
@@ -612,7 +612,7 @@ class CorpStructureViewModel: ObservableObject {
                        r.regionName, r.regionName_en
                 FROM universe u
                 JOIN regions r ON r.regionID = u.region_id
-                WHERE u.solarsystem_id IN (\(Array(systemIds).map { String($0) }.joined(separator: ",")))
+                WHERE u.solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
             """
         let universeResult = DatabaseManager.shared.executeQuery(universeQuery)
         if case let .success(rows) = universeResult {
@@ -631,7 +631,7 @@ class CorpStructureViewModel: ObservableObject {
         let systemSecQuery = """
                 SELECT solarsystem_id, system_security
                 FROM universe 
-                WHERE solarsystem_id IN (\(systemIds.map(String.init).joined(separator: ",")))
+                WHERE solarsystem_id IN (\(systemIds.sorted().map(String.init).joined(separator: ",")))
             """
         let systemSecResult = DatabaseManager.shared.executeQuery(systemSecQuery)
         if case let .success(rows) = systemSecResult {

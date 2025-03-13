@@ -285,7 +285,7 @@ class CorpMemberListViewModel: ObservableObject {
                            s.solarSystemName, s.solarSystemName_en
                     FROM universe u
                     JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                    WHERE u.solarsystem_id IN (\(solarSystemIds.map { String($0) }.joined(separator: ",")))
+                    WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -524,7 +524,7 @@ class CorpMemberListViewModel: ObservableObject {
                     let query = """
                             SELECT type_id, name, icon_filename 
                             FROM types 
-                            WHERE type_id IN (\(shipTypeIds.map { String($0) }.joined(separator: ",")))
+                            WHERE type_id IN (\(shipTypeIds.sorted().map { String($0) }.joined(separator: ",")))
                         """
 
                     if case let .success(rows) = databaseManager.executeQuery(query) {

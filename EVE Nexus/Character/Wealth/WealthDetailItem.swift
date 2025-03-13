@@ -9,6 +9,6 @@ struct WealthDetailItem: Identifiable {
     let iconFileName: String
 
     var formattedValue: String {
-        return FormatUtil.formatISK(value) + " ISK"
+        return FormatUtil.formatISK(value)
     }
 }

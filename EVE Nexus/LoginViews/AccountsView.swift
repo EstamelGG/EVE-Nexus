@@ -1188,7 +1188,7 @@ struct CharacterRowView: View {
                         // 钱包信息
                         if let balance = character.walletBalance {
                             Text(
-                                "\(NSLocalizedString("Account_Wallet_value", comment: "")): \(FormatUtil.formatISK(balance)) ISK"
+                                "\(NSLocalizedString("Account_Wallet_value", comment: "")): \(FormatUtil.formatISK(balance))"
                             )
                             .font(.caption)
                             .foregroundColor(.gray)

@@ -320,20 +320,6 @@ struct BRKillMailView: View {
         _viewModel = StateObject(wrappedValue: KillMailViewModel(characterId: characterId))
     }
 
-    private func formatISK(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "%.2fT ISK", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "%.2fB ISK", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "%.2fM ISK", value / 1_000_000)
-        } else if value >= 1000 {
-            return String(format: "%.2fK ISK", value / 1000)
-        } else {
-            return String(format: "%.2f ISK", value)
-        }
-    }
-
     private func loadData() {
         guard !isLoading else { return }
 
@@ -365,7 +351,7 @@ struct BRKillMailView: View {
                             .foregroundColor(.green)
                         Text(NSLocalizedString("KillMail_Destroyed_Value", comment: ""))
                         Spacer()
-                        Text(formatISK(stats.iskDestroyed))
+                        Text(FormatUtil.formatISK(stats.iskDestroyed))
                             .foregroundColor(.green)
                             .font(.system(.body, design: .monospaced))
                     }
@@ -375,7 +361,7 @@ struct BRKillMailView: View {
                             .foregroundColor(.red)
                         Text(NSLocalizedString("KillMail_Lost_Value", comment: ""))
                         Spacer()
-                        Text(formatISK(stats.iskLost))
+                        Text(FormatUtil.formatISK(stats.iskLost))
                             .foregroundColor(.red)
                             .font(.system(.body, design: .monospaced))
                     }

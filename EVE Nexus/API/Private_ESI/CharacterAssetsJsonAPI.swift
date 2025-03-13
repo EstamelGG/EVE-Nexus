@@ -83,7 +83,7 @@ public enum AssetLoadingProgress {
     case loading(page: Int)  // 正在加载特定页面
     case buildingTree  // 正在构建资产树
     case processingLocations  // 正在处理位置信息
-    case fetchingLocationInfo(current: Int, total: Int)  // 正在获取位置详情
+    case fetchingStructureInfo(current: Int, total: Int)  // 正在获取建筑详情
     case preparingContainers  // 正在准备容器信息
     case loadingNames(current: Int, total: Int)  // 正在加载容器名称
     case savingCache  // 正在保存缓存
@@ -133,7 +133,7 @@ public class CharacterAssetsJsonAPI {
             progressCallback?(progress)
         }
 
-        if let jsonString = try await generateAssetTreeJson(
+        if let jsonString = try await buildAssetTreeJson(
             assets: assets,
             names: [:],
             characterId: characterId,
@@ -187,10 +187,6 @@ public class CharacterAssetsJsonAPI {
         } catch {
             Logger.error("保存资产树缓存失败: \(error)")
         }
-    }
-
-    private func cleanOldCacheFiles(characterId _: Int) {
-        // 由于现在每个角色只有一个缓存文件，不需要清理旧文件了
     }
 
     // MARK: - Private Methods
@@ -389,7 +385,7 @@ public class CharacterAssetsJsonAPI {
         let query = """
                 SELECT type_id, icon_filename
                 FROM types
-                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         var iconMap: [Int: String] = [:]
@@ -408,7 +404,7 @@ public class CharacterAssetsJsonAPI {
         return iconMap
     }
 
-    private func generateAssetTreeJson(
+    private func buildAssetTreeJson(
         assets: [CharacterAsset],
         names: [Int64: String],
         characterId: Int,
@@ -445,7 +441,7 @@ public class CharacterAssetsJsonAPI {
                 
                 // 更新进度 - 获取位置详情
                 processedLocations += 1
-                progressCallback?(.fetchingLocationInfo(current: processedLocations, total: totalLocations))
+                progressCallback?(.fetchingStructureInfo(current: processedLocations, total: totalLocations))
                 
                 let info = try await fetchLocationInfo(
                     locationId: locationId,
@@ -741,7 +737,7 @@ public class CharacterAssetsJsonAPI {
             currentIndex += concurrentLimit
             
             // 更新进度
-            progressCallback?(.fetchingLocationInfo(current: min(currentIndex, locationArray.count), total: locationArray.count))
+            // progressCallback?(.fetchingLocationInfo(current: min(currentIndex, locationArray.count), total: locationArray.count))
 
             // 添加短暂延迟以避免请求过于频繁
             if currentIndex < locationArray.count {

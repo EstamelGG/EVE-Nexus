@@ -371,7 +371,3 @@ struct NPCBrowserView: View {
         }
     }
 }
-
-#Preview {
-    NPCBrowserView(databaseManager: DatabaseManager())
-}

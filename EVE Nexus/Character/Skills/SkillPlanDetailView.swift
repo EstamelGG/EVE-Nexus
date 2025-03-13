@@ -461,7 +461,7 @@ struct SkillPlanDetailView: View {
         let query = """
                 SELECT type_id, name
                 FROM types
-                WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+                WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -509,7 +509,7 @@ struct SkillPlanDetailView: View {
         let attributesQuery = """
                 SELECT type_id, attribute_id, value
                 FROM typeAttributes
-                WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+                WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
                 AND attribute_id IN (180, 181)
             """
 
@@ -599,7 +599,7 @@ struct SkillPlanDetailView: View {
         let query = """
                 SELECT type_id, value
                 FROM typeAttributes
-                WHERE type_id IN (\(skillIds.map(String.init).joined(separator: ",")))
+                WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
                 AND attribute_id = 275
             """
 

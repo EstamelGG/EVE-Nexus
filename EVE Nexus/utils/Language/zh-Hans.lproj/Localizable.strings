@@ -282,10 +282,10 @@
 "Assets_Loading_Names" = "正在加载容器名称 (%d/%d)";
 "Assets_Loading_Building_Tree" = "正在构建资产树";
 "Assets_Loading_Processing_Locations" = "正在处理位置信息";
-"Assets_Loading_Fetching_Location_Info" = "正在获取位置详情 (%d/%d)";
+"Assets_Loading_Fetching_Location_Info" = "正在获取建筑详情 (%d/%d)";
 "Assets_Loading_Preparing_Containers" = "正在准备容器信息";
 "Assets_Loading_Saving" = "正在保存缓存";
-"Assets_Loading_Complete" = "加载完成";
+"Assets_Loading_Error" = "加载资产失败";
 "Unknown_System" = "未知星系";
 
 // Location Flags
@@ -1289,11 +1289,4 @@
 "System_Search_Placeholder" = "搜索星系...";
 "Loading_Regions" = "加载星域中...";
 "Loading_Systems" = "加载星系中...";
-
-"Assets_Loading_Fetching_Location_Info" = "正在获取位置详情 (%d/%d)";
-"Assets_Loading_Preparing_Containers" = "正在准备容器信息";
-"Assets_Loading_Saving" = "正在保存缓存";
-"Assets_Loading_Complete" = "加载完成";
-"Assets_Loading_Error" = "加载资产失败";
-"Unknown_System" = "未知星系";
 

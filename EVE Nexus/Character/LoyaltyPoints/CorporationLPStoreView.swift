@@ -49,7 +49,7 @@ struct LPStoreOfferView: View {
                             }
 
                             if offer.iskCost > 0 {
-                                Text("\(FormatUtil.formatISK(Double(offer.iskCost))) ISK")
+                                Text("\(FormatUtil.formatISK(Double(offer.iskCost)))")
                                     .foregroundColor(.green)
                             }
                         }
@@ -284,7 +284,7 @@ struct CorporationLPStoreView: View {
             let query = """
                     SELECT type_id, name, icon_filename, category_name, categoryID
                     FROM types
-                    WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                    WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
@@ -314,7 +314,7 @@ struct CorporationLPStoreView: View {
                     let categoryQuery = """
                             SELECT name, icon_filename
                             FROM categories
-                            WHERE name IN (\(categoryNames.map { "'\($0)'" }.joined(separator: ",")))
+                            WHERE name IN (\(categoryNames.sorted().map { "'\($0)'" }.joined(separator: ",")))
                         """
 
                     if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(

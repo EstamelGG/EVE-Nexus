@@ -113,11 +113,11 @@ struct CharacterPlanetaryView: View {
 
             // 获取所有行星类型ID
             let typeIds = planets.compactMap { typeIdMapping[$0.planetType] }
-            let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
+            let typeIdsString = typeIds.sorted().map { String($0) }.joined(separator: ",")
 
             // 获取所有行星ID
             let planetIds = planets.map { $0.planetId }
-            let planetIdsString = planetIds.map { String($0) }.joined(separator: ",")
+            let planetIdsString = planetIds.sorted().map { String($0) }.joined(separator: ",")
 
             // 从数据库获取行星类型信息
             let typeQuery =

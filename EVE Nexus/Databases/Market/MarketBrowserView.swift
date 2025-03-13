@@ -207,7 +207,7 @@ struct MarketGroupView: View {
                 let groupIDs = MarketManager.shared.getAllSubGroupIDs(
                     allGroups, startingFrom: group.id
                 )
-                let groupIDsString = groupIDs.map { String($0) }.joined(separator: ",")
+                let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
                 return
                     "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
             },

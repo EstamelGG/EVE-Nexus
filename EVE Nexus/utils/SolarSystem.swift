@@ -73,9 +73,9 @@ func getSecurityColor(_ trueSec: Double) -> Color {
 func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) async
     -> SolarSystemInfo?
 {
-
     let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
 
+    // 执行查询
     let universeQuery = """
             SELECT u.region_id, u.constellation_id, u.system_security,
                    s.solarSystemName, s.solarSystemName_en,
@@ -87,7 +87,7 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
             JOIN regions r ON r.regionID = u.region_id
             WHERE u.solarsystem_id = ?
         """
-
+        
     guard
         case let .success(rows) = databaseManager.executeQuery(
             universeQuery, parameters: [solarSystemId]
@@ -119,5 +119,85 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
         regionId: regionId,
         regionName: regionName
     )
+    
     return solarSystemInfo
+}
+
+// 批量获取星系位置信息
+func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseManager) async
+    -> [Int: SolarSystemInfo]
+{
+    // 如果传入的数组为空，直接返回空字典
+    if solarSystemIds.isEmpty {
+        return [:]
+    }
+    
+    // 去重并排序
+    let uniqueSortedIds = Array(Set(solarSystemIds)).sorted()
+    
+    let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
+    
+    // 构建IN查询的参数字符串
+    let placeholders = String(repeating: "?,", count: uniqueSortedIds.count).dropLast()
+    
+    // 执行批量查询
+    let universeQuery = """
+            SELECT u.solarsystem_id, u.region_id, u.constellation_id, u.system_security,
+                   s.solarSystemName, s.solarSystemName_en,
+                   c.constellationName, c.constellationName_en,
+                   r.regionName, r.regionName_en
+            FROM universe u
+            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+            JOIN constellations c ON c.constellationID = u.constellation_id
+            JOIN regions r ON r.regionID = u.region_id
+            WHERE u.solarsystem_id IN (\(placeholders))
+        """
+    
+    // 将ID数组转换为Any类型数组，以便传递给executeQuery
+    let parameters = uniqueSortedIds.map { $0 as Any }
+    
+    guard case let .success(rows) = databaseManager.executeQuery(
+        universeQuery, parameters: parameters
+    ) else {
+        return [:]
+    }
+    
+    // 创建结果字典
+    var result: [Int: SolarSystemInfo] = [:]
+    
+    // 处理每一行结果
+    for row in rows {
+        guard
+            let systemId = row["solarsystem_id"] as? Int,
+            let security = row["system_security"] as? Double,
+            let systemNameLocal = row["solarSystemName"] as? String,
+            let systemNameEn = row["solarSystemName_en"] as? String,
+            let constellationId = row["constellation_id"] as? Int,
+            let constellationNameLocal = row["constellationName"] as? String,
+            let constellationNameEn = row["constellationName_en"] as? String,
+            let regionId = row["region_id"] as? Int,
+            let regionNameLocal = row["regionName"] as? String,
+            let regionNameEn = row["regionName_en"] as? String
+        else {
+            continue
+        }
+        
+        let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+        let constellationName = useEnglishSystemNames ? constellationNameEn : constellationNameLocal
+        let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+        
+        let solarSystemInfo = SolarSystemInfo(
+            systemId: systemId,
+            systemName: systemName,
+            security: security,
+            constellationId: constellationId,
+            constellationName: constellationName,
+            regionId: regionId,
+            regionName: regionName
+        )
+        
+        result[systemId] = solarSystemInfo
+    }
+    
+    return result
 }

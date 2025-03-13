@@ -76,26 +76,26 @@ enum FormatUtil {
         if value >= billion {
             let formatted = value / billion
             if formatted >= 100 {
-                return String(format: "%.1fB", formatted)
+                return String(format: "%.1fB ISK", formatted)
             } else {
-                return String(format: "%.2fB", formatted)
+                return String(format: "%.2fB ISK", formatted)
             }
         } else if value >= million {
             let formatted = value / million
             if formatted >= 100 {
-                return String(format: "%.1fM", formatted)
+                return String(format: "%.1fM ISK", formatted)
             } else {
-                return String(format: "%.2fM", formatted)
+                return String(format: "%.2fM ISK", formatted)
             }
         } else if value >= thousand {
             let formatted = value / thousand
             if formatted >= 100 {
-                return String(format: "%.1fK", formatted)
+                return String(format: "%.1fK ISK", formatted)
             } else {
-                return String(format: "%.2fK", formatted)
+                return String(format: "%.2fK ISK", formatted)
             }
         } else {
-            return String(format: "%.1f", value)
+            return String(format: "%.1f ISK", value)
         }
     }
 

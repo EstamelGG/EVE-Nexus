@@ -247,7 +247,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         if !moonExtractions.isEmpty {
             // 对moon_id去重
             let uniqueMoonIds = Set(moonExtractions.map { Int($0.moon_id) })
-            let moonIds = uniqueMoonIds.map { String($0) }.joined(separator: ",")
+            let moonIds = uniqueMoonIds.sorted().map { String($0) }.joined(separator: ",")
             let query = "SELECT itemID, itemName FROM invNames WHERE itemID IN (\(moonIds))"
 
             if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {

@@ -55,7 +55,7 @@ class LocationInfoLoader {
                            s.solarSystemName, s.solarSystemName_en
                     FROM universe u
                     JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                    WHERE u.solarsystem_id IN (\(solarSystemIds.map { String($0) }.joined(separator: ",")))
+                    WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -86,7 +86,7 @@ class LocationInfoLoader {
                     FROM stations s
                     JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
                     JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                    WHERE s.stationID IN (\(stationIds.map { String($0) }.joined(separator: ",")))
+                    WHERE s.stationID IN (\(stationIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = databaseManager.executeQuery(query) {

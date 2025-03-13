@@ -7,134 +7,6 @@ struct Region: Identifiable {
     let name: String
 }
 
-struct MarketHistoryChartView: View {
-    let history: [MarketHistory]
-    let orders: [MarketOrder]
-
-    // 格式化日期显示（只显示月份）
-    private func formatMonth(_ dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.locale = Locale(identifier: "en_US")
-        guard let date = dateFormatter.date(from: dateString) else { return "" }
-
-        dateFormatter.dateFormat = "MMM"
-        return dateFormatter.string(from: date).uppercased()
-    }
-
-    // 获取当前总交易量
-    private var totalVolume: Int {
-        orders.filter { !$0.isBuyOrder }.reduce(0) { $0 + $1.volumeTotal }
-    }
-
-    // 判断是否是月份的第一个数据点
-    private func isFirstDayOfMonth(date: String, in dates: [String]) -> Bool {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-
-        guard let targetDate = dateFormatter.date(from: date) else { return false }
-        let targetMonth = Calendar.current.component(.month, from: targetDate)
-
-        // 找到当前日期在数组中的索引
-        guard let currentIndex = dates.firstIndex(of: date) else { return false }
-
-        // 如果是第一个数据点，或者前一个数据点是不同的月份，则返回true
-        if currentIndex == 0 { return true }
-
-        let previousDate = dates[currentIndex - 1]
-        guard let previousDateTime = dateFormatter.date(from: previousDate) else { return false }
-        let previousMonth = Calendar.current.component(.month, from: previousDateTime)
-
-        return targetMonth != previousMonth
-    }
-
-    var body: some View {
-        let priceValues = history.map { $0.average }
-        let volumeValues = history.map { Double($0.volume) }
-        let maxVolume = volumeValues.max() ?? 1
-
-        // 计算价格范围
-        let minPrice = priceValues.min() ?? 0
-        let maxPrice = priceValues.max() ?? 1
-        let priceRange = maxPrice - minPrice
-        let yMin = max(0, minPrice - priceRange * 0.15)
-        let yMax = maxPrice + priceRange * 0.15
-        let effectiveRange = yMax - yMin
-
-        Chart {
-            ForEach(history, id: \.date) { item in
-                // 成交量柱状图 - 从yMin开始，高度为归一化后的值
-                BarMark(
-                    x: .value("Date", item.date),
-                    yStart: .value("VolumeStart", yMin),
-                    yEnd: .value(
-                        "VolumeEnd", yMin + (Double(item.volume) / maxVolume) * effectiveRange * 0.7
-                    )
-                )
-                .foregroundStyle(.gray.opacity(0.8))
-            }
-
-            ForEach(history, id: \.date) { item in
-                // 价格线
-                LineMark(
-                    x: .value("Date", item.date),
-                    y: .value("Price", item.average)
-                )
-                .foregroundStyle(.blue)
-                .lineStyle(StrokeStyle(lineWidth: 1))
-            }
-        }
-        .chartYScale(domain: yMin...yMax)
-        .chartYAxis {
-            // 价格轴（左侧）
-            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
-                if let price = value.as(Double.self) {
-                    AxisValueLabel {
-                        Text(FormatUtil.formatISK(price))
-                            .font(.system(size: 10))
-                    }
-                    AxisGridLine()
-                }
-            }
-        }
-        .chartYAxis {
-            // 成交量轴（右侧）
-            AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
-                if let price = value.as(Double.self) {
-                    // 反向计算成交量
-                    let volume = Int(((price - yMin) / (effectiveRange * 0.7)) * maxVolume)
-                    AxisValueLabel {
-                        Text("\(volume)")
-                            .font(.system(size: 10))
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-        }
-        .chartPlotStyle { plotArea in
-            plotArea
-                .background(.gray.opacity(0.1))
-        }
-        .chartXAxis {
-            let dates = history.map { $0.date }
-            AxisMarks(values: dates) { value in
-                if let dateStr = value.as(String.self),
-                    isFirstDayOfMonth(date: dateStr, in: dates)
-                {
-                    AxisValueLabel(anchor: .top) {
-                        Text(formatMonth(dateStr))
-                            .font(.system(size: 8))
-                            .foregroundColor(.secondary)
-                    }
-                    AxisGridLine()
-                }
-            }
-        }
-        .frame(height: 200)
-        .padding(.top, 8)
-    }
-}
-
 struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
     let marketPath: [String]
@@ -156,16 +28,6 @@ struct MarketItemBasicInfoView: View {
                 .foregroundColor(.gray)
             }
         }
-    }
-}
-
-// 缓存的图表视图
-struct CachedMarketHistoryChartView: View {
-    let history: [MarketHistory]
-    let orders: [MarketOrder]
-
-    var body: some View {
-        MarketHistoryChartView(history: history, orders: orders)
     }
 }
 
@@ -570,7 +432,7 @@ struct MarketItemDetailView: View {
                         if isLoadingHistory {
                             ProgressView()
                         } else if let history = marketHistory, !history.isEmpty {
-                            CachedMarketHistoryChartView(
+                            MarketHistoryChartView(
                                 history: history,
                                 orders: marketOrders ?? []
                             )

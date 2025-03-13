@@ -115,7 +115,7 @@ class JaniceMarketAPI {
         // 2. 从数据库获取物品名称
         let itemIds = Array(items.keys)
         let query =
-            "SELECT type_id, en_name FROM types WHERE type_id IN (\(itemIds.joined(separator: ",")))"
+            "SELECT type_id, en_name FROM types WHERE type_id IN (\(itemIds.sorted().joined(separator: ",")))"
         let result = databaseManager.executeQuery(query)
 
         // 3. 构建input字符串

@@ -91,50 +91,65 @@ struct LocationAssetsView: View {
     @StateObject private var viewModel: LocationAssetsViewModel
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
-    init(location: AssetTreeNode) {
+    init(location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
         self.location = location
-        _viewModel = StateObject(wrappedValue: LocationAssetsViewModel(location: location))
+        _viewModel = StateObject(wrappedValue: LocationAssetsViewModel(location: location, preloadedItemInfo: preloadedItemInfo))
     }
 
     var body: some View {
         List {
             ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                Section(
-                    header: Text(formatLocationFlag(group.flag))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(group.items, id: \.item_id) { node in
-                        if node.items != nil {
-                            // 容器类物品，点击显示容器内容
-                            NavigationLink {
-                                SubLocationAssetsView(parentNode: node)
-                            } label: {
-                                AssetItemView(
-                                    node: node, itemInfo: viewModel.itemInfo(for: node.type_id)
-                                )
-                            }
-                        } else {
-                            // 非容器物品，点击显示市场信息
-                            NavigationLink {
-                                MarketItemDetailView(
-                                    databaseManager: viewModel.databaseManager, itemID: node.type_id
-                                )
-                            } label: {
-                                AssetItemView(
-                                    node: node, itemInfo: viewModel.itemInfo(for: node.type_id)
-                                )
-                            }
-                        }
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                assetGroupSection(for: group)
             }
         }
         .task {
             await viewModel.loadItemInfo()
+        }
+    }
+    
+    // 将Section提取为单独的函数
+    private func assetGroupSection(for group: (flag: String, items: [AssetTreeNode])) -> some View {
+        Section(
+            header: Text(formatLocationFlag(group.flag))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
+        ) {
+            ForEach(group.items, id: \.item_id) { node in
+                assetRow(for: node)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+    
+    // 将资产行提取为单独的函数
+    @ViewBuilder
+    private func assetRow(for node: AssetTreeNode) -> some View {
+        if node.items != nil {
+            // 容器类物品
+            containerLink(for: node)
+        } else {
+            // 非容器物品
+            itemLink(for: node)
+        }
+    }
+    
+    // 容器链接
+    private func containerLink(for node: AssetTreeNode) -> some View {
+        NavigationLink {
+            SubLocationAssetsView(parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo)
+        } label: {
+            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+        }
+    }
+    
+    // 物品链接
+    private func itemLink(for node: AssetTreeNode) -> some View {
+        NavigationLink {
+            MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+        } label: {
+            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
         }
     }
 }
@@ -208,70 +223,20 @@ struct SubLocationAssetsView: View {
     @StateObject private var viewModel: LocationAssetsViewModel
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
-    init(parentNode: AssetTreeNode) {
+    init(parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
         self.parentNode = parentNode
-        _viewModel = StateObject(wrappedValue: LocationAssetsViewModel(location: parentNode))
+        _viewModel = StateObject(wrappedValue: LocationAssetsViewModel(location: parentNode, preloadedItemInfo: preloadedItemInfo))
     }
 
     var body: some View {
         List {
             if parentNode.items != nil {
                 // 容器本身的信息
-                Section {
-                    NavigationLink {
-                        MarketItemDetailView(
-                            databaseManager: viewModel.databaseManager, itemID: parentNode.type_id
-                        )
-                    } label: {
-                        AssetItemView(
-                            node: parentNode,
-                            itemInfo: viewModel.itemInfo(for: parentNode.type_id),
-                            showItemCount: false,
-                            showCustomName: false
-                        )
-                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                } header: {
-                    Text(NSLocalizedString("Container_Basic_Info", comment: ""))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                }
-
+                containerInfoSection
+                
                 // 容器内的物品
                 ForEach(viewModel.groupedAssets(), id: \.flag) { group in
-                    Section(
-                        header: Text(formatLocationFlag(group.flag))
-                            .fontWeight(.bold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        ForEach(group.items, id: \.item_id) { node in
-                            if let subitems = node.items, !subitems.isEmpty {
-                                NavigationLink {
-                                    SubLocationAssetsView(parentNode: node)
-                                } label: {
-                                    AssetItemView(
-                                        node: node, itemInfo: viewModel.itemInfo(for: node.type_id)
-                                    )
-                                }
-                            } else {
-                                NavigationLink {
-                                    MarketItemDetailView(
-                                        databaseManager: viewModel.databaseManager,
-                                        itemID: node.type_id
-                                    )
-                                } label: {
-                                    AssetItemView(
-                                        node: node, itemInfo: viewModel.itemInfo(for: node.type_id)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    containerContentSection(for: group)
                 }
             }
         }
@@ -284,6 +249,64 @@ struct SubLocationAssetsView: View {
             await viewModel.loadItemInfo()
         }
     }
+    
+    // 容器信息部分
+    private var containerInfoSection: some View {
+        Section {
+            NavigationLink {
+                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: parentNode.type_id)
+            } label: {
+                AssetItemView(
+                    node: parentNode,
+                    itemInfo: viewModel.itemInfo(for: parentNode.type_id),
+                    showItemCount: false,
+                    showCustomName: false
+                )
+            }
+        } header: {
+            Text(NSLocalizedString("Container_Basic_Info", comment: ""))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
+        }
+    }
+    
+    // 容器内容部分
+    private func containerContentSection(for group: (flag: String, items: [AssetTreeNode])) -> some View {
+        Section(
+            header: Text(formatLocationFlag(group.flag))
+                .fontWeight(.bold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
+        ) {
+            ForEach(group.items, id: \.item_id) { node in
+                containerItemRow(for: node)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+    
+    // 容器内物品行
+    @ViewBuilder
+    private func containerItemRow(for node: AssetTreeNode) -> some View {
+        if let subitems = node.items, !subitems.isEmpty {
+            // 子容器
+            NavigationLink {
+                SubLocationAssetsView(parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo)
+            } label: {
+                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            }
+        } else {
+            // 普通物品
+            NavigationLink {
+                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+            } label: {
+                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            }
+        }
+    }
 }
 
 // LocationAssetsViewModel
@@ -291,10 +314,17 @@ class LocationAssetsViewModel: ObservableObject {
     private let location: AssetTreeNode
     private var itemInfoCache: [Int: ItemInfo] = [:]
     let databaseManager: DatabaseManager
+    
+    // 添加一个标志来跟踪是否正在加载
+    private var isLoadingItems = false
+    
+    // 修改为internal，使其可以被视图访问
+    let preloadedItemInfo: [Int: ItemInfo]?
 
-    init(location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager()) {
+    init(location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager(), preloadedItemInfo: [Int: ItemInfo]? = nil) {
         self.location = location
         self.databaseManager = databaseManager
+        self.preloadedItemInfo = preloadedItemInfo
     }
 
     func itemInfo(for typeId: Int) -> ItemInfo? {
@@ -417,6 +447,23 @@ class LocationAssetsViewModel: ObservableObject {
 
     @MainActor
     func loadItemInfo() async {
+        // 如果已经在加载中，直接返回
+        guard !isLoadingItems else {
+            return
+        }
+        
+        // 设置加载标志
+        isLoadingItems = true
+        
+        // 如果有预加载的物品信息，直接使用
+        if let preloadedInfo = preloadedItemInfo {
+            itemInfoCache = preloadedInfo
+            objectWillChange.send()
+            isLoadingItems = false
+            return
+        }
+        
+        // 否则，从数据库加载物品信息
         var typeIds = Set<Int>()
         typeIds.insert(location.type_id)
 
@@ -427,7 +474,7 @@ class LocationAssetsViewModel: ObservableObject {
         let query = """
                 SELECT type_id, name, icon_filename
                 FROM types
-                WHERE type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -442,6 +489,9 @@ class LocationAssetsViewModel: ObservableObject {
             }
             objectWillChange.send()
         }
+        
+        // 重置加载标志
+        isLoadingItems = false
     }
 }
 

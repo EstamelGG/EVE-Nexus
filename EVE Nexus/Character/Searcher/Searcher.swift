@@ -212,6 +212,7 @@ struct SearcherView: View {
                             ForEach(viewModel.filteredResults) { result in
                                 if result.type == .structure {
                                     SearchResultRow(result: result, character: character)
+                                        .environmentObject(viewModel)
                                 } else {
                                     NavigationLink(destination: {
                                         switch result.type {
@@ -229,9 +230,11 @@ struct SearcherView: View {
                                             )
                                         default:
                                             SearchResultRow(result: result, character: character)
+                                                .environmentObject(viewModel)
                                         }
                                     }) {
                                         SearchResultRow(result: result, character: character)
+                                            .environmentObject(viewModel)
                                     }
                                     .buttonStyle(.plain)
                                 }
@@ -246,16 +249,15 @@ struct SearcherView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if isLoadingContacts {
+                if viewModel.isLoadingContacts {
                     ProgressView()
                         .progressViewStyle(.circular)
                         .scaleEffect(0.8)
-                } else if loadingError != nil {
+                } else if viewModel.contactsLoadError != nil {
                     Button(action: {
                         Task {
-                            isLoadingContacts = true
-                            hasLoadedContacts = false
-                            await loadContactsData()
+                            viewModel.isContactsLoaded = false
+                            await viewModel.loadContactsData(character: character)
                         }
                     }) {
                         Image(systemName: "arrow.clockwise")
@@ -265,9 +267,9 @@ struct SearcherView: View {
             }
         }
         .onAppear {
-            if !hasLoadedContacts {
+            if !viewModel.isContactsLoaded && !viewModel.isLoadingContacts {
                 Task {
-                    await loadContactsData()
+                    await viewModel.loadContactsData(character: character)
                 }
             }
         }
@@ -303,41 +305,6 @@ struct SearcherView: View {
             viewModel.updateStructureFilters(
                 structureType: selectedStructureType
             )
-        }
-    }
-
-    private func loadContactsData() async {
-        guard !hasLoadedContacts else { return }
-
-        do {
-            // 并行加载所有联系人数据
-            async let characterContacts = GetCharContacts.shared.fetchContacts(
-                characterId: character.CharacterID)
-            async let corporationContacts = GetCorpContacts.shared.fetchContacts(
-                characterId: character.CharacterID, corporationId: character.corporationId ?? 0
-            )
-
-            // 如果角色有联盟，也加载联盟联系人
-            if let allianceId = character.allianceId {
-                async let allianceContacts = GetAllianceContacts.shared.fetchContacts(
-                    characterId: character.CharacterID, allianceId: allianceId
-                )
-                _ = try await [characterContacts, corporationContacts, allianceContacts]
-            } else {
-                _ = try await [characterContacts, corporationContacts]
-            }
-
-            await MainActor.run {
-                isLoadingContacts = false
-                loadingError = nil
-                hasLoadedContacts = true
-            }
-        } catch {
-            await MainActor.run {
-                isLoadingContacts = false
-                loadingError = error
-                Logger.error("加载联系人数据失败: \(error)")
-            }
         }
     }
 
@@ -395,331 +362,9 @@ struct SearchResultRow: View {
     @State private var hasAttemptedAllianceLoad = false
     @State private var loadTask: Task<Void, Never>?
     @State private var standingIcon: String = "ColorTag-Neutral"
-
-    private func determineStandingIcon() async {
-        Logger.debug("开始计算声望 - 目标ID: \(result.id), 类型: \(result.type), 名称: \(result.name)")
-
-        // 如果是建筑搜索，直接返回中立图标
-        if result.type == .structure {
-            standingIcon = "ColorTag-Neutral"
-            Logger.debug("建筑类型，直接返回中立图标")
-            return
-        }
-
-        // 获取目标的完整信息（军团ID和联盟ID）
-        var targetInfo = (
-            entityId: result.id,
-            corpId: result.type == .character
-                ? result.corporationId : (result.type == .corporation ? result.id : nil),
-            allianceId: result.type == .alliance ? result.id : nil
-        )
-
-        // 如果是军团，使用已加载的联盟ID
-        if result.type == .corporation {
-            targetInfo.allianceId = allianceId
-            // 如果还没有尝试加载联盟信息，启动加载任务
-            if !hasAttemptedCorpInfoLoad {
-                loadTask?.cancel()
-                loadTask = Task {
-                    await loadCorporationInfo()
-                }
-            }
-        }
-        // 如果是角色，使用其联盟ID
-        else if result.type == .character {
-            targetInfo.allianceId = result.allianceId
-        }
-
-        // 1. 检查个人声望设置
-        if let contacts = try? await GetCharContacts.shared.fetchContacts(
-            characterId: character.CharacterID)
-        {
-            Logger.debug("获取到个人联系人列表，数量: \(contacts.count)")
-
-            // 检查负面声望
-            // 1.1 检查对目标本身的负面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: directContact.standing)
-                Logger.debug("找到个人对目标的负面声望: \(directContact.standing)")
-                return
-            }
-
-            // 1.2 如果目标是角色或军团，检查对其军团的负面声望
-            if let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: corpContact.standing)
-                Logger.debug("找到个人对目标军团的负面声望: \(corpContact.standing)")
-                return
-            }
-
-            // 1.3 检查对其联盟的负面声望
-            if let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: allianceContact.standing)
-                Logger.debug("找到个人对目标联盟的负面声望: \(allianceContact.standing)")
-                return
-            }
-
-            // 检查正面声望
-            var positiveStanding: Double? = nil
-
-            // 1.4 检查对目标本身的正面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing > 0
-            {
-                positiveStanding = directContact.standing
-                Logger.debug("找到个人对目标的正面声望: \(directContact.standing)")
-            }
-
-            // 1.5 如果目标是角色或军团，检查对其军团的正面声望
-            if positiveStanding == nil,
-                let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing > 0
-            {
-                positiveStanding = corpContact.standing
-                Logger.debug("找到个人对目标军团的正面声望: \(corpContact.standing)")
-            }
-
-            // 1.6 检查对其联盟的正面声望
-            if positiveStanding == nil,
-                let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing > 0
-            {
-                positiveStanding = allianceContact.standing
-                Logger.debug("找到个人对目标联盟的正面声望: \(allianceContact.standing)")
-            }
-
-            if let standing = positiveStanding {
-                standingIcon = getStandingIcon(standing: standing)
-                Logger.debug("使用个人正面声望: \(standing)")
-                return
-            }
-        }
-
-        // 2. 检查军团声望设置
-        if let corpId = character.corporationId,
-            let contacts = try? await GetCorpContacts.shared.fetchContacts(
-                characterId: character.CharacterID, corporationId: corpId
-            )
-        {
-            Logger.debug("获取到军团联系人列表，数量: \(contacts.count)")
-
-            // 检查负面声望
-            // 2.1 检查对目标本身的负面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: directContact.standing)
-                Logger.debug("找到军团对目标的负面声望: \(directContact.standing)")
-                return
-            }
-
-            // 2.2 如果目标是角色或军团，检查对其军团的负面声望
-            if let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: corpContact.standing)
-                Logger.debug("找到军团对目标军团的负面声望: \(corpContact.standing)")
-                return
-            }
-
-            // 2.3 检查对其联盟的负面声望
-            if let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: allianceContact.standing)
-                Logger.debug("找到军团对目标联盟的负面声望: \(allianceContact.standing)")
-                return
-            }
-
-            // 检查正面声望
-            var positiveStanding: Double? = nil
-
-            // 2.4 检查对目标本身的正面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing > 0
-            {
-                positiveStanding = directContact.standing
-                Logger.debug("找到军团对目标的正面声望: \(directContact.standing)")
-            }
-
-            // 2.5 如果目标是角色或军团，检查对其军团的正面声望
-            if positiveStanding == nil,
-                let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing > 0
-            {
-                positiveStanding = corpContact.standing
-                Logger.debug("找到军团对目标军团的正面声望: \(corpContact.standing)")
-            }
-
-            // 2.6 检查对其联盟的正面声望
-            if positiveStanding == nil,
-                let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing > 0
-            {
-                positiveStanding = allianceContact.standing
-                Logger.debug("找到军团对目标联盟的正面声望: \(allianceContact.standing)")
-            }
-
-            if let standing = positiveStanding {
-                standingIcon = getStandingIcon(standing: standing)
-                Logger.debug("使用军团正面声望: \(standing)")
-                return
-            }
-        }
-
-        // 3. 检查联盟声望设置
-        if let allianceId = character.allianceId,
-            let contacts = try? await GetAllianceContacts.shared.fetchContacts(
-                characterId: character.CharacterID, allianceId: allianceId
-            )
-        {
-            Logger.debug("获取到联盟联系人列表，数量: \(contacts.count)")
-
-            // 检查负面声望
-            // 3.1 检查对目标本身的负面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: directContact.standing)
-                Logger.debug("找到联盟对目标的负面声望: \(directContact.standing)")
-                return
-            }
-
-            // 3.2 如果目标是角色或军团，检查对其军团的负面声望
-            if let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: corpContact.standing)
-                Logger.debug("找到联盟对目标军团的负面声望: \(corpContact.standing)")
-                return
-            }
-
-            // 3.3 检查对其联盟的负面声望
-            if let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing < 0
-            {
-                standingIcon = getStandingIcon(standing: allianceContact.standing)
-                Logger.debug("找到联盟对目标联盟的负面声望: \(allianceContact.standing)")
-                return
-            }
-
-            // 检查正面声望
-            var positiveStanding: Double? = nil
-
-            // 3.4 检查对目标本身的正面声望
-            if let directContact = contacts.first(where: { $0.contact_id == targetInfo.entityId }),
-                directContact.standing > 0
-            {
-                positiveStanding = directContact.standing
-                Logger.debug("找到联盟对目标的正面声望: \(directContact.standing)")
-            }
-
-            // 3.5 如果目标是角色或军团，检查对其军团的正面声望
-            if positiveStanding == nil,
-                let corpId = targetInfo.corpId,
-                let corpContact = contacts.first(where: { $0.contact_id == corpId }),
-                corpContact.standing > 0
-            {
-                positiveStanding = corpContact.standing
-                Logger.debug("找到联盟对目标军团的正面声望: \(corpContact.standing)")
-            }
-
-            // 3.6 检查对其联盟的正面声望
-            if positiveStanding == nil,
-                let allianceId = targetInfo.allianceId,
-                let allianceContact = contacts.first(where: { $0.contact_id == allianceId }),
-                allianceContact.standing > 0
-            {
-                positiveStanding = allianceContact.standing
-                Logger.debug("找到联盟对目标联盟的正面声望: \(allianceContact.standing)")
-            }
-
-            if let standing = positiveStanding {
-                standingIcon = getStandingIcon(standing: standing)
-                Logger.debug("使用联盟正面声望: \(standing)")
-                return
-            }
-        }
-
-        // 4. 检查是否同军团
-        if let corpId = character.corporationId {
-            Logger.debug("检查是否同军团 - 角色军团ID: \(corpId)")
-            if result.type == .character {
-                if let resultCorpId = result.corporationId, corpId == resultCorpId {
-                    standingIcon = "ColorTag-StarGreen9"
-                    Logger.debug("是同军团成员，设置为绿色星星")
-                    return
-                }
-            } else if result.type == .corporation && corpId == result.id {
-                standingIcon = "ColorTag-StarGreen9"
-                Logger.debug("是当前军团，设置为绿色星星")
-                return
-            }
-        }
-
-        // 5. 检查是否同联盟
-        if let allianceId = character.allianceId {
-            Logger.debug("检查是否同联盟 - 角色联盟ID: \(allianceId)")
-            if result.type == .character {
-                if let resultAllianceId = result.allianceId, allianceId == resultAllianceId {
-                    standingIcon = "ColorTag-StarBlue9"
-                    Logger.debug("是同联盟成员，设置为蓝色星星")
-                    return
-                }
-            } else if result.type == .corporation {
-                if targetInfo.allianceId == allianceId {
-                    standingIcon = "ColorTag-StarBlue9"
-                    Logger.debug("是同联盟军团，设置为蓝色星星")
-                    return
-                }
-            } else if result.type == .alliance && allianceId == result.id {
-                standingIcon = "ColorTag-StarBlue9"
-                Logger.debug("是当前联盟，设置为蓝色星星")
-                return
-            }
-        }
-
-        // 6. 如果都没有匹配，设置为中立
-        standingIcon = "ColorTag-Neutral"
-        Logger.debug("没有找到任何声望设置，使用中立图标")
-    }
-
-    private func getStandingIcon(standing: Double) -> String {
-        let standingValues = [-10.0, -5.0, 0.0, 5.0, 10.0]
-        let icons = [
-            "ColorTag-MinusRed9", "ColorTag-MinusOrange9", "ColorTag-Neutral",
-            "ColorTag-PlusLightBlue9", "ColorTag-PlusDarkBlue9",
-        ]
-
-        // 找到最接近的声望值
-        var closestIndex = 0
-        var minDiff = abs(standing - standingValues[0])
-
-        for (index, value) in standingValues.enumerated() {
-            let diff = abs(standing - value)
-            if diff < minDiff {
-                minDiff = diff
-                closestIndex = index
-            }
-        }
-
-        return icons[closestIndex]
-    }
+    
+    // 获取父视图的ViewModel
+    @EnvironmentObject private var viewModel: SearcherViewModel
 
     var body: some View {
         HStack(spacing: 12) {
@@ -799,11 +444,14 @@ struct SearchResultRow: View {
         .padding(.vertical, 4)
         .onAppear {
             scheduleLoad()
-            // 只在非建筑搜索时，且不是军团类型时立即计算声望
-            if result.type != .structure && result.type != .corporation {
-                Task {
-                    await determineStandingIcon()
-                }
+            // 使用ViewModel计算声望
+            if viewModel.isContactsLoaded && result.type != .structure {
+                standingIcon = viewModel.determineStandingIcon(for: result, character: character)
+            }
+        }
+        .onChange(of: viewModel.isContactsLoaded) { _, isLoaded in
+            if isLoaded && result.type != .structure {
+                standingIcon = viewModel.determineStandingIcon(for: result, character: character)
             }
         }
         .onDisappear {
@@ -823,14 +471,18 @@ struct SearchResultRow: View {
                     // 如果加载到了联盟ID，继续加载联盟名称
                     if allianceId != nil && !hasAttemptedAllianceLoad {
                         await loadAllianceName()
-                        // 只有在军团信息和联盟名称都加载完成后，才计算声望
-                        if !Task.isCancelled {
-                            await determineStandingIcon()
+                        // 只有在军团信息和联盟名称都加载完成后，才更新声望图标
+                        if !Task.isCancelled && viewModel.isContactsLoaded {
+                            await MainActor.run {
+                                standingIcon = viewModel.determineStandingIcon(for: result, character: character)
+                            }
                         }
                     } else {
-                        // 如果军团没有联盟，也可以计算声望了
-                        if !Task.isCancelled {
-                            await determineStandingIcon()
+                        // 如果军团没有联盟，也可以更新声望图标了
+                        if !Task.isCancelled && viewModel.isContactsLoaded {
+                            await MainActor.run {
+                                standingIcon = viewModel.determineStandingIcon(for: result, character: character)
+                            }
                         }
                     }
                 }
@@ -895,6 +547,16 @@ class SearcherViewModel: ObservableObject {
     @Published var filteredResults: [SearcherView.SearchResult] = []
     @Published var searchingStatus = ""
     @Published var error: Error?
+    
+    // 添加联系人数据存储
+    @Published var isContactsLoaded = false
+    @Published var isLoadingContacts = false
+    @Published var contactsLoadError: Error?
+    
+    // 存储联系人数据
+    var characterContacts: [ContactInfo] = []
+    var corporationContacts: [ContactInfo] = []
+    var allianceContacts: [ContactInfo] = []
 
     private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
@@ -902,6 +564,294 @@ class SearcherViewModel: ObservableObject {
     private var currentStructureType: SearcherView.StructureType = .all
     private var corporationNames: [Int: String] = [:]
     private var allianceNames: [Int: String] = [:]
+
+    // 加载联系人数据的方法
+    func loadContactsData(character: EVECharacterInfo) async {
+        // 如果已经加载过，则不再重复加载
+        if isContactsLoaded || isLoadingContacts {
+            return
+        }
+        
+        isLoadingContacts = true
+        
+        do {
+            // 并行加载所有联系人数据
+            async let charContacts = GetCharContacts.shared.fetchContacts(
+                characterId: character.CharacterID)
+            async let corpContacts = GetCorpContacts.shared.fetchContacts(
+                characterId: character.CharacterID, corporationId: character.corporationId ?? 0
+            )
+            
+            // 如果角色有联盟，也加载联盟联系人
+            if let allianceId = character.allianceId {
+                async let allianceContacts = GetAllianceContacts.shared.fetchContacts(
+                    characterId: character.CharacterID, allianceId: allianceId
+                )
+                
+                // 等待所有请求完成
+                let (charData, corpData, allianceData) = try await (charContacts, corpContacts, allianceContacts)
+                self.characterContacts = charData
+                self.corporationContacts = corpData
+                self.allianceContacts = allianceData
+            } else {
+                // 等待请求完成
+                let (charData, corpData) = try await (charContacts, corpContacts)
+                self.characterContacts = charData
+                self.corporationContacts = corpData
+                self.allianceContacts = []
+            }
+            
+            self.isContactsLoaded = true
+            self.contactsLoadError = nil
+            Logger.debug("所有联系人数据加载完成 - 个人: \(self.characterContacts.count), 军团: \(self.corporationContacts.count), 联盟: \(self.allianceContacts.count)")
+        } catch {
+            self.contactsLoadError = error
+            Logger.error("加载联系人数据失败: \(error)")
+        }
+        
+        isLoadingContacts = false
+    }
+    
+    // 计算声望的方法
+    func determineStandingIcon(for result: SearcherView.SearchResult, character: EVECharacterInfo) -> String {
+        Logger.debug("计算声望 - 目标ID: \(result.id), 类型: \(result.type), 名称: \(result.name)")
+        
+        // 如果联系人数据尚未加载完成，返回中立图标
+        if !isContactsLoaded {
+            return "ColorTag-Neutral"
+        }
+        
+        // 获取目标的完整信息（军团ID和联盟ID）
+        let targetInfo = (
+            entityId: result.id,
+            corpId: result.type == .character
+                ? result.corporationId : (result.type == .corporation ? result.id : nil),
+            allianceId: result.type == .alliance ? result.id : result.allianceId
+        )
+        
+        // 1. 检查个人声望设置
+        // 检查负面声望
+        // 1.1 检查对目标本身的负面声望
+        if let directContact = characterContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing < 0
+        {
+            return getStandingIcon(standing: directContact.standing)
+        }
+        
+        // 1.2 如果目标是角色或军团，检查对其军团的负面声望
+        if let corpId = targetInfo.corpId,
+            let corpContact = characterContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing < 0
+        {
+            return getStandingIcon(standing: corpContact.standing)
+        }
+        
+        // 1.3 检查对其联盟的负面声望
+        if let allianceId = targetInfo.allianceId,
+            let allianceContact = characterContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing < 0
+        {
+            return getStandingIcon(standing: allianceContact.standing)
+        }
+        
+        // 检查正面声望
+        var positiveStanding: Double? = nil
+        
+        // 1.4 检查对目标本身的正面声望
+        if let directContact = characterContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing > 0
+        {
+            positiveStanding = directContact.standing
+        }
+        
+        // 1.5 如果目标是角色或军团，检查对其军团的正面声望
+        if positiveStanding == nil,
+            let corpId = targetInfo.corpId,
+            let corpContact = characterContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing > 0
+        {
+            positiveStanding = corpContact.standing
+        }
+        
+        // 1.6 检查对其联盟的正面声望
+        if positiveStanding == nil,
+            let allianceId = targetInfo.allianceId,
+            let allianceContact = characterContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing > 0
+        {
+            positiveStanding = allianceContact.standing
+        }
+        
+        if let standing = positiveStanding {
+            return getStandingIcon(standing: standing)
+        }
+        
+        // 2. 检查军团声望设置
+        // 检查负面声望
+        // 2.1 检查对目标本身的负面声望
+        if let directContact = corporationContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing < 0
+        {
+            return getStandingIcon(standing: directContact.standing)
+        }
+        
+        // 2.2 如果目标是角色或军团，检查对其军团的负面声望
+        if let corpId = targetInfo.corpId,
+            let corpContact = corporationContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing < 0
+        {
+            return getStandingIcon(standing: corpContact.standing)
+        }
+        
+        // 2.3 检查对其联盟的负面声望
+        if let allianceId = targetInfo.allianceId,
+            let allianceContact = corporationContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing < 0
+        {
+            return getStandingIcon(standing: allianceContact.standing)
+        }
+        
+        // 检查正面声望
+        positiveStanding = nil
+        
+        // 2.4 检查对目标本身的正面声望
+        if let directContact = corporationContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing > 0
+        {
+            positiveStanding = directContact.standing
+        }
+        
+        // 2.5 如果目标是角色或军团，检查对其军团的正面声望
+        if positiveStanding == nil,
+            let corpId = targetInfo.corpId,
+            let corpContact = corporationContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing > 0
+        {
+            positiveStanding = corpContact.standing
+        }
+        
+        // 2.6 检查对其联盟的正面声望
+        if positiveStanding == nil,
+            let allianceId = targetInfo.allianceId,
+            let allianceContact = corporationContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing > 0
+        {
+            positiveStanding = allianceContact.standing
+        }
+        
+        if let standing = positiveStanding {
+            return getStandingIcon(standing: standing)
+        }
+        
+        // 3. 检查联盟声望设置
+        // 检查负面声望
+        // 3.1 检查对目标本身的负面声望
+        if let directContact = allianceContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing < 0
+        {
+            return getStandingIcon(standing: directContact.standing)
+        }
+        
+        // 3.2 如果目标是角色或军团，检查对其军团的负面声望
+        if let corpId = targetInfo.corpId,
+            let corpContact = allianceContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing < 0
+        {
+            return getStandingIcon(standing: corpContact.standing)
+        }
+        
+        // 3.3 检查对其联盟的负面声望
+        if let allianceId = targetInfo.allianceId,
+            let allianceContact = allianceContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing < 0
+        {
+            return getStandingIcon(standing: allianceContact.standing)
+        }
+        
+        // 检查正面声望
+        positiveStanding = nil
+        
+        // 3.4 检查对目标本身的正面声望
+        if let directContact = allianceContacts.first(where: { $0.contact_id == targetInfo.entityId }),
+            directContact.standing > 0
+        {
+            positiveStanding = directContact.standing
+        }
+        
+        // 3.5 如果目标是角色或军团，检查对其军团的正面声望
+        if positiveStanding == nil,
+            let corpId = targetInfo.corpId,
+            let corpContact = allianceContacts.first(where: { $0.contact_id == corpId }),
+            corpContact.standing > 0
+        {
+            positiveStanding = corpContact.standing
+        }
+        
+        // 3.6 检查对其联盟的正面声望
+        if positiveStanding == nil,
+            let allianceId = targetInfo.allianceId,
+            let allianceContact = allianceContacts.first(where: { $0.contact_id == allianceId }),
+            allianceContact.standing > 0
+        {
+            positiveStanding = allianceContact.standing
+        }
+        
+        if let standing = positiveStanding {
+            return getStandingIcon(standing: standing)
+        }
+        
+        // 4. 检查是否同军团
+        if let corpId = character.corporationId {
+            if result.type == .character {
+                if let resultCorpId = result.corporationId, corpId == resultCorpId {
+                    return "ColorTag-StarGreen9"
+                }
+            } else if result.type == .corporation && corpId == result.id {
+                return "ColorTag-StarGreen9"
+            }
+        }
+        
+        // 5. 检查是否同联盟
+        if let allianceId = character.allianceId {
+            if result.type == .character {
+                if let resultAllianceId = result.allianceId, allianceId == resultAllianceId {
+                    return "ColorTag-StarBlue9"
+                }
+            } else if result.type == .corporation {
+                if targetInfo.allianceId == allianceId {
+                    return "ColorTag-StarBlue9"
+                }
+            } else if result.type == .alliance && allianceId == result.id {
+                return "ColorTag-StarBlue9"
+            }
+        }
+        
+        // 6. 如果都没有匹配，设置为中立
+        return "ColorTag-Neutral"
+    }
+    
+    // 获取声望图标的辅助方法
+    private func getStandingIcon(standing: Double) -> String {
+        let standingValues = [-10.0, -5.0, 0.0, 5.0, 10.0]
+        let icons = [
+            "ColorTag-MinusRed9", "ColorTag-MinusOrange9", "ColorTag-Neutral",
+            "ColorTag-PlusLightBlue9", "ColorTag-PlusDarkBlue9",
+        ]
+        
+        // 找到最接近的声望值
+        var closestIndex = 0
+        var minDiff = abs(standing - standingValues[0])
+        
+        for (index, value) in standingValues.enumerated() {
+            let diff = abs(standing - value)
+            if diff < minDiff {
+                minDiff = diff
+                closestIndex = index
+            }
+        }
+        
+        return icons[closestIndex]
+    }
 
     // 直接从ESI获取名称的方法
     private func fetchNamesFromESI(ids: [Int]) async throws -> [Int: String] {

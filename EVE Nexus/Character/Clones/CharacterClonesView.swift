@@ -27,7 +27,7 @@ private struct ImplantInfo {
                 SELECT t.type_id, t.name, t.icon_filename, COALESCE(ta.value, 0) as attribute_value
                 FROM types t
                 LEFT JOIN typeAttributes ta ON t.type_id = ta.type_id AND ta.attribute_id = 331
-                WHERE t.type_id IN (\(typeIds.map { String($0) }.joined(separator: ",")))
+                WHERE t.type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {

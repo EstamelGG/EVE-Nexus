@@ -300,7 +300,7 @@
 "Assets_Loading_Names" = "Loading container names (%d/%d)";
 "Assets_Loading_Building_Tree" = "Building asset tree";
 "Assets_Loading_Processing_Locations" = "Processing location information";
-"Assets_Loading_Fetching_Location_Info" = "Fetching location details (%d/%d)";
+"Assets_Loading_Fetching_Location_Info" = "Fetching Structure details (%d/%d)";
 "Assets_Loading_Preparing_Containers" = "Preparing container information";
 "Assets_Loading_Saving" = "Saving to cache";
 "Assets_Loading_Complete" = "Loading complete";

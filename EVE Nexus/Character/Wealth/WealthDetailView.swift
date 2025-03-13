@@ -108,7 +108,7 @@ struct WealthDetailView: View {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(itemInfo.name)
                                             Text(
-                                                "\(item.quantity) × \(FormatUtil.formatISK(item.value)) ISK"
+                                                "\(item.quantity) × \(FormatUtil.formatISK(item.value))"
                                             )
                                             .font(.caption)
                                             .foregroundColor(.secondary)
@@ -117,7 +117,7 @@ struct WealthDetailView: View {
                                         Spacer()
 
                                         // 总价值
-                                        Text(FormatUtil.formatISK(item.totalValue) + " ISK")
+                                        Text(FormatUtil.formatISK(item.totalValue))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
