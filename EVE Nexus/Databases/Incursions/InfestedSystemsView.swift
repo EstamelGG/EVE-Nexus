@@ -63,8 +63,6 @@ class InfestedSystemsViewModel: ObservableObject {
         // 清除缓存
         Self.systemIdsCache.removeAll()
 
-        var tempSystems: [SystemInfo] = []
-
         // 取消所有现有的加载任务
         loadingTasks.values.forEach { $0.cancel() }
         loadingTasks.removeAll()
@@ -84,35 +82,23 @@ class InfestedSystemsViewModel: ObservableObject {
 
         // 更新缓存
         Self.systemIdsCache = Set(systemIds)
-
+        
+        // 一次性获取所有星系信息
+        let systemInfoMap = await getBatchSolarSystemInfo(
+            solarSystemIds: systemIds, 
+            databaseManager: databaseManager
+        )
+        
+        var tempSystems: [SystemInfo] = []
+        
         for systemId in systemIds {
-            // 从 universe 表获取安全等级和其他信息
-            let universeQuery = """
-                    SELECT u.system_security,
-                           s.solarSystemName, s.solarSystemName_en
-                    FROM universe u
-                    JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                    WHERE u.solarsystem_id = ?
-                """
-
-            guard
-                case let .success(universeRows) = databaseManager.executeQuery(
-                    universeQuery, parameters: [systemId]
-                ),
-                let universeRow = universeRows.first,
-                let security = universeRow["system_security"] as? Double,
-                let systemNameLocal = universeRow["solarSystemName"] as? String,
-                let systemNameEn = universeRow["solarSystemName_en"] as? String
-            else {
+            guard let info = systemInfoMap[systemId] else {
                 continue
             }
-
-            let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-            let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
-
+            
             let systemInfo = SystemInfo(
-                systemName: systemName,
-                security: security,
+                systemName: info.systemName,
+                security: info.security,
                 systemId: systemId
             )
 

@@ -143,6 +143,7 @@ struct AgentSearchView: View {
     @State private var searchResultsDestination: String? = nil
     @State private var isNavigatingToRegionSearch = false  // 添加星域搜索导航状态
     @State private var isNavigatingToSystemSearch = false  // 添加星系搜索导航状态
+    @State private var searchResults: [AgentItem] = []  // 添加存储搜索结果的状态变量
 
     // 过滤条件
     @State private var selectedDivisionID: Int?
@@ -398,6 +399,8 @@ struct AgentSearchView: View {
             }
 
             Button(action: {
+                // 在点击按钮时执行搜索
+                searchResults = searchAgents()
                 isNavigatingToResults = true
                 searchResultsDestination = "searchResults"
             }) {
@@ -424,7 +427,7 @@ struct AgentSearchView: View {
             AgentListHierarchyView(
                 databaseManager: databaseManager,
                 level: .faction,
-                searchResults: searchAgents(),
+                searchResults: searchResults,  // 使用存储的搜索结果
                 title: NSLocalizedString("Agent_Search_Results", comment: "搜索结果")
             )
         }

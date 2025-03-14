@@ -59,6 +59,11 @@ final class WalletTransactionsViewModel: ObservableObject {
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+        
+        // 在初始化时立即开始加载数据
+        loadingTask = Task {
+            await loadTransactionData()
+        }
     }
 
     deinit {
@@ -71,27 +76,56 @@ final class WalletTransactionsViewModel: ObservableObject {
             return cachedInfo
         }
 
-        // 如果缓存中没有，从数据库查询
-        let result = databaseManager.executeQuery(
-            "select name, icon_filename from types where type_id = ?", parameters: [typeId]
-        )
-        if case let .success(rows) = result {
-            for row in rows {
-                if let name = row["name"] as? String,
-                    let iconFileName = row["icon_filename"] as? String
-                {
-                    let itemInfo = TransactionItemInfo(name: name, iconFileName: iconFileName)
-                    // 更新缓存
-                    itemInfoCache[typeId] = itemInfo
-                    return itemInfo
-                }
-            }
-        }
-
-        // 如果查询失败，返回默认值
+        // 如果缓存中没有，返回默认值（这种情况应该很少发生，因为我们已经预加载了所有物品信息）
+        Logger.warning("物品信息未在缓存中找到: \(typeId)")
         return TransactionItemInfo(
             name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
         )
+    }
+
+    // 一次性加载所有物品信息
+    private func loadAllItemInfo(from entries: [WalletTransactionEntry]) {
+        // 收集所有不同的物品类型ID
+        let typeIds = Set(entries.map { $0.type_id })
+        
+        // 如果没有物品，直接返回
+        if typeIds.isEmpty {
+            return
+        }
+        
+        // 构建SQL查询的IN子句参数
+        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
+        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+        
+        // 执行查询
+        let result = databaseManager.executeQuery(
+            query, parameters: typeIds.map { $0 as Any }
+        )
+        
+        if case let .success(rows) = result {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    let itemInfo = TransactionItemInfo(name: name, iconFileName: iconFileName)
+                    // 更新缓存
+                    itemInfoCache[typeId] = itemInfo
+                }
+            }
+        } else {
+            Logger.error("加载物品信息失败")
+        }
+        
+        // 检查是否有物品未被加载，记录日志
+        for typeId in typeIds {
+            if itemInfoCache[typeId] == nil {
+                Logger.warning("未能加载物品信息: \(typeId)")
+                // 为未加载的物品设置默认值
+                itemInfoCache[typeId] = TransactionItemInfo(
+                    name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
+                )
+            }
+        }
     }
 
     func getLocationView(for locationId: Int64) -> LocationInfoView? {
@@ -151,6 +185,11 @@ final class WalletTransactionsViewModel: ObservableObject {
                     databaseManager: databaseManager, characterId: Int64(characterId)
                 )
                 locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
+
+                if Task.isCancelled { return }
+                
+                // 一次性加载所有物品信息
+                loadAllItemInfo(from: entries)
 
                 if Task.isCancelled { return }
 
@@ -265,9 +304,6 @@ struct WalletTransactionsView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadTransactionData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadTransactionData()
         }
         .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
         .ignoresSafeArea(edges: .bottom)

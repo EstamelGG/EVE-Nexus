@@ -137,6 +137,7 @@ class CharacterPlanetaryAPI {
         }
         // 检查缓存（除非强制刷新）
         if !forceRefresh, let cachedData = checkCache(characterId: characterId) {
+            Logger.info("Fetch Planets from cache.")
             return cachedData
         }
 
@@ -168,7 +169,7 @@ class CharacterPlanetaryAPI {
         if !forceRefresh,
             let cachedData = checkPlanetCache(characterId: characterId, planetId: planetId)
         {
-            Logger.debug("Fetch from cache.")
+            Logger.info("Fetch Planetary Detail from cache.")
             return cachedData
         }
 

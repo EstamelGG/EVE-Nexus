@@ -33,7 +33,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     private let characterId: Int
     private let division: Int
     let databaseManager: DatabaseManager
-    private var itemInfoCache: [Int: TransactionItemInfo] = [:]
+    var itemInfoCache: [Int: TransactionItemInfo] = [:]
     private var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     private var loadingTask: Task<Void, Never>?
 
@@ -60,34 +60,43 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
-
-    func getItemInfo(for typeId: Int) -> TransactionItemInfo {
-        // 先检查缓存
-        if let cachedInfo = itemInfoCache[typeId] {
-            return cachedInfo
+    
+    // 批量加载所有物品信息
+    private func loadAllItemInfo(for typeIds: [Int]) {
+        // 如果没有需要加载的物品，直接返回
+        if typeIds.isEmpty {
+            return
         }
-
-        // 如果缓存中没有，从数据库查询
+        
+        // 构建查询参数
+        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
+        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+        
+        // 执行批量查询
         let result = databaseManager.executeQuery(
-            "select name, icon_filename from types where type_id = ?", parameters: [typeId]
+            query, parameters: typeIds.map { $0 as Any }
         )
+        
         if case let .success(rows) = result {
             for row in rows {
-                if let name = row["name"] as? String,
-                    let iconFileName = row["icon_filename"] as? String
-                {
-                    let itemInfo = TransactionItemInfo(name: name, iconFileName: iconFileName)
+                if let typeId = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
                     // 更新缓存
-                    itemInfoCache[typeId] = itemInfo
-                    return itemInfo
+                    itemInfoCache[typeId] = TransactionItemInfo(name: name, iconFileName: iconFileName)
                 }
             }
         }
-
-        // 如果查询失败，返回默认值
-        return TransactionItemInfo(
-            name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
-        )
+        
+        // 为未找到的物品ID设置默认值
+        for typeId in typeIds {
+            if itemInfoCache[typeId] == nil {
+                Logger.warning("未能加载物品信息: \(typeId)")
+                itemInfoCache[typeId] = TransactionItemInfo(
+                    name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
+                )
+            }
+        }
     }
 
     func getLocationView(for locationId: Int64) -> LocationInfoView? {
@@ -141,6 +150,10 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
 
                 // 收集所有位置ID
                 let locationIds = Set(entries.map { $0.location_id })
+                
+                // 收集所有物品ID并一次性加载所有物品信息
+                let typeIds = Array(Set(entries.map { $0.type_id }))
+                loadAllItemInfo(for: typeIds)
 
                 // 使用 LocationInfoLoader 加载位置信息
                 let locationLoader = LocationInfoLoader(
@@ -254,7 +267,6 @@ struct CorpWalletTransactionsView: View {
 struct CorpWalletTransactionEntryRow: View {
     let entry: CorpWalletTransactionEntry
     let viewModel: CorpWalletTransactionsViewModel
-    @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
 
     private let dateFormatter: DateFormatter = {
@@ -302,7 +314,7 @@ struct CorpWalletTransactionEntryRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(
-                            itemInfo?.name
+                            viewModel.itemInfoCache[entry.type_id]?.name
                                 ?? NSLocalizedString(
                                     "Main_Market_Transactions_Loading", comment: ""
                                 )
@@ -343,10 +355,8 @@ struct CorpWalletTransactionEntryRow: View {
             .padding(.vertical, 2)
         }
         .task {
-            // 加载物品信息
-            itemInfo = viewModel.getItemInfo(for: entry.type_id)
-            // 加载图标
-            if let itemInfo = itemInfo {
+            // 直接从缓存中获取物品信息并加载图标
+            if let itemInfo = viewModel.itemInfoCache[entry.type_id] {
                 itemIcon = IconManager.shared.loadImage(for: itemInfo.iconFileName)
             }
         }

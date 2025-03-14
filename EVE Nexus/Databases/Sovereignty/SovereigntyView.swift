@@ -5,8 +5,10 @@ import SwiftUI
 @MainActor
 final class SovereigntyViewModel: ObservableObject {
     @Published private(set) var preparedCampaigns: [PreparedSovereignty] = []
+    @Published private(set) var groupedCampaigns: [String: [PreparedSovereignty]] = [:]
     @Published var isLoading = true
     @Published var errorMessage: String?
+    private var initialLoadDone = false
 
     private let databaseManager: DatabaseManager
     private var loadingTask: Task<Void, Never>?
@@ -14,6 +16,11 @@ final class SovereigntyViewModel: ObservableObject {
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+        
+        // 在初始化时立即开始加载数据
+        loadingTask = Task {
+            await fetchSovereignty()
+        }
     }
 
     deinit {
@@ -22,6 +29,11 @@ final class SovereigntyViewModel: ObservableObject {
     }
 
     func fetchSovereignty(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
 
@@ -41,7 +53,11 @@ final class SovereigntyViewModel: ObservableObject {
 
                 if Task.isCancelled { return }
 
+                // 更新分组数据
+                updateGroupedCampaigns()
+                
                 self.isLoading = false
+                self.initialLoadDone = true
 
             } catch {
                 Logger.error("获取主权争夺数据失败: \(error)")
@@ -60,35 +76,40 @@ final class SovereigntyViewModel: ObservableObject {
         // 取消所有现有的图标加载任务
         iconLoadingTasks.values.forEach { $0.cancel() }
         iconLoadingTasks.removeAll()
-
-        let prepared = await withTaskGroup(of: PreparedSovereignty?.self) { group in
-            for campaign in campaigns {
-                group.addTask {
-                    guard
-                        let location = await self.getLocationInfo(
-                            solarSystemId: campaign.solar_system_id)
-                    else {
-                        return nil
-                    }
-
-                    return PreparedSovereignty(
-                        campaign: campaign,
-                        location: location
-                    )
-                }
+        
+        // 提取所有需要查询的星系ID
+        let solarSystemIds = campaigns.map { $0.solar_system_id }
+        
+        // 一次性获取所有星系信息
+        let systemInfoMap = await getBatchSolarSystemInfo(
+            solarSystemIds: solarSystemIds, 
+            databaseManager: databaseManager
+        )
+        
+        // 创建PreparedSovereignty对象
+        var prepared: [PreparedSovereignty] = []
+        
+        for campaign in campaigns {
+            if let systemInfo = systemInfoMap[campaign.solar_system_id] {
+                let locationInfo = PreparedSovereignty.LocationInfo(
+                    systemName: systemInfo.systemName,
+                    security: systemInfo.security,
+                    constellationName: systemInfo.constellationName,
+                    regionName: systemInfo.regionName,
+                    regionId: systemInfo.regionId
+                )
+                
+                let preparedCampaign = PreparedSovereignty(
+                    campaign: campaign,
+                    location: locationInfo
+                )
+                
+                prepared.append(preparedCampaign)
             }
-
-            var result: [PreparedSovereignty] = []
-            for await prepared in group {
-                if let prepared = prepared {
-                    result.append(prepared)
-                }
-            }
-
-            // 按星域名称排序
-            result.sort { $0.location.regionName < $1.location.regionName }
-            return result
         }
+        
+        // 按星域名称排序
+        prepared.sort { $0.location.regionName < $1.location.regionName }
 
         if !prepared.isEmpty {
             Logger.info("成功准备 \(prepared.count) 条数据")
@@ -97,6 +118,12 @@ final class SovereigntyViewModel: ObservableObject {
             loadAllIcons()
         } else {
             Logger.error("没有可显示的完整数据")
+        }
+    }
+    
+    private func updateGroupedCampaigns() {
+        groupedCampaigns = Dictionary(grouping: preparedCampaigns) {
+            $0.location.regionName
         }
     }
 
@@ -142,21 +169,6 @@ final class SovereigntyViewModel: ObservableObject {
                 campaign.isLoadingIcon = true
             }
         }
-    }
-
-    func getLocationInfo(solarSystemId: Int) async -> PreparedSovereignty.LocationInfo? {
-        if let info = await getSolarSystemInfo(
-            solarSystemId: solarSystemId, databaseManager: databaseManager
-        ) {
-            return PreparedSovereignty.LocationInfo(
-                systemName: info.systemName,
-                security: info.security,
-                constellationName: info.constellationName,
-                regionName: info.regionName,
-                regionId: info.regionId
-            )
-        }
-        return nil
     }
 }
 
@@ -246,10 +258,6 @@ struct SovereigntyView: View {
     }
 
     var body: some View {
-        let groupedCampaigns = Dictionary(grouping: viewModel.preparedCampaigns) {
-            $0.location.regionName
-        }
-
         List {
             if viewModel.isLoading {
                 ProgressView()
@@ -270,7 +278,7 @@ struct SovereigntyView: View {
                     }
                 }
             } else {
-                ForEach(Array(groupedCampaigns.keys.sorted()), id: \.self) { regionName in
+                ForEach(Array(viewModel.groupedCampaigns.keys.sorted()), id: \.self) { regionName in
                     Section(
                         header: Text(regionName)
                             .fontWeight(.bold)
@@ -279,7 +287,7 @@ struct SovereigntyView: View {
                             .textCase(.none)
                     ) {
                         ForEach(
-                            groupedCampaigns[regionName]?.sorted(by: {
+                            viewModel.groupedCampaigns[regionName]?.sorted(by: {
                                 $0.location.systemName < $1.location.systemName
                             }) ?? []
                         ) { campaign in
@@ -292,9 +300,6 @@ struct SovereigntyView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.fetchSovereignty(forceRefresh: true)
-        }
-        .task {
-            await viewModel.fetchSovereignty()
         }
         .navigationTitle(NSLocalizedString("Main_Sovereignty", comment: ""))
     }

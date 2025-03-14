@@ -1,26 +1,23 @@
 import SwiftUI
 
-struct CorpWalletView: View {
+// 创建一个 ObservableObject 类来管理钱包数据
+class CorpWalletViewModel: ObservableObject {
+    @Published var wallets: [CorpWallet] = []
+    @Published var isLoading = true
+    @Published var error: Error?
+    @Published var showError = false
+    
     let characterId: Int
-    @Environment(\.dismiss) private var dismiss
-    @State private var wallets: [CorpWallet] = []
-    @State private var isLoading = true
-    @State private var error: Error?
-    @State private var showError = false
-
-    // 格式化金额
-    private func formatBalance(_ balance: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: balance)) ?? "0.00"
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        loadWallets()
     }
-
-    private func loadWallets(forceRefresh: Bool = false) {
+    
+    func loadWallets(forceRefresh: Bool = false) {
         isLoading = true
         error = nil
-
+        
         Task {
             do {
                 let result = try await CorpWalletAPI.shared.fetchCorpWallets(
@@ -40,10 +37,31 @@ struct CorpWalletView: View {
             }
         }
     }
+}
+
+struct CorpWalletView: View {
+    let characterId: Int
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel: CorpWalletViewModel
+    
+    init(characterId: Int) {
+        self.characterId = characterId
+        // 在初始化时创建 ViewModel 并开始加载数据
+        _viewModel = StateObject(wrappedValue: CorpWalletViewModel(characterId: characterId))
+    }
+
+    // 格式化金额
+    private func formatBalance(_ balance: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: balance)) ?? "0.00"
+    }
 
     var body: some View {
         List {
-            if isLoading {
+            if viewModel.isLoading {
                 HStack {
                     Spacer()
                     ProgressView()
@@ -51,7 +69,7 @@ struct CorpWalletView: View {
                     Spacer()
                 }
             } else {
-                ForEach(wallets, id: \.division) { wallet in
+                ForEach(viewModel.wallets, id: \.division) { wallet in
                     NavigationLink(
                         destination: CorpWalletDivisionDetails(
                             characterId: characterId,
@@ -102,21 +120,18 @@ struct CorpWalletView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_wallet", comment: ""))
         .refreshable {
-            loadWallets(forceRefresh: true)
+            viewModel.loadWallets(forceRefresh: true)
         }
-        .alert(isPresented: $showError) {
+        .alert(isPresented: $viewModel.showError) {
             Alert(
                 title: Text(NSLocalizedString("Common_Error", comment: "")),
                 message: Text(
-                    error?.localizedDescription
+                    viewModel.error?.localizedDescription
                         ?? NSLocalizedString("Common_Unknown_Error", comment: "")),
                 dismissButton: .default(Text(NSLocalizedString("Common_OK", comment: ""))) {
                     dismiss()
                 }
             )
-        }
-        .onAppear {
-            loadWallets()
         }
     }
 }

@@ -674,7 +674,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             } else {
                 result = .success(results)
             }
-            Logger.debug("成功执行: \(query)")
+            // Logger.debug("成功执行: \(query)")
         }
 
         return result
