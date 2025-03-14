@@ -530,9 +530,6 @@ class CharacterContractsAPI {
             let contracts = try await fetchContractsFromServer(
                 characterId: characterId, progressCallback: progressCallback
             )
-            if !saveContractsToDB(characterId: characterId, contracts: contracts) {
-                Logger.error("保存合同到数据库失败")
-            }
             return contracts
         }
 

@@ -160,53 +160,59 @@ final class IncursionsViewModel: ObservableObject {
     }
 
     private func processIncursions(_ incursions: [Incursion]) async {
-        let prepared = await withTaskGroup(of: PreparedIncursion?.self) { group in
-            for incursion in incursions {
-                group.addTask {
-                    guard let faction = await self.getFactionInfo(factionId: incursion.factionId),
-                        let location = await self.getLocationInfo(
-                            solarSystemId: incursion.stagingSolarSystemId)
-                    else {
-                        return nil
-                    }
-
-                    return PreparedIncursion(
-                        incursion: incursion,
-                        faction: .init(iconName: faction.iconName, name: faction.name),
-                        location: .init(
-                            systemId: location.systemId,
-                            systemName: location.systemName,
-                            security: location.security,
-                            constellationId: location.constellationId,
-                            constellationName: location.constellationName,
-                            regionId: location.regionId,
-                            regionName: location.regionName
-                        )
-                    )
-                }
+        // 提取所有需要查询的星系ID
+        let solarSystemIds = incursions.map { $0.stagingSolarSystemId }
+        
+        // 一次性获取所有星系信息
+        let systemInfoMap = await getBatchSolarSystemInfo(
+            solarSystemIds: solarSystemIds, 
+            databaseManager: databaseManager
+        )
+        
+        var prepared: [PreparedIncursion] = []
+        
+        for incursion in incursions {
+            // 获取派系信息
+            guard let faction = await self.getFactionInfo(factionId: incursion.factionId) else {
+                continue
             }
-
-            var result: [PreparedIncursion] = []
-            for await prepared in group {
-                if let prepared = prepared {
-                    result.append(prepared)
-                }
+            
+            // 获取星系信息
+            guard let systemInfo = systemInfoMap[incursion.stagingSolarSystemId] else {
+                continue
             }
-
-            // 多重排序条件：
-            // 1. 按影响力从大到小
-            // 2. 同等影响力下，有boss的优先
-            // 3. boss状态相同时，按星系名称字母顺序
-            result.sort { a, b in
-                if a.incursion.influence != b.incursion.influence {
-                    return a.incursion.influence > b.incursion.influence
-                }
-                if a.incursion.hasBoss != b.incursion.hasBoss {
-                    return a.incursion.hasBoss
-                }
-                return a.location.systemName < b.location.systemName
+            
+            let locationInfo = PreparedIncursion.LocationInfo(
+                systemId: systemInfo.systemId,
+                systemName: systemInfo.systemName,
+                security: systemInfo.security,
+                constellationId: systemInfo.constellationId,
+                constellationName: systemInfo.constellationName,
+                regionId: systemInfo.regionId,
+                regionName: systemInfo.regionName
+            )
+            
+            let preparedIncursion = PreparedIncursion(
+                incursion: incursion,
+                faction: .init(iconName: faction.iconName, name: faction.name),
+                location: locationInfo
+            )
+            
+            prepared.append(preparedIncursion)
+        }
+        
+        // 多重排序条件：
+        // 1. 按影响力从大到小
+        // 2. 同等影响力下，有boss的优先
+        // 3. boss状态相同时，按星系名称字母顺序
+        prepared.sort { a, b in
+            if a.incursion.influence != b.incursion.influence {
+                return a.incursion.influence > b.incursion.influence
             }
-            return result
+            if a.incursion.hasBoss != b.incursion.hasBoss {
+                return a.incursion.hasBoss
+            }
+            return a.location.systemName < b.location.systemName
         }
 
         if !prepared.isEmpty {
@@ -229,26 +235,6 @@ final class IncursionsViewModel: ObservableObject {
             return nil
         }
         return (iconName, name)
-    }
-
-    private func getLocationInfo(solarSystemId: Int) async -> (
-        systemId: Int, systemName: String, security: Double, constellationId: Int,
-        constellationName: String, regionId: Int, regionName: String
-    )? {
-        if let info = await getSolarSystemInfo(
-            solarSystemId: solarSystemId, databaseManager: databaseManager
-        ) {
-            return (
-                systemId: info.systemId,
-                systemName: info.systemName,
-                security: info.security,
-                constellationId: info.constellationId,
-                constellationName: info.constellationName,
-                regionId: info.regionId,
-                regionName: info.regionName
-            )
-        }
-        return nil
     }
 }
 

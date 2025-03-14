@@ -19,6 +19,9 @@ final class CharacterOrdersViewModel: ObservableObject {
     @Published private(set) var locationInfoCache: [Int64: OrderLocationInfo] = [:]
     @Published var showBuyOrders = false
     @Published private(set) var isDataReady = false
+    
+    // 添加一个标志，表示是否已经开始加载数据
+    private var hasStartedLoading = false
 
     private let characterId: Int64
     private let databaseManager: DatabaseManager
@@ -37,6 +40,16 @@ final class CharacterOrdersViewModel: ObservableObject {
 
     deinit {
         loadingTask?.cancel()
+    }
+    
+    // 添加一个预加载方法，在初始化后立即调用
+    func preloadOrders() {
+        if !hasStartedLoading {
+            hasStartedLoading = true
+            Task {
+                await loadOrders()
+            }
+        }
     }
 
     // 初始化订单显示类型
@@ -153,11 +166,14 @@ struct CharacterOrdersView: View {
 
     init(characterId: Int64, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
-        _viewModel = StateObject(
-            wrappedValue: CharacterOrdersViewModel(
-                characterId: characterId,
-                databaseManager: databaseManager
-            ))
+        let vm = CharacterOrdersViewModel(
+            characterId: characterId,
+            databaseManager: databaseManager
+        )
+        _viewModel = StateObject(wrappedValue: vm)
+        
+        // 在初始化时预加载数据
+        vm.preloadOrders()
     }
 
     var body: some View {
@@ -201,6 +217,7 @@ struct CharacterOrdersView: View {
             }
         }
         .refreshable {
+            // 确保强制刷新功能正常工作
             await viewModel.loadOrders(forceRefresh: true)
         }
         .alert(NSLocalizedString("Error", comment: ""), isPresented: $viewModel.showError) {
@@ -210,9 +227,6 @@ struct CharacterOrdersView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Market_Orders", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await viewModel.loadOrders()
-        }
     }
 
     // 订单列表视图
@@ -230,6 +244,7 @@ struct CharacterOrdersView: View {
                         HStack {
                             Spacer()
                             ProgressView()
+                                .padding()
                             Spacer()
                         }
                     }

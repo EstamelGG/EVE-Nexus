@@ -49,6 +49,11 @@ final class WalletJournalViewModel: ObservableObject {
 
     init(characterId: Int) {
         self.characterId = characterId
+        
+        // 在初始化时立即开始加载数据
+        loadingTask = Task {
+            await loadJournalData()
+        }
     }
 
     deinit {
@@ -235,9 +240,6 @@ struct WalletJournalView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadJournalData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadJournalData()
         }
         .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
     }

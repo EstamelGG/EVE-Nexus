@@ -28,23 +28,27 @@ final class PersonalContractsViewModel: ObservableObject {
     @Published var currentLoadingPage: Int?
     @Published var showCorporationContracts = false {
         didSet {
-            // 切换时，如果对应类型的合同还未加载过，则加载
-            Task {
-                await loadContractsIfNeeded()
-            }
+            Logger.debug("合同类型切换: \(showCorporationContracts ? "军团" : "个人")")
         }
     }
+
+    @Published var isInitialized = false
 
     @Published var hasCorporationAccess = false
     @Published var courierMode = false {
         didSet {
             // 保存设置到 UserDefaults
             UserDefaults.standard.set(courierMode, forKey: "courierMode_\(characterId)")
-            // 当切换模式时，重新分组
+            // 当切换模式时，重新分组但不立即更新 UI
             Task {
-                await updateContractGroups(
-                    with: showCorporationContracts
-                        ? cachedCorporationContracts : cachedPersonalContracts)
+                // 使用缓存的合同数据重新处理分组
+                let contracts = showCorporationContracts ? cachedCorporationContracts : cachedPersonalContracts
+                // 先处理数据
+                let groups = await processContractGroups(contracts)
+                // 一次性更新 UI
+                await MainActor.run {
+                    self.contractGroups = groups
+                }
             }
         }
     }
@@ -110,34 +114,9 @@ final class PersonalContractsViewModel: ObservableObject {
     }
 
     private func updateContractGroups(with contracts: [ContractInfo]) async {
-        if courierMode {
-            // 快递模式：确保在主线程更新 UI
-            let groups = await groupContractsByRoute(contracts)
-            await MainActor.run {
-                self.contractGroups = groups
-            }
-        } else {
-            // 普通模式的分组逻辑
-            var groupedContracts: [Date: [ContractInfo]] = [:]
-            for contract in contracts {
-                let date = calendar.startOfDay(for: contract.date_issued)
-                if groupedContracts[date] == nil {
-                    groupedContracts[date] = []
-                }
-                groupedContracts[date]?.append(contract)
-            }
-
-            // 创建分组并排序
-            let groups = groupedContracts.map { date, contracts in
-                ContractGroup(
-                    date: date,
-                    contracts: contracts.sorted { $0.date_issued > $1.date_issued }
-                )
-            }.sorted { $0.date > $1.date }
-
-            await MainActor.run {
-                self.contractGroups = groups
-            }
+        let groups = await processContractGroups(contracts)
+        await MainActor.run {
+            self.contractGroups = groups
         }
     }
 
@@ -165,7 +144,9 @@ final class PersonalContractsViewModel: ObservableObject {
 
     func loadContractsData(forceRefresh: Bool = false) async {
         // 如果已经在加载中且不是强制刷新，则直接返回
-        if isLoading && !forceRefresh { return }
+        if isLoading && !forceRefresh {
+            return 
+        }
 
         // 如果是强制刷新，设置标志
         if forceRefresh {
@@ -183,10 +164,16 @@ final class PersonalContractsViewModel: ObservableObject {
             }
         }
 
+        // 在开始加载前一次性更新 UI 状态
         await MainActor.run {
             isLoading = true
             errorMessage = nil
             currentLoadingPage = nil
+            // 只有在非强制刷新（非下拉刷新）时才清空列表
+            // 下拉刷新时保留旧数据，直到新数据加载完成
+            if !forceRefresh {
+                contractGroups = []
+            }
         }
 
         do {
@@ -207,9 +194,11 @@ final class PersonalContractsViewModel: ObservableObject {
                     corporationContractsInitialized = true
                 } catch is CancellationError {
                     // 如果是取消操作，不显示错误
-                    isLoading = false
-                    currentLoadingPage = nil
-                    isForceRefreshing = false
+                    await MainActor.run {
+                        isLoading = false
+                        currentLoadingPage = nil
+                        isForceRefreshing = false
+                    }
                     return
                 }
             } else {
@@ -228,18 +217,25 @@ final class PersonalContractsViewModel: ObservableObject {
                     personalContractsInitialized = true
                 } catch is CancellationError {
                     // 如果是取消操作，不显示错误
-                    isLoading = false
-                    currentLoadingPage = nil
-                    isForceRefreshing = false
+                    await MainActor.run {
+                        isLoading = false
+                        currentLoadingPage = nil
+                        isForceRefreshing = false
+                    }
                     return
                 }
             }
 
-            await updateContractGroups(with: contracts)
+            // 先处理数据，再一次性更新 UI
+            let processedGroups = await processContractGroups(contracts)
+            
+            // 一次性更新所有 UI 状态
             await MainActor.run {
+                self.contractGroups = processedGroups
                 isLoading = false
                 currentLoadingPage = nil
                 isForceRefreshing = false
+                isInitialized = true
             }
 
         } catch {
@@ -247,12 +243,16 @@ final class PersonalContractsViewModel: ObservableObject {
                 await MainActor.run {
                     self.errorMessage = error.localizedDescription
                     Logger.error("加载\(self.showCorporationContracts ? "军团" : "个人")合同数据失败: \(error)")
+                    self.isLoading = false
+                    self.currentLoadingPage = nil
+                    self.isForceRefreshing = false
                 }
-            }
-            await MainActor.run {
-                self.isLoading = false
-                self.currentLoadingPage = nil
-                self.isForceRefreshing = false
+            } else {
+                await MainActor.run {
+                    self.isLoading = false
+                    self.currentLoadingPage = nil
+                    self.isForceRefreshing = false
+                }
             }
         }
     }
@@ -337,12 +337,40 @@ final class PersonalContractsViewModel: ObservableObject {
         // 第三步：按照奖励排序
         return result.sorted { $0.contracts[0].reward > $1.contracts[0].reward }
     }
+
+    // 新增方法：处理合同数据并返回分组，但不更新 UI
+    private func processContractGroups(_ contracts: [ContractInfo]) async -> [ContractGroup] {
+        if courierMode {
+            // 快递模式
+            return await groupContractsByRoute(contracts)
+        } else {
+            // 普通模式的分组逻辑
+            var groupedContracts: [Date: [ContractInfo]] = [:]
+            for contract in contracts {
+                let date = calendar.startOfDay(for: contract.date_issued)
+                if groupedContracts[date] == nil {
+                    groupedContracts[date] = []
+                }
+                groupedContracts[date]?.append(contract)
+            }
+
+            // 创建分组并排序
+            return groupedContracts.map { date, contracts in
+                ContractGroup(
+                    date: date,
+                    contracts: contracts.sorted { $0.date_issued > $1.date_issued }
+                )
+            }.sorted { $0.date > $1.date }
+        }
+    }
 }
 
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showSettings = false
+    // 添加一个状态变量来跟踪合同类型是否正在切换
+    @State private var isContractTypeChanging = false
 
     // 使用计算属性来获取和设置带有角色ID的AppStorage键
     private var showActiveOnlyKey: String { "showActiveOnly_\(viewModel.characterId)" }
@@ -362,9 +390,6 @@ struct PersonalContractsView: View {
     @AppStorage("") private var maxContracts: Int = 300
     @AppStorage("") private var courierMode: Bool = false
 
-    // 添加一个状态变量来跟踪是否已经初始化
-    @State private var isInitialized = false
-
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -374,7 +399,9 @@ struct PersonalContractsView: View {
     }()
 
     init(characterId: Int) {
-        _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(characterId: characterId))
+        // 先创建ViewModel实例
+        let vm = PersonalContractsViewModel(characterId: characterId)
+        _viewModel = StateObject(wrappedValue: vm)
 
         // 初始化@AppStorage的key
         _showActiveOnly = AppStorage(wrappedValue: false, "showActiveOnly_\(characterId)")
@@ -389,6 +416,19 @@ struct PersonalContractsView: View {
         )
         _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(characterId)")
         _courierMode = AppStorage(wrappedValue: false, "courierMode_\(characterId)")
+        
+        // 在初始化后立即开始加载数据，但不在闭包中捕获self
+        Task {
+            Logger.debug("PersonalContractsView - 初始化时加载数据")
+            // 等待数据加载完成
+            await vm.loadContractsData()
+            
+            // 使用MainActor确保在主线程上更新UI状态
+            // 数据加载完成后，一次性更新 UI 状态
+            await MainActor.run {
+                vm.isInitialized = true
+            }
+        }
     }
 
     // 修改过滤逻辑
@@ -475,7 +515,7 @@ struct PersonalContractsView: View {
     var body: some View {
         VStack(spacing: 0) {
             List {
-                if viewModel.isLoading && !isInitialized {
+                if viewModel.isLoading && (!viewModel.isInitialized || isContractTypeChanging) {
                     loadingView
                 } else if filteredContractGroups.isEmpty && !viewModel.isLoading {
                     emptyView
@@ -525,8 +565,6 @@ struct PersonalContractsView: View {
                     isCorpContract: viewModel.showCorporationContracts
                 )
             }
-            // 添加id以防止视图在数据变化时重建
-            .id("contractsList")
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
@@ -722,17 +760,24 @@ struct PersonalContractsView: View {
                 }
             }
         }
-        // 修改task，只在初始化时加载一次数据
-        .task {
-            if !isInitialized {
-                await viewModel.loadContractsData()
-                isInitialized = true
-            }
-        }
-        // 添加onChange监听器，当切换合同类型时重新加载
-        .onChange(of: viewModel.showCorporationContracts) { _, _ in
-            Task {
-                await viewModel.loadContractsData()
+        // 修改onChange监听器
+        .onChange(of: viewModel.showCorporationContracts) { oldValue, newValue in
+            Logger.debug("合同类型切换: \(oldValue) -> \(newValue)")
+            // 只有在类型真正变化时才加载数据
+            if oldValue != newValue {
+                // 先设置加载状态，避免在加载过程中显示旧数据
+                isContractTypeChanging = true
+                
+                // 使用单一任务加载数据，避免多次更新
+                Task {
+                    // 等待数据加载完成
+                    await viewModel.loadContractsData(forceRefresh: false)
+                    
+                    // 数据加载完成后，再更新 UI 状态
+                    await MainActor.run {
+                        isContractTypeChanging = false
+                    }
+                }
             }
         }
     }
@@ -741,13 +786,11 @@ struct PersonalContractsView: View {
         Section {
             HStack {
                 Spacer()
-                if let page = viewModel.currentLoadingPage {
-                    Text(String(format: NSLocalizedString("Loading_Page", comment: ""), page))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text(NSLocalizedString("Main_Database_Loading", comment: "Loading"))
+                    .foregroundColor(.secondary)
                 Spacer()
             }
+            .padding(.vertical, 12)
         }
         .listSectionSpacing(.compact)
     }

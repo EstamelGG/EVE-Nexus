@@ -166,14 +166,26 @@ class CharacterIndustryViewModel: ObservableObject {
         for job in jobs {
             typeIds.insert(job.blueprint_type_id)
         }
+        
+        // 如果没有物品ID，直接返回
+        if typeIds.isEmpty {
+            return
+        }
+        
+        Logger.debug("开始批量加载\(typeIds.count)个蓝图信息")
 
+        // 使用IN查询一次性获取所有物品信息
+        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
         let query = """
                 SELECT type_id, name, icon_filename
                 FROM types
-                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
+                WHERE type_id IN (\(placeholders))
             """
+        
+        // 将Set转换为数组作为参数
+        let parameters = typeIds.map { $0 as Any }
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                     let name = row["name"] as? String
@@ -184,6 +196,9 @@ class CharacterIndustryViewModel: ObservableObject {
                     }
                 }
             }
+            Logger.debug("成功加载了\(rows.count)个蓝图信息")
+        } else {
+            Logger.error("批量加载蓝图信息失败")
         }
     }
 
@@ -222,11 +237,14 @@ struct CharacterIndustryView: View {
 
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
-        _viewModel = StateObject(
-            wrappedValue: CharacterIndustryViewModel(
-                characterId: characterId,
-                databaseManager: databaseManager
-            ))
+        // 创建ViewModel
+        let vm = CharacterIndustryViewModel(characterId: characterId, databaseManager: databaseManager)
+        _viewModel = StateObject(wrappedValue: vm)
+        
+        // 在初始化时立即启动数据加载
+        Task {
+            await vm.loadJobs()
+        }
     }
 
     // 格式化日期显示
@@ -287,7 +305,7 @@ struct CharacterIndustryView: View {
                             IndustryJobRow(
                                 job: job,
                                 blueprintName: viewModel.itemNames[job.blueprint_type_id]
-                                    ?? "Unknown",
+                                    ?? "Unknown BP",
                                 blueprintIcon: viewModel.itemIcons[job.blueprint_type_id],
                                 locationInfo: viewModel.locationInfoCache[job.station_id],
                                 currentTime: viewModel.currentTime
@@ -301,9 +319,6 @@ struct CharacterIndustryView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadJobs(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadJobs()
         }
         .navigationTitle(NSLocalizedString("Main_Industry_Jobs", comment: ""))
         .navigationBarTitleDisplayMode(.inline)

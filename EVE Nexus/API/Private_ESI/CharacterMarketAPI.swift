@@ -32,7 +32,7 @@ class CharacterMarketAPI {
         return isValid
     }
 
-    private func getCachedOrders(characterId: Int64) -> String? {
+    private func getCachedOrders(characterId: Int64) -> (jsonString: String, cache: CachedData)? {
         let key = getCacheKey(characterId: characterId)
 
         // 1. 尝试获取并解码缓存数据
@@ -49,14 +49,8 @@ class CharacterMarketAPI {
             return nil
         }
 
-        // 3. 检查缓存是否有效并打印日志
-        if !isCacheValid(cache) {
-            Logger.debug("市场订单缓存已过期 - 角色ID: \(characterId)")
-            return jsonString
-        }
-
-        Logger.debug("使用市场订单缓存数据 - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
-        return jsonString
+        Logger.debug("获取市场订单缓存数据 - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
+        return (jsonString, cache)
     }
 
     private func saveOrdersToCache(jsonString: String, characterId: Int64) {
@@ -107,13 +101,15 @@ class CharacterMarketAPI {
         defer { progressCallback?(false) }
 
         // 1. 检查缓存
-        if !forceRefresh, let cachedJson = getCachedOrders(characterId: characterId) {
-            // 检查缓存是否过期
-            let key = getCacheKey(characterId: characterId)
-            if let data = UserDefaults.standard.data(forKey: key),
-                let cache = try? JSONDecoder().decode(CachedData.self, from: data),
-                !isCacheValid(cache)
-            {
+        if !forceRefresh, let cachedData = getCachedOrders(characterId: characterId) {
+            let cachedJson = cachedData.jsonString
+            let cache = cachedData.cache
+            
+            // 检查缓存是否有效
+            if isCacheValid(cache) {
+                Logger.debug("使用有效的市场订单缓存数据 - 角色ID: \(characterId)")
+                return cachedJson
+            } else {
                 // 如果缓存过期，在后台刷新
                 Logger.info("使用过期的市场订单数据，将在后台刷新 - 角色ID: \(characterId)")
                 Task {
@@ -130,17 +126,17 @@ class CharacterMarketAPI {
                         progressCallback?(false)
                     }
                 }
+                return cachedJson
             }
-            return cachedJson
         }
 
         // 2. 如果强制刷新或没有缓存，从网络获取
         let jsonString = try await fetchFromNetwork(characterId: characterId)
 
         // 3. 如果有缓存数据，尝试合并
-        if let cachedJson = getCachedOrders(characterId: characterId) {
+        if let cachedData = getCachedOrders(characterId: characterId) {
             await mergeAndSaveOrders(
-                newJsonString: jsonString, existingJsonString: cachedJson, characterId: characterId
+                newJsonString: jsonString, existingJsonString: cachedData.jsonString, characterId: characterId
             )
             return jsonString
         }

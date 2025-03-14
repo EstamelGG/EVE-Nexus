@@ -112,6 +112,10 @@ class SQLiteManager {
                 // Logger.debug("从缓存中获取结果: \(cacheKey)")
                 return .success(cachedResult)
             }
+            
+            // 记录开始时间
+            let startTime = CFAbsoluteTimeGetCurrent()
+            
             Logger.info("\(query)?#\(parameters)")
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
@@ -170,6 +174,13 @@ class SQLiteManager {
 
             // 释放语句
             sqlite3_finalize(statement)
+            
+            // 计算查询耗时
+            let endTime = CFAbsoluteTimeGetCurrent()
+            let elapsedTime = (endTime - startTime) * 1000 // 转换为毫秒
+            
+            // 记录查询耗时
+            Logger.info("查询耗时: \(String(format: "%.2f", elapsedTime))ms")
 
             // 缓存结果
             if useCache {

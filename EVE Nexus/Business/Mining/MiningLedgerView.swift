@@ -57,30 +57,55 @@ final class MiningLedgerViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
-
-    func getItemInfo(for typeId: Int) -> (name: String, iconFileName: String) {
-        // 先检查缓存
-        if let cachedInfo = itemInfoCache[typeId] {
-            return cachedInfo
+    
+    // 批量获取物品信息的方法
+    func preloadItemInfo(for typeIds: Set<Int>) {
+        guard !typeIds.isEmpty else { return }
+        
+        // 过滤掉已经缓存的物品ID
+        let idsToLoad = typeIds.filter { !itemInfoCache.keys.contains($0) }
+        
+        if idsToLoad.isEmpty {
+            Logger.debug("所有物品信息已在缓存中，无需重新加载")
+            return
         }
-
-        // 如果缓存中没有，从数据库查询
-        let result = databaseManager.executeQuery(
-            "SELECT name, icon_filename FROM types WHERE type_id = ?",
-            parameters: [typeId]
-        )
-
-        if case let .success(rows) = result,
-            let row = rows.first,
-            let name = row["name"] as? String,
-            let iconFileName = row["icon_filename"] as? String
-        {
-            let info = (name: name, iconFileName: iconFileName)
-            itemInfoCache[typeId] = info
-            return info
+        
+        Logger.debug("开始批量加载\(idsToLoad.count)个物品信息")
+        
+        // 构建IN查询的参数
+        let placeholders = Array(repeating: "?", count: idsToLoad.count).joined(separator: ",")
+        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+        
+        // 将Set转换为数组以便作为参数传递
+        let parameters = idsToLoad.map { $0 as Any }
+        
+        let result = databaseManager.executeQuery(query, parameters: parameters)
+        
+        if case let .success(rows) = result {
+            for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let name = row["name"] as? String,
+                      let iconFileName = row["icon_filename"] as? String else {
+                    continue
+                }
+                
+                let info = (name: name, iconFileName: iconFileName)
+                itemInfoCache[typeId] = info
+            }
+            
+            Logger.debug("成功加载了\(rows.count)个物品信息")
+        } else {
+            Logger.error("批量加载物品信息失败")
         }
-
-        return (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+        
+        // 检查是否有未找到的物品ID，为它们设置默认值
+        for typeId in idsToLoad {
+            if itemInfoCache[typeId] == nil {
+                itemInfoCache[typeId] = (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+            }
+        }
+        
+        Logger.debug("物品信息缓存现在包含\(itemInfoCache.count)个条目")
     }
 
     func loadMiningData(forceRefresh: Bool = false) async {
@@ -106,6 +131,12 @@ final class MiningLedgerViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 Logger.debug("获取到挖矿记录：\(entries.count)条")
+                
+                // 提取所有唯一的物品ID
+                let uniqueTypeIds = Set(entries.map { $0.type_id })
+                
+                // 一次性预加载所有物品信息
+                preloadItemInfo(for: uniqueTypeIds)
 
                 // 按月份和矿石类型分组
                 var groupedByMonth: [Date: [Int: Int]] = [:]  // [月份: [type_id: 总数量]]
@@ -136,7 +167,8 @@ final class MiningLedgerViewModel: ObservableObject {
                 // 转换为视图模型
                 let groups = groupedByMonth.map { date, itemQuantities -> MiningMonthGroup in
                     let summaries = itemQuantities.map { typeId, quantity -> MiningItemSummary in
-                        let info = getItemInfo(for: typeId)
+                        // 直接从缓存中获取物品信息，因为我们已经预加载了所有物品
+                        let info = itemInfoCache[typeId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
                         return MiningItemSummary(
                             id: typeId,
                             name: info.name,
@@ -187,10 +219,14 @@ struct MiningLedgerView: View {
     }()
 
     init(characterId: Int, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(
-            wrappedValue: MiningLedgerViewModel(
-                characterId: characterId, databaseManager: databaseManager
-            ))
+        // 创建ViewModel
+        let vm = MiningLedgerViewModel(characterId: characterId, databaseManager: databaseManager)
+        _viewModel = StateObject(wrappedValue: vm)
+        
+        // 在初始化时立即启动数据加载
+        Task {
+            await vm.loadMiningData()
+        }
     }
 
     var body: some View {
@@ -239,9 +275,6 @@ struct MiningLedgerView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadMiningData(forceRefresh: true)
-        }
-        .task {
-            await viewModel.loadMiningData()
         }
         .navigationTitle(NSLocalizedString("Main_Mining_Ledger", comment: ""))
     }
