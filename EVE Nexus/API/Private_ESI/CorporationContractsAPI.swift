@@ -288,20 +288,29 @@ class CorporationContractsAPI {
 
     // 保存合同列表到数据库
     private func saveContractsToDB(corporationId: Int, contracts: [ContractInfo]) -> Bool {
+        // 如果没有合同需要保存，直接返回成功
+        if contracts.isEmpty {
+            Logger.info("没有军团合同需要保存")
+            return true
+        }
+        
         // 过滤只保存指定给自己公司且未删除的合同
         let filteredContracts = contracts.filter { contract in
             contract.assignee_id == corporationId && contract.status != "deleted"
         }
+        
+        if filteredContracts.isEmpty {
+            Logger.info("没有符合条件的军团合同需要保存（已排除指定给其他公司和已删除的合同）")
+            return true
+        }
+        
         Logger.debug(
             "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (已排除指定给其他公司和已删除的合同)")
 
         // 获取已存在的合同ID和状态
         let checkQuery =
             "SELECT contract_id, status FROM corporation_contracts WHERE corporation_id = ?"
-        var newCount = 0
-        var updateCount = 0
-        let dateFormatter = ISO8601DateFormatter()
-
+        
         // 获取数据库中现有的合同状态
         guard
             case let .success(existingResults) = CharacterDatabaseManager.shared.executeQuery(
@@ -321,8 +330,49 @@ class CorporationContractsAPI {
                 existingContracts[Int(contractId)] = status
             }
         }
-
-        let insertSQL = """
+        
+        // 筛选需要更新的合同（状态变化或新合同）
+        let contractsToUpdate = filteredContracts.filter { contract in
+            if let existingStatus = existingContracts[contract.contract_id] {
+                return existingStatus != contract.status // 状态变化的合同
+            }
+            return true // 新合同
+        }
+        
+        if contractsToUpdate.isEmpty {
+            Logger.info("没有需要更新的合同数据")
+            return true
+        }
+        
+        Logger.info("需要更新的合同数量: \(contractsToUpdate.count)")
+        
+        // 开始事务
+        _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
+        
+        // 计算每批次的大小（每条记录24个参数）
+        let batchSize = 500  // 每批次处理500条记录
+        let dateFormatter = ISO8601DateFormatter()
+        var success = true
+        var newCount = 0
+        var updateCount = 0
+        
+        // 分批处理数据
+        for batchStart in stride(from: 0, to: contractsToUpdate.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, contractsToUpdate.count)
+            let currentBatch = Array(contractsToUpdate[batchStart..<batchEnd])
+            
+            // 统计新增和更新的数量
+            for contract in currentBatch {
+                if existingContracts[contract.contract_id] != nil {
+                    updateCount += 1
+                } else {
+                    newCount += 1
+                }
+            }
+            
+            // 构建批量插入语句
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let insertSQL = """
                 INSERT OR REPLACE INTO corporation_contracts (
                     contract_id, corporation_id, status, acceptor_id, assignee_id,
                     availability, buyout, collateral, date_accepted, date_completed,
@@ -330,74 +380,67 @@ class CorporationContractsAPI {
                     end_location_id, for_corporation, issuer_corporation_id,
                     issuer_id, price, reward, start_location_id,
                     title, type, volume, items_fetched
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES \(placeholders)
             """
-
-        for contract in filteredContracts {
-            // 检查合同是否存在及其状态
-            if let existingStatus = existingContracts[contract.contract_id] {
-                // 如果状态没有变化，跳过
-                if existingStatus == contract.status {
-                    Logger.debug("跳过状态未变化的合同 - ID: \(contract.contract_id), 状态: \(contract.status)")
-                    continue
-                }
-                Logger.debug(
-                    "合同状态已更新 - ID: \(contract.contract_id), 旧状态: \(existingStatus), 新状态: \(contract.status)"
-                )
-                updateCount += 1
-            } else {
-                // 新合同
-                newCount += 1
+            
+            // 准备参数数组
+            var parameters: [Any] = []
+            for contract in currentBatch {
+                // 处理可选日期
+                let dateAccepted = contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
+                let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
+                
+                let params: [Any] = [
+                    contract.contract_id,
+                    corporationId,
+                    contract.status,
+                    contract.acceptor_id ?? 0,
+                    contract.assignee_id ?? 0,
+                    contract.availability,
+                    contract.buyout ?? 0,
+                    contract.collateral ?? 0,
+                    dateAccepted,
+                    dateCompleted,
+                    dateFormatter.string(from: contract.date_expired),
+                    dateFormatter.string(from: contract.date_issued),
+                    contract.days_to_complete,
+                    Int(contract.end_location_id),
+                    contract.for_corporation ? 1 : 0,
+                    contract.issuer_corporation_id,
+                    contract.issuer_id,
+                    contract.price,
+                    contract.reward,
+                    Int(contract.start_location_id),
+                    contract.title,
+                    contract.type,
+                    contract.volume,
+                    0,  // 状态变化时重置items_fetched
+                ]
+                parameters.append(contentsOf: params)
             }
-
-            // 处理可选日期
-            let dateAccepted = contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
-            let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
-
-            let parameters: [Any] = [
-                contract.contract_id,
-                corporationId,
-                contract.status,
-                contract.acceptor_id ?? 0,
-                contract.assignee_id ?? 0,
-                contract.availability,
-                contract.buyout ?? 0,
-                contract.collateral ?? 0,
-                dateAccepted,
-                dateCompleted,
-                dateFormatter.string(from: contract.date_expired),
-                dateFormatter.string(from: contract.date_issued),
-                contract.days_to_complete,
-                Int(contract.end_location_id),
-                contract.for_corporation ? 1 : 0,
-                contract.issuer_corporation_id,
-                contract.issuer_id,
-                contract.price,
-                contract.reward,
-                Int(contract.start_location_id),
-                contract.title,
-                contract.type,
-                contract.volume,
-                0,  // 状态变化时重置items_fetched
-            ]
-
+            
+            Logger.debug("执行批量插入军团合同，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            
+            // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("保存合同到数据库失败: \(message)")
-                return false
+                Logger.error("批量插入军团合同失败: \(message)")
+                success = false
+                break
             }
-            Logger.debug(
-                "成功\(newCount > 0 ? "插入" : "更新")合同 - ID: \(contract.contract_id), 状态: \(contract.status)"
-            )
         }
-
-        if newCount > 0 || updateCount > 0 {
-            Logger.info("数据库更新：新增\(newCount)个合同，更新\(updateCount)个合同状态")
+        
+        // 根据执行结果提交或回滚事务
+        if success {
+            _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
+            Logger.info("数据库更新成功：新增\(newCount)个合同，更新\(updateCount)个合同状态")
+            return true
         } else {
-            Logger.debug("没有需要更新的合同数据")
+            _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
+            Logger.error("保存军团合同失败，执行回滚")
+            return false
         }
-        return true
     }
 
     // 从数据库获取合同物品
@@ -473,45 +516,82 @@ class CorporationContractsAPI {
     private func saveContractItemsToDB(
         corporationId _: Int, contractId: Int, items: [ContractItemInfo]
     ) -> Bool {
+        // 如果没有物品需要保存，直接返回成功
+        if items.isEmpty {
+            Logger.info("没有合同物品需要保存，合同ID: \(contractId)")
+            return true
+        }
+        
+        // 开始事务
+        _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
+        
+        // 计算每批次的大小（每条记录7个参数）
+        let batchSize = 100  // 每批次处理100条记录
         var success = true
-        let insertSQL = """
+        
+        // 分批处理数据
+        for batchStart in stride(from: 0, to: items.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, items.count)
+            let currentBatch = Array(items[batchStart..<batchEnd])
+            
+            // 构建批量插入语句
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let insertSQL = """
                 INSERT OR REPLACE INTO contract_items (
                     record_id, contract_id, is_included, is_singleton,
                     quantity, type_id, raw_quantity
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES \(placeholders)
             """
-
-        for item in items {
-            let rawQuantity = item.raw_quantity ?? item.quantity
-            let recordId = item.record_id
-
-            let parameters: [Any] = [
-                recordId,
-                contractId,
-                item.is_included ? 1 : 0,
-                item.is_singleton ? 1 : 0,
-                item.quantity,
-                item.type_id,
-                rawQuantity,
-            ]
-
-            Logger.debug(
-                "插入物品 - 记录ID: \(recordId), 合同ID: \(contractId), 类型ID: \(item.type_id), 数量: \(item.quantity)"
-            )
+            
+            // 准备参数数组
+            var parameters: [Any] = []
+            for item in currentBatch {
+                let rawQuantity = item.raw_quantity ?? item.quantity
+                
+                let params: [Any] = [
+                    item.record_id,
+                    contractId,
+                    item.is_included ? 1 : 0,
+                    item.is_singleton ? 1 : 0,
+                    item.quantity,
+                    item.type_id,
+                    rawQuantity,
+                ]
+                parameters.append(contentsOf: params)
+            }
+            
+            Logger.debug("执行批量插入合同物品，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            
+            // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("保存合同物品到数据库失败: \(message), 参数: \(parameters)")
+                Logger.error("批量插入合同物品失败: \(message)")
                 success = false
+                break
             }
         }
-
+        
+        // 根据执行结果提交或回滚事务
         if success {
+            _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
             Logger.info("成功保存\(items.count)个合同物品到数据库，合同ID: \(contractId)")
+            
+            // 更新合同的items_fetched标志
+            let updateSQL = "UPDATE corporation_contracts SET items_fetched = 1 WHERE contract_id = ?"
+            if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
+                updateSQL, parameters: [contractId]
+            ) {
+                Logger.error("更新合同items_fetched标志失败: \(message)")
+                // 不影响主要功能，继续返回成功
+            }
+            
+            return true
         } else {
-            Logger.error("保存合同物品时发生错误，合同ID: \(contractId)")
+            _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
+            Logger.error("保存合同物品失败，执行回滚")
+            return false
         }
-        return success
     }
 
     // 获取合同列表（公开方法）

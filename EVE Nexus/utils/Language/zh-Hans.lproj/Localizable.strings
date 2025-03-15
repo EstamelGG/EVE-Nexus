@@ -377,7 +377,9 @@
 "Contract_Type_courier" = "运输";
 "Contract_Type_auction" = "拍卖";
 "Contract_Type_unknown" = "未知";
-
+// 钱包日志加载状态
+"Contract_Loading_Fetching" = "正在获取第%d页合同日志";
+"Contract_Loading_Complete" = "加载完成";
 // Contract Status
 "Contract_Status_outstanding" = "未决";
 "Contract_Status_in_progress" = "进行中";

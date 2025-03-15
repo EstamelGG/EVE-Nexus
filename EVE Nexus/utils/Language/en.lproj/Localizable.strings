@@ -1038,8 +1038,9 @@
 "Contract_Show_Auction" = "Show Auction Contracts";
 "Contract_Settings" = "Contract Settings";
 "Contract_Done" = "Done";
-"Loading_Page" = "Loading Page %d";
-
+// 钱包日志加载状态
+"Contract_Loading_Fetching" = "Fetching page %d";
+"Contract_Loading_Complete" = "Complete";
 "Contract_Total_Count" = "Total %d contracts";
 "Contract_Filtered_Count" = "%d contracts, %d after filter";
 "Contract_Filtered_Limited" = "%d contracts, %d filtered, showing %d";
