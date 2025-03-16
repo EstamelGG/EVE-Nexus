@@ -55,6 +55,11 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         self.characterId = characterId
         self.division = division
         self.databaseManager = databaseManager
+        
+        // 在初始化时立即开始加载数据
+        loadingTask = Task {
+            await loadTransactionData()
+        }
     }
 
     deinit {
@@ -210,6 +215,55 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     }
 }
 
+// 特定日期的交易记录详情视图
+struct CorpWalletTransactionDayDetailView: View {
+    let group: CorpWalletTransactionGroup
+    let viewModel: CorpWalletTransactionsViewModel
+    @State private var displayedEntries: [CorpWalletTransactionEntry] = []
+    @State private var showingCount = 100
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    var body: some View {
+        List {
+            ForEach(displayedEntries) { entry in
+                CorpWalletTransactionEntryRow(entry: entry, viewModel: viewModel)
+            }
+            
+            if showingCount < group.entries.count {
+                Button(action: {
+                    loadMoreEntries()
+                }) {
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("Load More", comment: ""))
+                            .foregroundColor(.blue)
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(displayDateFormatter.string(from: group.date))
+        .onAppear {
+            // 初始加载前100条
+            loadMoreEntries()
+        }
+    }
+    
+    private func loadMoreEntries() {
+        let nextBatch = min(showingCount + 100, group.entries.count)
+        displayedEntries = Array(group.entries.prefix(nextBatch))
+        showingCount = nextBatch
+    }
+}
+
 struct CorpWalletTransactionsView: View {
     @ObservedObject var viewModel: CorpWalletTransactionsViewModel
 
@@ -243,24 +297,39 @@ struct CorpWalletTransactionsView: View {
                 }
                 .listSectionSpacing(.compact)
             } else {
-                ForEach(viewModel.transactionGroups) { group in
-                    Section(
-                        header: Text(displayDateFormatter.string(from: group.date))
-                            .fontWeight(.bold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        ForEach(group.entries) { entry in
-                            CorpWalletTransactionEntryRow(entry: entry, viewModel: viewModel)
-                                .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                Section(
+                    header: Text(NSLocalizedString("Transaction Dates", comment: ""))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(viewModel.transactionGroups) { group in
+                        NavigationLink(destination: CorpWalletTransactionDayDetailView(group: group, viewModel: viewModel)) {
+                            HStack {
+                                Text(displayDateFormatter.string(from: group.date))
+                                    .font(.system(size: 16))
+                                
+                                Spacer()
+                                
+                                // 显示买入和卖出数量
+                                let buyCount = group.entries.filter { $0.is_buy }.count
+                                let sellCount = group.entries.filter { !$0.is_buy }.count
+                                Text("\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            await viewModel.loadTransactionData(forceRefresh: true)
+        }
+        .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
     }
 }
 
@@ -344,7 +413,7 @@ struct CorpWalletTransactionEntryRow: View {
                         Spacer()
                         if let date = dateFormatter.date(from: entry.date) {
                             Text(
-                                "\(displayDateFormatter.string(from: date)) \(timeFormatter.string(from: date))"
+                                "\(timeFormatter.string(from: date))"
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)

@@ -575,7 +575,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     }
 
     /// 执行查询
-    func executeQuery(_ query: String, parameters: [Any] = [], useCache _: Bool = true)
+    func executeQuery(_ query: String, parameters: [Any] = [])
         -> SQLiteResult
     {
         Logger.debug("\(query)?#\(parameters)")

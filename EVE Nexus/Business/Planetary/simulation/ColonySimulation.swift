@@ -51,6 +51,7 @@ class ColonySimulation {
 
         // 如果目标时间早于当前模拟时间，直接返回
         if targetTime <= simulatedColony.currentSimTime {
+            Logger.info("目标时间(\(targetTime))早于或等于当前模拟时间(\(simulatedColony.currentSimTime))，无需模拟")
             return simulatedColony
         }
 
@@ -61,7 +62,33 @@ class ColonySimulation {
         let startTimeString = dateFormatter.string(from: simulatedColony.currentSimTime)
         let endTimeString = dateFormatter.string(from: targetTime)
 
-        Logger.info("开始模拟殖民地: 从 \(startTimeString) 到 \(endTimeString)")
+        Logger.info("======== 开始模拟殖民地 ========")
+        Logger.info("殖民地ID: \(simulatedColony.id)")
+        Logger.info("模拟时间范围: 从 \(startTimeString) 到 \(endTimeString)")
+        Logger.info("设施数量: \(simulatedColony.pins.count), 路由数量: \(simulatedColony.routes.count)")
+        
+        // 记录设施类型统计
+        var extractorCount = 0
+        var factoryCount = 0
+        var storageCount = 0
+        var commandCenterCount = 0
+        var launchpadCount = 0
+        
+        for pin in simulatedColony.pins {
+            if pin is Pin.Extractor {
+                extractorCount += 1
+            } else if pin is Pin.Factory {
+                factoryCount += 1
+            } else if pin is Pin.Storage {
+                storageCount += 1
+            } else if pin is Pin.CommandCenter {
+                commandCenterCount += 1
+            } else if pin is Pin.Launchpad {
+                launchpadCount += 1
+            }
+        }
+        
+        Logger.info("设施类型统计: 提取器=\(extractorCount), 工厂=\(factoryCount), 存储设施=\(storageCount), 指挥中心=\(commandCenterCount), 发射台=\(launchpadCount)")
 
         // 检查并处理已经在生产周期中的工厂
         for pin in simulatedColony.pins {
@@ -105,12 +132,16 @@ class ColonySimulation {
             }
         }
 
+        Logger.info("开始初始化事件队列...")
         // 初始化事件队列
         initializeSimulation(colony: simulatedColony, endCondition: .untilNow)
         simEndTime = nil
+        Logger.info("事件队列初始化完成，队列长度: \(eventQueue.count)")
 
+        Logger.info("开始运行事件驱动的模拟...")
         // 运行事件驱动的模拟
         runEventDrivenSimulation(colony: &simulatedColony, targetTime: targetTime)
+        Logger.info("事件驱动模拟完成")
 
         // 更新设施状态
         updatePinStatuses(colony: simulatedColony)
@@ -126,6 +157,27 @@ class ColonySimulation {
         Logger.info(
             "殖民地模拟完成: 状态: \(simulatedColony.status), 最终产品数量: \(simulatedColony.overview.finalProducts.count)"
         )
+        
+        // 记录模拟后的设施状态统计
+        var activeExtractorCount = 0
+        var activeFactoryCount = 0
+        var runningFactoryCount = 0
+        
+        for pin in simulatedColony.pins {
+            if let extractor = pin as? Pin.Extractor, extractor.isActive {
+                activeExtractorCount += 1
+            } else if let factory = pin as? Pin.Factory {
+                if factory.isActive {
+                    activeFactoryCount += 1
+                }
+                if factory.lastCycleStartTime != nil {
+                    runningFactoryCount += 1
+                }
+            }
+        }
+        
+        Logger.info("模拟后设施状态: 活跃提取器=\(activeExtractorCount)/\(extractorCount), 活跃工厂=\(activeFactoryCount)/\(factoryCount), 正在生产的工厂=\(runningFactoryCount)/\(factoryCount)")
+        Logger.info("======== 殖民地模拟结束 ========")
 
         // 打印殖民地模拟详细信息
         printColonySimulationDetails(colony: simulatedColony)
@@ -350,11 +402,22 @@ class ColonySimulation {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        // 添加日志，显示当前模拟的时间范围
+        let currentTimeString = dateFormatter.string(from: colony.currentSimTime)
+        let endTimeString = dateFormatter.string(from: endCondition.getSimEndTime())
+        Logger.info("初始化事件队列，当前时间: \(currentTimeString)，结束条件: \(endCondition)，结束时间: \(endTimeString)")
+        Logger.info("殖民地共有 \(colony.pins.count) 个设施")
 
         // 为每个可运行的设施安排事件
         for pin in colony.pins {
+            // 记录当前处理的设施
+            let pinType = getPinTypeName(pin: pin)
+            Logger.info("检查设施: \(pinType)(\(pin.id)) - \(pin.name)")
+            
             // 跳过存储类设施
             if isStorage(pin: pin) {
+                Logger.info("  - 跳过存储类设施: \(pinType)(\(pin.id))")
                 continue
             }
 
@@ -373,12 +436,87 @@ class ColonySimulation {
                     )
                     eventQueue.append((cycleEndTime, factory.id))
                     continue
+                } else {
+                    Logger.info("工厂(\(factory.id))的生产周期已结束，不添加到事件队列")
                 }
+            } else if let factory = pin as? Pin.Factory {
+                // 记录工厂状态
+                Logger.info("  - 工厂(\(factory.id)) 状态: isActive=\(factory.isActive), hasSchematic=\(factory.schematic != nil)")
+                if let schematic = factory.schematic {
+                    Logger.info("  - 工厂配方: \(schematic.id) (输出: \(schematic.outputType.name)x\(schematic.outputQuantity))")
+                    
+                    // 记录输入缓冲区状态
+                    var bufferStatus = ""
+                    for (inputType, requiredQuantity) in schematic.inputs {
+                        let availableQuantity = factory.contents[inputType] ?? 0
+                        let ratio = Double(availableQuantity) / Double(requiredQuantity)
+                        bufferStatus += "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
+                    }
+                    if !bufferStatus.isEmpty {
+                        bufferStatus.removeLast(2)
+                        Logger.info("  - 工厂缓冲区状态: [\(bufferStatus)]")
+                    } else {
+                        Logger.info("  - 工厂无输入材料需求")
+                    }
+                    
+                    // 记录生产状态
+                    if let lastCycleStartTime = factory.lastCycleStartTime {
+                        let cycleEndTime = lastCycleStartTime.addingTimeInterval(schematic.cycleTime)
+                        Logger.info("  - 工厂上次生产周期开始时间: \(dateFormatter.string(from: lastCycleStartTime))")
+                        Logger.info("  - 工厂生产周期结束时间: \(dateFormatter.string(from: cycleEndTime))")
+                    }
+                    if let lastRunTime = factory.lastRunTime {
+                        Logger.info("  - 工厂上次运行时间: \(dateFormatter.string(from: lastRunTime))")
+                    }
+                }
+            } else if let extractor = pin as? Pin.Extractor {
+                // 记录提取器状态
+                Logger.info("  - 提取器(\(extractor.id)) 状态: isActive=\(extractor.isActive), hasProductType=\(extractor.productType != nil)")
+                if let productType = extractor.productType {
+                    Logger.info("  - 提取器产品类型: \(productType.name)")
+                }
+                if let lastRunTime = extractor.lastRunTime {
+                    Logger.info("  - 提取器上次运行时间: \(dateFormatter.string(from: lastRunTime))")
+                }
+                if let cycleTime = extractor.cycleTime {
+                    Logger.info("  - 提取器周期时间: \(Int(cycleTime)) 秒")
+                }
+                if let expiryTime = extractor.expiryTime {
+                    Logger.info("  - 提取器过期时间: \(dateFormatter.string(from: expiryTime))")
+                }
+            }
+
+            // 检查设施是否可以运行
+            let canRunResult = canRun(pin: pin, time: endCondition.getSimEndTime())
+            Logger.info("  - 设施可以运行: \(canRunResult)")
+            
+            // 检查设施是否可以激活
+            let canActivateResult = canActivate(pin: pin)
+            Logger.info("  - 设施可以激活: \(canActivateResult)")
+            
+            // 检查设施是否处于激活状态
+            let isActiveResult = isActive(pin: pin)
+            Logger.info("  - 设施处于激活状态: \(isActiveResult)")
+            
+            // 如果是工厂，检查是否有足够的输入材料
+            if let factory = pin as? Pin.Factory {
+                let hasEnoughInputsResult = hasEnoughInputs(factory: factory)
+                Logger.info("  - 工厂有足够的输入材料: \(hasEnoughInputsResult)")
+            }
+            
+            // 获取下一次运行时间
+            if let nextRunTime = getNextRunTime(pin: pin) {
+                Logger.info("  - 下一次运行时间: \(dateFormatter.string(from: nextRunTime))")
+            } else {
+                Logger.info("  - 下一次运行时间: 立即运行")
             }
 
             // 处理其他可运行的设施
             if canRun(pin: pin, time: endCondition.getSimEndTime()) {
+                Logger.info("  - 设施可以运行，安排到事件队列")
                 schedulePin(pin: pin, currentTime: colony.currentSimTime)
+            } else {
+                Logger.info("  - 设施不能运行，不添加到事件队列")
             }
         }
 
@@ -406,6 +544,8 @@ class ColonySimulation {
             if eventQueue.count > 5 {
                 Logger.info("  ... 以及 \(eventQueue.count - 5) 个其他事件")
             }
+        } else {
+            Logger.warning("初始化事件队列完成，但队列为空！没有设施需要运行。")
         }
     }
 
@@ -429,6 +569,65 @@ class ColonySimulation {
         Logger.info(
             "开始事件驱动模拟，从 \(dateFormatter.string(from: currentSimTime)) 到 \(dateFormatter.string(from: targetTime))"
         )
+        
+        // 记录殖民地状态
+        Logger.info("殖民地ID: \(colony.id), 设施数量: \(colony.pins.count), 路由数量: \(colony.routes.count)")
+        
+        // 检查事件队列
+        if eventQueue.isEmpty {
+            Logger.warning("事件队列为空，无法进行模拟！")
+            Logger.info("检查殖民地状态...")
+            
+            // 记录设施状态
+            var hasActiveExtractors = false
+            var hasActiveFactories = false
+            var hasRunningFactories = false
+            
+            for pin in colony.pins {
+                
+                if let extractor = pin as? Pin.Extractor {
+                    Logger.info("提取器(\(extractor.id)) 状态: isActive=\(extractor.isActive), hasProductType=\(extractor.productType != nil)")
+                    if extractor.isActive && extractor.productType != nil {
+                        hasActiveExtractors = true
+                    }
+                } else if let factory = pin as? Pin.Factory {
+                    Logger.info("工厂(\(factory.id)) 状态: isActive=\(factory.isActive), hasSchematic=\(factory.schematic != nil)")
+                    
+                    if factory.isActive {
+                        hasActiveFactories = true
+                    }
+                    
+                    if let lastCycleStartTime = factory.lastCycleStartTime, let schematic = factory.schematic {
+                        let cycleEndTime = lastCycleStartTime.addingTimeInterval(schematic.cycleTime)
+                        if cycleEndTime > currentSimTime {
+                            hasRunningFactories = true
+                            Logger.info("工厂(\(factory.id)) 正在生产中，周期结束时间: \(dateFormatter.string(from: cycleEndTime))")
+                        }
+                    }
+                    
+                    // 记录工厂缓冲区状态
+                    if let schematic = factory.schematic {
+                        var bufferStatus = ""
+                        for (inputType, requiredQuantity) in schematic.inputs {
+                            let availableQuantity = factory.contents[inputType] ?? 0
+                            let ratio = Double(availableQuantity) / Double(requiredQuantity)
+                            bufferStatus += "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
+                        }
+                        if !bufferStatus.isEmpty {
+                            bufferStatus.removeLast(2)
+                            Logger.info("工厂(\(factory.id)) 缓冲区状态: [\(bufferStatus)]")
+                        }
+                    }
+                }
+            }
+            
+            Logger.info("殖民地状态摘要: 有活跃提取器=\(hasActiveExtractors), 有活跃工厂=\(hasActiveFactories), 有正在生产的工厂=\(hasRunningFactories)")
+            Logger.warning("事件队列空，结束模拟")
+            
+            // 更新殖民地的当前模拟时间
+            colony.currentSimTime = targetTime
+            return
+        }
 
         // 循环处理事件队列
         while !eventQueue.isEmpty {
@@ -573,6 +772,10 @@ class ColonySimulation {
         if colony.currentSimTime > targetTime {
             colony.currentSimTime = targetTime
         }
+        
+        // 记录模拟结束信息
+        Logger.info("事件驱动模拟结束，最终模拟时间: \(dateFormatter.string(from: colony.currentSimTime))")
+        Logger.info("剩余事件队列长度: \(eventQueue.count)")
 
         // 清除当前模拟的殖民地引用
         self.colony = nil
@@ -995,7 +1198,9 @@ class ColonySimulation {
             // 特殊处理工厂：如果是工厂且有足够的输入材料，即使canActivate返回false也应该继续处理
             if let factory = pin as? Pin.Factory, hasEnoughInputs(factory: factory) {
                 // 继续处理，不返回false
+                Logger.debug("工厂(\(pin.id)) 虽然不能激活且不处于激活状态，但有足够的输入材料，可以运行")
             } else {
+                Logger.debug("设施(\(pin.id)) 既不能激活也不处于激活状态，不能运行")
                 return false
             }
         }
@@ -1006,14 +1211,22 @@ class ColonySimulation {
         // 如果是工厂且收到了输入但材料不足，确保不会在当前时间点运行
         if let factory = pin as? Pin.Factory,
             (factory.hasReceivedInputs || factory.receivedInputsLastCycle)
-                && !hasEnoughInputs(factory: factory)
+            && !hasEnoughInputs(factory: factory)
         {
             // 只有当下一次运行时间小于等于当前时间时才运行
-            return nextRunTime != nil && nextRunTime! <= time
+            let canRun = nextRunTime != nil && nextRunTime! <= time
+            if !canRun {
+                Logger.debug("工厂(\(pin.id)) 收到了输入但材料不足，且下一次运行时间未到，不能运行")
+            }
+            return canRun
         }
 
         // 如果没有下一次运行时间或者下一次运行时间小于等于当前时间，则可以运行
-        return nextRunTime == nil || nextRunTime! <= time
+        let canRun = nextRunTime == nil || nextRunTime! <= time
+        if !canRun {
+            Logger.debug("设施(\(pin.id)) 下一次运行时间未到，不能运行")
+        }
+        return canRun
     }
 
     /// 检查设施是否可以激活
@@ -1023,17 +1236,24 @@ class ColonySimulation {
         if let extractor = pin as? Pin.Extractor {
             // 提取器需要是激活状态并且有产品类型
             if !extractor.isActive {
+                Logger.debug("提取器(\(pin.id)) 未激活，不能激活")
                 return false
             }
-            return extractor.productType != nil
+            let canActivate = extractor.productType != nil
+            if !canActivate {
+                Logger.debug("提取器(\(pin.id)) 没有产品类型，不能激活")
+            }
+            return canActivate
         } else if let factory = pin as? Pin.Factory {
             // 工厂需要有配方
             if factory.schematic == nil {
+                Logger.debug("工厂(\(pin.id)) 没有配方，不能激活")
                 return false
             }
 
             // 如果已经激活，直接返回true
             if isActive(pin: factory) {
+                Logger.debug("工厂(\(pin.id)) 已经处于激活状态")
                 return true
             }
 
@@ -1041,13 +1261,16 @@ class ColonySimulation {
             if (factory.hasReceivedInputs || factory.receivedInputsLastCycle)
                 && hasEnoughInputs(factory: factory)
             {
+                Logger.debug("工厂(\(pin.id)) 收到了输入且有足够的输入材料，可以激活")
                 return true
             }
 
+            Logger.debug("工厂(\(pin.id)) 未收到输入或没有足够的输入材料，不能激活")
             return false  // 简化逻辑，其他情况都返回false
         }
 
         // 存储类设施不需要激活
+        Logger.debug("存储类设施(\(pin.id)) 不需要激活")
         return false
     }
 

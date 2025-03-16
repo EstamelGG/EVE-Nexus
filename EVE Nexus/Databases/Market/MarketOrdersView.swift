@@ -61,7 +61,7 @@ struct MarketOrdersView: View {
     var body: some View {
         VStack(spacing: 0) {
             // 顶部选择器
-            Picker("Order Type", selection: $showBuyOrders) {
+            Picker("", selection: $showBuyOrders) {
                 Text(
                     "\(NSLocalizedString("Orders_Sell", comment: "")) (\(orders.filter { !$0.isBuyOrder }.count))"
                 ).tag(false)
@@ -105,7 +105,8 @@ struct MarketOrdersView: View {
                 .background(Color(UIColor.systemGroupedBackground))
             }
         }
-        .navigationTitle(itemName).lineLimit(1)
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(itemName)
         .navigationBarTitleDisplayMode(.inline)
         .ignoresSafeArea(edges: .bottom)
         .task {
@@ -150,6 +151,21 @@ struct MarketOrdersView: View {
                     }
                 }
             }
+        }
+        .refreshable {
+            // 添加下拉刷新功能
+            isLoading = true
+            
+            // 收集所有订单的位置ID
+            let locationIds = Set(orders.map { $0.locationId })
+            
+            // 重新加载所有位置信息
+            let refreshedInfos = await locationInfoLoader.loadLocationInfo(
+                locationIds: locationIds)
+            
+            // 更新UI
+            locationInfos = refreshedInfos
+            isLoading = false
         }
     }
 

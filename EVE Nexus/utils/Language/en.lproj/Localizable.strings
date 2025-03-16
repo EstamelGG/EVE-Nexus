@@ -683,8 +683,12 @@
 "Summary" = "Summary(30d)";
 "Total Income" = "Total Income";
 "Total Expense" = "Total Expense";
+"Transaction Dates" = "Transaction Dates";
+"transactions" = "transactions";
 "Transactions" = "Transactions";
 "Common_Error" = "Error";
+"Net Balance" = "Net Balance";
+"Load More" = "Load More";
 
 // Optimal Attributes
 "Main_Skills_Optimal_Attributes" = "Optimal Attributes";
@@ -1038,8 +1042,9 @@
 "Contract_Show_Auction" = "Show Auction Contracts";
 "Contract_Settings" = "Contract Settings";
 "Contract_Done" = "Done";
-"Loading_Page" = "Loading Page %d";
-
+// 钱包日志加载状态
+"Contract_Loading_Fetching" = "Fetching page %d";
+"Contract_Loading_Complete" = "Complete";
 "Contract_Total_Count" = "Total %d contracts";
 "Contract_Filtered_Count" = "%d contracts, %d after filter";
 "Contract_Filtered_Limited" = "%d contracts, %d filtered, showing %d";
@@ -1245,6 +1250,7 @@
 "Main_Language_Map_Search_Object_1" = "1. Items (ships, modules, space entities, etc.)";
 "Main_Language_Map_Search_Object_2" = "2. Solar systems, constellations, regions";
 "Main_Language_Map_Search_Object_3" = "3. NPC factions, corporations";
+"Main_Language_Map_Search_Object_4" = "4. Type ID";
 
 // Region and System Search
 "Location_Filter" = "Location Filter";

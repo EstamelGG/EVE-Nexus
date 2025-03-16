@@ -59,7 +59,7 @@ class PlanetaryConverter {
         )
 
         // 转换设施
-        let pins = convertPins(detail.pins, upgradeLevel: upgradeLevel)
+        let pins = convertPins(detail.pins, upgradeLevel: upgradeLevel, updateDate: updateDate)
 
         // 转换连接
         let links = convertLinks(detail.links)
@@ -104,14 +104,14 @@ class PlanetaryConverter {
     /// 转换设施列表
     /// - Parameter planetaryPins: 行星设施列表
     /// - Returns: 设施模型列表
-    private static func convertPins(_ planetaryPins: [PlanetaryPin], upgradeLevel: Int) -> [Pin] {
-        return planetaryPins.map { convertPin($0, upgradeLevel: upgradeLevel) }
+    private static func convertPins(_ planetaryPins: [PlanetaryPin], upgradeLevel: Int, updateDate: Date) -> [Pin] {
+        return planetaryPins.map { convertPin($0, upgradeLevel: upgradeLevel, updateDate: updateDate) }
     }
 
     /// 转换单个设施
     /// - Parameter planetaryPin: 行星设施
     /// - Returns: 设施模型
-    private static func convertPin(_ planetaryPin: PlanetaryPin, upgradeLevel: Int) -> Pin {
+    private static func convertPin(_ planetaryPin: PlanetaryPin, upgradeLevel: Int, updateDate: Date) -> Pin {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime]
 
@@ -186,6 +186,10 @@ class PlanetaryConverter {
                     "提取器 ID: \(planetaryPin.pinId), 名称: \(pinName), 产品: \(productType?.name ?? "无"), 周期时间: \(cycleTime ?? 0)"
                 )
 
+                // 使用updateDate（模拟初始时间）而不是Date()（系统当前时间）
+                let isActive = expiryTime != nil && expiryTime! > updateDate
+                Logger.info("提取器 ID: \(planetaryPin.pinId) 过期时间: \(String(describing: expiryTime)), 模拟初始时间: \(updateDate), 激活状态: \(isActive)")
+
                 return Pin.Extractor(
                     id: planetaryPin.pinId,
                     type: pinType,
@@ -194,7 +198,7 @@ class PlanetaryConverter {
                     lastRunTime: lastCycleStart,
                     contents: contents,
                     capacityUsed: capacityUsed,
-                    isActive: expiryTime != nil && expiryTime! > Date(),
+                    isActive: isActive,
                     latitude: Double(planetaryPin.latitude),
                     longitude: Double(planetaryPin.longitude),
                     status: .notSetup,

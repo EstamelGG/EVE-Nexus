@@ -1,0 +1,257 @@
+{
+  "links": [
+    {
+      "destination_pin_id": 1048404630882,
+      "link_level": 0,
+      "source_pin_id": 1048404630880
+    },
+    {
+      "destination_pin_id": 1048404630893,
+      "link_level": 0,
+      "source_pin_id": 1048404630886
+    },
+    {
+      "destination_pin_id": 1048404630886,
+      "link_level": 0,
+      "source_pin_id": 1048404630884
+    },
+    {
+      "destination_pin_id": 1048404630899,
+      "link_level": 0,
+      "source_pin_id": 1048404630880
+    },
+    {
+      "destination_pin_id": 1048404630880,
+      "link_level": 0,
+      "source_pin_id": 1048404617253
+    },
+    {
+      "destination_pin_id": 1048404630899,
+      "link_level": 0,
+      "source_pin_id": 1048404630893
+    },
+    {
+      "destination_pin_id": 1048404630884,
+      "link_level": 0,
+      "source_pin_id": 1048404630882
+    }
+  ],
+  "pins": [
+    {
+      "contents": [],
+      "latitude": 2.576160192489624,
+      "longitude": 5.109546184539795,
+      "pin_id": 1048404630893,
+      "schematic_id": 123,
+      "type_id": 2492
+    },
+    {
+      "contents": [],
+      "latitude": 2.565131902694702,
+      "longitude": 5.099827766418457,
+      "pin_id": 1048404630899,
+      "schematic_id": 123,
+      "type_id": 2492
+    },
+    {
+      "contents": [],
+      "latitude": 2.5645313262939453,
+      "longitude": 5.077821731567383,
+      "pin_id": 1048404630880,
+      "type_id": 2543
+    },
+    {
+      "contents": [],
+      "latitude": 2.5744123458862305,
+      "longitude": 5.063440322875977,
+      "pin_id": 1048404630882,
+      "schematic_id": 123,
+      "type_id": 2492
+    },
+    {
+      "contents": [],
+      "latitude": 2.5863449573516846,
+      "longitude": 5.072232246398926,
+      "pin_id": 1048404630884,
+      "schematic_id": 123,
+      "type_id": 2492
+    },
+    {
+      "contents": [],
+      "expiry_time": "2025-03-15T09:17:13Z",
+      "extractor_details": {
+        "cycle_time": 14400,
+        "head_radius": 0.05000000074505806,
+        "heads": [
+          {
+            "head_id": 0,
+            "latitude": 2.5741939544677734,
+            "longitude": 4.909403324127197
+          },
+          {
+            "head_id": 1,
+            "latitude": 2.506563425064087,
+            "longitude": 5.175435543060303
+          },
+          {
+            "head_id": 2,
+            "latitude": 2.4893248081207275,
+            "longitude": 5.007976531982422
+          },
+          {
+            "head_id": 3,
+            "latitude": 2.392658233642578,
+            "longitude": 4.964292526245117
+          },
+          {
+            "head_id": 5,
+            "latitude": 2.3177480697631836,
+            "longitude": 5.063112258911133
+          },
+          {
+            "head_id": 6,
+            "latitude": 2.4216365814208984,
+            "longitude": 5.265771389007568
+          },
+          {
+            "head_id": 7,
+            "latitude": 2.330380916595459,
+            "longitude": 5.2022294998168945
+          },
+          {
+            "head_id": 8,
+            "latitude": 2.413278818130493,
+            "longitude": 5.11251163482666
+          }
+        ],
+        "product_type_id": 2309,
+        "qty_per_cycle": 8825
+      },
+      "install_time": "2025-03-01T09:17:13Z",
+      "last_cycle_start": "2025-03-01T09:17:13Z",
+      "latitude": 2.575706720352173,
+      "longitude": 5.086499214172363,
+      "pin_id": 1048404617253,
+      "type_id": 3060
+    },
+    {
+      "contents": [],
+      "latitude": 2.502880573272705,
+      "longitude": 5.371568202972412,
+      "pin_id": 1047809470663,
+      "type_id": 2534
+    },
+    {
+      "contents": [],
+      "latitude": 2.5871071815490723,
+      "longitude": 5.0966033935546875,
+      "pin_id": 1048404630886,
+      "schematic_id": 123,
+      "type_id": 2492
+    }
+  ],
+  "routes": [
+    {
+      "content_type_id": 2390,
+      "destination_pin_id": 1048404630880,
+      "quantity": 20,
+      "route_id": 1439283501,
+      "source_pin_id": 1048404630899,
+      "waypoints": []
+    },
+    {
+      "content_type_id": 2390,
+      "destination_pin_id": 1048404630880,
+      "quantity": 20,
+      "route_id": 1439283502,
+      "source_pin_id": 1048404630893,
+      "waypoints": [
+        1048404630899
+      ]
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630880,
+      "quantity": 254160,
+      "route_id": 1439283407,
+      "source_pin_id": 1048404617253,
+      "waypoints": []
+    },
+    {
+      "content_type_id": 2390,
+      "destination_pin_id": 1048404630880,
+      "quantity": 20,
+      "route_id": 1439283504,
+      "source_pin_id": 1048404630884,
+      "waypoints": [
+        1048404630882
+      ]
+    },
+    {
+      "content_type_id": 2390,
+      "destination_pin_id": 1048404630880,
+      "quantity": 20,
+      "route_id": 1439283505,
+      "source_pin_id": 1048404630886,
+      "waypoints": [
+        1048404630893,
+        1048404630899
+      ]
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630899,
+      "quantity": 3000,
+      "route_id": 1439283506,
+      "source_pin_id": 1048404630880,
+      "waypoints": []
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630893,
+      "quantity": 3000,
+      "route_id": 1439283507,
+      "source_pin_id": 1048404630880,
+      "waypoints": [
+        1048404630899
+      ]
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630886,
+      "quantity": 3000,
+      "route_id": 1439283508,
+      "source_pin_id": 1048404630880,
+      "waypoints": [
+        1048404630899,
+        1048404630893
+      ]
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630884,
+      "quantity": 3000,
+      "route_id": 1439283509,
+      "source_pin_id": 1048404630880,
+      "waypoints": [
+        1048404630882
+      ]
+    },
+    {
+      "content_type_id": 2309,
+      "destination_pin_id": 1048404630882,
+      "quantity": 3000,
+      "route_id": 1439283510,
+      "source_pin_id": 1048404630880,
+      "waypoints": []
+    },
+    {
+      "content_type_id": 2390,
+      "destination_pin_id": 1048404630880,
+      "quantity": 20,
+      "route_id": 1439283503,
+      "source_pin_id": 1048404630882,
+      "waypoints": []
+    }
+  ]
+}

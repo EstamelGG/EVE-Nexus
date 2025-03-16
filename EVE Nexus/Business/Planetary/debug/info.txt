@@ -52,3 +52,43 @@ null在这里表示"立即运行"
 12. routeCommodityInput - 处理输入路由
 13. routeCommodityOutput - 处理输出路由
 现在，让我们按照调用顺序的逆向顺序，从底层方法开始分析。
+
+
+### 仓储将资源分配给工厂的顺序
+
+1. 先为最缺资源的工厂进行分配，然后根据id顺序为各工厂进行分配。分配的资源会进入缓冲区，缓冲区满后工厂会立刻转为生产状态，并清空缓冲区。
+2. 当一轮分配完以后，如果还有多余的资源，且有某些工厂的缓冲区有剩余空间，则会再分配一轮，顺序同上。
+3. 最终要么所有工厂的缓冲区都填满了，或仓储没有剩余资源了为止。
+
+### 提示词
+
+```
+我们设计了一套 Swift 代码用于模拟 EVE Online 的行星开发系统，其逻辑是基于 RIFT 项目的 Kotlin 代码实现的。
+Swift 代码路径：EVE Nexus/Business/Planetary
+Kotlin 代码路径：Third_tools/src/main/kotlin/dev/nohus/rift/planetaryindustry
+
+第一步：先分析目录结构
+
+1.请分别读取 Swift 代码和 Kotlin 代码的目录结构，而不是立即查看代码内容。
+2.识别文件名、类名、函数名，并总结文件组织方式。
+3.找出 Swift 代码和 Kotlin 代码的主要逻辑对应关系，例如 PlanetSimulator.swift 对应 PlanetSimulator.kt，或者 ResourceManager.swift 对应 ResourceManager.kt。
+
+第二步：逐个方法进行代码对比
+
+1.逐个方法、逐个类进行对比，重点检查以下问题：
+2.逻辑是否一致：是否缺少某个计算步骤、条件分支、循环等。
+3.变量作用域与类型转换：Swift 和 Kotlin 可能有不同的作用域规则，比如 var、val 与 let、var 的区别。
+4.时间计算单位：Kotlin 可能使用 System.currentTimeMillis() 或 Duration，而 Swift 可能使用 Date、TimeInterval，单位是否一致？
+5.数据结构与集合操作：Swift 的 Array, Dictionary, Set 是否与 Kotlin 的 List, Map, Set 具有相同的行为？
+6.浮点数精度问题：Swift 可能用 Double，Kotlin 可能用 Float 或 BigDecimal，是否影响计算精度？
+
+第三步：输出对比报告
+
+1请总结两份代码的主要逻辑差异，并指出可能导致计算结果不同的关键点。
+2.给出修正建议，例如：“Swift 代码中的 processCycle() 方法少了一次 updateResource() 调用，这可能导致资源数量计算偏差。”
+
+注意：
+
+1.你不需要优化代码，仅需确保 Swift 代码完全还原 Kotlin 代码的逻辑。
+2.如果遇到 Swift 代码比 Kotlin 代码多出的部分，请说明这些额外逻辑是否影响计算结果。
+```
