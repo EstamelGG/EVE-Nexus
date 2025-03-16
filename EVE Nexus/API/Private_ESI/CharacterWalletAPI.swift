@@ -309,6 +309,12 @@ class CharacterWalletAPI {
 
     // 保存钱包日志到数据库
     private func saveWalletJournalToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
+        // 如果没有条目需要保存，直接返回成功
+        if entries.isEmpty {
+            Logger.info("没有钱包日志需要保存")
+            return true
+        }
+        
         // 首先获取已存在的日志ID
         let checkQuery = "SELECT id FROM wallet_journal WHERE character_id = ?"
         guard
@@ -321,53 +327,86 @@ class CharacterWalletAPI {
         }
 
         let existingIds = Set(existingResults.compactMap { ($0["id"] as? Int64) })
-
-        let insertSQL = """
+        
+        // 过滤出需要插入的新记录
+        let newEntries = entries.filter { entry in
+            let journalId = entry["id"] as? Int64 ?? 0
+            return !existingIds.contains(journalId)
+        }
+        
+        // 如果没有新记录，直接返回成功
+        if newEntries.isEmpty {
+            Logger.info("无需新增钱包日志")
+            return true
+        }
+        
+        Logger.info("准备插入\(newEntries.count)条新钱包日志记录")
+        
+        // 开始事务
+        _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
+        
+        // 计算每批次的大小（每条记录12个参数）
+        let batchSize = 100  // 每批次处理100条记录
+        var success = true
+        
+        // 分批处理数据
+        for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, newEntries.count)
+            let currentBatch = Array(newEntries[batchStart..<batchEnd])
+            
+            // 构建批量插入语句
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let insertSQL = """
                 INSERT OR REPLACE INTO wallet_journal (
                     id, character_id, amount, balance, context_id, context_id_type,
                     date, description, first_party_id, reason, ref_type,
                     second_party_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES \(placeholders)
             """
-
-        var newCount = 0
-        for entry in entries {
-            let journalId = entry["id"] as? Int64 ?? 0
-            // 如果日志ID已存在，跳过
-            if existingIds.contains(journalId) {
-                continue
+            
+            // 准备参数数组
+            var parameters: [Any] = []
+            for entry in currentBatch {
+                let journalId = entry["id"] as? Int64 ?? 0
+                let params: [Any] = [
+                    journalId,
+                    characterId,
+                    entry["amount"] as? Double ?? 0.0,
+                    entry["balance"] as? Double ?? 0.0,
+                    entry["context_id"] as? Int ?? 0,
+                    entry["context_id_type"] as? String ?? "",
+                    entry["date"] as? String ?? "",
+                    entry["description"] as? String ?? "",
+                    entry["first_party_id"] as? Int ?? 0,
+                    entry["reason"] as? String ?? "",
+                    entry["ref_type"] as? String ?? "",
+                    entry["second_party_id"] as? Int ?? 0,
+                ]
+                parameters.append(contentsOf: params)
             }
-
-            let parameters: [Any] = [
-                journalId,
-                characterId,
-                entry["amount"] as? Double ?? 0.0,
-                entry["balance"] as? Double ?? 0.0,
-                entry["context_id"] as? Int ?? 0,
-                entry["context_id_type"] as? String ?? "",
-                entry["date"] as? String ?? "",
-                entry["description"] as? String ?? "",
-                entry["first_party_id"] as? Int ?? 0,
-                entry["reason"] as? String ?? "",
-                entry["ref_type"] as? String ?? "",
-                entry["second_party_id"] as? Int ?? 0,
-            ]
-
+            
+            Logger.debug("执行批量插入钱包日志，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            
+            // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("保存钱包日志到数据库失败: \(message)")
-                return false
+                Logger.error("批量插入钱包日志失败: \(message)")
+                success = false
+                break
             }
-            newCount += 1
         }
-
-        if newCount > 0 {
-            Logger.info("新增\(newCount)条钱包日志到数据库")
+        
+        // 根据执行结果提交或回滚事务
+        if success {
+            _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
+            Logger.info("成功插入\(newEntries.count)条钱包日志到数据库")
+            return true
         } else {
-            Logger.info("无需新增钱包日志")
+            _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
+            Logger.error("保存钱包日志失败，执行回滚")
+            return false
         }
-        return true
     }
 
     // 获取钱包日志（公开方法）
@@ -475,6 +514,12 @@ class CharacterWalletAPI {
 
     // 保存钱包交易记录到数据库
     private func saveWalletTransactionsToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
+        // 如果没有条目需要保存，直接返回成功
+        if entries.isEmpty {
+            Logger.info("没有钱包交易记录需要保存")
+            return true
+        }
+        
         // 首先获取已存在的交易ID
         let checkQuery = "SELECT transaction_id FROM wallet_transactions WHERE character_id = ?"
         guard
@@ -487,56 +532,90 @@ class CharacterWalletAPI {
         }
 
         let existingIds = Set(existingResults.compactMap { ($0["transaction_id"] as? Int64) })
-
-        let insertSQL = """
+        
+        // 过滤出需要插入的新记录
+        let newEntries = entries.filter { entry in
+            let transactionId = entry["transaction_id"] as? Int64 ?? 0
+            return !existingIds.contains(transactionId)
+        }
+        
+        // 如果没有新记录，直接返回成功
+        if newEntries.isEmpty {
+            Logger.info("无需新增交易记录")
+            return true
+        }
+        
+        Logger.info("准备插入\(newEntries.count)条新钱包交易记录")
+        
+        // 开始事务
+        _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
+        
+        // 计算每批次的大小（每条记录11个参数）
+        let batchSize = 100  // 每批次处理100条记录
+        var success = true
+        
+        // 分批处理数据
+        for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
+            let batchEnd = min(batchStart + batchSize, newEntries.count)
+            let currentBatch = Array(newEntries[batchStart..<batchEnd])
+            
+            // 构建批量插入语句
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let insertSQL = """
                 INSERT OR REPLACE INTO wallet_transactions (
                     transaction_id, character_id, client_id, date, is_buy,
                     is_personal, journal_ref_id, location_id, quantity,
                     type_id, unit_price
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES \(placeholders)
             """
-
-        var newCount = 0
-        for entry in entries {
-            let transactionId = entry["transaction_id"] as? Int64 ?? 0
-            // 如果交易ID已存在，跳过
-            if existingIds.contains(transactionId) {
-                continue
+            
+            // 准备参数数组
+            var parameters: [Any] = []
+            for entry in currentBatch {
+                let transactionId = entry["transaction_id"] as? Int64 ?? 0
+                
+                // 将布尔值转换为整数
+                let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
+                let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
+                
+                let params: [Any] = [
+                    transactionId,
+                    characterId,
+                    entry["client_id"] as? Int ?? 0,
+                    entry["date"] as? String ?? "",
+                    isBuy,
+                    isPersonal,
+                    entry["journal_ref_id"] as? Int64 ?? 0,
+                    entry["location_id"] as? Int64 ?? 0,
+                    entry["quantity"] as? Int ?? 0,
+                    entry["type_id"] as? Int ?? 0,
+                    entry["unit_price"] as? Double ?? 0.0,
+                ]
+                parameters.append(contentsOf: params)
             }
-
-            // 将布尔值转换为整数
-            let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
-            let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
-
-            let parameters: [Any] = [
-                transactionId,
-                characterId,
-                entry["client_id"] as? Int ?? 0,
-                entry["date"] as? String ?? "",
-                isBuy,
-                isPersonal,
-                entry["journal_ref_id"] as? Int64 ?? 0,
-                entry["location_id"] as? Int64 ?? 0,
-                entry["quantity"] as? Int ?? 0,
-                entry["type_id"] as? Int ?? 0,
-                entry["unit_price"] as? Double ?? 0.0,
-            ]
-
+            
+            Logger.debug("执行批量插入钱包交易记录，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            
+            // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("保存钱包交易记录到数据库失败: \(message)")
-                return false
+                Logger.error("批量插入钱包交易记录失败: \(message)")
+                success = false
+                break
             }
-            newCount += 1
         }
-
-        if newCount > 0 {
-            Logger.info("新增\(newCount)条钱包交易记录到数据库")
+        
+        // 根据执行结果提交或回滚事务
+        if success {
+            _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
+            Logger.info("成功插入\(newEntries.count)条钱包交易记录到数据库")
+            return true
         } else {
-            Logger.info("无需新增交易记录")
+            _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
+            Logger.error("保存钱包交易记录失败，执行回滚")
+            return false
         }
-        return true
     }
 
     // 获取钱包交易记录（公开方法）

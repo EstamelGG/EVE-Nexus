@@ -36,6 +36,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
     @Published private(set) var totalIncome: Double = 0.0
     @Published private(set) var totalExpense: Double = 0.0
     @Published var loadingProgress: WalletLoadingProgress?
+    private var initialLoadDone = false
 
     private let characterId: Int
     private let division: Int
@@ -58,6 +59,11 @@ final class CorpWalletJournalViewModel: ObservableObject {
     init(characterId: Int, division: Int) {
         self.characterId = characterId
         self.division = division
+        
+        // 在初始化时立即开始加载数据
+        loadingTask = Task {
+            await loadJournalData()
+        }
     }
 
     deinit {
@@ -82,6 +88,11 @@ final class CorpWalletJournalViewModel: ObservableObject {
     }
 
     func loadJournalData(forceRefresh: Bool = false) async {
+        // 如果已经加载过且不是强制刷新，则跳过
+        if initialLoadDone && !forceRefresh {
+            return
+        }
+        
         // 取消之前的加载任务
         loadingTask?.cancel()
 
@@ -148,6 +159,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
                     self.journalGroups = groups
                     self.isLoading = false
                     self.loadingProgress = .completed
+                    self.initialLoadDone = true
                 }
                 if !Task.isCancelled {
                     await MainActor.run {
@@ -169,6 +181,54 @@ final class CorpWalletJournalViewModel: ObservableObject {
 
         // 等待任务完成
         await loadingTask?.value
+    }
+}
+
+// 特定日期的军团钱包日志详情视图
+struct CorpWalletJournalDayDetailView: View {
+    let group: CorpWalletJournalGroup
+    @State private var displayedEntries: [CorpWalletJournalEntry] = []
+    @State private var showingCount = 100
+    
+    private let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")!
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    var body: some View {
+        List {
+            ForEach(displayedEntries, id: \.id) { entry in
+                CorpWalletJournalEntryRow(entry: entry)
+            }
+            
+            if showingCount < group.entries.count {
+                Button(action: {
+                    loadMoreEntries()
+                }) {
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("Load More", comment: ""))
+                            .foregroundColor(.blue)
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(displayDateFormatter.string(from: group.date))
+        .onAppear {
+            // 初始加载前100条
+            loadMoreEntries()
+        }
+    }
+    
+    private func loadMoreEntries() {
+        let nextBatch = min(showingCount + 100, group.entries.count)
+        displayedEntries = Array(group.entries.prefix(nextBatch))
+        showingCount = nextBatch
     }
 }
 
@@ -273,26 +333,39 @@ struct CorpWalletJournalView: View {
             } else {
                 summarySection
 
-                ForEach(viewModel.journalGroups) { group in
-                    Section(
-                        header: Text(displayDateFormatter.string(from: group.date))
-                            .fontWeight(.bold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        ForEach(group.entries) { entry in
-                            CorpWalletJournalEntryRow(entry: entry)
+                Section(
+                    header: Text(NSLocalizedString("Transaction Dates", comment: ""))
+                        .fontWeight(.bold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(viewModel.journalGroups) { group in
+                        NavigationLink(destination: CorpWalletJournalDayDetailView(group: group)) {
+                            HStack {
+                                Text(displayDateFormatter.string(from: group.date))
+                                    .font(.system(size: 16))
+                                
+                                Spacer()
+                                
+                                // 显示当日交易数量
+                                Text("\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            await viewModel.loadJournalData(forceRefresh: true)
+        }
     }
 }
 
+// 钱包日志条目行视图
 struct CorpWalletJournalEntryRow: View {
     let entry: CorpWalletJournalEntry
 

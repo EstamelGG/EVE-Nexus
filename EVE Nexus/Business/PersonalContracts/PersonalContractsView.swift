@@ -178,52 +178,61 @@ final class PersonalContractsViewModel: ObservableObject {
 
         do {
             let contracts: [ContractInfo]
+            
+            // 使用 Task.detached 在后台线程加载数据
+            let loadedContracts = try await Task.detached(priority: .userInitiated) {
+                if await self.showCorporationContracts {
+                    // 获取军团合同
+                    do {
+                        return try await CorporationContractsAPI.shared.fetchContracts(
+                            characterId: self.characterId,
+                            forceRefresh: forceRefresh,
+                            progressCallback: { page in
+                                Task { @MainActor in
+                                    self.currentLoadingPage = page
+                                }
+                            }
+                        )
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    }
+                } else {
+                    // 获取个人合同
+                    do {
+                        return try await CharacterContractsAPI.shared.fetchContracts(
+                            characterId: self.characterId,
+                            forceRefresh: forceRefresh,
+                            progressCallback: { page in
+                                Task { @MainActor in
+                                    self.currentLoadingPage = page
+                                }
+                            }
+                        )
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    }
+                }
+            }.value
+            
+            // 检查任务是否被取消
+            if Task.isCancelled { 
+                await MainActor.run {
+                    isLoading = false
+                    currentLoadingPage = nil
+                    isForceRefreshing = false
+                }
+                return 
+            }
+            
+            contracts = loadedContracts
+            
+            // 更新缓存
             if showCorporationContracts {
-                // 获取军团合同
-                do {
-                    contracts = try await CorporationContractsAPI.shared.fetchContracts(
-                        characterId: characterId,
-                        forceRefresh: forceRefresh,
-                        progressCallback: { page in
-                            Task { @MainActor in
-                                self.currentLoadingPage = page
-                            }
-                        }
-                    )
-                    cachedCorporationContracts = contracts
-                    corporationContractsInitialized = true
-                } catch is CancellationError {
-                    // 如果是取消操作，不显示错误
-                    await MainActor.run {
-                        isLoading = false
-                        currentLoadingPage = nil
-                        isForceRefreshing = false
-                    }
-                    return
-                }
+                cachedCorporationContracts = contracts
+                corporationContractsInitialized = true
             } else {
-                // 获取个人合同
-                do {
-                    contracts = try await CharacterContractsAPI.shared.fetchContracts(
-                        characterId: characterId,
-                        forceRefresh: forceRefresh,
-                        progressCallback: { page in
-                            Task { @MainActor in
-                                self.currentLoadingPage = page
-                            }
-                        }
-                    )
-                    cachedPersonalContracts = contracts
-                    personalContractsInitialized = true
-                } catch is CancellationError {
-                    // 如果是取消操作，不显示错误
-                    await MainActor.run {
-                        isLoading = false
-                        currentLoadingPage = nil
-                        isForceRefreshing = false
-                    }
-                    return
-                }
+                cachedPersonalContracts = contracts
+                personalContractsInitialized = true
             }
 
             // 先处理数据，再一次性更新 UI
@@ -369,8 +378,6 @@ struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @Environment(\.colorScheme) private var colorScheme
     @State private var showSettings = false
-    // 添加一个状态变量来跟踪合同类型是否正在切换
-    @State private var isContractTypeChanging = false
 
     // 使用计算属性来获取和设置带有角色ID的AppStorage键
     private var showActiveOnlyKey: String { "showActiveOnly_\(viewModel.characterId)" }
@@ -515,11 +522,40 @@ struct PersonalContractsView: View {
     var body: some View {
         VStack(spacing: 0) {
             List {
-                if viewModel.isLoading && (!viewModel.isInitialized || isContractTypeChanging) {
-                    loadingView
-                } else if filteredContractGroups.isEmpty && !viewModel.isLoading {
+                // 加载进度部分
+                if viewModel.isLoading || viewModel.currentLoadingPage != nil {
+                    Section {
+                        HStack {
+                            Spacer()
+                            if let currentPage = viewModel.currentLoadingPage {
+                                let text = String(
+                                    format: NSLocalizedString(
+                                        "Contract_Loading_Fetching", comment: "正在获取第 %d 页数据"
+                                    ), currentPage
+                                )
+                                
+                                Text(text)
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .background(Color(.secondarySystemGroupedBackground))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            } else if viewModel.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                    }
+                }
+                
+                if filteredContractGroups.isEmpty && !viewModel.isLoading {
                     emptyView
-                } else {
+                } else if !viewModel.isLoading || viewModel.isInitialized {
                     ForEach(filteredContractGroups) { group in
                         Section {
                             ForEach(group.contracts) { contract in
@@ -555,15 +591,11 @@ struct PersonalContractsView: View {
             }
             .listStyle(.insetGrouped)
             .refreshable {
+                // 在刷新时重置加载状态
+                await MainActor.run {
+                    viewModel.currentLoadingPage = nil
+                }
                 await viewModel.loadContractsData(forceRefresh: true)
-            }
-            .navigationDestination(for: ContractInfo.self) { contract in
-                ContractDetailView(
-                    characterId: viewModel.characterId,
-                    contract: contract,
-                    databaseManager: viewModel.databaseManager,
-                    isCorpContract: viewModel.showCorporationContracts
-                )
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -579,6 +611,8 @@ struct PersonalContractsView: View {
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
                         .padding(.top, 4)
+                        // 在加载过程中禁用 Picker
+                        .disabled(viewModel.isLoading || viewModel.currentLoadingPage != nil)
 
                         // 计算总合同数和过滤后的合同数
                         let totalCount = viewModel.contractGroups.reduce(0) { count, group in
@@ -760,39 +794,20 @@ struct PersonalContractsView: View {
                 }
             }
         }
-        // 修改onChange监听器
+        // 修改onChange监听器，添加延迟加载机制
         .onChange(of: viewModel.showCorporationContracts) { oldValue, newValue in
             Logger.debug("合同类型切换: \(oldValue) -> \(newValue)")
             // 只有在类型真正变化时才加载数据
             if oldValue != newValue {
-                // 先设置加载状态，避免在加载过程中显示旧数据
-                isContractTypeChanging = true
-                
-                // 使用单一任务加载数据，避免多次更新
+                // 使用单一任务加载数据，添加短暂延迟
                 Task {
+                    // 添加短暂延迟，避免在同一帧内多次更新
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
                     // 等待数据加载完成
                     await viewModel.loadContractsData(forceRefresh: false)
-                    
-                    // 数据加载完成后，再更新 UI 状态
-                    await MainActor.run {
-                        isContractTypeChanging = false
-                    }
                 }
             }
         }
-    }
-
-    private var loadingView: some View {
-        Section {
-            HStack {
-                Spacer()
-                Text(NSLocalizedString("Main_Database_Loading", comment: "Loading"))
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .padding(.vertical, 12)
-        }
-        .listSectionSpacing(.compact)
     }
 
     private var emptyView: some View {
@@ -951,7 +966,15 @@ struct ContractRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: contract) {
+        // 修改为传统的 NavigationLink
+        NavigationLink {
+            ContractDetailView(
+                characterId: currentCharacterId,
+                contract: contract,
+                databaseManager: databaseManager,
+                isCorpContract: isCorpContract
+            )
+        } label: {
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(formatContractStatus(contract.status))
@@ -994,6 +1017,5 @@ struct ContractRow: View {
             }
             .padding(.vertical, 2)
         }
-        .buttonStyle(PlainButtonStyle())
     }
 }

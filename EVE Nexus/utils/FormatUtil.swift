@@ -69,11 +69,19 @@ enum FormatUtil {
     /// - Parameter isk: ISK 数值
     /// - Returns: 格式化后的 ISK 字符串
     static func formatISK(_ value: Double) -> String {
+        let trillion = 1_000_000_000_000.0
         let billion = 1_000_000_000.0
         let million = 1_000_000.0
         let thousand = 1000.0
 
-        if value >= billion {
+        if value >= trillion {
+            let formatted = value / trillion
+            if formatted >= 100 {
+                return String(format: "%.1fT ISK", formatted)
+            } else {
+                return String(format: "%.2fT ISK", formatted)
+            }
+        } else if value >= billion {
             let formatted = value / billion
             if formatted >= 100 {
                 return String(format: "%.1fB ISK", formatted)

@@ -351,6 +351,7 @@
 "Orders_Corp" = "公司";
 "Orders_No_Buy_Orders" = "没有收购订单";
 "Orders_No_Sell_Orders" = "没有出售订单";
+"Orders_No_Data" = "暂无数据";
 
 // Market Orders Time
 "Orders_Expired" = "已过期";
@@ -377,7 +378,9 @@
 "Contract_Type_courier" = "运输";
 "Contract_Type_auction" = "拍卖";
 "Contract_Type_unknown" = "未知";
-
+// 钱包日志加载状态
+"Contract_Loading_Fetching" = "正在获取第%d页合同日志";
+"Contract_Loading_Complete" = "加载完成";
 // Contract Status
 "Contract_Status_outstanding" = "未决";
 "Contract_Status_in_progress" = "进行中";
@@ -673,11 +676,16 @@
 "Balance: %@ ISK" = "余额: %@ ISK";
 
 // Wallet Journal
-"Summary" = "汇总(30天)";
+"Summary" = "摘要(30天)";
 "Total Income" = "总收入";
 "Total Expense" = "总支出";
+"Transaction Dates" = "交易日期";
+"transactions" = "笔交易";
 "Transactions" = "交易记录";
 "Common_Error" = "错误";
+"Net Balance" = "净收入";
+"Orders_No_Data" = "暂无数据";
+"Load More" = "加载更多";
 
 // 最优属性分配
 "Main_Skills_Optimal_Attributes" = "最优属性分配";
@@ -881,7 +889,7 @@
 // KillMail Stats
 "KillMail_Data_Source" = "数据来自zkillboard和kb.evetools.org";
 
-"KillMail_Search_Prompt" = "点击这里开始搜索...";
+"KillMail_Search_Prompt" = "点击这里输入关键词...";
 "KillMail_Search_Input_Prompt" = "输入搜索关键词";
 "KillMail_Search" = "搜索";
 "KillMail_Cancel" = "取消";
@@ -1275,6 +1283,7 @@
 "Main_Language_Map_Search_Object_1" = "1. 物品（舰船、装备、空间实体等）";
 "Main_Language_Map_Search_Object_2" = "2. 星系、星座、星域名";
 "Main_Language_Map_Search_Object_3" = "3. NPC势力名、军团名";
+"Main_Language_Map_Search_Object_4" = "4. 物品的 Type ID";
 
 // Region and System Search
 "Location_Filter" = "位置过滤";
