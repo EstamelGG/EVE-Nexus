@@ -351,13 +351,3 @@ struct EndpointStatusRow: View {
         }
     }
 }
-
-// MARK: - 预览
-
-struct ESIStatusView_Previews: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            ESIStatusView()
-        }
-    }
-}

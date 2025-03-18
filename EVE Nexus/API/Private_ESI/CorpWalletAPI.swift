@@ -213,7 +213,6 @@ class CorpWalletAPI {
     ///   - division: 部门编号
     ///   - progressCallback: 加载进度回调
     /// - Returns: 钱包日志数组
-    /// 全量日志太多了，暂时只获取第一页
     private func fetchCorpJournalFromServer(
         characterId: Int,
         corporationId: Int,
