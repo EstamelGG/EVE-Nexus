@@ -70,15 +70,17 @@ struct StructureSearchView: View {
             regionName: solarSystemInfo.regionName
         )
     }
-    
+
     // 批量加载位置信息
-    private func loadBatchLocationInfo(systemIds: [Int]) async throws -> [Int: (security: Double, systemName: String, regionName: String)] {
+    private func loadBatchLocationInfo(systemIds: [Int]) async throws -> [Int: (
+        security: Double, systemName: String, regionName: String
+    )] {
         let solarSystemInfoMap = await getBatchSolarSystemInfo(
             solarSystemIds: systemIds, databaseManager: DatabaseManager.shared
         )
-        
+
         var result: [Int: (security: Double, systemName: String, regionName: String)] = [:]
-        
+
         for (systemId, info) in solarSystemInfoMap {
             result[systemId] = (
                 security: info.security,
@@ -86,7 +88,7 @@ struct StructureSearchView: View {
                 regionName: info.regionName
             )
         }
-        
+
         return result
     }
 
@@ -108,7 +110,7 @@ struct StructureSearchView: View {
 
         return row["icon_filename"] as! String
     }
-    
+
     // 批量加载类型图标
     private func loadBatchTypeIcons(typeIds: [Int]) throws -> [Int: String] {
         let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
@@ -130,11 +132,13 @@ struct StructureSearchView: View {
 
         var result: [Int: String] = [:]
         for row in rows {
-            if let typeId = row["type_id"] as? Int, let iconFilename = row["icon_filename"] as? String {
+            if let typeId = row["type_id"] as? Int,
+                let iconFilename = row["icon_filename"] as? String
+            {
                 result[typeId] = iconFilename
             }
         }
-        
+
         return result
     }
 
@@ -239,33 +243,33 @@ struct StructureSearchView: View {
 
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: stationIds)
-                
+
                 // 收集所有空间站的系统ID和类型ID
                 let systemIds = stationsInfo.map { $0.systemId }
                 let typeIds = Array(Set(stationsInfo.map { $0.typeId }))
-                
+
                 // 批量获取位置信息
                 let locationInfoMap = try await loadBatchLocationInfo(systemIds: systemIds)
-                
+
                 // 批量获取类型图标
                 let iconMap = try loadBatchTypeIcons(typeIds: typeIds)
-                
+
                 // 处理每个空间站
                 for info in stationsInfo {
                     try Task.checkCancellation()
-                    
+
                     // 获取位置信息
                     guard let locationInfo = locationInfoMap[info.systemId] else {
                         Logger.error("未找到空间站位置信息: \(info.id)")
                         continue
                     }
-                    
+
                     // 获取图标
                     guard let iconFilename = iconMap[info.typeId] else {
                         Logger.error("未找到空间站类型图标: \(info.typeId)")
                         continue
                     }
-                    
+
                     let result = SearcherView.SearchResult(
                         id: info.id,
                         name: info.name,
@@ -274,7 +278,7 @@ struct StructureSearchView: View {
                         locationInfo: locationInfo,
                         typeInfo: iconFilename
                     )
-                    
+
                     results.append(result)
                 }
             } catch {
@@ -291,7 +295,7 @@ struct StructureSearchView: View {
 
             // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
             let batchSize = min(max(structureIds.count / 5, 1), 10)
-            
+
             // 收集所有建筑物的系统ID和类型ID
             var allSystemIds: [Int] = []
             var allTypeIds: [Int] = []
@@ -312,7 +316,7 @@ struct StructureSearchView: View {
                                     structureId: Int64(structureId),
                                     characterId: characterId
                                 )
-                                
+
                                 return (structureId, info.name, info.type_id, info.solar_system_id)
                             } catch {
                                 if error is CancellationError { throw error }
@@ -325,7 +329,8 @@ struct StructureSearchView: View {
                     // 等待当前批次完成
                     for try await result in group {
                         if let (id, name, typeId, systemId) = result {
-                            structureInfos.append((id: id, name: name, typeId: typeId, systemId: systemId))
+                            structureInfos.append(
+                                (id: id, name: name, typeId: typeId, systemId: systemId))
                             allSystemIds.append(systemId)
                             allTypeIds.append(typeId)
                         }
@@ -340,29 +345,29 @@ struct StructureSearchView: View {
                     }
                 }
             }
-            
+
             // 批量获取位置信息
             let locationInfoMap = try await loadBatchLocationInfo(systemIds: allSystemIds)
-            
+
             // 批量获取类型图标
             let iconMap = try loadBatchTypeIcons(typeIds: Array(Set(allTypeIds)))
-            
+
             // 处理每个建筑物
             for info in structureInfos {
                 try Task.checkCancellation()
-                
+
                 // 获取位置信息
                 guard let locationInfo = locationInfoMap[info.systemId] else {
                     Logger.error("未找到建筑物位置信息: \(info.id)")
                     continue
                 }
-                
+
                 // 获取图标
                 guard let iconFilename = iconMap[info.typeId] else {
                     Logger.error("未找到建筑物类型图标: \(info.typeId)")
                     continue
                 }
-                
+
                 let result = SearcherView.SearchResult(
                     id: info.id,
                     name: info.name,
@@ -371,7 +376,7 @@ struct StructureSearchView: View {
                     locationInfo: locationInfo,
                     typeInfo: iconFilename
                 )
-                
+
                 results.append(result)
             }
         }

@@ -41,12 +41,12 @@ class CharacterAssetsViewModel: ObservableObject {
     @Published var loadingProgress: AssetLoadingProgress?
     @Published var searchResults: [AssetSearchResult] = []  // 添加搜索结果属性
     @Published var regionNames: [Int: String] = [:]  // (本地化名称, 英文名称)
-    @Published var systemInfoCache: [Int: SolarSystemInfo] = [:] // 添加星系信息缓存
+    @Published var systemInfoCache: [Int: SolarSystemInfo] = [:]  // 添加星系信息缓存
     @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
-    
+
     // 添加一个标志来跟踪是否正在加载
     private var isCurrentlyLoading = false
-    
+
     // 添加一个缓存来存储所有物品信息
     private(set) var itemInfoCache: [Int: ItemInfo] = [:]
 
@@ -105,7 +105,7 @@ class CharacterAssetsViewModel: ObservableObject {
         guard !isCurrentlyLoading else {
             return
         }
-        
+
         if forceRefresh {
             loadingProgress = .loading(page: 1)
         } else if !assetLocations.isEmpty {
@@ -115,7 +115,7 @@ class CharacterAssetsViewModel: ObservableObject {
             isLoading = true
             loadingProgress = .loading(page: 1)
         }
-        
+
         // 设置加载标志
         isCurrentlyLoading = true
 
@@ -142,24 +142,26 @@ class CharacterAssetsViewModel: ObservableObject {
 
                     // 获取所有星系的信息
                     await loadRegionNames()
-                    
+
                     // 加载所有物品信息
                     await loadAllItemInfo()
-                    
+
                     // 成功加载数据后，清除错误状态
                     self.error = nil
                 }
             }
         } catch {
             // 检查是否是取消错误
-            if let nsError = error as NSError?, nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+            if let nsError = error as NSError?,
+                nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+            {
                 Logger.info("资产加载任务被取消")
             } else if error is CancellationError {
                 Logger.info("资产加载任务被取消: \(error)")
             } else {
                 Logger.error("加载资产失败: \(error)")
                 self.error = error
-                
+
                 // 在非取消错误的情况下，确保UI显示错误状态
                 isLoading = false
                 loadingProgress = nil
@@ -169,7 +171,7 @@ class CharacterAssetsViewModel: ObservableObject {
         // 只有在成功完成时才重置加载状态
         isLoading = false
         loadingProgress = nil
-        
+
         // 重置加载标志
         isCurrentlyLoading = false
     }
@@ -178,7 +180,7 @@ class CharacterAssetsViewModel: ObservableObject {
     private func loadRegionNames() async {
         // 收集所有需要查询的星系ID
         let systemIds = Set(assetLocations.compactMap { $0.system_id })
-        
+
         // 如果没有星系ID，直接返回
         if systemIds.isEmpty {
             return
@@ -186,13 +188,13 @@ class CharacterAssetsViewModel: ObservableObject {
 
         // 使用批量查询获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: Array(systemIds), 
+            solarSystemIds: Array(systemIds),
             databaseManager: databaseManager
         )
-        
+
         // 保存星系信息到缓存
         systemInfoCache = systemInfoMap
-        
+
         // 从查询结果中提取区域信息
         for (_, systemInfo) in systemInfoMap {
             regionNames[systemInfo.regionId] = systemInfo.regionName
@@ -275,55 +277,57 @@ class CharacterAssetsViewModel: ObservableObject {
     // 新增方法：收集资产树中所有物品的type_id
     private func collectAllTypeIds() -> Set<Int> {
         var typeIds = Set<Int>()
-        
+
         // 递归函数收集所有type_id
         func collectTypeIds(from node: AssetTreeNode) {
             typeIds.insert(node.type_id)
-            
+
             if let items = node.items {
                 for item in items {
                     collectTypeIds(from: item)
                 }
             }
         }
-        
+
         // 从所有顶层位置开始收集
         for location in assetLocations {
             collectTypeIds(from: location)
         }
-        
+
         return typeIds
     }
-    
+
     // 新增方法：一次性加载所有物品信息
     @MainActor
     private func loadAllItemInfo() async {
         // 收集所有物品的type_id
         let typeIds = collectAllTypeIds()
-        
+
         // 如果没有物品，直接返回
         if typeIds.isEmpty {
             return
         }
-        
+
         // 构建查询语句，一次性查询所有物品信息
         let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-        """
-        
+                SELECT type_id, name, icon_filename
+                FROM types
+                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
+            """
+
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String {
-                    let iconFileName = (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                    let name = row["name"] as? String
+                {
+                    let iconFileName =
+                        (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
                     itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconFileName)
                 }
             }
         }
     }
-    
+
     // 新增方法：获取物品信息
     func itemInfo(for typeId: Int) -> ItemInfo? {
         return itemInfoCache[typeId]

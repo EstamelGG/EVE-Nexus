@@ -162,26 +162,26 @@ final class IncursionsViewModel: ObservableObject {
     private func processIncursions(_ incursions: [Incursion]) async {
         // 提取所有需要查询的星系ID
         let solarSystemIds = incursions.map { $0.stagingSolarSystemId }
-        
+
         // 一次性获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: solarSystemIds, 
+            solarSystemIds: solarSystemIds,
             databaseManager: databaseManager
         )
-        
+
         var prepared: [PreparedIncursion] = []
-        
+
         for incursion in incursions {
             // 获取派系信息
             guard let faction = await self.getFactionInfo(factionId: incursion.factionId) else {
                 continue
             }
-            
+
             // 获取星系信息
             guard let systemInfo = systemInfoMap[incursion.stagingSolarSystemId] else {
                 continue
             }
-            
+
             let locationInfo = PreparedIncursion.LocationInfo(
                 systemId: systemInfo.systemId,
                 systemName: systemInfo.systemName,
@@ -191,16 +191,16 @@ final class IncursionsViewModel: ObservableObject {
                 regionId: systemInfo.regionId,
                 regionName: systemInfo.regionName
             )
-            
+
             let preparedIncursion = PreparedIncursion(
                 incursion: incursion,
                 faction: .init(iconName: faction.iconName, name: faction.name),
                 location: locationInfo
             )
-            
+
             prepared.append(preparedIncursion)
         }
-        
+
         // 多重排序条件：
         // 1. 按影响力从大到小
         // 2. 同等影响力下，有boss的优先
@@ -300,7 +300,7 @@ struct IncursionsView: View {
     init(databaseManager: DatabaseManager) {
         let vm = IncursionsViewModel(databaseManager: databaseManager)
         _viewModel = StateObject(wrappedValue: vm)
-        
+
         // 在初始化时立即开始加载数据
         Task {
             await vm.fetchIncursionsData()

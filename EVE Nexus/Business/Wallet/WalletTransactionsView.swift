@@ -12,7 +12,7 @@ struct WalletTransactionEntry: Codable, Identifiable {
     let transaction_id: Int64
     let type_id: Int
     let unit_price: Double
-    
+
     var id: Int64 { transaction_id }
 }
 
@@ -21,12 +21,12 @@ struct WalletTransactionGroup: Identifiable {
     let id = UUID()
     let date: Date
     var entries: [WalletTransactionEntry]
-    
+
     // 计算该组的总买入金额
     var totalBuyAmount: Double {
         entries.filter { $0.is_buy }.reduce(0) { $0 + $1.unit_price * Double($1.quantity) }
     }
-    
+
     // 计算该组的总卖出金额
     var totalSellAmount: Double {
         entries.filter { !$0.is_buy }.reduce(0) { $0 + $1.unit_price * Double($1.quantity) }
@@ -45,13 +45,13 @@ final class WalletTransactionsViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
     private var initialLoadDone = false
-    
+
     private let characterId: Int
     let databaseManager: DatabaseManager
     private var itemInfoCache: [Int: TransactionItemInfo] = [:]
     private var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     private var loadingTask: Task<Void, Never>?
-    
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
@@ -59,64 +59,66 @@ final class WalletTransactionsViewModel: ObservableObject {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         return calendar
     }()
-    
+
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
-        
+
         // 在初始化时立即开始加载数据
         loadingTask = Task {
             await loadTransactionData()
         }
     }
-    
+
     deinit {
         loadingTask?.cancel()
     }
-    
+
     func getItemInfo(for typeId: Int) -> TransactionItemInfo {
         // 先检查缓存
         if let cachedInfo = itemInfoCache[typeId] {
             return cachedInfo
         }
-        
+
         // 如果缓存中没有，返回默认值（这种情况应该很少发生，因为我们已经预加载了所有物品信息）
         Logger.warning("物品信息未在缓存中找到: \(typeId)")
         return TransactionItemInfo(
             name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
         )
     }
-    
+
     // 一次性加载所有物品信息
     private func loadAllItemInfo(from entries: [WalletTransactionEntry]) {
         // 收集所有不同的物品类型ID
         let typeIds = Set(entries.map { $0.type_id })
-        
+
         // 如果没有物品，直接返回
         if typeIds.isEmpty {
             return
         }
-        
+
         // 构建SQL查询的IN子句参数
         let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-        
+        let query =
+            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+
         // 执行查询
         let result = databaseManager.executeQuery(
             query, parameters: typeIds.map { $0 as Any }
         )
-        
+
         if case let .success(rows) = result {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                {
                     let itemInfo = TransactionItemInfo(name: name, iconFileName: iconFileName)
                     // 更新缓存
                     itemInfoCache[typeId] = itemInfo
@@ -125,7 +127,7 @@ final class WalletTransactionsViewModel: ObservableObject {
         } else {
             Logger.error("加载物品信息失败")
         }
-        
+
         // 检查是否有物品未被加载，记录日志
         for typeId in typeIds {
             if itemInfoCache[typeId] == nil {
@@ -137,7 +139,7 @@ final class WalletTransactionsViewModel: ObservableObject {
             }
         }
     }
-    
+
     func getLocationView(for locationId: Int64) -> LocationInfoView? {
         // 如果缓存中已有，直接返回
         if let info = locationInfoCache[locationId] {
@@ -151,21 +153,21 @@ final class WalletTransactionsViewModel: ObservableObject {
         }
         return nil
     }
-    
+
     func loadTransactionData(forceRefresh: Bool = false) async {
         // 如果已经加载过且不是强制刷新，则跳过
         if initialLoadDone && !forceRefresh {
             return
         }
-        
+
         // 取消之前的加载任务
         loadingTask?.cancel()
-        
+
         // 创建新的加载任务
         loadingTask = Task {
             isLoading = true
             errorMessage = nil
-            
+
             do {
                 guard
                     let jsonString = try await CharacterWalletAPI.shared.getWalletTransactions(
@@ -174,66 +176,66 @@ final class WalletTransactionsViewModel: ObservableObject {
                 else {
                     throw NetworkError.invalidResponse
                 }
-                
+
                 if Task.isCancelled { return }
-                
+
                 guard let jsonData = jsonString.data(using: .utf8),
-                      let entries = try? JSONDecoder().decode(
+                    let entries = try? JSONDecoder().decode(
                         [WalletTransactionEntry].self, from: jsonData
-                      )
+                    )
                 else {
                     throw NetworkError.invalidResponse
                 }
-                
+
                 if Task.isCancelled { return }
-                
+
                 // 收集所有位置ID
                 let locationIds = Set(entries.map { $0.location_id })
-                
+
                 // 使用 LocationInfoLoader 加载位置信息
                 let locationLoader = LocationInfoLoader(
                     databaseManager: databaseManager, characterId: Int64(characterId)
                 )
                 locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
-                
+
                 if Task.isCancelled { return }
-                
+
                 // 一次性加载所有物品信息
                 loadAllItemInfo(from: entries)
-                
+
                 if Task.isCancelled { return }
-                
+
                 var groupedEntries: [Date: [WalletTransactionEntry]] = [:]
                 for entry in entries {
                     guard let date = dateFormatter.date(from: entry.date) else {
                         Logger.error("Failed to parse date: \(entry.date)")
                         continue
                     }
-                    
+
                     let components = calendar.dateComponents([.year, .month, .day], from: date)
                     guard let dayDate = calendar.date(from: components) else {
                         Logger.error("Failed to create date from components for: \(entry.date)")
                         continue
                     }
-                    
+
                     groupedEntries[dayDate, default: []].append(entry)
                 }
-                
+
                 if Task.isCancelled { return }
-                
+
                 let groups = groupedEntries.map { date, entries -> WalletTransactionGroup in
                     WalletTransactionGroup(
                         date: date,
                         entries: entries.sorted { $0.transaction_id > $1.transaction_id }
                     )
                 }.sorted { $0.date > $1.date }
-                
+
                 await MainActor.run {
                     self.transactionGroups = groups
                     self.isLoading = false
                     self.initialLoadDone = true
                 }
-                
+
             } catch {
                 Logger.error("加载交易记录失败: \(error.localizedDescription)")
                 if !Task.isCancelled {
@@ -244,7 +246,7 @@ final class WalletTransactionsViewModel: ObservableObject {
                 }
             }
         }
-        
+
         // 等待任务完成
         await loadingTask?.value
     }
@@ -256,7 +258,7 @@ struct WalletTransactionDayDetailView: View {
     let viewModel: WalletTransactionsViewModel
     @State private var displayedEntries: [WalletTransactionEntry] = []
     @State private var showingCount = 100
-    
+
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -264,13 +266,13 @@ struct WalletTransactionDayDetailView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     var body: some View {
         List {
             ForEach(displayedEntries) { entry in
                 WalletTransactionEntryRow(entry: entry, viewModel: viewModel)
             }
-            
+
             if showingCount < group.entries.count {
                 Button(action: {
                     loadMoreEntries()
@@ -291,7 +293,7 @@ struct WalletTransactionDayDetailView: View {
             loadMoreEntries()
         }
     }
-    
+
     private func loadMoreEntries() {
         let nextBatch = min(showingCount + 100, group.entries.count)
         displayedEntries = Array(group.entries.prefix(nextBatch))
@@ -301,7 +303,7 @@ struct WalletTransactionDayDetailView: View {
 
 struct WalletTransactionsView: View {
     @StateObject private var viewModel: WalletTransactionsViewModel
-    
+
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -309,14 +311,14 @@ struct WalletTransactionsView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     init(characterId: Int, databaseManager: DatabaseManager) {
         _viewModel = StateObject(
             wrappedValue: WalletTransactionsViewModel(
                 characterId: characterId, databaseManager: databaseManager
             ))
     }
-    
+
     var body: some View {
         List {
             if viewModel.isLoading {
@@ -350,20 +352,25 @@ struct WalletTransactionsView: View {
                         .textCase(.none)
                 ) {
                     ForEach(viewModel.transactionGroups) { group in
-                        NavigationLink(destination: WalletTransactionDayDetailView(group: group, viewModel: viewModel)) {
+                        NavigationLink(
+                            destination: WalletTransactionDayDetailView(
+                                group: group, viewModel: viewModel)
+                        ) {
                             HStack {
                                 Text(displayDateFormatter.string(from: group.date))
                                     .font(.system(size: 16))
-                                
+
                                 Spacer()
-                                
+
                                 // 显示当日净收入
                                 // 显示买入和卖出数量
                                 let buyCount = group.entries.filter { $0.is_buy }.count
                                 let sellCount = group.entries.filter { !$0.is_buy }.count
-                                Text("\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 4)
                         }
@@ -384,7 +391,7 @@ struct WalletTransactionEntryRow: View {
     let viewModel: WalletTransactionsViewModel
     @State private var itemInfo: TransactionItemInfo?
     @State private var itemIcon: Image?
-    
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
@@ -392,7 +399,7 @@ struct WalletTransactionEntryRow: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
@@ -400,7 +407,7 @@ struct WalletTransactionEntryRow: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     var body: some View {
         NavigationLink {
             MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: entry.type_id)
@@ -419,13 +426,13 @@ struct WalletTransactionEntryRow: View {
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: 36, height: 36)
                     }
-                    
+
                     VStack(alignment: .leading) {
                         Text(
                             itemInfo?.name
-                            ?? NSLocalizedString(
-                                "Main_Market_Transactions_Loading", comment: ""
-                            )
+                                ?? NSLocalizedString(
+                                    "Main_Market_Transactions_Loading", comment: ""
+                                )
                         )
                         .font(.body)
                         Text("\(FormatUtil.format(entry.unit_price * Double(entry.quantity))) ISK")
@@ -433,13 +440,13 @@ struct WalletTransactionEntryRow: View {
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
-                
+
                 // 交易地点
                 if let locationView = viewModel.getLocationView(for: entry.location_id) {
                     locationView
                         .lineLimit(1)
                 }
-                
+
                 // 交易详细信息
                 VStack(alignment: .leading, spacing: 4) {
                     // 交易时间

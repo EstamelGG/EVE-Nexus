@@ -10,7 +10,7 @@ struct RichTextView: View {
 
     var body: some View {
         RichTextProcessor.processRichText(text)
-            .textSelection(.enabled)
+            .textSelection(.enabled)  // 允许复制
             .environment(
                 \.openURL,
                 OpenURLAction { url in

@@ -24,22 +24,38 @@ struct LanguageMapView: View {
     var body: some View {
         VStack {
             // 搜索结果或提示信息
-            if exactMatchResults.isEmpty && prefixMatchResults.isEmpty && fuzzyMatchResults.isEmpty {
+            if exactMatchResults.isEmpty && prefixMatchResults.isEmpty && fuzzyMatchResults.isEmpty
+            {
                 // 显示提示信息
                 VStack(spacing: 16) {
-                    Text(NSLocalizedString("Main_Language_Map_Supported_Search_Objects", comment: "支持的搜索对象："))
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    
+                    Text(
+                        NSLocalizedString(
+                            "Main_Language_Map_Supported_Search_Objects", comment: "支持的搜索对象：")
+                    )
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Main_Language_Map_Search_Object_1", comment: "1. 物品（舰船、装备、空间实体等）"))
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("Main_Language_Map_Search_Object_2", comment: "2. 星系、星座、星域名"))
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("Main_Language_Map_Search_Object_3", comment: "3. NPC势力名、军团名"))
-                            .foregroundColor(.secondary)
-                        Text(NSLocalizedString("Main_Language_Map_Search_Object_4", comment: "4. 物品 TypeID"))
-                            .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_1", comment: "1. 物品（舰船、装备、空间实体等）")
+                        )
+                        .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_2", comment: "2. 星系、星座、星域名")
+                        )
+                        .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_3", comment: "3. NPC势力名、军团名")
+                        )
+                        .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_4", comment: "4. 物品 TypeID")
+                        )
+                        .foregroundColor(.secondary)
                     }
                     .padding(.horizontal)
                 }
@@ -199,49 +215,49 @@ struct LanguageMapView: View {
         var exact: [(id: Int, names: [String: String])] = []
         var prefix: [(id: Int, names: [String: String])] = []
         var fuzzy: [(id: Int, names: [String: String])] = []
-        
+
         // 重置hasTypeIdMatch
         hasTypeIdMatch = false
 
         // 检查searchText是否可以转换为整数（用于type_id搜索）
         let typeIdToSearch = Int(searchText)
-        
+
         // 创建查询参数
         let queryParams = createQueryParameters(
             searchText: searchText, startPattern: startPattern, searchPattern: searchPattern
         )
-        
+
         // 搜索物品 - 使用单一SQL语句，通过CASE WHEN实现条件逻辑
         let typesQuery = """
-            SELECT DISTINCT type_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 
-                   CASE 
-                       WHEN type_id = \(typeIdToSearch ?? -1) THEN 0
-                       WHEN de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
-                            OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
-                            OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE THEN 1
-                       WHEN de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-                            OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ? THEN 2
-                       ELSE 3
-                   END as priority,
-                   LENGTH(en_name) as name_length
-            FROM types
-            WHERE (
-                  -- type_id精确匹配（如果searchText是数字）
-                  (\(typeIdToSearch != nil ? "type_id = \(typeIdToSearch!)" : "0=1"))
-                  -- 名称完全匹配
-                  OR de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
-                  OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
-                  OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
-                  -- 名称前缀匹配
-                  OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-                  OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-                  -- 名称模糊匹配
-                  OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-                  OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            )
-            ORDER BY priority, name_length, en_name
-        """
-        
+                SELECT DISTINCT type_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 
+                       CASE 
+                           WHEN type_id = \(typeIdToSearch ?? -1) THEN 0
+                           WHEN de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                                OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                                OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE THEN 1
+                           WHEN de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                                OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ? THEN 2
+                           ELSE 3
+                       END as priority,
+                       LENGTH(en_name) as name_length
+                FROM types
+                WHERE (
+                      -- type_id精确匹配（如果searchText是数字）
+                      (\(typeIdToSearch != nil ? "type_id = \(typeIdToSearch!)" : "0=1"))
+                      -- 名称完全匹配
+                      OR de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                      OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                      OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                      -- 名称前缀匹配
+                      OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                      OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
+                      -- 名称模糊匹配
+                      OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                      OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
+                )
+                ORDER BY priority, name_length, en_name
+            """
+
         if case let .success(rows) = DatabaseManager.shared.executeQuery(
             typesQuery, parameters: queryParams, useCache: false
         ) {
@@ -258,12 +274,12 @@ struct LanguageMapView: View {
                 if let typeId = row["type_id"] as? Int {
                     let priority = row["priority"] as? Int ?? 3
                     let result = (id: typeId, names: names)
-                    
+
                     // 如果是通过type_id搜索到的结果（priority为0），标记hasTypeIdMatch为true
                     if priority == 0 {
                         hasTypeIdMatch = true
                     }
-                    
+
                     switch priority {
                     case 0: exact.append(result)  // type_id精确匹配的结果归类于"完全匹配"
                     case 1: exact.append(result)

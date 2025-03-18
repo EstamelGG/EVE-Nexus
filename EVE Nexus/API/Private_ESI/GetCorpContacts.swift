@@ -72,7 +72,8 @@ class GetCorpContacts {
             }
         }
 
-        let baseUrlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/contacts/?datasource=tranquility"
+        let baseUrlString =
+            "https://esi.evetech.net/latest/corporations/\(corporationId)/contacts/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

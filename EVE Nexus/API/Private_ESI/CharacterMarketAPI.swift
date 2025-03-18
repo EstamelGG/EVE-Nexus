@@ -104,7 +104,7 @@ class CharacterMarketAPI {
         if !forceRefresh, let cachedData = getCachedOrders(characterId: characterId) {
             let cachedJson = cachedData.jsonString
             let cache = cachedData.cache
-            
+
             // 检查缓存是否有效
             if isCacheValid(cache) {
                 Logger.debug("使用有效的市场订单缓存数据 - 角色ID: \(characterId)")
@@ -136,7 +136,8 @@ class CharacterMarketAPI {
         // 3. 如果有缓存数据，尝试合并
         if let cachedData = getCachedOrders(characterId: characterId) {
             await mergeAndSaveOrders(
-                newJsonString: jsonString, existingJsonString: cachedData.jsonString, characterId: characterId
+                newJsonString: jsonString, existingJsonString: cachedData.jsonString,
+                characterId: characterId
             )
             return jsonString
         }

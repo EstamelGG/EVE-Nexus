@@ -651,6 +651,8 @@ struct ContentView: View {
                             MarketBrowserView(databaseManager: databaseManager)
                         case "vip_market_item":
                             MarketQuickbarView(databaseManager: databaseManager)
+                        case "attribute_compare":
+                            AttributeCompareView(databaseManager: databaseManager)
                         case "npc":
                             NPCBrowserView(databaseManager: databaseManager)
                         case "agents":
@@ -953,6 +955,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
                     icon: "searchmarket"
+                )
+            }
+
+            NavigationLink(value: "attribute_compare") {
+                RowView(
+                    title: NSLocalizedString("Main_Attribute_Compare", comment: "属性对比器"),
+                    icon: "comparetool"
                 )
             }
 

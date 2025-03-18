@@ -82,20 +82,20 @@ class InfestedSystemsViewModel: ObservableObject {
 
         // 更新缓存
         Self.systemIdsCache = Set(systemIds)
-        
+
         // 一次性获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: systemIds, 
+            solarSystemIds: systemIds,
             databaseManager: databaseManager
         )
-        
+
         var tempSystems: [SystemInfo] = []
-        
+
         for systemId in systemIds {
             guard let info = systemInfoMap[systemId] else {
                 continue
             }
-            
+
             let systemInfo = SystemInfo(
                 systemName: info.systemName,
                 security: info.security,

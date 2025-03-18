@@ -298,7 +298,7 @@ class CharacterContractsAPI {
                 existingContracts[Int(contractId)] = status
             }
         }
-        
+
         // 过滤出需要更新的合同
         let contractsToUpdate = contracts.filter { contract in
             // 如果合同不存在，或者状态已变化，则需要更新
@@ -307,40 +307,44 @@ class CharacterContractsAPI {
             }
             return true
         }
-        
+
         if contractsToUpdate.isEmpty {
             Logger.info("没有需要更新的合同数据")
             return true
         }
-        
+
         // 开始事务
         let beginTransaction = "BEGIN TRANSACTION"
         _ = CharacterDatabaseManager.shared.executeQuery(beginTransaction)
-        
+
         // 计算每批次的大小（每条记录24个参数）
         let batchSize = 500  // 每批次处理500条记录
         var success = true
         var newCount = 0
         var updateCount = 0
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: contractsToUpdate.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, contractsToUpdate.count)
             let currentBatch = Array(contractsToUpdate[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating:
+                    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO contracts (
-                    contract_id, character_id, status, acceptor_id, assignee_id,
-                    availability, buyout, collateral, date_accepted, date_completed,
-                    date_expired, date_issued, days_to_complete,
-                    end_location_id, for_corporation, issuer_corporation_id,
-                    issuer_id, price, reward, start_location_id,
-                    title, type, volume, items_fetched
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO contracts (
+                        contract_id, character_id, status, acceptor_id, assignee_id,
+                        availability, buyout, collateral, date_accepted, date_completed,
+                        date_expired, date_issued, days_to_complete,
+                        end_location_id, for_corporation, issuer_corporation_id,
+                        issuer_id, price, reward, start_location_id,
+                        title, type, volume, items_fetched
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for contract in currentBatch {
@@ -357,11 +361,13 @@ class CharacterContractsAPI {
                     // 新合同
                     newCount += 1
                 }
-                
+
                 // 处理可选日期
-                let dateAccepted = contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
-                let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
-                
+                let dateAccepted =
+                    contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
+                let dateCompleted =
+                    contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
+
                 let params: [Any] = [
                     contract.contract_id,
                     characterId,
@@ -390,9 +396,9 @@ class CharacterContractsAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入合同，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -402,7 +408,7 @@ class CharacterContractsAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
@@ -498,43 +504,44 @@ class CharacterContractsAPI {
         -> Bool
     {
         Logger.debug("开始保存合同物品 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
-        
+
         if items.isEmpty {
             Logger.debug("没有物品需要保存")
             return true
         }
-        
+
         // 开始事务
         let beginTransaction = "BEGIN TRANSACTION"
         _ = CharacterDatabaseManager.shared.executeQuery(beginTransaction)
-        
+
         // 计算每批次的大小（每条记录7个参数）
         let batchSize = 500  // 每批次处理500条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: items.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, items.count)
             let currentBatch = Array(items[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count)
+                .joined(separator: ",")
             let insertSQL = """
-                INSERT INTO contract_items (
-                    record_id, contract_id,
-                    is_included, is_singleton, quantity,
-                    type_id, raw_quantity
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT INTO contract_items (
+                        record_id, contract_id,
+                        is_included, is_singleton, quantity,
+                        type_id, raw_quantity
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for item in currentBatch {
                 let recordId = item.record_id
-                
+
                 // 处理raw_quantity的可选值
                 let rawQuantity = item.raw_quantity ?? 0
-                
+
                 let params: [Any] = [
                     recordId,
                     contractId,  // 确保存储合同ID
@@ -546,9 +553,9 @@ class CharacterContractsAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入合同物品，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -558,7 +565,7 @@ class CharacterContractsAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")

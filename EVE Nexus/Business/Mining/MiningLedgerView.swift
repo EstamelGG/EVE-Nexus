@@ -57,54 +57,58 @@ final class MiningLedgerViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
-    
+
     // 批量获取物品信息的方法
     func preloadItemInfo(for typeIds: Set<Int>) {
         guard !typeIds.isEmpty else { return }
-        
+
         // 过滤掉已经缓存的物品ID
         let idsToLoad = typeIds.filter { !itemInfoCache.keys.contains($0) }
-        
+
         if idsToLoad.isEmpty {
             Logger.debug("所有物品信息已在缓存中，无需重新加载")
             return
         }
-        
+
         Logger.debug("开始批量加载\(idsToLoad.count)个物品信息")
-        
+
         // 构建IN查询的参数
         let placeholders = Array(repeating: "?", count: idsToLoad.count).joined(separator: ",")
-        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-        
+        let query =
+            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+
         // 将Set转换为数组以便作为参数传递
         let parameters = idsToLoad.map { $0 as Any }
-        
+
         let result = databaseManager.executeQuery(query, parameters: parameters)
-        
+
         if case let .success(rows) = result {
             for row in rows {
                 guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String else {
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                else {
                     continue
                 }
-                
+
                 let info = (name: name, iconFileName: iconFileName)
                 itemInfoCache[typeId] = info
             }
-            
+
             Logger.debug("成功加载了\(rows.count)个物品信息")
         } else {
             Logger.error("批量加载物品信息失败")
         }
-        
+
         // 检查是否有未找到的物品ID，为它们设置默认值
         for typeId in idsToLoad {
             if itemInfoCache[typeId] == nil {
-                itemInfoCache[typeId] = (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+                itemInfoCache[typeId] = (
+                    name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
+                )
             }
         }
-        
+
         Logger.debug("物品信息缓存现在包含\(itemInfoCache.count)个条目")
     }
 
@@ -131,10 +135,10 @@ final class MiningLedgerViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 Logger.debug("获取到挖矿记录：\(entries.count)条")
-                
+
                 // 提取所有唯一的物品ID
                 let uniqueTypeIds = Set(entries.map { $0.type_id })
-                
+
                 // 一次性预加载所有物品信息
                 preloadItemInfo(for: uniqueTypeIds)
 
@@ -168,7 +172,10 @@ final class MiningLedgerViewModel: ObservableObject {
                 let groups = groupedByMonth.map { date, itemQuantities -> MiningMonthGroup in
                     let summaries = itemQuantities.map { typeId, quantity -> MiningItemSummary in
                         // 直接从缓存中获取物品信息，因为我们已经预加载了所有物品
-                        let info = itemInfoCache[typeId] ?? (name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon)
+                        let info =
+                            itemInfoCache[typeId] ?? (
+                                name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
+                            )
                         return MiningItemSummary(
                             id: typeId,
                             name: info.name,
@@ -222,7 +229,7 @@ struct MiningLedgerView: View {
         // 创建ViewModel
         let vm = MiningLedgerViewModel(characterId: characterId, databaseManager: databaseManager)
         _viewModel = StateObject(wrappedValue: vm)
-        
+
         // 在初始化时立即启动数据加载
         Task {
             await vm.loadMiningData()

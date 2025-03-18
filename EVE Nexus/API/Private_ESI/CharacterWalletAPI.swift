@@ -314,7 +314,7 @@ class CharacterWalletAPI {
             Logger.info("没有钱包日志需要保存")
             return true
         }
-        
+
         // 首先获取已存在的日志ID
         let checkQuery = "SELECT id FROM wallet_journal WHERE character_id = ?"
         guard
@@ -327,43 +327,45 @@ class CharacterWalletAPI {
         }
 
         let existingIds = Set(existingResults.compactMap { ($0["id"] as? Int64) })
-        
+
         // 过滤出需要插入的新记录
         let newEntries = entries.filter { entry in
             let journalId = entry["id"] as? Int64 ?? 0
             return !existingIds.contains(journalId)
         }
-        
+
         // 如果没有新记录，直接返回成功
         if newEntries.isEmpty {
             Logger.info("无需新增钱包日志")
             return true
         }
-        
+
         Logger.info("准备插入\(newEntries.count)条新钱包日志记录")
-        
+
         // 开始事务
         _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
-        
+
         // 计算每批次的大小（每条记录12个参数）
         let batchSize = 100  // 每批次处理100条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, newEntries.count)
             let currentBatch = Array(newEntries[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO wallet_journal (
-                    id, character_id, amount, balance, context_id, context_id_type,
-                    date, description, first_party_id, reason, ref_type,
-                    second_party_id
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO wallet_journal (
+                        id, character_id, amount, balance, context_id, context_id_type,
+                        date, description, first_party_id, reason, ref_type,
+                        second_party_id
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for entry in currentBatch {
@@ -384,9 +386,9 @@ class CharacterWalletAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入钱包日志，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -396,7 +398,7 @@ class CharacterWalletAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
@@ -453,7 +455,8 @@ class CharacterWalletAPI {
 
     // 从服务器获取钱包日志
     private func fetchJournalFromServer(characterId: Int) async throws -> [[String: Any]] {
-        let baseUrlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility"
+        let baseUrlString =
+            "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }
@@ -463,7 +466,9 @@ class CharacterWalletAPI {
             characterId: characterId,
             maxConcurrentPages: 3,
             decoder: { data in
-                guard let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                guard
+                    let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+                else {
                     throw NetworkError.invalidResponse
                 }
                 return entries
@@ -519,7 +524,7 @@ class CharacterWalletAPI {
             Logger.info("没有钱包交易记录需要保存")
             return true
         }
-        
+
         // 首先获取已存在的交易ID
         let checkQuery = "SELECT transaction_id FROM wallet_transactions WHERE character_id = ?"
         guard
@@ -532,52 +537,54 @@ class CharacterWalletAPI {
         }
 
         let existingIds = Set(existingResults.compactMap { ($0["transaction_id"] as? Int64) })
-        
+
         // 过滤出需要插入的新记录
         let newEntries = entries.filter { entry in
             let transactionId = entry["transaction_id"] as? Int64 ?? 0
             return !existingIds.contains(transactionId)
         }
-        
+
         // 如果没有新记录，直接返回成功
         if newEntries.isEmpty {
             Logger.info("无需新增交易记录")
             return true
         }
-        
+
         Logger.info("准备插入\(newEntries.count)条新钱包交易记录")
-        
+
         // 开始事务
         _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
-        
+
         // 计算每批次的大小（每条记录11个参数）
         let batchSize = 100  // 每批次处理100条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, newEntries.count)
             let currentBatch = Array(newEntries[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO wallet_transactions (
-                    transaction_id, character_id, client_id, date, is_buy,
-                    is_personal, journal_ref_id, location_id, quantity,
-                    type_id, unit_price
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO wallet_transactions (
+                        transaction_id, character_id, client_id, date, is_buy,
+                        is_personal, journal_ref_id, location_id, quantity,
+                        type_id, unit_price
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for entry in currentBatch {
                 let transactionId = entry["transaction_id"] as? Int64 ?? 0
-                
+
                 // 将布尔值转换为整数
                 let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
                 let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
-                
+
                 let params: [Any] = [
                     transactionId,
                     characterId,
@@ -593,9 +600,9 @@ class CharacterWalletAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入钱包交易记录，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -605,7 +612,7 @@ class CharacterWalletAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")

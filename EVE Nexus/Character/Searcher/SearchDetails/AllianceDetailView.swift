@@ -240,6 +240,7 @@ struct AllianceDetailView: View {
                             // 联盟名称和代号
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(allianceInfo.name)
+                                    .textSelection(.enabled)
                                     .font(.headline)
                                     .lineLimit(1)
                                 Text("[\(allianceInfo.ticker)]")
@@ -257,11 +258,10 @@ struct AllianceDetailView: View {
                                             .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    Text(
-                                        "\(NSLocalizedString("Executor", comment: "")): \(executorInfo.name)"
-                                    )
-                                    .font(.system(size: 14))
-                                    .lineLimit(1)
+                                    Text("\(executorInfo.name)")
+                                        .textSelection(.enabled)
+                                        .font(.system(size: 14))
+                                        .lineLimit(1)
                                 }
                             }
 

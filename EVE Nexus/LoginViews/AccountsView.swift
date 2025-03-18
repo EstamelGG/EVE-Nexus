@@ -41,7 +41,7 @@ struct AccountsView: View {
                     Task { @MainActor in
                         // 设置登录状态为true
                         isLoggingIn = true
-                        
+
                         // 检查并更新scopes（如果需要）
                         await checkAndUpdateScopesIfNeeded()
 
@@ -244,23 +244,25 @@ struct AccountsView: View {
                         // 添加刷新状态指示
                         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
                         impactFeedback.impactOccurred()
-                        
+
                         // 设置刷新状态
                         isRefreshingScopes = true
-                        
+
                         Task {
                             // 强制刷新 scopes
                             Logger.info("手动强制刷新 scopes")
                             let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
-                            
+
                             // 更新 EVELogin 中的 scopes 配置
                             let scopes = await EVELogin.shared.getScopes()
                             Logger.info("成功刷新 scopes，获取到 \(scopes.count) 个权限")
-                            
+
                             // 显示成功提示
                             await MainActor.run {
                                 isRefreshingScopes = false  // 重置刷新状态
-                                successMessage = String(format: NSLocalizedString("Scopes_Refresh_Success", comment: ""), scopes.count)
+                                successMessage = String(
+                                    format: NSLocalizedString(
+                                        "Scopes_Refresh_Success", comment: ""), scopes.count)
                                 showingSuccess = true
                             }
                         }
@@ -986,7 +988,7 @@ struct AccountsView: View {
         } catch {
             Logger.error("刷新角色数据失败 - \(character.CharacterName): \(error)")
         }
-        
+
         // 从刷新集合中移除角色
         await updateUI {
             refreshingCharacters.remove(character.CharacterID)
@@ -996,14 +998,16 @@ struct AccountsView: View {
     // 在AccountsView结构体内添加一个检查scopes更新时间的函数
     private func checkAndUpdateScopesIfNeeded() async {
         // 获取文档目录路径
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let documentsDirectory = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask)[0]
         let latestScopesPath = documentsDirectory.appendingPathComponent("latest_scopes.json")
-        
+
         // 检查文件是否存在
         if FileManager.default.fileExists(atPath: latestScopesPath.path) {
             do {
                 // 获取文件属性
-                let attributes = try FileManager.default.attributesOfItem(atPath: latestScopesPath.path)
+                let attributes = try FileManager.default.attributesOfItem(
+                    atPath: latestScopesPath.path)
                 if let modificationDate = attributes[.modificationDate] as? Date {
                     // 计算文件最后修改时间与当前时间的差值
                     let timeInterval = Date().timeIntervalSince(modificationDate)

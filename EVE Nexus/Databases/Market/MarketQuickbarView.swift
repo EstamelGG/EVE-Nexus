@@ -662,6 +662,23 @@ struct MarketQuickbarView: View {
 
     private func quickbarRowView(_ quickbar: MarketQuickbar) -> some View {
         HStack {
+            // 显示列表图标
+            if !quickbar.items.isEmpty, let firstItem = quickbar.items.first {
+                // 直接查询并显示第一个物品的图标
+                let icon = getItemIcon(typeID: firstItem.typeID)
+                Image(uiImage: icon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
+                    .padding(.trailing, 8)
+            } else {
+                Image("Folder")
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
+                    .padding(.trailing, 8)
+            }
+
             Text(quickbar.name)
                 .lineLimit(1)
             Spacer()
@@ -675,6 +692,21 @@ struct MarketQuickbarView: View {
             .foregroundColor(.secondary)
         }
         .padding(.vertical, 4)
+    }
+
+    // 获取物品图标的辅助函数
+    private func getItemIcon(typeID: Int) -> UIImage {
+        let itemData = databaseManager.loadMarketItems(
+            whereClause: "t.type_id = ?",
+            parameters: [typeID]
+        )
+
+        if let item = itemData.first {
+            return IconManager.shared.loadUIImage(for: item.iconFileName)
+        } else {
+            // 如果找不到图标，返回一个默认图标
+            return UIImage(named: "not_found") ?? UIImage()
+        }
     }
 
     private func deleteQuickbar(at offsets: IndexSet) {
@@ -955,7 +987,7 @@ struct MarketQuickbarDetailView: View {
             loadItems()
             loadRegions()
             selectedRegion = initialMarketLocation
-            
+
             // 只在第一次加载时获取市场订单
             if !hasLoadedOrders {
                 await loadAllMarketOrders()
@@ -969,7 +1001,7 @@ struct MarketQuickbarDetailView: View {
         guard !items.isEmpty else { return }
 
         isLoadingOrders = true
-        defer { 
+        defer {
             isLoadingOrders = false
             hasLoadedOrders = true  // 标记已加载过订单
         }
@@ -1100,7 +1132,8 @@ struct MarketQuickbarDetailView: View {
                         HStack(spacing: 4) {
                             Text(
                                 NSLocalizedString("Main_Market_Total_Price", comment: "")
-                                    + FormatUtil.format(price * Double(itemQuantities[item.id] ?? 1))
+                                    + FormatUtil.format(
+                                        price * Double(itemQuantities[item.id] ?? 1))
                                     + " ISK"
                             )
                             .font(.caption)

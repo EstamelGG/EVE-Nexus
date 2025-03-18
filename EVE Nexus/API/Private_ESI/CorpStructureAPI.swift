@@ -88,13 +88,17 @@ public class CorpStructureAPI {
         }
 
         // 3. 从API获取
-        return try await fetchStructuresFromServer(corporationId: corporationId, characterId: characterId)
+        return try await fetchStructuresFromServer(
+            corporationId: corporationId, characterId: characterId)
     }
 
-    private func fetchStructuresFromServer(corporationId: Int, characterId: Int) async throws -> [StructureInfo] {
+    private func fetchStructuresFromServer(corporationId: Int, characterId: Int) async throws
+        -> [StructureInfo]
+    {
         Logger.info("开始获取军团建筑物信息 - 军团ID: \(corporationId)")
 
-        let baseUrlString = "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en"
+        let baseUrlString =
+            "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

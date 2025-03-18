@@ -880,7 +880,7 @@ class ScopeManager {
         guard let url = URL(string: "https://esi.evetech.net/latest/swagger.json") else {
             throw NetworkError.invalidURL
         }
-        
+
         // 使用NetworkManager实现超时重试机制
         let data = try await NetworkManager.shared.fetchData(
             from: url,
@@ -889,7 +889,7 @@ class ScopeManager {
             noRetryKeywords: nil,
             timeouts: [2, 5, 5, 10, 10]
         )
-        
+
         let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
 
         // 从 securityDefinitions.evesso.scopes 中提取所有的 scope keys
@@ -897,7 +897,7 @@ class ScopeManager {
 
         // 保存到本地文件
         saveScopesToFile(scopes)
-        
+
         Logger.info("成功从网络获取最新scopes，共 \(scopes.count) 个权限")
 
         return scopes

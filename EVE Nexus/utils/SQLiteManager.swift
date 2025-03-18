@@ -94,7 +94,7 @@ class SQLiteManager {
             let sortedParameters: [Any]
             if parameters.count > 1 {
                 // 对参数进行排序，确保相同参数集合但顺序不同的查询能够使用相同的缓存
-                sortedParameters = parameters.sorted { 
+                sortedParameters = parameters.sorted {
                     let str1 = String(describing: $0)
                     let str2 = String(describing: $1)
                     return str1 < str2
@@ -112,10 +112,10 @@ class SQLiteManager {
                 // Logger.debug("从缓存中获取结果: \(cacheKey)")
                 return .success(cachedResult)
             }
-            
+
             // 记录开始时间
             let startTime = CFAbsoluteTimeGetCurrent()
-            
+
             Logger.info("\(query)?#\(parameters)")
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
@@ -174,11 +174,11 @@ class SQLiteManager {
 
             // 释放语句
             sqlite3_finalize(statement)
-            
+
             // 计算查询耗时
             let endTime = CFAbsoluteTimeGetCurrent()
-            let elapsedTime = (endTime - startTime) * 1000 // 转换为毫秒
-            
+            let elapsedTime = (endTime - startTime) * 1000  // 转换为毫秒
+
             // 记录查询耗时
             Logger.info("查询耗时: \(String(format: "%.2f", elapsedTime))ms")
 

@@ -85,6 +85,7 @@ struct CharacterDetailView: View {
                             // 人物名称
                             Text(characterInfo.name)
                                 .font(.system(size: 20, weight: .bold))
+                                .textSelection(.enabled)
                                 .lineLimit(1)
 
                             // 人物头衔
@@ -115,6 +116,7 @@ struct CharacterDetailView: View {
                                     }
                                     Text(corpInfo.name)
                                         .font(.system(size: 14))
+                                        .textSelection(.enabled)
                                         .lineLimit(1)
                                 }
                             }
@@ -127,6 +129,7 @@ struct CharacterDetailView: View {
                                         .frame(width: 20, height: 20)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
+                                        .textSelection(.enabled)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
                                 } else {

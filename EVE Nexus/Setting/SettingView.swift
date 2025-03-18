@@ -85,8 +85,8 @@ class CacheManager {
     private let cacheDirs = [
         "StructureCache",  // 建筑缓存
         "AssetCache",  // 资产缓存
-        "Logs", // 日志
-        "ContactsCache", // 声望
+        "StaticDataSet",  // 临时静态数据
+        "ContactsCache",  // 声望
     ]
 
     // 获取缓存目录列表
@@ -115,33 +115,42 @@ class CacheManager {
     private func clearCacheDirectories() async {
         let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var totalFilesRemoved = 0
-        
+
         for dirName in cacheDirs {
             let dirPath = documentPath.appendingPathComponent(dirName)
-            
+
             do {
                 if fileManager.fileExists(atPath: dirPath.path) {
-                    // 只统计目录中的文件数量
+                    // 统计目录中的所有文件数量（包括子目录）
                     var fileCount = 0
-                    
+
                     if let enumerator = fileManager.enumerator(
                         at: dirPath,
-                        includingPropertiesForKeys: nil,
+                        includingPropertiesForKeys: [.isRegularFileKey],
                         options: [.skipsHiddenFiles]
                     ) {
-                        for case _ as URL in enumerator {
-                            // 只计算文件数量
-                            fileCount += 1
+                        for case let fileURL as URL in enumerator {
+                            do {
+                                let resourceValues = try fileURL.resourceValues(forKeys: [
+                                    .isRegularFileKey
+                                ])
+                                // 只计算文件，不计算目录本身
+                                if resourceValues.isRegularFile == true {
+                                    fileCount += 1
+                                }
+                            } catch {
+                                Logger.error("获取文件属性失败 - \(fileURL.path): \(error)")
+                            }
                         }
                     }
-                    
+
                     // 删除并重建目录
                     try fileManager.removeItem(at: dirPath)
                     try fileManager.createDirectory(at: dirPath, withIntermediateDirectories: true)
-                    
+
                     // 更新总计数
                     totalFilesRemoved += fileCount
-                    
+
                     // 记录日志
                     Logger.debug("成功清理并重建目录: \(dirName)，删除了 \(fileCount) 个文件")
                 }
@@ -149,7 +158,7 @@ class CacheManager {
                 Logger.error("清理目录失败 - \(dirName): \(error)")
             }
         }
-        
+
         Logger.info("目录缓存清理完成，共删除 \(totalFilesRemoved) 个文件")
     }
 
@@ -189,17 +198,27 @@ class CacheManager {
             if fileManager.fileExists(atPath: dirPath.path),
                 let enumerator = fileManager.enumerator(
                     at: dirPath,
-                    includingPropertiesForKeys: [.fileSizeKey],
+                    includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                     options: [.skipsHiddenFiles]
                 )
             {
                 for case let fileURL as URL in enumerator {
                     do {
-                        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
-                        totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
-                        fileCount += 1
+                        let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey]
+                        )
+                        // 只统计文件，跳过目录
+                        if resourceValues.isRegularFile == true {
+                            let attributes = try fileManager.attributesOfItem(
+                                atPath: fileURL.path)
+                            if let fileSize = attributes[.size] as? Int64 {
+                                totalSize += fileSize
+                                Logger.info(
+                                    "Calculating file size for \(fileURL.path): \(fileSize) bytes")
+                                fileCount += 1
+                            }
+                        }
                     } catch {
-                        Logger.error("Error calculating file size for \(fileURL.path): \(error)")
+                        Logger.error("计算文件大小失败 - \(fileURL.path): \(error)")
                     }
                 }
             }
@@ -438,67 +457,69 @@ struct SettingView: View {
             if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
                 if let enumerator = FileManager.default.enumerator(
                     at: staticDataSetPath,
-                    includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
+                    includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                     options: [.skipsHiddenFiles]
                 ) {
                     for case let fileURL as URL in enumerator {
                         do {
                             let resourceValues = try fileURL.resourceValues(forKeys: [
-                                .isDirectoryKey
+                                .isRegularFileKey
                             ])
-                            // 跳过目录，只计算文件大小
-                            if resourceValues.isDirectory == true {
-                                continue
-                            }
-
-                            let attributes = try FileManager.default.attributesOfItem(
-                                atPath: fileURL.path)
-                            if let fileSize = attributes[.size] as? Int64 {
-                                totalSize += fileSize
+                            // 只统计文件，跳过目录
+                            if resourceValues.isRegularFile == true {
+                                let attributes = try FileManager.default.attributesOfItem(
+                                    atPath: fileURL.path)
+                                if let fileSize = attributes[.size] as? Int64 {
+                                    totalSize += fileSize
+                                    Logger.info(
+                                        "Calculating file size for \(fileURL.path): \(fileSize) bytes"
+                                    )
+                                }
                             }
                         } catch {
                             Logger.error(
-                                "Error calculating file size for \(fileURL.path): \(error)")
+                                "计算文件大小失败 - \(fileURL.path): \(error)")
                         }
                     }
                 } else {
-                    Logger.error("Failed to create directory enumerator")
+                    Logger.error("创建目录枚举器失败")
                 }
             }
-            
+
             // 计算缓存目录大小
             let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             // 使用CacheManager中的缓存目录列表
             let cacheDirs = CacheManager.shared.getCacheDirs()
-            
+
             for dirName in cacheDirs {
                 let dirPath = documentPath.appendingPathComponent(dirName)
-                
+
                 if fileManager.fileExists(atPath: dirPath.path),
-                   let enumerator = fileManager.enumerator(
-                    at: dirPath,
-                    includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
-                    options: [.skipsHiddenFiles]
-                   ) {
+                    let enumerator = fileManager.enumerator(
+                        at: dirPath,
+                        includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
+                        options: [.skipsHiddenFiles]
+                    )
+                {
                     for case let fileURL as URL in enumerator {
                         do {
                             let resourceValues = try fileURL.resourceValues(forKeys: [
-                                .isDirectoryKey
+                                .isRegularFileKey
                             ])
-                            // 跳过目录，只计算文件大小
-                            if resourceValues.isDirectory == true {
-                                continue
-                            }
-                            Logger.info(
-                                "Calculating file size for \(fileURL.path)")
-                            let attributes = try fileManager.attributesOfItem(
-                                atPath: fileURL.path)
-                            if let fileSize = attributes[.size] as? Int64 {
-                                totalSize += fileSize
+                            // 只统计文件，跳过目录
+                            if resourceValues.isRegularFile == true {
+                                let attributes = try fileManager.attributesOfItem(
+                                    atPath: fileURL.path)
+                                if let fileSize = attributes[.size] as? Int64 {
+                                    totalSize += fileSize
+                                    Logger.info(
+                                        "Calculating file size for \(fileURL.path): \(fileSize) bytes"
+                                    )
+                                }
                             }
                         } catch {
                             Logger.error(
-                                "Error calculating file size for \(fileURL.path): \(error)")
+                                "计算文件大小失败 - \(fileURL.path): \(error)")
                         }
                     }
                 }
@@ -651,67 +672,6 @@ struct SettingView: View {
                 ),
             ]
         )
-    }
-
-    // MARK: - 资源管理
-
-    private func refreshResource(_: StaticResourceManager.ResourceInfo) {
-        // 图片资源是按需加载的，不需要手动刷新
-        Logger.info("Image resources are refreshed on-demand")
-    }
-
-    // MARK: - 资源信息格式化
-
-    private func formatRemainingTime(_ remaining: TimeInterval) -> String {
-        let days = Int(remaining / (24 * 3600))
-        let hours = Int((remaining.truncatingRemainder(dividingBy: 24 * 3600)) / 3600)
-        let minutes = Int((remaining.truncatingRemainder(dividingBy: 3600)) / 60)
-
-        if days > 0 {
-            // 如果有天数，显示天和小时
-            return String(
-                format: NSLocalizedString("Main_Setting_Cache_Expiration_Days_Hours", comment: ""),
-                days, hours
-            )
-        } else if hours > 0 {
-            // 如果有小时，显示小时和分钟
-            return String(
-                format: NSLocalizedString(
-                    "Main_Setting_Cache_Expiration_Hours_Minutes", comment: ""
-                ), hours, minutes
-            )
-        } else {
-            // 只剩分钟
-            return String(
-                format: NSLocalizedString("Main_Setting_Cache_Expiration_Minutes", comment: ""),
-                minutes
-            )
-        }
-    }
-
-    private func formatResourceInfo(_ resource: StaticResourceManager.ResourceInfo) -> String {
-        if resource.exists && resource.fileSize != nil && resource.fileSize! > 0 {
-            var info = ""
-            if let fileSize = resource.fileSize {
-                info += FormatUtil.formatFileSize(fileSize)
-            }
-
-            // 只显示文件大小和最后更新时间
-            if let lastModified = resource.lastModified {
-                info +=
-                    "\n"
-                    + String(
-                        format: NSLocalizedString(
-                            "Main_Setting_Static_Resource_Last_Updated", comment: ""
-                        ),
-                        getRelativeTimeString(from: lastModified)
-                    )
-            }
-
-            return info
-        } else {
-            return NSLocalizedString("Main_Setting_Static_Resource_No_Cache", comment: "")
-        }
     }
 
     // 添加一个新的视图组件来优化列表项渲染
@@ -887,80 +847,6 @@ struct SettingView: View {
     }
 
     // MARK: - 缓存管理
-
-    private func formatCacheDetails() -> String {
-        // 如果正在清理，显示"-"
-        if isCleaningCache {
-            return "-"
-        }
-
-        let totalSize = cacheDetails.values.reduce(0) { $0 + $1.size }
-        let totalCount = cacheDetails.values.reduce(0) { $0 + $1.count }
-
-        var details = FormatUtil.formatFileSize(totalSize)
-        details += String(
-            format: NSLocalizedString("Main_Setting_Cache_Total_Count", comment: ""), totalCount
-        )
-
-        // 添加详细统计
-        if !cacheDetails.isEmpty {
-            details += "\n\n" + NSLocalizedString("Main_Setting_Cache_Details", comment: "")
-            for (type, stats) in cacheDetails.sorted(by: { $0.key < $1.key }) {
-                if stats.size > 0 || stats.count > 0 {
-                    let typeLocalized = localizedCacheType(type)
-                    details +=
-                        "\n• "
-                        + String(
-                            format: NSLocalizedString(
-                                "Main_Setting_Cache_Item_Format", comment: ""
-                            ),
-                            typeLocalized,
-                            FormatUtil.formatFileSize(stats.size),
-                            stats.count
-                        )
-                }
-            }
-        }
-
-        return details
-    }
-
-    private func localizedCacheType(_ type: String) -> String {
-        switch type {
-        case "Network":
-            return NSLocalizedString("Main_Setting_Cache_Type_Network", comment: "")
-        case "Memory":
-            return NSLocalizedString("Main_Setting_Cache_Type_Memory", comment: "")
-        case "UserDefaults":
-            return NSLocalizedString("Main_Setting_Cache_Type_UserDefaults", comment: "")
-        case "Temp":
-            return NSLocalizedString("Main_Setting_Cache_Type_Temp", comment: "")
-        case "Database":
-            return NSLocalizedString("Main_Setting_Cache_Type_Database", comment: "")
-        case "StaticDataSet":
-            return NSLocalizedString("Main_Setting_Cache_Type_StaticDataSet", comment: "")
-        case "CharacterPortraits":
-            return NSLocalizedString("Main_Setting_Cache_Type_Character_Portraits", comment: "")
-        case "FactionIcons":
-            return NSLocalizedString("Main_Setting_Static_Resource_Faction_Icons", comment: "")
-        case "NetRenders":
-            return NSLocalizedString("Main_Setting_Cache_Type_Net_Renders", comment: "")
-        case "MarketData":
-            return NSLocalizedString("Main_Setting_Cache_Type_Market_Data", comment: "")
-        default:
-            return type
-        }
-    }
-
-    private func calculateCacheSize() {
-        Task {
-            let stats = await CacheManager.shared.getAllCacheStats()
-            // 在主线程更新 UI
-            await MainActor.run {
-                self.cacheDetails = stats
-            }
-        }
-    }
 
     private func formatFileSize(_ size: Int64) -> String {
         let byteCountFormatter = ByteCountFormatter()

@@ -37,9 +37,9 @@ struct AboutView: View {
         ),
         AboutItem(
             title: NSLocalizedString("Main_About_Github", comment: ""),
-            value: "https://github.com/EstamelGG/EVE-Nexus-Public",
+            value: "https://github.com/EstamelGG/EVE-Nexus",
             icon: "link",
-            url: URL(string: "https://github.com/EstamelGG/EVE-Nexus-Public")
+            url: URL(string: "https://github.com/EstamelGG/EVE-Nexus")
         ),
         AboutItem(
             title: NSLocalizedString("Main_About_Report_Bug", comment: ""),

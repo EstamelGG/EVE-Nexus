@@ -213,57 +213,56 @@ class CorpWalletAPI {
     ///   - division: 部门编号
     ///   - progressCallback: 加载进度回调
     /// - Returns: 钱包日志数组
-    /// 全量日志太多了，暂时只获取第一页
     private func fetchCorpJournalFromServer(
         characterId: Int,
         corporationId: Int,
         division: Int,
         progressCallback: ((WalletLoadingProgress) -> Void)? = nil
     ) async throws -> [[String: Any]] {
-         let baseUrlString =
-             "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility"
-         guard let baseUrl = URL(string: baseUrlString) else {
-             throw NetworkError.invalidURL
-         }
+        let baseUrlString =
+            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility"
+        guard let baseUrl = URL(string: baseUrlString) else {
+            throw NetworkError.invalidURL
+        }
 
-         return try await NetworkManager.shared.fetchPaginatedData(
-             from: baseUrl,
-             characterId: characterId,
-             maxConcurrentPages: 5,
-             decoder: { data in
-                 guard
-                     let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-                 else {
-                     throw NetworkError.invalidResponse
-                 }
-                 return entries
-             },
-             progressCallback: { page in
-                 progressCallback?(.loading(page: page))
-             }
-         )
+        return try await NetworkManager.shared.fetchPaginatedData(
+            from: baseUrl,
+            characterId: characterId,
+            maxConcurrentPages: 5,
+            decoder: { data in
+                guard
+                    let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+                else {
+                    throw NetworkError.invalidResponse
+                }
+                return entries
+            },
+            progressCallback: { page in
+                progressCallback?(.loading(page: page))
+            }
+        )
 
-//        let urlString =
-//            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility&page=1"
-//        guard let url = URL(string: urlString) else {
-//            throw NetworkError.invalidURL
-//        }
-//
-//        // 通知进度回调
-//        progressCallback?(.loading(page: 1))
-//        
-//        // 使用fetchDataWithToken获取数据
-//        let data = try await NetworkManager.shared.fetchDataWithToken(
-//            from: url, characterId: characterId
-//        )
-//        
-//        // 解析返回的JSON数据
-//        guard let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-//            throw NetworkError.invalidResponse
-//        }
-//        
-//        Logger.info("成功获取军团钱包日志，共\(entries.count)条记录")
-//        return entries
+        //        let urlString =
+        //            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility&page=1"
+        //        guard let url = URL(string: urlString) else {
+        //            throw NetworkError.invalidURL
+        //        }
+        //
+        //        // 通知进度回调
+        //        progressCallback?(.loading(page: 1))
+        //
+        //        // 使用fetchDataWithToken获取数据
+        //        let data = try await NetworkManager.shared.fetchDataWithToken(
+        //            from: url, characterId: characterId
+        //        )
+        //
+        //        // 解析返回的JSON数据
+        //        guard let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+        //            throw NetworkError.invalidResponse
+        //        }
+        //
+        //        Logger.info("成功获取军团钱包日志，共\(entries.count)条记录")
+        //        return entries
     }
 
     /// 从数据库获取军团钱包日志
@@ -313,41 +312,43 @@ class CorpWalletAPI {
         }
 
         let existingIds = Set(existingResults.compactMap { ($0["id"] as? Int64) })
-        
+
         // 过滤出需要插入的新记录
         let newEntries = entries.filter { entry in
             let journalId = entry["id"] as? Int64 ?? 0
             return !existingIds.contains(journalId)
         }
-        
+
         if newEntries.isEmpty {
             Logger.info("无需新增军团钱包日志")
             return true
         }
-        
+
         // 开始事务
         let beginTransaction = "BEGIN TRANSACTION"
         _ = CharacterDatabaseManager.shared.executeQuery(beginTransaction)
-        
+
         // 计算每批次的大小（每条记录13个参数）
         let batchSize = 500  // 每批次处理500条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, newEntries.count)
             let currentBatch = Array(newEntries[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO corp_wallet_journal (
-                    id, corporation_id, division, amount, balance, context_id,
-                    context_id_type, date, description, first_party_id,
-                    reason, ref_type, second_party_id
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO corp_wallet_journal (
+                        id, corporation_id, division, amount, balance, context_id,
+                        context_id_type, date, description, first_party_id,
+                        reason, ref_type, second_party_id
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for entry in currentBatch {
@@ -369,9 +370,9 @@ class CorpWalletAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入军团钱包日志，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -381,7 +382,7 @@ class CorpWalletAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
@@ -595,44 +596,46 @@ class CorpWalletAPI {
             let transactionId = entry["transaction_id"] as? Int64 ?? 0
             return !existingIds.contains(transactionId)
         }
-        
+
         if newEntries.isEmpty {
             Logger.info("无需新增交易记录")
             return true
         }
-        
+
         // 开始事务
         let beginTransaction = "BEGIN TRANSACTION"
         _ = CharacterDatabaseManager.shared.executeQuery(beginTransaction)
-        
+
         // 计算每批次的大小（每条记录12个参数）
         let batchSize = 500  // 每批次处理500条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: newEntries.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, newEntries.count)
             let currentBatch = Array(newEntries[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO corp_wallet_transactions (
-                    transaction_id, corporation_id, division, client_id, date, is_buy,
-                    is_personal, journal_ref_id, location_id, quantity,
-                    type_id, unit_price
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO corp_wallet_transactions (
+                        transaction_id, corporation_id, division, client_id, date, is_buy,
+                        is_personal, journal_ref_id, location_id, quantity,
+                        type_id, unit_price
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for entry in currentBatch {
                 let transactionId = entry["transaction_id"] as? Int64 ?? 0
-                
+
                 // 将布尔值转换为整数
                 let isBuy = (entry["is_buy"] as? Bool ?? false) ? 1 : 0
                 let isPersonal = (entry["is_personal"] as? Bool ?? false) ? 1 : 0
-                
+
                 let params: [Any] = [
                     transactionId,
                     corporationId,
@@ -649,9 +652,9 @@ class CorpWalletAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入军团钱包交易记录，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -661,7 +664,7 @@ class CorpWalletAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")

@@ -9,7 +9,7 @@ class Logger {
     private let logQueue = DispatchQueue(label: "com.eve.nexus.logger")
     private var currentLogFile: URL?
     private let maxLogFiles = 7  // 保留最近7天的日志
-
+    private let ifWriteToFile = false  // 是否输出日志到文件？基本是debug用的，用户不需要这个功能
     private init() {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -29,13 +29,14 @@ class Logger {
     }
 
     private func createNewLogFile() {
+        guard ifWriteToFile else { return }
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(
             "Logs")
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         let fileName = "EVE_Nexus_\(formatter.string(from: Date())).log"
         currentLogFile = logPath.appendingPathComponent(fileName)
-
+        Logger.info("Create log file: \(fileName)")
         // 写入日志文件头部信息
         let header = """
             =====================================

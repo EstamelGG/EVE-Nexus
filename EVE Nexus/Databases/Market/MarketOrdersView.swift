@@ -155,14 +155,14 @@ struct MarketOrdersView: View {
         .refreshable {
             // 添加下拉刷新功能
             isLoading = true
-            
+
             // 收集所有订单的位置ID
             let locationIds = Set(orders.map { $0.locationId })
-            
+
             // 重新加载所有位置信息
             let refreshedInfos = await locationInfoLoader.loadLocationInfo(
                 locationIds: locationIds)
-            
+
             // 更新UI
             locationInfos = refreshedInfos
             isLoading = false

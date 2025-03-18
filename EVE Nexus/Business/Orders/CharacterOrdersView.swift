@@ -19,7 +19,7 @@ final class CharacterOrdersViewModel: ObservableObject {
     @Published private(set) var locationInfoCache: [Int64: OrderLocationInfo] = [:]
     @Published var showBuyOrders = false
     @Published private(set) var isDataReady = false
-    
+
     // 添加一个标志，表示是否已经开始加载数据
     private var hasStartedLoading = false
 
@@ -41,7 +41,7 @@ final class CharacterOrdersViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
-    
+
     // 添加一个预加载方法，在初始化后立即调用
     func preloadOrders() {
         if !hasStartedLoading {
@@ -171,7 +171,7 @@ struct CharacterOrdersView: View {
             databaseManager: databaseManager
         )
         _viewModel = StateObject(wrappedValue: vm)
-        
+
         // 在初始化时预加载数据
         vm.preloadOrders()
     }

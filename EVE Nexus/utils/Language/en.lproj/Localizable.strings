@@ -49,8 +49,6 @@
 "Main_Market_WH_MaxJumpMass" = "Maximum Jump Mass";
 "Main_Market_WH_Leadsto" = "Leads Into";
 "Main_Market_WH_Size" = "Size";
-"Main_Database_toComplete" = "Lite";
-"Main_Database_toSimplified" = "Full";
 "Contract_Items_Included" = "Items to Give";
 "Contract_Items_Required" = "Items Required";
 "Contract_Issuer" = "Issuer";
@@ -737,6 +735,7 @@
 "Main_Search_Type_Corporation" = "Corp";
 "Main_Search_Type_Alliance" = "Alliance";
 "Main_Search_Type_Structure" = "Structure";
+"Main_Search_Results_Limit" = "Results limited";
 
 // Search Filters
 "Main_Search_Filter_Title" = "Filters(can be empty)";
@@ -753,6 +752,8 @@
 "Main_Search_Filter_Station" = "Station";
 "Main_Search_Filter_Structure" = "Structure";
 "Main_Search_Filter_Clear" = "Clear Filters";
+"Main_Search_Filter_Only_My_Corp" = "Only My Corporation Members";
+"Main_Search_Filter_Only_My_Alliance" = "Only My Alliance Members";
 
 // Search Status
 "Main_Search_Status_Searching" = "Searching...";
@@ -773,6 +774,7 @@
 "Main_Search_No_Filtered_Results" = "No results match the filter criteria";
 "Main_Search_Load_More" = "Load More";
 "Main_Search_Load_More_Status" = "Loading more results...";
+"Main_Search_Enter_Keywords" = "Please enter keywords to search";
 
 // Structure Search Status
 "Main_Search_Status_Finding_Structures" = "Searching for structures...";
@@ -1265,4 +1267,14 @@
 "System_Search_Placeholder" = "Search systems...";
 "Loading_Regions" = "Loading regions...";
 "Loading_Systems" = "Loading systems...";
+
+// Attribute Compare Tool
+"Main_Attribute_Compare" = "Compare Tool";
+"Main_Attribute_Compare_Empty" = "No items to compare";
+"Main_Attribute_Compare_Add" = "Add Compare List";
+"Main_Attribute_Compare_Name" = "Compare List Name";
+"Main_Attribute_Compare_Items" = "%d items";
+"Main_Attribute_Compare_Add_Item" = "Add Item";
+"Main_Attribute_Compare_Item_List" = "Item List";
+"Main_Attribute_Compare_Show_Only_Differences" = "Show Only Differences";
 

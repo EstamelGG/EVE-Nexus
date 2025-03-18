@@ -280,7 +280,8 @@ struct PlanetDetailView: View {
                 }
 
                 if !schematicIds.isEmpty {
-                    let schematicIdsString = schematicIds.sorted().map { String($0) }.joined(separator: ",")
+                    let schematicIdsString = schematicIds.sorted().map { String($0) }.joined(
+                        separator: ",")
                     let schematicQuery = """
                             SELECT schematic_id, output_typeid, cycle_time, output_value, input_typeid, input_value
                             FROM planetSchematics
@@ -325,7 +326,8 @@ struct PlanetDetailView: View {
 
                     // 如果有新的类型ID被添加，重新查询类型信息
                     if !typeIds.isEmpty {
-                        let typeIdsString = typeIds.sorted().map { String($0) }.joined(separator: ",")
+                        let typeIdsString = typeIds.sorted().map { String($0) }.joined(
+                            separator: ",")
                         let query = """
                                 SELECT type_id, name, icon_filename, groupID, volume
                                 FROM types 

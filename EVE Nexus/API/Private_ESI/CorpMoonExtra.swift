@@ -68,13 +68,17 @@ public class CorpMoonExtractionAPI {
         }
 
         // 3. 从API获取
-        return try await fetchExtractionsFromServer(corporationId: corporationId, characterId: characterId)
+        return try await fetchExtractionsFromServer(
+            corporationId: corporationId, characterId: characterId)
     }
 
-    private func fetchExtractionsFromServer(corporationId: Int, characterId: Int) async throws -> [MoonExtractionInfo] {
+    private func fetchExtractionsFromServer(corporationId: Int, characterId: Int) async throws
+        -> [MoonExtractionInfo]
+    {
         Logger.info("开始获取军团月矿提取信息 - 军团ID: \(corporationId)")
 
-        let baseUrlString = "https://esi.evetech.net/latest/corporation/\(corporationId)/mining/extractions/?datasource=tranquility"
+        let baseUrlString =
+            "https://esi.evetech.net/latest/corporation/\(corporationId)/mining/extractions/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

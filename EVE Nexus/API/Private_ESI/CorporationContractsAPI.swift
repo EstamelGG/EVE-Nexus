@@ -293,24 +293,24 @@ class CorporationContractsAPI {
             Logger.info("没有军团合同需要保存")
             return true
         }
-        
+
         // 过滤只保存指定给自己公司且未删除的合同
         let filteredContracts = contracts.filter { contract in
             contract.assignee_id == corporationId && contract.status != "deleted"
         }
-        
+
         if filteredContracts.isEmpty {
             Logger.info("没有符合条件的军团合同需要保存（已排除指定给其他公司和已删除的合同）")
             return true
         }
-        
+
         Logger.debug(
             "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (已排除指定给其他公司和已删除的合同)")
 
         // 获取已存在的合同ID和状态
         let checkQuery =
             "SELECT contract_id, status FROM corporation_contracts WHERE corporation_id = ?"
-        
+
         // 获取数据库中现有的合同状态
         guard
             case let .success(existingResults) = CharacterDatabaseManager.shared.executeQuery(
@@ -330,37 +330,37 @@ class CorporationContractsAPI {
                 existingContracts[Int(contractId)] = status
             }
         }
-        
+
         // 筛选需要更新的合同（状态变化或新合同）
         let contractsToUpdate = filteredContracts.filter { contract in
             if let existingStatus = existingContracts[contract.contract_id] {
-                return existingStatus != contract.status // 状态变化的合同
+                return existingStatus != contract.status  // 状态变化的合同
             }
-            return true // 新合同
+            return true  // 新合同
         }
-        
+
         if contractsToUpdate.isEmpty {
             Logger.info("没有需要更新的合同数据")
             return true
         }
-        
+
         Logger.info("需要更新的合同数量: \(contractsToUpdate.count)")
-        
+
         // 开始事务
         _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
-        
+
         // 计算每批次的大小（每条记录24个参数）
         let batchSize = 500  // 每批次处理500条记录
         let dateFormatter = ISO8601DateFormatter()
         var success = true
         var newCount = 0
         var updateCount = 0
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: contractsToUpdate.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, contractsToUpdate.count)
             let currentBatch = Array(contractsToUpdate[batchStart..<batchEnd])
-            
+
             // 统计新增和更新的数量
             for contract in currentBatch {
                 if existingContracts[contract.contract_id] != nil {
@@ -369,27 +369,33 @@ class CorporationContractsAPI {
                     newCount += 1
                 }
             }
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(
+                repeating:
+                    "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                count: currentBatch.count
+            ).joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO corporation_contracts (
-                    contract_id, corporation_id, status, acceptor_id, assignee_id,
-                    availability, buyout, collateral, date_accepted, date_completed,
-                    date_expired, date_issued, days_to_complete,
-                    end_location_id, for_corporation, issuer_corporation_id,
-                    issuer_id, price, reward, start_location_id,
-                    title, type, volume, items_fetched
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO corporation_contracts (
+                        contract_id, corporation_id, status, acceptor_id, assignee_id,
+                        availability, buyout, collateral, date_accepted, date_completed,
+                        date_expired, date_issued, days_to_complete,
+                        end_location_id, for_corporation, issuer_corporation_id,
+                        issuer_id, price, reward, start_location_id,
+                        title, type, volume, items_fetched
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for contract in currentBatch {
                 // 处理可选日期
-                let dateAccepted = contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
-                let dateCompleted = contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
-                
+                let dateAccepted =
+                    contract.date_accepted.map { dateFormatter.string(from: $0) } ?? ""
+                let dateCompleted =
+                    contract.date_completed.map { dateFormatter.string(from: $0) } ?? ""
+
                 let params: [Any] = [
                     contract.contract_id,
                     corporationId,
@@ -418,9 +424,9 @@ class CorporationContractsAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入军团合同，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -430,7 +436,7 @@ class CorporationContractsAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
@@ -521,33 +527,34 @@ class CorporationContractsAPI {
             Logger.info("没有合同物品需要保存，合同ID: \(contractId)")
             return true
         }
-        
+
         // 开始事务
         _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
-        
+
         // 计算每批次的大小（每条记录7个参数）
         let batchSize = 100  // 每批次处理100条记录
         var success = true
-        
+
         // 分批处理数据
         for batchStart in stride(from: 0, to: items.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, items.count)
             let currentBatch = Array(items[batchStart..<batchEnd])
-            
+
             // 构建批量插入语句
-            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count).joined(separator: ",")
+            let placeholders = Array(repeating: "(?, ?, ?, ?, ?, ?, ?)", count: currentBatch.count)
+                .joined(separator: ",")
             let insertSQL = """
-                INSERT OR REPLACE INTO contract_items (
-                    record_id, contract_id, is_included, is_singleton,
-                    quantity, type_id, raw_quantity
-                ) VALUES \(placeholders)
-            """
-            
+                    INSERT OR REPLACE INTO contract_items (
+                        record_id, contract_id, is_included, is_singleton,
+                        quantity, type_id, raw_quantity
+                    ) VALUES \(placeholders)
+                """
+
             // 准备参数数组
             var parameters: [Any] = []
             for item in currentBatch {
                 let rawQuantity = item.raw_quantity ?? item.quantity
-                
+
                 let params: [Any] = [
                     item.record_id,
                     contractId,
@@ -559,9 +566,9 @@ class CorporationContractsAPI {
                 ]
                 parameters.append(contentsOf: params)
             }
-            
+
             Logger.debug("执行批量插入合同物品，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
-            
+
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
@@ -571,21 +578,22 @@ class CorporationContractsAPI {
                 break
             }
         }
-        
+
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
             Logger.info("成功保存\(items.count)个合同物品到数据库，合同ID: \(contractId)")
-            
+
             // 更新合同的items_fetched标志
-            let updateSQL = "UPDATE corporation_contracts SET items_fetched = 1 WHERE contract_id = ?"
+            let updateSQL =
+                "UPDATE corporation_contracts SET items_fetched = 1 WHERE contract_id = ?"
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 updateSQL, parameters: [contractId]
             ) {
                 Logger.error("更新合同items_fetched标志失败: \(message)")
                 // 不影响主要功能，继续返回成功
             }
-            
+
             return true
         } else {
             _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")

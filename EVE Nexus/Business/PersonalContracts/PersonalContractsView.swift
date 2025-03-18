@@ -42,7 +42,8 @@ final class PersonalContractsViewModel: ObservableObject {
             // 当切换模式时，重新分组但不立即更新 UI
             Task {
                 // 使用缓存的合同数据重新处理分组
-                let contracts = showCorporationContracts ? cachedCorporationContracts : cachedPersonalContracts
+                let contracts =
+                    showCorporationContracts ? cachedCorporationContracts : cachedPersonalContracts
                 // 先处理数据
                 let groups = await processContractGroups(contracts)
                 // 一次性更新 UI
@@ -145,7 +146,7 @@ final class PersonalContractsViewModel: ObservableObject {
     func loadContractsData(forceRefresh: Bool = false) async {
         // 如果已经在加载中且不是强制刷新，则直接返回
         if isLoading && !forceRefresh {
-            return 
+            return
         }
 
         // 如果是强制刷新，设置标志
@@ -178,7 +179,7 @@ final class PersonalContractsViewModel: ObservableObject {
 
         do {
             let contracts: [ContractInfo]
-            
+
             // 使用 Task.detached 在后台线程加载数据
             let loadedContracts = try await Task.detached(priority: .userInitiated) {
                 if await self.showCorporationContracts {
@@ -213,19 +214,19 @@ final class PersonalContractsViewModel: ObservableObject {
                     }
                 }
             }.value
-            
+
             // 检查任务是否被取消
-            if Task.isCancelled { 
+            if Task.isCancelled {
                 await MainActor.run {
                     isLoading = false
                     currentLoadingPage = nil
                     isForceRefreshing = false
                 }
-                return 
+                return
             }
-            
+
             contracts = loadedContracts
-            
+
             // 更新缓存
             if showCorporationContracts {
                 cachedCorporationContracts = contracts
@@ -237,7 +238,7 @@ final class PersonalContractsViewModel: ObservableObject {
 
             // 先处理数据，再一次性更新 UI
             let processedGroups = await processContractGroups(contracts)
-            
+
             // 一次性更新所有 UI 状态
             await MainActor.run {
                 self.contractGroups = processedGroups
@@ -423,13 +424,13 @@ struct PersonalContractsView: View {
         )
         _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(characterId)")
         _courierMode = AppStorage(wrappedValue: false, "courierMode_\(characterId)")
-        
+
         // 在初始化后立即开始加载数据，但不在闭包中捕获self
         Task {
             Logger.debug("PersonalContractsView - 初始化时加载数据")
             // 等待数据加载完成
             await vm.loadContractsData()
-            
+
             // 使用MainActor确保在主线程上更新UI状态
             // 数据加载完成后，一次性更新 UI 状态
             await MainActor.run {
@@ -533,7 +534,7 @@ struct PersonalContractsView: View {
                                         "Contract_Loading_Fetching", comment: "正在获取第 %d 页数据"
                                     ), currentPage
                                 )
-                                
+
                                 Text(text)
                                     .font(.footnote)
                                     .foregroundColor(.secondary)
@@ -552,7 +553,7 @@ struct PersonalContractsView: View {
                         .listRowInsets(EdgeInsets())
                     }
                 }
-                
+
                 if filteredContractGroups.isEmpty && !viewModel.isLoading {
                     emptyView
                 } else if !viewModel.isLoading || viewModel.isInitialized {
@@ -802,7 +803,7 @@ struct PersonalContractsView: View {
                 // 使用单一任务加载数据，添加短暂延迟
                 Task {
                     // 添加短暂延迟，避免在同一帧内多次更新
-                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
+                    try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒延迟
                     // 等待数据加载完成
                     await viewModel.loadContractsData(forceRefresh: false)
                 }

@@ -243,7 +243,7 @@ struct AgentSearchView: View {
                             }
                         }
                     }
-                    
+
                     // 5. 部门过滤
                     Picker(
                         selection: $selectedDivisionID,
@@ -318,15 +318,16 @@ struct AgentSearchView: View {
                         }
                     }
                 }
-                
+
                 // 定位代理人筛选选项单独放在一个Section中
-                Section() {
+                Section {
                     // 定位代理人开关
                     HStack {
                         Toggle(isOn: $isLocatorOnly) {
                             VStack(alignment: .leading) {
                                 Text(
-                                    NSLocalizedString("Agent_Search_Locator_Only", comment: "仅显示定位代理人")
+                                    NSLocalizedString(
+                                        "Agent_Search_Locator_Only", comment: "仅显示定位代理人")
                                 )
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
@@ -340,13 +341,14 @@ struct AgentSearchView: View {
                             }
                         }
                     }
-                    
+
                     // 空间代理人开关
                     HStack {
                         Toggle(isOn: $isSpaceAgentOnly) {
                             VStack(alignment: .leading) {
                                 Text(
-                                    NSLocalizedString("Agent_Search_Space_Only", comment: "仅显示空间代理人")
+                                    NSLocalizedString(
+                                        "Agent_Search_Space_Only", comment: "仅显示空间代理人")
                                 )
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
@@ -362,37 +364,48 @@ struct AgentSearchView: View {
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                
+
                 // 位置过滤条件放在最后一个Section中
                 Section(header: Text(NSLocalizedString("Location_Filter", comment: "位置过滤"))) {
                     // 星域过滤
-                    NavigationLink(destination: RegionSearchView(
-                        databaseManager: databaseManager,
-                        selectedRegionID: $selectedRegionID,
-                        selectedRegionName: $selectedRegionName
-                    )) {
+                    NavigationLink(
+                        destination: RegionSearchView(
+                            databaseManager: databaseManager,
+                            selectedRegionID: $selectedRegionID,
+                            selectedRegionName: $selectedRegionName
+                        )
+                    ) {
                         HStack {
                             Text(NSLocalizedString("Region_Filter", comment: "过滤星域"))
                             Spacer()
-                            Text(selectedRegionName ?? NSLocalizedString("Region_All", comment: "所有星域"))
-                                .foregroundColor(.gray)
+                            Text(
+                                selectedRegionName
+                                    ?? NSLocalizedString("Region_All", comment: "所有星域")
+                            )
+                            .foregroundColor(.gray)
                         }
                     }
-                    
+
                     // 星系过滤
-                    NavigationLink(destination: SolarSystemSearchView(
-                        databaseManager: databaseManager,
-                        selectedSolarSystemID: $selectedSolarSystemID,
-                        selectedSolarSystemName: $selectedSolarSystemName,
-                        regionID: selectedRegionID
-                    )) {
+                    NavigationLink(
+                        destination: SolarSystemSearchView(
+                            databaseManager: databaseManager,
+                            selectedSolarSystemID: $selectedSolarSystemID,
+                            selectedSolarSystemName: $selectedSolarSystemName,
+                            regionID: selectedRegionID
+                        )
+                    ) {
                         HStack {
                             Text(NSLocalizedString("System_Filter", comment: "过滤星系"))
                             Spacer()
-                            Text(selectedSolarSystemName ?? (selectedRegionID == nil 
-                                ? NSLocalizedString("System_All", comment: "所有星系")
-                                : NSLocalizedString("System_All_In_Region", comment: "该星域内所有星系")))
-                                .foregroundColor(.gray)
+                            Text(
+                                selectedSolarSystemName
+                                    ?? (selectedRegionID == nil
+                                        ? NSLocalizedString("System_All", comment: "所有星系")
+                                        : NSLocalizedString(
+                                            "System_All_In_Region", comment: "该星域内所有星系"))
+                            )
+                            .foregroundColor(.gray)
                         }
                     }
                 }
@@ -503,7 +516,7 @@ struct AgentSearchView: View {
         if isLocatorOnly {
             conditions.append("a.isLocator = 1")
         }
-        
+
         // 添加空间代理人过滤条件
         if isSpaceAgentOnly {
             conditions.append("a.solarSystemID IS NOT NULL")
@@ -514,50 +527,53 @@ struct AgentSearchView: View {
             conditions.append("a.agent_type = ?")
             parameters.append(agentType)
         }
-        
+
         // 添加星域过滤条件
         if let regionID = selectedRegionID {
-            conditions.append("""
-                (
-                    (a.solarSystemID IS NOT NULL AND a.solarSystemID IN (
-                        SELECT solarsystem_id FROM universe WHERE region_id = ? AND region_id < 11000000
-                    )) OR
-                    (a.locationID IN (
-                        SELECT stationID FROM stations WHERE solarSystemID IN (
+            conditions.append(
+                """
+                    (
+                        (a.solarSystemID IS NOT NULL AND a.solarSystemID IN (
                             SELECT solarsystem_id FROM universe WHERE region_id = ? AND region_id < 11000000
-                        )
-                    ))
-                )
-            """)
+                        )) OR
+                        (a.locationID IN (
+                            SELECT stationID FROM stations WHERE solarSystemID IN (
+                                SELECT solarsystem_id FROM universe WHERE region_id = ? AND region_id < 11000000
+                            )
+                        ))
+                    )
+                """)
             parameters.append(regionID)
             parameters.append(regionID)
         } else {
             // 如果没有选择特定星域，也要限制只在regionID < 11000000的星域中搜索
-            conditions.append("""
-                (
-                    (a.solarSystemID IS NULL) OR
-                    (a.solarSystemID IN (
-                        SELECT solarsystem_id FROM universe WHERE region_id < 11000000
-                    )) OR
-                    (a.locationID IN (
-                        SELECT stationID FROM stations WHERE solarSystemID IN (
+            conditions.append(
+                """
+                    (
+                        (a.solarSystemID IS NULL) OR
+                        (a.solarSystemID IN (
                             SELECT solarsystem_id FROM universe WHERE region_id < 11000000
-                        )
-                    ))
-                )
-            """)
+                        )) OR
+                        (a.locationID IN (
+                            SELECT stationID FROM stations WHERE solarSystemID IN (
+                                SELECT solarsystem_id FROM universe WHERE region_id < 11000000
+                            )
+                        ))
+                    )
+                """)
         }
-        
+
         // 添加星系过滤条件
         if let solarSystemID = selectedSolarSystemID {
-            conditions.append("""
-                (
-                    (a.solarSystemID = ?) OR
-                    (a.locationID IN (
-                        SELECT stationID FROM stations WHERE solarSystemID = ?
-                    ))
-                )
-            """)
+            conditions.append(
+                """
+                    (
+                        (a.solarSystemID = ?) OR
+                        (a.locationID IN (
+                            SELECT stationID FROM stations WHERE solarSystemID = ?
+                        ))
+                    )
+                """)
             parameters.append(solarSystemID)
             parameters.append(solarSystemID)
         }
@@ -1716,7 +1732,7 @@ struct RegionSearchView: View {
     @Binding var selectedRegionID: Int?
     @Binding var selectedRegionName: String?
     @State private var isSearchActive = false
-    
+
     var body: some View {
         VStack {
             if isLoading {
@@ -1745,7 +1761,7 @@ struct RegionSearchView: View {
                             }
                         }
                     }
-                    
+
                     // 过滤并显示星域列表
                     ForEach(filteredRegions, id: \.0) { regionID, regionName in
                         Button(action: {
@@ -1778,7 +1794,7 @@ struct RegionSearchView: View {
             loadRegions()
         }
     }
-    
+
     // 过滤后的星域列表
     private var filteredRegions: [(Int, String)] {
         if searchText.isEmpty {
@@ -1787,29 +1803,29 @@ struct RegionSearchView: View {
             return regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     // 加载所有星域
     private func loadRegions() {
         isLoading = true
-        
+
         let query = """
-            SELECT regionID, regionName
-            FROM regions
-            WHERE regionID < 11000000
-            ORDER BY regionName
-        """
-        
+                SELECT regionID, regionName
+                FROM regions
+                WHERE regionID < 11000000
+                ORDER BY regionName
+            """
+
         if case let .success(rows) = databaseManager.executeQuery(query) {
             regions = rows.compactMap { row in
                 guard let regionID = row["regionID"] as? Int,
-                      let regionName = row["regionName"] as? String
+                    let regionName = row["regionName"] as? String
                 else {
                     return nil
                 }
                 return (regionID, regionName)
             }
         }
-        
+
         isLoading = false
     }
 }
@@ -1825,7 +1841,7 @@ struct SolarSystemSearchView: View {
     @Binding var selectedSolarSystemName: String?
     @State private var isSearchActive = false
     var regionID: Int?  // 可选的星域ID，用于过滤星系
-    
+
     var body: some View {
         VStack {
             if isLoading {
@@ -1845,10 +1861,12 @@ struct SolarSystemSearchView: View {
                         dismiss()
                     }) {
                         HStack {
-                            Text(regionID == nil 
-                                 ? NSLocalizedString("System_All", comment: "所有星系")
-                                 : NSLocalizedString("System_All_In_Region", comment: "该星域内所有星系"))
-                                .foregroundColor(.primary)
+                            Text(
+                                regionID == nil
+                                    ? NSLocalizedString("System_All", comment: "所有星系")
+                                    : NSLocalizedString("System_All_In_Region", comment: "该星域内所有星系")
+                            )
+                            .foregroundColor(.primary)
                             Spacer()
                             if selectedSolarSystemID == nil {
                                 Image(systemName: "checkmark")
@@ -1856,7 +1874,7 @@ struct SolarSystemSearchView: View {
                             }
                         }
                     }
-                    
+
                     // 过滤并显示星系列表
                     ForEach(filteredSystems, id: \.0) { systemID, systemName, security in
                         Button(action: {
@@ -1867,13 +1885,13 @@ struct SolarSystemSearchView: View {
                             HStack {
                                 Text(systemName)
                                     .foregroundColor(.primary)
-                                
+
                                 Spacer()
-                                
+
                                 // 显示安全等级
                                 Text(String(format: "%.1f", security))
                                     .foregroundColor(getSecurityColor(security))
-                                
+
                                 if selectedSolarSystemID == systemID {
                                     Image(systemName: "checkmark")
                                         .foregroundColor(.blue)
@@ -1896,7 +1914,7 @@ struct SolarSystemSearchView: View {
             loadSolarSystems()
         }
     }
-    
+
     // 过滤后的星系列表
     private var filteredSystems: [(Int, String, Double)] {
         if searchText.isEmpty {
@@ -1905,40 +1923,40 @@ struct SolarSystemSearchView: View {
             return solarSystems.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     // 加载星系
     private func loadSolarSystems() {
         isLoading = true
-        
+
         var query = """
-            SELECT s.solarSystemID, s.solarSystemName, s.security_status
-            FROM solarsystems s
-            JOIN universe u ON s.solarSystemID = u.solarsystem_id
-            WHERE u.region_id < 11000000
-        """
-        
+                SELECT s.solarSystemID, s.solarSystemName, s.security_status
+                FROM solarsystems s
+                JOIN universe u ON s.solarSystemID = u.solarsystem_id
+                WHERE u.region_id < 11000000
+            """
+
         var parameters: [Any] = []
-        
+
         // 如果指定了星域ID，则只加载该星域内的星系
         if let regionID = regionID {
             query += " AND u.region_id = ?"
             parameters.append(regionID)
         }
-        
+
         query += " ORDER BY s.solarSystemName"
-        
+
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
             solarSystems = rows.compactMap { row in
                 guard let systemID = row["solarSystemID"] as? Int,
-                      let systemName = row["solarSystemName"] as? String,
-                      let security = row["security_status"] as? Double
+                    let systemName = row["solarSystemName"] as? String,
+                    let security = row["security_status"] as? Double
                 else {
                     return nil
                 }
                 return (systemID, systemName, security)
             }
         }
-        
+
         isLoading = false
     }
 }

@@ -27,6 +27,7 @@ struct ItemBasicInfoView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(itemDetails.name)
                             .font(.title)
+                            .textSelection(.enabled)  // 允许复制
                         Text(
                             "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                         )
@@ -54,6 +55,7 @@ struct ItemBasicInfoView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(itemDetails.name)
                             .font(.title)
+                            .textSelection(.enabled)  // 允许复制
                         Text(
                             "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                         )

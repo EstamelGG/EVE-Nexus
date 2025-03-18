@@ -1,26 +1,5 @@
 import SwiftUI
 
-// 移除HTML标签的扩展
-extension String {
-    fileprivate func removeHTMLTags() -> String {
-        // 移除所有HTML标签
-        let text = replacingOccurrences(
-            of: "<[^>]+>",
-            with: "",
-            options: .regularExpression,
-            range: nil
-        )
-        // 将HTML实体转换为对应字符
-        return text.replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
-            .replacingOccurrences(of: "&quot;", with: "\"")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&nbsp;", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
 struct CorporationDetailView: View {
     let corporationId: Int
     let character: EVECharacterInfo
@@ -86,6 +65,7 @@ struct CorporationDetailView: View {
                             Text(corporationInfo.name)
                                 .font(.system(size: 20, weight: .bold))
                                 .lineLimit(1)
+                                .textSelection(.enabled)
 
                             // 军团代号
                             Text("[\(corporationInfo.ticker)]")
@@ -111,6 +91,7 @@ struct CorporationDetailView: View {
                                     )
                                     .font(.system(size: 14))
                                     .lineLimit(1)
+                                    .textSelection(.enabled)
                                 }
                             }
 
@@ -122,6 +103,7 @@ struct CorporationDetailView: View {
                                         .frame(width: 20, height: 20)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
+                                        .textSelection(.enabled)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
                                 } else {
@@ -179,8 +161,9 @@ struct CorporationDetailView: View {
                 // 军团描述
                 if !corporationInfo.description.isEmpty {
                     Section(header: Text("\(NSLocalizedString("Description", comment: ""))")) {
-                        Text(corporationInfo.description.removeHTMLTags())
+                        Text(TextProcessingUtil.processDescription(corporationInfo.description))
                             .font(.system(size: 14))
+                            .textSelection(.enabled)
                     }
                 }
                 Section(header: Text(NSLocalizedString("Standings", comment: ""))) {

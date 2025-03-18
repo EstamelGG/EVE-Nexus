@@ -16,7 +16,7 @@ final class SovereigntyViewModel: ObservableObject {
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
-        
+
         // 在初始化时立即开始加载数据
         loadingTask = Task {
             await fetchSovereignty()
@@ -33,7 +33,7 @@ final class SovereigntyViewModel: ObservableObject {
         if initialLoadDone && !forceRefresh {
             return
         }
-        
+
         // 取消之前的加载任务
         loadingTask?.cancel()
 
@@ -55,7 +55,7 @@ final class SovereigntyViewModel: ObservableObject {
 
                 // 更新分组数据
                 updateGroupedCampaigns()
-                
+
                 self.isLoading = false
                 self.initialLoadDone = true
 
@@ -76,19 +76,19 @@ final class SovereigntyViewModel: ObservableObject {
         // 取消所有现有的图标加载任务
         iconLoadingTasks.values.forEach { $0.cancel() }
         iconLoadingTasks.removeAll()
-        
+
         // 提取所有需要查询的星系ID
         let solarSystemIds = campaigns.map { $0.solar_system_id }
-        
+
         // 一次性获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: solarSystemIds, 
+            solarSystemIds: solarSystemIds,
             databaseManager: databaseManager
         )
-        
+
         // 创建PreparedSovereignty对象
         var prepared: [PreparedSovereignty] = []
-        
+
         for campaign in campaigns {
             if let systemInfo = systemInfoMap[campaign.solar_system_id] {
                 let locationInfo = PreparedSovereignty.LocationInfo(
@@ -98,16 +98,16 @@ final class SovereigntyViewModel: ObservableObject {
                     regionName: systemInfo.regionName,
                     regionId: systemInfo.regionId
                 )
-                
+
                 let preparedCampaign = PreparedSovereignty(
                     campaign: campaign,
                     location: locationInfo
                 )
-                
+
                 prepared.append(preparedCampaign)
             }
         }
-        
+
         // 按星域名称排序
         prepared.sort { $0.location.regionName < $1.location.regionName }
 
@@ -120,7 +120,7 @@ final class SovereigntyViewModel: ObservableObject {
             Logger.error("没有可显示的完整数据")
         }
     }
-    
+
     private func updateGroupedCampaigns() {
         groupedCampaigns = Dictionary(grouping: preparedCampaigns) {
             $0.location.regionName

@@ -108,7 +108,6 @@ struct AttributeItemView: View {
     let attribute: DogmaAttribute
     let allAttributes: [Int: Double]
     @ObservedObject var databaseManager: DatabaseManager
-    let isSimplifiedMode: Bool
 
     // 检查是否是可跳转的属性
     private var isNavigable: Bool {
@@ -178,9 +177,7 @@ struct AttributeItemView: View {
     }
 
     var body: some View {
-        if AttributeDisplayConfig.shouldShowAttribute(
-            attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode
-        ) {
+        if AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute) {
             let result = AttributeDisplayConfig.transformValue(
                 attribute.id, allAttributes: allAttributes, unitID: attribute.unitID
             )
@@ -240,7 +237,6 @@ struct AttributeGroupView: View {
     let allAttributes: [Int: Double]
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
-    let isSimplifiedMode: Bool
     let damageAttributeIDs = [114, 118, 117, 116]
     private var filteredAttributes: [DogmaAttribute] {
         group.attributes
@@ -252,8 +248,7 @@ struct AttributeGroupView: View {
                 }
 
                 return AttributeDisplayConfig.shouldShowAttribute(
-                    attribute.id, attribute: attribute, isSimplifiedMode: isSimplifiedMode
-                )
+                    attribute.id, attribute: attribute)
             }
             .sorted { attr1, attr2 in
                 let order1 = AttributeDisplayConfig.getAttributeOrder(
@@ -301,8 +296,7 @@ struct AttributeGroupView: View {
                     AttributeItemView(
                         attribute: attribute,
                         allAttributes: allAttributes,
-                        databaseManager: databaseManager,
-                        isSimplifiedMode: isSimplifiedMode
+                        databaseManager: databaseManager
                     )
                 }
 
@@ -329,7 +323,6 @@ struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
-    let isSimplifiedMode: Bool
 
     private var allAttributes: [Int: Double] {
         var dict: [Int: Double] = [:]
@@ -410,8 +403,7 @@ struct AttributesView: View {
                     group: group,
                     allAttributes: allAttributes,
                     typeID: typeID,
-                    databaseManager: databaseManager,
-                    isSimplifiedMode: isSimplifiedMode
+                    databaseManager: databaseManager
                 )
             }
         }

@@ -87,7 +87,7 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
             JOIN regions r ON r.regionID = u.region_id
             WHERE u.solarsystem_id = ?
         """
-        
+
     guard
         case let .success(rows) = databaseManager.executeQuery(
             universeQuery, parameters: [solarSystemId]
@@ -119,7 +119,7 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
         regionId: regionId,
         regionName: regionName
     )
-    
+
     return solarSystemInfo
 }
 
@@ -131,15 +131,15 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
     if solarSystemIds.isEmpty {
         return [:]
     }
-    
+
     // 去重并排序
     let uniqueSortedIds = Array(Set(solarSystemIds)).sorted()
-    
+
     let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-    
+
     // 构建IN查询的参数字符串
     let placeholders = String(repeating: "?,", count: uniqueSortedIds.count).dropLast()
-    
+
     // 执行批量查询
     let universeQuery = """
             SELECT u.solarsystem_id, u.region_id, u.constellation_id, u.system_security,
@@ -152,19 +152,21 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
             JOIN regions r ON r.regionID = u.region_id
             WHERE u.solarsystem_id IN (\(placeholders))
         """
-    
+
     // 将ID数组转换为Any类型数组，以便传递给executeQuery
     let parameters = uniqueSortedIds.map { $0 as Any }
-    
-    guard case let .success(rows) = databaseManager.executeQuery(
-        universeQuery, parameters: parameters
-    ) else {
+
+    guard
+        case let .success(rows) = databaseManager.executeQuery(
+            universeQuery, parameters: parameters
+        )
+    else {
         return [:]
     }
-    
+
     // 创建结果字典
     var result: [Int: SolarSystemInfo] = [:]
-    
+
     // 处理每一行结果
     for row in rows {
         guard
@@ -181,11 +183,11 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
         else {
             continue
         }
-        
+
         let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
         let constellationName = useEnglishSystemNames ? constellationNameEn : constellationNameLocal
         let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
-        
+
         let solarSystemInfo = SolarSystemInfo(
             systemId: systemId,
             systemName: systemName,
@@ -195,9 +197,9 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
             regionId: regionId,
             regionName: regionName
         )
-        
+
         result[systemId] = solarSystemInfo
     }
-    
+
     return result
 }

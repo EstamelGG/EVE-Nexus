@@ -155,7 +155,8 @@ struct CharacterAssetsView: View {
                                 case .buildingTree:
                                     NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
                                 case .processingLocations:
-                                    NSLocalizedString("Assets_Loading_Processing_Locations", comment: "")
+                                    NSLocalizedString(
+                                        "Assets_Loading_Processing_Locations", comment: "")
                                 case let .fetchingStructureInfo(current, total):
                                     String(
                                         format: NSLocalizedString(
@@ -163,7 +164,8 @@ struct CharacterAssetsView: View {
                                         ), current, total
                                     )
                                 case .preparingContainers:
-                                    NSLocalizedString("Assets_Loading_Preparing_Containers", comment: "")
+                                    NSLocalizedString(
+                                        "Assets_Loading_Preparing_Containers", comment: "")
                                 case let .loadingNames(current, total):
                                     String(
                                         format: NSLocalizedString(
@@ -209,7 +211,9 @@ struct CharacterAssetsView: View {
                 }
             }
             // 显示错误信息
-            else if let error = viewModel.error, !viewModel.isLoading && viewModel.assetLocations.isEmpty {
+            else if let error = viewModel.error,
+                !viewModel.isLoading && viewModel.assetLocations.isEmpty
+            {
                 Section {
                     HStack {
                         Spacer()
@@ -247,7 +251,9 @@ struct CharacterAssetsView: View {
             else if !searchText.isEmpty {
                 ForEach(viewModel.searchResults) { result in
                     NavigationLink(
-                        destination: LocationAssetsView(location: result.containerNode, preloadedItemInfo: viewModel.itemInfoCache)
+                        destination: LocationAssetsView(
+                            location: result.containerNode,
+                            preloadedItemInfo: viewModel.itemInfoCache)
                     ) {
                         SearchResultRowView(result: result)
                     }
@@ -268,7 +274,8 @@ struct CharacterAssetsView: View {
                             id: \.item_id
                         ) { location in
                             NavigationLink(
-                                destination: LocationAssetsView(location: location, preloadedItemInfo: viewModel.itemInfoCache)
+                                destination: LocationAssetsView(
+                                    location: location, preloadedItemInfo: viewModel.itemInfoCache)
                             ) {
                                 LocationRowView(location: location)
                                     .environmentObject(viewModel)

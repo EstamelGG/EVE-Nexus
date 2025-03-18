@@ -438,11 +438,12 @@ public class CharacterAssetsJsonAPI {
         for locationId in topLocations {
             if let items = locationMap[locationId] {
                 let locationType = items.first?.location_type ?? "unknown"
-                
+
                 // 更新进度 - 获取位置详情
                 processedLocations += 1
-                progressCallback?(.fetchingStructureInfo(current: processedLocations, total: totalLocations))
-                
+                progressCallback?(
+                    .fetchingStructureInfo(current: processedLocations, total: totalLocations))
+
                 let info = try await fetchLocationInfo(
                     locationId: locationId,
                     locationType: locationType,
@@ -471,7 +472,7 @@ public class CharacterAssetsJsonAPI {
 
         // 添加进度回调 - 准备容器信息
         progressCallback?(.preparingContainers)
-        
+
         // 收集所有容器的ID
         let containerIds = collectContainerIds(from: rootNodes)
 
@@ -735,7 +736,7 @@ public class CharacterAssetsJsonAPI {
             }
 
             currentIndex += concurrentLimit
-            
+
             // 更新进度
             // progressCallback?(.fetchingLocationInfo(current: min(currentIndex, locationArray.count), total: locationArray.count))
 

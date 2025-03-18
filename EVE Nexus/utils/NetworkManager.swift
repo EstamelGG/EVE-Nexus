@@ -413,46 +413,47 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     var currentPage = 2
                     var inProgressPages = 0
                     var completedPages = Set<Int>()
-                    completedPages.insert(1) // 第一页已完成
-    
+                    completedPages.insert(1)  // 第一页已完成
+
                     // 添加初始任务
                     while currentPage <= totalPages, inProgressPages < maxConcurrentPages {
                         let page = currentPage
                         group.addTask {
                             let pageUrlString =
                                 baseUrl.absoluteString
-                                + (baseUrl.absoluteString.contains("?") ? "&" : "?") + "page=\(page)"
+                                + (baseUrl.absoluteString.contains("?") ? "&" : "?")
+                                + "page=\(page)"
                             guard let pageUrl = URL(string: pageUrlString) else {
                                 throw NetworkError.invalidURL
                             }
-    
+
                             progressCallback?(page)
                             Logger.info("开始获取第\(page)页数据")
-    
+
                             let data = try await self.fetchDataWithToken(
                                 from: pageUrl,
                                 characterId: characterId,
                                 timeouts: [2, 10, 15, 15, 15]
                             )
-    
+
                             let pageItems = try decoder(data)
                             Logger.info("成功获取第\(page)页数据，本页包含\(pageItems.count)个项目")
-    
+
                             // 添加短暂延迟以避免请求过于频繁
                             try await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))  // 500ms延迟
-    
+
                             return (page: page, items: pageItems)
                         }
                         currentPage += 1
                         inProgressPages += 1
                     }
-    
+
                     // 处理完成的任务并添加新任务
                     for try await result in group {
                         allItems.append(contentsOf: result.items)
                         completedPages.insert(result.page)
                         inProgressPages -= 1
-    
+
                         // 如果还有更多页面要获取，添加新任务
                         if currentPage <= totalPages {
                             let page = currentPage
@@ -464,29 +465,29 @@ class NetworkManager: NSObject, @unchecked Sendable {
                                 guard let pageUrl = URL(string: pageUrlString) else {
                                     throw NetworkError.invalidURL
                                 }
-    
+
                                 progressCallback?(page)
                                 Logger.info("开始获取第\(page)页数据")
-    
+
                                 let data = try await self.fetchDataWithToken(
                                     from: pageUrl,
                                     characterId: characterId,
                                     timeouts: [2, 10, 15, 15, 15]
                                 )
-    
+
                                 let pageItems = try decoder(data)
                                 Logger.info("成功获取第\(page)页数据，本页包含\(pageItems.count)个项目")
-    
+
                                 // 添加短暂延迟以避免请求过于频繁
                                 try await Task.sleep(nanoseconds: UInt64(0.5 * 1_000_000_000))  // 500ms延迟
-    
+
                                 return (page: page, items: pageItems)
                             }
                             currentPage += 1
                             inProgressPages += 1
                         }
                     }
-                    
+
                     // 检查是否所有页面都已获取
                     if completedPages.count != totalPages {
                         let missingPages = Set(1...totalPages).subtracting(completedPages)
@@ -498,7 +499,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 if error is CancellationError {
                     throw error
                 }
-                
+
                 // 对于其他错误，如果已经获取了一些数据，记录错误但继续返回已获取的数据
                 if !allItems.isEmpty {
                     Logger.error("获取部分页面时出错: \(error)，但已获取\(allItems.count)个项目")

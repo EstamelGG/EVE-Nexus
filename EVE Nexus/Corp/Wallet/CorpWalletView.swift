@@ -6,18 +6,18 @@ class CorpWalletViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var error: Error?
     @Published var showError = false
-    
+
     let characterId: Int
-    
+
     init(characterId: Int) {
         self.characterId = characterId
         loadWallets()
     }
-    
+
     func loadWallets(forceRefresh: Bool = false) {
         isLoading = true
         error = nil
-        
+
         Task {
             do {
                 let result = try await CorpWalletAPI.shared.fetchCorpWallets(
@@ -43,7 +43,7 @@ struct CorpWalletView: View {
     let characterId: Int
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: CorpWalletViewModel
-    
+
     init(characterId: Int) {
         self.characterId = characterId
         // 在初始化时创建 ViewModel 并开始加载数据

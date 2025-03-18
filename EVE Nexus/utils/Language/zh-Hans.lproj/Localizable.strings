@@ -52,8 +52,6 @@
 "Main_Market_WH_MaxJumpMass" = "最大单次跳跃质量";
 "Main_Market_WH_Leadsto" = "通往";
 "Main_Market_WH_Size" = "尺寸类型";
-"Main_Database_toComplete" = "精简";
-"Main_Database_toSimplified" = "完整";
 "Select_Item" = "选择项目";
 "Main_Market" = "市场";
 "Main_Market_Watch_List" = "市场关注列表";
@@ -750,6 +748,8 @@
 "Main_Search_Filter_Station" = "空间站";
 "Main_Search_Filter_Structure" = "建筑";
 "Main_Search_Filter_Clear" = "清除过滤";
+"Main_Search_Filter_Only_My_Corp" = "只看我的军团成员";
+"Main_Search_Filter_Only_My_Alliance" = "只看我的联盟成员";
 
 // 搜索状态
 "Main_Search_Status_Searching" = "正在搜索...";
@@ -769,6 +769,8 @@
 "Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
 "Main_Search_Load_More" = "加载更多";
 "Main_Search_Load_More_Status" = "正在加载更多结果...";
+"Main_Search_Enter_Keywords" = "请输入关键词进行搜索";
+"Main_Search_Results_Limit" = "只展示部分结果";
 
 // Structure Search Status
 "Main_Search_Status_Finding_Structures" = "正在搜索建筑...";
@@ -1298,4 +1300,14 @@
 "System_Search_Placeholder" = "搜索星系...";
 "Loading_Regions" = "加载星域中...";
 "Loading_Systems" = "加载星系中...";
+
+// Attribute Compare Tool
+"Main_Attribute_Compare" = "对比工具";
+"Main_Attribute_Compare_Empty" = "暂无对比项目";
+"Main_Attribute_Compare_Add" = "添加对比列表";
+"Main_Attribute_Compare_Name" = "对比列表名称";
+"Main_Attribute_Compare_Items" = "%d 个物品";
+"Main_Attribute_Compare_Add_Item" = "添加物品";
+"Main_Attribute_Compare_Item_List" = "物品列表";
+"Main_Attribute_Compare_Show_Only_Differences" = "只展示有差异的属性";
 

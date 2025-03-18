@@ -50,7 +50,7 @@ final class WalletJournalViewModel: ObservableObject {
 
     init(characterId: Int) {
         self.characterId = characterId
-        
+
         // 在初始化时立即开始加载数据
         loadingTask = Task {
             await loadJournalData()
@@ -83,7 +83,7 @@ final class WalletJournalViewModel: ObservableObject {
         if initialLoadDone && !forceRefresh {
             return
         }
-        
+
         // 取消之前的加载任务
         loadingTask?.cancel()
 
@@ -165,7 +165,7 @@ struct WalletJournalDayDetailView: View {
     let group: WalletJournalGroup
     @State private var displayedEntries: [WalletJournalEntry] = []
     @State private var showingCount = 100
-    
+
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -173,13 +173,13 @@ struct WalletJournalDayDetailView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     var body: some View {
         List {
             ForEach(displayedEntries, id: \.id) { entry in
                 WalletJournalEntryRow(entry: entry)
             }
-            
+
             if showingCount < group.entries.count {
                 Button(action: {
                     loadMoreEntries()
@@ -200,7 +200,7 @@ struct WalletJournalDayDetailView: View {
             loadMoreEntries()
         }
     }
-    
+
     private func loadMoreEntries() {
         let nextBatch = min(showingCount + 100, group.entries.count)
         displayedEntries = Array(group.entries.prefix(nextBatch))
@@ -288,13 +288,15 @@ struct WalletJournalView: View {
                             HStack {
                                 Text(displayDateFormatter.string(from: group.date))
                                     .font(.system(size: 16))
-                                
+
                                 Spacer()
-                                
+
                                 // 显示当日交易数量
-                                Text("\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                         }
                     }

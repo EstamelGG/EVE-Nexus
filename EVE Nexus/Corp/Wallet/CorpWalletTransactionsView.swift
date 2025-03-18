@@ -55,7 +55,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         self.characterId = characterId
         self.division = division
         self.databaseManager = databaseManager
-        
+
         // 在初始化时立即开始加载数据
         loadingTask = Task {
             await loadTransactionData()
@@ -65,34 +65,37 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     deinit {
         loadingTask?.cancel()
     }
-    
+
     // 批量加载所有物品信息
     private func loadAllItemInfo(for typeIds: [Int]) {
         // 如果没有需要加载的物品，直接返回
         if typeIds.isEmpty {
             return
         }
-        
+
         // 构建查询参数
         let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-        
+        let query =
+            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+
         // 执行批量查询
         let result = databaseManager.executeQuery(
             query, parameters: typeIds.map { $0 as Any }
         )
-        
+
         if case let .success(rows) = result {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String {
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                {
                     // 更新缓存
-                    itemInfoCache[typeId] = TransactionItemInfo(name: name, iconFileName: iconFileName)
+                    itemInfoCache[typeId] = TransactionItemInfo(
+                        name: name, iconFileName: iconFileName)
                 }
             }
         }
-        
+
         // 为未找到的物品ID设置默认值
         for typeId in typeIds {
             if itemInfoCache[typeId] == nil {
@@ -155,7 +158,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
 
                 // 收集所有位置ID
                 let locationIds = Set(entries.map { $0.location_id })
-                
+
                 // 收集所有物品ID并一次性加载所有物品信息
                 let typeIds = Array(Set(entries.map { $0.type_id }))
                 loadAllItemInfo(for: typeIds)
@@ -221,7 +224,7 @@ struct CorpWalletTransactionDayDetailView: View {
     let viewModel: CorpWalletTransactionsViewModel
     @State private var displayedEntries: [CorpWalletTransactionEntry] = []
     @State private var showingCount = 100
-    
+
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -229,13 +232,13 @@ struct CorpWalletTransactionDayDetailView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-    
+
     var body: some View {
         List {
             ForEach(displayedEntries) { entry in
                 CorpWalletTransactionEntryRow(entry: entry, viewModel: viewModel)
             }
-            
+
             if showingCount < group.entries.count {
                 Button(action: {
                     loadMoreEntries()
@@ -256,7 +259,7 @@ struct CorpWalletTransactionDayDetailView: View {
             loadMoreEntries()
         }
     }
-    
+
     private func loadMoreEntries() {
         let nextBatch = min(showingCount + 100, group.entries.count)
         displayedEntries = Array(group.entries.prefix(nextBatch))
@@ -305,19 +308,24 @@ struct CorpWalletTransactionsView: View {
                         .textCase(.none)
                 ) {
                     ForEach(viewModel.transactionGroups) { group in
-                        NavigationLink(destination: CorpWalletTransactionDayDetailView(group: group, viewModel: viewModel)) {
+                        NavigationLink(
+                            destination: CorpWalletTransactionDayDetailView(
+                                group: group, viewModel: viewModel)
+                        ) {
                             HStack {
                                 Text(displayDateFormatter.string(from: group.date))
                                     .font(.system(size: 16))
-                                
+
                                 Spacer()
-                                
+
                                 // 显示买入和卖出数量
                                 let buyCount = group.entries.filter { $0.is_buy }.count
                                 let sellCount = group.entries.filter { !$0.is_buy }.count
-                                Text("\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text(
+                                    "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             }
                             .padding(.vertical, 4)
                         }

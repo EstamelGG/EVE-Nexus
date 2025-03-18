@@ -16,7 +16,6 @@ class UserDefaultsManager {
         static let lastUpdateCheck = "lastUpdateCheck"
         static let lastDatabaseUpdate = "lastDatabaseUpdate"
         static let lastMarketUpdate = "lastMarketUpdate"
-        static let isSimplifiedMode = "isSimplifiedMode"
     }
 
     private init() {}
@@ -58,18 +57,6 @@ class UserDefaultsManager {
         set {
             // Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedLanguage), 值: \(newValue), 数据大小: \(newValue.utf8.count) bytes")
             defaults.set(newValue, forKey: Keys.selectedLanguage)
-        }
-    }
-
-    // 是否使用简化模式
-    var isSimplifiedMode: Bool {
-        get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.isSimplifiedMode)")
-            return defaults.bool(forKey: Keys.isSimplifiedMode)
-        }
-        set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.isSimplifiedMode), 值: \(newValue), 数据大小: \(MemoryLayout<Bool>.size) bytes")
-            defaults.set(newValue, forKey: Keys.isSimplifiedMode)
         }
     }
 
