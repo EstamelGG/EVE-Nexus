@@ -1169,6 +1169,14 @@
 "Contract_Appraisal_Unknown_Error" = "Unknown Error";
 "Contract_Appraisal_Parse_Failed" = "Failed to parse response data: %@";
 "Contract_Appraisal_ESI_Result" = "Jita Market Appraisal (ESI)";
+"Contract_Appraisal_Display_Settings" = "Display Settings";
+"Contract_Appraisal_Show_Full_Amount" = "Show Full Amount";
+"Contract_Appraisal_Set_Discount" = "Set Contract Price Discount";
+"Contract_Appraisal_Discount_Title" = "Set Discount Percentage";
+"Contract_Appraisal_Discount_Message" = "Please enter discount percentage (0 or greater), e.g. 90 means 10% off";
+"Contract_Appraisal_Discount_Cancel" = "Cancel";
+"Contract_Appraisal_Discount_Confirm" = "Confirm";
+"Contract_Appraisal_Discount_Placeholder" = "Discount Percentage";
 
 "Loading_Location_Info" = "Loading location information...";
 "Loading_Location" = "Loading...";

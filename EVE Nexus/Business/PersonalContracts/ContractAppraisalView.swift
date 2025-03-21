@@ -10,6 +10,18 @@ struct ContractAppraisalView: View {
     @State private var showError = false
     @State private var janiceResult: JaniceResult?
     @State private var esiResult: ESIAppraisalResult?
+    @State private var showFullAmount: Bool = true
+    @State private var discountPercentage: Double = 100
+    @State private var showDiscountAlert = false
+    
+    // 在初始化时从UserDefaults加载设置
+    init(contract: ContractInfo, items: [ContractItemInfo]) {
+        self.contract = contract
+        self.items = items
+        let defaults = UserDefaults.standard
+        // 读取设置，如果不存在则默认为true
+        _showFullAmount = State(initialValue: defaults.object(forKey: "contractAppraisalShowFullAmount") as? Bool ?? true)
+    }
 
     var body: some View {
         List {
@@ -50,6 +62,43 @@ struct ContractAppraisalView: View {
                 .disabled(isLoadingJanice || isLoadingESI)
             }
 
+            // 显示设置部分
+            Section {
+                // 显示完整金额开关
+                Toggle(isOn: Binding(
+                    get: { showFullAmount },
+                    set: {
+                        showFullAmount = $0
+                        // 当值改变时保存到UserDefaults
+                        UserDefaults.standard.set(showFullAmount, forKey: "contractAppraisalShowFullAmount")
+                    }
+                )) {
+                    Text(NSLocalizedString("Contract_Appraisal_Show_Full_Amount", comment: ""))
+                }
+                
+                // 设置合同价格折扣
+                Button(action: {
+                    showDiscountAlert = true
+                }) {
+                    HStack {
+                        Text(NSLocalizedString("Contract_Appraisal_Set_Discount", comment: ""))
+                        Spacer()
+                        Text("\(Int(discountPercentage))%")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .alert(NSLocalizedString("Contract_Appraisal_Discount_Title", comment: ""), isPresented: $showDiscountAlert) {
+                    TextField(NSLocalizedString("Contract_Appraisal_Discount_Placeholder", comment: ""), value: $discountPercentage, format: .number)
+                        .keyboardType(.decimalPad)
+                    Button(NSLocalizedString("Contract_Appraisal_Discount_Cancel", comment: ""), role: .cancel) {}
+                    Button(NSLocalizedString("Contract_Appraisal_Discount_Confirm", comment: "")) {}
+                } message: {
+                    Text(NSLocalizedString("Contract_Appraisal_Discount_Message", comment: ""))
+                }
+            } header: {
+                Text(NSLocalizedString("Contract_Appraisal_Display_Settings", comment: ""))
+            }
+
             // Janice估价结果部分
             if let result = janiceResult {
                 Section {
@@ -57,8 +106,9 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalBuyPrice))")
+                        Text(formatPrice(result.immediatePrices.totalBuyPrice * discountPercentage / 100))
                             .foregroundColor(.red)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -66,8 +116,9 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSplitPrice))")
+                        Text(formatPrice(result.immediatePrices.totalSplitPrice * discountPercentage / 100))
                             .foregroundColor(.orange)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -75,8 +126,9 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.immediatePrices.totalSellPrice))")
+                        Text(formatPrice(result.immediatePrices.totalSellPrice * discountPercentage / 100))
                             .foregroundColor(.green)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -109,8 +161,9 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalBuyPrice))")
+                        Text(formatPrice(result.totalBuyPrice * discountPercentage / 100))
                             .foregroundColor(.red)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -118,8 +171,9 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalMiddlePrice))")
+                        Text(formatPrice(result.totalMiddlePrice * discountPercentage / 100))
                             .foregroundColor(.orange)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -127,12 +181,13 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text("\(FormatUtil.formatISK(result.totalSellPrice))")
+                        Text(formatPrice(result.totalSellPrice * discountPercentage / 100))
                             .foregroundColor(.green)
+                            .textSelection(.enabled)
                             .font(.system(.body, design: .monospaced))
                     }
                 } header: {
-                    Text(NSLocalizedString("Contract_Appraisal_ESI_Result", comment: "吉他市场估价"))
+                    Text(NSLocalizedString("Contract_Appraisal_ESI_Result", comment: ""))
                 }
             }
         }
@@ -142,6 +197,15 @@ struct ContractAppraisalView: View {
             Button(NSLocalizedString("Contract_Appraisal_OK", comment: ""), role: .cancel) {}
         } message: {
             Text(errorMessage ?? NSLocalizedString("Contract_Appraisal_Unknown_Error", comment: ""))
+        }
+    }
+
+    // 根据显示设置格式化价格
+    private func formatPrice(_ price: Double) -> String {
+        if showFullAmount {
+            return "\(FormatUtil.format(price)) ISK"
+        } else {
+            return "\(FormatUtil.formatISK(price))"
         }
     }
 

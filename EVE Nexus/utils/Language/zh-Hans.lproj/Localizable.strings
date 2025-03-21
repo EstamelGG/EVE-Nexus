@@ -1190,18 +1190,26 @@
 
 // 合同估价相关
 "Contract_Appraisal_Title" = "合同估价";
-"Contract_Appraisal_Via_Janice" = "通过Janice估算";
-"Contract_Appraisal_Via_ESI" = "通过ESI估算";
+"Contract_Appraisal_Via_Janice" = "通过Janice估价";
+"Contract_Appraisal_Via_ESI" = "通过ESI估价";
 "Contract_Appraisal_Buy_Price" = "买入价格";
 "Contract_Appraisal_Middle_Price" = "中间价格";
 "Contract_Appraisal_Sell_Price" = "卖出价格";
-"Contract_Appraisal_View_Details" = "在Janice查看详情";
-"Contract_Appraisal_Result" = "Janice 估价结果: %@";
+"Contract_Appraisal_View_Details" = "在Janice上查看详情";
+"Contract_Appraisal_Result" = "Janice估价结果：%@";
 "Contract_Appraisal_Error" = "错误";
 "Contract_Appraisal_OK" = "确定";
 "Contract_Appraisal_Unknown_Error" = "未知错误";
 "Contract_Appraisal_Parse_Failed" = "解析响应数据失败：%@";
-"Contract_Appraisal_ESI_Result" = "吉他市场估价 (ESI)";
+"Contract_Appraisal_ESI_Result" = "吉他市场估价";
+"Contract_Appraisal_Display_Settings" = "显示设置";
+"Contract_Appraisal_Show_Full_Amount" = "显示完整金额";
+"Contract_Appraisal_Set_Discount" = "设置合同价格折扣";
+"Contract_Appraisal_Discount_Title" = "设置折扣百分比";
+"Contract_Appraisal_Discount_Message" = "请输入折扣百分比（0或更大），例如90表示九折";
+"Contract_Appraisal_Discount_Cancel" = "取消";
+"Contract_Appraisal_Discount_Confirm" = "确定";
+"Contract_Appraisal_Discount_Placeholder" = "折扣百分比";
 
 "Loading_Location_Info" = "正在加载位置信息...";
 "Loading_Location" = "加载中...";
