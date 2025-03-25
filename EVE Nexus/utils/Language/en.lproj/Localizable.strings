@@ -303,6 +303,7 @@
 "Assets_Loading_Saving" = "Saving to cache";
 "Assets_Loading_Complete" = "Loading complete";
 "Assets_Loading_Error" = "Failed to load assets";
+"Assets_is_BPC" = "Blueprint Copy";
 "Unknown_System" = "Unknown System";
 
 // Location Flags
@@ -429,6 +430,7 @@
 "Industry_Status_reverted" = "Reverted";
 
 // Industry Activity Status
+"Industry" = "Industry";
 "Industry_Status_Manufacturing" = "Manufacturing";
 "Industry_Status_Research_Time" = "Researching";
 "Industry_Status_Research_Material" = "Researching";
@@ -1099,6 +1101,9 @@
 "Main_Language_Map_Exact_Match" = "Exact Match";
 "Main_Language_Map_Prefix_Match" = "Prefix Match";
 "Main_Language_Map_Fuzzy_Match" = "Fuzzy Match";
+"Main_Language_Map_Search_Object_4" = "4. Type ID";
+"Main_Language_Map_Search_Object_5" = "5. Item Categories";
+"Main_Language_Map_Search_Object_6" = "6. Item Groups";
 
 // Wallet Journal Loading Status
 "Wallet_Loading_Fetching" = "Fetching wallet journal page %d";
@@ -1169,6 +1174,16 @@
 "Contract_Appraisal_Unknown_Error" = "Unknown Error";
 "Contract_Appraisal_Parse_Failed" = "Failed to parse response data: %@";
 "Contract_Appraisal_ESI_Result" = "Jita Market Appraisal (ESI)";
+"Contract_Appraisal_Display_Settings" = "Display Settings";
+"Contract_Appraisal_Show_Full_Amount" = "Show Full Amount";
+"Contract_Appraisal_Set_Discount" = "Set Contract Price Discount";
+"Contract_Appraisal_Discount_Title" = "Set Discount Percentage";
+"Contract_Appraisal_Discount_Message" = "Please enter discount percentage (0 or greater), e.g. 90 means 10% off";
+"Contract_Appraisal_Discount_Cancel" = "Cancel";
+"Contract_Appraisal_Discount_Confirm" = "Confirm";
+"Contract_Appraisal_Discount_Placeholder" = "Discount Percentage";
+"Contract_Appraisal_Blueprint_Warning" = "Contract contains blueprints, appraisal may be inaccurate";
+"Contract_Appraisal_Insufficient_Orders_Warning" = "Some items have insufficient market orders, appraisal may be inaccurate";
 
 "Loading_Location_Info" = "Loading location information...";
 "Loading_Location" = "Loading...";
@@ -1253,6 +1268,8 @@
 "Main_Language_Map_Search_Object_2" = "2. Solar systems, constellations, regions";
 "Main_Language_Map_Search_Object_3" = "3. NPC factions, corporations";
 "Main_Language_Map_Search_Object_4" = "4. Type ID";
+"Main_Language_Map_Search_Object_5" = "5. Item Categories";
+"Main_Language_Map_Search_Object_6" = "6. Item Groups";
 
 // Region and System Search
 "Location_Filter" = "Location Filter";
@@ -1277,4 +1294,9 @@
 "Main_Attribute_Compare_Add_Item" = "Add Item";
 "Main_Attribute_Compare_Item_List" = "Item List";
 "Main_Attribute_Compare_Show_Only_Differences" = "Show Only Differences";
+
+"Main_Database_Mutation_Attribute" = "Mutation";
+"Main_Database_Mutation_Source" = "Mutation Source";
+"Main_Database_Mutation_Results" = "Mutation Output";
+"Main_Database_Required_Mutaplasmids" = "Required Mutaplasmids";
 

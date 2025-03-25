@@ -42,7 +42,6 @@ struct MissileNameView: View {
         NavigationLink(
             destination: ItemInfoMap.getItemInfoView(
                 itemID: ammoID,
-                categoryID: 8,
                 databaseManager: databaseManager
             )
         ) {

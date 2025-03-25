@@ -328,13 +328,10 @@ struct MarketItemDetailView: View {
             Section {
                 if let details = itemDetails {
                     NavigationLink {
-                        if let categoryID = itemDetails?.categoryID {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: itemID,
-                                categoryID: categoryID,
-                                databaseManager: databaseManager
-                            )
-                        }
+                        ItemInfoMap.getItemInfoView(
+                            itemID: itemID,
+                            databaseManager: databaseManager
+                        )
                     } label: {
                         MarketItemBasicInfoView(
                             itemDetails: details,

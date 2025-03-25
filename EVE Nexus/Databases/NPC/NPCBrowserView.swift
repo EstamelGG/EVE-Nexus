@@ -75,14 +75,10 @@ struct NPCBaseView<Content: View>: View {
                     ) {
                         ForEach(group.items, id: \.typeID) { item in
                             NavigationLink {
-                                if let categoryID = databaseManager.getCategoryID(for: item.typeID)
-                                {
-                                    ItemInfoMap.getItemInfoView(
-                                        itemID: item.typeID,
-                                        categoryID: categoryID,
-                                        databaseManager: databaseManager
-                                    )
-                                }
+                                ItemInfoMap.getItemInfoView(
+                                    itemID: item.typeID,
+                                    databaseManager: databaseManager
+                                )
                             } label: {
                                 HStack {
                                     IconManager.shared.loadImage(for: item.iconFileName)
@@ -293,14 +289,10 @@ struct NPCBrowserView: View {
                             id: \.typeID
                         ) { item in
                             NavigationLink {
-                                if let categoryID = databaseManager.getCategoryID(for: item.typeID)
-                                {
-                                    ItemInfoMap.getItemInfoView(
-                                        itemID: item.typeID,
-                                        categoryID: categoryID,
-                                        databaseManager: databaseManager
-                                    )
-                                }
+                                ItemInfoMap.getItemInfoView(
+                                    itemID: item.typeID,
+                                    databaseManager: databaseManager
+                                )
                             } label: {
                                 HStack {
                                     IconManager.shared.loadImage(for: item.iconFileName)

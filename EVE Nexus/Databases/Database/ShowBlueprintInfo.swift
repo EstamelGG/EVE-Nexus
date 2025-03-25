@@ -17,13 +17,10 @@ struct ProductItemView: View {
     var body: some View {
         NavigationLink(
             destination: {
-                if let categoryID = databaseManager.getCategoryID(for: item.typeID) {
-                    ItemInfoMap.getItemInfoView(
-                        itemID: item.typeID,
-                        categoryID: categoryID,
-                        databaseManager: databaseManager
-                    )
-                }
+                ItemInfoMap.getItemInfoView(
+                    itemID: item.typeID,
+                    databaseManager: databaseManager
+                )
             }
         ) {
             HStack {
@@ -56,13 +53,10 @@ struct InventionProductItemView: View {
     var body: some View {
         NavigationLink(
             destination: {
-                if let categoryID = databaseManager.getCategoryID(for: product.typeID) {
-                    ItemInfoMap.getItemInfoView(
-                        itemID: product.typeID,
-                        categoryID: categoryID,
-                        databaseManager: databaseManager
-                    )
-                }
+                ItemInfoMap.getItemInfoView(
+                    itemID: product.typeID,
+                    databaseManager: databaseManager
+                )
             }
         ) {
             HStack {
@@ -299,15 +293,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(manufacturing.skills, id: \.typeID) { skill in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: skill.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: skill.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: skill.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -374,15 +363,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(researchMaterial.materials, id: \.typeID) { material in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: material.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: material.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: material.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -428,15 +412,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(researchMaterial.skills, id: \.typeID) { skill in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: skill.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: skill.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: skill.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -522,15 +501,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(researchTime.materials, id: \.typeID) { material in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: material.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: material.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: material.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -576,15 +550,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(researchTime.skills, id: \.typeID) { skill in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: skill.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: skill.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: skill.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -670,15 +639,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(copying.materials, id: \.typeID) { material in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: material.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: material.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: material.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -724,15 +688,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(copying.skills, id: \.typeID) { skill in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: skill.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: skill.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: skill.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -808,15 +767,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(invention.materials, id: \.typeID) { material in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: material.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: material.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: material.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -862,15 +816,10 @@ struct ShowBluePrintInfo: View {
                             content: {
                                 ForEach(invention.skills, id: \.typeID) { skill in
                                     NavigationLink {
-                                        if let categoryID = databaseManager.getCategoryID(
-                                            for: skill.typeID)
-                                        {
-                                            ItemInfoMap.getItemInfoView(
-                                                itemID: skill.typeID,
-                                                categoryID: categoryID,
-                                                databaseManager: databaseManager
-                                            )
-                                        }
+                                        ItemInfoMap.getItemInfoView(
+                                            itemID: skill.typeID,
+                                            databaseManager: databaseManager
+                                        )
                                     } label: {
                                         HStack {
                                             IconManager.shared.loadImage(
@@ -933,7 +882,6 @@ struct ShowBluePrintInfo: View {
                         NavigationLink(
                             destination: ItemInfoMap.getItemInfoView(
                                 itemID: source.typeID,
-                                categoryID: databaseManager.getCategoryID(for: source.typeID) ?? 0,
                                 databaseManager: databaseManager
                             )
                         ) {

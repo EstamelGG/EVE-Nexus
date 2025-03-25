@@ -38,7 +38,6 @@ struct SkillDependencyListView: View {
                         NavigationLink {
                             ItemInfoMap.getItemInfoView(
                                 itemID: item.typeID,
-                                categoryID: item.categoryID,
                                 databaseManager: databaseManager
                             )
                         } label: {

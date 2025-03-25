@@ -208,8 +208,10 @@ class CharacterWealthViewModel: ObservableObject {
 
             // 递归计算所有资产价值
             func calculateNodeValue(_ node: AssetTreeNode, isTopLevel: Bool = false) {
-                // 如果不是顶层节点，则计算价值
-                if !isTopLevel, let price = marketPrices[node.type_id] {
+                // 如果不是顶层节点且不是蓝图复制品，则计算价值
+                if !isTopLevel, let price = marketPrices[node.type_id],
+                    !(node.is_blueprint_copy ?? false)
+                {
                     totalValue += price * Double(node.quantity)
                     totalCount += 1
                 }
@@ -312,8 +314,10 @@ class CharacterWealthViewModel: ObservableObject {
                 var itemStats: [Int: (quantity: Int, value: Double)] = [:]
 
                 func processNode(_ node: AssetTreeNode, isTopLevel: Bool = false) {
-                    // 如果不是顶层节点，则计算价值
-                    if !isTopLevel, let price = marketPrices[node.type_id] {
+                    // 如果不是顶层节点且不是蓝图复制品，则计算价值
+                    if !isTopLevel, let price = marketPrices[node.type_id],
+                        !(node.is_blueprint_copy ?? false)
+                    {
                         let currentStats = itemStats[node.type_id] ?? (0, 0)
                         itemStats[node.type_id] = (
                             currentStats.quantity + node.quantity,
@@ -435,8 +439,10 @@ class CharacterWealthViewModel: ObservableObject {
                 var itemStats: [Int: Int] = [:]
 
                 func processNode(_ node: AssetTreeNode, isTopLevel: Bool = false) {
-                    // 如果不是顶层节点，且在市场价格中找不到，则添加到统计
-                    if !isTopLevel && marketPrices[node.type_id] == nil {
+                    // 如果不是顶层节点，且在市场价格中找不到，且不是蓝图复制品，则添加到统计
+                    if !isTopLevel && marketPrices[node.type_id] == nil
+                        && !(node.is_blueprint_copy ?? false)
+                    {
                         itemStats[node.type_id, default: 0] += node.quantity
                     }
 

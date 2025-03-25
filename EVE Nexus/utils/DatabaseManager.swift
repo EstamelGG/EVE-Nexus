@@ -22,6 +22,10 @@ class DatabaseManager: ObservableObject {
             SkillTreeManager.shared.initialize(databaseManager: self)
             Logger.info("技能树初始化完成")
 
+            // 初始化物品分类缓存
+            ItemInfoMap.initializeCache(databaseManager: self)
+            Logger.info("物品分类缓存初始化完成")
+
             databaseUpdated.toggle()
         }
     }
@@ -272,14 +276,14 @@ class DatabaseManager: ObservableObject {
         [DatabaseListItem], [Int: String], [Int: String]
     ) {
         var query = """
-                SELECT t.type_id, t.name, t.icon_filename, t.published, t.categoryID, t.groupID,
-                       t.pg_need, t.cpu_need, t.rig_cost,
-                       t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
-                       t.high_slot, t.mid_slot, t.low_slot, t.rig_slot,
-                       t.gun_slot, t.miss_slot, t.metaGroupID,
-                       g.name as group_name
+                SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
+                       t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
+                       t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
+                       t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
+                       t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
+                       t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
+                       t.group_name as groupName
                 FROM types t
-                LEFT JOIN groups g ON t.groupID = g.group_id
                 WHERE t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?
             """
 
@@ -303,46 +307,46 @@ class DatabaseManager: ObservableObject {
 
         if case let .success(rows) = result {
             for row in rows {
-                if let id = row["type_id"] as? Int,
+                if let id = row["id"] as? Int,
                     let name = row["name"] as? String,
-                    let iconFilename = row["icon_filename"] as? String,
-                    let categoryId = row["categoryID"] as? Int,
-                    let groupId = row["groupID"] as? Int,
-                    let isPublished = row["published"] as? Int
+                    let categoryId = row["categoryID"] as? Int
                 {
-                    // 保存组名
-                    if let groupName = row["group_name"] as? String {
-                        groupNames[groupId] = groupName
+                    let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
+                    let published = (row["published"] as? Int) ?? 0
+                    let groupID = row["groupID"] as? Int
+                    let groupName = row["groupName"] as? String
+
+                    // 保存组名到字典中
+                    if let gID = groupID, let gName = groupName {
+                        groupNames[gID] = gName
                     }
 
                     items.append(
                         DatabaseListItem(
                             id: id,
                             name: name,
-                            iconFileName: iconFilename.isEmpty
-                                ? DatabaseConfig.defaultItemIcon : iconFilename,
-                            published: isPublished != 0,
+                            iconFileName: iconFileName,
+                            published: published == 1,
                             categoryID: categoryId,
-                            groupID: groupId,
-                            groupName: row["group_name"] as? String,
-                            pgNeed: row["pg_need"] as? Int,
-                            cpuNeed: row["cpu_need"] as? Int,
-                            rigCost: row["rig_cost"] as? Int,
-                            emDamage: row["em_damage"] as? Double,
-                            themDamage: row["them_damage"] as? Double,
-                            kinDamage: row["kin_damage"] as? Double,
-                            expDamage: row["exp_damage"] as? Double,
-                            highSlot: row["high_slot"] as? Int,
-                            midSlot: row["mid_slot"] as? Int,
-                            lowSlot: row["low_slot"] as? Int,
-                            rigSlot: row["rig_slot"] as? Int,
-                            gunSlot: row["gun_slot"] as? Int,
-                            missSlot: row["miss_slot"] as? Int,
+                            groupID: groupID,
+                            groupName: groupName,
+                            pgNeed: row["pgNeed"] as? Int,
+                            cpuNeed: row["cpuNeed"] as? Int,
+                            rigCost: row["rigCost"] as? Int,
+                            emDamage: row["emDamage"] as? Double,
+                            themDamage: row["themDamage"] as? Double,
+                            kinDamage: row["kinDamage"] as? Double,
+                            expDamage: row["expDamage"] as? Double,
+                            highSlot: row["highSlot"] as? Int,
+                            midSlot: row["midSlot"] as? Int,
+                            lowSlot: row["lowSlot"] as? Int,
+                            rigSlot: row["rigSlot"] as? Int,
+                            gunSlot: row["gunSlot"] as? Int,
+                            missSlot: row["missSlot"] as? Int,
                             metaGroupID: row["metaGroupID"] as? Int,
-                            marketGroupID: nil,
+                            marketGroupID: row["marketGroupID"] as? Int,
                             navigationDestination: ItemInfoMap.getItemInfoView(
                                 itemID: id,
-                                categoryID: categoryId,
                                 databaseManager: self
                             )
                         ))
@@ -1008,13 +1012,11 @@ class DatabaseManager: ObservableObject {
     // 获取物品详情
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
-                SELECT t.name, t.description, t.icon_filename, t.groupID,
-                       t.volume, t.capacity, t.mass, t.marketGroupID,
-                       g.name as group_name, c.name as category_name, c.category_id
-                FROM types t
-                LEFT JOIN groups g ON t.groupID = g.group_id
-                LEFT JOIN categories c ON g.categoryID = c.category_id
-                WHERE t.type_id = ?
+                SELECT name, description, icon_filename, groupID,
+                       volume, capacity, mass, marketGroupID,
+                       group_name, category_name, categoryID
+                FROM types
+                WHERE type_id = ?
             """
 
         let result = executeQuery(query, parameters: [typeID])
@@ -1025,7 +1027,7 @@ class DatabaseManager: ObservableObject {
             let description = row["description"] as? String,
             let iconFileName = row["icon_filename"] as? String,
             let groupName = row["group_name"] as? String,
-            let categoryID = row["category_id"] as? Int,
+            let categoryID = row["categoryID"] as? Int,
             let categoryName = row["category_name"] as? String
         {
             let groupID = row["groupID"] as? Int
@@ -1425,9 +1427,8 @@ class DatabaseManager: ObservableObject {
                        t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
                        t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
                        t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                       g.name as groupName
+                       t.group_name as groupName
                 FROM types t
-                LEFT JOIN groups g ON t.groupID = g.group_id
                 WHERE \(whereClause)
                 ORDER BY t.metaGroupID
             """
@@ -1469,7 +1470,6 @@ class DatabaseManager: ObservableObject {
                     marketGroupID: row["marketGroupID"] as? Int,
                     navigationDestination: ItemInfoMap.getItemInfoView(
                         itemID: id,
-                        categoryID: categoryId,
                         databaseManager: self
                     )
                 )
@@ -1720,6 +1720,123 @@ class DatabaseManager: ObservableObject {
         }
 
         return items
+    }
+    /// 获取物品可以突变的结果
+    /// - Parameter typeID: 物品ID
+    /// - Returns: 突变结果列表，每个结果包含 typeID、name 和 iconFileName
+    func getMutationResults(for typeID: Int) -> [(typeID: Int, name: String, iconFileName: String)]
+    {
+        let query = """
+                SELECT DISTINCT m.resulting_type as type_id, t.name, t.icon_filename
+                FROM dynamic_item_mappings m
+                LEFT JOIN types t ON m.resulting_type = t.type_id
+                WHERE m.applicable_type = ?
+                ORDER BY t.name
+            """
+
+        if case let .success(rows) = executeQuery(query, parameters: [typeID]) {
+            return rows.compactMap { row in
+                guard let typeID = row["type_id"] as? Int,
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                else { return nil }
+                return (typeID: typeID, name: name, iconFileName: iconFileName)
+            }
+        }
+        return []
+    }
+
+    /// 获取用于突变该物品的突变体列表
+    /// - Parameter typeID: 物品ID
+    /// - Returns: 突变体列表，每个突变体包含 typeID、name 和 iconFileName
+    func getRequiredMutaplasmids(for typeID: Int) -> [(
+        typeID: Int, name: String, iconFileName: String
+    )] {
+        let query = """
+                SELECT DISTINCT m.type_id, t.name, t.icon_filename
+                FROM dynamic_item_mappings m
+                LEFT JOIN types t ON m.type_id = t.type_id
+                WHERE m.applicable_type = ?
+                ORDER BY t.name
+            """
+
+        if case let .success(rows) = executeQuery(query, parameters: [typeID]) {
+            return rows.compactMap { row in
+                guard let typeID = row["type_id"] as? Int,
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String
+                else { return nil }
+                return (typeID: typeID, name: name, iconFileName: iconFileName)
+            }
+        }
+        return []
+    }
+
+    // 获取突变来源信息
+    func getMutationSource(for itemID: Int) -> (
+        sourceItems: [(typeID: Int, name: String, iconFileName: String)],
+        mutaplasmids: [(typeID: Int, name: String, iconFileName: String)]
+    ) {
+        let query = """
+                SELECT 
+                    t1.type_id as source_type_id, 
+                    t1.name as source_name, 
+                    t1.icon_filename as source_icon,
+                    t1.metaGroupID as source_meta,
+                    t2.type_id as muta_type_id,
+                    t2.name as muta_name,
+                    t2.icon_filename as muta_icon,
+                    t2.metaGroupID as muta_meta
+                FROM dynamic_item_mappings m
+                JOIN types t1 ON m.applicable_type = t1.type_id
+                JOIN types t2 ON m.type_id = t2.type_id
+                WHERE m.resulting_type = ?
+                ORDER BY t1.metaGroupID ASC, t1.type_id ASC, t2.metaGroupID ASC, t2.type_id ASC
+            """
+
+        var sourceItems: [(typeID: Int, name: String, iconFileName: String)] = []
+        var mutaplasmids: [(typeID: Int, name: String, iconFileName: String)] = []
+        var seenSourceItems = Set<Int>()
+        var seenMutaplasmids = Set<Int>()
+
+        if case let .success(rows) = executeQuery(query, parameters: [itemID]) {
+            for row in rows {
+                if let sourceTypeID = row["source_type_id"] as? Int,
+                    let sourceName = row["source_name"] as? String,
+                    let sourceIcon = row["source_icon"] as? String,
+                    let mutaTypeID = row["muta_type_id"] as? Int,
+                    let mutaName = row["muta_name"] as? String,
+                    let mutaIcon = row["muta_icon"] as? String
+                {
+
+                    // 添加源装备（如果还没有添加过）
+                    if !seenSourceItems.contains(sourceTypeID) {
+                        sourceItems.append(
+                            (
+                                typeID: sourceTypeID,
+                                name: sourceName,
+                                iconFileName: sourceIcon.isEmpty
+                                    ? DatabaseConfig.defaultItemIcon : sourceIcon
+                            ))
+                        seenSourceItems.insert(sourceTypeID)
+                    }
+
+                    // 添加突变质体（如果还没有添加过）
+                    if !seenMutaplasmids.contains(mutaTypeID) {
+                        mutaplasmids.append(
+                            (
+                                typeID: mutaTypeID,
+                                name: mutaName,
+                                iconFileName: mutaIcon.isEmpty
+                                    ? DatabaseConfig.defaultItemIcon : mutaIcon
+                            ))
+                        seenMutaplasmids.insert(mutaTypeID)
+                    }
+                }
+            }
+        }
+
+        return (sourceItems: sourceItems, mutaplasmids: mutaplasmids)
     }
 }
 

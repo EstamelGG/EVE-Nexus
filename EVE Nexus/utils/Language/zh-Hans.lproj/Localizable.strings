@@ -284,6 +284,7 @@
 "Assets_Loading_Preparing_Containers" = "正在准备容器信息";
 "Assets_Loading_Saving" = "正在保存缓存";
 "Assets_Loading_Error" = "加载资产失败";
+"Assets_is_BPC" = "蓝图拷贝";
 "Unknown_System" = "未知星系";
 
 // Location Flags
@@ -364,6 +365,7 @@
 "Orders_No_Data" = "没有数据";
 
 // Industry Orders Time
+"Industry" = "工业属性";
 "Industry_Expired" = "已完成";
 "Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
 "Industry_Remaining_Days" = "%d天后完成";
@@ -1190,18 +1192,26 @@
 
 // 合同估价相关
 "Contract_Appraisal_Title" = "合同估价";
-"Contract_Appraisal_Via_Janice" = "通过Janice估算";
-"Contract_Appraisal_Via_ESI" = "通过ESI估算";
+"Contract_Appraisal_Via_Janice" = "通过Janice估价";
+"Contract_Appraisal_Via_ESI" = "通过ESI估价";
 "Contract_Appraisal_Buy_Price" = "买入价格";
 "Contract_Appraisal_Middle_Price" = "中间价格";
 "Contract_Appraisal_Sell_Price" = "卖出价格";
-"Contract_Appraisal_View_Details" = "在Janice查看详情";
-"Contract_Appraisal_Result" = "Janice 估价结果: %@";
+"Contract_Appraisal_View_Details" = "在Janice上查看详情";
+"Contract_Appraisal_Result" = "Janice估价结果：%@";
 "Contract_Appraisal_Error" = "错误";
 "Contract_Appraisal_OK" = "确定";
 "Contract_Appraisal_Unknown_Error" = "未知错误";
 "Contract_Appraisal_Parse_Failed" = "解析响应数据失败：%@";
-"Contract_Appraisal_ESI_Result" = "吉他市场估价 (ESI)";
+"Contract_Appraisal_ESI_Result" = "吉他市场估价";
+"Contract_Appraisal_Display_Settings" = "显示设置";
+"Contract_Appraisal_Show_Full_Amount" = "显示完整金额";
+"Contract_Appraisal_Set_Discount" = "设置合同价格折扣";
+"Contract_Appraisal_Discount_Title" = "设置折扣百分比";
+"Contract_Appraisal_Discount_Message" = "请输入折扣百分比（0或更大），例如90表示九折";
+"Contract_Appraisal_Discount_Cancel" = "取消";
+"Contract_Appraisal_Discount_Confirm" = "确定";
+"Contract_Appraisal_Discount_Placeholder" = "折扣百分比";
 
 "Loading_Location_Info" = "正在加载位置信息...";
 "Loading_Location" = "加载中...";
@@ -1282,10 +1292,12 @@
 "Agent_Type_Short_Other" = "其他";
 
 "Main_Language_Map_Supported_Search_Objects" = "支持的搜索对象：";
-"Main_Language_Map_Search_Object_1" = "1. 物品（舰船、装备、空间实体等）";
+"Main_Language_Map_Search_Object_1" = "1. 物品名称（舰船、装备、空间实体等）";
 "Main_Language_Map_Search_Object_2" = "2. 星系、星座、星域名";
 "Main_Language_Map_Search_Object_3" = "3. NPC势力名、军团名";
-"Main_Language_Map_Search_Object_4" = "4. 物品的 Type ID";
+"Main_Language_Map_Search_Object_4" = "4. 物品 TypeID";
+"Main_Language_Map_Search_Object_5" = "5. 物品所属目录名";
+"Main_Language_Map_Search_Object_6" = "6. 物品所属组名";
 
 // Region and System Search
 "Location_Filter" = "位置过滤";
@@ -1310,4 +1322,12 @@
 "Main_Attribute_Compare_Add_Item" = "添加物品";
 "Main_Attribute_Compare_Item_List" = "物品列表";
 "Main_Attribute_Compare_Show_Only_Differences" = "只展示有差异的属性";
+
+"Contract_Appraisal_Blueprint_Warning" = "合同包含蓝图，估价可能不准确";
+"Contract_Appraisal_Insufficient_Orders_Warning" = "部分物品缺乏市场订单，估价可能不准确";
+
+"Main_Database_Mutation_Attribute" = "突变属性";
+"Main_Database_Mutation_Source" = "突变来源";
+"Main_Database_Mutation_Results" = "突变产出";
+"Main_Database_Required_Mutaplasmids" = "所需突变质体";
 

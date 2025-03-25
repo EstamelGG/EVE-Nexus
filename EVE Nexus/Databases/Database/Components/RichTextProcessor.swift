@@ -45,7 +45,6 @@ struct RichTextView: View {
                 NavigationStack {
                     ItemInfoMap.getItemInfoView(
                         itemID: item.itemID,
-                        categoryID: item.categoryID,
                         databaseManager: databaseManager
                     )
                     .toolbar {

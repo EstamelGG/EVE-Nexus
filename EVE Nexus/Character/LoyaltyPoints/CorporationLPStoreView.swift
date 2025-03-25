@@ -22,7 +22,6 @@ struct LPStoreOfferView: View {
             NavigationLink(
                 destination: ItemInfoMap.getItemInfoView(
                     itemID: offer.typeId,
-                    categoryID: itemInfo.categoryId,
                     databaseManager: DatabaseManager.shared
                 )
             ) {
@@ -282,7 +281,7 @@ struct CorporationLPStoreView: View {
 
             // 3. 一次性查询所有物品信息
             let query = """
-                    SELECT type_id, name, icon_filename, category_name, categoryID
+                    SELECT type_id, name, icon_filename, bpc_icon_filename, category_name, categoryID
                     FROM types
                     WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
@@ -298,9 +297,18 @@ struct CorporationLPStoreView: View {
                         let categoryName = row["category_name"] as? String,
                         let categoryId = row["categoryID"] as? Int
                     {
+                        let bpcIconFileName = row["bpc_icon_filename"] as? String
+                        let finalIconFileName: String
+
+                        if let bpcIcon = bpcIconFileName, !bpcIcon.isEmpty {
+                            finalIconFileName = bpcIcon
+                        } else {
+                            finalIconFileName = iconFileName.isEmpty ? "not_found" : iconFileName
+                        }
+
                         infos[typeId] = LPStoreItemInfo(
                             name: name,
-                            iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName,
+                            iconFileName: finalIconFileName,
                             categoryName: categoryName,
                             categoryId: categoryId
                         )
