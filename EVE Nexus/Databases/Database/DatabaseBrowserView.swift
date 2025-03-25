@@ -256,7 +256,6 @@ struct DatabaseBrowserView: View {
                     marketGroupID: nil,
                     navigationDestination: ItemInfoMap.getItemInfoView(
                         itemID: item.id,
-                        categoryID: item.categoryID,
                         databaseManager: databaseManager
                     )
                 )

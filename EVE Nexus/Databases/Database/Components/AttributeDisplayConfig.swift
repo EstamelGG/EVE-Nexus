@@ -200,11 +200,10 @@ enum AttributeDisplayConfig {
                 ? "+\(FormatUtil.format(diff * 100))%" : "\(FormatUtil.format(diff * 100))%"
         },
         3: { value, _ in
-            FormatUtil.formatTime(Int(value))
+            FormatUtil.formatTimeWithPrecision(value)
         },
         101: { value, _ in
-            let seconds = value / 1000
-            return FormatUtil.formatTime(Int(seconds))
+            return FormatUtil.formatTimeWithMillisecondPrecision(value)
         },
     ]
 

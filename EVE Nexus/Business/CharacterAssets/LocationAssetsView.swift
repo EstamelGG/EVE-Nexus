@@ -177,9 +177,9 @@ struct AssetItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                // 资产图标
+                // 资产图标 - 优先使用节点上的icon_name
                 IconManager.shared.loadImage(
-                    for: itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon
+                    for: node.icon_name ?? itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon
                 )
                 .resizable()
                 .frame(width: 32, height: 32)
@@ -188,10 +188,11 @@ struct AssetItemView: View {
                     // 资产名称和自定义名称
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
-                            Text(itemInfo.name)
+                            Text(itemInfo.name).lineLimit(1)
                             if showCustomName, let customName = node.name {
                                 Text("[\(customName)]")
                                     .foregroundColor(.secondary)
+                                    .lineLimit(1)
                             }
                             if node.quantity > 1 {
                                 Text("×\(node.quantity)")
@@ -201,8 +202,11 @@ struct AssetItemView: View {
                             Text("Type ID: \(node.type_id)")
                         }
                     }
-
-                    // 如果有子资产且需要显示数量，显示子资产数量
+                    if let isBlueprintCopy = node.is_blueprint_copy, isBlueprintCopy {
+                        Text(NSLocalizedString("Assets_is_BPC", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     if showItemCount, let items = node.items, !items.isEmpty {
                         Text(
                             String(
@@ -330,6 +334,9 @@ class LocationAssetsViewModel: ObservableObject {
     // 修改为internal，使其可以被视图访问
     let preloadedItemInfo: [Int: ItemInfo]?
 
+    // 添加优先显示的货物集装箱的marketGroupID列表
+    private let priorityMarketGroups = [1651, 1652, 1653, 1657, 1658]
+
     init(
         location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager(),
         preloadedItemInfo: [Int: ItemInfo]? = nil
@@ -340,13 +347,40 @@ class LocationAssetsViewModel: ObservableObject {
     }
 
     func itemInfo(for typeId: Int) -> ItemInfo? {
-        itemInfoCache[typeId]
+        // 从缓存中查找该类型的物品信息
+        return itemInfoCache[typeId]
+    }
+
+    // 从数据库获取优先级容器的type_id集合
+    private func getPriorityContainerTypeIds() -> Set<Int> {
+        // 构建查询，一次性获取所有优先市场组ID的物品类型
+        let marketGroupList = priorityMarketGroups.map { String($0) }.joined(separator: ",")
+        let query = "SELECT type_id FROM types WHERE marketGroupID IN (\(marketGroupList))"
+
+        var typeIds = Set<Int>()
+
+        if case let .success(rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["type_id"] as? Int {
+                    typeIds.insert(typeId)
+                }
+            }
+        }
+
+        return typeIds
     }
 
     // 按location_flag分组的资产
     func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
         // 如果是容器，使用其items属性
         let items = location.items ?? []
+        if items.isEmpty {
+            return []
+        }
+
+        // 获取优先显示的容器类型ID集合
+        let priorityTypeIds = getPriorityContainerTypeIds()
+
         var groups: [String: [AssetTreeNode]] = [:]
 
         // 第一步：按flag分组
@@ -404,9 +438,12 @@ class LocationAssetsViewModel: ObservableObject {
                 }
             }
 
-            // 将容器和合并后的普通物品组合，并按物品名称和item_id排序
-            var allItems = containers + mergedNormalItems
-            allItems.sort { item1, item2 in
+            // 直接使用预先获取的type_id集合来确定优先容器
+            let priorityContainers = containers.filter { priorityTypeIds.contains($0.type_id) }
+            let normalContainers = containers.filter { !priorityTypeIds.contains($0.type_id) }
+
+            // 分别对优先容器和普通容器进行排序
+            let sortedPriorityContainers = priorityContainers.sorted { item1, item2 in
                 let name1 = itemInfo(for: item1.type_id)?.name ?? ""
                 let name2 = itemInfo(for: item2.type_id)?.name ?? ""
                 if name1 != name2 {
@@ -414,6 +451,28 @@ class LocationAssetsViewModel: ObservableObject {
                 }
                 return item1.item_id < item2.item_id
             }
+
+            let sortedNormalContainers = normalContainers.sorted { item1, item2 in
+                let name1 = itemInfo(for: item1.type_id)?.name ?? ""
+                let name2 = itemInfo(for: item2.type_id)?.name ?? ""
+                if name1 != name2 {
+                    return name1.localizedCompare(name2) == .orderedAscending
+                }
+                return item1.item_id < item2.item_id
+            }
+
+            // 再对普通物品按名称排序
+            let sortedNormalItems = mergedNormalItems.sorted { item1, item2 in
+                let name1 = itemInfo(for: item1.type_id)?.name ?? ""
+                let name2 = itemInfo(for: item2.type_id)?.name ?? ""
+                if name1 != name2 {
+                    return name1.localizedCompare(name2) == .orderedAscending
+                }
+                return item1.item_id < item2.item_id
+            }
+
+            // 优先容器 + 普通容器 + 普通物品
+            let allItems = sortedPriorityContainers + sortedNormalContainers + sortedNormalItems
             mergedGroups[flag] = allItems
         }
 
@@ -475,35 +534,91 @@ class LocationAssetsViewModel: ObservableObject {
             return
         }
 
-        // 否则，从数据库加载物品信息
+        // 收集需要查询的type_id和已有的图标
         var typeIds = Set<Int>()
-        typeIds.insert(location.type_id)
+        var typeIdToNodes: [Int: [AssetTreeNode]] = [:]
 
+        // 添加当前位置节点
+        collectNode(location, typeIds: &typeIds, typeIdToNodes: &typeIdToNodes)
+
+        // 处理子项
         if let items = location.items {
-            typeIds.formUnion(items.map { $0.type_id })
+            for item in items {
+                collectNode(item, typeIds: &typeIds, typeIdToNodes: &typeIdToNodes)
+            }
         }
 
-        let query = """
-                SELECT type_id, name, icon_filename
-                FROM types
-                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
+        // 查询所有物品的名称
+        if !typeIds.isEmpty {
+            let query = """
+                    SELECT type_id, name
+                    FROM types
+                    WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
+                """
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                    let name = row["name"] as? String
-                {
-                    let iconFileName =
-                        (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
-                    itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconFileName)
+            if case let .success(rows) = databaseManager.executeQuery(query) {
+                var typeIdToName: [Int: String] = [:]
+
+                // 先收集所有的名称
+                for row in rows {
+                    if let typeId = row["type_id"] as? Int,
+                        let name = row["name"] as? String
+                    {
+                        typeIdToName[typeId] = name
+                    }
                 }
+
+                // 然后为每个节点创建ItemInfo
+                for (typeId, nodes) in typeIdToNodes {
+                    if let name = typeIdToName[typeId] {
+                        // 一般情况下，对于相同的type_id，我们只需要存储一个ItemInfo
+                        // 我们默认使用第一个非蓝图复制品节点的图标（如果有的话）
+                        let nonBPCNode =
+                            nodes.first { node in
+                                !(node.is_blueprint_copy ?? false)
+                            } ?? nodes.first
+
+                        if let node = nonBPCNode {
+                            let iconName = node.icon_name ?? DatabaseConfig.defaultItemIcon
+                            itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconName)
+                        }
+                    }
+                }
+
+                objectWillChange.send()
             }
-            objectWillChange.send()
         }
 
         // 重置加载标志
         isLoadingItems = false
+    }
+
+    // 收集节点信息的辅助方法
+    private func collectNode(
+        _ node: AssetTreeNode, typeIds: inout Set<Int>, typeIdToNodes: inout [Int: [AssetTreeNode]]
+    ) {
+        let typeId = node.type_id
+        typeIds.insert(typeId)
+
+        if typeIdToNodes[typeId] == nil {
+            typeIdToNodes[typeId] = []
+        }
+        typeIdToNodes[typeId]?.append(node)
+    }
+
+    // 获取节点的实际图标，处理蓝图复制品的特殊情况
+    func getNodeIcon(for node: AssetTreeNode) -> String {
+        // 如果节点已经有图标名称，直接使用
+        if let iconName = node.icon_name {
+            return iconName
+        }
+
+        // 否则从缓存中查找
+        let basicIcon = itemInfo(for: node.type_id)?.iconFileName ?? DatabaseConfig.defaultItemIcon
+
+        // 如果是蓝图复制品但缓存中的图标是普通图标，可能需要特殊处理
+        // 但现在我们依赖节点上已有的图标名称，所以这种情况应该很少发生
+        return basicIcon
     }
 }
 
@@ -513,10 +628,20 @@ private func buildTreeNode(
     locationMap: [Int64: [CharacterAsset]],
     names: [Int64: String],
     databaseManager: DatabaseManager,
-    iconMap: [Int: String]
+    iconMap: [Int: (normal: String, blueprint_copy: String)]
 ) -> AssetTreeNode {
-    // 从图标映射中获取图标名称
-    let iconName = iconMap[asset.type_id] ?? DatabaseConfig.defaultItemIcon
+    // 从图标映射中获取图标名称，根据是否为蓝图复制品选择图标
+    let defaultIcon = DatabaseConfig.defaultItemIcon
+    let iconInfo = iconMap[asset.type_id] ?? (normal: defaultIcon, blueprint_copy: defaultIcon)
+    let iconName: String
+
+    if let isBlueprintCopy = asset.is_blueprint_copy, isBlueprintCopy {
+        // 如果是蓝图复制品，使用BPC图标
+        iconName = iconInfo.blueprint_copy
+    } else {
+        // 否则使用普通图标
+        iconName = iconInfo.normal
+    }
 
     // 获取子项
     let children = locationMap[asset.item_id, default: []].map { childAsset in

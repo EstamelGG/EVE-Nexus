@@ -185,7 +185,6 @@ extension DatabaseManager {
                     navigationDestination: AnyView(
                         ItemInfoMap.getItemInfoView(
                             itemID: id,
-                            categoryID: categoryId,
                             databaseManager: self
                         )
                     )

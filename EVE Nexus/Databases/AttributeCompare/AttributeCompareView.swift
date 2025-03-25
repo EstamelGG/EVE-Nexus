@@ -398,7 +398,7 @@ struct AttributeCompareDetailView: View {
                                                 for: item.iconFileName)
                                         )
                                         .resizable()
-                                        .frame(width: 40, height: 40)
+                                        .frame(width: 36, height: 36)
                                         .cornerRadius(6)
 
                                         VStack(alignment: .leading, spacing: 2) {
@@ -411,8 +411,8 @@ struct AttributeCompareDetailView: View {
                                         }
                                     }
                                 }
-                                .padding(.vertical, 4)
                             }
+                            // .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             .onDelete { indexSet in
                                 let itemsToDelete = indexSet.map { items[$0].id }
                                 compare.items.removeAll { itemsToDelete.contains($0.typeID) }
@@ -436,7 +436,6 @@ struct AttributeCompareDetailView: View {
                                     compare.items.count
                                 )
                             )
-                            .padding(.vertical, 4)
                         }
                     )
 

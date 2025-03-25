@@ -256,15 +256,27 @@ public class CharacterAssetsJsonAPI {
     }
 
     // 获取空间站图标
-    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
+    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> (
+        normal: String, blueprint_copy: String
+    )? {
+        let query = "SELECT icon_filename, bpc_icon_filename FROM types WHERE type_id = ?"
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
             let row = rows.first,
             let iconFile = row["icon_filename"] as? String
         {
-            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
+            let normalIcon = iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
+            var bpcIcon = normalIcon
+
+            // 如果有蓝图复制品图标则使用
+            if let bpcIconFile = row["bpc_icon_filename"] as? String, !bpcIconFile.isEmpty {
+                bpcIcon = bpcIconFile
+            }
+
+            return (normal: normalIcon, blueprint_copy: bpcIcon)
         }
-        return DatabaseConfig.defaultItemIcon
+        return (
+            normal: DatabaseConfig.defaultItemIcon, blueprint_copy: DatabaseConfig.defaultItemIcon
+        )
     }
 
     // 收集所有容器的ID (除了最顶层建筑物)
@@ -343,10 +355,20 @@ public class CharacterAssetsJsonAPI {
         locationMap: [Int64: [CharacterAsset]],
         names: [Int64: String],
         databaseManager: DatabaseManager,
-        iconMap: [Int: String]
+        iconMap: [Int: (normal: String, blueprint_copy: String)]
     ) -> AssetTreeNode {
-        // 从图标映射中获取图标名称
-        let iconName = iconMap[asset.type_id] ?? DatabaseConfig.defaultItemIcon
+        // 从图标映射中获取图标名称，根据是否为蓝图复制品选择图标
+        let defaultIcon = DatabaseConfig.defaultItemIcon
+        let iconInfo = iconMap[asset.type_id] ?? (normal: defaultIcon, blueprint_copy: defaultIcon)
+        let iconName: String
+
+        if let isBlueprintCopy = asset.is_blueprint_copy, isBlueprintCopy {
+            // 如果是蓝图复制品，使用BPC图标
+            iconName = iconInfo.blueprint_copy
+        } else {
+            // 否则使用普通图标
+            iconName = iconInfo.normal
+        }
 
         // 获取子项
         let children = locationMap[asset.item_id, default: []].map { childAsset in
@@ -378,25 +400,36 @@ public class CharacterAssetsJsonAPI {
     }
 
     // 获取所有物品的图标信息
-    private func fetchAllItemIcons(typeIds: Set<Int>, databaseManager: DatabaseManager) -> [Int:
-        String]
-    {
-        // 构建查询语句
+    private func fetchAllItemIcons(typeIds: Set<Int>, databaseManager: DatabaseManager) -> [Int: (
+        normal: String, blueprint_copy: String
+    )] {
+        // 构建查询语句，仅获取图标相关信息
         let query = """
-                SELECT type_id, icon_filename
+                SELECT type_id, icon_filename, bpc_icon_filename
                 FROM types
                 WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
-        var iconMap: [Int: String] = [:]
+        var iconMap: [Int: (normal: String, blueprint_copy: String)] = [:]
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                     let iconFilename = row["icon_filename"] as? String
                 {
-                    iconMap[typeId] =
+                    let normalIcon =
                         iconFilename.isEmpty ? DatabaseConfig.defaultItemIcon : iconFilename
+
+                    // 获取蓝图复制品图标，如果没有则使用普通图标
+                    var bpcIcon = normalIcon
+                    if let bpcIconFilename = row["bpc_icon_filename"] as? String,
+                        !bpcIconFilename.isEmpty
+                    {
+                        bpcIcon = bpcIconFilename
+                    }
+
+                    // 保存到图标映射
+                    iconMap[typeId] = (normal: normalIcon, blueprint_copy: bpcIcon)
                 }
             }
         }
@@ -644,7 +677,7 @@ public class CharacterAssetsJsonAPI {
         characterId: Int,
         databaseManager: DatabaseManager,
         names: [Int64: String] = [:],
-        iconMap: [Int: String],
+        iconMap: [Int: (normal: String, blueprint_copy: String)],
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> [AssetTreeNode] {
         var rootNodes: [AssetTreeNode] = []
@@ -681,12 +714,18 @@ public class CharacterAssetsJsonAPI {
                                 )
                             } else {
                                 // 其他类型使用建筑物图标
-                                iconName =
-                                    info.typeId != nil
-                                    ? self.getStationIcon(
+                                if info.typeId != nil {
+                                    if let iconInfo = self.getStationIcon(
                                         typeId: info.typeId!, databaseManager: databaseManager
-                                    )
-                                    : nil
+                                    ) {
+                                        // 顶层位置使用普通图标，不需要考虑蓝图复制品图标
+                                        iconName = iconInfo.normal
+                                    } else {
+                                        iconName = nil
+                                    }
+                                } else {
+                                    iconName = nil
+                                }
                             }
 
                             return (

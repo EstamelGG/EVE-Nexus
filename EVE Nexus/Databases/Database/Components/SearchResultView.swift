@@ -271,33 +271,68 @@ struct DatabaseListView: View {
     private func groupItemsByGroup(_ items: [DatabaseListItem]) -> [(
         id: Int, name: String, items: [DatabaseListItem]
     )] {
-        var grouped: [Int: [DatabaseListItem]] = [:]
+        // 按categoryID和groupID组织数据
+        var groupedByCategory: [Int: [(groupID: Int, items: [DatabaseListItem])]] = [:]
 
+        // 首先按categoryID和groupID分组
         for item in items {
+            let categoryID = item.categoryID ?? 0
             let groupID = item.groupID ?? 0
-            if grouped[groupID] == nil {
-                grouped[groupID] = []
+
+            if groupedByCategory[categoryID] == nil {
+                groupedByCategory[categoryID] = []
             }
-            grouped[groupID]?.append(item)
+
+            // 在当前分类中查找或创建groupID组
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
+                $0.groupID == groupID
+            }) {
+                groupedByCategory[categoryID]?[index].items.append(item)
+            } else {
+                groupedByCategory[categoryID]?.append((groupID: groupID, items: [item]))
+            }
         }
 
-        return grouped.sorted { $0.key < $1.key }
-            .map { groupID, items in
-                if groupID == 0 {
-                    return (
-                        id: 0, name: NSLocalizedString("Main_Database_base", comment: "基础物品"),
-                        items: items
-                    )
-                }
+        // 定义分类优先级顺序
+        let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
 
-                if let groupName = groupNames[groupID] {
-                    return (id: groupID, name: groupName, items: items)
-                } else {
-                    Logger.warning("GroupID \(groupID) 没有对应的名称")
-                    return (id: groupID, name: "Group \(groupID)", items: items)
+        // 按优先级顺序排序分类
+        let sortedCategories = groupedByCategory.keys.sorted { cat1, cat2 in
+            let index1 = categoryPriority.firstIndex(of: cat1) ?? Int.max
+            let index2 = categoryPriority.firstIndex(of: cat2) ?? Int.max
+            if index1 == index2 {
+                return cat1 < cat2  // 如果都不在优先级列表中，按ID升序
+            }
+            return index1 < index2  // 按优先级排序
+        }
+
+        // 构建最终结果
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+
+        for categoryID in sortedCategories {
+            if let categoryGroups = groupedByCategory[categoryID] {
+                // 在每个分类内部，按groupID排序
+                let sortedGroups = categoryGroups.sorted { $0.groupID < $1.groupID }
+
+                for group in sortedGroups {
+                    if group.groupID == 0 {
+                        result.append(
+                            (
+                                id: 0,
+                                name: NSLocalizedString("Main_Database_base", comment: "基础物品"),
+                                items: group.items
+                            ))
+                    } else if let groupName = groupNames[group.groupID] {
+                        result.append((id: group.groupID, name: groupName, items: group.items))
+                    } else {
+                        result.append(
+                            (id: group.groupID, name: "Group \(group.groupID)", items: group.items))
+                    }
                 }
             }
-            .filter { !$0.items.isEmpty }
+        }
+
+        return result.filter { !$0.items.isEmpty }
     }
 
     private func groupItemsByMetaGroup(_ items: [DatabaseListItem]) -> [(

@@ -24,7 +24,7 @@ cd "EVE Nexus" && $(xcrun --find swift-format) -r . -i --configuration .swift-fo
 
 # 获取应用 / Get App
 
-iOS/iPadOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
+iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
 
 # 开源协议 / Open Source License
 

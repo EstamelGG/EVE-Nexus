@@ -28,6 +28,17 @@ extension UIViewController {
     }
 }
 
+// 在文件顶部添加String扩展，用于中文名称排序
+extension String {
+    /// 获取用于排序的本地化字符串，支持混合字符（如拉丁字母和中文）的排序
+    func localizedSortKey() -> String {
+        // 使用空字符串获取原始字符串的排序键
+        // 这样相当于让系统在比较时直接使用localizedStandardCompare
+        // 这样可以正确处理混合字符（如字母数字和中文）的排序
+        return self
+    }
+}
+
 struct DropdownOption: Identifiable {
     let id: Int
     let value: String
@@ -1797,11 +1808,14 @@ struct RegionSearchView: View {
 
     // 过滤后的星域列表
     private var filteredRegions: [(Int, String)] {
+        var result: [(Int, String)]
         if searchText.isEmpty {
-            return regions
+            result = regions
         } else {
-            return regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+            result = regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
         }
+        // 对结果进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
+        return result.sorted { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
     }
 
     // 加载所有星域
@@ -1812,7 +1826,6 @@ struct RegionSearchView: View {
                 SELECT regionID, regionName
                 FROM regions
                 WHERE regionID < 11000000
-                ORDER BY regionName
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -1824,6 +1837,8 @@ struct RegionSearchView: View {
                 }
                 return (regionID, regionName)
             }
+            // 在内存中进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
+            regions.sort { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
         }
 
         isLoading = false
@@ -1917,11 +1932,14 @@ struct SolarSystemSearchView: View {
 
     // 过滤后的星系列表
     private var filteredSystems: [(Int, String, Double)] {
+        var result: [(Int, String, Double)]
         if searchText.isEmpty {
-            return solarSystems
+            result = solarSystems
         } else {
-            return solarSystems.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+            result = solarSystems.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
         }
+        // 对结果进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
+        return result.sorted { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
     }
 
     // 加载星系
@@ -1943,7 +1961,7 @@ struct SolarSystemSearchView: View {
             parameters.append(regionID)
         }
 
-        query += " ORDER BY s.solarSystemName"
+        // 不在SQL中排序，而是在内存中进行本地化排序
 
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
             solarSystems = rows.compactMap { row in
@@ -1955,6 +1973,8 @@ struct SolarSystemSearchView: View {
                 }
                 return (systemID, systemName, security)
             }
+            // 在内存中进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
+            solarSystems.sort { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
         }
 
         isLoading = false

@@ -143,8 +143,8 @@ class CharacterAssetsViewModel: ObservableObject {
                     // 获取所有星系的信息
                     await loadRegionNames()
 
-                    // 加载所有物品信息
-                    await loadAllItemInfo()
+                    // 从数据库加载物品信息
+                    await loadItemInfoFromDatabase()
 
                     // 成功加载数据后，清除错误状态
                     self.error = nil
@@ -211,30 +211,21 @@ class CharacterAssetsViewModel: ObservableObject {
             return
         }
 
-        // 1. 先从数据库获取匹配名称的物品类型ID
-        let itemQuery = """
-                SELECT type_id, name, icon_filename
-                FROM types 
-                WHERE LOWER(name) LIKE LOWER('%\(query)%')
-            """
+        // 使用缓存的物品信息进行搜索，而不是查询数据库
+        var matchingTypeIds: [Int: ItemInfo] = [:]
 
-        var typeIdToInfo: [Int: (name: String, iconFileName: String)] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(itemQuery) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                    let name = row["name"] as? String
-                {
-                    let iconFileName =
-                        (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
-                    typeIdToInfo[typeId] = (name: name, iconFileName: iconFileName)
-                }
+        // 在缓存中查找匹配搜索条件的物品
+        for (typeId, itemInfo) in itemInfoCache {
+            if itemInfo.name.lowercased().contains(query.lowercased()) {
+                matchingTypeIds[typeId] = itemInfo
             }
         }
 
-        // 2. 在资产数据中查找这些type_id对应的item_id
+        // 在资产数据中查找这些type_id对应的item_id
         var results: [AssetSearchResult] = []
         for location in assetLocations {
-            findItems(in: location, typeIdToInfo: typeIdToInfo, currentPath: [], results: &results)
+            findItems(
+                in: location, matchingTypeIds: matchingTypeIds, currentPath: [], results: &results)
         }
 
         // 按物品名称排序结果
@@ -245,20 +236,25 @@ class CharacterAssetsViewModel: ObservableObject {
     }
 
     private func findItems(
-        in node: AssetTreeNode, typeIdToInfo: [Int: (name: String, iconFileName: String)],
+        in node: AssetTreeNode, matchingTypeIds: [Int: ItemInfo],
         currentPath: [AssetTreeNode], results: inout [AssetSearchResult]
     ) {
         var path = currentPath
         path.append(node)
 
         // 如果当前节点的type_id在搜索结果中
-        if let itemInfo = typeIdToInfo[node.type_id] {
+        if let itemInfo = matchingTypeIds[node.type_id] {
             // 使用路径的倒数第二个节点作为容器（如果路径长度大于1）
             let container = path.count > 1 ? path[path.count - 2] : node
+
+            // 创建一个包含正确图标的ItemInfo
+            let iconName = node.icon_name ?? itemInfo.iconFileName
+            let updatedItemInfo = ItemInfo(name: itemInfo.name, iconFileName: iconName)
+
             results.append(
                 AssetSearchResult(
                     node: node,
-                    itemInfo: ItemInfo(name: itemInfo.name, iconFileName: itemInfo.iconFileName),
+                    itemInfo: updatedItemInfo,
                     locationPath: path,
                     containerNode: container
                 ))
@@ -268,7 +264,7 @@ class CharacterAssetsViewModel: ObservableObject {
         if let items = node.items {
             for item in items {
                 findItems(
-                    in: item, typeIdToInfo: typeIdToInfo, currentPath: path, results: &results
+                    in: item, matchingTypeIds: matchingTypeIds, currentPath: path, results: &results
                 )
             }
         }
@@ -297,20 +293,23 @@ class CharacterAssetsViewModel: ObservableObject {
         return typeIds
     }
 
-    // 新增方法：一次性加载所有物品信息
-    @MainActor
-    private func loadAllItemInfo() async {
-        // 收集所有物品的type_id
+    // 新增方法：获取物品信息
+    func itemInfo(for typeId: Int) -> ItemInfo? {
+        return itemInfoCache[typeId]
+    }
+
+    // 新增方法：从数据库中加载物品信息
+    private func loadItemInfoFromDatabase() async {
+        // 收集所有需要的type_id
         let typeIds = collectAllTypeIds()
 
-        // 如果没有物品，直接返回
         if typeIds.isEmpty {
             return
         }
 
-        // 构建查询语句，一次性查询所有物品信息
+        // 构建查询语句，获取物品名称
         let query = """
-                SELECT type_id, name, icon_filename
+                SELECT type_id, name
                 FROM types
                 WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
@@ -320,17 +319,14 @@ class CharacterAssetsViewModel: ObservableObject {
                 if let typeId = row["type_id"] as? Int,
                     let name = row["name"] as? String
                 {
-                    let iconFileName =
-                        (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
-                    itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconFileName)
+                    // 保存到物品信息缓存
+                    itemInfoCache[typeId] = ItemInfo(
+                        name: name,
+                        iconFileName: DatabaseConfig.defaultItemIcon  // 默认图标，实际使用时会从节点获取
+                    )
                 }
             }
         }
-    }
-
-    // 新增方法：获取物品信息
-    func itemInfo(for typeId: Int) -> ItemInfo? {
-        return itemInfoCache[typeId]
     }
 }
 

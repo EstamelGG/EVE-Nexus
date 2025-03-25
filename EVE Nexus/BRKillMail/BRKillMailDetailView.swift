@@ -838,7 +838,6 @@ struct ItemRow: View {
             NavigationLink(destination: {
                 ItemInfoMap.getItemInfoView(
                     itemID: typeId,
-                    categoryID: itemInfo.categoryID,
                     databaseManager: DatabaseManager.shared
                 )
             }) {

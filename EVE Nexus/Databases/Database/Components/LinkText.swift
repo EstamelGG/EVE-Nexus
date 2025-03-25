@@ -26,13 +26,10 @@ struct LinkText: View {
                     }
                 }
                 .sheet(isPresented: $showingSheet) {
-                    if let itemID = itemID,
-                        let categoryID = databaseManager.getCategoryID(for: itemID)
-                    {
+                    if let itemID = itemID {
                         NavigationStack {
                             ItemInfoMap.getItemInfoView(
                                 itemID: itemID,
-                                categoryID: categoryID,
                                 databaseManager: databaseManager
                             )
                         }

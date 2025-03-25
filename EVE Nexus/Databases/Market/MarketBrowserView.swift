@@ -20,34 +20,59 @@ struct MarketBaseView<Content: View>: View {
     var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
         guard !items.isEmpty else { return [] }
 
-        // 按物品组分类
-        var groupItems: [Int: (name: String, items: [DatabaseListItem])] = [:]
-        var ungroupedItems: [DatabaseListItem] = []
+        // 按categoryID和groupID组织数据
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
+            [:]
 
+        // 首先按categoryID和groupID分组
         for item in items {
-            if let groupID = item.groupID, let groupName = item.groupName {
-                if groupItems[groupID] == nil {
-                    groupItems[groupID] = (name: groupName, items: [])
-                }
-                groupItems[groupID]?.items.append(item)
+            let categoryID = item.categoryID ?? 0
+            let groupID = item.groupID ?? 0
+            let groupName = item.groupName ?? "Unknown Group"
+
+            if groupedByCategory[categoryID] == nil {
+                groupedByCategory[categoryID] = []
+            }
+
+            // 在当前分类中查找或创建groupID组
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
+                $0.groupID == groupID
+            }) {
+                groupedByCategory[categoryID]?[index].items.append(item)
             } else {
-                ungroupedItems.append(item)
+                groupedByCategory[categoryID]?.append(
+                    (groupID: groupID, name: groupName, items: [item]))
             }
         }
 
+        // 定义分类优先级顺序
+        let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
+
+        // 按优先级顺序排序分类
+        let sortedCategories = groupedByCategory.keys.sorted { cat1, cat2 in
+            let index1 = categoryPriority.firstIndex(of: cat1) ?? Int.max
+            let index2 = categoryPriority.firstIndex(of: cat2) ?? Int.max
+            if index1 == index2 {
+                return cat1 < cat2  // 如果都不在优先级列表中，按ID升序
+            }
+            return index1 < index2  // 按优先级排序
+        }
+
+        // 构建最终结果
         var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
 
-        // 添加有物品组的物品
-        for (groupID, group) in groupItems.sorted(by: { $0.value.name < $1.value.name }) {
-            result.append((id: groupID, name: group.name, items: group.items))
+        for categoryID in sortedCategories {
+            if let categoryGroups = groupedByCategory[categoryID] {
+                // 在每个分类内部，按groupID排序
+                let sortedGroups = categoryGroups.sorted { $0.groupID < $1.groupID }
+
+                for group in sortedGroups {
+                    result.append((id: group.groupID, name: group.name, items: group.items))
+                }
+            }
         }
 
-        // 添加未分组的物品
-        if !ungroupedItems.isEmpty {
-            result.append((id: -1, name: "No group", items: ungroupedItems))
-        }
-
-        return result
+        return result.filter { !$0.items.isEmpty }
     }
 
     var body: some View {

@@ -56,6 +56,16 @@ struct LanguageMapView: View {
                                 "Main_Language_Map_Search_Object_4", comment: "4. 物品 TypeID")
                         )
                         .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_5", comment: "5. 物品目录名")
+                        )
+                        .foregroundColor(.secondary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Language_Map_Search_Object_6", comment: "6. 物品组名")
+                        )
+                        .foregroundColor(.secondary)
                     }
                     .padding(.horizontal)
                 }
@@ -618,6 +628,130 @@ struct LanguageMapView: View {
                 if let corpId = row["corporation_id"] as? Int {
                     let priority = row["priority"] as? Int ?? 3
                     let result = (id: corpId, names: names)
+                    switch priority {
+                    case 1: exact.append(result)
+                    case 2: prefix.append(result)
+                    case 3: fuzzy.append(result)
+                    default: break
+                    }
+                }
+            }
+        }
+
+        // 搜索物品目录名
+        let categoriesQuery = """
+                SELECT DISTINCT category_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 1 as priority,
+                       LENGTH(en_name) as name_length
+                FROM categories
+                WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                UNION ALL
+                SELECT DISTINCT category_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 2 as priority,
+                       LENGTH(en_name) as name_length
+                FROM categories
+                WHERE (de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?)
+                AND category_id NOT IN (
+                    SELECT category_id FROM categories
+                    WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                    OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                    OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                )
+                UNION ALL
+                SELECT DISTINCT category_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 3 as priority,
+                       LENGTH(en_name) as name_length
+                FROM categories
+                WHERE (de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?)
+                AND category_id NOT IN (
+                    SELECT category_id FROM categories
+                    WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                    OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                    OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                    OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                    OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
+                )
+                ORDER BY priority, name_length, en_name
+            """
+        if case let .success(rows) = DatabaseManager.shared.executeQuery(
+            categoriesQuery, parameters: queryParams, useCache: false
+        ) {
+            for row in rows {
+                var names: [String: String] = [:]
+                if let deName = row["de_name"] as? String { names["de"] = deName }
+                if let enName = row["en_name"] as? String { names["en"] = enName }
+                if let esName = row["es_name"] as? String { names["es"] = esName }
+                if let frName = row["fr_name"] as? String { names["fr"] = frName }
+                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
+                if let koName = row["ko_name"] as? String { names["ko"] = koName }
+                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
+                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
+                if let categoryId = row["category_id"] as? Int {
+                    let priority = row["priority"] as? Int ?? 3
+                    let result = (id: categoryId, names: names)
+                    switch priority {
+                    case 1: exact.append(result)
+                    case 2: prefix.append(result)
+                    case 3: fuzzy.append(result)
+                    default: break
+                    }
+                }
+            }
+        }
+
+        // 搜索物品组名
+        let groupsQuery = """
+                SELECT DISTINCT group_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 1 as priority,
+                       LENGTH(en_name) as name_length
+                FROM groups
+                WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                UNION ALL
+                SELECT DISTINCT group_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 2 as priority,
+                       LENGTH(en_name) as name_length
+                FROM groups
+                WHERE (de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?)
+                AND group_id NOT IN (
+                    SELECT group_id FROM groups
+                    WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                    OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                    OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                )
+                UNION ALL
+                SELECT DISTINCT group_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 3 as priority,
+                       LENGTH(en_name) as name_length
+                FROM groups
+                WHERE (de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?)
+                AND group_id NOT IN (
+                    SELECT group_id FROM groups
+                    WHERE de_name = ? COLLATE NOCASE OR en_name = ? COLLATE NOCASE OR es_name = ? COLLATE NOCASE 
+                    OR fr_name = ? COLLATE NOCASE OR ja_name = ? COLLATE NOCASE OR ko_name = ? COLLATE NOCASE 
+                    OR ru_name = ? COLLATE NOCASE OR zh_name = ? COLLATE NOCASE
+                    OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                    OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
+                )
+                ORDER BY priority, name_length, en_name
+            """
+        if case let .success(rows) = DatabaseManager.shared.executeQuery(
+            groupsQuery, parameters: queryParams, useCache: false
+        ) {
+            for row in rows {
+                var names: [String: String] = [:]
+                if let deName = row["de_name"] as? String { names["de"] = deName }
+                if let enName = row["en_name"] as? String { names["en"] = enName }
+                if let esName = row["es_name"] as? String { names["es"] = esName }
+                if let frName = row["fr_name"] as? String { names["fr"] = frName }
+                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
+                if let koName = row["ko_name"] as? String { names["ko"] = koName }
+                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
+                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
+                if let groupId = row["group_id"] as? Int {
+                    let priority = row["priority"] as? Int ?? 3
+                    let result = (id: groupId, names: names)
                     switch priority {
                     case 1: exact.append(result)
                     case 2: prefix.append(result)

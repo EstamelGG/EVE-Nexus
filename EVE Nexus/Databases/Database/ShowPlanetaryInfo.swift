@@ -34,13 +34,10 @@ struct ShowPlanetaryInfo: View {
                 ) {
                     ForEach(inputs, id: \.typeID) { input in
                         NavigationLink {
-                            if let categoryID = databaseManager.getCategoryID(for: input.typeID) {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: input.typeID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
+                            ItemInfoMap.getItemInfoView(
+                                itemID: input.typeID,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             HStack {
                                 IconManager.shared.loadImage(for: input.iconFileName)
@@ -97,13 +94,10 @@ struct ShowPlanetaryInfo: View {
                 ) {
                     ForEach(uses, id: \.typeID) { use in
                         NavigationLink {
-                            if let categoryID = databaseManager.getCategoryID(for: use.typeID) {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: use.typeID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
+                            ItemInfoMap.getItemInfoView(
+                                itemID: use.typeID,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             HStack {
                                 IconManager.shared.loadImage(for: use.iconFileName)
@@ -127,14 +121,10 @@ struct ShowPlanetaryInfo: View {
                 ) {
                     ForEach(facilities, id: \.typeID) { facility in
                         NavigationLink {
-                            if let categoryID = databaseManager.getCategoryID(for: facility.typeID)
-                            {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: facility.typeID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
+                            ItemInfoMap.getItemInfoView(
+                                itemID: facility.typeID,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             HStack {
                                 IconManager.shared.loadImage(for: facility.iconFileName)
@@ -158,13 +148,10 @@ struct ShowPlanetaryInfo: View {
                 ) {
                     ForEach(harvestSources, id: \.typeID) { source in
                         NavigationLink {
-                            if let categoryID = databaseManager.getCategoryID(for: source.typeID) {
-                                ItemInfoMap.getItemInfoView(
-                                    itemID: source.typeID,
-                                    categoryID: categoryID,
-                                    databaseManager: databaseManager
-                                )
-                            }
+                            ItemInfoMap.getItemInfoView(
+                                itemID: source.typeID,
+                                databaseManager: databaseManager
+                            )
                         } label: {
                             HStack {
                                 IconManager.shared.loadImage(for: source.iconFileName)

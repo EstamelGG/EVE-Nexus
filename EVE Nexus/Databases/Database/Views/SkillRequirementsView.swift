@@ -20,13 +20,10 @@ struct SkillRequirementRow: View {
     var body: some View {
         if let skillName = SkillTreeManager.shared.getSkillName(for: skillID) {
             NavigationLink {
-                if let categoryID = databaseManager.getCategoryID(for: skillID) {
-                    ItemInfoMap.getItemInfoView(
-                        itemID: skillID,
-                        categoryID: categoryID,
-                        databaseManager: databaseManager
-                    )
-                }
+                ItemInfoMap.getItemInfoView(
+                    itemID: skillID,
+                    databaseManager: databaseManager
+                )
             } label: {
                 HStack {
                     // 技能图标
