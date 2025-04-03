@@ -196,11 +196,6 @@ class ServerStatusViewModel: ObservableObject {
         statusTimer = nil
     }
 
-    // 强制刷新方法，供下拉刷新使用
-    func forceRefresh() async {
-        await refreshServerStatus(forceRefresh: true)
-    }
-
     private func refreshServerStatus(forceRefresh: Bool = false) async {
         do {
             let newStatus = try await ServerStatusAPI.shared.fetchServerStatus(
@@ -283,10 +278,6 @@ struct LoginButtonView: View {
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
     let isRefreshing: Bool
-    @State private var corporationInfo: CorporationInfo?
-    @State private var corporationLogo: UIImage?
-    @State private var allianceInfo: AllianceInfo?
-    @State private var allianceLogo: UIImage?
     @State private var tokenExpired = false
     @ObservedObject var mainViewModel: MainViewModel
 
@@ -352,7 +343,7 @@ struct LoginButtonView: View {
 
                     // 显示联盟信息
                     HStack(spacing: 4) {
-                        if let alliance = allianceInfo, let logo = allianceLogo {
+                        if let alliance = mainViewModel.allianceInfo, let logo = mainViewModel.allianceLogo {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -374,7 +365,7 @@ struct LoginButtonView: View {
 
                     // 显示军团信息
                     HStack(spacing: 4) {
-                        if let corporation = corporationInfo, let logo = corporationLogo {
+                        if let corporation = mainViewModel.corporationInfo, let logo = mainViewModel.corporationLogo {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -414,8 +405,9 @@ struct LoginButtonView: View {
             // 检查token状态
             if let character = selectedCharacter {
                 if let auth = EVELogin.shared.getCharacterByID(character.CharacterID) {
+                    Logger.info("检查Token过期状态...")
                     tokenExpired = auth.character.tokenExpired
-                    await loadCharacterInfo()
+                    Logger.info("Token 已过期: \(tokenExpired)")
                 } else {
                     // 如果找不到认证信息，通知 ContentView 执行登出操作
                     NotificationCenter.default.post(
@@ -423,102 +415,6 @@ struct LoginButtonView: View {
                     )
                 }
             }
-        }
-        .onChange(of: selectedCharacter) { _, newValue in
-            // 清除旧的图标和信息
-            corporationInfo = nil
-            corporationLogo = nil
-            allianceInfo = nil
-            allianceLogo = nil
-
-            // 如果有新的角色,加载新的图标
-            if let character = newValue {
-                Task {
-                    do {
-                        // 加载军团信息和图标
-                        async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                            corporationId: character.corporationId ?? 0)
-                        async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                            corporationId: character.corporationId ?? 0)
-
-                        let (corpInfo, corpLogo) = try await (
-                            corporationInfoTask, corporationLogoTask
-                        )
-
-                        await MainActor.run {
-                            corporationInfo = corpInfo
-                            corporationLogo = corpLogo
-                        }
-
-                        // 如果有联盟,加载联盟信息和图标
-                        if let allianceId = character.allianceId {
-                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                                allianceId: allianceId)
-                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                                allianceID: allianceId)
-
-                            let (alliInfo, alliLogo) = try await (
-                                allianceInfoTask, allianceLogoTask
-                            )
-
-                            await MainActor.run {
-                                allianceInfo = alliInfo
-                                allianceLogo = alliLogo
-                            }
-                        }
-                    } catch {
-                        Logger.error("加载角色信息失败: \(error)")
-                    }
-                }
-            }
-        }
-    }
-
-    private func loadCharacterInfo() async {
-        guard let character = selectedCharacter else { return }
-
-        do {
-            // 获取角色公开信息
-            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-                characterId: character.CharacterID)
-
-            // 获取联盟信息
-            if let allianceId = publicInfo.alliance_id {
-                async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                    allianceId: allianceId)
-                async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                    allianceID: allianceId)
-
-                do {
-                    let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
-                    await MainActor.run {
-                        self.allianceInfo = info
-                        self.allianceLogo = logo
-                    }
-                } catch {
-                    Logger.error("获取联盟信息失败: \(error)")
-                }
-            }
-
-            // 获取军团信息
-            let corporationId = publicInfo.corporation_id
-            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                corporationId: corporationId)
-            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                corporationId: corporationId)
-
-            do {
-                let (info, logo) = try await (corpInfoTask, corpLogoTask)
-                await MainActor.run {
-                    self.corporationInfo = info
-                    self.corporationLogo = logo
-                }
-            } catch {
-                Logger.error("获取军团信息失败: \(error)")
-            }
-
-        } catch {
-            Logger.error("获取角色信息失败: \(error)")
         }
     }
 }
@@ -724,6 +620,8 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpMemberListView(characterId: character.CharacterID)
                             }
+                        case "jump_navigation":
+                            JumpNavigationView(databaseManager: databaseManager)
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -1004,6 +902,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Language_Map", comment: ""),
                     icon: "browser"
+                )
+            }
+
+            NavigationLink(value: "jump_navigation") {
+                RowView(
+                    title: NSLocalizedString("Main_Jump_Navigation", comment: ""),
+                    icon: "capitalnavigation"
                 )
             }
         } header: {

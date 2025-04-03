@@ -23,30 +23,6 @@ struct MarketOrdersView: View {
         )
     }
 
-    // 格式化价格显示
-    private func formatPrice(_ price: Double) -> String {
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.maximumFractionDigits = 2
-        numberFormatter.minimumFractionDigits = 2
-
-        let formattedFullPrice =
-            numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-
-        if price >= billion {
-            let value = price / billion
-            return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
-        } else if price >= million {
-            let value = price / million
-            return String(format: "%.2fM (%@ ISK)", value, formattedFullPrice)
-        } else {
-            return "\(formattedFullPrice) ISK"
-        }
-    }
-
     private var filteredOrders: [MarketOrder] {
         let filtered = orders.filter { $0.isBuyOrder == showBuyOrders }
         return filtered.sorted { order1, order2 -> Bool in

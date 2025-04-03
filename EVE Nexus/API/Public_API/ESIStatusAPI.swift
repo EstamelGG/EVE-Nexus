@@ -174,45 +174,6 @@ class ESIStatusAPI {
         return status
     }
 
-    // MARK: - 辅助方法
-
-    /// 检查特定标签的ESI端点状态
-    /// - Parameter tag: 要检查的标签（例如："market", "character", "corporation"等）
-    /// - Returns: 该标签下所有端点的状态
-    func getStatusForTag(_ tag: String, forceRefresh: Bool = false) async throws -> [ESIStatus] {
-        let allStatus = try await fetchESIStatus(forceRefresh: forceRefresh)
-        return allStatus.filter { $0.tags.contains(tag) }
-    }
-
-    /// 检查特定路由的ESI端点状态
-    /// - Parameter route: 要检查的路由路径
-    /// - Returns: 匹配的端点状态，如果没有找到则返回nil
-    func getStatusForRoute(_ route: String, forceRefresh: Bool = false) async throws -> ESIStatus? {
-        let allStatus = try await fetchESIStatus(forceRefresh: forceRefresh)
-        return allStatus.first { $0.route == route }
-    }
-
-    /// 获取所有红色（故障）状态的端点
-    /// - Returns: 所有状态为red的端点
-    func getRedStatusEndpoints(forceRefresh: Bool = false) async throws -> [ESIStatus] {
-        let allStatus = try await fetchESIStatus(forceRefresh: forceRefresh)
-        return allStatus.filter { $0.isRed }
-    }
-
-    /// 获取所有黄色（降级）状态的端点
-    /// - Returns: 所有状态为yellow的端点
-    func getYellowStatusEndpoints(forceRefresh: Bool = false) async throws -> [ESIStatus] {
-        let allStatus = try await fetchESIStatus(forceRefresh: forceRefresh)
-        return allStatus.filter { $0.isYellow }
-    }
-
-    /// 检查ESI整体健康状态
-    /// - Returns: 如果所有端点都是绿色，返回true；否则返回false
-    func isESIHealthy(forceRefresh: Bool = false) async throws -> Bool {
-        let allStatus = try await fetchESIStatus(forceRefresh: forceRefresh)
-        return allStatus.allSatisfy { $0.isGreen }
-    }
-
     /// 获取最后一次缓存的时间戳
     /// - Returns: 缓存时间戳，如果没有缓存则返回nil
     func getLastCacheTimestamp() -> Date? {

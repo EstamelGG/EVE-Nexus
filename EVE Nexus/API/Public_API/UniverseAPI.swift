@@ -75,29 +75,6 @@ class UniverseAPI {
         }
     }
 
-    /// 从数据库获取ID对应的名称信息
-    /// - Parameter id: 要查询的ID
-    /// - Returns: 名称和类型（如果存在）
-    func getNameFromDatabase(id: Int) async throws -> (name: String, category: String)? {
-        let query = "SELECT name, category FROM universe_names WHERE id = ? LIMIT 1"
-        let result = databaseManager.executeQuery(query, parameters: [id])
-
-        switch result {
-        case let .success(rows):
-            if let row = rows.first,
-                let name = row["name"] as? String,
-                let category = row["category"] as? String
-            {
-                return (name: name, category: category)
-            }
-            return nil
-
-        case let .error(error):
-            Logger.error("从数据库获取实体信息失败 - ID: \(id), 错误: \(error)")
-            throw DatabaseError.fetchError(error)
-        }
-    }
-
     /// 从数据库批量获取ID对应的名称信息
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: ID到名称和类型的映射

@@ -174,16 +174,6 @@ class Logger {
             }
     }
 
-    // 读取日志文件内容
-    static func readLogFile(_ file: URL) -> String {
-        do {
-            return try String(contentsOf: file, encoding: .utf8)
-        } catch {
-            os_log("Failed to read log file: %{public}@", type: .error, error.localizedDescription)
-            return "Failed to read log file: \(error.localizedDescription)"
-        }
-    }
-
     // 清除所有日志文件
     static func clearAllLogs() {
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(

@@ -10,6 +10,19 @@ struct CharacterMailView: View {
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showingComposeView = false
+    @State private var hasInitialized = false // 追踪是否已执行初始化
+
+    // 初始化数据加载方法
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await loadUnreadCounts()
+            await viewModel.fetchMailLabels(characterId: characterId)
+        }
+    }
 
     var body: some View {
         List {
@@ -113,9 +126,8 @@ struct CharacterMailView: View {
                 CharacterComposeMailView(characterId: characterId)
             }
         }
-        .task {
-            await loadUnreadCounts()
-            await viewModel.fetchMailLabels(characterId: characterId)
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
         .refreshable {
             Logger.info("用户触发刷新，强制更新数据")

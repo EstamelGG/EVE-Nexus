@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum LoadingState {
-    case unzipping
+    case processing
     case complete
 }
 

@@ -252,10 +252,26 @@ struct IncursionCell: View {
             )
         ) {
             HStack(spacing: 12) {
-                IconManager.shared.loadImage(for: incursion.faction.iconName)
-                    .resizable()
-                    .frame(width: 52, height: 52)
-                    .cornerRadius(6)
+                ZStack(alignment: .center) {
+                    // 背景圆环
+                    Circle()
+                        .stroke(Color.cyan.opacity(0.3), lineWidth: 4)
+                        .frame(width: 56, height: 56)
+                    
+                    // 进度圆环
+                    Circle()
+                        .trim(from: 0, to: CGFloat(incursion.incursion.influence))
+                        .stroke(Color.red, lineWidth: 4)
+                        .frame(width: 56, height: 56)
+                        .rotationEffect(.degrees(-90))
+                    
+                    // 派系图标
+                    IconManager.shared.loadImage(for: incursion.faction.iconName)
+                        .resizable()
+                        .frame(width: 48, height: 48)
+                        .cornerRadius(6)
+                }
+                .frame(width: 56, height: 56)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {

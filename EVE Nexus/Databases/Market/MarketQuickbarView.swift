@@ -1043,7 +1043,8 @@ struct MarketQuickbarDetailView: View {
 
             // 初始添加并发数量的任务
             for _ in 0..<concurrency {
-                if let item = pendingItems.popLast() {
+                if !pendingItems.isEmpty {
+                    let item = pendingItems.removeFirst()
                     group.addTask {
                         do {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
@@ -1067,7 +1068,8 @@ struct MarketQuickbarDetailView: View {
                 }
 
                 // 如果还有待处理的物品，添加新任务
-                if let item = pendingItems.popLast() {
+                if !pendingItems.isEmpty {
+                    let item = pendingItems.removeFirst()
                     group.addTask {
                         do {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
@@ -1086,8 +1088,8 @@ struct MarketQuickbarDetailView: View {
         }
     }
 
-    // 获取物品的最低卖价和库存状态
-    private func getLowestSellPrice(for item: DatabaseListItem) -> (
+    // 获取列表的总价和库存状态
+    private func getListPrice(for item: DatabaseListItem) -> (
         price: Double?, insufficientStock: Bool
     ) {
         guard let orders = marketOrders[item.id] else { return (nil, true) }
@@ -1145,7 +1147,7 @@ struct MarketQuickbarDetailView: View {
                     Text(item.name)
                         .lineLimit(1)
 
-                    let priceInfo = getLowestSellPrice(for: item)
+                    let priceInfo = getListPrice(for: item)
                     if let price = priceInfo.price {
                         Text(
                             NSLocalizedString("Main_Market_Avg_Price", comment: "")
@@ -1227,7 +1229,7 @@ struct MarketQuickbarDetailView: View {
                         Text(item.name)
                             .lineLimit(1)
 
-                        let priceInfo = getLowestSellPrice(for: item)
+                        let priceInfo = getListPrice(for: item)
                         if let price = priceInfo.price {
                             Text(
                                 NSLocalizedString("Main_Market_Avg_Price", comment: "")
@@ -1330,7 +1332,7 @@ struct MarketQuickbarDetailView: View {
         var hasInsufficientStock = false
 
         for item in items {
-            let priceInfo = getLowestSellPrice(for: item)
+            let priceInfo = getListPrice(for: item)
             if let price = priceInfo.price {
                 let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                 total += price * Double(quantity)

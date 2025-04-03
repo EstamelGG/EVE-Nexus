@@ -1,5 +1,4 @@
 import CommonCrypto
-import SQLite3
 import SwiftUI
 import Zip
 
@@ -7,7 +6,7 @@ import Zip
 struct EVE_NexusApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @StateObject private var databaseManager = DatabaseManager()
-    @State private var loadingState: LoadingState = .unzipping
+    @State private var loadingState: LoadingState = .processing
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
     @State private var needsUnzip = false
@@ -96,7 +95,7 @@ struct EVE_NexusApp: App {
             let characterId = character.character.CharacterID
             let hasValidToken = validCharacterIds.contains(characterId)
             Logger.info(
-                "App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidToken ? "有效token" : "无效token")"
+                "App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidToken ? "有效 refresh token" : "无效 refresh token")"
             )
 
             // 如果没有有效的 token，移除该角色
@@ -192,25 +191,10 @@ struct EVE_NexusApp: App {
         return digest.reduce("") { $0 + String(format: "%02x", $1) }
     }
 
-    private func initializeDatabases() {
-        // 初始化静态数据库
-        databaseManager.loadDatabase()
-        // 初始化角色数据库
-        CharacterDatabaseManager.shared.loadDatabase()
-    }
-
     private func initializeApp() async {
         do {
             // 在图标解压完成后加载主权数据
-            _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
-            await MainActor.run {
-                databaseManager.loadDatabase()
-                CharacterDatabaseManager.shared.loadDatabase()
-                isInitialized = true
-            }
-        } catch {
-            Logger.error("初始化主权数据失败: \(error)")
-            // 即使主权数据加载失败，也继续初始化应用
+            // _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
             await MainActor.run {
                 databaseManager.loadDatabase()
                 CharacterDatabaseManager.shared.loadDatabase()

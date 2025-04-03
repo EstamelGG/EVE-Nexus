@@ -1,0 +1,4 @@
+project: EVE Nexus.xcodeproj
+schemes:
+  - EVE Nexus
+format: xcode

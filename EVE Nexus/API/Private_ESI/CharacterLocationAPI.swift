@@ -36,9 +36,6 @@ struct CharacterLocation: Codable {
 
 // 角色在线状态模型
 struct CharacterOnlineStatus: Codable {
-    let last_login: Date?
-    let last_logout: Date?
-    let logins: Int?
     let online: Bool
 }
 
@@ -124,19 +121,6 @@ class CharacterLocationAPI {
         }
     }
 
-    // 清除缓存
-    private func clearCache(characterId: Int) {
-        cacheQueue.async(flags: .barrier) {
-            // 清除内存缓存
-            self.locationMemoryCache.removeValue(forKey: characterId)
-
-            // 清除磁盘缓存
-            let key = self.locationCachePrefix + String(characterId)
-            Logger.debug("正在从 UserDefaults 删除键: \(key)")
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-    }
-
     // 获取角色位置信息
     func fetchCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterLocation
@@ -191,18 +175,6 @@ class CharacterLocationAPI {
             Logger.error("解析角色位置信息失败: \(error)")
             throw NetworkError.decodingError(error)
         }
-    }
-
-    // 获取角色完整位置信息（包含星系名称等）
-    func fetchCharacterLocationInfo(
-        characterId: Int, databaseManager: DatabaseManager, forceRefresh: Bool = false
-    ) async throws -> SolarSystemInfo? {
-        let location = try await fetchCharacterLocation(
-            characterId: characterId, forceRefresh: forceRefresh
-        )
-        return await getSolarSystemInfo(
-            solarSystemId: location.solar_system_id, databaseManager: databaseManager
-        )
     }
 
     // 获取角色在线状态

@@ -17,6 +17,7 @@ struct BRKillMailDetailView: View {
     @State private var totalValue: Double = 0
     @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] =
         [:]
+    @State private var shipImage: Image?
 
     var body: some View {
         List {
@@ -576,14 +577,13 @@ struct BRKillMailDetailView: View {
         if let victInfo = detail["vict"] as? [String: Any],
             let charId = victInfo["char"] as? Int
         {
-            let url = URL(
-                string: "https://images.evetech.net/characters/\(charId)/portrait?size=128")!
-            let cacheKey = "character_\(charId)"
-
-            // 使用 KingfisherManager 检查缓存并加载图片
-            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
-            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
-                victimCharacterIcon = image
+            do {
+                victimCharacterIcon = try await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: charId,
+                    size: 128
+                )
+            } catch {
+                Logger.error("加载角色头像失败: \(error)")
             }
         }
 
@@ -591,25 +591,28 @@ struct BRKillMailDetailView: View {
         if let victInfo = detail["vict"] as? [String: Any],
             let corpId = victInfo["corp"] as? Int
         {
-            let url = URL(string: "https://images.evetech.net/corporations/\(corpId)/logo?size=64")!
-            let cacheKey = "corporation_\(corpId)"
-
-            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
-            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
-                victimCorporationIcon = image
+            do {
+                victimCorporationIcon = try await CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: corpId,
+                    size: 64
+                )
+            } catch {
+                Logger.error("加载军团图标失败: \(error)")
             }
         }
 
         // 加载联盟图标
         if let victInfo = detail["vict"] as? [String: Any],
-            let allyId = victInfo["ally"] as? Int
+            let allyId = victInfo["ally"] as? Int,
+            allyId > 0
         {
-            let url = URL(string: "https://images.evetech.net/alliances/\(allyId)/logo?size=64")!
-            let cacheKey = "alliance_\(allyId)"
-
-            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
-            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
-                victimAllianceIcon = image
+            do {
+                victimAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(
+                    allianceID: allyId,
+                    size: 64
+                )
+            } catch {
+                Logger.error("加载联盟图标失败: \(error)")
             }
         }
 
@@ -617,12 +620,15 @@ struct BRKillMailDetailView: View {
         if let victInfo = detail["vict"] as? [String: Any],
             let shipId = victInfo["ship"] as? Int
         {
-            let url = URL(string: "https://images.evetech.net/types/\(shipId)/render?size=64")!
-            let cacheKey = "ship_\(shipId)"
-
-            let resource = KF.ImageResource(downloadURL: url, cacheKey: cacheKey)
-            if let image = try? await KingfisherManager.shared.retrieveImage(with: resource).image {
-                shipIcon = image
+            Task {
+                do {
+                    let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: shipId, size: 64)
+                    await MainActor.run {
+                        shipIcon = image
+                    }
+                } catch {
+                    Logger.error("击毁详情: 加载舰船图标失败 - \(error)")
+                }
             }
         }
     }
@@ -647,15 +653,6 @@ struct BRKillMailDetailView: View {
 
     private func formatSecurityStatus(_ value: Double) -> String {
         return String(format: "%.1f", value)
-    }
-
-    private func formatEVETime(_ timestamp: Int) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
     }
 
     private func formatLocalTime(_ timestamp: Int) -> String {

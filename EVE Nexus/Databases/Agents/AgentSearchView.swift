@@ -1,44 +1,6 @@
 import Kingfisher
 import SwiftUI
 
-// UIViewController扩展，用于查找导航控制器
-extension UIViewController {
-    func findNavigationController() -> UINavigationController? {
-        if let nav = self as? UINavigationController {
-            return nav
-        }
-
-        if let nav = navigationController {
-            return nav
-        }
-
-        for child in children {
-            if let nav = child.findNavigationController() {
-                return nav
-            }
-        }
-
-        if let presented = presentedViewController {
-            if let nav = presented.findNavigationController() {
-                return nav
-            }
-        }
-
-        return nil
-    }
-}
-
-// 在文件顶部添加String扩展，用于中文名称排序
-extension String {
-    /// 获取用于排序的本地化字符串，支持混合字符（如拉丁字母和中文）的排序
-    func localizedSortKey() -> String {
-        // 使用空字符串获取原始字符串的排序键
-        // 这样相当于让系统在比较时直接使用localizedStandardCompare
-        // 这样可以正确处理混合字符（如字母数字和中文）的排序
-        return self
-    }
-}
-
 struct DropdownOption: Identifiable {
     let id: Int
     let value: String

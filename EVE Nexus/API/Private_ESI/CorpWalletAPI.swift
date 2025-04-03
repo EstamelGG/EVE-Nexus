@@ -192,21 +192,6 @@ class CorpWalletAPI {
         }
     }
 
-    /// 清理缓存
-    func clearCache() {
-        let defaults = UserDefaults.standard
-        let allKeys = defaults.dictionaryRepresentation().keys
-
-        // 清理所有军团钱包相关的缓存
-        for key in allKeys {
-            if key.hasPrefix("corp_wallets_") {
-                defaults.removeObject(forKey: key)
-            }
-        }
-
-        Logger.info("已清理军团钱包缓存")
-    }
-
     /// 从服务器获取军团钱包日志
     /// - Parameters:
     ///   - characterId: 角色ID

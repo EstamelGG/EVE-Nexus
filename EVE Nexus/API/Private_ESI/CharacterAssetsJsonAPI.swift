@@ -72,7 +72,6 @@ public enum AssetError: Error {
     case decodingError(Error)
     case invalidURL
     case maxRetriesReached
-    case pageNotFound
     case locationFetchError(String)
     case invalidData(String)
 }
@@ -499,8 +498,7 @@ public class CharacterAssetsJsonAPI {
             characterId: characterId,
             databaseManager: databaseManager,
             names: names,
-            iconMap: iconMap,
-            progressCallback: progressCallback
+            iconMap: iconMap
         )
 
         // 添加进度回调 - 准备容器信息
@@ -529,8 +527,7 @@ public class CharacterAssetsJsonAPI {
             characterId: characterId,
             databaseManager: databaseManager,
             names: allNames,
-            iconMap: iconMap,
-            progressCallback: progressCallback
+            iconMap: iconMap
         )
 
         // 创建包装对象
@@ -677,8 +674,7 @@ public class CharacterAssetsJsonAPI {
         characterId: Int,
         databaseManager: DatabaseManager,
         names: [Int64: String] = [:],
-        iconMap: [Int: (normal: String, blueprint_copy: String)],
-        progressCallback: ((AssetLoadingProgress) -> Void)? = nil
+        iconMap: [Int: (normal: String, blueprint_copy: String)]
     ) async throws -> [AssetTreeNode] {
         var rootNodes: [AssetTreeNode] = []
         let concurrentLimit = 5  // 并发数量限制

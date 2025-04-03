@@ -76,15 +76,6 @@ enum FormatUtil {
             ?? String(format: "%.\(digits)f", value)
     }
 
-    /// 格式化带单位的数值
-    /// - Parameters:
-    ///   - value: 要格式化的数值
-    ///   - unit: 单位字符串
-    /// - Returns: 格式化后的带单位的字符串
-    static func formatWithUnit(_ value: Double, unit: String) -> String {
-        return format(value) + unit
-    }
-
     /// 格式化文件大小
     /// - Parameter size: 文件大小（字节）
     /// - Returns: 格式化后的文件大小字符串
@@ -251,55 +242,5 @@ enum FormatUtil {
         }
 
         return result
-    }
-
-    /// 格式化时间
-    /// - Parameter totalSeconds: 总秒数
-    /// - Returns: 格式化后的时间字符串
-    static func formatTime(_ totalSeconds: Int) -> String {
-        if totalSeconds < 1 {
-            return "1s"
-        }
-
-        var days = totalSeconds / 86400
-        var hours = (totalSeconds % 86400) / 3600
-        var minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-
-        // 当显示两个单位时，对第二个单位进行四舍五入
-        if days > 0 {
-            // 对小时进行四舍五入
-            if minutes >= 30 {
-                hours += 1
-                if hours == 24 {  // 如果四舍五入后小时数达到24
-                    days += 1
-                    hours = 0
-                }
-            }
-            if hours > 0 {
-                return "\(days)d \(hours)h"
-            }
-            return "\(days)d"
-        } else if hours > 0 {
-            // 对分钟进行四舍五入
-            if seconds >= 30 {
-                minutes += 1
-                if minutes == 60 {  // 如果四舍五入后分钟数达到60
-                    hours += 1
-                    minutes = 0
-                }
-            }
-            if minutes > 0 {
-                return "\(hours)h \(minutes)m"
-            }
-            return "\(hours)h"
-        } else if minutes > 0 {
-            // 对秒进行四舍五入
-            if seconds >= 30 {
-                minutes += 1
-            }
-            return "\(minutes)m"
-        }
-        return "\(seconds)s"
     }
 }

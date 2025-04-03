@@ -79,6 +79,7 @@ struct CharacterPortrait: View {
     let displaySize: CGFloat
     let cornerRadius: CGFloat
     @StateObject private var viewModel: CharacterPortraitViewModel
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     init(characterId: Int, size: CGFloat, displaySize: CGFloat? = nil, cornerRadius: CGFloat = 6) {
         self.characterId = characterId
@@ -88,6 +89,17 @@ struct CharacterPortrait: View {
         // 始终使用64尺寸的图片
         _viewModel = StateObject(
             wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: 64))
+    }
+    
+    // 初始化数据加载方法
+    private func loadImageIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await viewModel.loadImage()
+        }
     }
 
     var body: some View {
@@ -116,8 +128,8 @@ struct CharacterPortrait: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
         }
-        .task {
-            await viewModel.loadImage()
+        .onAppear {
+            loadImageIfNeeded()
         }
     }
 }
@@ -375,6 +387,7 @@ struct CharacterMailListView: View {
     @Namespace private var scrollSpace
     @State private var scrollPosition: Int?
     @State private var composeMailData: ComposeMailData?
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     struct ComposeMailData: Identifiable {
         let id = UUID()
@@ -385,6 +398,17 @@ struct CharacterMailListView: View {
         self.characterId = characterId
         self.labelId = labelId
         self.title = title ?? NSLocalizedString("Main_EVE_Mail_All", comment: "")
+    }
+    
+    // 初始化数据加载方法
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await viewModel.fetchMails(characterId: characterId, labelId: labelId)
+        }
     }
 
     var body: some View {
@@ -445,8 +469,8 @@ struct CharacterMailListView: View {
                     )
                 }
             }
-            .task {
-                await viewModel.fetchMails(characterId: characterId, labelId: labelId)
+            .onAppear {
+                loadInitialDataIfNeeded()
             }
         }
     }

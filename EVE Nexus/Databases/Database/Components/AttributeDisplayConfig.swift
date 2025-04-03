@@ -245,23 +245,6 @@ enum AttributeDisplayConfig {
         return true
     }
 
-    // 新增：检查属性组是否有任何可显示的属性
-    static func hasVisibleAttributes(
-        groupId: Int, attributes: [DogmaAttribute]
-    ) -> Bool {
-        // 如果组被显式隐藏，直接返回false
-        if !shouldShowGroup(groupId) {
-            return false
-        }
-
-        // 检查组内是否有任何可显示的属性
-        return attributes.contains { attribute in
-            shouldShowAttribute(
-                attribute.id, attribute: attribute
-            )
-        }
-    }
-
     // 判断具体属性是否应该显示
     static func shouldShowAttribute(
         _ attributeID: Int, attribute: DogmaAttribute
@@ -337,12 +320,6 @@ enum AttributeDisplayConfig {
         )
 
         return hits.hasAnyResistance ? hits : nil
-    }
-
-    // 原来的hasAnyResistance方法可以这样使用新方法
-    private static func hasAnyResistance(groupID: Int, in allAttributes: [Int: Double]) -> Bool {
-        return findResistanceAttributes(groupID: groupID, in: allAttributes)?.hasAnyResistance
-            ?? false
     }
 
     // 修改获取抗性值的方法
@@ -431,105 +408,5 @@ enum AttributeDisplayConfig {
     // 获取属性在组内的排序权重
     static func getAttributeOrder(attributeID: Int, in groupID: Int) -> Int {
         activeAttributeOrder[groupID]?[attributeID] ?? 999  // 未定义顺序的属性放到最后
-    }
-
-    // 设置属性组内的属性顺序
-    static func setAttributeOrder(for groupID: Int, orders: [Int: Int]) {
-        if customAttributeOrder == nil {
-            customAttributeOrder = defaultAttributeOrder
-        }
-        customAttributeOrder?[groupID] = orders
-    }
-
-    // 设置单个属性的顺序
-    static func setAttributeOrder(attributeID: Int, order: Int, in groupID: Int) {
-        if customAttributeOrder == nil {
-            customAttributeOrder = defaultAttributeOrder
-        }
-        if customAttributeOrder?[groupID] == nil {
-            customAttributeOrder?[groupID] = [:]
-        }
-        customAttributeOrder?[groupID]?[attributeID] = order
-    }
-
-    // 移除属性组的排序配置
-    static func removeAttributeOrder(for groupID: Int) {
-        customAttributeOrder?.removeValue(forKey: groupID)
-        if customAttributeOrder?.isEmpty == true {
-            customAttributeOrder = nil
-        }
-    }
-
-    // 移除单个属性的排序配置
-    static func removeAttributeOrder(attributeID: Int, in groupID: Int) {
-        customAttributeOrder?[groupID]?.removeValue(forKey: attributeID)
-        if customAttributeOrder?[groupID]?.isEmpty == true {
-            customAttributeOrder?.removeValue(forKey: groupID)
-        }
-        if customAttributeOrder?.isEmpty == true {
-            customAttributeOrder = nil
-        }
-    }
-
-    // 重置所有配置到默认值
-    static func resetToDefaults() {
-        customGroupOrder = nil
-        customHiddenGroups = nil
-        customHiddenAttributes = nil
-        customAttributeOrder = nil
-    }
-
-    // 设置自定义配置的便捷方法
-    static func setCustomGroupOrder(_ order: [Int: Int]) {
-        customGroupOrder = order
-    }
-
-    static func setHiddenGroups(_ groups: Set<Int>) {
-        customHiddenGroups = groups
-    }
-
-    static func setHiddenAttributes(_ attributes: Set<Int>) {
-        customHiddenAttributes = attributes
-    }
-
-    // 添加单个配置项的便捷方法
-    static func hideGroup(_ groupId: Int) {
-        var groups = customHiddenGroups ?? defaultHiddenGroups
-        groups.insert(groupId)
-        customHiddenGroups = groups
-    }
-
-    static func showGroup(_ groupId: Int) {
-        var groups = customHiddenGroups ?? defaultHiddenGroups
-        groups.remove(groupId)
-        customHiddenGroups = groups
-    }
-
-    static func hideAttribute(_ attributeID: Int) {
-        var attributes = customHiddenAttributes ?? defaultHiddenAttributes
-        attributes.insert(attributeID)
-        customHiddenAttributes = attributes
-    }
-
-    static func showAttribute(_ attributeID: Int) {
-        var attributes = customHiddenAttributes ?? defaultHiddenAttributes
-        attributes.remove(attributeID)
-        customHiddenAttributes = attributes
-    }
-
-    // 添加属性计算规则
-    static func addCalculationRule(
-        for attributeID: Int, source1: Int, source2: Int, operation: Operation
-    ) {
-        attributeCalculations[attributeID] = AttributeCalculation(
-            sourceAttribute1: source1,
-            sourceAttribute2: source2,
-            operation: operation
-        )
-    }
-
-    // 移除属性算规则
-    static func removeCalculationRule(for attributeID: Int) {
-        attributeCalculations.removeValue(forKey: attributeID)
     }
 }

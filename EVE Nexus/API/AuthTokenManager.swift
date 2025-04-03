@@ -1,11 +1,19 @@
 @preconcurrency import AppAuth
 import Foundation
 
+// OAuth认证相关的数据模型
+struct EVEAuthToken: Codable {
+    let access_token: String
+    let expires_in: Int
+    let token_type: String
+    let refresh_token: String
+}
+
 actor AuthTokenManager: NSObject {
     static let shared = AuthTokenManager()
     private var authStates: [Int: OIDAuthState] = [:]
     private var currentAuthorizationFlow: OIDExternalUserAgentSession?
-    private let redirectURI = URL(string: "eveauthpanel://callback/")!
+    private let redirectURI = EVEConfig.OAuth.redirectURI
     private var refreshingTokens: [Int: Task<String, Error>] = [:]
 
     override private init() {
@@ -69,8 +77,8 @@ actor AuthTokenManager: NSObject {
 
     // 获取授权URL配置
     private func getConfiguration() async throws -> OIDServiceConfiguration {
-        let issuer = URL(string: "https://login.eveonline.com")!
-        return try await OIDAuthorizationService.discoverConfiguration(forIssuer: issuer)
+        return try await OIDAuthorizationService.discoverConfiguration(
+            forIssuer: EVEConfig.OAuth.baseURL)
     }
 
     // 初始授权流程
@@ -79,24 +87,15 @@ actor AuthTokenManager: NSObject {
     {
         return try await withCheckedThrowingContinuation { continuation in
             Task { @MainActor in
-                guard
-                    let authorizationEndpoint = URL(
-                        string: "https://login.eveonline.com/v2/oauth/authorize/"),
-                    let tokenEndpoint = URL(string: "https://login.eveonline.com/v2/oauth/token")
-                else {
-                    continuation.resume(throwing: NetworkError.invalidURL)
-                    return
-                }
-
                 let configuration = OIDServiceConfiguration(
-                    authorizationEndpoint: authorizationEndpoint,
-                    tokenEndpoint: tokenEndpoint
+                    authorizationEndpoint: EVEConfig.OAuth.authorizationEndpoint,
+                    tokenEndpoint: EVEConfig.OAuth.tokenEndpoint
                 )
 
                 let request = OIDAuthorizationRequest(
                     configuration: configuration,
-                    clientId: "7339147833b44ad3815c7ef0957950c2",
-                    clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
+                    clientId: EVEConfig.OAuth.clientId,
+                    clientSecret: EVEConfig.OAuth.clientSecret,
                     scopes: scopes,
                     redirectURL: self.redirectURI,
                     responseType: OIDResponseTypeCode,
@@ -139,8 +138,9 @@ actor AuthTokenManager: NSObject {
     }
 
     func getAccessToken(for characterId: Int) async throws -> String {
+        Logger.info("Try Get authState")
         let authState = try await getOrCreateAuthState(for: characterId)
-
+        Logger.info("Get authState: \(authState)")
         // 检查状态是否有效，如果无效则强制刷新
         if !validateAuthState(authState) {
             Logger.info("检测到token即将过期，主动刷新 - 角色ID: \(characterId)")
@@ -173,11 +173,12 @@ actor AuthTokenManager: NSObject {
         }
 
         guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
+            Logger.error("No refresh token found for: \(characterId)")
             throw NetworkError.authenticationError("No refresh token found")
         }
 
         let configuration = try await getConfiguration()
-        let redirectURI = URL(string: "eveauthpanel://callback/")!
+        let redirectURI = EVEConfig.OAuth.redirectURI
         let clientId = EVELogin.shared.config?.clientId ?? ""
 
         let request = OIDTokenRequest(
@@ -236,26 +237,6 @@ actor AuthTokenManager: NSObject {
         try? SecureStorage.shared.deleteToken(for: characterId)
     }
 
-    // 获取授权URL
-    func getAuthorizationURL() -> URL? {
-        let configuration = OIDServiceConfiguration(
-            authorizationEndpoint: URL(string: "https://login.eveonline.com/v2/oauth/authorize/")!,
-            tokenEndpoint: URL(string: "https://login.eveonline.com/v2/oauth/token")!
-        )
-
-        let request = OIDAuthorizationRequest(
-            configuration: configuration,
-            clientId: "7339147833b44ad3815c7ef0957950c2",
-            clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
-            scopes: EVELogin.shared.config?.scopes ?? [],
-            redirectURL: URL(string: "eveauthpanel://callback/")!,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: nil
-        )
-
-        return request.authorizationRequestURL()
-    }
-
     // 创建并保存认证状态
     func createAndSaveAuthState(
         accessToken: String,
@@ -265,17 +246,17 @@ actor AuthTokenManager: NSObject {
         characterId: Int
     ) async {
         let configuration = OIDServiceConfiguration(
-            authorizationEndpoint: URL(string: "https://login.eveonline.com/v2/oauth/authorize/")!,
-            tokenEndpoint: URL(string: "https://login.eveonline.com/v2/oauth/token")!
+            authorizationEndpoint: EVEConfig.OAuth.authorizationEndpoint,
+            tokenEndpoint: EVEConfig.OAuth.tokenEndpoint
         )
 
         // 创建 mock 请求和响应
         let mockRequest = OIDAuthorizationRequest(
             configuration: configuration,
-            clientId: "7339147833b44ad3815c7ef0957950c2",
-            clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
+            clientId: EVEConfig.OAuth.clientId,
+            clientSecret: EVEConfig.OAuth.clientSecret,
             scopes: EVELogin.shared.config?.scopes ?? [],
-            redirectURL: URL(string: "eveauthpanel://callback/")!,
+            redirectURL: EVEConfig.OAuth.redirectURI,
             responseType: OIDResponseTypeCode,
             additionalParameters: nil
         )

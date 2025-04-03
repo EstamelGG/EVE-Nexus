@@ -31,18 +31,6 @@ class CharacterClonesAPI {
 
     private init() {}
 
-    // 获取最后查询时间
-    private func getLastQueryTime(characterId: Int) -> Date? {
-        let key = lastClonesQueryKey + String(characterId)
-        return UserDefaults.standard.object(forKey: key) as? Date
-    }
-
-    // 更新最后查询时间
-    private func updateLastQueryTime(characterId: Int) {
-        let key = lastClonesQueryKey + String(characterId)
-        UserDefaults.standard.set(Date(), forKey: key)
-    }
-
     // 保存克隆体数据到数据库
     private func saveClonesToDatabase(characterId: Int, clones: CharacterCloneInfo) -> Bool {
         do {
@@ -106,40 +94,6 @@ class CharacterClonesAPI {
             }
         }
         return nil
-    }
-
-    // 获取克隆体跳跃剩余时间（小时）
-    func getJumpCooldownHours(characterId: Int) async -> Double? {
-        let query = """
-                SELECT last_clone_jump_date 
-                FROM clones 
-                WHERE character_id = ?
-                ORDER BY last_updated DESC
-                LIMIT 1
-            """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [characterId]),
-            let row = rows.first,
-            let lastJumpDateStr = row["last_clone_jump_date"] as? String
-        {
-            let dateFormatter = ISO8601DateFormatter()
-            dateFormatter.formatOptions = [.withInternetDateTime]
-
-            if let lastJumpDate = dateFormatter.date(from: lastJumpDateStr) {
-                let now = Date()
-                let timeSinceLastJump = now.timeIntervalSince(lastJumpDate)
-                let cooldownPeriod: TimeInterval = 24 * 3600  // 24小时的冷却时间
-
-                if timeSinceLastJump >= cooldownPeriod {
-                    return 0  // 可以跳跃
-                } else {
-                    let remainingTime = cooldownPeriod - timeSinceLastJump
-                    return remainingTime / 3600  // 转换为小时
-                }
-            }
-        }
-
-        return nil  // 没有找到上次跳跃记录，说明可以跳跃
     }
 
     // 获取克隆体信息

@@ -7,6 +7,7 @@ struct CharacterWealthView: View {
     @State private var hasLoadedInitialData = false
     @State private var cachedWealthItems: [WealthItem] = []
     @State private var cachedTotalWealth: Double = 0
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     init(characterId: Int) {
         _viewModel = StateObject(
@@ -28,6 +29,19 @@ struct CharacterWealthView: View {
 
     private func calculateTotalWealth() -> Double {
         return cachedWealthItems.reduce(0) { $0 + $1.value }
+    }
+    
+    // 初始化数据加载方法
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            if !hasLoadedInitialData {
+                await loadData()
+            }
+        }
     }
 
     var body: some View {
@@ -103,10 +117,8 @@ struct CharacterWealthView: View {
             await loadData(forceRefresh: true)
             isRefreshing = false
         }
-        .task {
-            if !hasLoadedInitialData {
-                await loadData()
-            }
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
     }
 

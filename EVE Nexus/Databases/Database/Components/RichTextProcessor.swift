@@ -298,18 +298,3 @@ enum RichTextProcessor {
         return Text(attributedString)
     }
 }
-
-// 扩展 String 以支持查找所有匹配项
-extension String {
-    func ranges(of searchString: String) -> [Range<String.Index>] {
-        var ranges: [Range<String.Index>] = []
-        var searchRange = startIndex..<endIndex
-
-        while let range = range(of: searchString, range: searchRange) {
-            ranges.append(range)
-            searchRange = range.upperBound..<endIndex
-        }
-
-        return ranges
-    }
-}

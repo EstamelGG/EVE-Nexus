@@ -48,6 +48,7 @@ struct CharacterAttributesView: View {
                                 NSLocalizedString("Character_Attributes_Bonus_Remaps", comment: ""))
                             Spacer()
                             Text("\(bonusRemaps)")
+                                .foregroundColor(.secondary)
                         }
                     }
 
@@ -56,6 +57,7 @@ struct CharacterAttributesView: View {
                             Text(NSLocalizedString("Character_Attributes_Next_Remap", comment: ""))
                             Spacer()
                             Text(formatNextRemapTime(cooldownDate))
+                                .foregroundColor(.secondary)
                         }
                     }
                 } header: {
@@ -144,6 +146,7 @@ struct AttributeRow: View {
             Text(name)
             Spacer()
             Text("\(value)")
+                .foregroundColor(.secondary)
         }
     }
 }

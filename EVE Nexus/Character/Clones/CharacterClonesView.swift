@@ -70,6 +70,7 @@ struct CharacterClonesView: View {
     @State private var locationTypeId: Int?
     @State private var implantDetails: [ImplantInfo] = []  // 修改类型
     @State private var mergedCloneLocations: [MergedCloneLocation] = []
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -84,6 +85,17 @@ struct CharacterClonesView: View {
             initialValue: LocationInfoLoader(
                 databaseManager: databaseManager, characterId: Int64(character.CharacterID)
             ))
+    }
+    
+    // 加载克隆体数据，但只在首次调用时执行
+    private func loadCloneDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await loadCloneData()
+        }
     }
 
     var body: some View {
@@ -234,8 +246,8 @@ struct CharacterClonesView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Jump_Clones", comment: ""))
-        .task {
-            await loadCloneData()
+        .onAppear {
+            loadCloneDataIfNeeded()
         }
         .refreshable {
             await loadCloneData(forceRefresh: true)

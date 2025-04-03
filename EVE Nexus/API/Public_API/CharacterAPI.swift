@@ -175,7 +175,30 @@ final class CharacterAPI: @unchecked Sendable {
         }
 
         let data = try await NetworkManager.shared.fetchData(from: url)
-        let info = try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
+        var info = try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
+
+        // 获取最新的联盟和公司信息
+        do {
+            let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliations(characterIds: [characterId])
+            if let affiliation = affiliations.first {
+                // 更新联盟和公司信息
+                info = CharacterPublicInfo(
+                    alliance_id: affiliation.alliance_id,
+                    birthday: info.birthday,
+                    bloodline_id: info.bloodline_id,
+                    corporation_id: affiliation.corporation_id,
+                    faction_id: info.faction_id,
+                    gender: info.gender,
+                    name: info.name,
+                    race_id: info.race_id,
+                    security_status: info.security_status,
+                    title: info.title
+                )
+            }
+        } catch {
+            Logger.error("获取角色关联信息失败: \(error)")
+            // 即使获取关联信息失败，我们仍然使用原始信息
+        }
 
         // 保存到数据库
         if saveCharacterInfoToCache(info, characterId: characterId) {
@@ -207,15 +230,10 @@ final class CharacterAPI: @unchecked Sendable {
             return cachedImage
         }
 
-        var options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = [
             .cacheOriginalImage,
-            .backgroundDecode,
-            .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2)),
-            .diskCacheExpiration(.days(30)),  // 延长磁盘缓存时间到30天
-            .memoryCacheExpiration(.seconds(3600)),  // 内存缓存1小时
-            .processor(DownsamplingImageProcessor(size: CGSize(width: size, height: size))),  // 图片尺寸优化
-            .alsoPrefetchToMemory,  // 预加载到内存
+            .diskCacheExpiration(.days(30)),  // 磁盘缓存30天
+            .memoryCacheExpiration(.days(7)),  // 内存缓存7天
         ]
 
         // 如果需要强制刷新，添加相应的选项

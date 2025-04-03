@@ -202,11 +202,6 @@ struct ShowBluePrintInfo: View {
         }
     }
 
-    // 计算研究等级
-    private func calculateRank(from baseTime: Int) -> Int {
-        return baseTime / 105  // 使用 level 1 的基础时间 105 来计算 rank
-    }
-
     // 计算特定等级的时间
     private func calculateLevelTime(baseTime: Int, level: Int) -> Int {
         let levelMultipliers = [105, 250, 595, 1414, 3360, 8000, 19000, 45255, 107_700, 256_000]

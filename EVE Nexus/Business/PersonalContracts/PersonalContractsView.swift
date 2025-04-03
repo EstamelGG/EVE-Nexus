@@ -121,28 +121,6 @@ final class PersonalContractsViewModel: ObservableObject {
         }
     }
 
-    private func loadContractsIfNeeded() async {
-        // 取消之前的加载任务
-        loadingTask?.cancel()
-
-        // 如果已经加载过且不是强制刷新，直接使用缓存并重新分组
-        if showCorporationContracts && corporationContractsInitialized {
-            await updateContractGroups(with: cachedCorporationContracts)
-            return
-        } else if !showCorporationContracts && personalContractsInitialized {
-            await updateContractGroups(with: cachedPersonalContracts)
-            return
-        }
-
-        // 创建新的加载任务
-        loadingTask = Task {
-            await loadContractsData(forceRefresh: false)
-        }
-
-        // 等待任务完成
-        await loadingTask?.value
-    }
-
     func loadContractsData(forceRefresh: Bool = false) async {
         // 如果已经在加载中且不是强制刷新，则直接返回
         if isLoading && !forceRefresh {

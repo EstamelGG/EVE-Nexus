@@ -25,26 +25,6 @@ class CorporationContractsAPI {
         )
     }
 
-    private func getCacheFilePath(for corporationId: Int) -> URL {
-        return cacheDirectory.appendingPathComponent("contracts_\(corporationId).json")
-    }
-
-    private func loadFromCache(corporationId: Int) -> [ContractInfo]? {
-        let cacheFile = getCacheFilePath(for: corporationId)
-
-        do {
-            let data = try Data(contentsOf: cacheFile)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let contracts = try decoder.decode([ContractInfo].self, from: data)
-            Logger.debug("从缓存加载军团合同数据成功 - 军团ID: \(corporationId), 合同数量: \(contracts.count)")
-            return contracts
-        } catch {
-            Logger.error("读取军团合同缓存失败 - 军团ID: \(corporationId), 错误: \(error)")
-            return nil
-        }
-    }
-
     private func fetchContractItemsFromServer(corporationId: Int, contractId: Int, characterId: Int)
         async throws -> [ContractItemInfo]
     {
@@ -62,15 +42,6 @@ class CorporationContractsAPI {
         return try decoder.decode([ContractItemInfo].self, from: data)
     }
 
-    // 获取最后查询时间
-    private func getLastQueryTime(corporationId: Int, isItems: Bool = false) -> Date? {
-        let key =
-            isItems
-            ? lastContractItemsQueryKey + String(corporationId)
-            : lastContractsQueryKey + String(corporationId)
-        return UserDefaults.standard.object(forKey: key) as? Date
-    }
-
     // 更新最后查询时间
     private func updateLastQueryTime(corporationId: Int, isItems: Bool = false) {
         let key =
@@ -78,17 +49,6 @@ class CorporationContractsAPI {
             ? lastContractItemsQueryKey + String(corporationId)
             : lastContractsQueryKey + String(corporationId)
         UserDefaults.standard.set(Date(), forKey: key)
-    }
-
-    // 检查是否需要刷新数据
-    private func shouldRefreshData(corporationId: Int, isItems: Bool = false) -> Bool {
-        guard let lastQueryTime = getLastQueryTime(corporationId: corporationId, isItems: isItems)
-        else {
-            return true
-        }
-
-        let timeSinceLastQuery = Date().timeIntervalSince(lastQueryTime)
-        return timeSinceLastQuery >= cacheTimeout
     }
 
     // 从服务器获取合同列表
@@ -698,21 +658,5 @@ class CorporationContractsAPI {
         }
 
         return items
-    }
-
-    // 清除指定军团的缓存
-    func clearCache(for corporationId: Int) {
-        let cacheFile = getCacheFilePath(for: corporationId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除军团合同缓存 - 军团ID: \(corporationId)")
-    }
-
-    // 清除所有缓存
-    func clearAllCache() {
-        try? FileManager.default.removeItem(at: cacheDirectory)
-        try? FileManager.default.createDirectory(
-            at: cacheDirectory, withIntermediateDirectories: true
-        )
-        Logger.debug("清除所有军团合同缓存")
     }
 }

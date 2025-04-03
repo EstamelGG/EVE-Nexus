@@ -193,22 +193,4 @@ public class CorpStructureAPI {
             try? FileManager.default.removeItem(at: cacheFile)
         }
     }
-
-    // MARK: - Helper Methods
-
-    public func clearCache() {
-        guard let cacheDirectory = getCacheDirectory() else { return }
-        do {
-            let fileManager = FileManager.default
-            let cacheFiles = try fileManager.contentsOfDirectory(
-                at: cacheDirectory, includingPropertiesForKeys: nil
-            )
-            for file in cacheFiles {
-                try fileManager.removeItem(at: file)
-            }
-            Logger.info("建筑物信息缓存已清除")
-        } catch {
-            Logger.error("清除建筑物信息缓存失败: \(error)")
-        }
-    }
 }

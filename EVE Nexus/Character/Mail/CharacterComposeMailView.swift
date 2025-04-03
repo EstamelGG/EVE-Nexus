@@ -56,7 +56,7 @@ struct CharacterComposeMailView: View {
                 ForEach(recipients) { recipient in
                     HStack {
                         if recipient.type != .mailingList {
-                            UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
+                            UniversePortrait(id: recipient.id, type: recipient.type, size: 64, displaySize: 32)
                         }
                         VStack(alignment: .leading) {
                             Text(recipient.name)
@@ -319,7 +319,7 @@ private struct QuickSelectRow: View {
             dismiss()
         } label: {
             HStack(spacing: 8) {
-                UniversePortrait(id: recipient.id, type: recipient.type, size: 32)
+                UniversePortrait(id: recipient.id, type: recipient.type, size: 64, displaySize: 32)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(recipient.name)
                     if recipient.type == .character {

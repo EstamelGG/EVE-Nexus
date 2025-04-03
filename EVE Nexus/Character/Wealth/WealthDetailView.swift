@@ -7,6 +7,7 @@ struct WealthDetailView: View {
     @State private var itemInfos: [[String: Any]] = []
     @State private var isLoading = true
     @State private var itemsWithoutPrice: [NoMarketPriceItem] = []
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     struct NoMarketPriceItem: Identifiable {
         let id: Int
@@ -46,6 +47,17 @@ struct WealthDetailView: View {
             )
         }
         return nil
+    }
+    
+    // 初始化数据加载方法
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await loadData()
+        }
     }
 
     private func loadData() async {
@@ -171,8 +183,8 @@ struct WealthDetailView: View {
         .navigationTitle(
             String(format: NSLocalizedString("Wealth_Detail_Title", comment: ""), title)
         )
-        .task {
-            await loadData()
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
         .refreshable {
             await loadData()

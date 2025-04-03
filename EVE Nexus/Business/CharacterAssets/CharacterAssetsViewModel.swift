@@ -293,11 +293,6 @@ class CharacterAssetsViewModel: ObservableObject {
         return typeIds
     }
 
-    // 新增方法：获取物品信息
-    func itemInfo(for typeId: Int) -> ItemInfo? {
-        return itemInfoCache[typeId]
-    }
-
     // 新增方法：从数据库中加载物品信息
     private func loadItemInfoFromDatabase() async {
         // 收集所有需要的type_id

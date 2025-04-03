@@ -22,10 +22,6 @@ struct CharacterStats {
     var queueStatus: String = "--"
     var walletBalance: String = "--"
     var location: String = "--"
-
-    static func empty() -> CharacterStats {
-        CharacterStats()
-    }
 }
 
 @MainActor
@@ -98,6 +94,12 @@ class MainViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var loadingState: LoadingState = .idle
     @Published var lastError: RefreshError?
+    
+    // 添加军团和联盟相关的发布属性
+    @Published var corporationInfo: CorporationInfo?
+    @Published var corporationLogo: UIImage?
+    @Published var allianceInfo: AllianceInfo?
+    @Published var allianceLogo: UIImage?
 
     // MARK: - Private Properties
 
@@ -375,6 +377,45 @@ class MainViewModel: ObservableObject {
                 }
             }
 
+            // 加载角色公共信息
+            Task {
+                do {
+                    let publicInfo = try await retryOperation(named: "获取角色公共信息") {
+                        try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                            characterId: character.CharacterID, forceRefresh: forceRefresh
+                        )
+                    }
+                    
+                    // 获取军团信息
+                    async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+                        corporationId: publicInfo.corporation_id)
+                    async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+                        corporationId: publicInfo.corporation_id)
+                    
+                    let (corpInfo, corpLogo) = try await (corpInfoTask, corpLogoTask)
+                    self.corporationInfo = corpInfo
+                    self.corporationLogo = corpLogo
+                    
+                    // 获取联盟信息
+                    if let allianceId = publicInfo.alliance_id {
+                        async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
+                            allianceId: allianceId)
+                        async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
+                            allianceID: allianceId)
+                        
+                        let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
+                        self.allianceInfo = alliInfo
+                        self.allianceLogo = alliLogo
+                    } else {
+                        // 如果没有联盟，清除联盟信息
+                        self.allianceInfo = nil
+                        self.allianceLogo = nil
+                    }
+                } catch {
+                    Logger.error("获取角色公共信息失败: \(error)")
+                }
+            }
+            
             // 加载技能信息
             Task {
                 do {

@@ -166,37 +166,29 @@ enum KeychainError: Error {
 // 导入技能队列数据模型
 // typealias SkillQueueItem = EVE_Nexus.SkillQueueItem
 
-// OAuth认证相关的数据模型
-struct EVEAuthToken: Codable {
-    let access_token: String
-    let expires_in: Int
-    let token_type: String
-    let refresh_token: String
-}
-
 struct EVECharacterInfo: Codable {
-    public let CharacterID: Int
-    public let CharacterName: String
-    public let ExpiresOn: String
-    public let Scopes: String
-    public let TokenType: String
-    public let CharacterOwnerHash: String
-    public var corporationId: Int?
-    public var allianceId: Int?
-    public var tokenExpired: Bool = false
+    let CharacterID: Int
+    let CharacterName: String
+    let ExpiresOn: String
+    let Scopes: String
+    let TokenType: String
+    let CharacterOwnerHash: String
+    var corporationId: Int?
+    var allianceId: Int?
+    var tokenExpired: Bool = false
 
     // 动态属性
-    public var totalSkillPoints: Int?
-    public var unallocatedSkillPoints: Int?
-    public var walletBalance: Double?
-    public var skillQueueLength: Int?
-    public var currentSkill: CurrentSkillInfo?
-    public var locationStatus: CharacterLocation.LocationStatus?
-    public var location: SolarSystemInfo?
-    public var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
+    var totalSkillPoints: Int?
+    var unallocatedSkillPoints: Int?
+    var walletBalance: Double?
+    var skillQueueLength: Int?
+    var currentSkill: CurrentSkillInfo?
+    var locationStatus: CharacterLocation.LocationStatus?
+    var location: SolarSystemInfo?
+    var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
 
     // 内部类型定义
-    public struct CurrentSkillInfo: Codable {
+    struct CurrentSkillInfo: Codable {
         let skillId: Int
         let name: String
         let level: String
@@ -281,14 +273,14 @@ extension EVECharacterInfo: Equatable {
 // ESI配置模型
 struct ESIConfig: Codable {
     let clientId: String
-    let clientSecret: String
-    let callbackUrl: String
+    //    let clientSecret: String
+    //    let callbackUrl: String
     let urls: ESIUrls
     var scopes: [String]
 
     struct ESIUrls: Codable {
-        let authorize: String
-        let token: String
+        //        let authorize: String
+        //        let token: String
         let verify: String
     }
 }
@@ -297,25 +289,19 @@ struct ESIConfig: Codable {
 struct CharacterAuth: Codable {
     var character: EVECharacterInfo
     let addedDate: Date
-    let lastTokenUpdateTime: Date
-
-    // 检查是否需要更新令牌
-    func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {
-        return Date().timeIntervalSince(lastTokenUpdateTime) >= minimumInterval
-    }
+    //    let lastTokenUpdateTime: Date
 }
 
 // 添加用户管理的 ViewModel
 @MainActor
 class EVELoginViewModel: ObservableObject {
     @Published var characterInfo: EVECharacterInfo?
-    @Published var isLoggedIn: Bool = false
+    // @Published var isLoggedIn: Bool = false
     @Published var showingError: Bool = false
     @Published var errorMessage: String = ""
     @Published var characters: [EVECharacterInfo] = []
     @Published var characterPortraits: [Int: UIImage] = [:]
     let databaseManager: DatabaseManager
-    private let databaseQueue = DispatchQueue(label: "com.eve.nexus.database", qos: .userInitiated)
 
     init(databaseManager: DatabaseManager = DatabaseManager()) {
         self.databaseManager = databaseManager
@@ -369,7 +355,7 @@ class EVELoginViewModel: ObservableObject {
         Task { @MainActor in
             let allCharacters = EVELogin.shared.loadCharacters()
             characters = allCharacters.map { $0.character }
-            isLoggedIn = !characters.isEmpty
+            // isLoggedIn = !characters.isEmpty
 
             Task {
                 for character in characters {
@@ -401,7 +387,7 @@ class EVELoginViewModel: ObservableObject {
 
                 // 3. 更新 UI（已在 MainActor 上下文中）
                 characterInfo = character
-                isLoggedIn = true
+                // isLoggedIn = true
                 loadCharacters()
 
                 // 4. 加载新角色的头像
@@ -426,9 +412,9 @@ class EVELoginViewModel: ObservableObject {
         }
 
         // 如果没有角色了，更新登录状态
-        if characters.isEmpty {
-            isLoggedIn = false
-        }
+        //        if characters.isEmpty {
+        //            isLoggedIn = false
+        //        }
     }
 
     // 更新角色顺序
@@ -447,6 +433,18 @@ class EVELogin {
     private let characterOrderKey = "EVECharacterOrder"
     private let databaseManager: DatabaseManager
 
+    private static let defaultConfig = ESIConfig(
+        clientId: EVEConfig.OAuth.clientId,
+        //        clientSecret: EVEConfig.OAuth.clientSecret,
+        //        callbackUrl: EVEConfig.OAuth.redirectURI.absoluteString,
+        urls: ESIConfig.ESIUrls(
+            //            authorize: EVEConfig.OAuth.authorizationEndpoint.absoluteString,
+            //            token: EVEConfig.OAuth.tokenEndpoint.absoluteString,
+            verify: EVEConfig.OAuth.verifyEndpoint.absoluteString
+        ),
+        scopes: []  // 将在 loadConfig 中填充
+    )
+
     private init() {
         session = URLSession.shared
         databaseManager = DatabaseManager()
@@ -459,7 +457,9 @@ class EVELogin {
 
         // 1. 获取角色信息
         let character = try await getCharacterInfo(
-            token: authState.lastTokenResponse?.accessToken ?? "")
+            token: authState.lastTokenResponse?.accessToken ?? "",
+            forceRefresh: true
+        )
         Logger.info(
             "EVELogin: 成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
 
@@ -491,16 +491,16 @@ class EVELogin {
             let originalAddedDate = characters[index].addedDate
             characters[index] = CharacterAuth(
                 character: character,
-                addedDate: originalAddedDate,
-                lastTokenUpdateTime: Date()
+                addedDate: originalAddedDate
+                    // lastTokenUpdateTime: Date()
             )
             Logger.info("EVELogin: 更新现有角色信息")
         } else {
             characters.append(
                 CharacterAuth(
                     character: character,
-                    addedDate: Date(),
-                    lastTokenUpdateTime: Date()
+                    addedDate: Date()
+                        // lastTokenUpdateTime: Date()
                 ))
             isNewCharacter = true
             Logger.info("EVELogin: 添加新角色信息")
@@ -573,48 +573,8 @@ class EVELogin {
         return updatedCharacter
     }
 
-    // 执行后台刷新
-    func performBackgroundRefresh() async throws {
-        Logger.info("EVELogin: 开始执行后台刷新...")
-
-        // 获取所有角色
-        let characters = loadCharacters()
-        guard !characters.isEmpty else {
-            Logger.info("EVELogin: 无需执行后台刷新，未找到角色信息")
-            return
-        }
-
-        // 为每个角色刷新令牌和信息
-        for character in characters {
-            do {
-                // 1. 刷新令牌
-                _ = try await AuthTokenManager.shared.getAccessToken(
-                    for: character.character.CharacterID)
-                Logger.info("EVELogin: 成功刷新角色 \(character.character.CharacterName) 的令牌")
-
-                // 2. 更新角色信息
-                let updatedCharacter = try await loadDetailedInfo(character: character.character)
-
-                // 3. 发送通知
-                NotificationCenter.default.post(
-                    name: Notification.Name("CharacterDetailsUpdated"),
-                    object: nil,
-                    userInfo: ["character": updatedCharacter]
-                )
-
-                Logger.info("EVELogin: 成功更新角色 \(character.character.CharacterName) 的信息")
-            } catch {
-                Logger.error("EVELogin: 更新角色 \(character.character.CharacterName) 失败: \(error)")
-                // 继续处理下一个角色
-                continue
-            }
-        }
-
-        Logger.info("EVELogin: 后台刷新完成")
-    }
-
     // 获取角色信息
-    private func getCharacterInfo(token: String) async throws -> EVECharacterInfo {
+    private func getCharacterInfo(token: String, forceRefresh: Bool) async throws -> EVECharacterInfo {
         guard let config = config,
             let verifyURL = URL(string: config.urls.verify)
         else {
@@ -629,7 +589,9 @@ class EVELogin {
 
         // 获取角色的公开信息以更新军团和联盟ID
         let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: characterInfo.CharacterID)
+            characterId: characterInfo.CharacterID,
+            forceRefresh: forceRefresh
+        )
         characterInfo.corporationId = publicInfo.corporation_id
         characterInfo.allianceId = publicInfo.alliance_id
 
@@ -691,6 +653,16 @@ class EVELogin {
         // 3. 清除 AuthTokenManager 中的缓存
         Task {
             await AuthTokenManager.shared.clearTokens(for: characterId)
+        }
+
+        // 4. 清理 CharacterDatabase 中的相关数据
+        Task {
+            do {
+                try await CharacterDatabaseManager.shared.deleteCharacterData(characterId: characterId)
+                Logger.info("已清理角色 \(characterId) 在数据库中的所有数据")
+            } catch {
+                Logger.error("清理角色 \(characterId) 的数据库数据失败: \(error)")
+            }
         }
 
         UserDefaults.standard.synchronize()
@@ -815,21 +787,6 @@ class EVELogin {
         }
         return scopes
     }
-}
-
-// 在 EVELogin 类中添加私有静态配置
-extension EVELogin {
-    fileprivate static let defaultConfig = ESIConfig(
-        clientId: "7339147833b44ad3815c7ef0957950c2",
-        clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
-        callbackUrl: "eveauthpanel://callback/",
-        urls: ESIConfig.ESIUrls(
-            authorize: "https://login.eveonline.com/v2/oauth/authorize/",
-            token: "https://login.eveonline.com/v2/oauth/token",
-            verify: "https://login.eveonline.com/oauth/verify"
-        ),
-        scopes: []  // 将在 loadConfig 中填充
-    )
 }
 
 // 添加 ScopeManager 类

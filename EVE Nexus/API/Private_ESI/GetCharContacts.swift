@@ -106,11 +106,4 @@ class GetCharContacts {
 
         return contacts
     }
-
-    // 清除缓存
-    func clearCache(for characterId: Int) {
-        let cacheFile = getCacheFilePath(characterId: characterId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除角色联系人缓存 - 角色ID: \(characterId)")
-    }
 }

@@ -12,7 +12,6 @@ class CharacterContractsAPI {
         return paths[0].appendingPathComponent("ContractsCache")
     }()
 
-    private let maxConcurrentPages = 2  // 最大并发页数
     private let cacheTimeout: TimeInterval = 8 * 3600  // 8小时缓存有效期
 
     private let lastContractsQueryKey = "LastContractsQuery_"
@@ -23,40 +22,6 @@ class CharacterContractsAPI {
         try? FileManager.default.createDirectory(
             at: cacheDirectory, withIntermediateDirectories: true
         )
-    }
-
-    private func getCacheFilePath(for characterId: Int) -> URL {
-        return cacheDirectory.appendingPathComponent("contracts_\(characterId).json")
-    }
-
-    private func loadFromCache(characterId: Int) -> [ContractInfo]? {
-        let cacheFile = getCacheFilePath(for: characterId)
-
-        do {
-            let data = try Data(contentsOf: cacheFile)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let contracts = try decoder.decode([ContractInfo].self, from: data)
-            Logger.debug("从缓存加载合同数据成功 - 角色ID: \(characterId), 合同数量: \(contracts.count)")
-            return contracts
-        } catch {
-            Logger.error("读取合同缓存失败 - 角色ID: \(characterId), 错误: \(error)")
-            return nil
-        }
-    }
-
-    private func saveToCache(contracts: [ContractInfo], characterId: Int) {
-        let cacheFile = getCacheFilePath(for: characterId)
-
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            let data = try encoder.encode(contracts)
-            try data.write(to: cacheFile)
-            Logger.debug("保存合同数据到缓存成功 - 角色ID: \(characterId), 合同数量: \(contracts.count)")
-        } catch {
-            Logger.error("保存合同缓存失败 - 角色ID: \(characterId), 错误: \(error)")
-        }
     }
 
     // 获取最后查询时间
@@ -733,22 +698,6 @@ class CharacterContractsAPI {
         return contracts
     }
 
-    // 清除指定角色的缓存
-    func clearCache(for characterId: Int) {
-        let cacheFile = getCacheFilePath(for: characterId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除合同缓存 - 角色ID: \(characterId)")
-    }
-
-    // 清除所有缓存
-    func clearAllCache() {
-        try? FileManager.default.removeItem(at: cacheDirectory)
-        try? FileManager.default.createDirectory(
-            at: cacheDirectory, withIntermediateDirectories: true
-        )
-        Logger.debug("清除所有合同缓存")
-    }
-
     // 合同物品信息模型
     struct ContractItemInfo: Codable, Identifiable {
         let is_included: Bool
@@ -759,44 +708,6 @@ class CharacterContractsAPI {
         let raw_quantity: Int?
 
         var id: Int64 { record_id }
-    }
-
-    // 获取合同物品的缓存文件路径
-    private func getItemsCacheFilePath(characterId: Int, contractId: Int) -> URL {
-        return cacheDirectory.appendingPathComponent(
-            "contracts_\(characterId)_\(contractId)_items.json")
-    }
-
-    // 从缓存加载合同物品
-    private func loadItemsFromCache(characterId: Int, contractId: Int) -> [ContractItemInfo]? {
-        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
-
-        do {
-            let data = try Data(contentsOf: cacheFile)
-            let decoder = JSONDecoder()
-            let items = try decoder.decode([ContractItemInfo].self, from: data)
-            Logger.debug(
-                "从缓存加载合同物品成功 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
-            return items
-        } catch {
-            Logger.error("读取合同物品缓存失败 - 角色ID: \(characterId), 合同ID: \(contractId), 错误: \(error)")
-            return nil
-        }
-    }
-
-    // 保存合同物品到缓存
-    private func saveItemsToCache(items: [ContractItemInfo], characterId: Int, contractId: Int) {
-        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
-
-        do {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(items)
-            try data.write(to: cacheFile)
-            Logger.debug(
-                "保存合同物品到缓存成功 - 角色ID: \(characterId), 合同ID: \(contractId), 物品数量: \(items.count)")
-        } catch {
-            Logger.error("保存合同物品缓存失败 - 角色ID: \(characterId), 合同ID: \(contractId), 错误: \(error)")
-        }
     }
 
     // 从服务器获取合同物品
@@ -838,13 +749,6 @@ class CharacterContractsAPI {
             Logger.error("从服务器获取合同物品失败 - 合同ID: \(contractId), 错误: \(error.localizedDescription)")
             throw error
         }
-    }
-
-    // 清除指定合同的物品缓存
-    func clearItemsCache(for characterId: Int, contractId: Int) {
-        let cacheFile = getItemsCacheFilePath(characterId: characterId, contractId: contractId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除合同物品缓存 - 角色ID: \(characterId), 合同ID: \(contractId)")
     }
 }
 

@@ -90,11 +90,4 @@ class GetCorpContacts {
 
         return contacts
     }
-
-    // 清除缓存
-    func clearCache(for corporationId: Int) {
-        let cacheFile = getCacheFilePath(corporationId: corporationId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除军团联系人缓存 - 军团ID: \(corporationId)")
-    }
 }

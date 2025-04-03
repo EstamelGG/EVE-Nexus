@@ -74,11 +74,10 @@ class ItemRenderAPI {
     {
         let renderURL = getRenderURL(typeId: typeId, size: size)
 
-        var options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = [
             .cacheOriginalImage,
-            .backgroundDecode,
-            .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2)),
+            .diskCacheExpiration(.days(30)),  // 磁盘缓存30天
+            .memoryCacheExpiration(.days(7)),  // 内存缓存7天
         ]
 
         // 如果需要强制刷新，添加相应的选项
@@ -99,14 +98,5 @@ class ItemRenderAPI {
                 }
             }
         }
-    }
-
-    /// 预加载物品渲染图
-    /// - Parameters:
-    ///   - typeIds: 物品ID数组
-    ///   - size: 图片尺寸
-    func prefetchItemRenders(typeIds: [Int], size: Int = 64) {
-        let urls = typeIds.map { getRenderURL(typeId: $0, size: size) }
-        ImagePrefetcher(urls: urls).start()
     }
 }

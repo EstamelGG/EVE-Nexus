@@ -3,24 +3,7 @@ import Foundation
 class CharacterImplantsAPI {
     static let shared = CharacterImplantsAPI()
     private let databaseManager = CharacterDatabaseManager.shared
-
-    // 缓存相关常量
-    private let lastImplantsQueryKey = "LastImplantsQuery_"
-    private let queryInterval: TimeInterval = 3600  // 1小时的查询间隔
-
     private init() {}
-
-    // 获取最后查询时间
-    private func getLastQueryTime(characterId: Int) -> Date? {
-        let key = lastImplantsQueryKey + String(characterId)
-        return UserDefaults.standard.object(forKey: key) as? Date
-    }
-
-    // 更新最后查询时间
-    private func updateLastQueryTime(characterId: Int) {
-        let key = lastImplantsQueryKey + String(characterId)
-        UserDefaults.standard.set(Date(), forKey: key)
-    }
 
     // 保存植入体数据到数据库
     private func saveImplantsToDatabase(characterId: Int, implants: [Int]) -> Bool {

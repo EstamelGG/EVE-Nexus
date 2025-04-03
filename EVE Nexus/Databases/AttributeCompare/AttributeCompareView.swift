@@ -182,11 +182,6 @@ struct AttributeCompareView: View {
     @State private var newCompareName = ""
     @State private var searchText = ""
 
-    // 简化的创建方法
-    static func createWithDataManager(databaseManager: DatabaseManager) -> some View {
-        return AttributeCompareView(databaseManager: databaseManager)
-    }
-
     private var filteredCompares: [AttributeCompare] {
         if searchText.isEmpty {
             return compares

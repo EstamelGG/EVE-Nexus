@@ -10,15 +10,15 @@ import SwiftUI
 
 // 位置信息数据结构
 public final class SolarSystemInfo: Codable {
-    public let systemId: Int
-    public let systemName: String
-    public let security: Double
-    public let constellationId: Int
-    public let constellationName: String
-    public let regionId: Int
-    public let regionName: String
+    let systemId: Int
+    let systemName: String
+    let security: Double
+    let constellationId: Int
+    let constellationName: String
+    let regionId: Int
+    let regionName: String
 
-    public init(
+    init(
         systemId: Int, systemName: String, security: Double, constellationId: Int,
         constellationName: String, regionId: Int, regionName: String
     ) {

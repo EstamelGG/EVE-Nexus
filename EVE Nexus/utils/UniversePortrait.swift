@@ -38,7 +38,9 @@ class UniversePortraitViewModel: ObservableObject {
                     corporationId: id, size: size
                 )
             case .alliance:
-                portrait = try await UniverseIconAPI.shared.fetchIcon(id: id, category: "alliance")
+                portrait = try await AllianceAPI.shared.fetchAllianceLogo(
+                    allianceID: id
+                )
             case .mailingList:
                 throw NetworkError.invalidURL  // 邮件列表不需要头像
             }

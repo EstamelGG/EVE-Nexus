@@ -253,35 +253,29 @@ struct BRKillMailSearchView: View {
                     allyId > 0
                 {
                     // 只有当联盟ID有效且图标未加载时才加载联盟图标
-                    if allianceIconMap[allyId] == nil,
-                        let icon = await loadOrganizationIcon(type: "alliance", id: allyId)
-                    {
-                        allianceIconMap[allyId] = icon
+                    if allianceIconMap[allyId] == nil {
+                        do {
+                            let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allyId)
+                            allianceIconMap[allyId] = icon
+                        } catch {
+                            Logger.error("加载联盟图标失败 - 联盟ID: \(allyId), 错误: \(error)")
+                        }
                     }
                 } else if let corpInfo = victInfo["corp"] as? [String: Any],
                     let corpId = corpInfo["id"] as? Int,
                     corpId > 0
                 {
                     // 只有在没有有效联盟ID的情况下才加载军团图标
-                    if corporationIconMap[corpId] == nil,
-                        let icon = await loadOrganizationIcon(type: "corporation", id: corpId)
-                    {
-                        corporationIconMap[corpId] = icon
+                    if corporationIconMap[corpId] == nil {
+                        do {
+                            let icon = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
+                            corporationIconMap[corpId] = icon
+                        } catch {
+                            Logger.error("加载军团图标失败 - 军团ID: \(corpId), 错误: \(error)")
+                        }
                     }
                 }
             }
-        }
-    }
-
-    private func loadOrganizationIcon(type: String, id: Int) async -> UIImage? {
-        let baseURL = "https://images.evetech.net/\(type)s/\(id)/logo"
-        guard let iconURL = URL(string: "\(baseURL)?size=64") else { return nil }
-
-        do {
-            let data = try await NetworkManager.shared.fetchData(from: iconURL)
-            return UIImage(data: data)
-        } catch {
-            return nil
         }
     }
 }
@@ -309,7 +303,7 @@ struct SearchSelectorSheet: View {
                         .textFieldStyle(.plain)
                         .focused($isSearchFocused)
                         .onChange(of: searchText) { _, newValue in
-                            if !newValue.isEmpty {
+                            if !newValue.isEmpty && newValue.count >= 3 {
                                 viewModel.debounceSearch(
                                     characterId: characterId, searchText: newValue
                                 )
@@ -319,7 +313,7 @@ struct SearchSelectorSheet: View {
                         }
                         .submitLabel(.search)
                         .onSubmit {
-                            if !searchText.isEmpty {
+                            if !searchText.isEmpty && searchText.count >= 3 {
                                 Task {
                                     await viewModel.search(
                                         characterId: characterId, searchText: searchText
@@ -438,7 +432,13 @@ struct KMSearchResultRow: View {
         // 替换图标尺寸
         Logger.debug("Load img from result: \(result.imageURL)")
         let urlString = result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")
-        guard let url = URL(string: urlString) else { return }
+        guard let url = URL(string: urlString) else { 
+            // URL无效时设置默认图标
+            await MainActor.run {
+                loadedIcon = UIImage(named: "not_found")
+            }
+            return 
+        }
 
         do {
             let data = try await NetworkManager.shared.fetchData(from: url)
@@ -446,9 +446,18 @@ struct KMSearchResultRow: View {
                 await MainActor.run {
                     loadedIcon = image
                 }
+            } else {
+                // 数据无法转换为图像时设置默认图标
+                await MainActor.run {
+                    loadedIcon = UIImage(named: "not_found")
+                }
             }
         } catch {
             Logger.error("加载图标失败: \(error)")
+            // 加载失败时设置默认图标
+            await MainActor.run {
+                loadedIcon = UIImage(named: "not_found")
+            }
         }
     }
 }
@@ -492,23 +501,36 @@ class BRKillMailSearchViewModel: ObservableObject {
     @Published var searchResults: [SearchResultCategory: [SearchResult]] = [:]
     @Published var isSearching = false
     @Published var selectedResult: SearchResult?
+    private var lastSearchText: String = ""
 
     let categories: [SearchResultCategory] = [
-        .character, .corporation, .alliance,
-        .inventory_type, .solar_system, .region,
+        .inventory_type, .character, .corporation, .alliance,
+        .solar_system, .region,
     ]
     let kbAPI = KbEvetoolAPI.shared
 
     private var searchTask: Task<Void, Never>?
 
     func debounceSearch(characterId: Int, searchText: String) {
+        // 检查搜索文本长度
+        guard searchText.count >= 3 else { 
+            searchResults = [:]
+            lastSearchText = ""
+            return 
+        }
+        
+        // 如果搜索关键词与上次相同，不执行新的搜索
+        if searchText == lastSearchText && !searchResults.isEmpty {
+            return
+        }
+        
         // 取消之前的任务
         searchTask?.cancel()
 
         // 创建新的搜索任务
         searchTask = Task {
-            // 等待300毫秒
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            // 等待600毫秒
+            try? await Task.sleep(nanoseconds: 600_000_000)
 
             // 如果任务被取消，直接返回
             guard !Task.isCancelled else { return }
@@ -519,8 +541,14 @@ class BRKillMailSearchViewModel: ObservableObject {
     }
 
     func search(characterId: Int, searchText: String) async {
-        guard !searchText.isEmpty else {
+        guard !searchText.isEmpty && searchText.count >= 3 else {
             searchResults = [:]
+            lastSearchText = ""
+            return
+        }
+        
+        // 如果搜索关键词与上次相同，不执行新的搜索
+        if searchText == lastSearchText && !searchResults.isEmpty {
             return
         }
 
@@ -541,15 +569,22 @@ class BRKillMailSearchViewModel: ObservableObject {
                 guard let category = SearchResultCategory(rawValue: categoryStr) else { continue }
 
                 var results: [SearchResult] = []
+                var seenIds = Set<Int>() // 用于跟踪已经见过的id
+                
                 for item in items {
-                    results.append(
-                        SearchResult(
-                            id: item.id,
-                            name: item.name,
-                            category: category,
-                            imageURL: item.image,
-                            icon: nil
-                        ))
+                    // 检查id是否已经存在
+                    if !seenIds.contains(item.id) {
+                        results.append(
+                            SearchResult(
+                                id: item.id,
+                                name: item.name,
+                                category: category,
+                                imageURL: item.image,
+                                icon: nil
+                            ))
+                        // 添加id到已见过集合
+                        seenIds.insert(item.id)
+                    }
                 }
 
                 if !results.isEmpty {
@@ -557,6 +592,9 @@ class BRKillMailSearchViewModel: ObservableObject {
                 }
             }
 
+            // 更新上次搜索的关键词
+            lastSearchText = searchText
+            
             // 开始异步加载图标
             Task {
                 for category in categories {

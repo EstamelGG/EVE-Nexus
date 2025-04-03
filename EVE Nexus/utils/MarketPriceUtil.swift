@@ -59,12 +59,4 @@ enum MarketPriceUtil {
             return [:]
         }
     }
-
-    /// 获取单个物品的市场预估价格
-    /// - Parameter typeId: 物品ID
-    /// - Returns: 预估价格，如果没有价格数据则返回nil
-    static func getMarketPrice(typeId: Int) async -> Double? {
-        let prices = await getMarketPrices(typeIds: [typeId])
-        return prices[typeId]
-    }
 }

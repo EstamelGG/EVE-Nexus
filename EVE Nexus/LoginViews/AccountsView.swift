@@ -75,7 +75,6 @@ struct AccountsView: View {
 
                             // UI 更新已经在 MainActor 上下文中
                             viewModel.characterInfo = character
-                            viewModel.isLoggedIn = true
                             viewModel.loadCharacters()
 
                             // 加载新角色的头像
@@ -151,7 +150,6 @@ struct AccountsView: View {
 
                                     // UI 更新已经在 MainActor 上下文中
                                     viewModel.characterInfo = character
-                                    viewModel.isLoggedIn = true
                                     viewModel.loadCharacters()
 
                                     // 加载新角色的头像
@@ -726,18 +724,8 @@ struct AccountsView: View {
         // 更新登录状态
         await updateUI {
             self.isRefreshing = false
-            self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
+            // self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
         }
-    }
-
-    @MainActor
-    private func updateRefreshingStatus(for characterId: Int) {
-        refreshingCharacters.remove(characterId)
-    }
-
-    @MainActor
-    private func updatePortrait(characterId: Int, portrait: UIImage) {
-        viewModel.characterPortraits[characterId] = portrait
     }
 
     // 格式化技能点显示
