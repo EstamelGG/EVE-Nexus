@@ -698,12 +698,8 @@ struct AccountsView: View {
                             if case NetworkError.tokenExpired = error {
                                 await updateUI {
                                     expiredTokenCharacters.insert(
-                                        characterAuth.character.CharacterID)
-                                    // 清除过期的 token
-                                    Task {
-                                        await AuthTokenManager.shared.clearTokens(
-                                            for: characterAuth.character.CharacterID)
-                                    }
+                                        characterAuth.character.CharacterID
+                                    )
                                 }
                             }
                             Logger.error("刷新角色信息失败: \(error)")

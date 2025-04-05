@@ -1,6 +1,165 @@
 @preconcurrency import AppAuth
 import Foundation
 
+// 添加 SecureStorage 类
+class SecureStorage {
+    static let shared = SecureStorage()
+
+    private init() {}
+
+    func saveToken(_ token: String, for characterId: Int) throws {
+        Logger.info(
+            "SecureStorage: 开始保存 refresh token 到 SecureStorage - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
+        )
+
+        guard let tokenData = token.data(using: .utf8) else {
+            Logger.error("SecureStorage: 无法将 token 转换为数据")
+            throw KeychainError.unhandledError(status: errSecParam)
+        }
+
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)",
+            String(kSecValueData): tokenData,
+            String(kSecAttrAccessible): kSecAttrAccessibleAfterFirstUnlock,
+        ]
+
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            // 如果已存在，则更新
+            let updateQuery: [String: Any] = [
+                String(kSecClass): kSecClassGenericPassword,
+                String(kSecAttrAccount): "token_\(characterId)",
+            ]
+            let updateAttributes: [String: Any] = [
+                String(kSecValueData): tokenData
+            ]
+            let updateStatus = SecItemUpdate(
+                updateQuery as CFDictionary, updateAttributes as CFDictionary
+            )
+            if updateStatus != errSecSuccess {
+                Logger.error(
+                    "SecureStorage: 更新 refresh token 失败 - 角色ID: \(characterId), 错误码: \(updateStatus)"
+                )
+                throw KeychainError.unhandledError(status: updateStatus)
+            }
+            Logger.info("SecureStorage: 成功更新了 refresh token - 角色ID: \(characterId)")
+        } else if status != errSecSuccess {
+            Logger.error(
+                "SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
+            throw KeychainError.unhandledError(status: status)
+        } else {
+            Logger.info("SecureStorage: 成功保存新的 refresh token - 角色ID: \(characterId)")
+        }
+    }
+
+    func loadToken(for characterId: Int) throws -> String? {
+        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
+
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)",
+            String(kSecReturnData): true,
+            String(kSecMatchLimit): kSecMatchLimitOne,
+        ]
+
+        Logger.info("SecureStorage: 查询参数 - account: token_\(characterId)")
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            Logger.error(
+                "SecureStorage: 在 Keychain 中未找到 refresh token - 角色ID: \(characterId), 错误: 项目不存在")
+            return nil
+        } else if status != errSecSuccess {
+            Logger.error(
+                "SecureStorage: 从 Keychain 加载 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)"
+            )
+            throw KeychainError.unhandledError(status: status)
+        }
+
+        guard let data = result as? Data else {
+            Logger.error(
+                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
+            return nil
+        }
+
+        guard let token = String(data: data, encoding: .utf8) else {
+            Logger.error(
+                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
+            return nil
+        }
+
+        Logger.info(
+            "SecureStorage: 成功从 Keychain 加载 refresh token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
+        )
+        return token
+    }
+
+    func deleteToken(for characterId: Int) throws {
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_\(characterId)",
+        ]
+
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess, status != errSecItemNotFound {
+            throw KeychainError.unhandledError(status: status)
+        }
+    }
+
+    // 列出所有有效的 token
+    func listValidTokens() -> [Int] {
+        Logger.info("SecureStorage: 开始检查所有有效的 refresh token")
+
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecReturnAttributes): true,
+            String(kSecMatchLimit): kSecMatchLimitAll,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            Logger.info("SecureStorage: 未找到任何 refresh token")
+            return []
+        } else if status != errSecSuccess {
+            Logger.error("SecureStorage: 查询 refresh token 失败，错误码: \(status)")
+            return []
+        }
+
+        guard let items = result as? [[String: Any]] else {
+            Logger.error("SecureStorage: 无法解析查询结果")
+            return []
+        }
+
+        var validCharacterIds: [Int] = []
+
+        for item in items {
+            if let account = item[String(kSecAttrAccount)] as? String,
+                account.hasPrefix("token_"),
+                let characterIdStr = account.split(separator: "_").last,
+                let characterId = Int(characterIdStr)
+            {
+                // 检查 token 是否有效
+                if let token = try? loadToken(for: characterId), !token.isEmpty {
+                    validCharacterIds.append(characterId)
+                    Logger.info("SecureStorage: 找到有效的 refresh token - 角色ID: \(characterId)")
+                }
+            }
+        }
+
+        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 refresh token")
+        return validCharacterIds
+    }
+}
+
+enum KeychainError: Error {
+    case unhandledError(status: OSStatus)
+}
+
 // OAuth认证相关的数据模型
 struct EVEAuthToken: Codable {
     let access_token: String
@@ -14,14 +173,14 @@ actor AuthTokenManager: NSObject {
     private var authStates: [Int: OIDAuthState] = [:]
     private var currentAuthorizationFlow: OIDExternalUserAgentSession?
     private let redirectURI = EVEConfig.OAuth.redirectURI
-    private var refreshingTokens: [Int: Task<String, Error>] = [:]
+    private var tokenRefreshTasks: [Int: Task<String, Error>] = [:]
 
     override private init() {
         super.init()
     }
 
-    // 验证认证状态是否有效
-    private func validateAuthState(_ authState: OIDAuthState) -> Bool {
+    /// 验证 access token 是否有效
+    private func accessTokenNotExpired(_ authState: OIDAuthState) -> Bool {
         guard let tokenResponse = authState.lastTokenResponse,
             let expirationDate = tokenResponse.accessTokenExpirationDate
         else {
@@ -33,10 +192,10 @@ actor AuthTokenManager: NSObject {
         return Date().addingTimeInterval(gracePeriod) < expirationDate
     }
 
-    // 显式刷新token
-    private func refreshToken(for characterId: Int) async throws -> String {
+    /// 刷新 access token（使用 refresh token 获取新的 access token）
+    private func refreshAccessToken(for characterId: Int) async throws -> String {
         // 如果已经有正在进行的刷新任务，等待其完成
-        if let existingTask = refreshingTokens[characterId] {
+        if let existingTask = tokenRefreshTasks[characterId] {
             Logger.info("等待现有的token刷新任务完成 - 角色ID: \(characterId)")
             return try await existingTask.value
         }
@@ -44,7 +203,7 @@ actor AuthTokenManager: NSObject {
         // 创建新的刷新任务
         let task = Task<String, Error> {
             defer {
-                refreshingTokens[characterId] = nil
+                tokenRefreshTasks[characterId] = nil
             }
 
             guard let authState = authStates[characterId] else {
@@ -69,19 +228,19 @@ actor AuthTokenManager: NSObject {
         }
 
         // 保存刷新任务
-        refreshingTokens[characterId] = task
+        tokenRefreshTasks[characterId] = task
 
         // 等待任务完成并返回结果
         return try await task.value
     }
 
-    // 获取授权URL配置
+    /// 获取授权URL配置（用于 OAuth 流程）
     private func getConfiguration() async throws -> OIDServiceConfiguration {
         return try await OIDAuthorizationService.discoverConfiguration(
             forIssuer: EVEConfig.OAuth.baseURL)
     }
 
-    // 初始授权流程
+    /// 初始授权流程（获取 access token 和 refresh token）
     func authorize(presenting viewController: UIViewController, scopes: [String]) async throws
         -> OIDAuthState
     {
@@ -128,6 +287,7 @@ actor AuthTokenManager: NSObject {
         currentAuthorizationFlow = flow
     }
 
+    /// 保存认证状态（包括 access token 和 refresh token）
     func saveAuthState(_ authState: OIDAuthState, for characterId: Int) {
         authState.stateChangeDelegate = self
         authStates[characterId] = authState
@@ -137,14 +297,15 @@ actor AuthTokenManager: NSObject {
         }
     }
 
+    /// 获取 access token（如果即将过期会自动刷新）
     func getAccessToken(for characterId: Int) async throws -> String {
         Logger.info("Try Get authState")
         let authState = try await getOrCreateAuthState(for: characterId)
         Logger.info("Get authState: \(authState)")
         // 检查状态是否有效，如果无效则强制刷新
-        if !validateAuthState(authState) {
+        if !accessTokenNotExpired(authState) {
             Logger.info("检测到token即将过期，主动刷新 - 角色ID: \(characterId)")
-            return try await refreshToken(for: characterId)
+            return try await refreshAccessToken(for: characterId)
         }
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -167,6 +328,7 @@ actor AuthTokenManager: NSObject {
         }
     }
 
+    /// 获取或创建认证状态（使用 refresh token 恢复认证状态）
     private func getOrCreateAuthState(for characterId: Int) async throws -> OIDAuthState {
         if let existingState = authStates[characterId] {
             return existingState
@@ -194,50 +356,74 @@ actor AuthTokenManager: NSObject {
             additionalParameters: nil
         )
 
-        let response: OIDTokenResponse = try await withCheckedThrowingContinuation { continuation in
-            OIDAuthorizationService.perform(request) { response, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else if let response = response {
-                    continuation.resume(returning: response)
-                } else {
-                    continuation.resume(throwing: NetworkError.invalidData)
+        do {
+            let response: OIDTokenResponse = try await withCheckedThrowingContinuation { continuation in
+                OIDAuthorizationService.perform(request) { response, error in
+                    if let error = error {
+                        // 检查是否是invalid_grant错误
+                        if let oauthError = error as NSError?,
+                           oauthError.domain == "org.openid.appauth.oauth_token",
+                           oauthError.code == -10,
+                           let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
+                           errorResponse["error"] as? String == "invalid_grant" {
+                            // 删除Keychain中的token
+                            try? SecureStorage.shared.deleteToken(for: characterId)
+                            Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
+                        }
+                        continuation.resume(throwing: error)
+                    } else if let response = response {
+                        continuation.resume(returning: response)
+                    } else {
+                        continuation.resume(throwing: NetworkError.invalidData)
+                    }
                 }
             }
+
+            let authRequest = OIDAuthorizationRequest(
+                configuration: configuration,
+                clientId: clientId,
+                scopes: nil,
+                redirectURL: redirectURI,
+                responseType: OIDResponseTypeCode,
+                additionalParameters: nil
+            )
+
+            let authResponse = OIDAuthorizationResponse(
+                request: authRequest,
+                parameters: [
+                    "code": "refresh_token_flow" as NSString,
+                    "state": "refresh_token_flow" as NSString,
+                ]
+            )
+
+            let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
+            authState.stateChangeDelegate = self
+
+            authStates[characterId] = authState
+            return authState
+        } catch {
+            // 如果是invalid_grant错误，确保token被删除
+            if let oauthError = error as NSError?,
+               oauthError.domain == "org.openid.appauth.oauth_token",
+               oauthError.code == -10,
+               let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
+               errorResponse["error"] as? String == "invalid_grant" {
+                try? SecureStorage.shared.deleteToken(for: characterId)
+                Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
+            }
+            throw error
         }
-
-        let authRequest = OIDAuthorizationRequest(
-            configuration: configuration,
-            clientId: clientId,
-            scopes: nil,
-            redirectURL: redirectURI,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: nil
-        )
-
-        let authResponse = OIDAuthorizationResponse(
-            request: authRequest,
-            parameters: [
-                "code": "refresh_token_flow" as NSString,
-                "state": "refresh_token_flow" as NSString,
-            ]
-        )
-
-        let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
-        authState.stateChangeDelegate = self
-
-        authStates[characterId] = authState
-        return authState
     }
 
-    func clearTokens(for characterId: Int) {
+    /// 清除所有 token（包括 access token 和 refresh token）
+    func clearAllTokens(for characterId: Int) {
         if let authState = authStates.removeValue(forKey: characterId) {
             authState.stateChangeDelegate = nil
         }
         try? SecureStorage.shared.deleteToken(for: characterId)
     }
 
-    // 创建并保存认证状态
+    /// 创建并保存认证状态（包括 access token 和 refresh token）
     func createAndSaveAuthState(
         accessToken: String,
         refreshToken: String,
@@ -306,6 +492,7 @@ actor AuthTokenManager: NSObject {
 }
 
 extension AuthTokenManager: OIDAuthStateChangeDelegate {
+    /// 当认证状态改变时更新 refresh token
     nonisolated func didChange(_ state: OIDAuthState) {
         Logger.info("登录状态改变，尝试刷新 refresh token")
         if let refreshToken = state.refreshToken {

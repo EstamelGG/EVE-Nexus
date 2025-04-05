@@ -98,12 +98,17 @@ struct EVE_NexusApp: App {
                 "App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidToken ? "有效 refresh token" : "无效 refresh token")"
             )
 
-            // 如果没有有效的 token，移除该角色
+            // 如果没有有效的 token，标记为过期
             if !hasValidToken {
                 Logger.info(
-                    "App初始化: 移除无效 token 的角色 - \(character.character.CharacterName) (\(characterId))"
+                    "App初始化: 标记角色token过期 - \(character.character.CharacterName) (\(characterId))"
                 )
-                EVELogin.shared.removeCharacter(characterId: characterId)
+                let characterToUpdate = character.character
+                Task {
+                    var updatedCharacter = characterToUpdate
+                    updatedCharacter.tokenExpired = true
+                    try? await EVELogin.shared.saveCharacterInfo(updatedCharacter)
+                }
             }
         }
     }

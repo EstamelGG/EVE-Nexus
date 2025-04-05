@@ -4,165 +4,6 @@ import Foundation
 import Security
 import SwiftUI
 
-// 添加 SecureStorage 类
-class SecureStorage {
-    static let shared = SecureStorage()
-
-    private init() {}
-
-    func saveToken(_ token: String, for characterId: Int) throws {
-        Logger.info(
-            "SecureStorage: 开始保存 refresh token 到 SecureStorage - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
-        )
-
-        guard let tokenData = token.data(using: .utf8) else {
-            Logger.error("SecureStorage: 无法将 token 转换为数据")
-            throw KeychainError.unhandledError(status: errSecParam)
-        }
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-            String(kSecValueData): tokenData,
-            String(kSecAttrAccessible): kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            // 如果已存在，则更新
-            let updateQuery: [String: Any] = [
-                String(kSecClass): kSecClassGenericPassword,
-                String(kSecAttrAccount): "token_\(characterId)",
-            ]
-            let updateAttributes: [String: Any] = [
-                String(kSecValueData): tokenData
-            ]
-            let updateStatus = SecItemUpdate(
-                updateQuery as CFDictionary, updateAttributes as CFDictionary
-            )
-            if updateStatus != errSecSuccess {
-                Logger.error(
-                    "SecureStorage: 更新 refresh token 失败 - 角色ID: \(characterId), 错误码: \(updateStatus)"
-                )
-                throw KeychainError.unhandledError(status: updateStatus)
-            }
-            Logger.info("SecureStorage: 成功更新了 refresh token - 角色ID: \(characterId)")
-        } else if status != errSecSuccess {
-            Logger.error(
-                "SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
-            throw KeychainError.unhandledError(status: status)
-        } else {
-            Logger.info("SecureStorage: 成功保存新的 refresh token - 角色ID: \(characterId)")
-        }
-    }
-
-    func loadToken(for characterId: Int) throws -> String? {
-        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-            String(kSecReturnData): true,
-            String(kSecMatchLimit): kSecMatchLimitOne,
-        ]
-
-        Logger.info("SecureStorage: 查询参数 - account: token_\(characterId)")
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        if status == errSecItemNotFound {
-            Logger.error(
-                "SecureStorage: 在 Keychain 中未找到 refresh token - 角色ID: \(characterId), 错误: 项目不存在")
-            return nil
-        } else if status != errSecSuccess {
-            Logger.error(
-                "SecureStorage: 从 Keychain 加载 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)"
-            )
-            throw KeychainError.unhandledError(status: status)
-        }
-
-        guard let data = result as? Data else {
-            Logger.error(
-                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
-            return nil
-        }
-
-        guard let token = String(data: data, encoding: .utf8) else {
-            Logger.error(
-                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
-            return nil
-        }
-
-        Logger.info(
-            "SecureStorage: 成功从 Keychain 加载 refresh token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
-        )
-        return token
-    }
-
-    func deleteToken(for characterId: Int) throws {
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess, status != errSecItemNotFound {
-            throw KeychainError.unhandledError(status: status)
-        }
-    }
-
-    // 列出所有有效的 token
-    func listValidTokens() -> [Int] {
-        Logger.info("SecureStorage: 开始检查所有有效的 refresh token")
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecReturnAttributes): true,
-            String(kSecMatchLimit): kSecMatchLimitAll,
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        if status == errSecItemNotFound {
-            Logger.info("SecureStorage: 未找到任何 refresh token")
-            return []
-        } else if status != errSecSuccess {
-            Logger.error("SecureStorage: 查询 refresh token 失败，错误码: \(status)")
-            return []
-        }
-
-        guard let items = result as? [[String: Any]] else {
-            Logger.error("SecureStorage: 无法解析查询结果")
-            return []
-        }
-
-        var validCharacterIds: [Int] = []
-
-        for item in items {
-            if let account = item[String(kSecAttrAccount)] as? String,
-                account.hasPrefix("token_"),
-                let characterIdStr = account.split(separator: "_").last,
-                let characterId = Int(characterIdStr)
-            {
-                // 检查 token 是否有效
-                if let token = try? loadToken(for: characterId), !token.isEmpty {
-                    validCharacterIds.append(characterId)
-                    Logger.info("SecureStorage: 找到有效的 refresh token - 角色ID: \(characterId)")
-                }
-            }
-        }
-
-        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 refresh token")
-        return validCharacterIds
-    }
-}
-
-enum KeychainError: Error {
-    case unhandledError(status: OSStatus)
-}
-
 // 导入技能队列数据模型
 // typealias SkillQueueItem = EVE_Nexus.SkillQueueItem
 
@@ -476,7 +317,7 @@ class EVELogin {
     }
 
     // 保存角色信息
-    private func saveCharacterInfo(_ character: EVECharacterInfo) async throws {
+    func saveCharacterInfo(_ character: EVECharacterInfo) async throws {
         Logger.info(
             "EVELogin: 开始保存角色信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
 
@@ -652,7 +493,7 @@ class EVELogin {
 
         // 3. 清除 AuthTokenManager 中的缓存
         Task {
-            await AuthTokenManager.shared.clearTokens(for: characterId)
+            await AuthTokenManager.shared.clearAllTokens(for: characterId)
         }
 
         // 4. 清理 CharacterDatabase 中的相关数据
