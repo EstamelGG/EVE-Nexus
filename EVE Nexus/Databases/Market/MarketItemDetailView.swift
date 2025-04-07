@@ -43,7 +43,7 @@ struct RegionPickerView: View {
     @Binding var selectedRegionID: Int
     @Binding var selectedRegionName: String
     let databaseManager: DatabaseManager
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     @State private var isEditMode = false
     @State private var allRegions: [Region] = []
@@ -275,7 +275,7 @@ struct MarketItemDetailView: View {
     @State private var selectedRegionID: Int = 0
     @State private var selectedRegionName: String = ""
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     private var chartHeight: CGFloat {
         // 根据设备类型和方向调整高度
         if horizontalSizeClass == .regular {

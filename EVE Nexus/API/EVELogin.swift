@@ -16,7 +16,7 @@ struct EVECharacterInfo: Codable {
     let CharacterOwnerHash: String
     var corporationId: Int?
     var allianceId: Int?
-    var tokenExpired: Bool = false
+    var refreshTokenExpired: Bool = false
 
     // 动态属性
     var totalSkillPoints: Int?
@@ -50,7 +50,7 @@ struct EVECharacterInfo: Codable {
         case location
         case locationStatus
         case currentSkill
-        case tokenExpired
+        case refreshTokenExpired
         case corporationId
         case allianceId
         case skillQueueLength
@@ -75,7 +75,7 @@ struct EVECharacterInfo: Codable {
             CharacterLocation.LocationStatus.self, forKey: .locationStatus
         )
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
-        tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
+        refreshTokenExpired = try container.decodeIfPresent(Bool.self, forKey: .refreshTokenExpired) ?? false
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
         skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
@@ -96,7 +96,7 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
         try container.encodeIfPresent(currentSkill, forKey: .currentSkill)
-        try container.encode(tokenExpired, forKey: .tokenExpired)
+        try container.encode(refreshTokenExpired, forKey: .refreshTokenExpired)
         try container.encodeIfPresent(corporationId, forKey: .corporationId)
         try container.encodeIfPresent(allianceId, forKey: .allianceId)
         try container.encodeIfPresent(skillQueueLength, forKey: .skillQueueLength)
@@ -130,7 +130,7 @@ struct ESIConfig: Codable {
 struct CharacterAuth: Codable {
     var character: EVECharacterInfo
     let addedDate: Date
-    //    let lastTokenUpdateTime: Date
+    let lastTokenUpdateTime: Date
 }
 
 // 添加用户管理的 ViewModel
@@ -235,7 +235,7 @@ class EVELoginViewModel: ObservableObject {
                 await loadCharacterPortrait(characterId: character.CharacterID)
             } catch {
                 errorMessage = error.localizedDescription
-                showingError = true
+                showingError = false
                 Logger.error("登录失败: \(error)")
             }
         }
@@ -332,16 +332,16 @@ class EVELogin {
             let originalAddedDate = characters[index].addedDate
             characters[index] = CharacterAuth(
                 character: character,
-                addedDate: originalAddedDate
-                    // lastTokenUpdateTime: Date()
+                addedDate: originalAddedDate,
+                lastTokenUpdateTime: Date()
             )
             Logger.info("EVELogin: 更新现有角色信息")
         } else {
             characters.append(
                 CharacterAuth(
                     character: character,
-                    addedDate: Date()
-                        // lastTokenUpdateTime: Date()
+                    addedDate: Date(),
+                    lastTokenUpdateTime: Date()
                 ))
             isNewCharacter = true
             Logger.info("EVELogin: 添加新角色信息")
@@ -579,22 +579,36 @@ class EVELogin {
 
         // 异步加载 scopes
         Task {
-            let scopes = await ScopeManager.shared.getScopes()
+            let scopes = await ScopeManager.shared.getLatestScopes()
             await MainActor.run {
                 self.config?.scopes = scopes
             }
         }
     }
 
-    // 重置token状态
-    func resetTokenExpired(characterId: Int) {
-        // 不再需要手动管理 token 状态，由 AuthTokenManager 处理
-        Task {
-            do {
-                _ = try await AuthTokenManager.shared.getAccessToken(for: characterId)
-                Logger.info("EVELogin: 已重置角色 \(characterId) 的 token 状态")
-            } catch {
-                Logger.error("EVELogin: 重置角色 \(characterId) 的 token 状态失败: \(error)")
+    // 更新角色的 refreshTokenExpired 状态
+    func updateCharacterRefreshTokenExpiredStatus(characterId: Int, expired: Bool) {
+        var characters = loadCharacters()
+        if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
+            var updatedCharacter = characters[index].character
+            if updatedCharacter.refreshTokenExpired != expired {
+                Logger.info("将人物 \(characterId) 的 refresh token 过期状态从 \(updatedCharacter.refreshTokenExpired) 改为 \(expired)")
+                updatedCharacter.refreshTokenExpired = expired
+                characters[index] = CharacterAuth(character: updatedCharacter, addedDate: characters[index].addedDate, lastTokenUpdateTime: Date())
+                
+                // 保存更新后的角色信息
+                if let encodedData = try? JSONEncoder().encode(characters) {
+                    UserDefaults.standard.set(encodedData, forKey: charactersKey)
+                }
+                
+                // 发送通知以更新UI
+                NotificationCenter.default.post(
+                    name: Notification.Name("CharacterDetailsUpdated"),
+                    object: nil,
+                    userInfo: ["character": updatedCharacter]
+                )
+            } else {
+                Logger.info("人物 \(characterId) 的 refresh token 过期状态为 \(updatedCharacter.refreshTokenExpired), 无需更改")
             }
         }
     }
@@ -615,18 +629,35 @@ class EVELogin {
             tokenType: token.token_type,
             characterId: character.CharacterID
         )
+        
+        // 3. 重置refreshTokenExpired状态
+        updateCharacterRefreshTokenExpiredStatus(characterId: character.CharacterID, expired: false)
 
         Logger.info("EVELogin: 认证状态已保存")
     }
 
     // 添加 getScopes 方法到类内部
     func getScopes() async -> [String] {
-        let scopes = await ScopeManager.shared.getScopes()
+        let scopes = await ScopeManager.shared.getLatestScopes()
         // 更新配置中的 scopes
         await MainActor.run {
             self.config?.scopes = scopes
         }
         return scopes
+    }
+
+    func resetRefreshTokenExpired(characterId: Int) {
+        // 不再需要手动管理 token 状态，由 AuthTokenManager 处理
+        Task {
+            do {
+                _ = try await AuthTokenManager.shared.getAccessToken(for: characterId)
+                // 明确将refreshTokenExpired设置为false
+                updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: false)
+                Logger.info("EVELogin: 已重置角色 \(characterId) 的 token 状态")
+            } catch {
+                Logger.error("EVELogin: 重置角色 \(characterId) 的 token 状态失败: \(error)")
+            }
+        }
     }
 }
 
@@ -664,10 +695,12 @@ class ScopeManager {
     // 保存 scopes 到本地文件
     private func saveScopesToFile(_ scopes: [String]) {
         do {
-            let scopesDict = ["scopes": scopes]
+            // 对 scopes 数组进行排序
+            let sortedScopes = scopes.sorted()
+            let scopesDict = ["scopes": sortedScopes]
             let data = try JSONEncoder().encode(scopesDict)
             try data.write(to: latestScopesPath)
-            Logger.info("成功保存 scopes 到本地文件")
+            Logger.info("成功保存 scopes 到本地文件，共 \(sortedScopes.count) 个权限")
         } catch {
             Logger.error("保存 scopes 到本地文件失败: \(error)")
         }
@@ -685,7 +718,7 @@ class ScopeManager {
             method: "GET",
             headers: ["Accept": "application/json"],
             noRetryKeywords: nil,
-            timeouts: [2, 5, 5, 10, 10]
+            timeouts: [2, 5, 5]
         )
 
         let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
@@ -702,21 +735,47 @@ class ScopeManager {
     }
 
     // 获取 scopes
-    func getScopes(forceRefresh: Bool = false) async -> [String] {
-        // 如果强制刷新或本地文件不存在，尝试从网络获取
-        if forceRefresh || !FileManager.default.fileExists(atPath: latestScopesPath.path) {
+    func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
+        // 检查是否需要刷新
+        var shouldRefresh = forceRefresh
+        
+        if !shouldRefresh && FileManager.default.fileExists(atPath: latestScopesPath.path) {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: latestScopesPath.path)
+                if let modificationDate = attributes[.modificationDate] as? Date {
+                    let timeInterval = Date().timeIntervalSince(modificationDate)
+                    let days = Int(timeInterval) / (24 * 3600)
+                    let remainingDays = 7 - days
+                    shouldRefresh = timeInterval >= 7 * 24 * 3600
+                    
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    let lastUpdateStr = dateFormatter.string(from: modificationDate)
+                    
+                    Logger.info("""
+                        Scopes 文件状态:
+                        - 最后更新时间: \(lastUpdateStr)
+                        - 已过去天数: \(days) 天
+                        - 剩余有效期: \(remainingDays) 天
+                        - 是否需要刷新: \(shouldRefresh ? "是" : "否")
+                        """)
+                }
+            } catch {
+                Logger.error("检查 latest_scopes.json 文件属性失败: \(error)")
+                shouldRefresh = true
+            }
+        } else if !shouldRefresh {
+            Logger.info("latest_scopes.json 文件不存在，需要创建")
+            shouldRefresh = true
+        }
+
+        // 如果需要刷新，尝试从网络获取
+        if shouldRefresh {
             do {
                 Logger.info("尝试从网络获取最新 scopes")
                 return try await fetchLatestScopes()
             } catch {
-                Logger.error("从网络获取 scopes 失败: \(error)，尝试使用本地硬编码的 scopes")
-                // 如果网络获取失败，尝试使用硬编码的 scopes
-                if let hardcodedScopes = loadHardcodedScopes() {
-                    return hardcodedScopes
-                }
-                // 如果硬编码的 scopes 也无法加载，返回空数组
-                Logger.error("加载硬编码的 scopes 也失败")
-                return []
+                Logger.error("从网络获取 scopes 失败: \(error)，尝试使用本地文件")
             }
         }
 

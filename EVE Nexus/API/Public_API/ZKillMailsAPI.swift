@@ -30,10 +30,9 @@ class ZKillMailsAPI {
     public func fetchCharacterStats(characterId: Int) async throws -> CharBattleIsk {
         let url = URL(
             string: "https://zkillboard.com/cache/1hour/stats/?type=characterID&id=\(characterId)")!
-        let headers = ["User-Agent": "EVE-Nexus"]
 
         Logger.info("开始获取角色战斗统计信息 - ID: \(characterId)")
-        let data = try await NetworkManager.shared.fetchData(from: url, headers: headers)
+        let data = try await NetworkManager.shared.fetchData(from: url)
 
         do {
             let stats = try JSONDecoder().decode(CharBattleIsk.self, from: data)

@@ -351,13 +351,18 @@ class MainViewModel: ObservableObject {
         lastError = nil
         let service = CharacterDataService.shared
 
-        // 创建一个独立的任务来处理服务器状态
-        Task {
+        // 创建一个独立的任务来处理服务器状态，但不等待它完成
+        Task.detached(priority: .background) {
             do {
-                self.serverStatus = try await service.getServerStatus(forceRefresh: forceRefresh)
+                let status = try await service.getServerStatus(forceRefresh: forceRefresh)
+                await MainActor.run {
+                    self.serverStatus = status
+                }
             } catch {
-                lastError = .serverStatusFailed
-                Logger.error("获取服务器状态失败: \(error)")
+                await MainActor.run {
+                    self.lastError = .serverStatusFailed
+                    Logger.error("获取服务器状态失败: \(error)")
+                }
             }
         }
 

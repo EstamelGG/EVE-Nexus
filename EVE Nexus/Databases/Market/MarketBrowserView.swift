@@ -10,6 +10,7 @@ struct MarketBaseView<Content: View>: View {
 
     @State private var items: [DatabaseListItem] = []
     @State private var marketGroupNames: [Int: String] = [:]
+    @State private var metaGroupNames: [Int: String] = [:]  // 添加科技等级名称字典
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var isLoading = false
@@ -21,8 +22,7 @@ struct MarketBaseView<Content: View>: View {
         guard !items.isEmpty else { return [] }
 
         // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
-            [:]
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
 
         // 首先按categoryID和groupID分组
         for item in items {
@@ -35,13 +35,10 @@ struct MarketBaseView<Content: View>: View {
             }
 
             // 在当前分类中查找或创建groupID组
-            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
-                $0.groupID == groupID
-            }) {
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: { $0.groupID == groupID }) {
                 groupedByCategory[categoryID]?[index].items.append(item)
             } else {
-                groupedByCategory[categoryID]?.append(
-                    (groupID: groupID, name: groupName, items: [item]))
+                groupedByCategory[categoryID]?.append((groupID: groupID, name: groupName, items: [item]))
             }
         }
 
@@ -67,7 +64,17 @@ struct MarketBaseView<Content: View>: View {
                 let sortedGroups = categoryGroups.sorted { $0.groupID < $1.groupID }
 
                 for group in sortedGroups {
-                    result.append((id: group.groupID, name: group.name, items: group.items))
+                    // 对组内物品进行排序
+                    let sortedItems = group.items.sorted { item1, item2 in
+                        // 首先按科技等级排序
+                        if item1.metaGroupID != item2.metaGroupID {
+                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+                        }
+                        // 科技等级相同时按名称排序
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                    }
+                    
+                    result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }
             }
         }
@@ -153,6 +160,9 @@ struct MarketBaseView<Content: View>: View {
         .navigationTitle(title)
         .onAppear {
             setupSearch()
+            // 加载科技等级名称
+            let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
         }
     }
 
@@ -270,28 +280,38 @@ struct MarketItemListView: View {
         // 添加已发布物品组
         for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
             if let techLevel = techLevel {
-                let name =
-                    metaGroupNames[techLevel]
-                    ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
-                result.append((id: techLevel, name: name, items: items))
+                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                // 对每个科技等级组内的物品按名称排序
+                let sortedItems = items.sorted { item1, item2 in
+                    item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                }
+                result.append((id: techLevel, name: name, items: sortedItems))
             }
         }
 
         // 添加未分组的物品
         if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
+            // 对未分组物品按名称排序
+            let sortedItems = ungroupedItems.sorted { item1, item2 in
+                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
             result.append(
                 (
                     id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
-                    items: ungroupedItems
+                    items: sortedItems
                 ))
         }
 
         // 添加未发布物品组
         if !unpublishedItems.isEmpty {
+            // 对未发布物品按名称排序
+            let sortedItems = unpublishedItems.sorted { item1, item2 in
+                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
             result.append(
                 (
                     id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
-                    items: unpublishedItems
+                    items: sortedItems
                 ))
         }
 

@@ -467,6 +467,7 @@
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
 "Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
 "Common_info" = "Basic info";
+"Timer" = "Timer";
 
 "Character_Security_Status" = "Security Status";
 "Character_Current_Ship" = "Current Ship";
@@ -496,7 +497,7 @@
 "Character_Clone_Details" = "Clone Details";
 "Character_Clone_Implants" = "Implants";
 "Character_No_Implants" = "No Implants";
-"Character_Clone_ID" = "Clone #%d";
+"Character_Clone_ID" = "Clone ID: %d";
 "Main_Jump_Clones" = "Clone Status";
 "Main_Jump_Clones_Available" = "Available Clones";
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
@@ -677,7 +678,6 @@
 "Main_Corporation_Wallet_Division7" = "Corp Wallet 7";
 "Main_Corporation_Hangar_Default" = "Corp Hangar %d";
 "Main_Corporation_Wallet_Default" = "Wallet Division %d";
-"Balance: %@ ISK" = "Balance: %@ ISK";
 
 // Wallet Journal
 "Summary" = "Summary(30d)";
@@ -689,6 +689,7 @@
 "Common_Error" = "Error";
 "Net Balance" = "Net Balance";
 "Load More" = "Load More";
+"Balance" = "Balance: %@ ISK";
 
 // Optimal Attributes
 "Main_Skills_Optimal_Attributes" = "Optimal Attributes";
@@ -1345,3 +1346,11 @@
 "Jump_Navigation_Error_No_Waypoints" = "Please add at least one waypoint";
 "Jump_Navigation_Error_Invalid_Route" = "Cannot find valid route";
 "Jump_Navigation_Error_Path_Not_Found" = "Cannot find path from %@ to %@";
+
+"Server_Status_Online" = "Server Online";
+"Server_Status_Offline" = "Offline";
+"Server_Status_Checking" = "Checking Status...";
+"Server_Status_Players" = " (%@ players)";
+
+"Character_Implants_Count" = "%d Implant(s)";
+"Character_Clone_And_Implants_Count" = "%d Clone(s) · %d Implant(s)";

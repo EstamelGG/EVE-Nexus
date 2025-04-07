@@ -152,12 +152,7 @@ class ServerStatusViewModel: ObservableObject {
             }
         }
 
-        // 立即开始第一次刷新
-        Task {
-            await refreshServerStatus()
-        }
-
-        // 设置状态更新计时器
+        // 设置状态更新计时器（这会自动触发第一次刷新）
         resetStatusTimer()
     }
 
@@ -254,18 +249,18 @@ struct ServerStatusView: View {
                     from: NSNumber(value: status.players),
                     number: .decimal
                 )
-                return Text("Online")
+                return Text(NSLocalizedString("Server_Status_Online", comment: ""))
                     .font(.caption.bold())
                     .foregroundColor(.green)
-                    + Text(" (\(formattedPlayers) players)")
+                    + Text(String(format: NSLocalizedString("Server_Status_Players", comment: ""), formattedPlayers))
                     .font(.caption)
             } else {
-                return Text("Offline")
+                return Text(NSLocalizedString("Server_Status_Offline", comment: ""))
                     .font(.caption.bold())
                     .foregroundColor(.red)
             }
         } else {
-            return Text("Checking Status...")
+            return Text(NSLocalizedString("Server_Status_Checking", comment: ""))
                 .font(.caption)
         }
     }
@@ -278,7 +273,7 @@ struct LoginButtonView: View {
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
     let isRefreshing: Bool
-    @State private var tokenExpired = false
+    @State private var isRefreshTokenExpired = false
     @ObservedObject var mainViewModel: MainViewModel
 
     var body: some View {
@@ -297,23 +292,9 @@ struct LoginButtonView: View {
 
                         ProgressView()
                             .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
-                        }
+                    } else if isRefreshTokenExpired {
+                        // 使用TokenExpiredOverlay组件
+                        TokenExpiredOverlay()
                     }
                 }
                 .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
@@ -405,10 +386,15 @@ struct LoginButtonView: View {
             // 检查token状态
             if let character = selectedCharacter {
                 if let auth = EVELogin.shared.getCharacterByID(character.CharacterID) {
-                    Logger.info("检查Token过期状态...")
-                    tokenExpired = auth.character.tokenExpired
-                    Logger.info("Token 已过期: \(tokenExpired)")
+                    Logger.info("检查Token状态...")
+                    isRefreshTokenExpired = auth.character.refreshTokenExpired
+                    if isRefreshTokenExpired {
+                        Logger.warning("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 已过期，需要重新登录")
+                    } else {
+                        Logger.info("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 状态正常")
+                    }
                 } else {
+                    Logger.error("找不到角色 \(character.CharacterName) (\(character.CharacterID)) 的认证信息")
                     // 如果找不到认证信息，通知 ContentView 执行登出操作
                     NotificationCenter.default.post(
                         name: NSNotification.Name("CharacterLoggedOut"), object: nil

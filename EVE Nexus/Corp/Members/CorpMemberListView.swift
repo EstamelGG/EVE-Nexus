@@ -70,7 +70,7 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var totalPages = 0
     @Published var searchText: String = ""
     @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     var sortOption: MemberSortOption {
         get {

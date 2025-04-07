@@ -260,10 +260,11 @@ class DatabaseManager: ObservableObject {
         return (published, unpublished, metaGroupNames)
     }
 
-    // 搜索物品
+    // 搜索物品 限制200个结果
     func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> (
         [DatabaseListItem], [Int: String], [Int: String]
     ) {
+        Logger.info("Search: \(searchText)")
         var query = """
                 SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
@@ -288,7 +289,7 @@ class DatabaseManager: ObservableObject {
             parameters.append(groupID)
         }
 
-        query += " ORDER BY t.groupID, t.metaGroupID"
+        query += " ORDER BY t.groupID, t.metaGroupID LIMIT 200"
 
         let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []

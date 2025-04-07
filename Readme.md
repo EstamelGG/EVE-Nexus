@@ -22,13 +22,6 @@ cd "EVE Nexus" && $(xcrun --find swift-format) -r . -i --configuration .swift-fo
 periphery scan | grep -v "/Thirdparty/" > log.txt
 ```
 
-# hint
-
-1. 通过 `withAnimation` 来添加一些动画
-2. 通过在view的init阶段加载数据来避免重复加载
-3. 批量插入sql，参考 `MarketPricesAPI.swift` 的 `saveToDatabase`
-4. .task 与 .onAppear 的使用。参考 BRKillMailView.swift 来避免异常的任务取消。
-
 # 获取应用 / Get App
 
 iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
@@ -78,12 +71,3 @@ iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app
 This project's code is for viewing only. **Modification, commercial use, and redistribution are prohibited.**  
 License: **CC BY-NC-ND 4.0**  
 For details, view the [LICENSE](LICENSE) file or visit: [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
-
-# Token 管理
-
-```
-操作失败: 获取克隆状态 (尝试 2/3) - 错误: Error Domain=org.openid.appauth.oauth_token Code=-10 "invalid_grant: Invalid refresh token. Token missing/expired." UserInfo={OIDOAuthErrorResponseErrorKey={
-    error = "invalid_grant";
-    "error_description" = "Invalid refresh token. Token missing/expired.";
-}, NSLocalizedDescription=invalid_grant: Invalid refresh token. Token missing/expired., NSUnderlyingError=0x600000c6cf60 {Error Domain=org.openid.appauth.remote-http Code=400 "{"error":"invalid_grant","error_description":"Invalid refresh token. Token missing/expired."}" UserInfo={NSLocalizedDescription={"error":"invalid_grant","error_description":"Invalid refresh token. Token missing/expired."}}}}
-```

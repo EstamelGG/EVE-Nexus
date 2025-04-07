@@ -8,6 +8,11 @@ private struct MergedCloneLocation: Identifiable {
     let clones: [JumpClone]
 
     var cloneCount: Int { clones.count }
+    
+    // 计算该位置所有克隆体的植入体总数
+    var totalImplantsCount: Int {
+        clones.reduce(0) { $0 + $1.implants.count }
+    }
 }
 
 // 植入体信息结构
@@ -236,7 +241,8 @@ struct CharacterClonesView: View {
                                     databaseManager: databaseManager,
                                     locationLoader: locationLoader,
                                     characterId: character.CharacterID,
-                                    cloneCount: location.cloneCount
+                                    cloneCount: location.cloneCount,
+                                    totalImplantsCount: location.totalImplantsCount
                                 )
                             }
                         }
@@ -369,12 +375,13 @@ struct CloneLocationRow: View {
     let locationLoader: LocationInfoLoader?
     let characterId: Int
     let cloneCount: Int
+    let totalImplantsCount: Int
     @State private var locationDetail: LocationInfoDetail?
     @State private var locationTypeId: Int?
 
     init(
         locationId: Int, locationType: String, databaseManager: DatabaseManager,
-        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1
+        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1, totalImplantsCount: Int = 0
     ) {
         self.locationId = locationId
         self.locationType = locationType
@@ -382,6 +389,7 @@ struct CloneLocationRow: View {
         self.locationLoader = locationLoader
         self.characterId = characterId
         self.cloneCount = cloneCount
+        self.totalImplantsCount = totalImplantsCount
     }
 
     var body: some View {
@@ -414,8 +422,9 @@ struct CloneLocationRow: View {
 
                     Text(
                         String(
-                            format: NSLocalizedString("Character_Clone_Count", comment: ""),
-                            cloneCount
+                            format: NSLocalizedString("Character_Clone_And_Implants_Count", comment: ""),
+                            cloneCount,
+                            totalImplantsCount
                         )
                     )
                     .font(.caption)

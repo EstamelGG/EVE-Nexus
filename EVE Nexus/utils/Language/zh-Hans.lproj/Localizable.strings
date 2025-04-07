@@ -463,6 +463,7 @@
 "Character_Security_Status" = "安全等级";
 "Character_Current_Ship" = "当前飞船";
 "Character_Current_Location" = "当前位置";
+"Timer" = "计时器";
 
 // 跳跃疲劳相关
 "Character_Jump_Fatigue" = "跳跃疲劳";
@@ -492,7 +493,7 @@
 "Character_Clone_Details" = "克隆体详情";
 "Character_Clone_Implants" = "植入体";
 "Character_No_Implants" = "无植入体";
-"Character_Clone_ID" = "克隆体 #%d";
+"Character_Clone_ID" = "克隆体 ID: %d";
 "Main_Jump_Clones" = "克隆体状态";
 "Main_Jump_Clones_Available" = "可用克隆体";
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
@@ -673,7 +674,7 @@
 "Main_Corporation_Wallet_Division7" = "军团钱包 7";
 "Main_Corporation_Hangar_Default" = "军团机库 %d";
 "Main_Corporation_Wallet_Default" = "部门钱包 %d";
-"Balance: %@ ISK" = "余额: %@ ISK";
+"Balance" = "余额: %@ ISK";
 
 // Wallet Journal
 "Summary" = "摘要(30天)";
@@ -1376,4 +1377,15 @@
 "Jump_Navigation_Error_No_Waypoints" = "请至少添加一个路径点";
 "Jump_Navigation_Error_Invalid_Route" = "无法找到有效路线";
 "Jump_Navigation_Error_Path_Not_Found" = "无法找到从%@到%@的路径";
+
+"Server_Status_Online" = "服务器在线";
+"Server_Status_Offline" = "离线";
+"Server_Status_Checking" = "检查状态中...";
+"Server_Status_Players" = " (%@名玩家)";
+
+"Character_Clone_Count" = "%d 个克隆体";
+"Character_Implants_Count" = "%d 个植入体";
+"Character_Clone_And_Implants_Count" = "%d 个克隆体 · %d 个植入体";
+
+"Character_Clone_ID" = "克隆体 ID: %d";
 

@@ -343,13 +343,22 @@ struct CharacterSheetView: View {
                                     OnlineStatusIndicator(
                                         isOnline: true,
                                         size: 8,
-                                        isLoading: true
+                                        isLoading: true,
+                                        statusUnknown: false
                                     )
                                 } else if let status = onlineStatus {
                                     OnlineStatusIndicator(
                                         isOnline: status.online,
                                         size: 8,
-                                        isLoading: false
+                                        isLoading: false,
+                                        statusUnknown: false
+                                    )
+                                } else {
+                                    OnlineStatusIndicator(
+                                        isOnline: false,
+                                        size: 8,
+                                        isLoading: false,
+                                        statusUnknown: true
                                     )
                                 }
                             }
@@ -617,6 +626,8 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
+                } header: {
+                    Text(NSLocalizedString("Timer", comment: ""))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }

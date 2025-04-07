@@ -555,13 +555,27 @@ struct AgentSearchView: View {
         let whereClause = conditions.isEmpty ? "" : "WHERE " + conditions.joined(separator: " AND ")
 
         let query = """
-                SELECT a.agent_id, a.agent_type, n.itemName as name, a.level, a.corporationID, a.divisionID, a.isLocator, a.locationID,
-                       l.itemName as locationName, a.solarSystemID, s.solarSystemName as solarSystemName,
-                       c.name as corporationName, f.id as factionID, f.name as factionName, f.iconName as factionIcon,
-                       c.icon_id as corporationIconID, d.name as divisionName,
-                       COALESCE(s.solarSystemName, ss.solarSystemName, l.itemName) as sortLocation
+                SELECT 
+                    a.agent_id, 
+                    a.agent_type, 
+                    COALESCE(a.agent_name, n.itemName) as name,  -- 从agents表获取agent_name，如果为null则使用invNames的itemName
+                    a.level, 
+                    a.corporationID, 
+                    a.divisionID, 
+                    a.isLocator, 
+                    a.locationID,
+                    COALESCE(st.stationName, l.itemName) as locationName,  -- 从stations表获取stationName，如果为null则使用invNames的itemName
+                    a.solarSystemID, 
+                    s.solarSystemName as solarSystemName,
+                    c.name as corporationName, 
+                    f.id as factionID, 
+                    f.name as factionName, 
+                    f.iconName as factionIcon,
+                    c.icon_id as corporationIconID, 
+                    d.name as divisionName,
+                    COALESCE(s.solarSystemName, ss.solarSystemName, l.itemName) as sortLocation
                 FROM agents a
-                JOIN invNames n ON a.agent_id = n.itemID
+                LEFT JOIN invNames n ON a.agent_id = n.itemID
                 LEFT JOIN invNames l ON a.locationID = l.itemID
                 LEFT JOIN solarsystems s ON a.solarSystemID = s.solarSystemID
                 LEFT JOIN stations st ON a.locationID = st.stationID
@@ -570,7 +584,7 @@ struct AgentSearchView: View {
                 JOIN factions f ON c.faction_id = f.id
                 LEFT JOIN divisions d ON a.divisionID = d.division_id
                 \(whereClause)
-                ORDER BY sortLocation, f.name, c.name, d.name, a.level DESC, n.itemName
+                ORDER BY sortLocation, f.name, c.name, d.name, a.level DESC, name
             """
 
         var results: [AgentItem] = []

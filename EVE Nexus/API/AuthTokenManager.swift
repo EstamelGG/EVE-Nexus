@@ -97,7 +97,7 @@ class SecureStorage {
         return token
     }
 
-    func deleteToken(for characterId: Int) throws {
+    func deleteRefreshToken(for characterId: Int) throws {
         let query: [String: Any] = [
             String(kSecClass): kSecClassGenericPassword,
             String(kSecAttrAccount): "token_\(characterId)",
@@ -109,8 +109,8 @@ class SecureStorage {
         }
     }
 
-    // 列出所有有效的 token
-    func listValidTokens() -> [Int] {
+    // 列出所有有效的 refresh token
+    func listValidRefreshTokens() -> [Int] {
         Logger.info("SecureStorage: 开始检查所有有效的 refresh token")
 
         let query: [String: Any] = [
@@ -194,6 +194,8 @@ actor AuthTokenManager: NSObject {
 
     /// 刷新 access token（使用 refresh token 获取新的 access token）
     private func refreshAccessToken(for characterId: Int) async throws -> String {
+        Logger.info("开始刷新 access token 流程 - 角色ID: \(characterId)")
+        
         // 如果已经有正在进行的刷新任务，等待其完成
         if let existingTask = tokenRefreshTasks[characterId] {
             Logger.info("等待现有的token刷新任务完成 - 角色ID: \(characterId)")
@@ -207,20 +209,22 @@ actor AuthTokenManager: NSObject {
             }
 
             guard let authState = authStates[characterId] else {
+                Logger.error("未找到认证状态 - 角色ID: \(characterId)")
                 throw NetworkError.authenticationError("No auth state found")
             }
 
+            Logger.info("开始执行 token 刷新 - 角色ID: \(characterId)")
             return try await withCheckedThrowingContinuation { continuation in
                 authState.setNeedsTokenRefresh()  // 强制刷新
                 authState.performAction { accessToken, _, error in
                     if let error = error {
-                        Logger.error("刷新 token 失败: \(error)")
+                        Logger.error("刷新 token 失败: \(error) - 角色ID: \(characterId)")
                         continuation.resume(throwing: error)
                     } else if let accessToken = accessToken {
                         Logger.info("Token 已刷新 - 角色ID: \(characterId)")
                         continuation.resume(returning: accessToken)
                     } else {
-                        Logger.error("刷新 token 失败: 无效数据")
+                        Logger.error("刷新 token 失败: 无效数据 - 角色ID: \(characterId)")
                         continuation.resume(throwing: NetworkError.invalidData)
                     }
                 }
@@ -299,12 +303,14 @@ actor AuthTokenManager: NSObject {
 
     /// 获取 access token（如果即将过期会自动刷新）
     func getAccessToken(for characterId: Int) async throws -> String {
-        Logger.info("Try Get authState")
+        Logger.info("开始获取 access token - 角色ID: \(characterId)")
         let authState = try await getOrCreateAuthState(for: characterId)
-        Logger.info("Get authState: \(authState)")
+        Logger.info("获取到 authState: \(authState), 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))")
+        
         // 检查状态是否有效，如果无效则强制刷新
         if !accessTokenNotExpired(authState) {
-            Logger.info("检测到token即将过期，主动刷新 - 角色ID: \(characterId)")
+            Logger.info("检测到token即将过期，当前过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))")
+            Logger.info("开始主动刷新 token - 角色ID: \(characterId)")
             return try await refreshAccessToken(for: characterId)
         }
 
@@ -319,6 +325,7 @@ actor AuthTokenManager: NSObject {
                     {
                         Logger.info("Token 已自动刷新 - 角色ID: \(characterId)")
                     }
+                    Logger.info("成功获取 access token - 角色ID: \(characterId)")
                     continuation.resume(returning: accessToken)
                 } else {
                     Logger.error("获取 access token 失败: 无效数据")
@@ -328,14 +335,37 @@ actor AuthTokenManager: NSObject {
         }
     }
 
+    /// 清除所有 token（包括 access token 和 refresh token）
+    func clearAllTokens(for characterId: Int) {
+        // 删除内存中的access token
+        if let authState = authStates.removeValue(forKey: characterId) {
+            authState.stateChangeDelegate = nil
+        }
+        // 删除Keychain中的refresh token
+        try? SecureStorage.shared.deleteRefreshToken(for: characterId)
+    }
+
+    /// 处理 invalid_grant 错误
+    private func handleInvalidGrantError(characterId: Int) {
+        // 删除Keychain中的token
+        try? SecureStorage.shared.deleteRefreshToken(for: characterId)
+        Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
+        // 更新角色的 refreshTokenExpired 状态
+        EVELogin.shared.updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: true)
+    }
+
     /// 获取或创建认证状态（使用 refresh token 恢复认证状态）
     private func getOrCreateAuthState(for characterId: Int) async throws -> OIDAuthState {
+        Logger.info("开始获取或创建认证状态 - 角色ID: \(characterId)")
+        
         if let existingState = authStates[characterId] {
+            Logger.info("找到现有的认证状态 - 角色ID: \(characterId)")
             return existingState
         }
 
+        Logger.info("未找到现有认证状态，尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
         guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
-            Logger.error("No refresh token found for: \(characterId)")
+            Logger.error("未找到 refresh token - 角色ID: \(characterId)")
             throw NetworkError.authenticationError("No refresh token found")
         }
 
@@ -343,6 +373,7 @@ actor AuthTokenManager: NSObject {
         let redirectURI = EVEConfig.OAuth.redirectURI
         let clientId = EVELogin.shared.config?.clientId ?? ""
 
+        Logger.info("开始创建 token 刷新请求 - 角色ID: \(characterId)")
         let request = OIDTokenRequest(
             configuration: configuration,
             grantType: OIDGrantTypeRefreshToken,
@@ -357,28 +388,33 @@ actor AuthTokenManager: NSObject {
         )
 
         do {
+            Logger.info("开始执行 token 刷新请求 - 角色ID: \(characterId)")
             let response: OIDTokenResponse = try await withCheckedThrowingContinuation { continuation in
                 OIDAuthorizationService.perform(request) { response, error in
                     if let error = error {
+                        Logger.error("Token 刷新请求失败: \(error) - 角色ID: \(characterId)")
                         // 检查是否是invalid_grant错误
                         if let oauthError = error as NSError?,
                            oauthError.domain == "org.openid.appauth.oauth_token",
                            oauthError.code == -10,
                            let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
                            errorResponse["error"] as? String == "invalid_grant" {
-                            // 删除Keychain中的token
-                            try? SecureStorage.shared.deleteToken(for: characterId)
-                            Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
+                            Logger.error("检测到 invalid_grant 错误，需要重新登录 - 角色ID: \(characterId)")
+                            // 处理 invalid_grant 错误
+                            self.handleInvalidGrantError(characterId: characterId)
                         }
                         continuation.resume(throwing: error)
                     } else if let response = response {
+                        Logger.info("Token 刷新请求成功 - 角色ID: \(characterId)")
                         continuation.resume(returning: response)
                     } else {
+                        Logger.error("Token 刷新请求返回空响应 - 角色ID: \(characterId)")
                         continuation.resume(throwing: NetworkError.invalidData)
                     }
                 }
             }
 
+            Logger.info("开始创建认证状态 - 角色ID: \(characterId)")
             let authRequest = OIDAuthorizationRequest(
                 configuration: configuration,
                 clientId: clientId,
@@ -400,27 +436,22 @@ actor AuthTokenManager: NSObject {
             authState.stateChangeDelegate = self
 
             authStates[characterId] = authState
+            Logger.info("成功创建并保存认证状态 - 角色ID: \(characterId)")
             return authState
         } catch {
+            Logger.error("创建认证状态失败: \(error) - 角色ID: \(characterId)")
             // 如果是invalid_grant错误，确保token被删除
             if let oauthError = error as NSError?,
                oauthError.domain == "org.openid.appauth.oauth_token",
                oauthError.code == -10,
                let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
                errorResponse["error"] as? String == "invalid_grant" {
-                try? SecureStorage.shared.deleteToken(for: characterId)
-                Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
+                Logger.error("检测到 invalid_grant 错误，需要重新登录 - 角色ID: \(characterId)")
+                // 处理 invalid_grant 错误
+                handleInvalidGrantError(characterId: characterId)
             }
             throw error
         }
-    }
-
-    /// 清除所有 token（包括 access token 和 refresh token）
-    func clearAllTokens(for characterId: Int) {
-        if let authState = authStates.removeValue(forKey: characterId) {
-            authState.stateChangeDelegate = nil
-        }
-        try? SecureStorage.shared.deleteToken(for: characterId)
     }
 
     /// 创建并保存认证状态（包括 access token 和 refresh token）

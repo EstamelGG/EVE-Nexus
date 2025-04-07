@@ -4,12 +4,13 @@ struct OnlineStatusIndicator: View {
     let isOnline: Bool
     let size: CGFloat
     let isLoading: Bool
+    let statusUnknown: Bool
     @State private var isAnimating = false
 
     var body: some View {
         Circle()
             .fill(
-                isLoading
+                isLoading || statusUnknown
                     ? Color.yellow.opacity(0.7)
                     : (isOnline ? Color.green.opacity(0.8) : Color.red.opacity(0.8))
             )
@@ -19,7 +20,7 @@ struct OnlineStatusIndicator: View {
                     .stroke(Color.primary.opacity(0.05), lineWidth: 1)
             )
             .shadow(
-                color: isLoading
+                color: isLoading || statusUnknown
                     ? Color.yellow.opacity(0.2)
                     : (isOnline ? Color.green.opacity(0.2) : Color.red.opacity(0.2)),
                 radius: 2,

@@ -14,7 +14,7 @@ struct CorpStructureView: View {
     }
 
     @State private var tempDays: String = ""
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     init(characterId: Int) {
         self.characterId = characterId

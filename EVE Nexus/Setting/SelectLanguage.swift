@@ -22,7 +22,7 @@ struct LanguageOptionView: View {
 
 // 系统名称语言设置视图组件
 private struct SystemNamesLanguageToggle: View {
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     @AppStorage("selectedLanguage") private var storedLanguage: String?
 
     var body: some View {
@@ -98,7 +98,7 @@ struct SelectLanguageView: View {
                 storedLanguage = languages[defaultLanguage]
             } else {
                 // 如果没有匹配的语言，默认使用英语
-                selectedLanguage = "English"
+                selectedLanguage = "en"
                 storedLanguage = "en"
             }
         }
@@ -112,10 +112,8 @@ struct SelectLanguageView: View {
         // 1. 保存新的语言设置
         storedLanguage = languageCode
 
-        // 如果切换到英文，自动设置系统名称为英文
-        if languageCode == "en" {
-            UserDefaults.standard.set(true, forKey: "useEnglishSystemNames")
-        }
+        // 如果切换到英文，自动设置系统名称为英文，否则保持本地化
+        UserDefaults.standard.set(languageCode == "en", forKey: "useEnglishSystemNames")
 
         // 2. 更新语言设置
         UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")

@@ -82,7 +82,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
 
         defer {
             // 完成后释放信号量
-            concurrentSemaphore.signal()
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.concurrentSemaphore.signal()
+            }
         }
 
         try await rateLimiter.waitForPermission()
@@ -98,6 +100,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 添加基本请求头
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
+        request.setValue("Tritanium_by_EstamelGG_Github", forHTTPHeaderField: "User-Agent")
 
         // 如果是 POST 请求且有请求体，设置 Content-Type
         if method == "POST" && body != nil {
@@ -523,7 +526,7 @@ enum NetworkError: LocalizedError {
     case invalidImageData
     case noValidPrice
     case invalidData
-    case tokenExpired
+    case refreshTokenExpired
     case unauthed
     case invalidToken(String)
     case maxRetriesExceeded
@@ -550,7 +553,7 @@ enum NetworkError: LocalizedError {
             return NSLocalizedString("Network_Error_No_Price", comment: "")
         case .invalidData:
             return NSLocalizedString("Network_Error_Invalid_Data", comment: "")
-        case .tokenExpired:
+        case .refreshTokenExpired:
             return NSLocalizedString("Network_Error_Token_Expired", comment: "")
         case .unauthed:
             return NSLocalizedString("Network_Error_Unauthed", comment: "")
